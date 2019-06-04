@@ -25,9 +25,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.io.ByteStreams;
+import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -43,10 +41,14 @@ import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.After;
@@ -66,6 +68,7 @@ public class HadoopFileSystemTest {
   @Rule public TestPipeline p = TestPipeline.create();
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
   @Rule public ExpectedException thrown = ExpectedException.none();
+  @Rule public final ExpectedLogs expectedLogs = ExpectedLogs.none(HadoopFileSystem.class);
   private MiniDFSCluster hdfsCluster;
   private URI hdfsClusterBaseUri;
   private HadoopFileSystem fileSystem;
@@ -124,6 +127,12 @@ public class HadoopFileSystemTest {
     assertArrayEquals("testDataB".getBytes(StandardCharsets.UTF_8), read("copyTestFileB", 0));
   }
 
+  @Test(expected = FileNotFoundException.class)
+  public void testCopySourceMissing() throws Exception {
+    fileSystem.copy(
+        ImmutableList.of(testPath("missingFile")), ImmutableList.of(testPath("copyTestFile")));
+  }
+
   @Test
   public void testDelete() throws Exception {
     create("testFileA", "testDataA".getBytes(StandardCharsets.UTF_8));
@@ -149,7 +158,14 @@ public class HadoopFileSystemTest {
                         .setResourceId(testPath("testFileB"))
                         .setIsReadSeekEfficient(true)
                         .setSizeBytes("testDataB".getBytes(StandardCharsets.UTF_8).length)
+                        .setLastModifiedMillis(lastModified("testFileB"))
                         .build()))));
+  }
+
+  /** Verifies that an attempt to delete a non existing file is silently ignored. */
+  @Test
+  public void testDeleteNonExisting() throws Exception {
+    fileSystem.delete(ImmutableList.of(testPath("MissingFile")));
   }
 
   @Test
@@ -173,11 +189,13 @@ public class HadoopFileSystemTest {
                 .setResourceId(testPath("testFileAA"))
                 .setIsReadSeekEfficient(true)
                 .setSizeBytes("testDataAA".getBytes(StandardCharsets.UTF_8).length)
+                .setLastModifiedMillis(lastModified("testFileAA"))
                 .build(),
             Metadata.builder()
                 .setResourceId(testPath("testFileA"))
                 .setIsReadSeekEfficient(true)
                 .setSizeBytes("testDataA".getBytes(StandardCharsets.UTF_8).length)
+                .setLastModifiedMillis(lastModified("testFileA"))
                 .build()));
   }
 
@@ -208,6 +226,7 @@ public class HadoopFileSystemTest {
                         .setResourceId(testPath("testFileAA"))
                         .setIsReadSeekEfficient(true)
                         .setSizeBytes("testDataAA".getBytes(StandardCharsets.UTF_8).length)
+                        .setLastModifiedMillis(lastModified("testFileAA"))
                         .build())),
             MatchResult.create(Status.NOT_FOUND, ImmutableList.of()),
             MatchResult.create(
@@ -217,7 +236,96 @@ public class HadoopFileSystemTest {
                         .setResourceId(testPath("testFileBB"))
                         .setIsReadSeekEfficient(true)
                         .setSizeBytes("testDataBB".getBytes(StandardCharsets.UTF_8).length)
+                        .setLastModifiedMillis(lastModified("testFileBB"))
                         .build())));
+    assertThat(matchResults, equalTo(expected));
+  }
+
+  @Test
+  public void testMatchForRecursiveGlob() throws Exception {
+    create("1/testFile1", "testData1".getBytes(StandardCharsets.UTF_8));
+    create("1/A/testFile1A", "testData1A".getBytes(StandardCharsets.UTF_8));
+    create("1/A/A/testFile1AA", "testData1AA".getBytes(StandardCharsets.UTF_8));
+    create("1/B/testFile1B", "testData1B".getBytes(StandardCharsets.UTF_8));
+
+    // ensure files exist
+    assertArrayEquals("testData1".getBytes(StandardCharsets.UTF_8), read("1/testFile1", 0));
+    assertArrayEquals("testData1A".getBytes(StandardCharsets.UTF_8), read("1/A/testFile1A", 0));
+    assertArrayEquals("testData1AA".getBytes(StandardCharsets.UTF_8), read("1/A/A/testFile1AA", 0));
+    assertArrayEquals("testData1B".getBytes(StandardCharsets.UTF_8), read("1/B/testFile1B", 0));
+
+    List<MatchResult> matchResults =
+        fileSystem.match(ImmutableList.of(testPath("**testFile1*").toString()));
+
+    assertThat(matchResults, hasSize(1));
+    assertThat(
+        Iterables.getOnlyElement(matchResults).metadata(),
+        containsInAnyOrder(
+            Metadata.builder()
+                .setResourceId(testPath("1/testFile1"))
+                .setIsReadSeekEfficient(true)
+                .setSizeBytes("testData1".getBytes(StandardCharsets.UTF_8).length)
+                .setLastModifiedMillis(lastModified("1/testFile1"))
+                .build(),
+            Metadata.builder()
+                .setResourceId(testPath("1/A/testFile1A"))
+                .setIsReadSeekEfficient(true)
+                .setSizeBytes("testData1A".getBytes(StandardCharsets.UTF_8).length)
+                .setLastModifiedMillis(lastModified("1/A/testFile1A"))
+                .build(),
+            Metadata.builder()
+                .setResourceId(testPath("1/A/A/testFile1AA"))
+                .setIsReadSeekEfficient(true)
+                .setSizeBytes("testData1AA".getBytes(StandardCharsets.UTF_8).length)
+                .setLastModifiedMillis(lastModified("1/A/A/testFile1AA"))
+                .build(),
+            Metadata.builder()
+                .setResourceId(testPath("1/B/testFile1B"))
+                .setIsReadSeekEfficient(true)
+                .setSizeBytes("testData1B".getBytes(StandardCharsets.UTF_8).length)
+                .setLastModifiedMillis(lastModified("1/B/testFile1B"))
+                .build()));
+
+    matchResults =
+        fileSystem.match(
+            ImmutableList.of(
+                testPath("1**File1A").toString(),
+                testPath("1**A**testFile1AA").toString(),
+                testPath("1/B**").toString(),
+                testPath("2**").toString()));
+
+    final List<MatchResult> expected =
+        ImmutableList.of(
+            MatchResult.create(
+                Status.OK,
+                ImmutableList.of(
+                    Metadata.builder()
+                        .setResourceId(testPath("1/A/testFile1A"))
+                        .setIsReadSeekEfficient(true)
+                        .setSizeBytes("testData1A".getBytes(StandardCharsets.UTF_8).length)
+                        .setLastModifiedMillis(lastModified("1/A/testFile1A"))
+                        .build())),
+            MatchResult.create(
+                Status.OK,
+                ImmutableList.of(
+                    Metadata.builder()
+                        .setResourceId(testPath("1/A/A/testFile1AA"))
+                        .setIsReadSeekEfficient(true)
+                        .setSizeBytes("testData1AA".getBytes(StandardCharsets.UTF_8).length)
+                        .setLastModifiedMillis(lastModified("1/A/A/testFile1AA"))
+                        .build())),
+            MatchResult.create(
+                Status.OK,
+                ImmutableList.of(
+                    Metadata.builder()
+                        .setResourceId(testPath("1/B/testFile1B"))
+                        .setIsReadSeekEfficient(true)
+                        .setSizeBytes("testData1B".getBytes(StandardCharsets.UTF_8).length)
+                        .setLastModifiedMillis(lastModified("1/B/testFile1B"))
+                        .build())),
+            MatchResult.create(Status.NOT_FOUND, ImmutableList.of()));
+
+    assertThat(matchResults, hasSize(4));
     assertThat(matchResults, equalTo(expected));
   }
 
@@ -243,16 +351,76 @@ public class HadoopFileSystemTest {
                 .setResourceId(testPath("renameFileA"))
                 .setIsReadSeekEfficient(true)
                 .setSizeBytes("testDataA".getBytes(StandardCharsets.UTF_8).length)
+                .setLastModifiedMillis(lastModified("renameFileA"))
                 .build(),
             Metadata.builder()
                 .setResourceId(testPath("renameFileB"))
                 .setIsReadSeekEfficient(true)
                 .setSizeBytes("testDataB".getBytes(StandardCharsets.UTF_8).length)
+                .setLastModifiedMillis(lastModified("renameFileB"))
                 .build()));
 
     // ensure files exist
     assertArrayEquals("testDataA".getBytes(StandardCharsets.UTF_8), read("renameFileA", 0));
     assertArrayEquals("testDataB".getBytes(StandardCharsets.UTF_8), read("renameFileB", 0));
+  }
+
+  /** Ensure that missing parent directories are created when required. */
+  @Test
+  public void testRenameMissingTargetDir() throws Exception {
+    create("pathA/testFileA", "testDataA".getBytes(StandardCharsets.UTF_8));
+    create("pathA/testFileB", "testDataB".getBytes(StandardCharsets.UTF_8));
+
+    // ensure files exist
+    assertArrayEquals("testDataA".getBytes(StandardCharsets.UTF_8), read("pathA/testFileA", 0));
+    assertArrayEquals("testDataB".getBytes(StandardCharsets.UTF_8), read("pathA/testFileB", 0));
+
+    // move to a directory that does not exist
+    fileSystem.rename(
+        ImmutableList.of(testPath("pathA/testFileA"), testPath("pathA/testFileB")),
+        ImmutableList.of(testPath("pathB/testFileA"), testPath("pathB/pathC/pathD/testFileB")));
+
+    // ensure the directories were created and the files can be read
+    expectedLogs.verifyDebug(String.format(HadoopFileSystem.LOG_CREATE_DIRECTORY, "/pathB"));
+    expectedLogs.verifyDebug(
+        String.format(HadoopFileSystem.LOG_CREATE_DIRECTORY, "/pathB/pathC/pathD"));
+    assertArrayEquals("testDataA".getBytes(StandardCharsets.UTF_8), read("pathB/testFileA", 0));
+    assertArrayEquals(
+        "testDataB".getBytes(StandardCharsets.UTF_8), read("pathB/pathC/pathD/testFileB", 0));
+  }
+
+  @Test(expected = FileNotFoundException.class)
+  public void testRenameMissingSource() throws Exception {
+    fileSystem.rename(
+        ImmutableList.of(testPath("missingFile")), ImmutableList.of(testPath("testFileA")));
+  }
+
+  /** Test that rename overwrites existing files. */
+  @Test
+  public void testRenameExistingDestination() throws Exception {
+    create("testFileA", "testDataA".getBytes(StandardCharsets.UTF_8));
+    create("testFileB", "testDataB".getBytes(StandardCharsets.UTF_8));
+
+    // ensure files exist
+    assertArrayEquals("testDataA".getBytes(StandardCharsets.UTF_8), read("testFileA", 0));
+    assertArrayEquals("testDataB".getBytes(StandardCharsets.UTF_8), read("testFileB", 0));
+
+    fileSystem.rename(
+        ImmutableList.of(testPath("testFileA")), ImmutableList.of(testPath("testFileB")));
+
+    expectedLogs.verifyDebug(
+        String.format(HadoopFileSystem.LOG_DELETING_EXISTING_FILE, "/testFileB"));
+    assertArrayEquals("testDataA".getBytes(StandardCharsets.UTF_8), read("testFileB", 0));
+  }
+
+  /** Test that rename throws predictably when source doesn't exist and destination does. */
+  @Test(expected = FileNotFoundException.class)
+  public void testRenameRetryScenario() throws Exception {
+    testRename();
+    // retry the knowing that sources are already moved to destination
+    fileSystem.rename(
+        ImmutableList.of(testPath("testFileA"), testPath("testFileB")),
+        ImmutableList.of(testPath("renameFileA"), testPath("renameFileB")));
   }
 
   @Test
@@ -302,6 +470,13 @@ public class HadoopFileSystemTest {
       }
       return ByteStreams.toByteArray(inputStream);
     }
+  }
+
+  private long lastModified(String relativePath) throws Exception {
+    return fileSystem
+        .fileSystem
+        .getFileStatus(testPath(relativePath).toPath())
+        .getModificationTime();
   }
 
   private HadoopResourceId testPath(String relativePath) {

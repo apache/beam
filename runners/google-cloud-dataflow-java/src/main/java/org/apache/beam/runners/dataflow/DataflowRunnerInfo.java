@@ -17,14 +17,14 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.beam.sdk.util.ReleaseInfo;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,8 +34,6 @@ public final class DataflowRunnerInfo extends ReleaseInfo {
 
   private static final String APACHE_BEAM_DISTRIBUTION_PROPERTIES_PATH =
       "/org/apache/beam/runners/dataflow/dataflow.properties";
-  private static final String DATAFLOW_DISTRIBUTION_PROPERTIES_PATH =
-      "/org/apache/beam/runners/dataflow/dataflow-distribution.properties";
   private static final String FNAPI_ENVIRONMENT_MAJOR_VERSION_KEY =
       "fnapi.environment.major.version";
   private static final String LEGACY_ENVIRONMENT_MAJOR_VERSION_KEY =
@@ -48,10 +46,7 @@ public final class DataflowRunnerInfo extends ReleaseInfo {
     static {
       Properties properties;
       try {
-        properties = load(DATAFLOW_DISTRIBUTION_PROPERTIES_PATH);
-        if (properties == null) {
-          properties = load(APACHE_BEAM_DISTRIBUTION_PROPERTIES_PATH);
-        }
+        properties = load(APACHE_BEAM_DISTRIBUTION_PROPERTIES_PATH);
         if (properties == null) {
           // Print a warning if we can not load either the Dataflow distribution properties
           // or the

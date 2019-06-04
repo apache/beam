@@ -17,11 +17,9 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -54,6 +52,8 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -251,7 +251,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
-            public Row asRow(@Nullable String id) {
+            public InputT schemaElement(int index) {
               throw new UnsupportedOperationException("Schemas are not supported by DoFnTester");
             }
 
@@ -332,8 +332,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public List<OutputT> peekOutputElements() {
-    return peekOutputElementsWithTimestamp()
-        .stream()
+    return peekOutputElementsWithTimestamp().stream()
         .map(TimestampedValue::getValue)
         .collect(Collectors.toList());
   }
@@ -342,8 +341,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   @Deprecated
   public List<TimestampedValue<OutputT>> peekOutputElementsWithTimestamp() {
     // TODO: Should we return an unmodifiable list?
-    return getImmutableOutput(mainOutputTag)
-        .stream()
+    return getImmutableOutput(mainOutputTag).stream()
         .map(input -> TimestampedValue.of(input.getValue(), input.getTimestamp()))
         .collect(Collectors.toList());
   }
@@ -394,8 +392,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   @Deprecated
   public <T> List<T> peekOutputElements(TupleTag<T> tag) {
     // TODO: Should we return an unmodifiable list?
-    return getImmutableOutput(tag)
-        .stream()
+    return getImmutableOutput(tag).stream()
         .map(ValueInSingleWindow::getValue)
         .collect(Collectors.toList());
   }

@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import com.google.common.base.Supplier;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;

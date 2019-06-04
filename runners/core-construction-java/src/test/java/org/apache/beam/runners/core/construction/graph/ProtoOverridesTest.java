@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
 import static org.hamcrest.Matchers.contains;
@@ -24,7 +23,6 @@ import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.AccumulationMode.Enum;
@@ -36,10 +34,10 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.graph.ProtoOverrides.TransformReplacement;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -69,7 +67,7 @@ public class ProtoOverridesTest {
                         PCollection.newBuilder().setUniqueName("intermediate").build())
                     .putCoders(
                         "coder",
-                        Coder.newBuilder().setSpec(SdkFunctionSpec.getDefaultInstance()).build()))
+                        Coder.newBuilder().setSpec(FunctionSpec.getDefaultInstance()).build()))
             .build();
 
     PTransform secondReplacement =
@@ -147,7 +145,7 @@ public class ProtoOverridesTest {
                         PCollection.newBuilder().setUniqueName("intermediate").build())
                     .putCoders(
                         "coder",
-                        Coder.newBuilder().setSpec(SdkFunctionSpec.getDefaultInstance()).build()))
+                        Coder.newBuilder().setSpec(FunctionSpec.getDefaultInstance()).build()))
             .build();
 
     ByteString newPayload = ByteString.copyFrom("foo-bar-baz".getBytes(StandardCharsets.UTF_8));

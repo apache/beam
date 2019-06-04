@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package perf is to add performance measuring hooks to a runner, such as cpu, or trace profiles.
+// Package perf is to add performance measuring hooks to a runner, such as cpu, heap, or trace profiles.
 package perf
 
 import (
@@ -101,6 +101,36 @@ func init() {
 		}
 	}
 	hooks.RegisterHook("trace", hf)
+
+	hf = func(opts []string) hooks.Hook {
+		enabledHeapCaptureHooks = opts
+		enabled := len(enabledHeapCaptureHooks) > 0
+		var heapProfBuf bytes.Buffer
+		return hooks.Hook{
+			Req: func(ctx context.Context, req *fnpb.InstructionRequest) (context.Context, error) {
+				if !enabled || req.GetProcessBundle() == nil {
+					return ctx, nil
+				}
+				heapProfBuf.Reset()
+				return ctx, nil
+			},
+			Resp: func(ctx context.Context, req *fnpb.InstructionRequest, _ *fnpb.InstructionResponse) error {
+				if !enabled || req.GetProcessBundle() == nil {
+					return nil
+				}
+				pprof.WriteHeapProfile(&heapProfBuf)
+				for _, h := range enabledHeapCaptureHooks {
+					name, opts := hooks.Decode(h)
+					if err := heapCaptureHookRegistry[name](opts)(ctx, fmt.Sprintf("heap%s", req.InstructionId), &heapProfBuf); err != nil {
+						return err
+					}
+				}
+				heapProfBuf.Reset()
+				return nil
+			},
+		}
+	}
+	hooks.RegisterHook("heap", hf)
 }
 
 // RegisterProfCaptureHook registers a CaptureHookFactory for the
@@ -167,4 +197,40 @@ func EnableTraceCaptureHook(name string, opts ...string) {
 	}
 	enabledTraceCaptureHooks = append(enabledTraceCaptureHooks, enc)
 	hooks.EnableHook("trace", enabledTraceCaptureHooks...)
+}
+
+var heapCaptureHookRegistry = make(map[string]CaptureHookFactory)
+var enabledHeapCaptureHooks []string
+
+// RegisterHeapCaptureHook registers a CaptureHookFactory for the
+// supplied identifier. It panics if the same identifier is
+// registered twice.
+func RegisterHeapCaptureHook(name string, c CaptureHookFactory) {
+	if _, exists := heapCaptureHookRegistry[name]; exists {
+		panic(fmt.Sprintf("RegisterHeapCaptureHook: %s registered twice", name))
+	}
+	heapCaptureHookRegistry[name] = c
+}
+
+// EnableHeapCaptureHook actives a registered heap profile capture hook for a given pipeline.
+func EnableHeapCaptureHook(name string, opts ...string) {
+	_, exists := heapCaptureHookRegistry[name]
+	if !exists {
+		panic(fmt.Sprintf("EnableHeapCaptureHook: %s not registered", name))
+	}
+
+	enc := hooks.Encode(name, opts)
+
+	for i, h := range enabledHeapCaptureHooks {
+		n, _ := hooks.Decode(h)
+		if h == n {
+			// Rewrite the registration with the current arguments
+			enabledHeapCaptureHooks[i] = enc
+			hooks.EnableHook("heap", enabledHeapCaptureHooks...)
+			return
+		}
+	}
+
+	enabledHeapCaptureHooks = append(enabledHeapCaptureHooks, enc)
+	hooks.EnableHook("heap", enabledHeapCaptureHooks...)
 }

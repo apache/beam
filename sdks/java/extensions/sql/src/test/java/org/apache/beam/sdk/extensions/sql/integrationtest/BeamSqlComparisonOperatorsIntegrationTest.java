@@ -15,11 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.integrationtest;
 
 import java.math.BigDecimal;
-import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -107,15 +106,10 @@ public class BeamSqlComparisonOperatorsIntegrationTest
             .addExpr("c_decimal_1 > c_decimal_2", false)
             .addExpr("c_varchar_2 > c_varchar_1", true)
             .addExpr("c_varchar_1 > c_varchar_1", false)
-            .addExpr("c_varchar_1 > c_varchar_2", false);
+            .addExpr("c_varchar_1 > c_varchar_2", false)
+            .addExpr("c_boolean_false > c_boolean_true", false)
+            .addExpr("c_boolean_true > c_boolean_false", true);
 
-    checker.buildRunAndCheck();
-  }
-
-  @Test(expected = RuntimeException.class)
-  public void testGreaterThanException() {
-    ExpressionChecker checker =
-        new ExpressionChecker().addExpr("c_boolean_false > c_boolean_true", false);
     checker.buildRunAndCheck();
   }
 
@@ -146,15 +140,10 @@ public class BeamSqlComparisonOperatorsIntegrationTest
             .addExpr("c_decimal_1 >= c_decimal_2", false)
             .addExpr("c_varchar_2 >= c_varchar_1", true)
             .addExpr("c_varchar_1 >= c_varchar_1", true)
-            .addExpr("c_varchar_1 >= c_varchar_2", false);
+            .addExpr("c_varchar_1 >= c_varchar_2", false)
+            .addExpr("c_boolean_false >= c_boolean_true", false)
+            .addExpr("c_boolean_true >= c_boolean_false", true);
 
-    checker.buildRunAndCheck();
-  }
-
-  @Test(expected = RuntimeException.class)
-  public void testGreaterThanOrEqualsException() {
-    ExpressionChecker checker =
-        new ExpressionChecker().addExpr("c_boolean_false >= c_boolean_true", false);
     checker.buildRunAndCheck();
   }
 
@@ -185,15 +174,10 @@ public class BeamSqlComparisonOperatorsIntegrationTest
             .addExpr("c_decimal_1 < c_decimal_2", true)
             .addExpr("c_varchar_2 < c_varchar_1", false)
             .addExpr("c_varchar_1 < c_varchar_1", false)
-            .addExpr("c_varchar_1 < c_varchar_2", true);
+            .addExpr("c_varchar_1 < c_varchar_2", true)
+            .addExpr("c_boolean_false < c_boolean_true", true)
+            .addExpr("c_boolean_true < c_boolean_false", false);
 
-    checker.buildRunAndCheck();
-  }
-
-  @Test(expected = RuntimeException.class)
-  public void testLessThanException() {
-    ExpressionChecker checker =
-        new ExpressionChecker().addExpr("c_boolean_false < c_boolean_true", false);
     checker.buildRunAndCheck();
   }
 
@@ -224,15 +208,10 @@ public class BeamSqlComparisonOperatorsIntegrationTest
             .addExpr("c_decimal_1 <= c_decimal_2", true)
             .addExpr("c_varchar_2 <= c_varchar_1", false)
             .addExpr("c_varchar_1 <= c_varchar_1", true)
-            .addExpr("c_varchar_1 <= c_varchar_2", true);
+            .addExpr("c_varchar_1 <= c_varchar_2", true)
+            .addExpr("c_boolean_false <= c_boolean_true", true)
+            .addExpr("c_boolean_true <= c_boolean_false", false);
 
-    checker.buildRunAndCheck();
-  }
-
-  @Test(expected = RuntimeException.class)
-  public void testLessThanOrEqualsException() {
-    ExpressionChecker checker =
-        new ExpressionChecker().addExpr("c_boolean_false <= c_boolean_true", false);
     checker.buildRunAndCheck();
   }
 
@@ -326,7 +305,7 @@ public class BeamSqlComparisonOperatorsIntegrationTest
             .build();
 
     try {
-      return MockedBoundedTable.of(type)
+      return TestBoundedTable.of(type)
           .addRows(
               (byte) 0,
               (byte) 1,
@@ -357,7 +336,7 @@ public class BeamSqlComparisonOperatorsIntegrationTest
               "string_true_test",
               "string_false_test")
           .buildIOReader(pipeline.begin())
-          .setCoder(type.getRowCoder());
+          .setRowSchema(type);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

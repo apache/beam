@@ -15,16 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump.translators;
 
-import com.google.common.collect.ImmutableList;
+import io.gearpump.util.Graph;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
+import org.apache.beam.runners.core.construction.UnsupportedOverrideFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.PTransformOverride;
@@ -36,7 +36,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.gearpump.util.Graph;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,6 +89,12 @@ public class GearpumpPipelineTranslator extends Pipeline.PipelineVisitor.Default
                 PTransformOverride.of(
                     PTransformMatchers.splittableProcessKeyedBounded(),
                     new SplittableParDoNaiveBounded.OverrideFactory()))
+            // TODO: [BEAM-5361] Support @RequiresStableInput on Gearpump runner
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.requiresStableInputParDoMulti(),
+                    UnsupportedOverrideFactory.withMessage(
+                        "Gearpump runner currently doesn't support @RequiresStableInput annotation.")))
             .build();
 
     pipeline.replaceAll(overrides);

@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump.translators;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
+import io.gearpump.streaming.dsl.window.api.WindowFunction;
+import io.gearpump.streaming.dsl.window.impl.Window;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -36,8 +35,8 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
-import org.apache.gearpump.streaming.dsl.window.api.WindowFunction;
-import org.apache.gearpump.streaming.dsl.window.impl.Window;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;

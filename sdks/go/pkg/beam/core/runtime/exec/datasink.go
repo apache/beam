@@ -24,15 +24,15 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
 // DataSink is a Node.
 type DataSink struct {
-	UID    UnitID
-	Port   Port
-	Target Target
-	Coder  *coder.Coder
+	UID   UnitID
+	SID   StreamID
+	Coder *coder.Coder
 
 	enc   ElementEncoder
 	wEnc  WindowEncoder
@@ -51,10 +51,8 @@ func (n *DataSink) Up(ctx context.Context) error {
 	return nil
 }
 
-func (n *DataSink) StartBundle(ctx context.Context, id string, data DataManager) error {
-	sid := StreamID{Port: n.Port, Target: n.Target, InstID: id}
-
-	w, err := data.OpenWrite(ctx, sid)
+func (n *DataSink) StartBundle(ctx context.Context, id string, data DataContext) error {
+	w, err := data.Data.OpenWrite(ctx, n.SID)
 	if err != nil {
 		return err
 	}
@@ -64,7 +62,7 @@ func (n *DataSink) StartBundle(ctx context.Context, id string, data DataManager)
 	return nil
 }
 
-func (n *DataSink) ProcessElement(ctx context.Context, value FullValue, values ...ReStream) error {
+func (n *DataSink) ProcessElement(ctx context.Context, value *FullValue, values ...ReStream) error {
 	// Marshal the pieces into a temporary buffer since they must be transmitted on FnAPI as a single
 	// unit.
 	var b bytes.Buffer
@@ -74,7 +72,7 @@ func (n *DataSink) ProcessElement(ctx context.Context, value FullValue, values .
 		return err
 	}
 	if err := n.enc.Encode(value, &b); err != nil {
-		return fmt.Errorf("failed to encode element %v with coder %v: %v", value, n.enc, err)
+		return errors.WithContextf(err, "encoding element %v with coder %v", value, n.enc)
 	}
 	if _, err := n.w.Write(b.Bytes()); err != nil {
 		return err
@@ -92,6 +90,5 @@ func (n *DataSink) Down(ctx context.Context) error {
 }
 
 func (n *DataSink) String() string {
-	sid := StreamID{Port: n.Port, Target: n.Target}
-	return fmt.Sprintf("DataSink[%v] Coder:%v", sid, n.Coder)
+	return fmt.Sprintf("DataSink[%v] Coder:%v", n.SID, n.Coder)
 }

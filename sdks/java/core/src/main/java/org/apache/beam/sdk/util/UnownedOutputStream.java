@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.common.base.MoreObjects;
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
 /**
  * A {@link OutputStream} wrapper which protects against the user attempting to modify the

@@ -166,8 +166,7 @@ public class MoreFutures {
 
     return blockAndDiscard.thenApply(
         nothing ->
-            futures
-                .stream()
+            futures.stream()
                 .map(future -> future.toCompletableFuture().join())
                 .collect(Collectors.toList()));
   }
@@ -179,9 +178,8 @@ public class MoreFutures {
    * #allAsList(Collection)}.
    */
   @SuppressWarnings(
-    value = "NM_CLASS_NOT_EXCEPTION",
-    justification = "The class does hold an exception; its name is accurate."
-  )
+      value = "NM_CLASS_NOT_EXCEPTION",
+      justification = "The class does hold an exception; its name is accurate.")
   @AutoValue
   public abstract static class ExceptionOrResult<T> {
 
@@ -218,8 +216,7 @@ public class MoreFutures {
 
     return blockAndDiscard.thenApply(
         nothing ->
-            futures
-                .stream()
+            futures.stream()
                 .map(
                     future -> {
                       // The limited scope of the exceptions wrapped allows CancellationException

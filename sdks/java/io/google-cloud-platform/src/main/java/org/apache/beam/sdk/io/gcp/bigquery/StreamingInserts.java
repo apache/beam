@@ -15,12 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -28,24 +29,36 @@ import org.apache.beam.sdk.values.PCollection;
  * PTransform that performs streaming BigQuery write. To increase consistency, it leverages
  * BigQuery's best effort de-dup mechanism.
  */
-public class StreamingInserts<DestinationT>
-    extends PTransform<PCollection<KV<DestinationT, TableRow>>, WriteResult> {
+public class StreamingInserts<DestinationT, ElementT>
+    extends PTransform<PCollection<KV<DestinationT, ElementT>>, WriteResult> {
   private BigQueryServices bigQueryServices;
   private final CreateDisposition createDisposition;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private InsertRetryPolicy retryPolicy;
   private boolean extendedErrorInfo;
+  private final boolean skipInvalidRows;
+  private final boolean ignoreUnknownValues;
+  private final String kmsKey;
+  private final Coder<ElementT> elementCoder;
+  private final SerializableFunction<ElementT, TableRow> toTableRow;
 
   /** Constructor. */
   public StreamingInserts(
       CreateDisposition createDisposition,
-      DynamicDestinations<?, DestinationT> dynamicDestinations) {
+      DynamicDestinations<?, DestinationT> dynamicDestinations,
+      Coder<ElementT> elementCoder,
+      SerializableFunction<ElementT, TableRow> toTableRow) {
     this(
         createDisposition,
         dynamicDestinations,
         new BigQueryServicesImpl(),
         InsertRetryPolicy.alwaysRetry(),
-        false);
+        false,
+        false,
+        false,
+        elementCoder,
+        toTableRow,
+        null);
   }
 
   /** Constructor. */
@@ -54,43 +67,128 @@ public class StreamingInserts<DestinationT>
       DynamicDestinations<?, DestinationT> dynamicDestinations,
       BigQueryServices bigQueryServices,
       InsertRetryPolicy retryPolicy,
-      boolean extendedErrorInfo) {
+      boolean extendedErrorInfo,
+      boolean skipInvalidRows,
+      boolean ignoreUnknownValues,
+      Coder<ElementT> elementCoder,
+      SerializableFunction<ElementT, TableRow> toTableRow,
+      String kmsKey) {
     this.createDisposition = createDisposition;
     this.dynamicDestinations = dynamicDestinations;
     this.bigQueryServices = bigQueryServices;
     this.retryPolicy = retryPolicy;
     this.extendedErrorInfo = extendedErrorInfo;
+    this.skipInvalidRows = skipInvalidRows;
+    this.ignoreUnknownValues = ignoreUnknownValues;
+    this.elementCoder = elementCoder;
+    this.toTableRow = toTableRow;
+    this.kmsKey = kmsKey;
   }
 
   /** Specify a retry policy for failed inserts. */
-  public StreamingInserts<DestinationT> withInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
+  public StreamingInserts<DestinationT, ElementT> withInsertRetryPolicy(
+      InsertRetryPolicy retryPolicy) {
     return new StreamingInserts<>(
-        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy, extendedErrorInfo);
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        elementCoder,
+        toTableRow,
+        kmsKey);
   }
 
   /** Specify whether to use extended error info or not. */
-  public StreamingInserts<DestinationT> withExtendedErrorInfo(boolean extendedErrorInfo) {
+  public StreamingInserts<DestinationT, ElementT> withExtendedErrorInfo(boolean extendedErrorInfo) {
     return new StreamingInserts<>(
-        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy, extendedErrorInfo);
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        elementCoder,
+        toTableRow,
+        kmsKey);
   }
 
-  StreamingInserts<DestinationT> withTestServices(BigQueryServices bigQueryServices) {
+  StreamingInserts<DestinationT, ElementT> withSkipInvalidRows(boolean skipInvalidRows) {
     return new StreamingInserts<>(
-        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy, extendedErrorInfo);
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        elementCoder,
+        toTableRow,
+        kmsKey);
+  }
+
+  StreamingInserts<DestinationT, ElementT> withIgnoreUnknownValues(boolean ignoreUnknownValues) {
+    return new StreamingInserts<>(
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        elementCoder,
+        toTableRow,
+        kmsKey);
+  }
+
+  StreamingInserts<DestinationT, ElementT> withKmsKey(String kmsKey) {
+    return new StreamingInserts<>(
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        elementCoder,
+        toTableRow,
+        kmsKey);
+  }
+
+  StreamingInserts<DestinationT, ElementT> withTestServices(BigQueryServices bigQueryServices) {
+    return new StreamingInserts<>(
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        elementCoder,
+        toTableRow,
+        kmsKey);
   }
 
   @Override
-  public WriteResult expand(PCollection<KV<DestinationT, TableRow>> input) {
-    PCollection<KV<TableDestination, TableRow>> writes =
+  public WriteResult expand(PCollection<KV<DestinationT, ElementT>> input) {
+    PCollection<KV<TableDestination, ElementT>> writes =
         input.apply(
             "CreateTables",
-            new CreateTables<>(createDisposition, dynamicDestinations)
-                .withTestServices(bigQueryServices));
+            new CreateTables<DestinationT, ElementT>(createDisposition, dynamicDestinations)
+                .withTestServices(bigQueryServices)
+                .withKmsKey(kmsKey));
 
     return writes.apply(
-        new StreamingWriteTables()
+        new StreamingWriteTables<ElementT>()
             .withTestServices(bigQueryServices)
             .withInsertRetryPolicy(retryPolicy)
-            .withExtendedErrorInfo(extendedErrorInfo));
+            .withExtendedErrorInfo(extendedErrorInfo)
+            .withSkipInvalidRows(skipInvalidRows)
+            .withIgnoreUnknownValues(ignoreUnknownValues)
+            .withElementCoder(elementCoder)
+            .withToTableRow(toTableRow));
   }
 }

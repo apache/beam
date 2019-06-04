@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -58,6 +56,8 @@ import org.apache.avro.util.ClassUtils;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.util.EmptyOnDeserializationThreadLocal;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
 
 /**
  * A {@link Coder} using Avro binary format.
@@ -80,17 +80,16 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * <pre>{@code
  * PCollection<MyCustomElement> records =
  *     input.apply(...)
- *          .setCoder(AvroCoder.of(MyCustomElement.class);
+ *          .setCoder(AvroCoder.of(MyCustomElement.class));
  * }</pre>
  *
  * <p>or annotate the element class using {@code @DefaultCoder}.
  *
- * <pre><code>
- * {@literal @}DefaultCoder(AvroCoder.class)
+ * <pre>{@code @DefaultCoder(AvroCoder.class)
  * public class MyCustomElement {
- *   ...
+ *     ...
  * }
- * </code></pre>
+ * }</pre>
  *
  * <p>The implementation attempts to determine if the Avro encoding of the given type will satisfy
  * the criteria of {@link Coder#verifyDeterministic} by inspecting both the type and the Schema

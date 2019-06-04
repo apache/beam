@@ -24,6 +24,7 @@ import glob
 import logging
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 from builtins import range
@@ -64,12 +65,18 @@ class _TestCaseWithTempDirCleanUp(unittest.TestCase):
     self._tempdirs.append(result)
     return result
 
-  def _create_temp_file(self, name='', suffix=''):
+  def _create_temp_file(self, name='', suffix='', dir=None, content=None):
     if not name:
       name = tempfile.template
+    if not dir:
+      dir = self._new_tempdir()
     file_name = tempfile.NamedTemporaryFile(
         delete=False, prefix=name,
-        dir=self._new_tempdir(), suffix=suffix).name
+        dir=dir, suffix=suffix).name
+
+    if content:
+      with open(file_name, 'w') as f:
+        f.write(content)
     return file_name
 
 
@@ -79,22 +86,28 @@ class MyFileBasedSink(filebasedsink.FileBasedSink):
     # TODO: Fix main session pickling.
     # file_handle = super(MyFileBasedSink, self).open(temp_path)
     file_handle = filebasedsink.FileBasedSink.open(self, temp_path)
-    file_handle.write('[start]')
+    file_handle.write(b'[start]')
     return file_handle
 
   def write_encoded_record(self, file_handle, encoded_value):
-    file_handle.write('[')
+    file_handle.write(b'[')
     file_handle.write(encoded_value)
-    file_handle.write(']')
+    file_handle.write(b']')
 
   def close(self, file_handle):
-    file_handle.write('[end]')
+    file_handle.write(b'[end]')
     # TODO: Fix main session pickling.
     # file_handle = super(MyFileBasedSink, self).close(file_handle)
     file_handle = filebasedsink.FileBasedSink.close(self, file_handle)
 
 
 class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
+
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
 
   def _common_init(self, sink):
     # Manually invoke the generic Sink API.
@@ -136,7 +149,7 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
     self.assertEqual(open(shard2).read(), '[start][x][y][z][end]')
 
     # Check that any temp files are deleted.
-    self.assertItemsEqual([shard1, shard2], glob.glob(temp_path + '*'))
+    self.assertCountEqual([shard1, shard2], glob.glob(temp_path + '*'))
 
   def test_file_sink_display_data(self):
     temp_path = os.path.join(self._new_tempdir(), 'display')
@@ -277,7 +290,7 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
           open(shard_name).read(), ('[start][a][b][%s][end]' % uuid))
 
     # Check that any temp files are deleted.
-    self.assertItemsEqual(res, glob.glob(temp_path + '*'))
+    self.assertCountEqual(res, glob.glob(temp_path + '*'))
 
   @mock.patch.object(filebasedsink.FileSystems, 'rename')
   def test_file_sink_rename_error(self, rename_mock):

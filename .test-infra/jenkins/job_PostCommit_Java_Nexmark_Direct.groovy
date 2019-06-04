@@ -17,19 +17,20 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import CommonTestProperties.Runner
+import CommonTestProperties.SDK
+import CommonTestProperties.TriggeringContext
 import NexmarkBigqueryProperties
+import NexmarkBuilder as Nexmark
 import NoPhraseTriggeringPostCommitBuilder
+import PhraseTriggeringPostCommitBuilder
 
-// This job runs the suite of ValidatesRunner tests against the Direct runner.
 NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Direct',
         'Direct Runner Nexmark Tests', this) {
   description('Runs the Nexmark suite on the Direct runner.')
 
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
-
   // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240, true, 'beam-perf')
 
   // Gradle goals for this job.
   steps {
@@ -100,4 +101,19 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--enforceImmutability=true"'].join(' '))
     }
   }
+}
+
+PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Direct',
+        'Run Direct Runner Nexmark Tests', 'Direct Runner Nexmark Tests', this) {
+
+  description('Runs the Nexmark suite on the Direct runner against a Pull Request, on demand.')
+
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+
+  def final JOB_SPECIFIC_OPTIONS = [
+          'suite' : 'SMOKE',
+          'enforceEncodability' : true,
+          'enforceImmutability' : true
+  ]
+  Nexmark.standardJob(delegate, Runner.DIRECT, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
 }

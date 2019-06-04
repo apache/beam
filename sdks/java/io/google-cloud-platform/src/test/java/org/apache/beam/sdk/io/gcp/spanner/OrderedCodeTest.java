@@ -17,19 +17,19 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableList;
-import com.google.common.io.BaseEncoding;
-import com.google.common.primitives.Bytes;
-import com.google.common.primitives.UnsignedBytes;
-import com.google.common.primitives.UnsignedInteger;
-import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Bytes;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedBytes;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedInteger;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -271,28 +271,28 @@ public class OrderedCodeTest {
     OrderedCode orderedCode = new OrderedCode();
     orderedCode.writeBytes(first);
     byte[] firstEncoded = orderedCode.getEncodedBytes();
-    assertTrue(Arrays.equals(orderedCode.readBytes(), first));
+    assertArrayEquals(orderedCode.readBytes(), first);
 
     orderedCode.writeBytes(first);
     orderedCode.writeBytes(second);
     orderedCode.writeBytes(last);
     byte[] allEncoded = orderedCode.getEncodedBytes();
-    assertTrue(Arrays.equals(orderedCode.readBytes(), first));
-    assertTrue(Arrays.equals(orderedCode.readBytes(), second));
-    assertTrue(Arrays.equals(orderedCode.readBytes(), last));
+    assertArrayEquals(orderedCode.readBytes(), first);
+    assertArrayEquals(orderedCode.readBytes(), second);
+    assertArrayEquals(orderedCode.readBytes(), last);
 
     orderedCode = new OrderedCode(firstEncoded);
     orderedCode.writeBytes(second);
     orderedCode.writeBytes(last);
-    assertTrue(Arrays.equals(orderedCode.getEncodedBytes(), allEncoded));
-    assertTrue(Arrays.equals(orderedCode.readBytes(), first));
-    assertTrue(Arrays.equals(orderedCode.readBytes(), second));
-    assertTrue(Arrays.equals(orderedCode.readBytes(), last));
+    assertArrayEquals(orderedCode.getEncodedBytes(), allEncoded);
+    assertArrayEquals(orderedCode.readBytes(), first);
+    assertArrayEquals(orderedCode.readBytes(), second);
+    assertArrayEquals(orderedCode.readBytes(), last);
 
     orderedCode = new OrderedCode(allEncoded);
-    assertTrue(Arrays.equals(orderedCode.readBytes(), first));
-    assertTrue(Arrays.equals(orderedCode.readBytes(), second));
-    assertTrue(Arrays.equals(orderedCode.readBytes(), last));
+    assertArrayEquals(orderedCode.readBytes(), first);
+    assertArrayEquals(orderedCode.readBytes(), second);
+    assertArrayEquals(orderedCode.readBytes(), last);
   }
 
   @Test
@@ -303,28 +303,28 @@ public class OrderedCodeTest {
     OrderedCode orderedCode = new OrderedCode();
     orderedCode.writeBytesDecreasing(first);
     byte[] firstEncoded = orderedCode.getEncodedBytes();
-    assertTrue(Arrays.equals(orderedCode.readBytesDecreasing(), first));
+    assertArrayEquals(orderedCode.readBytesDecreasing(), first);
 
     orderedCode.writeBytesDecreasing(first);
     orderedCode.writeBytesDecreasing(second);
     orderedCode.writeBytesDecreasing(last);
     byte[] allEncoded = orderedCode.getEncodedBytes();
-    assertTrue(Arrays.equals(orderedCode.readBytesDecreasing(), first));
-    assertTrue(Arrays.equals(orderedCode.readBytesDecreasing(), second));
-    assertTrue(Arrays.equals(orderedCode.readBytesDecreasing(), last));
+    assertArrayEquals(orderedCode.readBytesDecreasing(), first);
+    assertArrayEquals(orderedCode.readBytesDecreasing(), second);
+    assertArrayEquals(orderedCode.readBytesDecreasing(), last);
 
     orderedCode = new OrderedCode(firstEncoded);
     orderedCode.writeBytesDecreasing(second);
     orderedCode.writeBytesDecreasing(last);
-    assertTrue(Arrays.equals(orderedCode.getEncodedBytes(), allEncoded));
-    assertTrue(Arrays.equals(orderedCode.readBytesDecreasing(), first));
-    assertTrue(Arrays.equals(orderedCode.readBytesDecreasing(), second));
-    assertTrue(Arrays.equals(orderedCode.readBytesDecreasing(), last));
+    assertArrayEquals(orderedCode.getEncodedBytes(), allEncoded);
+    assertArrayEquals(orderedCode.readBytesDecreasing(), first);
+    assertArrayEquals(orderedCode.readBytesDecreasing(), second);
+    assertArrayEquals(orderedCode.readBytesDecreasing(), last);
 
     orderedCode = new OrderedCode(allEncoded);
-    assertTrue(Arrays.equals(orderedCode.readBytesDecreasing(), first));
-    assertTrue(Arrays.equals(orderedCode.readBytesDecreasing(), second));
-    assertTrue(Arrays.equals(orderedCode.readBytesDecreasing(), last));
+    assertArrayEquals(orderedCode.readBytesDecreasing(), first);
+    assertArrayEquals(orderedCode.readBytesDecreasing(), second);
+    assertArrayEquals(orderedCode.readBytesDecreasing(), last);
   }
 
   @Test
@@ -654,7 +654,7 @@ public class OrderedCodeTest {
     assertEquals(2, orderedCode.getSignedEncodingLength(64));
     assertEquals(2, orderedCode.getSignedEncodingLength(8191));
     assertEquals(3, orderedCode.getSignedEncodingLength(8192));
-    assertEquals(9, orderedCode.getSignedEncodingLength((1L << 62)) - 1);
+    assertEquals(9, orderedCode.getSignedEncodingLength(1L << 62) - 1);
     assertEquals(10, orderedCode.getSignedEncodingLength(1L << 62));
     assertEquals(10, orderedCode.getSignedEncodingLength(Long.MAX_VALUE));
   }
@@ -674,8 +674,8 @@ public class OrderedCodeTest {
 
     OrderedCode orderedCode = new OrderedCode();
     orderedCode.writeTrailingBytes(escapeChars);
-    assertTrue(Arrays.equals(orderedCode.getEncodedBytes(), escapeChars));
-    assertTrue(Arrays.equals(orderedCode.readTrailingBytes(), escapeChars));
+    assertArrayEquals(orderedCode.getEncodedBytes(), escapeChars);
+    assertArrayEquals(orderedCode.readTrailingBytes(), escapeChars);
     try {
       orderedCode.readInfinity();
       fail("Expected IllegalArgumentException.");
@@ -685,8 +685,8 @@ public class OrderedCodeTest {
 
     orderedCode = new OrderedCode();
     orderedCode.writeTrailingBytes(anotherArray);
-    assertTrue(Arrays.equals(orderedCode.getEncodedBytes(), anotherArray));
-    assertTrue(Arrays.equals(orderedCode.readTrailingBytes(), anotherArray));
+    assertArrayEquals(orderedCode.getEncodedBytes(), anotherArray);
+    assertArrayEquals(orderedCode.readTrailingBytes(), anotherArray);
   }
 
   @Test
@@ -719,10 +719,10 @@ public class OrderedCodeTest {
     orderedCode.writeSignedNumIncreasing(Long.MAX_VALUE);
     orderedCode.writeTrailingBytes(escapeChars);
     byte[] allEncoded = orderedCode.getEncodedBytes();
-    assertTrue(Arrays.equals(orderedCode.readBytes(), first));
-    assertTrue(Arrays.equals(orderedCode.readBytes(), second));
+    assertArrayEquals(orderedCode.readBytes(), first);
+    assertArrayEquals(orderedCode.readBytes(), second);
     assertFalse(orderedCode.readInfinity());
-    assertTrue(Arrays.equals(orderedCode.readBytes(), last));
+    assertArrayEquals(orderedCode.readBytes(), last);
     assertTrue(orderedCode.readInfinity());
     assertEquals(0, orderedCode.readNumIncreasing());
     assertEquals(1, orderedCode.readNumIncreasing());
@@ -734,14 +734,14 @@ public class OrderedCodeTest {
     assertFalse(orderedCode.readInfinity());
     assertEquals(Long.MIN_VALUE, orderedCode.readSignedNumIncreasing());
     assertEquals(Long.MAX_VALUE, orderedCode.readSignedNumIncreasing());
-    assertTrue(Arrays.equals(orderedCode.getEncodedBytes(), escapeChars));
-    assertTrue(Arrays.equals(orderedCode.readTrailingBytes(), escapeChars));
+    assertArrayEquals(orderedCode.getEncodedBytes(), escapeChars);
+    assertArrayEquals(orderedCode.readTrailingBytes(), escapeChars);
 
     orderedCode = new OrderedCode(allEncoded);
-    assertTrue(Arrays.equals(orderedCode.readBytes(), first));
-    assertTrue(Arrays.equals(orderedCode.readBytes(), second));
+    assertArrayEquals(orderedCode.readBytes(), first);
+    assertArrayEquals(orderedCode.readBytes(), second);
     assertFalse(orderedCode.readInfinity());
-    assertTrue(Arrays.equals(orderedCode.readBytes(), last));
+    assertArrayEquals(orderedCode.readBytes(), last);
     assertTrue(orderedCode.readInfinity());
     assertEquals(0, orderedCode.readNumIncreasing());
     assertEquals(1, orderedCode.readNumIncreasing());
@@ -753,8 +753,8 @@ public class OrderedCodeTest {
     assertFalse(orderedCode.readInfinity());
     assertEquals(Long.MIN_VALUE, orderedCode.readSignedNumIncreasing());
     assertEquals(Long.MAX_VALUE, orderedCode.readSignedNumIncreasing());
-    assertTrue(Arrays.equals(orderedCode.getEncodedBytes(), escapeChars));
-    assertTrue(Arrays.equals(orderedCode.readTrailingBytes(), escapeChars));
+    assertArrayEquals(orderedCode.getEncodedBytes(), escapeChars);
+    assertArrayEquals(orderedCode.readTrailingBytes(), escapeChars);
   }
 
   @Test
@@ -771,24 +771,19 @@ public class OrderedCodeTest {
     orderedCode.writeBytes(ffChar);
     orderedCode.writeBytes(nullChar);
     orderedCode.writeInfinity();
-    assertTrue(
-        Arrays.equals(
-            orderedCode.getEncodedBytes(),
-            Bytes.concat(
-                ffCharEncoded,
-                separatorEncoded,
-                nullCharEncoded,
-                separatorEncoded,
-                infinityEncoded)));
-    assertTrue(Arrays.equals(orderedCode.readBytes(), ffChar));
-    assertTrue(Arrays.equals(orderedCode.readBytes(), nullChar));
+    assertArrayEquals(
+        orderedCode.getEncodedBytes(),
+        Bytes.concat(
+            ffCharEncoded, separatorEncoded, nullCharEncoded, separatorEncoded, infinityEncoded));
+    assertArrayEquals(orderedCode.readBytes(), ffChar);
+    assertArrayEquals(orderedCode.readBytes(), nullChar);
     assertTrue(orderedCode.readInfinity());
 
     orderedCode = new OrderedCode(Bytes.concat(ffCharEncoded, separatorEncoded));
-    assertTrue(Arrays.equals(orderedCode.readBytes(), ffChar));
+    assertArrayEquals(orderedCode.readBytes(), ffChar);
 
     orderedCode = new OrderedCode(Bytes.concat(nullCharEncoded, separatorEncoded));
-    assertTrue(Arrays.equals(orderedCode.readBytes(), nullChar));
+    assertArrayEquals(orderedCode.readBytes(), nullChar);
 
     byte[] invalidEncodingForRead = {
       OrderedCode.ESCAPE2, OrderedCode.ESCAPE2, OrderedCode.ESCAPE1, OrderedCode.SEPARATOR
@@ -815,7 +810,7 @@ public class OrderedCodeTest {
     // First and only field of each type.
     orderedCode.writeBytes(bytes);
     assertTrue(orderedCode.hasRemainingEncodedBytes());
-    assertTrue(Arrays.equals(orderedCode.readBytes(), bytes));
+    assertArrayEquals(orderedCode.readBytes(), bytes);
     assertFalse(orderedCode.hasRemainingEncodedBytes());
 
     orderedCode.writeNumIncreasing(number);
@@ -835,15 +830,15 @@ public class OrderedCodeTest {
 
     orderedCode.writeTrailingBytes(bytes);
     assertTrue(orderedCode.hasRemainingEncodedBytes());
-    assertTrue(Arrays.equals(orderedCode.readTrailingBytes(), bytes));
+    assertArrayEquals(orderedCode.readTrailingBytes(), bytes);
     assertFalse(orderedCode.hasRemainingEncodedBytes());
 
     // Two fields of same type.
     orderedCode.writeBytes(bytes);
     orderedCode.writeBytes(bytes);
     assertTrue(orderedCode.hasRemainingEncodedBytes());
-    assertTrue(Arrays.equals(orderedCode.readBytes(), bytes));
-    assertTrue(Arrays.equals(orderedCode.readBytes(), bytes));
+    assertArrayEquals(orderedCode.readBytes(), bytes);
+    assertArrayEquals(orderedCode.readBytes(), bytes);
     assertFalse(orderedCode.hasRemainingEncodedBytes());
   }
 

@@ -311,7 +311,7 @@ class SetupTest(unittest.TestCase):
                  '--staging_location=gs://foo/bar',
                  '--temp_location=gs://foo/bar',]
       if matcher:
-        options.append('--on_success_matcher=' + matcher)
+        options.append('%s=%s' % ('--on_success_matcher', matcher.decode()))
 
       pipeline_options = PipelineOptions(options)
       runner = MockRunners.TestDataflowRunner()
@@ -322,7 +322,7 @@ class SetupTest(unittest.TestCase):
          'errors': []},
         {'on_success_matcher': pickler.dumps(AlwaysPassMatcher()),
          'errors': []},
-        {'on_success_matcher': 'abc',
+        {'on_success_matcher': b'abc',
          'errors': ['on_success_matcher']},
         {'on_success_matcher': pickler.dumps(object),
          'errors': ['on_success_matcher']},

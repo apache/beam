@@ -17,14 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import com.google.common.collect.ImmutableMap;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -134,18 +134,20 @@ public class BeamSqlMapTest {
   }
 
   private PCollection<Row> pCollectionOf2Elements() {
-    return PBegin.in(pipeline)
-        .apply(
-            "boundedInput1",
-            Create.of(
-                    Row.withSchema(INPUT_ROW_TYPE)
-                        .addValues(1)
-                        .addValue(ImmutableMap.of("key11", 11, "key22", 22))
-                        .build(),
-                    Row.withSchema(INPUT_ROW_TYPE)
-                        .addValues(2)
-                        .addValue(ImmutableMap.of("key33", 33, "key44", 44, "key55", 55))
-                        .build())
-                .withCoder(INPUT_ROW_TYPE.getRowCoder()));
+    return pipeline.apply(
+        "boundedInput1",
+        Create.of(
+                Row.withSchema(INPUT_ROW_TYPE)
+                    .addValues(1)
+                    .addValue(ImmutableMap.of("key11", 11, "key22", 22))
+                    .build(),
+                Row.withSchema(INPUT_ROW_TYPE)
+                    .addValues(2)
+                    .addValue(ImmutableMap.of("key33", 33, "key44", 44, "key55", 55))
+                    .build())
+            .withSchema(
+                INPUT_ROW_TYPE,
+                SerializableFunctions.identity(),
+                SerializableFunctions.identity()));
   }
 }

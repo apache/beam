@@ -17,36 +17,13 @@
  */
 package org.apache.beam.sdk.options;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Locale.ROOT;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
-import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
-import com.google.common.base.Strings;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableListMultimap;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.ImmutableSortedSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.ListMultimap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
-import com.google.common.collect.RowSortedTable;
-import com.google.common.collect.Sets;
-import com.google.common.collect.SortedSetMultimap;
-import com.google.common.collect.TreeBasedTable;
-import com.google.common.collect.TreeMultimap;
 import java.beans.BeanInfo;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
@@ -58,6 +35,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -68,7 +46,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
@@ -78,6 +55,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
+import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionDescriptor;
+import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionType;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Validation.Required;
@@ -85,6 +64,30 @@ import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSortedSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.RowSortedTable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.SortedSetMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.TreeBasedTable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.TreeMultimap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -354,8 +357,7 @@ public class PipelineOptionsFactory {
       } catch (ClassNotFoundException e) {
         // If we didn't find an exact match, look for any that match the class name.
         Iterable<Class<? extends PipelineOptions>> matches =
-            getRegisteredOptions()
-                .stream()
+            getRegisteredOptions().stream()
                 .filter(
                     input -> {
                       if (helpOption.contains(".")) {
@@ -631,6 +633,86 @@ public class PipelineOptionsFactory {
     }
   }
 
+  private static final Set<Class<?>> JSON_INTEGER_TYPES =
+      Sets.newHashSet(
+          short.class,
+          Short.class,
+          int.class,
+          Integer.class,
+          long.class,
+          Long.class,
+          BigInteger.class);
+
+  private static final Set<Class<?>> JSON_NUMBER_TYPES =
+      Sets.newHashSet(
+          float.class, Float.class, double.class, Double.class, java.math.BigDecimal.class);
+
+  /**
+   * Outputs the set of options available to be set for the passed in {@link PipelineOptions}
+   * interfaces. The output for consumption of the job service client.
+   */
+  public static List<PipelineOptionDescriptor> describe(
+      Set<Class<? extends PipelineOptions>> ifaces) {
+    checkNotNull(ifaces);
+    List<PipelineOptionDescriptor> result = new ArrayList<>();
+    Set<Method> seenMethods = Sets.newHashSet();
+
+    for (Class<? extends PipelineOptions> iface : ifaces) {
+      CACHE.get().validateWellFormed(iface);
+
+      Set<PipelineOptionSpec> properties = PipelineOptionsReflector.getOptionSpecs(iface);
+
+      RowSortedTable<Class<?>, String, Method> ifacePropGetterTable =
+          TreeBasedTable.create(ClassNameComparator.INSTANCE, Ordering.natural());
+      for (PipelineOptionSpec prop : properties) {
+        ifacePropGetterTable.put(
+            prop.getDefiningInterface(), prop.getName(), prop.getGetterMethod());
+      }
+
+      for (Map.Entry<Class<?>, Map<String, Method>> ifaceToPropertyMap :
+          ifacePropGetterTable.rowMap().entrySet()) {
+        Class<?> currentIface = ifaceToPropertyMap.getKey();
+        Map<String, Method> propertyNamesToGetters = ifaceToPropertyMap.getValue();
+
+        List<String> lists = Lists.newArrayList(propertyNamesToGetters.keySet());
+        lists.sort(String.CASE_INSENSITIVE_ORDER);
+        for (String propertyName : lists) {
+          Method method = propertyNamesToGetters.get(propertyName);
+          if (!seenMethods.add(method)) {
+            continue;
+          }
+          Class<?> returnType = method.getReturnType();
+          PipelineOptionType.Enum optionType = PipelineOptionType.Enum.STRING;
+          if (JSON_INTEGER_TYPES.contains(returnType)) {
+            optionType = PipelineOptionType.Enum.INTEGER;
+          } else if (JSON_NUMBER_TYPES.contains(returnType)) {
+            optionType = PipelineOptionType.Enum.NUMBER;
+          } else if (returnType == boolean.class || returnType == Boolean.class) {
+            optionType = PipelineOptionType.Enum.BOOLEAN;
+          } else if (List.class.isAssignableFrom(returnType)) {
+            optionType = PipelineOptionType.Enum.ARRAY;
+          }
+          String optionName = CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, propertyName);
+          Description description = method.getAnnotation(Description.class);
+          PipelineOptionDescriptor.Builder builder =
+              PipelineOptionDescriptor.newBuilder()
+                  .setName(optionName)
+                  .setType(optionType)
+                  .setGroup(currentIface.getName());
+          Optional<String> defaultValue = getDefaultValueFromAnnotation(method);
+          if (defaultValue.isPresent()) {
+            builder.setDefaultValue(defaultValue.get());
+          }
+          if (description != null) {
+            builder.setDescription(description.value());
+          }
+          result.add(builder.build());
+        }
+      }
+    }
+    return result;
+  }
+
   /**
    * Output the requirement groups that the property is a member of, including all properties that
    * satisfy the group requirement, breaking up long lines on white space characters and attempting
@@ -865,6 +947,14 @@ public class PipelineOptionsFactory {
       Set<Class<? extends PipelineOptions>> validatedPipelineOptionsInterfaces,
       Class<? extends PipelineOptions> klass)
       throws IntrospectionException {
+
+    checkArgument(
+        Modifier.isPublic(iface.getModifiers()),
+        "Please mark non-public interface %s as public. The JVM requires that "
+            + "all non-public interfaces to be in the same package which will prevent the "
+            + "PipelineOptions proxy class to implement all of the interfaces.",
+        iface.getName());
+
     // Verify that there are no methods with the same name with two different return types.
     validateReturnType(iface);
 
@@ -1541,7 +1631,7 @@ public class PipelineOptionsFactory {
           } else {
             try {
               Class<?> runnerClass = Class.forName(runner, true, ReflectHelpers.findClassLoader());
-              if (!(PipelineRunner.class.isAssignableFrom(runnerClass))) {
+              if (!PipelineRunner.class.isAssignableFrom(runnerClass)) {
                 throw new IllegalArgumentException(
                     String.format(
                         "Class '%s' does not implement PipelineRunner. "
@@ -1693,15 +1783,11 @@ public class PipelineOptionsFactory {
 
     private Cache() {
       final ClassLoader loader = ReflectHelpers.findClassLoader();
-
-      Set<PipelineRunnerRegistrar> pipelineRunnerRegistrars =
-          Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
-      pipelineRunnerRegistrars.addAll(
-          Lists.newArrayList(ServiceLoader.load(PipelineRunnerRegistrar.class, loader)));
       // Store the list of all available pipeline runners.
       ImmutableMap.Builder<String, Class<? extends PipelineRunner<?>>> builder =
           ImmutableMap.builder();
-      for (PipelineRunnerRegistrar registrar : pipelineRunnerRegistrars) {
+      for (PipelineRunnerRegistrar registrar :
+          ReflectHelpers.loadServicesOrdered(PipelineRunnerRegistrar.class, loader)) {
         for (Class<? extends PipelineRunner<?>> klass : registrar.getPipelineRunners()) {
           String runnerName = klass.getSimpleName().toLowerCase();
           builder.put(runnerName, klass);
@@ -1716,12 +1802,8 @@ public class PipelineOptionsFactory {
 
     /** Load and register the list of all classes that extend PipelineOptions. */
     private void initializeRegistry(final ClassLoader loader) {
-      register(PipelineOptions.class);
-      Set<PipelineOptionsRegistrar> pipelineOptionsRegistrars =
-          Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
-      pipelineOptionsRegistrars.addAll(
-          Lists.newArrayList(ServiceLoader.load(PipelineOptionsRegistrar.class, loader)));
-      for (PipelineOptionsRegistrar registrar : pipelineOptionsRegistrars) {
+      for (PipelineOptionsRegistrar registrar :
+          ReflectHelpers.loadServicesOrdered(PipelineOptionsRegistrar.class, loader)) {
         for (Class<? extends PipelineOptions> klass : registrar.getPipelineOptions()) {
           register(klass);
         }

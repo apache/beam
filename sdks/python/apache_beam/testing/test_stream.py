@@ -62,6 +62,10 @@ class Event(with_metaclass(ABCMeta, object)):
   def __lt__(self, other):
     raise NotImplementedError
 
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
+
 
 class ElementEvent(Event):
   """Element-producing test stream event."""

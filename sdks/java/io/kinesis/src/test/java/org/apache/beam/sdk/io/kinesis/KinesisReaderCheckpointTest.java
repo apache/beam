@@ -20,9 +20,9 @@ package org.apache.beam.sdk.io.kinesis;
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.google.common.collect.Iterables;
 import java.util.Iterator;
 import java.util.List;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;

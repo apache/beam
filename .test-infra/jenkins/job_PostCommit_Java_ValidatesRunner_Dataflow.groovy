@@ -22,21 +22,14 @@ import PostcommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Dataflow
 // runner.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflow_Gradle',
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflow',
   'Run Dataflow ValidatesRunner', 'Google Cloud Dataflow Runner ValidatesRunner Tests', this) {
 
   description('Runs the ValidatesRunner suite on the Dataflow runner.')
-  previousNames('beam_PostCommit_Java_ValidatesRunner_Dataflow')
-  previousNames('beam_PostCommit_Java_RunnableOnService_Dataflow')
 
-  // Execute concurrent build
-  concurrentBuild()
-  throttleConcurrentBuilds {
-    maxTotal(3)
-  }
-  
   // Set common parameters. Sets a 3 hour timeout.
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 300)
+  previousNames(/beam_PostCommit_Java_ValidatesRunner_Dataflow_Gradle/)
 
   // Publish all test results to Jenkins
   publishers {

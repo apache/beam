@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import com.google.common.base.Splitter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
@@ -39,6 +38,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;

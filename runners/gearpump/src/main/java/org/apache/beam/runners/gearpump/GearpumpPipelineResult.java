@@ -17,15 +17,15 @@
  */
 package org.apache.beam.runners.gearpump;
 
+import io.gearpump.cluster.ApplicationStatus;
+import io.gearpump.cluster.MasterToAppMaster.AppMasterData;
+import io.gearpump.cluster.client.ClientContext;
+import io.gearpump.cluster.client.RunningApplication;
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.gearpump.cluster.ApplicationStatus;
-import org.apache.gearpump.cluster.MasterToAppMaster.AppMasterData;
-import org.apache.gearpump.cluster.client.ClientContext;
-import org.apache.gearpump.cluster.client.RunningApplication;
 import org.joda.time.Duration;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
@@ -82,6 +82,10 @@ public class GearpumpPipelineResult implements PipelineResult {
         String.format("%s does not support querying metrics", getClass().getSimpleName()));
   }
 
+  public ClientContext getClientContext() {
+    return client;
+  }
+
   private State getGearpumpState() {
     ApplicationStatus status = null;
     List<AppMasterData> apps =
@@ -92,11 +96,11 @@ public class GearpumpPipelineResult implements PipelineResult {
         status = appData.status();
       }
     }
-    if (null == status || status instanceof ApplicationStatus.NONEXIST$) {
+    if (null == status || status.status().equals("nonexist")) {
       return State.UNKNOWN;
-    } else if (status instanceof ApplicationStatus.ACTIVE$) {
+    } else if (status.status().equals("active")) {
       return State.RUNNING;
-    } else if (status instanceof ApplicationStatus.SUCCEEDED$) {
+    } else if (status.status().equals("succeeded")) {
       return State.DONE;
     } else {
       return State.FAILED;

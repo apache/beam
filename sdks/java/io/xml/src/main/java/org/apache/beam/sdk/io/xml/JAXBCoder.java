@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.xml;
 
-import com.google.common.io.ByteStreams;
 import java.io.ByteArrayOutputStream;
 import java.io.FilterInputStream;
 import java.io.FilterOutputStream;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.util.EmptyOnDeserializationThreadLocal;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
 
 /**
  * A coder for JAXB annotated objects. This coder uses JAXB marshalling/unmarshalling mechanisms to

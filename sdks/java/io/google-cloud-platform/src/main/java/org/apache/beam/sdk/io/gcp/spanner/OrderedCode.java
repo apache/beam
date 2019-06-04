@@ -17,15 +17,15 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.math.LongMath;
-import com.google.common.primitives.Longs;
-import com.google.common.primitives.UnsignedInteger;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Arrays;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.math.LongMath;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Longs;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedInteger;
 
 /**
  * This module provides routines for encoding a sequence of typed entities into a byte array. The

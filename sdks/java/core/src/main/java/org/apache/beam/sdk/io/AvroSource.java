@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.io.FileBasedSource.Mode.SINGLE_FILE_OR_SUBRANGE;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
 import java.io.ByteArrayInputStream;
 import java.io.EOFException;
 import java.io.IOException;
@@ -65,6 +64,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.snappy.SnappyCompressorInputStream;
 import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
@@ -108,14 +109,14 @@ import org.apache.commons.compress.utils.IOUtils;
  * the start offset of the block is greater than or equal to the start offset of the source and less
  * than the end offset of the source.
  *
- * <p>To use XZ-encoded Avro files, please include an explicit dependency on {@code xz-1.5.jar},
+ * <p>To use XZ-encoded Avro files, please include an explicit dependency on {@code xz-1.8.jar},
  * which has been marked as optional in the Maven {@code sdk/pom.xml}.
  *
  * <pre>{@code
  * <dependency>
  *   <groupId>org.tukaani</groupId>
  *   <artifactId>xz</artifactId>
- *   <version>1.5</version>
+ *   <version>1.8</version>
  * </dependency>
  * }</pre>
  *
@@ -215,6 +216,15 @@ public class AvroSource<T> extends BlockBasedSource<T> {
         readGenericRecordsWithSchema(null /* will need to be specified in withSchema */));
   }
 
+  public static AvroSource<GenericRecord> from(Metadata metadata) {
+    return new AvroSource<>(
+        metadata,
+        DEFAULT_MIN_BUNDLE_SIZE,
+        0,
+        metadata.sizeBytes(),
+        readGenericRecordsWithSchema(null /* will need to be specified in withSchema */));
+  }
+
   /** Like {@link #from(ValueProvider)}. */
   public static AvroSource<GenericRecord> from(String fileNameOrPattern) {
     return from(ValueProvider.StaticValueProvider.of(fileNameOrPattern));
@@ -244,6 +254,14 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   /** Reads files containing records of the given class. */
   public <X> AvroSource<X> withSchema(Class<X> clazz) {
     checkArgument(clazz != null, "clazz can not be null");
+    if (getMode() == SINGLE_FILE_OR_SUBRANGE) {
+      return new AvroSource<>(
+          getSingleFileMetadata(),
+          getMinBundleSize(),
+          getStartOffset(),
+          getEndOffset(),
+          readGeneratedClasses(clazz));
+    }
     return new AvroSource<>(
         getFileOrPatternSpecProvider(),
         getEmptyMatchTreatment(),
@@ -259,6 +277,14 @@ public class AvroSource<T> extends BlockBasedSource<T> {
       SerializableFunction<GenericRecord, X> parseFn, Coder<X> coder) {
     checkArgument(parseFn != null, "parseFn can not be null");
     checkArgument(coder != null, "coder can not be null");
+    if (getMode() == SINGLE_FILE_OR_SUBRANGE) {
+      return new AvroSource<>(
+          getSingleFileMetadata(),
+          getMinBundleSize(),
+          getStartOffset(),
+          getEndOffset(),
+          parseGenericRecords(parseFn, coder));
+    }
     return new AvroSource<>(
         getFileOrPatternSpecProvider(),
         getEmptyMatchTreatment(),
@@ -271,6 +297,10 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    * minBundleSize} and its use.
    */
   public AvroSource<T> withMinBundleSize(long minBundleSize) {
+    if (getMode() == SINGLE_FILE_OR_SUBRANGE) {
+      return new AvroSource<>(
+          getSingleFileMetadata(), minBundleSize, getStartOffset(), getEndOffset(), mode);
+    }
     return new AvroSource<>(
         getFileOrPatternSpecProvider(), getEmptyMatchTreatment(), minBundleSize, mode);
   }

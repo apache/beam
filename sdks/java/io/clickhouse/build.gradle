@@ -1,0 +1,63 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins {
+  id 'org.apache.beam.module'
+  id 'ca.coglinc.javacc'
+}
+applyJavaNature(
+    // javacc generated code produces lint warnings
+    disableLintWarnings: ['dep-ann']
+)
+
+description = "Apache Beam :: SDKs :: Java :: IO :: ClickHouse"
+ext.summary = "IO to write to ClickHouse (https://clickhouse.yandex)."
+
+// Match the output directory for generated code with the package, to be more tool-friendly
+def generatedJavaccSourceDir = "${project.buildDir}/generated/javacc"
+def generatedJavaccPackageDir =
+        "${generatedJavaccSourceDir}/org/apache/beam/sdk/io/clickhouse/impl/parser"
+compileJavacc {
+  outputDirectory = file(generatedJavaccPackageDir)
+  arguments = [static: "false"]
+}
+
+// Help IntelliJ finding generated code
+idea {
+  module {
+    sourceDirs += file(generatedJavaccSourceDir)
+    generatedSourceDirs += file(generatedJavaccSourceDir)
+  }
+}
+
+def clickhouse_jdbc_version = "0.1.47"
+def testcontainers_version = "1.10.5"
+
+dependencies {
+  javacc "net.java.dev.javacc:javacc:4.0"
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow library.java.joda_time
+  shadow "ru.yandex.clickhouse:clickhouse-jdbc:$clickhouse_jdbc_version"
+  testCompile library.java.slf4j_api
+  testCompile library.java.junit
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  testCompile "org.testcontainers:clickhouse:$testcontainers_version"
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(path: ":runners:direct-java")
+}

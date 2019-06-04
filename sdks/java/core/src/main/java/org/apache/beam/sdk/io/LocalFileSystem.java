@@ -17,11 +17,9 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files.fileTreeTraverser;
 
-import com.google.common.base.Predicates;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -48,6 +46,9 @@ import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -214,7 +215,11 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
       }
     }
 
-    File file = Paths.get(spec).toFile();
+    // BEAM-6213: Windows breaks on Paths.get(spec).toFile() with a glob because
+    // it considers it an invalid file system pattern. We should use
+    // new File(spec) to avoid such validation.
+    // See https://bugs.openjdk.java.net/browse/JDK-8197918
+    final File file = new File(spec);
     if (file.exists()) {
       return MatchResult.create(Status.OK, ImmutableList.of(toMetadata(file)));
     }
@@ -239,12 +244,12 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
         java.nio.file.FileSystems.getDefault().getPathMatcher("glob:" + pathToMatch);
 
     // TODO: Avoid iterating all files: https://issues.apache.org/jira/browse/BEAM-1309
-    Iterable<File> files = com.google.common.io.Files.fileTreeTraverser().preOrderTraversal(parent);
+    Iterable<File> files = fileTreeTraverser().preOrderTraversal(parent);
     Iterable<File> matchedFiles =
         StreamSupport.stream(files.spliterator(), false)
             .filter(
                 Predicates.and(
-                        com.google.common.io.Files.isFile(),
+                        org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files.isFile(),
                         input -> matcher.matches(input.toPath()))
                     ::apply)
             .collect(Collectors.toList());
@@ -268,6 +273,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
         .setResourceId(LocalResourceId.fromPath(file.toPath(), file.isDirectory()))
         .setIsReadSeekEfficient(true)
         .setSizeBytes(file.length())
+        .setLastModifiedMillis(file.lastModified())
         .build();
   }
 }

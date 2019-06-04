@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -48,14 +48,15 @@ import org.joda.time.Instant;
  * }</pre>
  *
  * <p>Supported compression algorithms are {@link Compression#GZIP}, {@link Compression#BZIP2},
- * {@link Compression#ZIP} and {@link Compression#DEFLATE}. User-defined compression types are
- * supported by implementing a {@link DecompressingChannelFactory}.
+ * {@link Compression#ZIP}, {@link Compression#ZSTD}, and {@link Compression#DEFLATE}. User-defined
+ * compression types are supported by implementing a {@link DecompressingChannelFactory}.
  *
  * <p>By default, the compression algorithm is selected from those supported in {@link Compression}
  * based on the file name provided to the source, namely {@code ".bz2"} indicates {@link
  * Compression#BZIP2}, {@code ".gz"} indicates {@link Compression#GZIP}, {@code ".zip"} indicates
- * {@link Compression#ZIP} and {@code ".deflate"} indicates {@link Compression#DEFLATE}. If the file
- * name does not match any of the supported algorithms, it is assumed to be uncompressed data.
+ * {@link Compression#ZIP}, {@code ".zst"} indicates {@link Compression#ZSTD}, and {@code
+ * ".deflate"} indicates {@link Compression#DEFLATE}. If the file name does not match any of the
+ * supported algorithms, it is assumed to be uncompressed data.
  *
  * @param <T> The type to read from the compressed file.
  */
@@ -86,6 +87,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
 
     /** @see Compression#ZIP */
     ZIP(Compression.ZIP),
+
+    /** @see Compression#ZSTD */
+    ZSTD(Compression.ZSTD),
 
     /** @see Compression#DEFLATE */
     DEFLATE(Compression.DEFLATE);
@@ -132,6 +136,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
         case ZIP:
           return ZIP;
 
+        case ZSTD:
+          return ZSTD;
+
         case DEFLATE:
           return DEFLATE;
 
@@ -172,7 +179,10 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    */
   private CompressedSource(
       FileBasedSource<T> sourceDelegate, DecompressingChannelFactory channelFactory) {
-    super(sourceDelegate.getFileOrPatternSpecProvider(), Long.MAX_VALUE);
+    super(
+        sourceDelegate.getFileOrPatternSpecProvider(),
+        sourceDelegate.getEmptyMatchTreatment(),
+        Long.MAX_VALUE);
     this.sourceDelegate = sourceDelegate;
     this.channelFactory = channelFactory;
   }

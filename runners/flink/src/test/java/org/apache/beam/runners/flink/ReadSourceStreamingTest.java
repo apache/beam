@@ -17,17 +17,20 @@
  */
 package org.apache.beam.runners.flink;
 
-import com.google.common.base.Joiner;
 import java.io.File;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.flink.streaming.util.StreamingProgramTestBase;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.flink.test.util.AbstractTestBase;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 /** Reads from a bounded source in streaming. */
-public class ReadSourceStreamingTest extends StreamingProgramTestBase {
+public class ReadSourceStreamingTest extends AbstractTestBase {
 
   protected String resultDir;
   protected String resultPath;
@@ -37,8 +40,8 @@ public class ReadSourceStreamingTest extends StreamingProgramTestBase {
   private static final String[] EXPECTED_RESULT =
       new String[] {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
 
-  @Override
-  protected void preSubmit() throws Exception {
+  @Before
+  public void preSubmit() throws Exception {
     // Beam Write will add shard suffix to fileName, see ShardNameTemplate.
     // So tempFile need have a parent to compare.
     File resultParent = createAndRegisterTempFile("result");
@@ -46,13 +49,13 @@ public class ReadSourceStreamingTest extends StreamingProgramTestBase {
     resultPath = new File(resultParent, "file.txt").getAbsolutePath();
   }
 
-  @Override
-  protected void postSubmit() throws Exception {
+  @After
+  public void postSubmit() throws Exception {
     compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultDir);
   }
 
-  @Override
-  protected void testProgram() throws Exception {
+  @Test
+  public void testProgram() throws Exception {
     runProgram(resultPath);
   }
 

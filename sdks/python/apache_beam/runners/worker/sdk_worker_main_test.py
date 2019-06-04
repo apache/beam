@@ -24,10 +24,24 @@ import json
 import logging
 import unittest
 
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.worker import sdk_worker_main
 
 
 class SdkWorkerMainTest(unittest.TestCase):
+
+  # Used for testing newly added flags.
+  class MockOptions(PipelineOptions):
+
+    @classmethod
+    def _add_argparse_args(cls, parser):
+      parser.add_argument('--eam:option:m_option:v', help='mock option')
+      parser.add_argument('--eam:option:m_option:v1', help='mock option')
+      parser.add_argument('--beam:option:m_option:v', help='mock option')
+      parser.add_argument('--m_flag', action='store_true', help='mock flag')
+      parser.add_argument('--m_option', help='mock option')
+      parser.add_argument(
+          '--m_m_option', action='append', help='mock multi option')
 
   def test_status_server(self):
 
@@ -42,29 +56,75 @@ class SdkWorkerMainTest(unittest.TestCase):
   def test_work_count_default_value(self):
     self._check_worker_count('{}', 12)
 
+  def test_parse_pipeline_options(self):
+    expected_options = PipelineOptions([])
+    expected_options.view_as(
+        SdkWorkerMainTest.MockOptions).m_m_option = [
+            'worker_threads=1', 'beam_fn_api'
+        ]
+    expected_options.view_as(
+        SdkWorkerMainTest.MockOptions).m_option = '/tmp/requirements.txt'
+    self.assertEqual(
+        {'m_m_option': ['worker_threads=1']},
+        sdk_worker_main._parse_pipeline_options(
+            '{"options": {"m_m_option":["worker_threads=1"]}}')
+        .get_all_options(drop_default=True))
+    self.assertEqual(
+        expected_options.get_all_options(),
+        sdk_worker_main._parse_pipeline_options(
+            '{"options": {' +
+            '"m_option": "/tmp/requirements.txt", ' +
+            '"m_m_option":["worker_threads=1", "beam_fn_api"]' +
+            '}}').get_all_options())
+    self.assertEqual(
+        {'m_m_option': ['worker_threads=1']},
+        sdk_worker_main._parse_pipeline_options(
+            '{"beam:option:m_m_option:v1":["worker_threads=1"]}')
+        .get_all_options(drop_default=True))
+    self.assertEqual(
+        expected_options.get_all_options(),
+        sdk_worker_main._parse_pipeline_options(
+            '{"beam:option:m_option:v1": "/tmp/requirements.txt", ' +
+            '"beam:option:m_m_option:v1":["worker_threads=1", ' +
+            '"beam_fn_api"]}').get_all_options())
+    self.assertEqual(
+        {'beam:option:m_option:v': 'mock_val'},
+        sdk_worker_main._parse_pipeline_options(
+            '{"options": {"beam:option:m_option:v":"mock_val"}}')
+        .get_all_options(drop_default=True))
+    self.assertEqual(
+        {'eam:option:m_option:v1': 'mock_val'},
+        sdk_worker_main._parse_pipeline_options(
+            '{"options": {"eam:option:m_option:v1":"mock_val"}}')
+        .get_all_options(drop_default=True))
+    self.assertEqual(
+        {'eam:option:m_option:v': 'mock_val'},
+        sdk_worker_main._parse_pipeline_options(
+            '{"options": {"eam:option:m_option:v":"mock_val"}}')
+        .get_all_options(drop_default=True))
+
   def test_work_count_custom_value(self):
-    self._check_worker_count(
-        '{"options": {"experiments":["worker_threads=1"]}}', 1)
-    self._check_worker_count(
-        '{"options": {"experiments":["worker_threads=4"]}}', 4)
-    self._check_worker_count(
-        '{"options": {"experiments":["worker_threads=12"]}}', 12)
+    self._check_worker_count('{"experiments":["worker_threads=1"]}', 1)
+    self._check_worker_count('{"experiments":["worker_threads=4"]}', 4)
+    self._check_worker_count('{"experiments":["worker_threads=12"]}', 12)
 
   def test_work_count_wrong_format(self):
     self._check_worker_count(
-        '{"options": {"experiments":["worker_threads="]}}', exception=True)
+        '{"experiments":["worker_threads="]}', exception=True)
     self._check_worker_count(
-        '{"options": {"experiments":["worker_threads=a"]}}', exception=True)
+        '{"experiments":["worker_threads=a"]}', exception=True)
     self._check_worker_count(
-        '{"options": {"experiments":["worker_threads=1a"]}}', exception=True)
+        '{"experiments":["worker_threads=1a"]}', exception=True)
 
   def _check_worker_count(self, pipeline_options, expected=0, exception=False):
     if exception:
-      self.assertRaises(Exception, sdk_worker_main._get_worker_count,
-                        json.loads(pipeline_options))
+      self.assertRaises(
+          Exception, sdk_worker_main._get_worker_count,
+          PipelineOptions.from_dictionary(json.loads(pipeline_options)))
     else:
-      self.assertEquals(
-          sdk_worker_main._get_worker_count(json.loads(pipeline_options)),
+      self.assertEqual(
+          sdk_worker_main._get_worker_count(
+              PipelineOptions.from_dictionary(json.loads(pipeline_options))),
           expected)
 
 

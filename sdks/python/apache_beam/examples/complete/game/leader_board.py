@@ -168,17 +168,19 @@ class TeamScoresDict(beam.DoFn):
 
 class WriteToBigQuery(beam.PTransform):
   """Generate, format, and write BigQuery table row information."""
-  def __init__(self, table_name, dataset, schema):
+  def __init__(self, table_name, dataset, schema, project):
     """Initializes the transform.
     Args:
       table_name: Name of the BigQuery table to use.
       dataset: Name of the dataset to use.
       schema: Dictionary in the format {'column_name': 'bigquery_type'}
+      project: Name of the Cloud project containing BigQuery table.
     """
     super(WriteToBigQuery, self).__init__()
     self.table_name = table_name
     self.dataset = dataset
     self.schema = schema
+    self.project = project
 
   def get_schema(self):
     """Build the output table schema."""
@@ -186,13 +188,12 @@ class WriteToBigQuery(beam.PTransform):
         '%s:%s' % (col, self.schema[col]) for col in self.schema)
 
   def expand(self, pcoll):
-    project = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
     return (
         pcoll
         | 'ConvertToRow' >> beam.Map(
             lambda elem: {col: elem[col] for col in self.schema})
         | beam.io.WriteToBigQuery(
-            self.table_name, self.dataset, project, self.get_schema()))
+            self.table_name, self.dataset, self.project, self.get_schema()))
 
 
 # [START window_and_trigger]
@@ -306,14 +307,15 @@ def run(argv=None):
 
     # Read from PubSub into a PCollection.
     if args.subscription:
-      scores = p | 'ReadPubSub' >> beam.io.ReadStringsFromPubSub(
+      scores = p | 'ReadPubSub' >> beam.io.ReadFromPubSub(
           subscription=args.subscription)
     else:
-      scores = p | 'ReadPubSub' >> beam.io.ReadStringsFromPubSub(
+      scores = p | 'ReadPubSub' >> beam.io.ReadFromPubSub(
           topic=args.topic)
 
     events = (
         scores
+        | 'DecodeString' >> beam.Map(lambda b: b.decode('utf-8'))
         | 'ParseGameEventFn' >> beam.ParDo(ParseGameEventFn())
         | 'AddEventTimestamps' >> beam.Map(
             lambda elem: beam.window.TimestampedValue(elem, elem['timestamp'])))
@@ -329,7 +331,7 @@ def run(argv=None):
              'total_score': 'INTEGER',
              'window_start': 'STRING',
              'processing_time': 'STRING',
-         }))
+         }, options.view_as(GoogleCloudOptions).project))
 
     def format_user_score_sums(user_score):
       (user, score) = user_score
@@ -343,7 +345,7 @@ def run(argv=None):
          args.table_name + '_users', args.dataset, {
              'user': 'STRING',
              'total_score': 'INTEGER',
-         }))
+         }, options.view_as(GoogleCloudOptions).project))
 
 
 if __name__ == '__main__':

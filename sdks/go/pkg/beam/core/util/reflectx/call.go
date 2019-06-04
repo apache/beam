@@ -16,14 +16,11 @@
 package reflectx
 
 import (
-	"context"
 	"reflect"
 	"sync"
 
-	"fmt"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"runtime/debug"
-
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
 //go:generate specialize --input=calls.tmpl
@@ -54,9 +51,6 @@ func RegisterFunc(t reflect.Type, maker func(interface{}) Func) {
 	defer funcsMu.Unlock()
 
 	key := t.String()
-	if _, exists := funcs[key]; exists {
-		log.Warnf(context.Background(), "Func for %v already registered. Overwriting.", key)
-	}
 	funcs[key] = maker
 }
 
@@ -96,7 +90,7 @@ func (c *reflectFunc) Call(args []interface{}) []interface{} {
 func CallNoPanic(fn Func, args []interface{}) (ret []interface{}, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("panic: %v %s", r, debug.Stack())
+			err = errors.Errorf("panic: %v %s", r, debug.Stack())
 		}
 	}()
 	return fn.Call(args), nil

@@ -63,7 +63,7 @@ class TfIdf(beam.PTransform):
     total_documents = (
         uri_to_content
         | 'GetUris 1' >> beam.Keys()
-        | 'GetUniqueUris' >> beam.RemoveDuplicates()
+        | 'GetUniqueUris' >> beam.Distinct()
         | 'CountUris' >> beam.combiners.Count.Globally())
 
     # Create a collection of pairs mapping a URI to each of the words
@@ -81,7 +81,7 @@ class TfIdf(beam.PTransform):
     # in which it appears.
     word_to_doc_count = (
         uri_to_words
-        | 'GetUniqueWordsPerDoc' >> beam.RemoveDuplicates()
+        | 'GetUniqueWordsPerDoc' >> beam.Distinct()
         | 'GetWords' >> beam.Values()
         | 'CountDocsPerWord' >> beam.combiners.Count.PerElement())
 

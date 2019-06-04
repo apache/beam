@@ -20,10 +20,11 @@ import (
 	"fmt"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
-// buffer buffers all input and notifies on FinishBundle. It is also a ReStream.
+// buffer buffers all input and notifies on FinishBundle. It is also a SideInputAdapter.
 // It is used as a guard for the wait node to buffer data used as side input.
 type buffer struct {
 	uid    exec.UnitID
@@ -43,14 +44,14 @@ func (n *buffer) Up(ctx context.Context) error {
 	return nil
 }
 
-func (n *buffer) StartBundle(ctx context.Context, id string, data exec.DataManager) error {
+func (n *buffer) StartBundle(ctx context.Context, id string, data exec.DataContext) error {
 	n.buf = nil
 	n.done = false
 	return nil
 }
 
-func (n *buffer) ProcessElement(ctx context.Context, elm exec.FullValue, values ...exec.ReStream) error {
-	n.buf = append(n.buf, elm)
+func (n *buffer) ProcessElement(ctx context.Context, elm *exec.FullValue, values ...exec.ReStream) error {
+	n.buf = append(n.buf, *elm)
 	return nil
 }
 
@@ -63,11 +64,11 @@ func (n *buffer) Down(ctx context.Context) error {
 	return nil
 }
 
-func (n *buffer) Open() exec.Stream {
+func (n *buffer) NewIterable(ctx context.Context, reader exec.SideInputReader, w typex.Window) (exec.ReStream, error) {
 	if !n.done {
 		panic(fmt.Sprintf("buffer[%v] incomplete: %v", n.uid, len(n.buf)))
 	}
-	return &exec.FixedStream{Buf: n.buf}
+	return &exec.FixedReStream{Buf: n.buf}, nil
 }
 
 func (n *buffer) String() string {
@@ -83,7 +84,7 @@ type wait struct {
 	next exec.Node
 
 	instID string
-	mgr    exec.DataManager
+	mgr    exec.DataContext
 
 	buf   []exec.FullValue
 	ready int  // guards ready
@@ -112,7 +113,7 @@ func (w *wait) notify(ctx context.Context) error {
 		return err
 	}
 	for _, elm := range w.buf {
-		if err := w.next.ProcessElement(ctx, elm); err != nil {
+		if err := w.next.ProcessElement(ctx, &elm); err != nil {
 			return err
 		}
 	}
@@ -131,14 +132,14 @@ func (w *wait) Up(ctx context.Context) error {
 	return nil
 }
 
-func (w *wait) StartBundle(ctx context.Context, id string, data exec.DataManager) error {
+func (w *wait) StartBundle(ctx context.Context, id string, data exec.DataContext) error {
 	return nil // done in notify
 }
 
-func (w *wait) ProcessElement(ctx context.Context, elm exec.FullValue, values ...exec.ReStream) error {
+func (w *wait) ProcessElement(ctx context.Context, elm *exec.FullValue, values ...exec.ReStream) error {
 	if w.ready < w.need {
 		// log.Printf("buffer[%v]: %v", w.UID, elm)
-		w.buf = append(w.buf, elm)
+		w.buf = append(w.buf, *elm)
 		return nil
 	}
 

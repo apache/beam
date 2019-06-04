@@ -15,19 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza;
 
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
-import java.io.IOException;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.samza.application.StreamApplication;
+import org.apache.samza.config.Config;
+import org.apache.samza.config.TaskConfig;
 import org.apache.samza.job.ApplicationStatus;
 import org.apache.samza.runtime.ApplicationRunner;
-import org.apache.samza.runtime.LocalApplicationRunner;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,16 +36,28 @@ import org.slf4j.LoggerFactory;
 /** The result from executing a Samza Pipeline. */
 public class SamzaPipelineResult implements PipelineResult {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaPipelineResult.class);
+  private static final long DEFAULT_SHUTDOWN_MS = 5000L;
+  // allow some buffer on top of samza's own shutdown timeout
+  private static final long SHUTDOWN_TIMEOUT_BUFFER = 5000L;
 
   private final SamzaExecutionContext executionContext;
   private final ApplicationRunner runner;
   private final StreamApplication app;
+  private final SamzaPipelineLifeCycleListener listener;
+  private final long shutdownTiemoutMs;
 
   public SamzaPipelineResult(
-      StreamApplication app, ApplicationRunner runner, SamzaExecutionContext executionContext) {
+      StreamApplication app,
+      ApplicationRunner runner,
+      SamzaExecutionContext executionContext,
+      SamzaPipelineLifeCycleListener listener,
+      Config config) {
     this.executionContext = executionContext;
     this.runner = runner;
     this.app = app;
+    this.listener = listener;
+    this.shutdownTiemoutMs =
+        config.getLong(TaskConfig.SHUTDOWN_MS(), DEFAULT_SHUTDOWN_MS) + SHUTDOWN_TIMEOUT_BUFFER;
   }
 
   @Override
@@ -53,40 +66,42 @@ public class SamzaPipelineResult implements PipelineResult {
   }
 
   @Override
-  public State cancel() throws IOException {
-    runner.kill(app);
-
-    //TODO: runner.waitForFinish() after SAMZA-1653 done
-    return getState();
+  public State cancel() {
+    LOG.info("Start to cancel samza pipeline...");
+    runner.kill();
+    LOG.info("Start awaiting finish for {} ms.", shutdownTiemoutMs);
+    return waitUntilFinish(Duration.millis(shutdownTiemoutMs));
   }
 
   @Override
-  public State waitUntilFinish(Duration duration) {
-    //TODO: SAMZA-1653
-    throw new UnsupportedOperationException(
-        "waitUntilFinish(duration) is not supported by the SamzaRunner");
+  public State waitUntilFinish(@Nullable Duration duration) {
+    try {
+      if (duration == null) {
+        runner.waitForFinish();
+      } else {
+        runner.waitForFinish(java.time.Duration.ofMillis(duration.getMillis()));
+      }
+    } catch (Exception e) {
+      throw new Pipeline.PipelineExecutionException(e);
+    }
+
+    final StateInfo stateInfo = getStateInfo();
+
+    if (listener != null && (stateInfo.state == State.DONE || stateInfo.state == State.FAILED)) {
+      listener.onFinish();
+    }
+
+    if (stateInfo.state == State.FAILED) {
+      throw stateInfo.error;
+    }
+
+    LOG.info("Pipeline finished. Final state: {}", stateInfo.state);
+    return stateInfo.state;
   }
 
   @Override
   public State waitUntilFinish() {
-    if (runner instanceof LocalApplicationRunner) {
-      try {
-        ((LocalApplicationRunner) runner).waitForFinish();
-      } catch (Exception e) {
-        throw new Pipeline.PipelineExecutionException(e);
-      }
-
-      final StateInfo stateInfo = getStateInfo();
-      if (stateInfo.state == State.FAILED) {
-        throw stateInfo.error;
-      }
-
-      return stateInfo.state;
-    } else {
-      // TODO: SAMZA-1653 support waitForFinish in remote runner too
-      throw new UnsupportedOperationException(
-          "waitUntilFinish is not supported by the SamzaRunner when running remotely");
-    }
+    return waitUntilFinish(null);
   }
 
   @Override
@@ -95,7 +110,7 @@ public class SamzaPipelineResult implements PipelineResult {
   }
 
   private StateInfo getStateInfo() {
-    final ApplicationStatus status = runner.status(app);
+    final ApplicationStatus status = runner.status();
     switch (status.getStatusCode()) {
       case New:
         return new StateInfo(State.STOPPED);
@@ -106,7 +121,8 @@ public class SamzaPipelineResult implements PipelineResult {
       case UnsuccessfulFinish:
         LOG.error(status.getThrowable().getMessage(), status.getThrowable());
         return new StateInfo(
-            State.FAILED, new Pipeline.PipelineExecutionException(status.getThrowable()));
+            State.FAILED,
+            new Pipeline.PipelineExecutionException(getUserCodeException(status.getThrowable())));
       default:
         return new StateInfo(State.UNKNOWN);
     }
@@ -124,5 +140,22 @@ public class SamzaPipelineResult implements PipelineResult {
       this.state = state;
       this.error = error;
     }
+  }
+
+  /**
+   * Some of the Beam unit tests relying on the exception message to do assertion. This function
+   * will find the original UserCodeException so the message will be exposed directly.
+   */
+  private static Throwable getUserCodeException(Throwable throwable) {
+    Throwable t = throwable;
+    while (t != null) {
+      if (t instanceof UserCodeException) {
+        return t;
+      }
+
+      t = t.getCause();
+    }
+
+    return throwable;
   }
 }

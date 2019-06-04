@@ -17,12 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import com.google.common.base.Objects;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.hash.Hashing;
-import com.google.common.hash.HashingOutputStream;
-import com.google.common.io.ByteStreams;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Iterator;
@@ -38,6 +32,12 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashingOutputStream;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
 
 /**
  * {@code PTransform}s for estimating the number of distinct elements in a {@code PCollection}, or

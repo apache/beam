@@ -20,6 +20,8 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+from __future__ import absolute_import
+
 import errno
 import logging
 import sys
@@ -138,10 +140,14 @@ def retry_on_rpc_error(exception):
   if isinstance(exception, RPCError):
     err_code = exception.code
     # TODO(BEAM-2156): put these codes in a global list and use that instead.
-    return (err_code == code_pb2.DEADLINE_EXCEEDED or
-            err_code == code_pb2.UNAVAILABLE or
-            err_code == code_pb2.UNKNOWN or
-            err_code == code_pb2.INTERNAL)
+    # https://cloud.google.com/datastore/docs/concepts/errors#error_codes
+    return err_code in [
+        code_pb2.ABORTED,
+        code_pb2.DEADLINE_EXCEEDED,
+        code_pb2.INTERNAL,
+        code_pb2.UNAVAILABLE,
+        code_pb2.UNKNOWN,
+    ]
 
   if isinstance(exception, SocketError):
     return (exception.errno == errno.ECONNRESET or

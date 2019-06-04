@@ -66,24 +66,30 @@ class MetricResultsTest(unittest.TestCase):
     self.assertTrue(MetricResults.matches(filter, key))
 
   def test_metric_filter_step_matching(self):
-    filter = MetricsFilter().with_step('Top1/Outer1/Inner1')
     name = MetricName('ns1', 'name1')
-    key = MetricKey('Top1/Outer1/Inner1', name)
+    filter = MetricsFilter().with_step('Step1')
+
+    key = MetricKey('Step1', name)
     self.assertTrue(MetricResults.matches(filter, key))
 
-    filter = MetricsFilter().with_step('step1')
-    name = MetricName('ns1', 'name1')
-    key = MetricKey('step1', name)
+    key = MetricKey('Step10', name)
+    self.assertFalse(MetricResults.matches(filter, key))
+
+    key = MetricKey('Step10/Step1', name)
+    self.assertTrue(MetricResults.matches(filter, key))
+
+    key = MetricKey('Top1/Outer1/Inner1', name)
+
+    filter = MetricsFilter().with_step('Top1/Outer1/Inner1')
     self.assertTrue(MetricResults.matches(filter, key))
 
     filter = MetricsFilter().with_step('Top1/Outer1')
-    name = MetricName('ns1', 'name1')
-    key = MetricKey('Top1/Outer1/Inner1', name)
+    self.assertTrue(MetricResults.matches(filter, key))
+
+    filter = MetricsFilter().with_step('Outer1/Inner1')
     self.assertTrue(MetricResults.matches(filter, key))
 
     filter = MetricsFilter().with_step('Top1/Inner1')
-    name = MetricName('ns1', 'name1')
-    key = MetricKey('Top1/Outer1/Inner1', name)
     self.assertFalse(MetricResults.matches(filter, key))
 
 

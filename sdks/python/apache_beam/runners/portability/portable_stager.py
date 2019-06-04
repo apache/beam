@@ -20,7 +20,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import base64
 import hashlib
 import os
 
@@ -72,7 +71,8 @@ class PortableStager(Stager):
     def artifact_request_generator():
       artifact_metadata = beam_artifact_api_pb2.ArtifactMetadata(
           name=artifact_name,
-          md5=_get_file_hash(local_path_to_artifact))
+          sha256=_get_file_hash(local_path_to_artifact),
+          permissions=444)
       metadata = beam_artifact_api_pb2.PutArtifactMetadata(
           staging_session_token=self._staging_session_token,
           metadata=artifact_metadata)
@@ -100,11 +100,11 @@ class PortableStager(Stager):
 
 
 def _get_file_hash(path):
-  hasher = hashlib.md5()
-  with open(path) as f:
+  hasher = hashlib.sha256()
+  with open(path, 'rb') as f:
     while True:
       chunk = f.read(1 << 21)
       if chunk:
         hasher.update(chunk)
       else:
-        return base64.b64encode(hasher.digest())
+        return hasher.hexdigest()

@@ -18,50 +18,69 @@
 package org.apache.beam.examples.cookbook;
 
 import com.google.api.services.bigquery.model.TableRow;
-import java.util.List;
 import org.apache.beam.examples.cookbook.BigQueryTornadoes.ExtractTornadoesFn;
 import org.apache.beam.examples.cookbook.BigQueryTornadoes.FormatCountsFn;
-import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
-import org.hamcrest.CoreMatchers;
-import org.junit.Assert;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Test case for {@link BigQueryTornadoes}. */
 @RunWith(JUnit4.class)
 public class BigQueryTornadoesTest {
+  @Rule public TestPipeline p = TestPipeline.create();
 
   @Test
-  public void testExtractTornadoes() throws Exception {
+  @Category(ValidatesRunner.class)
+  public void testExtractTornadoes() {
     TableRow row = new TableRow().set("month", "6").set("tornado", true);
-    DoFnTester<TableRow, Integer> extractWordsFn = DoFnTester.of(new ExtractTornadoesFn());
-    Assert.assertThat(extractWordsFn.processBundle(row), CoreMatchers.hasItems(6));
+    PCollection<TableRow> input = p.apply(Create.of(ImmutableList.of(row)));
+    PCollection<Integer> result = input.apply(ParDo.of(new ExtractTornadoesFn()));
+    PAssert.that(result).containsInAnyOrder(6);
+    p.run().waitUntilFinish();
   }
 
   @Test
-  public void testNoTornadoes() throws Exception {
+  @Category(ValidatesRunner.class)
+  public void testNoTornadoes() {
     TableRow row = new TableRow().set("month", 6).set("tornado", false);
-    DoFnTester<TableRow, Integer> extractWordsFn = DoFnTester.of(new ExtractTornadoesFn());
-    Assert.assertTrue(extractWordsFn.processBundle(row).isEmpty());
+    PCollection<TableRow> inputs = p.apply(Create.of(ImmutableList.of(row)));
+    PCollection<Integer> result = inputs.apply(ParDo.of(new ExtractTornadoesFn()));
+    PAssert.that(result).empty();
+    p.run().waitUntilFinish();
   }
 
   @Test
-  @SuppressWarnings({"rawtypes", "unchecked"})
-  public void testFormatCounts() throws Exception {
-    DoFnTester<KV<Integer, Long>, TableRow> formatCountsFn = DoFnTester.of(new FormatCountsFn());
-    KV empty[] = {};
-    List<TableRow> results = formatCountsFn.processBundle(empty);
-    Assert.assertTrue(results.isEmpty());
-    KV input[] = {KV.of(3, 0L), KV.of(4, Long.MAX_VALUE), KV.of(5, Long.MIN_VALUE)};
-    results = formatCountsFn.processBundle(input);
-    Assert.assertEquals(3, results.size());
-    Assert.assertEquals(3, results.get(0).get("month"));
-    Assert.assertEquals(0L, results.get(0).get("tornado_count"));
-    Assert.assertEquals(4, results.get(1).get("month"));
-    Assert.assertEquals(Long.MAX_VALUE, results.get(1).get("tornado_count"));
-    Assert.assertEquals(5, results.get(2).get("month"));
-    Assert.assertEquals(Long.MIN_VALUE, results.get(2).get("tornado_count"));
+  @Category(ValidatesRunner.class)
+  public void testEmpty() {
+    PCollection<KV<Integer, Long>> inputs =
+        p.apply(Create.empty(new TypeDescriptor<KV<Integer, Long>>() {}));
+    PCollection<TableRow> result = inputs.apply(ParDo.of(new FormatCountsFn()));
+    PAssert.that(result).empty();
+    p.run().waitUntilFinish();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testFormatCounts() {
+    PCollection<KV<Integer, Long>> inputs =
+        p.apply(Create.of(KV.of(3, 0L), KV.of(4, Long.MAX_VALUE), KV.of(5, Long.MIN_VALUE)));
+    PCollection<TableRow> result = inputs.apply(ParDo.of(new FormatCountsFn()));
+    PAssert.that(result)
+        .containsInAnyOrder(
+            new TableRow().set("month", 3).set("tornado_count", 0),
+            new TableRow().set("month", 4).set("tornado_count", Long.MAX_VALUE),
+            new TableRow().set("month", 5).set("tornado_count", Long.MIN_VALUE));
+    p.run().waitUntilFinish();
   }
 }

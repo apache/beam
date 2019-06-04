@@ -17,67 +17,66 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
-
-import com.google.common.collect.ImmutableList;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionExecutor;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutor;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.core.Correlate;
-import org.apache.calcite.rel.core.CorrelationId;
+import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.Uncollect;
-import org.apache.calcite.sql.SemiJoinType;
-import org.apache.calcite.util.ImmutableBitSet;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.validate.SqlValidatorUtil;
 
 /**
  * {@link BeamRelNode} to implement UNNEST, supporting specifically only {@link Correlate} with
  * {@link Uncollect}.
  */
-public class BeamUnnestRel extends Correlate implements BeamRelNode {
+public class BeamUnnestRel extends Uncollect implements BeamRelNode {
+
+  private final RelDataType unnestType;
+  private final int unnestIndex;
 
   public BeamUnnestRel(
       RelOptCluster cluster,
-      RelTraitSet traits,
-      RelNode left,
-      RelNode right,
-      CorrelationId correlationId,
-      ImmutableBitSet requiredColumns,
-      SemiJoinType joinType) {
-    super(cluster, traits, left, right, correlationId, requiredColumns, joinType);
+      RelTraitSet traitSet,
+      RelNode input,
+      RelDataType unnestType,
+      int unnestIndex) {
+    super(cluster, traitSet, input);
+    this.unnestType = unnestType;
+    this.unnestIndex = unnestIndex;
   }
 
   @Override
-  public Correlate copy(
-      RelTraitSet relTraitSet,
-      RelNode left,
-      RelNode right,
-      CorrelationId correlationId,
-      ImmutableBitSet requireColumns,
-      SemiJoinType joinType) {
-    return new BeamUnnestRel(
-        getCluster(), relTraitSet, left, right, correlationId, requiredColumns, joinType);
+  public Uncollect copy(RelTraitSet traitSet, RelNode input) {
+    return new BeamUnnestRel(getCluster(), traitSet, input, unnestType, unnestIndex);
   }
 
   @Override
-  public List<RelNode> getPCollectionInputs() {
-    return ImmutableList.of(BeamSqlRelUtils.getBeamRelInput(left));
+  protected RelDataType deriveRowType() {
+    return SqlValidatorUtil.deriveJoinRowType(
+        input.getRowType(),
+        unnestType,
+        JoinRelType.INNER,
+        getCluster().getTypeFactory(),
+        null,
+        ImmutableList.of());
+  }
+
+  @Override
+  public RelWriter explainTerms(RelWriter pw) {
+    return super.explainTerms(pw).item("unnestIndex", Integer.toString(unnestIndex));
   }
 
   @Override
@@ -91,82 +90,40 @@ public class BeamUnnestRel extends Correlate implements BeamRelNode {
       // The set of rows where we run the correlated unnest for each row
       PCollection<Row> outer = pinput.get(0);
 
-      // The correlated subquery
-      BeamUncollectRel uncollect = (BeamUncollectRel) BeamSqlRelUtils.getBeamRelInput(right);
-      Schema innerSchema = CalciteUtils.toBeamSchema(uncollect.getRowType());
-      checkArgument(
-          innerSchema.getFieldCount() == 1, "Can only UNNEST a single column", getClass());
-
-      BeamSqlExpressionExecutor expr =
-          new BeamSqlFnExecutor(
-              ((BeamCalcRel) BeamSqlRelUtils.getBeamRelInput(uncollect.getInput())).getProgram());
-
-      Schema joinedSchema = CalciteUtils.toBeamSchema(rowType);
+      Schema joinedSchema = CalciteUtils.toSchema(rowType);
 
       return outer
-          .apply(
-              ParDo.of(
-                  new UnnestFn(correlationId.getId(), expr, joinedSchema, innerSchema.getField(0))))
-          .setCoder(joinedSchema.getRowCoder());
+          .apply(ParDo.of(new UnnestFn(joinedSchema, unnestIndex)))
+          .setRowSchema(joinedSchema);
     }
   }
 
   private static class UnnestFn extends DoFn<Row, Row> {
 
-    /** The expression that should return an iterable to be uncollected. */
-    private final BeamSqlExpressionExecutor expr;
-
-    private final int correlationId;
     private final Schema outputSchema;
-    private final Schema.Field innerField;
+    private final int unnestIndex;
 
-    private UnnestFn(
-        int correlationId,
-        BeamSqlExpressionExecutor expr,
-        Schema outputSchema,
-        Schema.Field innerField) {
-      this.correlationId = correlationId;
-      this.expr = expr;
+    private UnnestFn(Schema outputSchema, int unnestIndex) {
       this.outputSchema = outputSchema;
-      this.innerField = innerField;
+      this.unnestIndex = unnestIndex;
     }
 
     @ProcessElement
-    public void process(@Element Row row, BoundedWindow window, OutputReceiver<Row> out) {
+    public void process(@Element Row row, OutputReceiver<Row> out) {
 
-      checkState(correlationId == 0, "Only one level of correlation nesting is supported");
-      BeamSqlExpressionEnvironment env =
-          BeamSqlExpressionEnvironments.forRowAndCorrelVariables(
-              row, window, ImmutableList.of(row));
-
-      @Nullable List<Object> rawValues = expr.execute(row, window, env);
+      @Nullable List<Object> rawValues = row.getArray(unnestIndex);
 
       if (rawValues == null) {
         return;
       }
 
-      checkState(
-          rawValues.size() == 1,
-          "%s expression to unnest %s resulted in more than one column",
-          getClass(),
-          expr);
-
-      checkState(
-          rawValues.get(0) instanceof Iterable,
-          "%s expression to unnest %s not iterable",
-          getClass(),
-          expr);
-
-      for (Object uncollectedValue : (Iterable) rawValues.get(0)) {
-        Object coercedValue = BeamTableUtils.autoCastField(innerField, uncollectedValue);
+      for (Object uncollectedValue : rawValues) {
         out.output(
-            Row.withSchema(outputSchema).addValues(row.getValues()).addValue(coercedValue).build());
+            Row.withSchema(outputSchema)
+                .addValues(row.getValues())
+                .addValue(uncollectedValue)
+                .build());
       }
-    }
-
-    @Teardown
-    public void close() {
-      expr.close();
     }
   }
 }

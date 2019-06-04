@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.io.elasticsearch;
 
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_INDEX;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_TYPE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.NUM_DOCS_ITESTS;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.getEsIndex;
 
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -54,9 +54,9 @@ public class ElasticsearchIOITCommon {
 
   /** Enum encapsulating the mode of operation and the index. */
   enum IndexMode {
-    READ(ES_INDEX),
-    WRITE(ES_INDEX + System.currentTimeMillis()),
-    WRITE_PARTIAL(ES_INDEX + "_partial_" + System.currentTimeMillis());
+    READ(getEsIndex()),
+    WRITE(getEsIndex() + System.currentTimeMillis()),
+    WRITE_PARTIAL(getEsIndex() + "_partial_" + System.currentTimeMillis());
 
     private final String index;
 

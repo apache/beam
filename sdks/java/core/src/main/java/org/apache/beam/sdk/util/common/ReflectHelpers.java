@@ -17,15 +17,10 @@
  */
 package org.apache.beam.sdk.util.common;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Arrays.asList;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.base.Function;
-import com.google.common.base.Joiner;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Queues;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
@@ -41,6 +36,12 @@ import java.util.Queue;
 import java.util.ServiceLoader;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSortedSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Queues;
 
 /** Utilities for working with with {@link Class Classes} and {@link Method Methods}. */
 public class ReflectHelpers {
@@ -158,7 +159,7 @@ public class ReflectHelpers {
         }
       };
 
-  /** A {@link Comparator} that uses the object's classes canonical name to compare them. */
+  /** A {@link Comparator} that uses the object's class' canonical name to compare them. */
   public static class ObjectsClassComparator implements Comparator<Object> {
     public static final ObjectsClassComparator INSTANCE = new ObjectsClassComparator();
 
@@ -198,6 +199,34 @@ public class ReflectHelpers {
       interfacesToProcess.addAll(Arrays.asList(current.getInterfaces()));
     }
     return builder.build();
+  }
+
+  /**
+   * Returns instances of all implementations of the the specified {@code iface}. Instances are
+   * sorted by their class' name to ensure deterministic execution.
+   *
+   * @param iface The interface to load implementations of
+   * @param classLoader The class loader to use
+   * @param <T> The type of {@code iface}
+   * @return An iterable of instances of T, ordered by their class' canonical name
+   */
+  public static <T> Iterable<T> loadServicesOrdered(Class<T> iface, ClassLoader classLoader) {
+    ServiceLoader<T> loader = ServiceLoader.load(iface, classLoader);
+    ImmutableSortedSet.Builder<T> builder =
+        new ImmutableSortedSet.Builder<>(ObjectsClassComparator.INSTANCE);
+    builder.addAll(loader);
+    return builder.build();
+  }
+
+  /**
+   * A version of {@code loadServicesOrdered} that uses a default class loader.
+   *
+   * @param iface The interface to load implementations of
+   * @param <T> The type of {@code iface}
+   * @return An iterable of instances of T, ordered by their class' canonical name
+   */
+  public static <T> Iterable<T> loadServicesOrdered(Class<T> iface) {
+    return loadServicesOrdered(iface, ReflectHelpers.findClassLoader());
   }
 
   /**

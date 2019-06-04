@@ -18,29 +18,28 @@
 package org.apache.beam.examples.cookbook;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.examples.cookbook.TriggerExample.ExtractFlowInfo;
 import org.apache.beam.examples.cookbook.TriggerExample.TotalFlow;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -58,7 +57,8 @@ public class TriggerExampleTest {
     "01/01/2010 00:00:00,1108302,94,E,ML,36,100,29,0.0065,66,9,1,0.001,74.8,1,9,3,0.0028,71,1,9,"
         + "12,0.0099,67.4,1,9,13,0.0121,99.0,1,,,,,0,,,,,0,,,,,0,,,,,0",
     "01/01/2010 00:00:00,"
-        + "1100333,5,N,FR,9,0,39,,,9,,,,0,,,,,0,,,,,0,,,,,0,,,,,0,,,,,0,,,,,0,,,,"
+        + "1100333,5,N,FR,9,0,39,,,9,,,,0,,,,,0,,,,,0,,,,,0,,,,,0,,,,,0,,,,,0,,,,",
+    ""
   };
 
   private static final List<TimestampedValue<String>> TIME_STAMPED_INPUT =
@@ -104,16 +104,17 @@ public class TriggerExampleTest {
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @Test
-  public void testExtractTotalFlow() throws Exception {
-    DoFnTester<String, KV<String, Integer>> extractFlowInfow = DoFnTester.of(new ExtractFlowInfo());
+  public void testExtractTotalFlow() {
+    PCollection<KV<String, Integer>> output =
+        pipeline
+            .apply(Create.of(Arrays.asList(INPUT)).withCoder(StringUtf8Coder.of()))
+            .apply(ParDo.of(new ExtractFlowInfo()));
 
-    List<KV<String, Integer>> results = extractFlowInfow.processBundle(INPUT);
-    Assert.assertEquals(1, results.size());
-    Assert.assertEquals("94", results.get(0).getKey());
-    Assert.assertEquals(Integer.valueOf(29), results.get(0).getValue());
+    KV<String, Integer> expectedOutput = KV.of("94", 29);
 
-    List<KV<String, Integer>> output = extractFlowInfow.processBundle("");
-    Assert.assertEquals(0, output.size());
+    PAssert.that(output).containsInAnyOrder(Arrays.asList(expectedOutput));
+
+    pipeline.run().waitUntilFinish();
   }
 
   @Test

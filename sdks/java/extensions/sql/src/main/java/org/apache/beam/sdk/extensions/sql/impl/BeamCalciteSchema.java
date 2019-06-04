@@ -17,14 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
-import com.google.common.collect.Maps;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.calcite.linq4j.tree.Expression;
+import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.schema.Function;
 import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.SchemaPlus;
@@ -33,12 +34,14 @@ import org.apache.calcite.schema.Schemas;
 
 /** Adapter from {@link TableProvider} to {@link Schema}. */
 public class BeamCalciteSchema implements Schema {
-  private final TableProvider tableProvider;
-  private final Map<String, String> pipelineOptions;
+  private JdbcConnection connection;
+  private TableProvider tableProvider;
+  private Map<String, BeamCalciteSchema> subSchemas;
 
-  public BeamCalciteSchema(TableProvider tableProvider) {
+  BeamCalciteSchema(JdbcConnection jdbcConnection, TableProvider tableProvider) {
+    this.connection = jdbcConnection;
     this.tableProvider = tableProvider;
-    this.pipelineOptions = Maps.newHashMap();
+    this.subSchemas = new HashMap<>();
   }
 
   public TableProvider getTableProvider() {
@@ -46,7 +49,23 @@ public class BeamCalciteSchema implements Schema {
   }
 
   public Map<String, String> getPipelineOptions() {
-    return pipelineOptions;
+    return connection.getPipelineOptionsMap();
+  }
+
+  public void setPipelineOption(String key, String value) {
+    Map<String, String> options = new HashMap<>(connection.getPipelineOptionsMap());
+    options.put(key, value);
+    connection.setPipelineOptionsMap(options);
+  }
+
+  public void removePipelineOption(String key) {
+    Map<String, String> options = new HashMap<>(connection.getPipelineOptionsMap());
+    options.remove(key);
+    connection.setPipelineOptionsMap(options);
+  }
+
+  public void removeAllPipelineOptions() {
+    connection.setPipelineOptionsMap(Collections.emptyMap());
   }
 
   @Override
@@ -70,8 +89,18 @@ public class BeamCalciteSchema implements Schema {
   }
 
   @Override
+  public RelProtoDataType getType(String name) {
+    return null;
+  }
+
+  @Override
+  public Set<String> getTypeNames() {
+    return Collections.emptySet();
+  }
+
+  @Override
   public org.apache.calcite.schema.Table getTable(String name) {
-    Table table = tableProvider.getTables().get(name);
+    Table table = tableProvider.getTable(name);
     if (table == null) {
       return null;
     }
@@ -90,11 +119,17 @@ public class BeamCalciteSchema implements Schema {
 
   @Override
   public Set<String> getSubSchemaNames() {
-    return Collections.emptySet();
+    return tableProvider.getSubProviders();
   }
 
   @Override
   public Schema getSubSchema(String name) {
-    return null;
+    if (!subSchemas.containsKey(name)) {
+      TableProvider subProvider = tableProvider.getSubProvider(name);
+      BeamCalciteSchema subSchema =
+          subProvider == null ? null : new BeamCalciteSchema(connection, subProvider);
+      subSchemas.put(name, subSchema);
+    }
+    return subSchemas.get(name);
   }
 }

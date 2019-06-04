@@ -58,7 +58,7 @@ def worker_printable_fields(workerproto):
   return ['%s=%s' % (name, value)
           # _asdict is the only way and cannot subclass this generated class
           # pylint: disable=protected-access
-          for name, value in workerproto._asdict().iteritems()
+          for name, value in workerproto._asdict().items()
           # want to output value 0 but not None nor []
           if (value or value == 0)
           and name not in
@@ -354,7 +354,8 @@ def get_coder_from_spec(coder_spec):
 
   # We pass coders in the form "<coder_name>$<pickled_data>" to make the job
   # description JSON more readable.
-  return coders.coders.deserialize_coder(coder_spec['@type'])
+  return coders.coders.deserialize_coder(
+      coder_spec['@type'].encode('ascii'))
 
 
 class MapTask(object):

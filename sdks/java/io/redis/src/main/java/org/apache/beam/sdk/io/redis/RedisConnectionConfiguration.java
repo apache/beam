@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.redis;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
@@ -42,6 +42,8 @@ public abstract class RedisConnectionConfiguration implements Serializable {
 
   abstract int timeout();
 
+  abstract boolean ssl();
+
   abstract Builder builder();
 
   @AutoValue.Builder
@@ -54,6 +56,8 @@ public abstract class RedisConnectionConfiguration implements Serializable {
 
     abstract Builder setTimeout(int timeout);
 
+    abstract Builder setSsl(boolean ssl);
+
     abstract RedisConnectionConfiguration build();
   }
 
@@ -62,6 +66,7 @@ public abstract class RedisConnectionConfiguration implements Serializable {
         .setHost(Protocol.DEFAULT_HOST)
         .setPort(Protocol.DEFAULT_PORT)
         .setTimeout(Protocol.DEFAULT_TIMEOUT)
+        .setSsl(false)
         .build();
   }
 
@@ -70,6 +75,7 @@ public abstract class RedisConnectionConfiguration implements Serializable {
         .setHost(host)
         .setPort(port)
         .setTimeout(Protocol.DEFAULT_TIMEOUT)
+        .setSsl(false)
         .build();
   }
 
@@ -99,9 +105,14 @@ public abstract class RedisConnectionConfiguration implements Serializable {
     return builder().setTimeout(timeout).build();
   }
 
+  /** Enable SSL connection to Redis server. */
+  public RedisConnectionConfiguration enableSSL() {
+    return builder().setSsl(true).build();
+  }
+
   /** Connect to the Redis instance. */
   public Jedis connect() {
-    Jedis jedis = new Jedis(host(), port(), timeout());
+    Jedis jedis = new Jedis(host(), port(), timeout(), ssl());
     if (auth() != null) {
       jedis.auth(auth());
     }
@@ -113,5 +124,6 @@ public abstract class RedisConnectionConfiguration implements Serializable {
     builder.add(DisplayData.item("host", host()));
     builder.add(DisplayData.item("port", port()));
     builder.addIfNotNull(DisplayData.item("timeout", timeout()));
+    builder.add(DisplayData.item("ssl", ssl()));
   }
 }

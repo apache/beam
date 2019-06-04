@@ -16,7 +16,6 @@
 package exec
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"reflect"
@@ -24,7 +23,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // TODO(herohde) 4/26/2017: SideInput representation? We want it to be amenable
@@ -53,11 +52,13 @@ var (
 func RegisterInput(t reflect.Type, maker func(ReStream) ReusableInput) {
 	inputsMu.Lock()
 	defer inputsMu.Unlock()
-
-	if _, exists := inputs[t]; exists {
-		log.Warnf(context.Background(), "Input for %v already registered. Overwriting.", t.String())
-	}
 	inputs[t] = maker
+}
+
+// IsInputRegistered returns whether an input maker has already been registered.
+func IsInputRegistered(t reflect.Type) bool {
+	_, exists := inputs[t]
+	return exists
 }
 
 type reIterValue struct {
@@ -126,7 +127,11 @@ func makeIter(t reflect.Type, s ReStream) ReusableInput {
 }
 
 func (v *iterValue) Init() error {
-	v.cur = v.s.Open()
+	cur, err := v.s.Open()
+	if err != nil {
+		return err
+	}
+	v.cur = cur
 	return nil
 }
 
@@ -135,6 +140,9 @@ func (v *iterValue) Value() interface{} {
 }
 
 func (v *iterValue) Reset() error {
+	if v.cur == nil {
+		panic("Init() not called")
+	}
 	if err := v.cur.Close(); err != nil {
 		return err
 	}
@@ -143,12 +151,15 @@ func (v *iterValue) Reset() error {
 }
 
 func (v *iterValue) invoke(args []reflect.Value) []reflect.Value {
+	if v.cur == nil {
+		panic("Init() not called")
+	}
 	elm, err := v.cur.Read()
 	if err != nil {
 		if err == io.EOF {
 			return []reflect.Value{reflect.ValueOf(false)}
 		}
-		panic(fmt.Sprintf("broken stream: %v", err))
+		panic(errors.Wrap(err, "broken stream"))
 	}
 
 	// We expect 1-3 out parameters: func (*int, *string) bool.

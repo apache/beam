@@ -22,9 +22,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.io.BaseEncoding;
 import java.io.IOException;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
 
 /** MatcherDeserializer is used with Jackson to enable deserialization of SerializableMatchers. */
 class MatcherDeserializer extends JsonDeserializer<SerializableMatcher<?>> {

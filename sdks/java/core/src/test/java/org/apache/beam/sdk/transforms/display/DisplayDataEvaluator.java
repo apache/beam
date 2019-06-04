@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms.display;
 
-import com.google.common.collect.Sets;
 import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
@@ -32,6 +31,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 
 /**
  * Test utilities to evaluate the {@link DisplayData} in the context of a {@link PipelineRunner}.

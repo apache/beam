@@ -29,7 +29,7 @@
 syntax = "proto3";
 
 /* TODO: Consider consolidating common components in another package
- * and lanaguage namespaces for re-use with Runner Api.
+ * and language namespaces for re-use with Runner Api.
  */
 
 package org.apache.beam.model.fn_execution.v1;
@@ -40,8 +40,10 @@ option java_outer_classname = "BeamFnApi";
 
 import "beam_runner_api.proto";
 import "endpoints.proto";
+import "google/protobuf/descriptor.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
+import "metrics.proto";
 
 /*
  * Constructs that define the pipeline shape.
@@ -76,17 +78,20 @@ message Target {
 message RemoteGrpcPort {
   // (Required) An API descriptor which describes where to
   // connect to including any authentication that is required.
-  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor api_service_descriptor = 1;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor
+      api_service_descriptor = 1;
 
-  // (Required) The ID of the Coder that will be used to encode and decode data sent over this port.
+  // (Required) The ID of the Coder that will be used to encode and decode data
+  // sent over this port.
   string coder_id = 2;
 }
 
 /*
  * Control Plane API
  *
- * Progress reporting and splitting still need further vetting. Also, this may change
- * with the addition of new types of instructions/responses related to metrics.
+ * Progress reporting and splitting still need further vetting. Also, this may
+ * change with the addition of new types of instructions/responses related to
+ * metrics.
  */
 
 // An API that describes the work that a SDK harness is meant to do.
@@ -95,12 +100,12 @@ service BeamFnControl {
   // Instructions sent by the runner to the SDK requesting different types
   // of work.
   rpc Control(
-    // A stream of responses to instructions the SDK was asked to be performed.
-    stream InstructionResponse
-  ) returns (
-    // A stream of instructions requested of the SDK to be performed.
-    stream InstructionRequest
-  ) {}
+      // A stream of responses to instructions the SDK was asked to be
+      // performed.
+      stream InstructionResponse)
+      returns (
+          // A stream of instructions requested of the SDK to be performed.
+          stream InstructionRequest) {}
 }
 
 // A request sent by a runner which the SDK is asked to fulfill.
@@ -118,6 +123,7 @@ message InstructionRequest {
     ProcessBundleRequest process_bundle = 1001;
     ProcessBundleProgressRequest process_bundle_progress = 1002;
     ProcessBundleSplitRequest process_bundle_split = 1003;
+    FinalizeBundleRequest finalize_bundle = 1004;
   }
 }
 
@@ -141,6 +147,7 @@ message InstructionResponse {
     ProcessBundleResponse process_bundle = 1001;
     ProcessBundleProgressResponse process_bundle_progress = 1002;
     ProcessBundleSplitResponse process_bundle_split = 1003;
+    FinalizeBundleResponse finalize_bundle = 1004;
   }
 }
 
@@ -153,8 +160,7 @@ message RegisterRequest {
 }
 
 // Stable
-message RegisterResponse {
-}
+message RegisterResponse {}
 
 // Definitions that should be used to construct the bundle processing graph.
 message ProcessBundleDescriptor {
@@ -169,7 +175,8 @@ message ProcessBundleDescriptor {
   map<string, org.apache.beam.model.pipeline.v1.PCollection> pcollections = 3;
 
   // (Required) A map from pipeline-scoped id to WindowingStrategy.
-  map<string, org.apache.beam.model.pipeline.v1.WindowingStrategy> windowing_strategies = 4;
+  map<string, org.apache.beam.model.pipeline.v1.WindowingStrategy>
+      windowing_strategies = 4;
 
   // (Required) A map from pipeline-scoped id to Coder.
   map<string, org.apache.beam.model.pipeline.v1.Coder> coders = 5;
@@ -180,58 +187,85 @@ message ProcessBundleDescriptor {
   // A descriptor describing the end point to use for State API
   // calls. Required if the Runner intends to send remote references over the
   // data plane or if any of the transforms rely on user state or side inputs.
-  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor state_api_service_descriptor = 7;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor
+      state_api_service_descriptor = 7;
 }
 
-// Represents a partition of the bundle into two bundles: a "primary" and
-// a "residual", with the following properties:
-// - The work in primary and residual doesn't overlap, and combined, adds up
-//   to the work in the current bundle if the split hadn't happened.
-// - The current bundle, if it keeps executing, will have done none of the
-//   work under residual roots.
-// - The current bundle, if no further splits happen, will have done exactly
-//   the work under primary_roots.
-// For more rigorous definitions see https://s.apache.org/beam-breaking-fusion
-message BundleSplit {
-  // One of the root applications specifying the scope of work for a bundle.
-  message Application {
-    // (Required) The primitive transform to which to pass the element
-    string ptransform_id = 1;
+// One of the applications specifying the scope of work for a bundle.
+// See
+// https://docs.google.com/document/d/1tUDb45sStdR8u7-jBkGdw3OGFK7aa2-V7eo86zYSE_4/edit#heading=h.9g3g5weg2u9
+// for further details.
+message BundleApplication {
+  // (Required) The primitive transform to which to pass the element
+  string ptransform_id = 1;
 
-    // (Required) Name of the transform's input to which to pass the element.
-    string input_id = 2;
+  // (Required) Name of the transform's input to which to pass the element.
+  string input_id = 2;
 
-    // (Required) The encoded element to pass to the transform.
-    bytes element = 3;
+  // (Required) The encoded element to pass to the transform.
+  bytes element = 3;
 
-    // Approximate lower bounds on timestamps of elements that this PTransform
-    // will produce into each of its output PCollections, when invoked on this
-    // element. Keyed by the transform's local output name.
-    map<string, int64> output_watermarks = 4;
+  // The map is keyed by the local output name of the PTransform. Each
+  // value represents a lower bound on the timestamps of elements that
+  // are produced by this PTransform into each of its output PCollections
+  // when invoked with this application.
+  map<string, google.protobuf.Timestamp> output_watermarks = 4;
 
-    // Approximate fraction of all work of the current bundle (before split)
-    // represented by invoking this Application and its downstream applications.
-    // The sum of fraction_of_work between all primary_roots and residual_roots
-    // must add up to approximately 1.0.
-    google.protobuf.DoubleValue fraction_of_work = 5;
+  // Represents an estimate for the amount of currently outstanding work.
+  message Backlog {
+    // This informs Runners on how to aggregate the backlog
+    // being reported across multiple active bundles. Backlogs
+    // are aggregated using the set of partitions.
+    //
+    // For example SplittableDoFn's which consume elements from:
+    //  * a globally shared resource such as a Pubsub queue should set this
+    //    to “”.
+    //  * a shared partitioned resource should use the partition identifier.
+    //  * a uniquely partitioned resource such as a file range should set this
+    //  to
+    //    file name + start offset.
+    bytes partition = 1;
+
+    // The estimate for the backlog.
+    oneof value {
+      // Represents an estimate for the amount of outstanding work. Values
+      // compare lexicographically.
+      bytes bytes = 1000;
+
+      // Whether the backlog is unknown.
+      bool is_unknown = 1001;
+    }
   }
 
-  // An an Application should be scheduled after a delay.
-  message DelayedApplication {
-    // The delay in seconds (lower bound).
-    double delay_sec = 1;
+  // (Required) An estimate for the amount outstanding work related to
+  // this application.
+  Backlog backlog = 5;
 
-    // (Required) The application that should be scheduled.
-    Application application = 2;
-  }
+  // (Required) Whether this application potentially produces an unbounded
+  // amount of data. Note that this should only be set to BOUNDED if and
+  // only if the application is known to produce a finite amount of output.
+  //
+  // Note that this is different from the backlog as the backlog represents
+  // how much work there is currently outstanding.
+  org.apache.beam.model.pipeline.v1.IsBounded.Enum is_bounded = 6;
 
-  // Root applications that should replace the current bundle.
-  repeated Application primary_roots = 1;
+  // Contains additional monitoring information related to this application.
+  //
+  // Each application is able to report information that some runners
+  // will use consume when providing a UI or for making scaling and performance
+  // decisions. See https://s.apache.org/beam-bundles-backlog-splitting for
+  // details about what types of signals may be useful to report.
+  repeated org.apache.beam.model.pipeline.v1.MonitoringInfo monitoring_infos = 7;
+}
 
-  // Root applications that have been removed from the current bundle and
-  // have to be executed in a separate bundle (e.g. in parallel on a different
-  // worker, or after the current bundle completes, etc.)
-  repeated DelayedApplication residual_roots = 2;
+// An Application should be scheduled for execution after a delay.
+message DelayedBundleApplication {
+  // Recommended time at which the application should be scheduled to execute
+  // by the runner. Times in the past may be scheduled to execute immediately.
+  google.protobuf.Timestamp requested_execution_time = 1;
+
+  // (Required) The application that should be scheduled.
+  BundleApplication application = 2;
 }
 
 // A request to process a given bundle.
@@ -246,15 +280,27 @@ message ProcessBundleRequest {
   repeated bytes cache_tokens = 2;
 }
 
-// Stable
 message ProcessBundleResponse {
   // (Optional) If metrics reporting is supported by the SDK, this represents
   // the final metrics to record for this bundle.
+  // DEPRECATED
   Metrics metrics = 1;
 
-  // (Optional) Specifies that the bundle has been split since the last
-  // ProcessBundleProgressResponse was sent.
-  BundleSplit split = 2;
+  // (Optional) Specifies that the bundle has not been completed and the
+  // following applications need to be scheduled and executed in the future.
+  // A runner that does not yet support residual roots MUST still check that
+  // this is empty for correctness.
+  repeated DelayedBundleApplication residual_roots = 2;
+
+  // (Required) The list of metrics or other MonitoredState
+  // collected while processing this bundle.
+  repeated org.apache.beam.model.pipeline.v1.MonitoringInfo monitoring_infos = 3;
+
+  // (Optional) Specifies that the runner must callback to this worker
+  // once the output of the bundle is committed. The Runner must send a
+  // FinalizeBundleRequest with the instruction id of the ProcessBundleRequest
+  // that is related to this ProcessBundleResponse.
+  bool requires_finalization = 4;
 }
 
 // A request to report progress information for a given bundle.
@@ -264,146 +310,6 @@ message ProcessBundleProgressRequest {
   // (Required) A reference to an active process bundle request with the given
   // instruction id.
   string instruction_reference = 1;
-}
-
-message MonitoringInfo {
-  // The name defining the metric or monitored state.
-  string urn = 1;
-
-  // This is specified as a URN that implies:
-  // A message class: (Distribution, Counter, Extrema, MonitoringDataTable).
-  // Sub types like field formats - int64, double, string.
-  // Aggregation methods - SUM, LATEST, TOP-N, BOTTOM-N, DISTRIBUTION
-  // valid values are:
-  // beam:metrics:[SumInt64|LatestInt64|Top-NInt64|Bottom-NInt64|
-  //     SumDouble|LatestDouble|Top-NDouble|Bottom-NDouble|DistributionInt64|
-  //     DistributionDouble|MonitoringDataTable]
-  string type = 2;
-
-  // The Metric or monitored state.
-  oneof data {
-    MonitoringTableData monitoring_table_data = 3;
-    Metric metric = 4;
-  }
-
-  enum MonitoringInfoLabels {
-    TRANSFORM = 0;
-    PCOLLECTION = 1;
-    WINDOWING_STRATEGY = 2;
-    CODER = 3;
-    ENVIRONMENT = 4;
-  }
-  // A set of key+value labels which define the scope of the metric.
-  // Either a well defined entity id for matching the enum names in
-  // the MonitoringInfoLabels enum or any arbitrary label
-  // set by a custom metric or user metric.
-  // A monitoring system is expected to be able to aggregate the metrics together
-  // for all updates having the same URN and labels.
-  // Some systems such as Stackdriver will be able to aggregate the metrics
-  // using a subset of the provided labels
-  map<string, string> labels = 5;
-}
-
-message Metric {
-  // (Required) The data for this metric.
-  oneof data {
-    CounterData counter_data = 1;
-    DistributionData distribution_data = 2;
-    ExtremaData extrema_data = 3;
-  }
-}
-
-// Data associated with a Counter or Gauge metric.
-// This is designed to be compatible with metric collection
-// systems such as DropWizard.
-message CounterData {
-   oneof value {
-     int64 int64_value = 1;
-     double double_value = 2;
-     string string_value = 3;
-   }
-}
-
-// Extrema messages are used for calculating
-// Top-N/Bottom-N metrics.
-message ExtremaData {
-  oneof extrema {
-    IntExtremaData int_extrema_data = 1;
-    DoubleExtremaData double_extrema_data = 2;
-  }
-}
-
-message IntExtremaData {
-  repeated int64 int_values = 1;
-}
-
-message DoubleExtremaData {
-  repeated double double_values = 2;
-}
-
-// Data associated with a distribution metric.
-// This is based off of the current DistributionData metric.
-// This is not a stackdriver or dropwizard compatible
-// style of distribution metric.
-message DistributionData {
-  oneof distribution {
-    IntDistributionData int_distribution_data = 1;
-    DoubleDistributionData double_distribution_data = 2;
-  }
-}
-
-message IntDistributionData {
-  int64 count = 1;
-  int64 sum = 2;
-  int64 min = 3;
-  int64 max = 4;
-}
-
-message DoubleDistributionData {
-  int64 count = 1;
-  double sum = 2;
-  double min = 3;
-  double max = 4;
-}
-
-// General MonitoredState information which contains
-// structured information which does not fit into a typical
-// metric format. For example, a table of important files
-// and metadata which an I/O source is reading.
-// Note: Since MonitoredState is designed to be
-// customizable, and allow engines to aggregate these
-// metrics in custom ways.
-// Engines can use custom aggregation functions for specific URNs
-// by inspecting the column values.
-// An SDK should always report its current state, that is all
-// relevant MonitoredState for its PTransform at the current moment
-// and this should be kept small.
-// For example, an SDK can emit the oldest three files which
-// have been waiting for data for over 1 hour.
-// If an engine supports the URN with a custom aggregation then
-// it can filter these and keep only the Top-3 rows based on
-// how long the files have been waiting for data.
-// Otherwise an engine can ignore the MonitoringTableData
-// or union all the rows together into one large table and display
-// them in a UI.
-message MonitoringTableData {
-  message MonitoringColumnValue {
-    oneof value {
-      int64 int64_value = 1;
-      double double_value = 2;
-      string string_value = 3;
-      google.protobuf.Timestamp timestamp = 4;
-    }
-  }
-
-  message MonitoringRow {
-    repeated MonitoringColumnValue values = 1;
-  }
-
- // The number of column names must match the
- // number of values in each MonitoringRow.
- repeated string column_names = 1;
- repeated MonitoringRow row_data = 2;
 }
 
 // DEPRECATED
@@ -481,7 +387,6 @@ message Metrics {
 
   // User defined metrics
   message User {
-
     // A key for identifying a metric at the most granular level.
     message MetricName {
       // (Required): The namespace of this metric.
@@ -525,35 +430,125 @@ message Metrics {
 }
 
 message ProcessBundleProgressResponse {
-  // (Required)
+  // DEPRECATED (Required)
   Metrics metrics = 1;
 
-  // (Optional) Specifies that the bundle has been split since the last
-  // ProcessBundleProgressResponse was sent.
-  BundleSplit split = 2;
+  // (Required) The list of metrics or other MonitoredState
+  // collected while processing this bundle.
+  repeated org.apache.beam.model.pipeline.v1.MonitoringInfo monitoring_infos = 3;
+
+  // The list of currently active primary roots that are being
+  // executed. Required to be populated for PTransforms which can be split.
+  repeated BundleApplication primary_roots = 4;
 }
 
+// Represents a request to the SDK to split a currently active bundle.
 message ProcessBundleSplitRequest {
   // (Required) A reference to an active process bundle request with the given
   // instruction id.
   string instruction_reference = 1;
 
-  // Specifies that the runner would like the bundle to split itself using
-  // BundleSplit, and give up some of the work that the bundle hasn't started
-  // doing yet, so that it can be done in a separate bundle (perhaps in
-  // parallel with the current bundle).
+  // (Required) Specifies that the Runner would like the bundle to split itself
+  // such that it performs no more work than the backlog specified for each
+  // PTransform. The interpretation of how much work should be processed is up
+  // to the PTransform.
   //
-  // The value is the fraction of unstarted work to keep. E.g. 0 means give up
-  // as much as possible of unstarted work (e.g. checkpoint), 0.5 means give
-  // up about half of the unstarted work, etc.
-  // This is a hint and the value is approximate.
+  // For example, A backlog of "" tells the SDK to perform as little work as
+  // possible, effectively checkpointing when able. The remaining backlog
+  // will be relative to the backlog reported during processing.
   //
-  // The value is relative to the current scope of work of the bundle.
-  google.protobuf.DoubleValue fraction_of_remainder = 2;
+  // If the backlog is unspecified for a PTransform, the runner would like
+  // the SDK to process all data received for that PTransform.
+  map<string, bytes> backlog_remaining = 2;
+
+  // A message specifying the desired split for a single transform.
+  message DesiredSplit {
+    // (Required) The fraction of known work remaining in this bundle
+    // for this transform that should be kept by the SDK after this split.
+    //
+    // Set to 0 to "checkpoint" as soon as possible (keeping as little work as
+    // possible and returning the remainder).
+    float fraction_of_remainder = 1;
+
+    // A set of allowed element indices where the SDK may split. When this is
+    // empty, there are no constraints on where to split.
+    repeated int64 allowed_split_points = 3;
+
+    // (Required for GrpcRead operations) Number of total elements expected
+    // to be sent to this GrpcRead operation, required to correctly account
+    // for unreceived data when determining where to split.
+    int64 estimated_input_elements = 2;
+
+    // TODO(SDF): Allow providing weights rather than sizes.
+  }
+
+  // (Required) Specifies the desired split for each transform.
+  //
+  // Currently only splits at GRPC read operations are supported.
+  // This may, of course, limit the amount of work downstream operations
+  // receive.
+  map<string, DesiredSplit> desired_splits = 3;
 }
 
+// Represents a partition of the bundle: a "primary" and
+// a "residual", with the following properties:
+// - The work in primary and residual doesn't overlap, and combined, adds up
+//   to the work in the current bundle if the split hadn't happened.
+// - The current bundle, if it keeps executing, will have done none of the
+//   work under residual_roots.
+// - The current bundle, if no further splits happen, will have done exactly
+//   the work under primary_roots.
+// For more rigorous definitions see https://s.apache.org/beam-breaking-fusion
 message ProcessBundleSplitResponse {
-  // Empty.
+  // Root applications that should replace the current bundle.
+  repeated BundleApplication primary_roots = 1;
+
+  // Root applications that have been removed from the current bundle and
+  // have to be executed in a separate bundle (e.g. in parallel on a different
+  // worker, or after the current bundle completes, etc.)
+  repeated DelayedBundleApplication residual_roots = 2;
+
+  // Represents contiguous portions of the data channel that are either
+  // entirely processed or entirely unprocessed and belong to the primary
+  // or residual respectively.
+  //
+  // This affords both a more efficient representation over the FnAPI
+  // (if the bundle is large) and often a more efficient representation
+  // on the runner side (e.g. if the set of elements can be represented
+  // as some range in an underlying dataset).
+  message ChannelSplit {
+    // (Required) The grpc read transform reading this channel.
+    string ptransform_id = 1;
+
+    // (Required) Name of the transform's input to which to pass the element.
+    string input_id = 2;
+
+    // The last element of the input channel that should be entirely considered
+    // part of the primary, identified by its absolute index in the (ordered)
+    // channel.
+    int32 last_primary_element = 3;
+
+    // The first element of the input channel that should be entirely considered
+    // part of the residual, identified by its absolute index in the (ordered)
+    // channel.
+    int32 first_residual_element = 4;
+  }
+
+  // Partitions of input data channels into primary and residual elements,
+  // if any. Should not include any elements represented in the bundle
+  // applications roots above.
+  repeated ChannelSplit channel_splits = 3;
+}
+
+
+message FinalizeBundleRequest {
+  // (Required) A reference to a completed process bundle request with the given
+  // instruction id.
+  string instruction_reference = 1;
+}
+
+message FinalizeBundleResponse {
+  // Empty
 }
 
 /*
@@ -598,12 +593,11 @@ message Elements {
 service BeamFnData {
   // Used to send data between harnesses.
   rpc Data(
-    // A stream of data representing input.
-    stream Elements
-  ) returns (
-    // A stream of data representing output.
-    stream Elements
-  ) {}
+      // A stream of data representing input.
+      stream Elements)
+      returns (
+          // A stream of data representing output.
+          stream Elements) {}
 }
 
 /*
@@ -668,13 +662,12 @@ message StateResponse {
 service BeamFnState {
   // Used to get/append/clear state stored by the runner on behalf of the SDK.
   rpc State(
-    // A stream of state instructions requested of the runner.
-    stream StateRequest
-  ) returns (
-    // A stream of responses to state instructions the runner was asked to be
-    // performed.
-    stream StateResponse
-  ) {}
+      // A stream of state instructions requested of the runner.
+      stream StateRequest)
+      returns (
+          // A stream of responses to state instructions the runner was asked to
+          // be performed.
+          stream StateResponse) {}
 }
 
 message StateKey {
@@ -750,16 +743,13 @@ message StateAppendRequest {
 }
 
 // A response to append state.
-message StateAppendResponse {
-}
+message StateAppendResponse {}
 
 // A request to clear state.
-message StateClearRequest {
-}
+message StateClearRequest {}
 
 // A response to clear state.
-message StateClearResponse {
-}
+message StateClearResponse {}
 
 /*
  * Logging API
@@ -795,7 +785,6 @@ message LogEntry {
     enum Enum {
       // Unspecified level information. Will be logged at the TRACE level.
       UNSPECIFIED = 0;
-      // Trace level information.
       TRACE = 1;
       // Debugging information.
       DEBUG = 2;
@@ -848,19 +837,34 @@ message LogEntry {
   string thread = 8;
 }
 
-message LogControl {
-}
+message LogControl {}
 
 // Stable
 service BeamFnLogging {
   // Allows for the SDK to emit log entries which the runner can
   // associate with the active job.
   rpc Logging(
-    // A stream of log entries batched into lists emitted by the SDK harness.
-    stream LogEntry.List
-  ) returns (
-    // A stream of log control messages used to configure the SDK.
-    stream LogControl
-  ) {}
+      // A stream of log entries batched into lists emitted by the SDK harness.
+      stream LogEntry.List)
+      returns (
+          // A stream of log control messages used to configure the SDK.
+          stream LogControl) {}
 }
 
+message NotifyRunnerAvailableRequest {
+  string worker_id = 1;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor control_endpoint = 2;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor logging_endpoint = 3;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor artifact_endpoint = 4;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor provision_endpoint = 5;
+  map<string, string> params = 10;
+}
+
+message NotifyRunnerAvailableResponse {
+  string error = 1;
+}
+
+service BeamFnExternalWorkerPool {
+  rpc NotifyRunnerAvailable(NotifyRunnerAvailableRequest)
+      returns (NotifyRunnerAvailableResponse) {}
+}

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 
 import com.google.auto.value.AutoValue;
@@ -86,15 +85,12 @@ abstract class CovarianceAccumulator implements Serializable {
     BigDecimal avgXB = covarB.xavg();
     BigDecimal avgYB = covarB.yavg();
 
-    BigDecimal inc =
-        avgXA
-            .subtract(avgXB)
-            .multiply(avgYA.subtract(avgYB))
-            .multiply(countA)
-            .multiply(countB)
-            .divide(totalCount, CovarianceFn.MATH_CTX);
-
-    return inc;
+    return avgXA
+        .subtract(avgXB)
+        .multiply(avgYA.subtract(avgYB))
+        .multiply(countA)
+        .multiply(countB)
+        .divide(totalCount, CovarianceFn.MATH_CTX);
   }
 
   /** Implements this part: {@code avg_x = (avgx_A * n_A) + (avgx_B * n_B) / n_X }. */
@@ -108,13 +104,10 @@ abstract class CovarianceAccumulator implements Serializable {
     BigDecimal avgXA = covarA.xavg();
     BigDecimal avgXB = covarB.xavg();
 
-    BigDecimal newXavg =
-        avgXA
-            .multiply(countA)
-            .add(avgXB.multiply(countB))
-            .divide(totalCount, CovarianceFn.MATH_CTX);
-
-    return newXavg;
+    return avgXA
+        .multiply(countA)
+        .add(avgXB.multiply(countB))
+        .divide(totalCount, CovarianceFn.MATH_CTX);
   }
 
   /** Implements this part: {@code avg_y = (avgy_A * n_A) + (avgy_B * n_B) / n_Y }. */
@@ -128,12 +121,9 @@ abstract class CovarianceAccumulator implements Serializable {
     BigDecimal avgYA = covarA.yavg();
     BigDecimal avgYB = covarB.yavg();
 
-    BigDecimal newYavg =
-        avgYA
-            .multiply(countA)
-            .add(avgYB.multiply(countB))
-            .divide(totalCount, CovarianceFn.MATH_CTX);
-
-    return newYavg;
+    return avgYA
+        .multiply(countA)
+        .add(avgYB.multiply(countB))
+        .divide(totalCount, CovarianceFn.MATH_CTX);
   }
 }

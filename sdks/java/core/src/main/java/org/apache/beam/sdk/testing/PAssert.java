@@ -17,15 +17,13 @@
  */
 package org.apache.beam.sdk.testing;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.base.Objects;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -74,6 +72,9 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 
 /**
@@ -252,6 +253,24 @@ public class PAssert {
 
     /**
      * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
+     * run on the provided window across all panes that were produced by the arrival of early data.
+     *
+     * @return a new {@link IterableAssert} like this one but with the assertion only applied to the
+     *     specified window.
+     */
+    IterableAssert<T> inEarlyPane(BoundedWindow window);
+
+    /**
+     * Creates a new {@link IterableAssert} with the assertion restricted to only run on the
+     * provided window across all panes that were produced by the arrival of late data.
+     *
+     * @return a new {@link IterableAssert} like this one but with the assertion only applied to the
+     *     specified window.
+     */
+    IterableAssert<T> inLatePane(BoundedWindow window);
+
+    /**
+     * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
      * run on the provided window across all panes that were not produced by the arrival of late
      * data.
      *
@@ -337,6 +356,24 @@ public class PAssert {
     SingletonAssert<T> inOnTimePane(BoundedWindow window);
 
     /**
+     * Creates a new {@link SingletonAssert} like this one, but with the assertion restricted to
+     * only run on the provided window, running the checker only on early panes for each key.
+     *
+     * @return a new {@link SingletonAssert} like this one but with the assertion only applied to
+     *     the specified window.
+     */
+    SingletonAssert<T> inEarlyPane(BoundedWindow window);
+
+    /**
+     * Creates a new {@link SingletonAssert} with the assertion restricted to only run on the
+     * provided window, running the checker only on late panes for each key.
+     *
+     * @return a new {@link SingletonAssert} like this one but with the assertion only applied to
+     *     the specified window.
+     */
+    SingletonAssert<T> inLatePane(BoundedWindow window);
+
+    /**
      * Asserts that the value in question is equal to the provided value, according to {@link
      * Object#equals}.
      *
@@ -409,8 +446,7 @@ public class PAssert {
    * PCollection<T>} with the specified reason. The provided PCollection must be a singleton.
    */
   public static <T> SingletonAssert<T> thatSingleton(String reason, PCollection<T> actual) {
-    return new PCollectionViewAssert<>(
-        actual, View.asSingleton(), actual.getCoder(), PAssertionSite.capture(reason));
+    return new PCollectionSingletonAssert<>(actual, PAssertionSite.capture(reason));
   }
 
   /**
@@ -511,6 +547,16 @@ public class PAssert {
     @Override
     public PCollectionContentsAssert<T> inOnTimePane(BoundedWindow window) {
       return withPane(window, PaneExtractors.onTimePane());
+    }
+
+    @Override
+    public PCollectionContentsAssert<T> inEarlyPane(BoundedWindow window) {
+      return withPane(window, PaneExtractors.earlyPanes());
+    }
+
+    @Override
+    public PCollectionContentsAssert<T> inLatePane(BoundedWindow window) {
+      return withPane(window, PaneExtractors.latePanes());
     }
 
     @Override
@@ -701,6 +747,16 @@ public class PAssert {
     }
 
     @Override
+    public PCollectionSingletonIterableAssert<T> inEarlyPane(BoundedWindow window) {
+      return withPanes(window, PaneExtractors.earlyPanes());
+    }
+
+    @Override
+    public PCollectionSingletonIterableAssert<T> inLatePane(BoundedWindow window) {
+      return withPanes(window, PaneExtractors.latePanes());
+    }
+
+    @Override
     public PCollectionSingletonIterableAssert<T> inCombinedNonLatePanes(BoundedWindow window) {
       return withPanes(window, PaneExtractors.nonLatePanes());
     }
@@ -755,6 +811,126 @@ public class PAssert {
   }
 
   /**
+   * A {@link SingletonAssert} about the contents of a {@link PCollection} when it contains a single
+   * value of type {@code T}. This does not require the runner to support side inputs.
+   */
+  private static class PCollectionSingletonAssert<T> implements SingletonAssert<T> {
+    private final PCollection<T> actual;
+    private final Coder<T> coder;
+    private final AssertionWindows rewindowingStrategy;
+    private final SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> paneExtractor;
+
+    private final PAssertionSite site;
+
+    PCollectionSingletonAssert(PCollection<T> actual, PAssertionSite site) {
+      this(actual, IntoGlobalWindow.of(), PaneExtractors.allPanes(), site);
+    }
+
+    PCollectionSingletonAssert(
+        PCollection<T> actual,
+        AssertionWindows rewindowingStrategy,
+        SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> paneExtractor,
+        PAssertionSite site) {
+      this.actual = actual;
+      this.coder = actual.getCoder();
+      this.rewindowingStrategy = rewindowingStrategy;
+      this.paneExtractor = paneExtractor;
+      this.site = site;
+    }
+
+    @Override
+    public PCollectionSingletonAssert<T> inFinalPane(BoundedWindow window) {
+      return withPanes(window, PaneExtractors.finalPane());
+    }
+
+    @Override
+    public PCollectionSingletonAssert<T> inOnTimePane(BoundedWindow window) {
+      return withPanes(window, PaneExtractors.onTimePane());
+    }
+
+    @Override
+    public PCollectionSingletonAssert<T> inEarlyPane(BoundedWindow window) {
+      return withPanes(window, PaneExtractors.earlyPanes());
+    }
+
+    @Override
+    public PCollectionSingletonAssert<T> inLatePane(BoundedWindow window) {
+      return withPanes(window, PaneExtractors.latePanes());
+    }
+
+    @Override
+    public SingletonAssert<T> isEqualTo(T expected) {
+      return satisfies(new AssertIsEqualToRelation<>(), expected);
+    }
+
+    @Override
+    public SingletonAssert<T> notEqualTo(T notExpected) {
+      return satisfies(new AssertNotEqualToRelation<>(), notExpected);
+    }
+
+    @Override
+    public PCollectionSingletonAssert<T> inOnlyPane(BoundedWindow window) {
+      return withPanes(window, PaneExtractors.onlyPane(site));
+    }
+
+    private PCollectionSingletonAssert<T> withPanes(
+        BoundedWindow window,
+        SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> paneExtractor) {
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      Coder<BoundedWindow> windowCoder =
+          (Coder) actual.getWindowingStrategy().getWindowFn().windowCoder();
+      return new PCollectionSingletonAssert<>(
+          actual, IntoStaticWindows.of(windowCoder, window), paneExtractor, site);
+    }
+
+    @Override
+    public PCollectionSingletonAssert<T> satisfies(SerializableFunction<T, Void> checkerFn) {
+      actual.apply(
+          "PAssert$" + (assertCount++),
+          new GroupThenAssertForSingleton<>(checkerFn, rewindowingStrategy, paneExtractor, site));
+      return this;
+    }
+
+    /**
+     * Applies an {@link AssertRelation} to check the provided relation against the value of this
+     * assert and the provided expected value.
+     *
+     * <p>Returns this {@code SingletonAssert}.
+     */
+    private PCollectionSingletonAssert<T> satisfies(
+        AssertRelation<T, T> relation, final T expected) {
+      return satisfies(new CheckRelationAgainstExpected<>(relation, expected, coder));
+    }
+
+    /**
+     * @throws UnsupportedOperationException always
+     * @deprecated {@link Object#equals(Object)} is not supported on PAssert objects. If you meant
+     *     to test PCollection equality, use {@link #isEqualTo} instead.
+     */
+    @SuppressFBWarnings("EQ_UNUSUAL")
+    @Deprecated
+    @Override
+    public boolean equals(Object o) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "tests for Java equality of the %s object, not the PCollection in question. "
+                  + "Call a test method, such as isEqualTo.",
+              getClass().getSimpleName()));
+    }
+
+    /**
+     * @throws UnsupportedOperationException always.
+     * @deprecated {@link Object#hashCode()} is not supported on {@link PAssert} objects.
+     */
+    @Deprecated
+    @Override
+    public int hashCode() {
+      throw new UnsupportedOperationException(
+          String.format("%s.hashCode() is not supported.", SingletonAssert.class.getSimpleName()));
+    }
+  }
+
+  /**
    * An assertion about the contents of a {@link PCollection} when it is viewed as a single value of
    * type {@code ViewT}. This requires side input support from the runner.
    */
@@ -803,6 +979,16 @@ public class PAssert {
     @Override
     public PCollectionViewAssert<ElemT, ViewT> inOnTimePane(BoundedWindow window) {
       return inPane(window, PaneExtractors.onTimePane());
+    }
+
+    @Override
+    public PCollectionViewAssert<ElemT, ViewT> inEarlyPane(BoundedWindow window) {
+      return inPane(window, PaneExtractors.earlyPanes());
+    }
+
+    @Override
+    public PCollectionViewAssert<ElemT, ViewT> inLatePane(BoundedWindow window) {
+      return inPane(window, PaneExtractors.latePanes());
     }
 
     private PCollectionViewAssert<ElemT, ViewT> inPane(
@@ -1080,22 +1266,20 @@ public class PAssert {
   }
 
   /**
-   * A transform that applies an assertion-checking function to a single iterable contained as the
-   * sole element of a {@link PCollection}.
+   * A transform that applies an assertion-checking function to the sole element of a {@link
+   * PCollection}.
    */
-  public static class GroupThenAssertForSingleton<T>
-      extends PTransform<PCollection<Iterable<T>>, PDone> implements Serializable {
-    private final SerializableFunction<Iterable<T>, Void> checkerFn;
+  public static class GroupThenAssertForSingleton<T> extends PTransform<PCollection<T>, PDone>
+      implements Serializable {
+    private final SerializableFunction<T, Void> checkerFn;
     private final AssertionWindows rewindowingStrategy;
-    private final SimpleFunction<Iterable<ValueInSingleWindow<Iterable<T>>>, Iterable<Iterable<T>>>
-        paneExtractor;
+    private final SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> paneExtractor;
     private final PAssertionSite site;
 
     private GroupThenAssertForSingleton(
-        SerializableFunction<Iterable<T>, Void> checkerFn,
+        SerializableFunction<T, Void> checkerFn,
         AssertionWindows rewindowingStrategy,
-        SimpleFunction<Iterable<ValueInSingleWindow<Iterable<T>>>, Iterable<Iterable<T>>>
-            paneExtractor,
+        SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> paneExtractor,
         PAssertionSite site) {
       this.checkerFn = checkerFn;
       this.rewindowingStrategy = rewindowingStrategy;
@@ -1104,7 +1288,7 @@ public class PAssert {
     }
 
     @Override
-    public PDone expand(PCollection<Iterable<T>> input) {
+    public PDone expand(PCollection<T> input) {
       input
           .apply("GroupGlobally", new GroupGlobally<>(rewindowingStrategy))
           .apply("GetPane", MapElements.via(paneExtractor))

@@ -38,6 +38,11 @@ import java.lang.annotation.Target;
   ElementType.METHOD,
   ElementType.TYPE
 })
+
+/**
+ * You can indicate a category for the experimental feature. This is unused and serves only as a
+ * hint to the reader.
+ */
 @Documented
 public @interface Experimental {
   Kind value() default Kind.UNSPECIFIED;
@@ -101,5 +106,8 @@ public @interface Experimental {
 
     /** PCollection Schema support in Beam. */
     SCHEMAS,
+
+    /** Experimental APIs related to exception handling in PTransforms. */
+    WITH_EXCEPTIONS,
   }
 }

@@ -157,7 +157,7 @@ public class JoinExamples {
    *
    * <p>Inherits standard configuration options.
    */
-  private interface Options extends PipelineOptions {
+  public interface Options extends PipelineOptions {
     @Description("Path of the file to write to")
     @Validation.Required
     String getOutput();

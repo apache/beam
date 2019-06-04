@@ -17,15 +17,21 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
+import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -82,7 +88,9 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
   abstract Builder toBuilder();
 
   @AutoValue.Builder
-  abstract static class Builder {
+  abstract static class Builder
+      implements ExternalTransformBuilder<
+          External.ExternalConfiguration, PBegin, PCollection<Long>> {
     abstract Builder setFrom(long from);
 
     abstract Builder setTo(long to);
@@ -96,6 +104,68 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
     abstract Builder setMaxReadTime(Duration maxReadTime);
 
     abstract GenerateSequence build();
+
+    @Override
+    public GenerateSequence buildExternal(External.ExternalConfiguration config) {
+      Preconditions.checkNotNull(config.start, "Parameters 'from' must not be null.");
+      setFrom(config.start);
+      setTo(-1);
+      setElementsPerPeriod(0);
+      if (config.stop != null) {
+        setTo(config.stop);
+      }
+      if (config.period != null) {
+        setPeriod(Duration.millis(config.period));
+      }
+      if (config.maxReadTime != null) {
+        setMaxReadTime(Duration.millis(config.maxReadTime));
+      }
+      if (config.elementsPerPeriod != null) {
+        setElementsPerPeriod(config.elementsPerPeriod);
+      }
+      return build();
+    }
+  }
+
+  /** Exposes GenerateSequence as an external transform for cross-language usage. */
+  @AutoService(ExternalTransformRegistrar.class)
+  public static class External implements ExternalTransformRegistrar {
+
+    public static final String URN = "beam:external:java:generate_sequence:v1";
+
+    @Override
+    public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+      return ImmutableMap.of(URN, AutoValue_GenerateSequence.Builder.class);
+    }
+
+    /** Parameters class to expose the transform to an external SDK. */
+    public static class ExternalConfiguration {
+      private Long start;
+      @Nullable private Long stop;
+      @Nullable private Long period;
+      @Nullable private Long maxReadTime;
+      @Nullable private Long elementsPerPeriod;
+
+      public void setStart(Long start) {
+        this.start = start;
+      }
+
+      public void setStop(@Nullable Long stop) {
+        this.stop = stop;
+      }
+
+      public void setPeriod(@Nullable Long period) {
+        this.period = period;
+      }
+
+      public void setMaxReadTime(@Nullable Long maxReadTime) {
+        this.maxReadTime = maxReadTime;
+      }
+
+      public void setElementsPerPeriod(@Nullable Long elementsPerPeriod) {
+        this.elementsPerPeriod = elementsPerPeriod;
+      }
+    }
   }
 
   /** Specifies the minimum number to generate (inclusive). */

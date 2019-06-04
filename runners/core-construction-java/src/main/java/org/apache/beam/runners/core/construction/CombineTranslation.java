@@ -15,15 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
@@ -43,7 +40,9 @@ import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /**
  * Methods for translating between {@link Combine.PerKey} {@link PTransform PTransforms} and {@link
@@ -51,7 +50,7 @@ import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
  */
 public class CombineTranslation {
 
-  public static final String JAVA_SERIALIZED_COMBINE_FN_URN = "urn:beam:combinefn:javasdk:v1";
+  public static final String JAVA_SERIALIZED_COMBINE_FN_URN = "beam:combinefn:javasdk:v1";
 
   /** A {@link TransformPayloadTranslator} for {@link Combine.PerKey}. */
   public static class CombinePayloadTranslator
@@ -93,7 +92,8 @@ public class CombineTranslation {
   /** Produces a {@link RunnerApi.CombinePayload} from a {@link Combine}. */
   static <K, InputT, OutputT> CombinePayload payloadForCombine(
       final AppliedPTransform<
-              PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>,
+              PCollection<KV<K, InputT>>,
+              PCollection<KV<K, OutputT>>,
               Combine.PerKey<K, InputT, OutputT>>
           combine,
       final SdkComponents components)

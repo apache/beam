@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.io.hdfs;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import java.net.URI;
 import java.util.Objects;
@@ -36,6 +37,8 @@ class HadoopResourceId implements ResourceId {
 
   @Override
   public ResourceId resolve(String other, ResolveOptions resolveOptions) {
+    checkState(
+        isDirectory(), String.format("Expected this resource is a directory, but had [%s].", uri));
     if (resolveOptions == StandardResolveOptions.RESOLVE_DIRECTORY) {
       if (!other.endsWith("/")) {
         other += "/";

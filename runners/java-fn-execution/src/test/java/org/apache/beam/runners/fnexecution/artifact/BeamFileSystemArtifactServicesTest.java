@@ -17,11 +17,6 @@
  */
 package org.apache.beam.runners.fnexecution.artifact;
 
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
-import com.google.common.hash.Hashing;
-import com.google.common.io.ByteStreams;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,7 +26,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -64,10 +58,15 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.Artifac
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.vendor.grpc.v1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -198,6 +197,14 @@ public class BeamFileSystemArtifactServicesTest {
         "{\"sessionId\":\"abc123\",\"basePath\":\"" + basePath + "\"}", stagingToken);
   }
 
+  void checkCleanup(String stagingSessionToken, String stagingSession) throws Exception {
+    Assert.assertTrue(
+        Files.exists(Paths.get(stagingDir.toAbsolutePath().toString(), stagingSession)));
+    stagingService.removeArtifacts(stagingSessionToken);
+    Assert.assertFalse(
+        Files.exists(Paths.get(stagingDir.toAbsolutePath().toString(), stagingSession)));
+  }
+
   @Test
   public void putArtifactsSingleSmallFileTest() throws Exception {
     String fileName = "file1";
@@ -219,6 +226,7 @@ public class BeamFileSystemArtifactServicesTest {
             BeamFileSystemArtifactStagingService.MANIFEST),
         Paths.get(stagingToken));
     assertFiles(Collections.singleton(fileName), stagingToken);
+    checkCleanup(stagingSessionToken, stagingSession);
   }
 
   @Test
@@ -233,7 +241,7 @@ public class BeamFileSystemArtifactServicesTest {
             .put("file10kb", 10 * DATA_1KB /*10 kb*/)
             .put("file100kb", 100 * DATA_1KB /*100 kb*/)
             .build();
-    Map<String, byte[]> md5 = Maps.newHashMap();
+    Map<String, String> hashes = Maps.newHashMap();
 
     final String text = "abcdefghinklmop\n";
     files.forEach(
@@ -246,7 +254,7 @@ public class BeamFileSystemArtifactServicesTest {
                         text, Double.valueOf(Math.ceil(size * 1.0 / text.length())).intValue())
                     .getBytes(StandardCharsets.UTF_8);
             Files.write(filePath, contents);
-            md5.put(fileName, Hashing.md5().hashBytes(contents).asBytes());
+            hashes.put(fileName, Hashing.sha256().hashBytes(contents).toString());
           } catch (IOException ignored) {
           }
         });
@@ -261,10 +269,7 @@ public class BeamFileSystemArtifactServicesTest {
           Paths.get(originalDir.toString(), fileName).toAbsolutePath().toString(),
           fileName);
       metadata.add(
-          ArtifactMetadata.newBuilder()
-              .setName(fileName)
-              .setMd5(Base64.getEncoder().encodeToString(md5.get(fileName)))
-              .build());
+          ArtifactMetadata.newBuilder().setName(fileName).setSha256(hashes.get(fileName)).build());
     }
 
     String retrievalToken = commitManifest(stagingSessionToken, metadata);
@@ -272,6 +277,8 @@ public class BeamFileSystemArtifactServicesTest {
         Paths.get(stagingDir.toAbsolutePath().toString(), stagingSession, "MANIFEST").toString(),
         retrievalToken);
     assertFiles(files.keySet(), retrievalToken);
+
+    checkCleanup(stagingSessionToken, stagingSession);
   }
 
   @Test
@@ -332,6 +339,8 @@ public class BeamFileSystemArtifactServicesTest {
         Paths.get(stagingDir.toAbsolutePath().toString(), stagingSession, "MANIFEST").toString(),
         retrievalToken);
     assertFiles(files.keySet(), retrievalToken);
+
+    checkCleanup(stagingSessionToken, stagingSession);
   }
 
   @Test
@@ -418,6 +427,9 @@ public class BeamFileSystemArtifactServicesTest {
         retrievalToken2);
     assertFiles(files1.keySet(), retrievalToken1);
     assertFiles(files2.keySet(), retrievalToken2);
+
+    checkCleanup(stagingSessionToken1, stagingSession1);
+    checkCleanup(stagingSessionToken2, stagingSession2);
   }
 
   private void assertFiles(Set<String> files, String retrievalToken) throws Exception {
@@ -433,9 +445,7 @@ public class BeamFileSystemArtifactServicesTest {
     Assert.assertEquals(
         "Files in locations does not match actual file list.",
         files,
-        proxyManifest
-            .getLocationList()
-            .stream()
+        proxyManifest.getLocationList().stream()
             .map(Location::getName)
             .collect(Collectors.toSet()));
     Assert.assertEquals(

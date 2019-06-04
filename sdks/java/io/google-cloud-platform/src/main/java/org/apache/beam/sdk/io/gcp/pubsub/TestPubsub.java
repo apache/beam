@@ -18,16 +18,22 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static java.util.stream.Collectors.toList;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.projectPathFromPath;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.joda.time.DateTime;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.joda.time.Seconds;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.junit.rules.TestRule;
@@ -154,11 +160,47 @@ public class TestPubsub implements TestRule {
     return eventsTopicPath;
   }
 
+  private List<SubscriptionPath> listSubscriptions(ProjectPath projectPath, TopicPath topicPath)
+      throws IOException {
+    return pubsub.listSubscriptions(projectPath, topicPath);
+  }
+
   /** Publish messages to {@link #topicPath()}. */
   public void publish(List<PubsubMessage> messages) throws IOException {
     List<PubsubClient.OutgoingMessage> outgoingMessages =
         messages.stream().map(this::toOutgoingMessage).collect(toList());
     pubsub.publish(eventsTopicPath, outgoingMessages);
+  }
+
+  /**
+   * Check if topics exist.
+   *
+   * @param project GCP project identifier.
+   * @param timeoutDuration Joda duration that sets a period of time before checking times out.
+   */
+  public void checkIfAnySubscriptionExists(String project, Duration timeoutDuration)
+      throws InterruptedException, IllegalArgumentException, IOException, TimeoutException {
+    if (timeoutDuration.getMillis() <= 0) {
+      throw new IllegalArgumentException(String.format("timeoutDuration should be greater than 0"));
+    }
+
+    DateTime startTime = new DateTime();
+    int sizeOfSubscriptionList = 0;
+    while (sizeOfSubscriptionList == 0
+        && Seconds.secondsBetween(new DateTime(), startTime).getSeconds()
+            < timeoutDuration.toStandardSeconds().getSeconds()) {
+      // Sleep 1 sec
+      Thread.sleep(1000);
+      sizeOfSubscriptionList =
+          listSubscriptions(projectPathFromPath(String.format("projects/%s", project)), topicPath())
+              .size();
+    }
+
+    if (sizeOfSubscriptionList > 0) {
+      return;
+    } else {
+      throw new TimeoutException("Timed out when checking if topics exist for " + topicPath());
+    }
   }
 
   private PubsubClient.OutgoingMessage toOutgoingMessage(PubsubMessage message) {

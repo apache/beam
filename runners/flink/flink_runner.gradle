@@ -1,0 +1,178 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * Main Flink Runner build file shared by all of its build targets.
+ * The file needs to be parameterized by the Flink version and the source directories.
+ *
+ * See build.gradle files for an example of how to use this script.
+ */
+
+import groovy.json.JsonOutput
+
+apply plugin: 'org.apache.beam.module'
+archivesBaseName = project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName
+applyJavaNature()
+
+description = "Apache Beam :: Runners :: Flink $flink_version"
+
+/*
+ * We need to rely on manually specifying these evaluationDependsOn to ensure that
+ * the following projects are evaluated before we evaluate this project. This is because
+ * we are attempting to reference the "sourceSets.test.output" directly.
+ */
+evaluationDependsOn(":sdks:java:core")
+evaluationDependsOn(":runners:core-java")
+
+/*
+ * We have to explicitly set all directories here to make sure each
+ * version of Flink has the correct overrides set.
+ */
+sourceSets {
+  main {
+    java {
+      srcDirs = main_source_dirs
+    }
+    resources {
+      srcDirs = main_resources_dirs
+    }
+  }
+  test {
+    java {
+      srcDirs = test_source_dirs
+    }
+    resources {
+      srcDirs = test_resources_dirs
+    }
+  }
+}
+
+test {
+  systemProperty "log4j.configuration", "log4j-test.properties"
+  //systemProperty "org.slf4j.simpleLogger.defaultLogLevel", "debug"
+  jvmArgs "-XX:-UseGCOverheadLimit"
+  if (System.getProperty("beamSurefireArgline")) {
+    jvmArgs System.getProperty("beamSurefireArgline")
+  }
+  // TODO Running tests of all Flink versions in parallel can be too harsh on Jenkins memory
+  // Run them serially for now, to avoid "Exit code 137", i.e. Jenkins host killing the Gradle test process
+  if (project.path == ":runners:flink:1.6") {
+    mustRunAfter(":runners:flink:1.5:test")
+  } else if (project.path == ":runners:flink:1.7") {
+    mustRunAfter(":runners:flink:1.5:test")
+    mustRunAfter(":runners:flink:1.6:test")
+  } else if (project.path == ":runners:flink:1.8") {
+    mustRunAfter(":runners:flink:1.5:test")
+    mustRunAfter(":runners:flink:1.6:test")
+    mustRunAfter(":runners:flink:1.7:test")
+  }
+}
+
+configurations {
+  validatesRunner
+}
+
+dependencies {
+  shadow library.java.vendored_guava_20_0
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":runners:core-java", configuration: "shadow")
+  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
+  shadow project(path: ":runners:java-fn-execution", configuration: "shadow")
+  shadow project(path: ":sdks:java:build-tools", configuration: "shadow")
+  shadow library.java.vendored_grpc_1_13_1
+  shadow library.java.jackson_annotations
+  shadow library.java.slf4j_api
+  shadow library.java.joda_time
+  shadow library.java.commons_compress
+  shadow library.java.args4j
+  shadow "org.apache.flink:flink-clients_2.11:$flink_version"
+  shadow "org.apache.flink:flink-core:$flink_version"
+  shadow "org.apache.flink:flink-metrics-core:$flink_version"
+  shadow "org.apache.flink:flink-java:$flink_version"
+  shadow "org.apache.flink:flink-runtime_2.11:$flink_version"
+  shadow "org.apache.flink:flink-streaming-java_2.11:$flink_version"
+  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
+  // FlinkStateInternalsTest extends abstract StateInternalsTest
+  shadowTest project(path: ":runners:core-java", configuration: "shadowTest")
+  shadowTest library.java.commons_lang3
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.junit
+  shadowTest library.java.mockito_core
+  shadowTest library.java.google_api_services_bigquery
+  shadowTest project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
+  shadowTest library.java.jackson_dataformat_yaml
+  shadowTest "org.apache.flink:flink-core:$flink_version:tests"
+  shadowTest "org.apache.flink:flink-runtime_2.11:$flink_version:tests"
+  shadowTest "org.apache.flink:flink-streaming-java_2.11:$flink_version:tests"
+  shadowTest "org.apache.flink:flink-test-utils_2.11:$flink_version"
+  shadowTest project(":sdks:java:harness")
+  testRuntimeOnly library.java.slf4j_simple
+  validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesRunner project(path: ":runners:core-java", configuration: "shadowTest")
+  validatesRunner project(path: project.path, configuration: "shadow")
+}
+
+class ValidatesRunnerConfig {
+  String name
+  boolean streaming
+}
+
+def createValidatesRunnerTask(Map m) {
+  def config = m as ValidatesRunnerConfig
+  tasks.create(name: config.name, type: Test) {
+    group = "Verification"
+    def runnerType = config.streaming ? "streaming" : "batch"
+    description = "Validates the ${runnerType} runner"
+    def pipelineOptions = JsonOutput.toJson(
+        ["--runner=TestFlinkRunner",
+         "--streaming=${config.streaming}",
+         "--parallelism=2",
+        ])
+    systemProperty "beamTestPipelineOptions", pipelineOptions
+    classpath = configurations.validatesRunner
+    testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs, project(":runners:core-java").sourceSets.test.output.classesDirs)
+    // maxParallelForks decreased from 4 in order to avoid OOM errors
+    maxParallelForks 2
+    useJUnit {
+      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+      excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+      if (config.streaming) {
+        excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
+      } else {
+        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+      }
+    }
+  }
+}
+
+createValidatesRunnerTask(name: "validatesRunnerBatch", streaming: false)
+createValidatesRunnerTask(name: "validatesRunnerStreaming", streaming: true)
+
+task validatesRunner {
+  group = "Verification"
+  description "Validates Flink runner"
+  dependsOn validatesRunnerBatch
+  dependsOn validatesRunnerStreaming
+}
+
+// Generates :runners:flink:1.5:runQuickstartJavaFlinkLocal
+createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')

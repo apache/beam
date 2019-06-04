@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.mongodb;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.mongodb.DB;
@@ -367,9 +367,9 @@ public class MongoDbGridFSIO {
       private DBCursor createCursor(GridFS gridfs) {
         if (spec.filter() != null) {
           DBObject query = (DBObject) JSON.parse(spec.filter());
-          return gridfs.getFileList(query).sort(null);
+          return gridfs.getFileList(query);
         }
-        return gridfs.getFileList().sort(null);
+        return gridfs.getFileList();
       }
 
       @Override

@@ -2,7 +2,8 @@
 layout: section
 title: "Nexmark benchmark suite"
 section_menu: section-menu/sdks.html
-permalink: /documentation/sdks/java/nexmark/
+permalink: /documentation/sdks/java/testing/nexmark/
+redirect_from: /documentation/sdks/java/nexmark/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +24,7 @@ limitations under the License.
 
 Nexmark is a suite of pipelines inspired by the 'continuous data stream'
 queries in [Nexmark research
-paper](http://datalab.cs.pdx.edu/niagaraST/NEXMark/)
+paper](https://web.archive.org/web/20100620010601/http://datalab.cs.pdx.edu/niagaraST/NEXMark/)
 
 These are multiple queries over a three entities model representing on online
 auction system:
@@ -37,49 +38,51 @@ auction system:
 
 The queries exercise many aspects of Beam model:
 
-* **Query1**: What are the bid values in Euro's?
+* **Query1** or **CURRENCY_CONVERSION**: What are the bid values in Euro's?
   Illustrates a simple map.
-* **Query2**: What are the auctions with particular auction numbers?
+* **Query2** or **SELECTION**: What are the auctions with particular auction numbers?
   Illustrates a simple filter.
-* **Query3**: Who is selling in particular US states?
+* **Query3** or **LOCAL_ITEM_SUGGESTION**: Who is selling in particular US states?
   Illustrates an incremental join (using per-key state and timer) and filter.
-* **Query4**: What is the average selling price for each auction
+* **Query4** or **AVERAGE_PRICE_FOR_CATEGORY**: What is the average selling price for each auction
   category?
   Illustrates complex join (using custom window functions) and
   aggregation.
-* **Query5**: Which auctions have seen the most bids in the last period?
+* **Query5** or **HOT_ITEMS**: Which auctions have seen the most bids in the last period?
   Illustrates sliding windows and combiners.
-* **Query6**: What is the average selling price per seller for their
+* **Query6** or **AVERAGE_SELLING_PRICE_BY_SELLER**: What is the average selling price per seller for their
   last 10 closed auctions.
   Shares the same 'winning bids' core as for **Query4**, and
   illustrates a specialized combiner.
-* **Query7**: What are the highest bids per period?
+* **Query7** or **HIGHEST_BID**: What are the highest bids per period?
   Deliberately implemented using a side input to illustrate fanout.
-* **Query8**: Who has entered the system and created an auction in
+* **Query8** or **MONITOR_NEW_USERS**: Who has entered the system and created an auction in
   the last period?
   Illustrates a simple join.
 
 We have augmented the original queries with five more:
 
-* **Query0**: Pass-through.
+* **Query0** or **PASSTHROUGH**: Pass-through.
   Allows us to measure the monitoring overhead.
-* **Query9**: Winning-bids.
+* **Query9** or **WINNING_BIDS**: Winning-bids.
   A common sub-query shared by **Query4** and **Query6**.
-* **Query10**: Log all events to GCS files.
+* **Query10** or **LOG_TO_SHARDED_FILES**: Log all events to GCS files.
   Illustrates windows with large side effects on firing.
-* **Query11**: How many bids did a user make in each session they
+* **Query11** or **USER_SESSIONS**: How many bids did a user make in each session they
   were active?
   Illustrates session windows.
-* **Query12**: How many bids does a user make within a fixed
+* **Query12** or **PROCESSING_TIME_WINDOWS**: How many bids does a user make within a fixed
   processing time limit?
   Illustrates working in processing time in the Global window, as
   compared with event time in non-Global windows for all the other
   queries.
+* **BOUNDED_SIDE_INPUT_JOIN**: Joins a stream to a bounded side input, modeling basic stream enrichment.
+
 
 ## Benchmark workload configuration
 
 Here are some of the knobs of the benchmark workload (see
-[NexmarkConfiguration.java](https://github.com/apache/beam/blob/master/sdks/java/nexmark/src/main/java/org/apache/beam/sdk/nexmark/NexmarkConfiguration.java)).
+[NexmarkConfiguration.java](https://github.com/apache/beam/blob/master/sdks/java/testing/nexmark/src/main/java/org/apache/beam/sdk/nexmark/NexmarkConfiguration.java)).
 
 These configuration items can be passed to the launch command line.
 
@@ -145,8 +148,8 @@ When running via Gradle, the following two parameters control the execution:
         The command line to pass to the Nexmark main program.
 
     -P nexmark.runner
-	The Gradle project name of the runner, such as ":beam-runners-direct-java" or
-	":beam-runners-flink. The project names can be found in the root
+	The Gradle project name of the runner, such as ":runners:direct-java" or
+	":runners:flink:1.5. The project names can be found in the root
         `settings.gradle`.
 
 Test data is deterministically synthesized on demand. The test
@@ -171,9 +174,15 @@ Number of events generators:
 
     --numEventGenerators=4
 
-Run query N:
+Queries can be run by their name or by their number (number is still there for backward compatibility, only the queries 0 to 12 have a number)
+
+Run query **N**:
 
     --query=N
+
+Run query called **PASSTHROUGH**:
+
+    --query=PASSTHROUGH
 
 ### Available Suites
 The suite to run can be chosen using this configuration parameter:
@@ -182,7 +191,7 @@ The suite to run can be chosen using this configuration parameter:
 
 Available suites are:
 * DEFAULT: Test default configuration with query 0.
-* SMOKE: Run the 12 default configurations.
+    * SMOKE: Run all the queries with the default configuration.
 * STRESS: Like smoke but for 1m events.
 * FULL_THROTTLE: Like SMOKE but 100m events.
 
@@ -211,7 +220,7 @@ Available suites are:
 ### Flink runner specific configuration
 
     --manageResources=false --monitorJobs=true \
-    --flinkMaster=local --parallelism=#numcores
+    --flinkMaster=[local] --parallelism=#numcores
 
 ### Spark runner specific configuration
 
@@ -347,6 +356,13 @@ These tables contain statuses of the queries runs in the different runners. Goog
       <td>ok</td>
       <td>ok</td>
     </tr>
+    <tr>
+      <td>BOUNDED_SIDE_INPUT_JOIN</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
 </table>
 
 ### Streaming / Synthetic / Local
@@ -450,6 +466,13 @@ These tables contain statuses of the queries runs in the different runners. Goog
       <td>ok</td>
       <td>ok</td>
     </tr>
+        <tr>
+          <td>BOUNDED_SIDE_INPUT_JOIN</td>
+          <td>ok</td>
+          <td><a href="https://issues.apache.org/jira/browse/BEAM-2112">BEAM-2112</a></td>
+          <td>ok</td>
+          <td>ok</td>
+        </tr>
 </table>
 
 ### Batch / Synthetic / Cluster
@@ -475,8 +498,8 @@ SMOKE suite can make sure there is nothing broken in the Nexmark suite.
 
 Batch Mode:
 
-    ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-direct-java" \
+    ./gradlew :sdks:java:testing:nexmark:run \
+        -Pnexmark.runner=":runners:direct-java" \
         -Pnexmark.args="
             --runner=DirectRunner
             --streaming=false
@@ -488,8 +511,8 @@ Batch Mode:
 
 Streaming Mode:
 
-    ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-direct-java" \
+    ./gradlew :sdks:java:testing:nexmark:run \
+        -Pnexmark.runner=":runners:direct-java" \
         -Pnexmark.args="
             --runner=DirectRunner
             --streaming=true
@@ -507,8 +530,8 @@ configure logging.
 
 Batch Mode:
 
-    ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-spark" \
+    ./gradlew :sdks:java:testing:nexmark:run \
+        -Pnexmark.runner=":runners:spark" \
         -Pnexmark.args="
             --runner=SparkRunner
             --suite=SMOKE
@@ -519,8 +542,8 @@ Batch Mode:
 
 Streaming Mode:
 
-    ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-spark" \
+    ./gradlew :sdks:java:testing:nexmark:run \
+        -Pnexmark.runner=":runners:spark" \
         -Pnexmark.args="
             --runner=SparkRunner
             --suite=SMOKE
@@ -533,8 +556,8 @@ Streaming Mode:
 
 Batch Mode:
 
-    ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-flink_2.11" \
+    ./gradlew :sdks:java:testing:nexmark:run \
+        -Pnexmark.runner=":runners:flink:1.5" \
         -Pnexmark.args="
             --runner=FlinkRunner
             --suite=SMOKE
@@ -542,12 +565,12 @@ Batch Mode:
             --streaming=false
             --manageResources=false
             --monitorJobs=true
-            --flinkMaster=local"
+            --flinkMaster=[local]"
 
 Streaming Mode:
 
-    ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-flink_2.11" \
+    ./gradlew :sdks:java:testing:nexmark:run \
+        -Pnexmark.runner=":runners:flink:1.5" \
         -Pnexmark.args="
             --runner=FlinkRunner
             --suite=SMOKE
@@ -555,14 +578,14 @@ Streaming Mode:
             --streaming=true
             --manageResources=false
             --monitorJobs=true
-            --flinkMaster=local"
+            --flinkMaster=[local]"
 
 ### Running SMOKE suite on the ApexRunner (local)
 
 Batch Mode:
 
-    ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-apex" \
+    ./gradlew :sdks:java:testing:nexmark:run \
+        -Pnexmark.runner=":runners:apex" \
         -Pnexmark.args="
             --runner=ApexRunner
             --suite=SMOKE
@@ -573,8 +596,8 @@ Batch Mode:
 
 Streaming Mode:
 
-    ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-apex" \
+    ./gradlew :sdks:java:testing:nexmark:run \
+        -Pnexmark.runner=":runners:apex" \
         -Pnexmark.args="
             --runner=ApexRunner
             --suite=SMOKE
@@ -594,7 +617,7 @@ Set these up first so the below command is valid
 
 Launch:
 
-    ./gradlew :beam-sdks-java-nexmark:run \
+    ./gradlew :sdks:java:testing:nexmark:run \
         -Pnexmark.runner=":beam-runners-google-cloud-dataflow" \
         -Pnexmark.args="
             --runner=DataflowRunner
@@ -636,7 +659,7 @@ Launch:
 
 Building package:
 
-    ./gradlew :beam-sdks-java-nexmark:assemble
+    ./gradlew :sdks:java:testing:nexmark:assemble
 
 Submit to the cluster:
 
@@ -646,10 +669,59 @@ Submit to the cluster:
         --driver-memory 512m \
         --executor-memory 512m \
         --executor-cores 1 \
-        sdks/java/nexmark/build/libs/beam-sdks-java-nexmark-{{ site.release_latest }}-spark.jar \
+        sdks/java/testing/nexmark/build/libs/beam-sdks-java-nexmark-{{ site.release_latest }}-spark.jar \
             --runner=SparkRunner \
             --query=0 \
             --streamTimeout=60 \
             --streaming=false \
             --manageResources=false \
             --monitorJobs=true"
+
+## Nexmark dashboards
+Below dashboards are used as a CI mechanism to detect no-regression on the Beam components. They are not supposed to be benchmark comparision of the runners or engines. Especially because:
+- Parameters of the runners are not the same
+- Nexmark is run with the runners in local (most of the time embedded) mode
+- Nexmark runs on a shared machine that also run all the CI and build.
+- Runners have different support of the Beam model
+- Runners have different strengths that make comparison difficult:
+    - Some runners were designed to be batch oriented, others streaming oriented
+    - Some are designed towards sub-second latency, others support auto-scaling
+
+### Dashboards content
+At each commit on master, Nexmark suites are run and plots are created on the graphs.
+
+There are 2 kinds of dashboards:
+- one for performances (run times of the queries)
+- one for the size of the output PCollection (which should be constant)
+
+There are dashboards for these runners (others to come):
+- spark
+- flink
+- direct runner
+
+Each dashboard contains:
+- graphs in batch mode
+- graphs in streaming mode
+- graphs for all the queries.
+
+### Performance dashboards links
+
+[Nexmark performance direct runner](https://apache-beam-testing.appspot.com/explore?dashboard=5084698770407424)
+
+[Nexmark performance flink runner](https://apache-beam-testing.appspot.com/explore?dashboard=5699257587728384)
+
+[Nexmark performance spark runner](https://apache-beam-testing.appspot.com/explore?dashboard=5138380291571712)
+
+[Nexmark performance dataflow runner](https://apache-beam-testing.appspot.com/explore?dashboard=5670405876482048)
+
+
+### Output size dashboards links
+
+[Nexmark output size direct runner](https://apache-beam-testing.appspot.com/explore?dashboard=5099379773931520)
+
+[Nexmark output size flink runner](https://apache-beam-testing.appspot.com/explore?dashboard=5731568492478464)
+
+[Nexmark output size spark runner](https://apache-beam-testing.appspot.com/explore?dashboard=5163657986048000)
+
+[Nexmark output size dataflow runner](https://apache-beam-testing.appspot.com/explore?dashboard=5647201107705856)
+

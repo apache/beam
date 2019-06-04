@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark;
 
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
@@ -40,9 +39,9 @@ import org.joda.time.Duration;
 /** Represents a Spark pipeline execution result. */
 public abstract class SparkPipelineResult implements PipelineResult {
 
-  protected final Future pipelineExecution;
-  protected JavaSparkContext javaSparkContext;
-  protected PipelineResult.State state;
+  final Future pipelineExecution;
+  final JavaSparkContext javaSparkContext;
+  PipelineResult.State state;
 
   SparkPipelineResult(final Future<?> pipelineExecution, final JavaSparkContext javaSparkContext) {
     this.pipelineExecution = pipelineExecution;

@@ -259,6 +259,7 @@ class PipelineTest(unittest.TestCase):
         ['a-x', 'b-x', 'c-x'],
         sorted(['a', 'b', 'c'] | 'AddSuffix' >> AddSuffix('-x')))
 
+  @unittest.skip("Fails on some platforms with new urllib3.")
   def test_memory_usage(self):
     try:
       import resource
@@ -375,7 +376,7 @@ class PipelineTest(unittest.TestCase):
                | 'NoOp' >> beam.Map(lambda x: x))
 
       p.replace_all([override])
-      self.assertEquals(pcoll.producer.inputs[0].element_type, expected_type)
+      self.assertEqual(pcoll.producer.inputs[0].element_type, expected_type)
 
 
 class DoFnTest(unittest.TestCase):
@@ -481,29 +482,29 @@ class PipelineOptionsTest(unittest.TestCase):
 
   def test_flag_parsing(self):
     options = Breakfast(['--slices=3', '--style=sunny side up', '--ignored'])
-    self.assertEquals(3, options.slices)
-    self.assertEquals('sunny side up', options.style)
+    self.assertEqual(3, options.slices)
+    self.assertEqual('sunny side up', options.style)
 
   def test_keyword_parsing(self):
     options = Breakfast(
         ['--slices=3', '--style=sunny side up', '--ignored'],
         slices=10)
-    self.assertEquals(10, options.slices)
-    self.assertEquals('sunny side up', options.style)
+    self.assertEqual(10, options.slices)
+    self.assertEqual('sunny side up', options.style)
 
   def test_attribute_setting(self):
     options = Breakfast(slices=10)
-    self.assertEquals(10, options.slices)
+    self.assertEqual(10, options.slices)
     options.slices = 20
-    self.assertEquals(20, options.slices)
+    self.assertEqual(20, options.slices)
 
   def test_view_as(self):
     generic_options = PipelineOptions(['--slices=3'])
-    self.assertEquals(3, generic_options.view_as(Bacon).slices)
-    self.assertEquals(3, generic_options.view_as(Breakfast).slices)
+    self.assertEqual(3, generic_options.view_as(Bacon).slices)
+    self.assertEqual(3, generic_options.view_as(Breakfast).slices)
 
     generic_options.view_as(Breakfast).slices = 10
-    self.assertEquals(10, generic_options.view_as(Bacon).slices)
+    self.assertEqual(10, generic_options.view_as(Bacon).slices)
 
     with self.assertRaises(AttributeError):
       generic_options.slices  # pylint: disable=pointless-statement
@@ -513,20 +514,21 @@ class PipelineOptionsTest(unittest.TestCase):
 
   def test_defaults(self):
     options = Breakfast(['--slices=3'])
-    self.assertEquals(3, options.slices)
-    self.assertEquals('scrambled', options.style)
+    self.assertEqual(3, options.slices)
+    self.assertEqual('scrambled', options.style)
 
   def test_dir(self):
     options = Breakfast()
-    self.assertEquals(
+    self.assertEqual(
         set(['from_dictionary', 'get_all_options', 'slices', 'style',
              'view_as', 'display_data']),
-        set([attr for attr in dir(options) if not attr.startswith('_')]))
-    self.assertEquals(
+        set([attr for attr in dir(options) if not attr.startswith('_') and
+             attr != 'next']))
+    self.assertEqual(
         set(['from_dictionary', 'get_all_options', 'style', 'view_as',
              'display_data']),
         set([attr for attr in dir(options.view_as(Eggs))
-             if not attr.startswith('_')]))
+             if not attr.startswith('_') and attr != 'next']))
 
 
 class RunnerApiTest(unittest.TestCase):
@@ -540,10 +542,11 @@ class RunnerApiTest(unittest.TestCase):
 
     p = beam.Pipeline()
     p | MyPTransform()  # pylint: disable=expression-not-assigned
-    p = Pipeline.from_runner_api(Pipeline.to_runner_api(p), None, None)
+    p = Pipeline.from_runner_api(
+        Pipeline.to_runner_api(p, use_fake_coders=True), None, None)
     self.assertIsNotNone(p.transforms_stack[0].parts[0].parent)
-    self.assertEquals(p.transforms_stack[0].parts[0].parent,
-                      p.transforms_stack[0])
+    self.assertEqual(p.transforms_stack[0].parts[0].parent,
+                     p.transforms_stack[0])
 
 
 class DirectRunnerRetryTests(unittest.TestCase):

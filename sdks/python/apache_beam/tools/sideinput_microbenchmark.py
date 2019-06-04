@@ -69,10 +69,10 @@ def run_benchmark(num_runs=50, input_per_source=4000, num_sources=4):
 
   print("Runtimes:", times)
 
-  avg_runtime = sum(times) // len(times)
+  avg_runtime = sum(times) / len(times)
   print("Average runtime:", avg_runtime)
-  print("Time per element:", avg_runtime // (input_per_source *
-                                             num_sources))
+  print("Time per element:", avg_runtime / (input_per_source *
+                                            num_sources))
 
 
 if __name__ == '__main__':

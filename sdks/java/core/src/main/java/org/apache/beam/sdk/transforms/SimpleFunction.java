@@ -19,8 +19,6 @@ package org.apache.beam.sdk.transforms;
 
 import java.lang.reflect.Method;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -28,8 +26,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * allow us to infer type information, which in turn aids {@link org.apache.beam.sdk.coders.Coder
  * Coder} inference.
  */
-public abstract class SimpleFunction<InputT, OutputT>
-    implements SerializableFunction<InputT, OutputT>, HasDisplayData {
+public abstract class SimpleFunction<InputT, OutputT> extends InferableFunction<InputT, OutputT>
+    implements SerializableFunction<InputT, OutputT> {
 
   @Nullable private final SerializableFunction<InputT, OutputT> fn;
 
@@ -39,8 +37,8 @@ public abstract class SimpleFunction<InputT, OutputT>
     // reflection.
     try {
       Method methodThatMustBeOverridden =
-          SimpleFunction.class.getDeclaredMethod("apply", new Class[] {Object.class});
-      Method methodOnSubclass = getClass().getMethod("apply", new Class[] {Object.class});
+          SimpleFunction.class.getDeclaredMethod("apply", Object.class);
+      Method methodOnSubclass = getClass().getMethod("apply", Object.class);
 
       if (methodOnSubclass.equals(methodThatMustBeOverridden)) {
         throw new IllegalStateException(
@@ -68,38 +66,6 @@ public abstract class SimpleFunction<InputT, OutputT>
           SerializableFunction<InputT, OutputT> fn, TypeDescriptor<OutputT> outputType) {
     return new SimpleFunctionWithOutputType<>(fn, outputType);
   }
-
-  /**
-   * Returns a {@link TypeDescriptor} capturing what is known statically about the input type of
-   * this {@link SimpleFunction} instance's most-derived class.
-   *
-   * <p>See {@link #getOutputTypeDescriptor} for more discussion.
-   */
-  public TypeDescriptor<InputT> getInputTypeDescriptor() {
-    return new TypeDescriptor<InputT>(this) {};
-  }
-
-  /**
-   * Returns a {@link TypeDescriptor} capturing what is known statically about the output type of
-   * this {@link SimpleFunction} instance's most-derived class.
-   *
-   * <p>In the normal case of a concrete {@link SimpleFunction} subclass with no generic type
-   * parameters of its own (including anonymous inner classes), this will be a complete non-generic
-   * type, which is good for choosing a default output {@code Coder<OutputT>} for the output {@code
-   * PCollection<OutputT>}.
-   */
-  public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
-    return new TypeDescriptor<OutputT>(this) {};
-  }
-
-  /**
-   * {@inheritDoc}
-   *
-   * <p>By default, does not register any display data. Implementors may override this method to
-   * provide their own display data.
-   */
-  @Override
-  public void populateDisplayData(DisplayData.Builder builder) {}
 
   /**
    * A {@link SimpleFunction} built from a {@link SerializableFunction}, having a known output type

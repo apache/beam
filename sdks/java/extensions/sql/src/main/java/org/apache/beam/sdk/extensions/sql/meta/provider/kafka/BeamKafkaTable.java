@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.List;
 import java.util.Map;
@@ -67,6 +67,11 @@ public abstract class BeamKafkaTable extends BaseBeamTable {
     return this;
   }
 
+  @Override
+  public PCollection.IsBounded isBounded() {
+    return PCollection.IsBounded.UNBOUNDED;
+  }
+
   public abstract PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>>
       getPTransformForInput();
 
@@ -81,7 +86,7 @@ public abstract class BeamKafkaTable extends BaseBeamTable {
           KafkaIO.<byte[], byte[]>read()
               .withBootstrapServers(bootstrapServers)
               .withTopics(topics)
-              .updateConsumerProperties(configUpdates)
+              .withConsumerConfigUpdates(configUpdates)
               .withKeyDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
               .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of());
     } else if (topicPartitions != null) {
@@ -89,7 +94,7 @@ public abstract class BeamKafkaTable extends BaseBeamTable {
           KafkaIO.<byte[], byte[]>read()
               .withBootstrapServers(bootstrapServers)
               .withTopicPartitions(topicPartitions)
-              .updateConsumerProperties(configUpdates)
+              .withConsumerConfigUpdates(configUpdates)
               .withKeyDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
               .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of());
     } else {
@@ -98,7 +103,8 @@ public abstract class BeamKafkaTable extends BaseBeamTable {
 
     return begin
         .apply("read", kafkaRead.withoutMetadata())
-        .apply("in_format", getPTransformForInput());
+        .apply("in_format", getPTransformForInput())
+        .setRowSchema(getSchema());
   }
 
   @Override

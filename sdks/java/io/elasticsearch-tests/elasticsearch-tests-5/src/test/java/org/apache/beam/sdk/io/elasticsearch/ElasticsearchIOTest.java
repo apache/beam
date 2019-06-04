@@ -17,26 +17,19 @@
  */
 package org.apache.beam.sdk.io.elasticsearch;
 
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BoundedElasticsearchSource;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Read;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_INDEX;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_TYPE;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.NUM_DOCS_UTESTS;
-import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
-import static org.hamcrest.Matchers.lessThan;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.UPDATE_INDEX;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.UPDATE_TYPE;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.getEsIndex;
+import static org.elasticsearch.test.ESIntegTestCase.Scope.SUITE;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
+import java.io.IOException;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
-import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.plugins.Plugin;
@@ -54,6 +47,8 @@ Cannot have @BeforeClass @AfterClass with ESIntegTestCase
 
 /** Tests for {@link ElasticsearchIO} version 5. */
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
+// use cluster of 1 node that has data + master roles
+@ESIntegTestCase.ClusterScope(scope = SUITE, numDataNodes = 1, supportsDedicatedMasters = false)
 public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable {
 
   private ElasticsearchIOTestCommon elasticsearchIOTestCommon;
@@ -83,7 +78,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   public Settings indexSettings() {
     return Settings.builder()
         .put(super.indexSettings())
-        //useful to have updated sizes for getEstimatedSize
+        // useful to have updated sizes for getEstimatedSize
         .put("index.store.stats_refresh_interval", 0)
         .build();
   }
@@ -96,9 +91,12 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   }
 
   @Before
-  public void setup() {
+  public void setup() throws IOException {
     if (connectionConfiguration == null) {
-      connectionConfiguration = ConnectionConfiguration.create(fillAddresses(), ES_INDEX, ES_TYPE);
+      connectionConfiguration =
+          ConnectionConfiguration.create(fillAddresses(), getEsIndex(), ES_TYPE)
+              .withSocketAndRetryTimeout(120000)
+              .withConnectTimeout(5000);
       elasticsearchIOTestCommon =
           new ElasticsearchIOTestCommon(connectionConfiguration, getRestClient(), false);
     }
@@ -110,7 +108,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   public void testSizes() throws Exception {
     // need to create the index using the helper method (not create it at first insertion)
     // for the indexSettings() to be run
-    createIndex(ES_INDEX);
+    createIndex(getEsIndex());
     elasticsearchIOTestCommon.testSizes();
   }
 
@@ -118,7 +116,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   public void testRead() throws Exception {
     // need to create the index using the helper method (not create it at first insertion)
     // for the indexSettings() to be run
-    createIndex(ES_INDEX);
+    createIndex(getEsIndex());
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testRead();
   }
@@ -127,7 +125,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   public void testReadWithQuery() throws Exception {
     // need to create the index using the helper method (not create it at first insertion)
     // for the indexSettings() to be run
-    createIndex(ES_INDEX);
+    createIndex(getEsIndex());
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testReadWithQuery();
   }
@@ -158,33 +156,10 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
 
   @Test
   public void testSplit() throws Exception {
-    //need to create the index using the helper method (not create it at first insertion)
+    // need to create the index using the helper method (not create it at first insertion)
     // for the indexSettings() to be run
-    createIndex(ES_INDEX);
-    ElasticSearchIOTestUtils.insertTestDocuments(
-        connectionConfiguration, NUM_DOCS_UTESTS, getRestClient());
-    PipelineOptions options = PipelineOptionsFactory.create();
-    Read read = ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
-    BoundedElasticsearchSource initialSource =
-        new BoundedElasticsearchSource(read, null, null, null);
-    int desiredBundleSizeBytes = 2000;
-    List<? extends BoundedSource<String>> splits =
-        initialSource.split(desiredBundleSizeBytes, options);
-    SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
-    long indexSize = BoundedElasticsearchSource.estimateIndexSize(connectionConfiguration);
-    float expectedNumSourcesFloat = (float) indexSize / desiredBundleSizeBytes;
-    int expectedNumSources = (int) Math.ceil(expectedNumSourcesFloat);
-    assertEquals("Wrong number of splits", expectedNumSources, splits.size());
-    int emptySplits = 0;
-    for (BoundedSource<String> subSource : splits) {
-      if (readFromSource(subSource, options).isEmpty()) {
-        emptySplits += 1;
-      }
-    }
-    assertThat(
-        "There are too many empty splits, parallelism is sub-optimal",
-        emptySplits,
-        lessThan((int) (ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE * splits.size())));
+    createIndex(getEsIndex());
+    elasticsearchIOTestCommon.testSplit(2_000);
   }
 
   @Test
@@ -202,7 +177,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   @Test
   public void testWriteWithTypeFn() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
-    elasticsearchIOTestCommon.testWriteWithTypeFn();
+    elasticsearchIOTestCommon.testWriteWithTypeFn2x5x();
   }
 
   @Test
@@ -215,5 +190,40 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   public void testWritePartialUpdate() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWritePartialUpdate();
+  }
+
+  @Test
+  public void testWritePartialUpdateWithErrors() throws Exception {
+    // cannot share elasticsearchIOTestCommon because tests run in parallel.
+    ConnectionConfiguration connectionConfiguration =
+        ConnectionConfiguration.create(fillAddresses(), UPDATE_INDEX, UPDATE_TYPE);
+    ElasticsearchIOTestCommon elasticsearchIOTestCommonWithErrors =
+        new ElasticsearchIOTestCommon(connectionConfiguration, getRestClient(), false);
+    elasticsearchIOTestCommonWithErrors.setPipeline(pipeline);
+    elasticsearchIOTestCommonWithErrors.testWritePartialUpdateWithErrors();
+  }
+
+  @Test
+  public void testReadWithMetadata() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testReadWithMetadata();
+  }
+
+  @Test
+  public void testDefaultRetryPredicate() throws IOException {
+    elasticsearchIOTestCommon.testDefaultRetryPredicate(getRestClient());
+  }
+
+  @Test
+  public void testWriteRetry() throws Throwable {
+    elasticsearchIOTestCommon.setExpectedException(expectedException);
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteRetry();
+  }
+
+  @Test
+  public void testWriteRetryValidRequest() throws Throwable {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteRetryValidRequest();
   }
 }

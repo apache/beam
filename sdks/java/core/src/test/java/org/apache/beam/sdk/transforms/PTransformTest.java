@@ -17,18 +17,30 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 import static org.hamcrest.Matchers.empty;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
+import java.io.Serializable;
+import org.apache.beam.sdk.testing.NeedsRunner;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link PTransform} base class. */
 @RunWith(JUnit4.class)
-public class PTransformTest {
+public class PTransformTest implements Serializable {
+
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+
   @Test
   public void testPopulateDisplayDataDefaultBehavior() {
     PTransform<PCollection<String>, PCollection<String>> transform =
@@ -40,5 +52,32 @@ public class PTransformTest {
         };
     DisplayData displayData = DisplayData.from(transform);
     assertThat(displayData.items(), empty());
+  }
+
+  @Test
+  public void testNamedCompose() {
+    PTransform<PCollection<Integer>, PCollection<Integer>> composed =
+        PTransform.compose("MyName", (PCollection<Integer> numbers) -> numbers);
+    assertEquals("MyName", composed.name);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testComposeBasicSerializableFunction() throws Exception {
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(1, 2, 3))
+            .apply(
+                PTransform.compose(
+                    (PCollection<Integer> numbers) -> {
+                      PCollection<Integer> inverted =
+                          numbers.apply(MapElements.into(integers()).via(input -> -input));
+                      return PCollectionList.of(numbers)
+                          .and(inverted)
+                          .apply(Flatten.pCollections());
+                    }));
+
+    PAssert.that(output).containsInAnyOrder(-2, -1, -3, 2, 1, 3);
+    pipeline.run();
   }
 }

@@ -21,15 +21,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
+import io.gearpump.cluster.ClusterConfig;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Map;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.gearpump.cluster.ClusterConfig;
-import org.apache.gearpump.cluster.embedded.EmbeddedCluster;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.junit.Test;
 
 /** Tests for {@link GearpumpPipelineOptions}. */
@@ -43,10 +42,9 @@ public class PipelineOptionsTest {
     GearpumpPipelineOptions options =
         PipelineOptionsFactory.create().as(GearpumpPipelineOptions.class);
     Config config = ClusterConfig.master(null);
-    EmbeddedCluster cluster = new EmbeddedCluster(config);
     options.setSerializers(serializers);
     options.setApplicationName(appName);
-    options.setEmbeddedCluster(cluster);
+    options.setRemote(false);
     options.setParallelism(10);
 
     byte[] serializedOptions = serialize(options);
@@ -55,7 +53,6 @@ public class PipelineOptionsTest {
             .readValue(serializedOptions, PipelineOptions.class)
             .as(GearpumpPipelineOptions.class);
 
-    assertNull(deserializedOptions.getEmbeddedCluster());
     assertNull(deserializedOptions.getSerializers());
     assertEquals(10, deserializedOptions.getParallelism());
     assertEquals(appName, deserializedOptions.getApplicationName());

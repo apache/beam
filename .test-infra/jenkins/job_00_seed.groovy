@@ -97,9 +97,8 @@ job('beam_SeedJob') {
     }
   }
 
-  // If anything goes wrong, mail the main dev list, because it is a big deal
   publishers {
-    mailer('dev@beam.apache.org', false, true)
+    mailer('builds@beam.apache.org', false, true)
   }
 
   steps {

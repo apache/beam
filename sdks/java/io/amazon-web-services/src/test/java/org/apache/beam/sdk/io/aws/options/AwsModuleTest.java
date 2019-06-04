@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.aws.options;
 
 import static org.hamcrest.Matchers.hasItem;
@@ -93,7 +92,7 @@ public class AwsModuleTest {
 
     Field field = PropertiesFileCredentialsProvider.class.getDeclaredField("credentialsFilePath");
     field.setAccessible(true);
-    String deserializedCredentialsFilePath = ((String) field.get(deserializedCredentialsProvider));
+    String deserializedCredentialsFilePath = (String) field.get(deserializedCredentialsProvider);
     assertEquals(credentialsFilePath, deserializedCredentialsFilePath);
   }
 
@@ -114,7 +113,7 @@ public class AwsModuleTest {
     Field field =
         ClasspathPropertiesFileCredentialsProvider.class.getDeclaredField("credentialsFilePath");
     field.setAccessible(true);
-    String deserializedCredentialsFilePath = ((String) field.get(deserializedCredentialsProvider));
+    String deserializedCredentialsFilePath = (String) field.get(deserializedCredentialsProvider);
     assertEquals(credentialsFilePath, deserializedCredentialsFilePath);
   }
 

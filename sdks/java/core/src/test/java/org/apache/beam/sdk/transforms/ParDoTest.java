@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
@@ -25,6 +24,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.include
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
@@ -36,13 +36,9 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -79,14 +75,17 @@ import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesMapState;
 import org.apache.beam.sdk.testing.UsesSetState;
+import org.apache.beam.sdk.testing.UsesSideInputs;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.UsesTestStream;
+import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.DoFn.OnTimer;
@@ -111,6 +110,12 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -339,7 +344,6 @@ public class ParDoTest implements Serializable {
           pipeline.apply(Create.of(inputs)).apply(ParDo.of(new TestDoFn()));
 
       PAssert.that(output).satisfies(ParDoTest.HasExpectedOutput.forInput(inputs));
-
       pipeline.run();
     }
 
@@ -703,7 +707,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testParDoWithSideInputs() {
 
       List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -735,7 +739,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testParDoWithSideInputsIsCumulative() {
 
       List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -769,7 +773,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testMultiOutputParDoWithSideInputs() {
 
       List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -807,7 +811,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testMultiOutputParDoWithSideInputsIsCumulative() {
 
       List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -863,7 +867,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testSideInputsWithMultipleWindows() {
       // Tests that the runner can safely run a DoFn that uses side inputs
       // on an input where the element is in multiple windows. The complication is
@@ -1521,7 +1525,11 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     public void testCoderInferenceOfList() {
       final String stateId = "foo";
       MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
@@ -1561,7 +1569,11 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     public void testValueStateFixedWindows() {
       final String stateId = "foo";
 
@@ -1660,7 +1672,11 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     public void testValueStateTaggedOutput() {
       final String stateId = "foo";
 
@@ -1711,7 +1727,11 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     public void testBagState() {
       final String stateId = "foo";
 
@@ -1942,7 +1962,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesSideInputs.class})
     public void testBagStateSideInput() {
 
       final PCollectionView<List<Integer>> listView =
@@ -1997,7 +2017,11 @@ public class ParDoTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class StateCoderInferenceTests extends SharedTestBase implements Serializable {
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     public void testBagStateCoderInference() {
       final String stateId = "foo";
       Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
@@ -2479,7 +2503,11 @@ public class ParDoTest implements Serializable {
      * hooks and is only supported by the direct runner.
      */
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     public void testEventTimeTimerBounded() throws Exception {
       final String timerId = "foo";
 
@@ -2514,7 +2542,11 @@ public class ParDoTest implements Serializable {
      * case where both GBK and the user code share a timer delivery bundle.
      */
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     public void testGbkFollowedByUserTimers() throws Exception {
 
       DoFn<KV<String, Iterable<Integer>>, Integer> fn =
@@ -2549,7 +2581,11 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     public void testEventTimeTimerAlignBounded() throws Exception {
       final String timerId = "foo";
 
@@ -2585,7 +2621,11 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     public void testTimerReceivedInOriginalWindow() throws Exception {
       final String timerId = "foo";
 
@@ -2635,7 +2675,11 @@ public class ParDoTest implements Serializable {
      * #testEventTimeTimerBounded()}.
      */
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     public void testEventTimeTimerAbsolute() throws Exception {
       final String timerId = "foo";
 
@@ -2716,7 +2760,11 @@ public class ParDoTest implements Serializable {
      * implementations that may GC in ways not simply governed by the watermark.
      */
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     public void testEventTimeTimerMultipleKeys() throws Exception {
       final String timerId = "foo";
       final String stateId = "sizzle";
@@ -2778,7 +2826,11 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     public void testAbsoluteProcessingTimeTimerRejected() throws Exception {
       final String timerId = "foo";
 
@@ -2790,7 +2842,20 @@ public class ParDoTest implements Serializable {
 
             @ProcessElement
             public void processElement(@TimerId(timerId) Timer timer) {
-              timer.set(new Instant(0));
+              try {
+                timer.set(new Instant(0));
+                fail("Should have failed due to processing time with absolute timer.");
+              } catch (RuntimeException e) {
+                String message = e.getMessage();
+                List<String> expectedSubstrings =
+                    Arrays.asList("relative timers", "processing time");
+                expectedSubstrings.forEach(
+                    str ->
+                        Preconditions.checkState(
+                            message.contains(str),
+                            "Pipeline didn't fail with the expected strings: %s",
+                            expectedSubstrings));
+              }
             }
 
             @OnTimer(timerId)
@@ -2798,16 +2863,15 @@ public class ParDoTest implements Serializable {
           };
 
       pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
-      thrown.expect(RuntimeException.class);
-      // Note that runners can reasonably vary their message - this matcher should be flexible
-      // and can be evolved.
-      thrown.expectMessage("relative timers");
-      thrown.expectMessage("processing time");
       pipeline.run();
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     public void testOutOfBoundsEventTimeTimer() throws Exception {
       final String timerId = "foo";
 
@@ -2820,7 +2884,19 @@ public class ParDoTest implements Serializable {
             @ProcessElement
             public void processElement(
                 ProcessContext context, BoundedWindow window, @TimerId(timerId) Timer timer) {
-              timer.set(window.maxTimestamp().plus(1L));
+              try {
+                timer.set(window.maxTimestamp().plus(1L));
+                fail("Should have failed due to processing time with absolute timer.");
+              } catch (RuntimeException e) {
+                String message = e.getMessage();
+                List<String> expectedSubstrings = Arrays.asList("event time timer", "expiration");
+                expectedSubstrings.forEach(
+                    str ->
+                        Preconditions.checkState(
+                            message.contains(str),
+                            "Pipeline didn't fail with the expected strings: %s",
+                            expectedSubstrings));
+              }
             }
 
             @OnTimer(timerId)
@@ -2828,16 +2904,11 @@ public class ParDoTest implements Serializable {
           };
 
       pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
-      thrown.expect(RuntimeException.class);
-      // Note that runners can reasonably vary their message - this matcher should be flexible
-      // and can be evolved.
-      thrown.expectMessage("event time timer");
-      thrown.expectMessage("expiration");
       pipeline.run();
     }
 
     @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStreamWithProcessingTime.class})
     public void testSimpleProcessingTimerTimer() throws Exception {
       final String timerId = "foo";
 
@@ -2995,7 +3066,11 @@ public class ParDoTest implements Serializable {
      * timers when a "set" method is called on it before it goes off.
      */
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesTestStreamWithProcessingTime.class
+    })
     public void testProcessingTimeTimerCanBeReset() throws Exception {
       final String timerId = "foo";
 
@@ -3073,7 +3148,11 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     public void testPipelineOptionsParameterOnTimer() {
       final String timerId = "thisTimer";
 
@@ -3124,7 +3203,11 @@ public class ParDoTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class TimerCoderInferenceTests extends SharedTestBase implements Serializable {
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     public void testValueStateCoderInference() {
       final String stateId = "foo";
       MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
@@ -3190,7 +3273,11 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     public void testValueStateCoderInferenceFromInputCoder() {
       final String stateId = "foo";
       MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();

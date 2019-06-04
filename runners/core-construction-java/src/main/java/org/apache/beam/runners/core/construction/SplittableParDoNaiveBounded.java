@@ -17,9 +17,8 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.util.concurrent.Uninterruptibles;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
@@ -50,6 +49,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Instant;
 
 /**
@@ -60,14 +60,16 @@ public class SplittableParDoNaiveBounded {
   /** Overrides a {@link ProcessKeyedElements} into {@link SplittableProcessNaive}. */
   public static class OverrideFactory<InputT, OutputT, RestrictionT>
       implements PTransformOverrideFactory<
-          PCollection<KV<String, KV<InputT, RestrictionT>>>, PCollectionTuple,
+          PCollection<KV<byte[], KV<InputT, RestrictionT>>>,
+          PCollectionTuple,
           ProcessKeyedElements<InputT, OutputT, RestrictionT>> {
     @Override
     public PTransformReplacement<
-            PCollection<KV<String, KV<InputT, RestrictionT>>>, PCollectionTuple>
+            PCollection<KV<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple>
         getReplacementTransform(
             AppliedPTransform<
-                    PCollection<KV<String, KV<InputT, RestrictionT>>>, PCollectionTuple,
+                    PCollection<KV<byte[], KV<InputT, RestrictionT>>>,
+                    PCollectionTuple,
                     ProcessKeyedElements<InputT, OutputT, RestrictionT>>
                 transform) {
       checkArgument(
@@ -88,7 +90,7 @@ public class SplittableParDoNaiveBounded {
 
   static class SplittableProcessNaive<
           InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
-      extends PTransform<PCollection<KV<String, KV<InputT, RestrictionT>>>, PCollectionTuple> {
+      extends PTransform<PCollection<KV<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple> {
     private final ProcessKeyedElements<InputT, OutputT, RestrictionT> original;
 
     SplittableProcessNaive(ProcessKeyedElements<InputT, OutputT, RestrictionT> original) {
@@ -96,7 +98,7 @@ public class SplittableParDoNaiveBounded {
     }
 
     @Override
-    public PCollectionTuple expand(PCollection<KV<String, KV<InputT, RestrictionT>>> input) {
+    public PCollectionTuple expand(PCollection<KV<byte[], KV<InputT, RestrictionT>>> input) {
       return input
           .apply("Drop key", Values.create())
           .apply("Reshuffle", Reshuffle.of())
@@ -109,8 +111,7 @@ public class SplittableParDoNaiveBounded {
     }
   }
 
-  static class NaiveProcessFn<
-          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
+  static class NaiveProcessFn<InputT, OutputT, RestrictionT, PositionT>
       extends DoFn<KV<InputT, RestrictionT>, OutputT> {
     private final DoFn<InputT, OutputT> fn;
 
@@ -142,7 +143,7 @@ public class SplittableParDoNaiveBounded {
       InputT element = c.element().getKey();
       RestrictionT restriction = c.element().getValue();
       while (true) {
-        TrackerT tracker = invoker.invokeNewTracker(restriction);
+        RestrictionTracker<RestrictionT, PositionT> tracker = invoker.invokeNewTracker(restriction);
         ProcessContinuation continuation =
             invoker.invokeProcessElement(new NestedProcessContext<>(fn, c, element, w, tracker));
         if (continuation.shouldResume()) {
@@ -234,6 +235,11 @@ public class SplittableParDoNaiveBounded {
       @Override
       public InputT element(DoFn<InputT, OutputT> doFn) {
         return element;
+      }
+
+      @Override
+      public Object schemaElement(int index) {
+        throw new UnsupportedOperationException();
       }
 
       @Override
@@ -348,11 +354,6 @@ public class SplittableParDoNaiveBounded {
       public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
           DoFn<InputT, OutputT> doFn) {
         throw new IllegalStateException();
-      }
-
-      @Override
-      public Row asRow(@Nullable String id) {
-        throw new UnsupportedOperationException();
       }
 
       @Override

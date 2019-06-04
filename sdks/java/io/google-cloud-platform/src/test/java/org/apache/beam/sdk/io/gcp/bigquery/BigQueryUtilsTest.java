@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toTableRow;
@@ -26,18 +25,24 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.collection.IsMapContaining.hasEntry;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions.TruncateTimestamps;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
+import org.joda.time.Instant;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for {@link BigQueryUtils}. */
+@RunWith(JUnit4.class)
 public class BigQueryUtilsTest {
   private static final Schema FLAT_TYPE =
       Schema.builder()
@@ -82,6 +87,9 @@ public class BigQueryUtilsTest {
       Row.withSchema(FLAT_TYPE)
           .addValues(123L, 123.456, "test", new DateTime(123456), false)
           .build();
+
+  private static final Row NULL_FLAT_ROW =
+      Row.withSchema(FLAT_TYPE).addValues(null, null, null, null, null).build();
 
   private static final Row ARRAY_ROW =
       Row.withSchema(ARRAY_TYPE).addValues((Object) Arrays.asList(123L, 124L)).build();
@@ -134,17 +142,17 @@ public class BigQueryUtilsTest {
     TableRow row = toTableRow().apply(FLAT_ROW);
 
     assertThat(row.size(), equalTo(5));
-    assertThat(row, hasEntry("id", 123L));
-    assertThat(row, hasEntry("value", 123.456));
+    assertThat(row, hasEntry("id", "123"));
+    assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("name", "test"));
-    assertThat(row, hasEntry("valid", false));
+    assertThat(row, hasEntry("valid", "false"));
   }
 
   @Test
   public void testToTableRow_array() {
     TableRow row = toTableRow().apply(ARRAY_ROW);
 
-    assertThat(row, hasEntry("ids", Arrays.asList(123L, 124L)));
+    assertThat(row, hasEntry("ids", Arrays.asList("123", "124")));
     assertThat(row.size(), equalTo(1));
   }
 
@@ -155,10 +163,10 @@ public class BigQueryUtilsTest {
     assertThat(row.size(), equalTo(1));
     row = (TableRow) row.get("row");
     assertThat(row.size(), equalTo(5));
-    assertThat(row, hasEntry("id", 123L));
-    assertThat(row, hasEntry("value", 123.456));
+    assertThat(row, hasEntry("id", "123"));
+    assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("name", "test"));
-    assertThat(row, hasEntry("valid", false));
+    assertThat(row, hasEntry("valid", "false"));
   }
 
   @Test
@@ -168,9 +176,118 @@ public class BigQueryUtilsTest {
     assertThat(row.size(), equalTo(1));
     row = ((List<TableRow>) row.get("rows")).get(0);
     assertThat(row.size(), equalTo(5));
-    assertThat(row, hasEntry("id", 123L));
-    assertThat(row, hasEntry("value", 123.456));
+    assertThat(row, hasEntry("id", "123"));
+    assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("name", "test"));
-    assertThat(row, hasEntry("valid", false));
+    assertThat(row, hasEntry("valid", "false"));
+  }
+
+  @Test
+  public void testToTableRow_null_row() {
+    TableRow row = toTableRow().apply(NULL_FLAT_ROW);
+
+    assertThat(row.size(), equalTo(5));
+    assertThat(row, hasEntry("id", null));
+    assertThat(row, hasEntry("value", null));
+    assertThat(row, hasEntry("name", null));
+    assertThat(row, hasEntry("timestamp", null));
+    assertThat(row, hasEntry("valid", null));
+  }
+
+  private static final BigQueryUtils.ConversionOptions TRUNCATE_OPTIONS =
+      BigQueryUtils.ConversionOptions.builder()
+          .setTruncateTimestamps(TruncateTimestamps.TRUNCATE)
+          .build();
+
+  private static final BigQueryUtils.ConversionOptions REJECT_OPTIONS =
+      BigQueryUtils.ConversionOptions.builder()
+          .setTruncateTimestamps(TruncateTimestamps.REJECT)
+          .build();
+
+  @Test
+  public void testSubMilliPrecisionRejected() {
+    assertThrows(
+        "precision",
+        IllegalArgumentException.class,
+        () ->
+            BigQueryUtils.convertAvroFormat(
+                Schema.Field.of("dummy", Schema.FieldType.DATETIME), 1000000001L, REJECT_OPTIONS));
+  }
+
+  @Test
+  public void testMilliPrecisionOk() {
+    long millis = 123456789L;
+    assertThat(
+        BigQueryUtils.convertAvroFormat(
+            Schema.Field.of("dummy", Schema.FieldType.DATETIME), millis * 1000, REJECT_OPTIONS),
+        equalTo(new Instant(millis)));
+  }
+
+  @Test
+  public void testSubMilliPrecisionTruncated() {
+    long millis = 123456789L;
+    assertThat(
+        BigQueryUtils.convertAvroFormat(
+            Schema.Field.of("dummy", Schema.FieldType.DATETIME),
+            millis * 1000 + 123,
+            TRUNCATE_OPTIONS),
+        equalTo(new Instant(millis)));
+  }
+
+  @Test
+  public void testSubMilliPrecisionLogicalTypeRejected() {
+    assertThrows(
+        "precision",
+        IllegalArgumentException.class,
+        () ->
+            BigQueryUtils.convertAvroFormat(
+                Schema.Field.of("dummy", Schema.FieldType.logicalType(new FakeSqlTimeType())),
+                1000000001L,
+                REJECT_OPTIONS));
+  }
+
+  @Test
+  public void testMilliPrecisionOkLogicaltype() {
+    long millis = 123456789L;
+    assertThat(
+        BigQueryUtils.convertAvroFormat(
+            Schema.Field.of("dummy", Schema.FieldType.logicalType(new FakeSqlTimeType())),
+            millis * 1000,
+            REJECT_OPTIONS),
+        equalTo(new Instant(millis)));
+  }
+
+  @Test
+  public void testMilliPrecisionTruncatedLogicaltype() {
+    long millis = 123456789L;
+    assertThat(
+        BigQueryUtils.convertAvroFormat(
+            Schema.Field.of("dummy", Schema.FieldType.logicalType(new FakeSqlTimeType())),
+            millis * 1000 + 123,
+            TRUNCATE_OPTIONS),
+        equalTo(new Instant(millis)));
+  }
+
+  private static class FakeSqlTimeType implements Schema.LogicalType<Long, Instant> {
+    @Override
+    public String getIdentifier() {
+      return "SqlTimeType";
+    }
+
+    @Override
+    public Schema.FieldType getBaseType() {
+      return Schema.FieldType.DATETIME;
+    }
+
+    @Override
+    public Instant toBaseType(Long input) {
+      // Already converted to millis outside this constructor
+      return new Instant((long) input);
+    }
+
+    @Override
+    public Long toInputType(Instant base) {
+      return base.getMillis();
+    }
   }
 }

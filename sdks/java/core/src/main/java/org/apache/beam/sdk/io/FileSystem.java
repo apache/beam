@@ -126,9 +126,6 @@ public abstract class FileSystem<ResourceIdT extends ResourceId> {
   /**
    * Deletes a collection of resources.
    *
-   * <p>It is allowed but not recommended to delete directories recursively. Callers depends on
-   * {@link FileSystems} and uses {@code DeleteOptions}.
-   *
    * @param resourceIds the references of the resources to delete.
    * @throws FileNotFoundException if resources are missing. When delete throws, each resource might
    *     or might not be deleted. In such scenarios, callers can use {@code match()} to determine

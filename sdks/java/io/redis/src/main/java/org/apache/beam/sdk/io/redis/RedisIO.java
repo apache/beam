@@ -17,10 +17,11 @@
  */
 package org.apache.beam.sdk.io.redis;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -34,11 +35,14 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.ScanParams;
@@ -109,6 +113,7 @@ public class RedisIO {
     return new AutoValue_RedisIO_Read.Builder()
         .setConnectionConfiguration(RedisConnectionConfiguration.create())
         .setKeyPattern("*")
+        .setBatchSize(1000)
         .build();
   }
 
@@ -119,6 +124,7 @@ public class RedisIO {
   public static ReadAll readAll() {
     return new AutoValue_RedisIO_ReadAll.Builder()
         .setConnectionConfiguration(RedisConnectionConfiguration.create())
+        .setBatchSize(1000)
         .build();
   }
 
@@ -126,6 +132,7 @@ public class RedisIO {
   public static Write write() {
     return new AutoValue_RedisIO_Write.Builder()
         .setConnectionConfiguration(RedisConnectionConfiguration.create())
+        .setMethod(Write.Method.APPEND)
         .build();
   }
 
@@ -141,6 +148,8 @@ public class RedisIO {
     @Nullable
     abstract String keyPattern();
 
+    abstract int batchSize();
+
     abstract Builder builder();
 
     @AutoValue.Builder
@@ -151,12 +160,14 @@ public class RedisIO {
       @Nullable
       abstract Builder setKeyPattern(String keyPattern);
 
+      abstract Builder setBatchSize(int batchSize);
+
       abstract Read build();
     }
 
     public Read withEndpoint(String host, int port) {
       checkArgument(host != null, "host can not be null");
-      checkArgument(port > 0, "port can not be negative or 0");
+      checkArgument(0 < port && port < 65536, "port must be a positive integer less than 65536");
       return builder()
           .setConnectionConfiguration(connectionConfiguration().withHost(host).withPort(port))
           .build();
@@ -184,6 +195,10 @@ public class RedisIO {
       return builder().setConnectionConfiguration(connection).build();
     }
 
+    public Read withBatchSize(int batchSize) {
+      return builder().setBatchSize(batchSize).build();
+    }
+
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       connectionConfiguration().populateDisplayData(builder);
@@ -195,7 +210,11 @@ public class RedisIO {
 
       return input
           .apply(Create.of(keyPattern()))
-          .apply(RedisIO.readAll().withConnectionConfiguration(connectionConfiguration()));
+          .apply(ParDo.of(new ReadKeysWithPattern(connectionConfiguration())))
+          .apply(
+              RedisIO.readAll()
+                  .withConnectionConfiguration(connectionConfiguration())
+                  .withBatchSize(batchSize()));
     }
   }
 
@@ -207,12 +226,16 @@ public class RedisIO {
     @Nullable
     abstract RedisConnectionConfiguration connectionConfiguration();
 
+    abstract int batchSize();
+
     abstract ReadAll.Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
       @Nullable
       abstract ReadAll.Builder setConnectionConfiguration(RedisConnectionConfiguration connection);
+
+      abstract ReadAll.Builder setBatchSize(int batchSize);
 
       abstract ReadAll build();
     }
@@ -242,31 +265,45 @@ public class RedisIO {
       return builder().setConnectionConfiguration(connection).build();
     }
 
+    public ReadAll withBatchSize(int batchSize) {
+      return builder().setBatchSize(batchSize).build();
+    }
+
     @Override
     public PCollection<KV<String, String>> expand(PCollection<String> input) {
       checkArgument(connectionConfiguration() != null, "withConnectionConfiguration() is required");
 
       return input
-          .apply(ParDo.of(new ReadFn(connectionConfiguration())))
+          .apply(ParDo.of(new ReadFn(connectionConfiguration(), batchSize())))
           .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
           .apply(new Reparallelize());
     }
   }
 
-  /** A {@link DoFn} requesting Redis server to get key/value pairs. */
-  private static class ReadFn extends DoFn<String, KV<String, String>> {
+  abstract static class BaseReadFn<T> extends DoFn<String, T> {
+    protected final RedisConnectionConfiguration connectionConfiguration;
 
-    private final RedisConnectionConfiguration connectionConfiguration;
+    transient Jedis jedis;
 
-    private transient Jedis jedis;
-
-    public ReadFn(RedisConnectionConfiguration connectionConfiguration) {
+    BaseReadFn(RedisConnectionConfiguration connectionConfiguration) {
       this.connectionConfiguration = connectionConfiguration;
     }
 
     @Setup
     public void setup() {
       jedis = connectionConfiguration.connect();
+    }
+
+    @Teardown
+    public void teardown() {
+      jedis.close();
+    }
+  }
+
+  private static class ReadKeysWithPattern extends BaseReadFn<String> {
+
+    ReadKeysWithPattern(RedisConnectionConfiguration connectionConfiguration) {
+      super(connectionConfiguration);
     }
 
     @ProcessElement
@@ -279,28 +316,77 @@ public class RedisIO {
       while (!finished) {
         ScanResult<String> scanResult = jedis.scan(cursor, scanParams);
         List<String> keys = scanResult.getResult();
-
-        Pipeline pipeline = jedis.pipelined();
-        if (keys != null) {
-          for (String key : keys) {
-            pipeline.get(key);
-          }
-          List<Object> values = pipeline.syncAndReturnAll();
-          for (int i = 0; i < values.size(); i++) {
-            processContext.output(KV.of(keys.get(i), (String) values.get(i)));
-          }
+        for (String k : keys) {
+          processContext.output(k);
         }
-
-        cursor = scanResult.getStringCursor();
-        if ("0".equals(cursor)) {
+        cursor = scanResult.getCursor();
+        if (cursor.equals(ScanParams.SCAN_POINTER_START)) {
           finished = true;
         }
       }
     }
+  }
+  /** A {@link DoFn} requesting Redis server to get key/value pairs. */
+  private static class ReadFn extends BaseReadFn<KV<String, String>> {
+    @Nullable transient Multimap<BoundedWindow, String> bundles = null;
+    @Nullable AtomicInteger batchCount = null;
+    private final int batchSize;
 
-    @Teardown
-    public void teardown() {
-      jedis.close();
+    @StartBundle
+    public void startBundle(StartBundleContext context) {
+      bundles = ArrayListMultimap.create();
+      batchCount = new AtomicInteger();
+    }
+
+    ReadFn(RedisConnectionConfiguration connectionConfiguration, int batchSize) {
+      super(connectionConfiguration);
+      this.batchSize = batchSize;
+    }
+
+    private int getBatchSize() {
+      return batchSize;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext processContext, BoundedWindow window)
+        throws Exception {
+      String key = processContext.element();
+      bundles.put(window, key);
+      if (batchCount.incrementAndGet() > getBatchSize()) {
+        Multimap<BoundedWindow, KV<String, String>> kvs = fetchAndFlush();
+        for (BoundedWindow w : kvs.keySet()) {
+          for (KV<String, String> kv : kvs.get(w)) {
+            processContext.output(kv);
+          }
+        }
+      }
+    }
+
+    private Multimap<BoundedWindow, KV<String, String>> fetchAndFlush() {
+      Multimap<BoundedWindow, KV<String, String>> kvs = ArrayListMultimap.create();
+      for (BoundedWindow w : bundles.keySet()) {
+        String[] keys = new String[bundles.get(w).size()];
+        bundles.get(w).toArray(keys);
+        List<String> results = jedis.mget(keys);
+        for (int i = 0; i < results.size(); i++) {
+          if (results.get(i) != null) {
+            kvs.put(w, KV.of(keys[i], results.get(i)));
+          }
+        }
+      }
+      bundles = ArrayListMultimap.create();
+      batchCount.set(0);
+      return kvs;
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext context) throws Exception {
+      Multimap<BoundedWindow, KV<String, String>> kvs = fetchAndFlush();
+      for (BoundedWindow w : kvs.keySet()) {
+        for (KV<String, String> kv : kvs.get(w)) {
+          context.output(kv, w.maxTimestamp(), w);
+        }
+      }
     }
   }
 
@@ -334,8 +420,53 @@ public class RedisIO {
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<KV<String, String>>, PDone> {
 
+    /** Determines the method used to insert data in Redis. */
+    public enum Method {
+
+      /**
+       * Use APPEND command. If key already exists and is a string, this command appends the value
+       * at the end of the string.
+       */
+      APPEND,
+
+      /** Use SET command. If key already holds a value, it is overwritten. */
+      SET,
+
+      /**
+       * Use LPUSH command. Insert value at the head of the list stored at key. If key does not
+       * exist, it is created as empty list before performing the push operations. When key holds a
+       * value that is not a list, an error is returned.
+       */
+      LPUSH,
+
+      /**
+       * Use RPUSH command. Insert value at the tail of the list stored at key. If key does not
+       * exist, it is created as empty list before performing the push operations. When key holds a
+       * value that is not a list, an error is returned.
+       */
+      RPUSH,
+
+      /** Use SADD command. Insert value in a set. Duplicated values are ignored. */
+      SADD,
+
+      /** Use PFADD command. Insert value in a HLL structure. Create key if it doesn't exist */
+      PFADD,
+
+      /** Use INCBY command. Increment counter value of a key by a given value. */
+      INCRBY,
+
+      /** Use DECRBY command. Decrement counter value of a key by given value. */
+      DECRBY,
+    }
+
     @Nullable
     abstract RedisConnectionConfiguration connectionConfiguration();
+
+    @Nullable
+    abstract Method method();
+
+    @Nullable
+    abstract Long expireTime();
 
     abstract Builder builder();
 
@@ -344,6 +475,10 @@ public class RedisIO {
 
       abstract Builder setConnectionConfiguration(
           RedisConnectionConfiguration connectionConfiguration);
+
+      abstract Builder setMethod(Method method);
+
+      abstract Builder setExpireTime(Long expireTimeMillis);
 
       abstract Write build();
     }
@@ -371,6 +506,17 @@ public class RedisIO {
     public Write withConnectionConfiguration(RedisConnectionConfiguration connection) {
       checkArgument(connection != null, "connection can not be null");
       return builder().setConnectionConfiguration(connection).build();
+    }
+
+    public Write withMethod(Method method) {
+      checkArgument(method != null, "method can not be null");
+      return builder().setMethod(method).build();
+    }
+
+    public Write withExpireTime(Long expireTimeMillis) {
+      checkArgument(expireTimeMillis != null, "expireTimeMillis can not be null");
+      checkArgument(expireTimeMillis > 0, "expireTimeMillis can not be negative or 0");
+      return builder().setExpireTime(expireTimeMillis).build();
     }
 
     @Override
@@ -411,19 +557,115 @@ public class RedisIO {
       @ProcessElement
       public void processElement(ProcessContext processContext) {
         KV<String, String> record = processContext.element();
-        pipeline.append(record.getKey(), record.getValue());
+
+        writeRecord(record);
 
         batchCount++;
 
         if (batchCount >= DEFAULT_BATCH_SIZE) {
           pipeline.exec();
+          pipeline.sync();
+          pipeline.multi();
           batchCount = 0;
+        }
+      }
+
+      private void writeRecord(KV<String, String> record) {
+        Method method = spec.method();
+        Long expireTime = spec.expireTime();
+
+        if (Method.APPEND == method) {
+          writeUsingAppendCommand(record, expireTime);
+        } else if (Method.SET == method) {
+          writeUsingSetCommand(record, expireTime);
+        } else if (Method.LPUSH == method || Method.RPUSH == method) {
+          writeUsingListCommand(record, method, expireTime);
+        } else if (Method.SADD == method) {
+          writeUsingSaddCommand(record, expireTime);
+        } else if (Method.PFADD == method) {
+          writeUsingHLLCommand(record, expireTime);
+        } else if (Method.INCRBY == method) {
+          writeUsingIncrBy(record);
+        } else if (Method.DECRBY == method) {
+          writeUsingDecrBy(record);
+        }
+      }
+
+      private void writeUsingAppendCommand(KV<String, String> record, Long expireTime) {
+        String key = record.getKey();
+        String value = record.getValue();
+
+        pipeline.append(key, value);
+
+        setExpireTimeWhenRequired(key, expireTime);
+      }
+
+      private void writeUsingSetCommand(KV<String, String> record, Long expireTime) {
+        String key = record.getKey();
+        String value = record.getValue();
+
+        if (expireTime != null) {
+          pipeline.psetex(key, expireTime, value);
+        } else {
+          pipeline.set(key, value);
+        }
+      }
+
+      private void writeUsingListCommand(
+          KV<String, String> record, Method method, Long expireTime) {
+
+        String key = record.getKey();
+        String value = record.getValue();
+
+        if (Method.LPUSH == method) {
+          pipeline.lpush(key, value);
+        } else if (Method.RPUSH == method) {
+          pipeline.rpush(key, value);
+        }
+
+        setExpireTimeWhenRequired(key, expireTime);
+      }
+
+      private void writeUsingSaddCommand(KV<String, String> record, Long expireTime) {
+        String key = record.getKey();
+        String value = record.getValue();
+
+        pipeline.sadd(key, value);
+      }
+
+      private void writeUsingHLLCommand(KV<String, String> record, Long expireTime) {
+        String key = record.getKey();
+        String value = record.getValue();
+
+        pipeline.pfadd(key, value);
+      }
+
+      private void writeUsingIncrBy(KV<String, String> record) {
+        String key = record.getKey();
+        String value = record.getValue();
+        long inc = Long.parseLong(value);
+        pipeline.incrBy(key, inc);
+      }
+
+      private void writeUsingDecrBy(KV<String, String> record) {
+        String key = record.getKey();
+        String value = record.getValue();
+        long decr = Long.parseLong(value);
+        pipeline.decrBy(key, decr);
+      }
+
+      private void setExpireTimeWhenRequired(String key, Long expireTime) {
+        if (expireTime != null) {
+          pipeline.pexpire(key, expireTime);
         }
       }
 
       @FinishBundle
       public void finishBundle() {
-        pipeline.exec();
+        if (pipeline.isInMulti()) {
+          pipeline.exec();
+          pipeline.sync();
+        }
         batchCount = 0;
       }
 

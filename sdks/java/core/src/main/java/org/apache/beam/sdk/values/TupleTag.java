@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.values;
 
-import com.google.common.collect.HashMultiset;
-import com.google.common.collect.Multiset;
 import java.io.Serializable;
 import java.util.Random;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashMultiset;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multiset;
 
 /**
  * A {@link TupleTag} is a typed tag to use as the key of a heterogeneously typed tuple, like {@link

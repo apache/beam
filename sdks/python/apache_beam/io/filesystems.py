@@ -151,10 +151,26 @@ class FileSystems(object):
   def match(patterns, limits=None):
     """Find all matching paths to the patterns provided.
 
-    Pattern matching is done using fnmatch.fnmatch.
-    For filesystems that have directories, matching is not recursive. Patterns
-    like scheme://path/*/foo will not match anything.
-    Patterns ending with '/' will be appended with '*'.
+    Pattern matching is done using each filesystem's ``match`` method (e.g.
+    :meth:`.filesystem.FileSystem.match`).
+
+    .. note::
+      - Depending on the :class:`.FileSystem` implementation, file listings
+        (the ``.FileSystem._list`` method) may not be recursive.
+      - If the file listing is not recursive, a pattern like
+        ``scheme://path/*/foo`` will not be able to mach any files.
+
+    See Also:
+      :meth:`.filesystem.FileSystem.match`
+
+    Pattern syntax:
+      The pattern syntax is based on the fnmatch_ syntax, with the following
+      differences:
+
+      -   ``*`` Is equivalent to ``[^/\\]*`` rather than ``.*``.
+      -   ``**`` Is equivalent to ``.*``.
+
+    .. _`fnmatch`: https://docs.python.org/2/library/fnmatch.html
 
     Args:
       patterns: list of string for the file path pattern to match against
@@ -246,6 +262,21 @@ class FileSystems(object):
     """
     filesystem = FileSystems.get_filesystem(path)
     return filesystem.exists(path)
+
+  @staticmethod
+  def last_updated(path):
+    """Get UNIX Epoch time in seconds on the FileSystem.
+
+    Args:
+      path: string path of file.
+
+    Returns: float UNIX Epoch time
+
+    Raises:
+      ``BeamIOError`` if path doesn't exist.
+    """
+    filesystem = FileSystems.get_filesystem(path)
+    return filesystem.last_updated(path)
 
   @staticmethod
   def checksum(path):

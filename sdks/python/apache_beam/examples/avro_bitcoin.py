@@ -29,14 +29,19 @@ from __future__ import absolute_import
 import argparse
 import logging
 
-import avro
-
 import apache_beam as beam
 from apache_beam.io.avroio import ReadFromAvro
 from apache_beam.io.avroio import WriteToAvro
 from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from avro.schema import Parse # avro-python3 library for python3
+except ImportError:
+  from avro.schema import parse as Parse # avro library for python2
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 class BitcoinTxnCountDoFn(beam.DoFn):
@@ -85,7 +90,7 @@ class BitcoinTxnCountDoFn(beam.DoFn):
     ]
 
 
-SCHEMA = avro.schema.parse('''
+SCHEMA = Parse('''
   {
     "namespace": "example.avro",
     "type": "record",

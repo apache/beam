@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump.translators.functions;
 
-import com.google.common.collect.Iterables;
+import io.gearpump.streaming.dsl.javaapi.functions.FlatMapFunction;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -38,6 +37,7 @@ import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils;
 import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils.RawUnionValue;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -45,7 +45,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.gearpump.streaming.dsl.javaapi.functions.FlatMapFunction;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /** Gearpump {@link FlatMapFunction} wrapper over Beam {@link DoFn}. */
 @SuppressWarnings("unchecked")
@@ -73,7 +73,8 @@ public class DoFnFunction<InputT, OutputT>
       Map<String, PCollectionView<?>> sideInputTagMapping,
       TupleTag<OutputT> mainOutput,
       Map<TupleTag<?>, Coder<?>> outputCoders,
-      List<TupleTag<?>> sideOutputs) {
+      List<TupleTag<?>> sideOutputs,
+      DoFnSchemaInformation doFnSchemaInformation) {
     this.doFn = doFn;
     this.outputManager = new DoFnOutputManager();
     this.doFnRunnerFactory =
@@ -86,7 +87,8 @@ public class DoFnFunction<InputT, OutputT>
             sideOutputs,
             new NoOpStepContext(),
             outputCoders,
-            windowingStrategy);
+            windowingStrategy,
+            doFnSchemaInformation);
     this.sideInputs = sideInputs;
     this.tagsToSideInputs = sideInputTagMapping;
     this.mainOutput = mainOutput;
@@ -97,7 +99,10 @@ public class DoFnFunction<InputT, OutputT>
   public void setup() {
     sideInputReader = new SideInputHandler(sideInputs, InMemoryStateInternals.<Void>forKey(null));
     doFnInvoker = DoFnInvokers.invokerFor(doFn);
-    doFnInvoker.invokeSetup();
+
+    if (doFnInvoker != null) {
+      doFnInvoker.invokeSetup();
+    }
 
     doFnRunner = doFnRunnerFactory.createRunner(sideInputReader);
 
@@ -107,7 +112,9 @@ public class DoFnFunction<InputT, OutputT>
 
   @Override
   public void teardown() {
-    doFnInvoker.invokeTeardown();
+    if (doFnInvoker != null) {
+      doFnInvoker.invokeTeardown();
+    }
   }
 
   @Override

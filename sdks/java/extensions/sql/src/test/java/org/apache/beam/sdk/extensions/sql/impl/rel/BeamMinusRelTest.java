@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import java.math.BigDecimal;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
-import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -37,19 +37,43 @@ public class BeamMinusRelTest extends BaseRelTest {
   public static void prepare() {
     registerTable(
         "ORDER_DETAILS1",
-        MockedBoundedTable.of(
+        TestBoundedTable.of(
                 Schema.FieldType.INT64, "order_id",
                 Schema.FieldType.INT32, "site_id",
-                Schema.FieldType.DOUBLE, "price")
-            .addRows(1L, 1, 1.0, 1L, 1, 1.0, 2L, 2, 2.0, 4L, 4, 4.0, 4L, 4, 4.0));
+                Schema.FieldType.DECIMAL, "price")
+            .addRows(
+                1L,
+                1,
+                new BigDecimal(1.0),
+                1L,
+                1,
+                new BigDecimal(1.0),
+                2L,
+                2,
+                new BigDecimal(2.0),
+                4L,
+                4,
+                new BigDecimal(4.0),
+                4L,
+                4,
+                new BigDecimal(4.0)));
 
     registerTable(
         "ORDER_DETAILS2",
-        MockedBoundedTable.of(
+        TestBoundedTable.of(
                 Schema.FieldType.INT64, "order_id",
                 Schema.FieldType.INT32, "site_id",
-                Schema.FieldType.DOUBLE, "price")
-            .addRows(1L, 1, 1.0, 2L, 2, 2.0, 3L, 3, 3.0));
+                Schema.FieldType.DECIMAL, "price")
+            .addRows(
+                1L,
+                1,
+                new BigDecimal(1.0),
+                2L,
+                2,
+                new BigDecimal(2.0),
+                3L,
+                3,
+                new BigDecimal(3.0)));
   }
 
   @Test
@@ -68,8 +92,8 @@ public class BeamMinusRelTest extends BaseRelTest {
             TestUtils.RowsBuilder.of(
                     Schema.FieldType.INT64, "order_id",
                     Schema.FieldType.INT32, "site_id",
-                    Schema.FieldType.DOUBLE, "price")
-                .addRows(4L, 4, 4.0)
+                    Schema.FieldType.DECIMAL, "price")
+                .addRows(4L, 4, new BigDecimal(4.0))
                 .getRows());
 
     pipeline.run();
@@ -86,16 +110,39 @@ public class BeamMinusRelTest extends BaseRelTest {
             + "FROM ORDER_DETAILS2 ";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);
-    PAssert.that(rows).satisfies(new CheckSize(2));
+    PAssert.that(rows).satisfies(new CheckSize(3));
 
     PAssert.that(rows)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
                     Schema.FieldType.INT64, "order_id",
                     Schema.FieldType.INT32, "site_id",
-                    Schema.FieldType.DOUBLE, "price")
-                .addRows(4L, 4, 4.0, 4L, 4, 4.0)
+                    Schema.FieldType.DECIMAL, "price")
+                .addRows(
+                    1L,
+                    1,
+                    new BigDecimal(1.0),
+                    4L,
+                    4,
+                    new BigDecimal(4.0),
+                    4L,
+                    4,
+                    new BigDecimal(4.0))
                 .getRows());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testExceptRemovesDuplicates() throws Exception {
+    String sql = "(SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 1) EXCEPT SELECT 1";
+
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
+    PAssert.that(rows).satisfies(new CheckSize(1));
+
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(Schema.FieldType.INT32, "i").addRows(2).getRows());
 
     pipeline.run();
   }

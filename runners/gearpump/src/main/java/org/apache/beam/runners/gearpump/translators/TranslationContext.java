@@ -15,12 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump.translators;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.Iterables;
+import io.gearpump.cluster.UserConfig;
+import io.gearpump.streaming.dsl.javaapi.JavaStream;
+import io.gearpump.streaming.dsl.javaapi.JavaStreamApp;
+import io.gearpump.streaming.source.DataSource;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.TransformInputs;
@@ -30,10 +32,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.gearpump.cluster.UserConfig;
-import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
-import org.apache.gearpump.streaming.dsl.javaapi.JavaStreamApp;
-import org.apache.gearpump.streaming.source.DataSource;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /** Maintains context data for {@link TransformTranslator}s. */
 @SuppressWarnings({"rawtypes", "unchecked"})
@@ -85,7 +84,7 @@ public class TranslationContext {
     return Iterables.getOnlyElement(getOutputs().values());
   }
 
-  private AppliedPTransform<?, ?, ?> getCurrentTransform() {
+  public AppliedPTransform<?, ?, ?> getCurrentTransform() {
     checkArgument(currentTransform != null, "current transform not set");
     return currentTransform;
   }

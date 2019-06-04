@@ -24,36 +24,36 @@ import (
 
 // EncodeUint64 encodes an uint64 in big endian format.
 func EncodeUint64(value uint64, w io.Writer) error {
-	ret := make([]byte, 8)
-	binary.BigEndian.PutUint64(ret, value)
-	_, err := w.Write(ret)
+	var data [8]byte
+	binary.BigEndian.PutUint64(data[:], value)
+	_, err := ioutilx.WriteUnsafe(w, data[:])
 	return err
 }
 
 // DecodeUint64 decodes an uint64 in big endian format.
 func DecodeUint64(r io.Reader) (uint64, error) {
-	data, err := ioutilx.ReadN(r, 8)
-	if err != nil {
+	var data [8]byte
+	if err := ioutilx.ReadNBufUnsafe(r, data[:]); err != nil {
 		return 0, err
 	}
-	return binary.BigEndian.Uint64(data), nil
+	return binary.BigEndian.Uint64(data[:]), nil
 }
 
 // EncodeUint32 encodes an uint32 in big endian format.
 func EncodeUint32(value uint32, w io.Writer) error {
-	ret := make([]byte, 4)
-	binary.BigEndian.PutUint32(ret, value)
-	_, err := w.Write(ret)
+	var data [4]byte
+	binary.BigEndian.PutUint32(data[:], value)
+	_, err := ioutilx.WriteUnsafe(w, data[:])
 	return err
 }
 
 // DecodeUint32 decodes an uint32 in big endian format.
 func DecodeUint32(r io.Reader) (uint32, error) {
-	data, err := ioutilx.ReadN(r, 4)
-	if err != nil {
+	var data [4]byte
+	if err := ioutilx.ReadNBufUnsafe(r, data[:]); err != nil {
 		return 0, err
 	}
-	return binary.BigEndian.Uint32(data), nil
+	return binary.BigEndian.Uint32(data[:]), nil
 }
 
 // EncodeInt32 encodes an int32 in big endian format.

@@ -20,6 +20,8 @@
 from __future__ import absolute_import
 
 import argparse
+import logging
+from builtins import list
 from builtins import object
 
 from apache_beam.options.value_provider import RuntimeValueProvider
@@ -68,9 +70,9 @@ class _BeamArgumentParser(argparse.ArgumentParser):
       @classmethod
 
       def _add_argparse_args(cls, parser):
-        parser.add_value_provider_argument('--vp-arg1', default='start')
-        parser.add_value_provider_argument('--vp-arg2')
-        parser.add_argument('--non-vp-arg')
+        parser.add_value_provider_argument('--vp_arg1', default='start')
+        parser.add_value_provider_argument('--vp_arg2')
+        parser.add_argument('--non_vp_arg')
 
   """
   def add_value_provider_argument(self, *args, **kwargs):
@@ -105,13 +107,23 @@ class _BeamArgumentParser(argparse.ArgumentParser):
     # have add_argument do most of the work
     self.add_argument(*args, **kwargs)
 
+  # The argparse package by default tries to autocomplete option names. This
+  # results in an "ambiguous option" error from argparse when an unknown option
+  # matching multiple known ones are used. This suppresses that behavior.
+  def error(self, message):
+    if message.startswith('ambiguous option: '):
+      return
+    super(_BeamArgumentParser, self).error(message)
+
 
 class PipelineOptions(HasDisplayData):
-  """Pipeline options class used as container for command line options.
+  """This class and subclasses are used as containers for command line options.
 
-  The class is essentially a wrapper over the standard argparse Python module
+  These classes are wrappers over the standard argparse Python module
   (see https://docs.python.org/3/library/argparse.html).  To define one option
-  or a group of options you subclass from PipelineOptions::
+  or a group of options, create a subclass from PipelineOptions.
+
+  Example Usage::
 
     class XyzOptions(PipelineOptions):
 
@@ -124,11 +136,19 @@ class PipelineOptions(HasDisplayData):
   described in the argparse public documentation.
 
   Pipeline objects require an options object during initialization.
-  This is obtained simply by initializing an options class as defined above::
+  This is obtained simply by initializing an options class as defined above.
+
+  Example Usage::
 
     p = Pipeline(options=XyzOptions())
     if p.options.xyz == 'end':
       raise ValueError('Option xyz has an invalid value.')
+
+  Instances of PipelineOptions or any of its subclass have access to values
+  defined by other PipelineOption subclasses (see get_all_options()), and
+  can be converted to an instance of another PipelineOptions subclass
+  (see view_as()). All views share the underlying data structure that stores
+  option key-value pairs.
 
   By default the options classes will use command line arguments to initialize
   the options.
@@ -140,7 +160,7 @@ class PipelineOptions(HasDisplayData):
     arguments and then parse the command line specified by flags or by default
     the one obtained from sys.argv.
 
-    The subclasses are not expected to require a redefinition of __init__.
+    The subclasses of PipelineOptions do not need to redefine __init__.
 
     Args:
       flags: An iterable of command line arguments to be used. If not specified
@@ -148,19 +168,39 @@ class PipelineOptions(HasDisplayData):
 
       **kwargs: Add overrides for arguments passed in flags.
     """
+    # self._flags stores a list of not yet parsed arguments, typically,
+    # command-line flags. This list is shared across different views.
+    # See: view_as().
     self._flags = flags
-    self._all_options = kwargs
-    parser = _BeamArgumentParser()
 
+    # Build parser that will parse options recognized by the [sub]class of
+    # PipelineOptions whose object is being instantiated.
+    parser = _BeamArgumentParser()
     for cls in type(self).mro():
       if cls == PipelineOptions:
         break
       elif '_add_argparse_args' in cls.__dict__:
         cls._add_argparse_args(parser)
-    # The _visible_options attribute will contain only those options from the
-    # flags (i.e., command line) that can be recognized. The _all_options
-    # field contains additional overrides.
+
+    # The _visible_options attribute will contain options that were recognized
+    # by the parser.
     self._visible_options, _ = parser.parse_known_args(flags)
+
+    # self._all_options is initialized with overrides to flag values,
+    # provided in kwargs, and will store key-value pairs for options recognized
+    # by current PipelineOptions [sub]class and its views that may be created.
+    # See: view_as().
+    # This dictionary is shared across different views, and is lazily updated
+    # as each new views are created.
+    # Users access this dictionary store via __getattr__ / __setattr__ methods.
+    self._all_options = kwargs
+
+    # Initialize values of keys defined by this class.
+    for option_name in self._visible_option_list():
+      # Note that options specified in kwargs will not be overwritten.
+      if option_name not in self._all_options:
+        self._all_options[option_name] = getattr(self._visible_options,
+                                                 option_name)
 
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -182,12 +222,15 @@ class PipelineOptions(HasDisplayData):
       if isinstance(v, bool):
         if v:
           flags.append('--%s' % k)
+      elif isinstance(v, list):
+        for i in v:
+          flags.append('--%s=%s' % (k, i))
       else:
         flags.append('--%s=%s' % (k, v))
 
     return cls(flags)
 
-  def get_all_options(self, drop_default=False):
+  def get_all_options(self, drop_default=False, add_extra_args_fn=None):
     """Returns a dictionary of all defined arguments.
 
     Returns a dictionary of all defined arguments (arguments that are defined in
@@ -196,6 +239,8 @@ class PipelineOptions(HasDisplayData):
     Args:
       drop_default: If set to true, options that are equal to their default
         values, are not returned as part of the result dictionary.
+      add_extra_args_fn: Callback to populate additional arguments, can be used
+        by runner to supply otherwise unknown args.
 
     Returns:
       Dictionary of all args and values.
@@ -209,11 +254,15 @@ class PipelineOptions(HasDisplayData):
       subset[str(cls)] = cls
     for cls in subset.values():
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
-    known_args, _ = parser.parse_known_args(self._flags)
+    if add_extra_args_fn:
+      add_extra_args_fn(parser)
+    known_args, unknown_args = parser.parse_known_args(self._flags)
+    if unknown_args:
+      logging.warning("Discarding unparseable args: %s", unknown_args)
     result = vars(known_args)
 
     # Apply the overrides if any
-    for k in result.keys():
+    for k in list(result):
       if k in self._all_options:
         result[k] = self._all_options[k]
       if (drop_default and
@@ -227,7 +276,40 @@ class PipelineOptions(HasDisplayData):
     return self.get_all_options(True)
 
   def view_as(self, cls):
+    """Returns a view of current object as provided PipelineOption subclass.
+
+    Example Usage::
+
+      options = PipelineOptions(['--runner', 'Direct', '--streaming'])
+      standard_options = options.view_as(StandardOptions)
+      if standard_options.streaming:
+        # ... start a streaming job ...
+
+    Note that options objects may have multiple views, and modifications
+    of values in any view-object will apply to current object and other
+    view-objects.
+
+    Args:
+      cls: PipelineOptions class or any of its subclasses.
+
+    Returns:
+      An instance of cls that is intitialized using options contained in current
+      object.
+
+    """
     view = cls(self._flags)
+    for option_name in view._visible_option_list():
+      # Initialize values of keys defined by a cls.
+      #
+      # Note that we do initialization only once per key to make sure that
+      # values in _all_options dict are not-recreated with each new view.
+      # This is important to make sure that values of multi-options keys are
+      # backed by the same list across multiple views, and that any overrides of
+      # pipeline options already stored in _all_options are preserved.
+      if option_name not in self._all_options:
+        self._all_options[option_name] = getattr(view._visible_options,
+                                                 option_name)
+    # Note that views will still store _all_options of the source object.
     view._all_options = self._all_options
     return view
 
@@ -236,7 +318,7 @@ class PipelineOptions(HasDisplayData):
                   for option in dir(self._visible_options) if option[0] != '_')
 
   def __dir__(self):
-    return sorted(dir(type(self)) + list(self.__dict__.keys()) +
+    return sorted(dir(type(self)) + list(self.__dict__) +
                   self._visible_option_list())
 
   def __getattr__(self, name):
@@ -245,7 +327,7 @@ class PipelineOptions(HasDisplayData):
     if name[:2] == name[-2:] == '__':
       return object.__getattribute__(self, name)
     elif name in self._visible_option_list():
-      return self._all_options.get(name, getattr(self._visible_options, name))
+      return self._all_options[name]
     else:
       raise AttributeError("'%s' object has no attribute '%s'" %
                            (type(self).__name__, name))
@@ -317,6 +399,12 @@ class DirectOptions(PipelineOptions):
         help='DirectRunner uses stacked WindowedValues within a Bundle for '
         'memory optimization. Set --no_direct_runner_use_stacked_bundle to '
         'avoid it.')
+    parser.add_argument(
+        '--direct_runner_bundle_repeat',
+        type=int,
+        default=0,
+        help='replay every bundle this many extra times, for profiling'
+        'and debugging')
 
 
 class GoogleCloudOptions(PipelineOptions):
@@ -371,13 +459,32 @@ class GoogleCloudOptions(PipelineOptions):
     parser.add_argument('--template_location',
                         default=None,
                         help='Save job to specified local or GCS location.')
-    parser.add_argument(
-        '--label', '--labels',
-        dest='labels',
-        action='append',
-        default=None,
-        help='Labels that will be applied to this Dataflow job. Labels are key '
-        'value pairs separated by = (e.g. --label key=value).')
+    parser.add_argument('--label', '--labels',
+                        dest='labels',
+                        action='append',
+                        default=None,
+                        help='Labels to be applied to this Dataflow job. '
+                        'Labels are key value pairs separated by = '
+                        '(e.g. --label key=value).')
+    parser.add_argument('--update',
+                        default=False,
+                        action='store_true',
+                        help='Update an existing streaming Cloud Dataflow job. '
+                        'Experimental. '
+                        'See https://cloud.google.com/dataflow/pipelines/'
+                        'updating-a-pipeline')
+    parser.add_argument('--enable_streaming_engine',
+                        default=False,
+                        action='store_true',
+                        help='Enable Windmill Service for this Dataflow job. ')
+    parser.add_argument('--dataflow_kms_key',
+                        default=None,
+                        help='Set a Google Cloud KMS key name to be used in '
+                        'Dataflow state operations (GBK, Streaming).')
+    parser.add_argument('--flexrs_goal',
+                        default=None,
+                        choices=['COST_OPTIMIZED', 'SPEED_OPTIMIZED'],
+                        help='Set the Flexible Resource Scheduling mode')
 
   def validate(self, validator):
     errors = []
@@ -510,6 +617,20 @@ class WorkerOptions(PipelineOptions):
         default=None,
         action='store_false',
         help='Whether to assign only private IP addresses to the worker VMs.')
+    parser.add_argument(
+        '--min_cpu_platform',
+        dest='min_cpu_platform',
+        type=str,
+        help='GCE minimum CPU platform. Default is determined by GCP.'
+    )
+    parser.add_argument(
+        '--dataflow_worker_jar',
+        dest='dataflow_worker_jar',
+        type=str,
+        help='Dataflow worker jar file. If specified, the jar file is staged '
+             'in GCS, then gets loaded by workers. End users usually '
+             'should not use this feature.'
+    )
 
   def validate(self, validator):
     errors = []
@@ -536,6 +657,23 @@ class DebugOptions(PipelineOptions):
          'enabled with this flag. Please sync with the owners of the runner '
          'before enabling any experiments.'))
 
+  def add_experiment(self, experiment):
+    # pylint: disable=access-member-before-definition
+    if self.experiments is None:
+      self.experiments = []
+    if experiment not in self.experiments:
+      self.experiments.append(experiment)
+
+  def lookup_experiment(self, key, default=None):
+    if not self.experiments:
+      return default
+    elif key in self.experiments:
+      return True
+    for experiment in self.experiments:
+      if experiment.startswith(key + '='):
+        return experiment.split('=', 1)[1]
+    return default
+
 
 class ProfilingOptions(PipelineOptions):
 
@@ -549,7 +687,12 @@ class ProfilingOptions(PipelineOptions):
                         help='Enable work item heap profiling.')
     parser.add_argument('--profile_location',
                         default=None,
-                        help='GCS path for saving profiler data.')
+                        help='path for saving profiler data.')
+    parser.add_argument('--profile_sample_rate',
+                        type=float,
+                        default=1.0,
+                        help='A number between 0 and 1 indicating the ratio '
+                        'of bundles that should be profiled.')
 
 
 class SetupOptions(PipelineOptions):
@@ -637,7 +780,9 @@ class SetupOptions(PipelineOptions):
 
 
 class PortableOptions(PipelineOptions):
-
+  """Portable options are common options expected to be understood by most of
+  the portable runners.
+  """
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument('--job_endpoint',
@@ -645,11 +790,28 @@ class PortableOptions(PipelineOptions):
                         help=
                         ('Job service endpoint to use. Should be in the form '
                          'of address and port, e.g. localhost:3000'))
-    parser.add_argument('--harness_docker_image',
-                        default=None,
-                        help=
-                        ('Docker image to use for executing Python code '
-                         'in the pipeline when running using the Fn API.'))
+    parser.add_argument(
+        '--environment_type', default=None,
+        help=('Set the default environment type for running '
+              'user code. Possible options are DOCKER and PROCESS.'))
+    parser.add_argument(
+        '--environment_config', default=None,
+        help=('Set environment configuration for running the user code.\n For '
+              'DOCKER: Url for the docker image.\n For PROCESS: json of the '
+              'form {"os": "<OS>", "arch": "<ARCHITECTURE>", "command": '
+              '"<process to execute>", "env":{"<Environment variables 1>": '
+              '"<ENV_VAL>"} }. All fields in the json are optional except '
+              'command.'))
+    parser.add_argument(
+        '--sdk_worker_parallelism', default=0,
+        help=('Sets the number of sdk worker processes that will run on each '
+              'worker node. Default is 0. If 0, it will be automatically set '
+              'by the runner by looking at different parameters (e.g. number '
+              'of CPU cores on the worker machine or configuration).'))
+    parser.add_argument(
+        '--environment_cache_millis', default=0,
+        help=('Duration in milliseconds for environment cache within a job. '
+              '0 means no caching.'))
 
 
 class TestOptions(PipelineOptions):
@@ -681,6 +843,20 @@ class TestOptions(PipelineOptions):
     if self.view_as(TestOptions).on_success_matcher:
       errors.extend(validator.validate_test_matcher(self, 'on_success_matcher'))
     return errors
+
+
+class TestDataflowOptions(PipelineOptions):
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    # This option is passed to Dataflow Runner's Pub/Sub client. The camelCase
+    # style in 'dest' matches the runner's.
+    parser.add_argument(
+        '--pubsub_root_url',
+        dest='pubsubRootUrl',
+        default=None,
+        help='Root URL for use with the Google Cloud Pub/Sub API.',)
+
 
 # TODO(silviuc): Add --files_to_stage option.
 # This could potentially replace the --requirements_file and --setup_file.

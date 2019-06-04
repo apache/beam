@@ -50,10 +50,13 @@ WindowFn.
 from __future__ import absolute_import
 
 import abc
+from builtins import object
+from builtins import range
+from functools import total_ordering
 
+from future.utils import with_metaclass
 from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
-from past.builtins import cmp
 
 from apache_beam.coders import coders
 from apache_beam.portability import common_urns
@@ -63,7 +66,7 @@ from apache_beam.portability.api import standard_window_fns_pb2
 from apache_beam.transforms import timeutil
 from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
-from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
@@ -109,10 +112,8 @@ class TimestampCombiner(object):
       raise ValueError('Invalid TimestampCombiner: %s.' % timestamp_combiner)
 
 
-class WindowFn(urns.RunnerApiFn):
+class WindowFn(with_metaclass(abc.ABCMeta, urns.RunnerApiFn)):
   """An abstract windowing function defining a basic assign and merge."""
-
-  __metaclass__ = abc.ABCMeta
 
   class AssignContext(object):
     """Context passed to WindowFn.assign()."""
@@ -191,40 +192,52 @@ class BoundedWindow(object):
   def max_timestamp(self):
     return self.end.predecessor()
 
-  def __cmp__(self, other):
-    # Order first by endpoint, then arbitrarily.
-    return cmp(self.end, other.end) or cmp(hash(self), hash(other))
-
   def __eq__(self, other):
     raise NotImplementedError
 
+  def __ne__(self, other):
+    #  Order first by endpoint, then arbitrarily
+    return self.end != other.end or hash(self) != hash(other)
+
+  def __lt__(self, other):
+    if self.end != other.end:
+      return self.end < other.end
+    return hash(self) < hash(other)
+
+  def __le__(self, other):
+    if self.end != other.end:
+      return self.end <= other.end
+    return hash(self) <= hash(other)
+
+  def __gt__(self, other):
+    if self.end != other.end:
+      return self.end > other.end
+    return hash(self) > hash(other)
+
+  def __ge__(self, other):
+    if self.end != other.end:
+      return self.end >= other.end
+    return hash(self) >= hash(other)
+
   def __hash__(self):
-    return hash(self.end)
+    raise NotImplementedError
 
   def __repr__(self):
     return '[?, %s)' % float(self.end)
 
 
-class IntervalWindow(BoundedWindow):
+@total_ordering
+class IntervalWindow(windowed_value._IntervalWindowBase, BoundedWindow):
   """A window for timestamps in range [start, end).
 
   Attributes:
     start: Start of window as seconds since Unix epoch.
     end: End of window as seconds since Unix epoch.
   """
-
-  def __init__(self, start, end):
-    super(IntervalWindow, self).__init__(end)
-    self.start = Timestamp.of(start)
-
-  def __hash__(self):
-    return hash((self.start, self.end))
-
-  def __eq__(self, other):
-    return self.start == other.start and self.end == other.end
-
-  def __repr__(self):
-    return '[%s, %s)' % (float(self.start), float(self.end))
+  def __lt__(self, other):
+    if self.end != other.end:
+      return self.end < other.end
+    return hash(self) < hash(other)
 
   def intersects(self, other):
     return other.start < self.end or self.start < other.end
@@ -234,6 +247,7 @@ class IntervalWindow(BoundedWindow):
         min(self.start, other.start), max(self.end, other.end))
 
 
+@total_ordering
 class TimestampedValue(object):
   """A timestamped value having a value and a timestamp.
 
@@ -246,10 +260,23 @@ class TimestampedValue(object):
     self.value = value
     self.timestamp = Timestamp.of(timestamp)
 
-  def __cmp__(self, other):
-    if type(self) is not type(other):
-      return cmp(type(self), type(other))
-    return cmp((self.value, self.timestamp), (other.value, other.timestamp))
+  def __eq__(self, other):
+    return (type(self) == type(other)
+            and self.value == other.value
+            and self.timestamp == other.timestamp)
+
+  def __hash__(self):
+    return hash((self.value, self.timestamp))
+
+  def __ne__(self, other):
+    return not self == other
+
+  def __lt__(self, other):
+    if type(self) != type(other):
+      return type(self).__name__ < type(other).__name__
+    if self.value != other.value:
+      return self.value < other.value
+    return self.timestamp < other.timestamp
 
 
 class GlobalWindow(BoundedWindow):
@@ -262,7 +289,7 @@ class GlobalWindow(BoundedWindow):
     return cls._instance
 
   def __init__(self):
-    super(GlobalWindow, self).__init__(MAX_TIMESTAMP)
+    super(GlobalWindow, self).__init__(GlobalWindow._getTimestampFromProto())
     self.start = MIN_TIMESTAMP
 
   def __repr__(self):
@@ -274,6 +301,15 @@ class GlobalWindow(BoundedWindow):
   def __eq__(self, other):
     # Global windows are always and only equal to each other.
     return self is other or type(self) is type(other)
+
+  def __ne__(self, other):
+    return not self == other
+
+  @staticmethod
+  def _getTimestampFromProto():
+    ts_millis = int(
+        common_urns.constants.GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS.constant)
+    return Timestamp(micros=ts_millis*1000)
 
 
 class NonMergingWindowFn(WindowFn):
@@ -348,6 +384,9 @@ class FixedWindows(NonMergingWindowFn):
     if type(self) == type(other) == FixedWindows:
       return self.size == other.size and self.offset == other.offset
 
+  def __hash__(self):
+    return hash((self.size, self.offset))
+
   def __ne__(self, other):
     return not self == other
 
@@ -406,6 +445,12 @@ class SlidingWindows(NonMergingWindowFn):
       return (self.size == other.size
               and self.offset == other.offset
               and self.period == other.period)
+
+  def __ne__(self, other):
+    return not self == other
+
+  def __hash__(self):
+    return hash((self.offset, self.period))
 
   def to_runner_api_parameter(self, context):
     return (common_urns.sliding_windows.urn,
@@ -473,6 +518,12 @@ class Sessions(WindowFn):
   def __eq__(self, other):
     if type(self) == type(other) == Sessions:
       return self.gap_size == other.gap_size
+
+  def __ne__(self, other):
+    return not self == other
+
+  def __hash__(self):
+    return hash(self.gap_size)
 
   def to_runner_api_parameter(self, context):
     return (common_urns.session_windows.urn,

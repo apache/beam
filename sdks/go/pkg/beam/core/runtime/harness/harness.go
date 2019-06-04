@@ -25,6 +25,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
@@ -49,13 +50,13 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 
 	conn, err := dial(ctx, controlEndpoint, 60*time.Second)
 	if err != nil {
-		return fmt.Errorf("Failed to connect: %v", err)
+		return errors.Wrap(err, "failed to connect")
 	}
 	defer conn.Close()
 
 	client, err := fnpb.NewBeamFnControlClient(conn).Control(ctx)
 	if err != nil {
-		return fmt.Errorf("Failed to connect to control service: %v", err)
+		return errors.Wrapf(err, "failed to connect to control service")
 	}
 
 	log.Debugf(ctx, "Successfully connected to control @ %v", controlEndpoint)
@@ -83,7 +84,8 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	ctrl := &control{
 		plans:  make(map[string]*exec.Plan),
 		active: make(map[string]*exec.Plan),
-		data:   &DataManager{},
+		data:   &DataChannelManager{},
+		state:  &StateChannelManager{},
 	}
 
 	// gRPC requires all readers of a stream be the same goroutine, so this goroutine
@@ -100,7 +102,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 				recordFooter()
 				return nil
 			}
-			return fmt.Errorf("recv failed: %v", err)
+			return errors.Wrapf(err, "recv failed")
 		}
 
 		// Launch a goroutine to handle the control message.
@@ -138,7 +140,8 @@ type control struct {
 	active map[string]*exec.Plan // protected by mu
 	mu     sync.Mutex
 
-	data *DataManager
+	data  *DataChannelManager
+	state *StateChannelManager
 }
 
 func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRequest) *fnpb.InstructionResponse {
@@ -190,7 +193,12 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			return fail(id, "execution plan for %v not found", ref)
 		}
 
-		err := plan.Execute(ctx, id, c.data)
+		data := NewScopedDataManager(c.data, id)
+		side := NewScopedSideInputReader(c.state, id)
+		err := plan.Execute(ctx, id, exec.DataContext{Data: data, SideInput: side})
+		data.Close()
+		side.Close()
+
 		m := plan.Metrics()
 		// Move the plan back to the candidate state
 		c.mu.Lock()
@@ -239,11 +247,36 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		msg := req.GetProcessBundleSplit()
 
 		log.Debugf(ctx, "PB Split: %v", msg)
+		ref := msg.GetInstructionReference()
+		c.mu.Lock()
+		plan, ok := c.active[ref]
+		c.mu.Unlock()
+		if !ok {
+			return fail(id, "execution plan for %v not found", ref)
+		}
+
+		// Get the desired splits for the root FnAPI read operation.
+		ds := msg.GetDesiredSplits()["0"]
+		if ds == nil {
+			return fail(id, "failed to split: desired splits for root was empty.")
+		}
+		split, err := plan.Split(exec.SplitPoints{ds.GetAllowedSplitPoints(), ds.GetFractionOfRemainder()})
+
+		if err != nil {
+			return fail(id, "unable to split: %v", err)
+		}
 
 		return &fnpb.InstructionResponse{
 			InstructionId: id,
 			Response: &fnpb.InstructionResponse_ProcessBundleSplit{
-				ProcessBundleSplit: &fnpb.ProcessBundleSplitResponse{},
+				ProcessBundleSplit: &fnpb.ProcessBundleSplitResponse{
+					ChannelSplits: []*fnpb.ProcessBundleSplitResponse_ChannelSplit{
+						&fnpb.ProcessBundleSplitResponse_ChannelSplit{
+							LastPrimaryElement:   int32(split - 1),
+							FirstResidualElement: int32(split),
+						},
+					},
+				},
 			},
 		}
 

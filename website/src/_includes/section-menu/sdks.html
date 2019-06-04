@@ -10,19 +10,20 @@
  limitations under the License. See accompanying LICENSE file.
 -->
 
-<li><span class="section-nav-list-main-title">SDKS</span></li>
+<li><span class="section-nav-list-main-title">Languages</span></li>
 
 <li>
   <span class="section-nav-list-title">Java</span>
   <ul class="section-nav-list">
     <li><a href="{{ site.baseurl }}/documentation/sdks/java/">Java SDK overview</a></li>
-    <li><a href="{{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/" target="_blank">Java SDK API reference <img src="{{ site.baseurl }}/images/external-link-icon.png"
+    <li><a href="https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/" target="_blank">Java SDK API reference <img src="{{ site.baseurl }}/images/external-link-icon.png"
                                                                                                                                    width="14" height="14"
                                                                                                                                    alt="External link."></a>
     </li>
+    <li><a href="{{ site.baseurl }}/documentation/sdks/java-dependencies/">Java SDK dependencies</a></li>
     <li><a href="{{ site.baseurl }}/documentation/sdks/java-extensions/">Java SDK extensions</a></li>
     <li><a href="{{ site.baseurl }}/documentation/sdks/java-thirdparty/">Java 3rd party extensions</a></li>
-    <li><a href="{{ site.baseurl }}/documentation/sdks/java/nexmark/">Nexmark benchmark suite</a></li>
+    <li><a href="{{ site.baseurl }}/documentation/sdks/java/testing/nexmark/">Nexmark benchmark suite</a></li>
   </ul>
 </li>
 
@@ -30,19 +31,19 @@
   <span class="section-nav-list-title">Python</span>
   <ul class="section-nav-list">
     <li><a href="{{ site.baseurl }}/documentation/sdks/python/">Python SDK overview</a></li>
-    <li><a href="{{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/" target="_blank">Python SDK API reference <img src="{{ site.baseurl }}/images/external-link-icon.png"
+    <li><a href="https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/" target="_blank">Python SDK API reference <img src="{{ site.baseurl }}/images/external-link-icon.png"
                                                                                                                                    width="14" height="14"
                                                                                                                                    alt="External link."></a>
     </li>
+    <li><a href="{{ site.baseurl }}/documentation/sdks/python-dependencies/">Python SDK dependencies</a></li>
     <li><a href="{{ site.baseurl }}/documentation/sdks/python-streaming/">Python streaming pipelines</a></li>
     <li><a href="{{ site.baseurl }}/documentation/sdks/python-type-safety/">Ensuring Python type safety</a></li>
     <li><a href="{{ site.baseurl }}/documentation/sdks/python-pipeline-dependencies/">Managing pipeline dependencies</a></li>
-    <li><a href="{{ site.baseurl }}/documentation/sdks/python-custom-io/">Creating new sources and sinks</a></li>
   </ul>
 </li>
 
 <li>
-  <span class="section-nav-list-title">Go SDK</span>
+  <span class="section-nav-list-title">Go</span>
   <ul class="section-nav-list">
     <li><a href="{{ site.baseurl }}/documentation/sdks/go/">Go SDK overview</a></li>
     <li><a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam" target="_blank">Go SDK API reference <img src="{{ site.baseurl }}/images/external-link-icon.png"
@@ -57,24 +58,28 @@
   <ul class="section-nav-list">
     <li><a href="{{ site.baseurl }}/documentation/dsls/sql/overview/">Overview</a></li>
     <li><a href="{{ site.baseurl }}/documentation/dsls/sql/walkthrough/">Walkthrough</a></li>
+    <li><a href="{{ site.baseurl }}/documentation/dsls/sql/shell/">Shell</a></li>
     <li class="section-nav-item--collapsible">
-      <span class="section-nav-list-title">SQL Reference</span>
+      <span class="section-nav-list-title">Apache Calcite dialect</span>
 
       <ul class="section-nav-list">
-        <li><a href="{{ site.baseurl }}/documentation/dsls/sql/data-types/">Data types</a></li>
-	<li class="section-nav-item--collapsible">
-          <span class="section-nav-list-title">Statements</span>
+        <li><a href="{{ site.baseurl }}/documentation/dsls/sql/calcite/overview/">Calcite support overview</a></li>  
+        <li><a href="{{ site.baseurl }}/documentation/dsls/sql/calcite/query-syntax/">Query syntax</a></li>
+        <li><a href="{{ site.baseurl }}/documentation/dsls/sql/calcite/lexical/">Lexical structure</a></li>        
+        <li><a href="{{ site.baseurl }}/documentation/dsls/sql/calcite/data-types/">Data types</a></li>
+        <li><a href="{{ site.baseurl }}/documentation/dsls/sql/calcite/scalar-functions/">Scalar functions</a></li>
+        <li><a href="{{ site.baseurl }}/documentation/dsls/sql/calcite/aggregate-functions/">Aggregate functions</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Beam SQL extensions</span>
 
-          <ul class="section-nav-list">
-            <li><a href="{{ site.baseurl }}/documentation/dsls/sql/statements/create-table/">CREATE TABLE</a></li>
-            <li><a href="{{ site.baseurl }}/documentation/dsls/sql/statements/select/">SELECT</a></li>
-          </ul>
-        </li>
-        <li><a href="{{ site.baseurl }}/documentation/dsls/sql/windowing-and-triggering/">Windowing & Triggering</a></li>
-        <li><a href="{{ site.baseurl }}/documentation/dsls/sql/joins/">Joins</a></li>
-        <li><a href="{{ site.baseurl }}/documentation/dsls/sql/scalar-functions/">Scalar functions</a></li>
-        <li><a href="{{ site.baseurl }}/documentation/dsls/sql/aggregate-functions/">Aggregate functions</a></li>
-        <li><a href="{{ site.baseurl }}/documentation/dsls/sql/user-defined-functions/">User-defined functions</a></li>
+      <ul class="section-nav-list">
+        <li><a href="{{ site.baseurl }}/documentation/dsls/sql/extensions/create-external-table/">CREATE EXTERNAL TABLE</a></li>
+        <li><a href="{{ site.baseurl }}/documentation/dsls/sql/extensions/windowing-and-triggering/">Windowing & triggering</a></li>
+        <li><a href="{{ site.baseurl }}/documentation/dsls/sql/extensions/joins/">Joins</a></li>
+        <li><a href="{{ site.baseurl }}/documentation/dsls/sql/extensions/user-defined-functions/">User-defined functions</a></li>
+        <li><a href="{{ site.baseurl }}/documentation/dsls/sql/extensions/set/">SET pipeline options</a></li>
       </ul>
     </li>
   </ul>

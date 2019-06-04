@@ -1,3 +1,5 @@
+import groovy.json.JsonOutput
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -16,19 +18,25 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(testShadowJar: true, shadowClosure: {})
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+  exportJavadoc: false,
+  testShadowJar: true,
+  validateShadowJar: false,
+  shadowClosure: {}
+)
 
 configurations {
   integrationTest
 }
 
 dependencies {
-  compile project(path: ":beam-sdks-java-extensions-sql", configuration: "shadow")
+  compile project(path: ":sdks:java:extensions:sql", configuration: "shadow")
   compile "jline:jline:2.14.6"
   compile "sqlline:sqlline:1.4.0"
   compile library.java.slf4j_jdk14
   compile library.java.guava
+  testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadowTest")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
@@ -58,7 +66,7 @@ test {
   }
 }
 
-task shadowJarTest(type: Test, dependsOn: ":beam-sdks-java-extensions-sql-jdbc:shadowJar") {
+task shadowJarTest(type: Test, dependsOn: ":sdks:java:extensions:sql:jdbc:shadowJar") {
   group = "Verification"
 
   // Disable Gradle cache (it should not be used because the IT's won't run).
@@ -71,7 +79,36 @@ task shadowJarTest(type: Test, dependsOn: ":beam-sdks-java-extensions-sql-jdbc:s
   useJUnit { }
 }
 
+task endToEndTest(type: Test) {
+  group = "Verification"
+
+  def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+  def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
+
+  // Disable Gradle cache (it should not be used because the IT's won't run).
+  outputs.upToDateWhen { false }
+
+  def pipelineOptions = [
+          "--project=${gcpProject}",
+          "--tempLocation=${gcsTempRoot}",
+          "--blockOnRun=false"]
+
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
+
+  include '**/*IT.class'
+  classpath = project(":sdks:java:extensions:sql:jdbc").sourceSets.test.runtimeClasspath
+  testClassesDirs = files(project(":sdks:java:extensions:sql:jdbc").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
 /* Define a common precommit task which depends on all the individual precommits. */
 task preCommit() {
   dependsOn "shadowJarTest"
+}
+
+/* Define a postcommit task which depends on integration tests. */
+task postCommit {
+  group = "Verification"
+  description = "Various integration tests"
+  dependsOn endToEndTest
 }

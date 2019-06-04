@@ -6,6 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -13,17 +14,15 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
-
 package org.apache.beam.fn.harness.control;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import org.apache.beam.vendor.grpc.v1.io.grpc.ClientInterceptor;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Metadata;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Metadata.Key;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.MetadataUtils;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ClientInterceptor;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Metadata;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Metadata.Key;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.MetadataUtils;
 
 /** A {@link ClientInterceptor} that attaches a provided SDK Harness ID to outgoing messages. */
 public class AddHarnessIdInterceptor {

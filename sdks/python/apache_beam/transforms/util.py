@@ -19,14 +19,21 @@
 """
 
 from __future__ import absolute_import
+from __future__ import division
 
 import collections
 import contextlib
 import random
 import time
+from builtins import object
+from builtins import range
+from builtins import zip
+
+from future.utils import itervalues
 
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
+from apache_beam.portability import common_urns
 from apache_beam.transforms import window
 from apache_beam.transforms.core import CombinePerKey
 from apache_beam.transforms.core import DoFn
@@ -44,15 +51,19 @@ from apache_beam.transforms.window import NonMergingWindowFn
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import windowed_value
+from apache_beam.utils.annotations import deprecated
 
 __all__ = [
     'BatchElements',
     'CoGroupByKey',
+    'Distinct',
     'Keys',
     'KvSwap',
     'RemoveDuplicates',
     'Reshuffle',
+    'ToString',
     'Values',
+    'WithKeys'
     ]
 
 K = typehints.TypeVariable('K')
@@ -114,12 +125,12 @@ class CoGroupByKey(PTransform):
     super(CoGroupByKey, self).__init__()
     self.pipeline = kwargs.pop('pipeline', None)
     if kwargs:
-      raise ValueError('Unexpected keyword arguments: %s' % kwargs.keys())
+      raise ValueError('Unexpected keyword arguments: %s' % list(kwargs.keys()))
 
   def _extract_input_pvalues(self, pvalueish):
     try:
       # If this works, it's a dict.
-      return pvalueish, tuple(pvalueish.viewvalues())
+      return pvalueish, tuple(itervalues(pvalueish))
     except AttributeError:
       pcolls = tuple(pvalueish)
       return pcolls, pcolls
@@ -146,7 +157,7 @@ class CoGroupByKey(PTransform):
       # If pcolls is a dict, we turn it into (tag, pcoll) pairs for use in the
       # general-purpose code below. The result value constructor creates dicts
       # whose keys are the tags.
-      result_ctor_arg = pcolls.keys()
+      result_ctor_arg = list(pcolls)
       result_ctor = lambda tags: dict((tag, []) for tag in tags)
       pcolls = pcolls.items()
     except AttributeError:
@@ -186,12 +197,19 @@ def KvSwap(label='KvSwap'):  # pylint: disable=invalid-name
 
 
 @ptransform_fn
-def RemoveDuplicates(pcoll):  # pylint: disable=invalid-name
-  """Produces a PCollection containing the unique elements of a PCollection."""
+def Distinct(pcoll):  # pylint: disable=invalid-name
+  """Produces a PCollection containing distinct elements of a PCollection."""
   return (pcoll
           | 'ToPairs' >> Map(lambda v: (v, None))
           | 'Group' >> CombinePerKey(lambda vs: None)
-          | 'RemoveDuplicates' >> Keys())
+          | 'Distinct' >> Keys())
+
+
+@deprecated(since='2.12', current='Distinct')
+@ptransform_fn
+def RemoveDuplicates(pcoll):
+  """Produces a PCollection containing distinct elements of a PCollection."""
+  return pcoll | 'RemoveDuplicates' >> Distinct()
 
 
 class _BatchSizeEstimator(object):
@@ -206,6 +224,7 @@ class _BatchSizeEstimator(object):
                max_batch_size=1000,
                target_batch_overhead=.1,
                target_batch_duration_secs=1,
+               variance=0.25,
                clock=time.time):
     if min_batch_size > max_batch_size:
       raise ValueError("Minimum (%s) must not be greater than maximum (%s)" % (
@@ -216,13 +235,14 @@ class _BatchSizeEstimator(object):
     if target_batch_duration_secs and target_batch_duration_secs <= 0:
       raise ValueError("target_batch_duration_secs (%s) must be positive" % (
           target_batch_duration_secs))
-    if max(0, target_batch_overhead, target_batch_duration_secs) == 0:
+    if not (target_batch_overhead or target_batch_duration_secs):
       raise ValueError("At least one of target_batch_overhead or "
                        "target_batch_duration_secs must be positive.")
     self._min_batch_size = min_batch_size
     self._max_batch_size = max_batch_size
     self._target_batch_overhead = target_batch_overhead
     self._target_batch_duration_secs = target_batch_duration_secs
+    self._variance = variance
     self._clock = clock
     self._data = []
     self._ignore_next_timing = False
@@ -262,23 +282,71 @@ class _BatchSizeEstimator(object):
         self._thin_data()
 
   def _thin_data(self):
-    sorted_data = sorted(self._data)
-    odd_one_out = [sorted_data[-1]] if len(sorted_data) % 2 == 1 else []
-    # Sort the pairs by how different they are.
+    # Make sure we don't change the parity of len(self._data)
+    # As it's used below to alternate jitter.
+    self._data.pop(random.randrange(len(self._data) // 4))
+    self._data.pop(random.randrange(len(self._data) // 2))
 
-    def div_keys(kv1_kv2):
-      (x1, _), (x2, _) = kv1_kv2
-      return x2 / x1
+  @staticmethod
+  def linear_regression_no_numpy(xs, ys):
+    # Least squares fit for y = a + bx over all points.
+    n = float(len(xs))
+    xbar = sum(xs) / n
+    ybar = sum(ys) / n
+    if xbar == 0:
+      return ybar, 0
+    if all(xs[0] == x for x in xs):
+      # Simply use the mean if all values in xs are same.
+      return 0, ybar / xbar
+    b = (sum([(x - xbar) * (y - ybar) for x, y in zip(xs, ys)])
+         / sum([(x - xbar)**2 for x in xs]))
+    a = ybar - b * xbar
+    return a, b
 
-    pairs = sorted(zip(sorted_data[::2], sorted_data[1::2]),
-                   key=div_keys)
-    # Keep the top 1/3 most different pairs, average the top 2/3 most similar.
-    threshold = 2 * len(pairs) / 3
-    self._data = (
-        list(sum(pairs[threshold:], ()))
-        + [((x1 + x2) / 2.0, (t1 + t2) / 2.0)
-           for (x1, t1), (x2, t2) in pairs[:threshold]]
-        + odd_one_out)
+  @staticmethod
+  def linear_regression_numpy(xs, ys):
+    # pylint: disable=wrong-import-order, wrong-import-position
+    import numpy as np
+    from numpy import sum
+    n = len(xs)
+    if all(xs[0] == x for x in xs):
+      # If all values of xs are same then fallback to linear_regression_no_numpy
+      return _BatchSizeEstimator.linear_regression_no_numpy(xs, ys)
+    xs = np.asarray(xs, dtype=float)
+    ys = np.asarray(ys, dtype=float)
+
+    # First do a simple least squares fit for y = a + bx over all points.
+    b, a = np.polyfit(xs, ys, 1)
+
+    if n < 10:
+      return a, b
+    else:
+      # Refine this by throwing out outliers, according to Cook's distance.
+      # https://en.wikipedia.org/wiki/Cook%27s_distance
+      sum_x = sum(xs)
+      sum_x2 = sum(xs**2)
+      errs = a + b * xs - ys
+      s2 = sum(errs**2) / (n - 2)
+      if s2 == 0:
+        # It's an exact fit!
+        return a, b
+      h = (sum_x2 - 2 * sum_x * xs + n * xs**2) / (n * sum_x2 - sum_x**2)
+      cook_ds = 0.5 / s2 * errs**2 * (h / (1 - h)**2)
+
+      # Re-compute the regression, excluding those points with Cook's distance
+      # greater than 0.5, and weighting by the inverse of x to give a more
+      # stable y-intercept (as small batches have relatively more information
+      # about the fixed overhead).
+      weight = (cook_ds <= 0.5) / xs
+      b, a = np.polyfit(xs, ys, 1, w=weight)
+      return a, b
+
+  try:
+    # pylint: disable=wrong-import-order, wrong-import-position
+    import numpy as np
+    linear_regression = linear_regression_numpy
+  except ImportError:
+    linear_regression = linear_regression_no_numpy
 
   def next_batch_size(self):
     if self._min_batch_size == self._max_batch_size:
@@ -293,14 +361,14 @@ class _BatchSizeEstimator(object):
               self._min_batch_size * self._MAX_GROWTH_FACTOR),
           self._min_batch_size + 1))
 
+    # There tends to be a lot of noise in the top quantile, which also
+    # has outsided influence in the regression.  If we have enough data,
+    # Simply declare the top 20% to be outliers.
+    trimmed_data = sorted(self._data)[:max(20, len(self._data) * 4 // 5)]
+
     # Linear regression for y = a + bx, where x is batch size and y is time.
-    xs, ys = zip(*self._data)
-    n = float(len(self._data))
-    xbar = sum(xs) / n
-    ybar = sum(ys) / n
-    b = (sum([(x - xbar) * (y - ybar) for x, y in self._data])
-         / sum([(x - xbar)**2 for x in xs]))
-    a = ybar - b * xbar
+    xs, ys = zip(*trimmed_data)
+    a, b = self.linear_regression(xs, ys)
 
     # Avoid nonsensical or division-by-zero errors below due to noise.
     a = max(a, 1e-10)
@@ -309,17 +377,26 @@ class _BatchSizeEstimator(object):
     last_batch_size = self._data[-1][0]
     cap = min(last_batch_size * self._MAX_GROWTH_FACTOR, self._max_batch_size)
 
+    target = self._max_batch_size
+
     if self._target_batch_duration_secs:
       # Solution to a + b*x = self._target_batch_duration_secs.
-      cap = min(cap, (self._target_batch_duration_secs - a) / b)
+      target = min(target, (self._target_batch_duration_secs - a) / b)
 
     if self._target_batch_overhead:
       # Solution to a / (a + b*x) = self._target_batch_overhead.
-      cap = min(cap, (a / b) * (1 / self._target_batch_overhead - 1))
+      target = min(target, (a / b) * (1 / self._target_batch_overhead - 1))
 
-    # Avoid getting stuck at min_batch_size.
+    # Avoid getting stuck at a single batch size (especially the minimal
+    # batch size) which would not allow us to extrapolate to other batch
+    # sizes.
+    # Jitter alternates between 0 and 1.
     jitter = len(self._data) % 2
-    return int(max(self._min_batch_size + jitter, cap))
+    # Smear our samples across a range centered at the target.
+    if len(self._data) > 10:
+      target += int(target * self._variance * 2 * (random.random() - .5))
+
+    return int(max(self._min_batch_size + jitter, min(target, cap)))
 
 
 class _GlobalWindowsBatchingDoFn(DoFn):
@@ -418,6 +495,9 @@ class BatchElements(PTransform):
         as used in the formula above
     target_batch_duration_secs: (optional) a target for total time per bundle,
         in seconds
+    variance: (optional) the permitted (relative) amount of deviation from the
+        (estimated) ideal batch size used to produce a wider base for
+        linear interpolation
     clock: (optional) an alternative to time.time for measuring the cost of
         donwstream operations (mostly for testing)
   """
@@ -427,12 +507,14 @@ class BatchElements(PTransform):
                max_batch_size=10000,
                target_batch_overhead=.05,
                target_batch_duration_secs=1,
+               variance=0.25,
                clock=time.time):
     self._batch_size_estimator = _BatchSizeEstimator(
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
         target_batch_overhead=target_batch_overhead,
         target_batch_duration_secs=target_batch_duration_secs,
+        variance=variance,
         clock=clock)
 
   def expand(self, pcoll):
@@ -566,3 +648,79 @@ class Reshuffle(PTransform):
             | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t))
             | ReshufflePerKey()
             | 'RemoveRandomKeys' >> Map(lambda t: t[1]))
+
+  def to_runner_api_parameter(self, unused_context):
+    return common_urns.composites.RESHUFFLE.urn, None
+
+  @PTransform.register_urn(common_urns.composites.RESHUFFLE.urn, None)
+  def from_runner_api_parameter(unused_parameter, unused_context):
+    return Reshuffle()
+
+
+@ptransform_fn
+def WithKeys(pcoll, k):
+  """PTransform that takes a PCollection, and either a constant key or a
+  callable, and returns a PCollection of (K, V), where each of the values in
+  the input PCollection has been paired with either the constant key or a key
+  computed from the value.
+  """
+  if callable(k):
+    return pcoll | Map(lambda v: (k(v), v))
+  return pcoll | Map(lambda v: (k, v))
+
+
+class ToString(object):
+  """
+  PTransform for converting a PCollection element, KV or PCollection Iterable
+  to string.
+  """
+
+  class Kvs(PTransform):
+    """
+    Transforms each element of the PCollection to a string on the key followed
+    by the specific delimiter and the value.
+    """
+
+    def __init__(self, delimiter=None, **kwargs):
+      self.delimiter = delimiter or ","
+
+    def expand(self, pcoll):
+      input_type = typehints.KV[typehints.Any, typehints.Any]
+      output_type = str
+      return (pcoll | ('%s:KeyVaueToString' % self.label >> (Map(
+          lambda x: "{}{}{}".format(x[0], self.delimiter, x[1])))
+                       .with_input_types(input_type)
+                       .with_output_types(output_type)))
+
+  class Element(PTransform):
+    """
+    Transforms each element of the PCollection to a string.
+    """
+
+    def __init__(self, delimiter=None, **kwargs):
+      self.delimiter = delimiter or ","
+
+    def expand(self, pcoll):
+      input_type = T
+      output_type = str
+      return (pcoll | ('%s:ElementToString' % self.label >> (Map(
+          lambda x: str(x)))
+                       .with_input_types(input_type)
+                       .with_output_types(output_type)))
+
+  class Iterables(PTransform):
+    """
+    Transforms each item in the iterable of the input of PCollection to a
+    string. There is no trailing delimiter.
+    """
+
+    def __init__(self, delimiter=None, **kwargs):
+      self.delimiter = delimiter or ","
+
+    def expand(self, pcoll):
+      input_type = typehints.Iterable[typehints.Any]
+      output_type = str
+      return (pcoll | ('%s:IterablesToString' % self.label >> (
+          Map(lambda x: self.delimiter.join(str(_x) for _x in x)))
+                       .with_input_types(input_type)
+                       .with_output_types(output_type)))

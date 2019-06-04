@@ -25,7 +25,7 @@ from builtins import object
 from builtins import range
 from functools import partial
 
-from six import integer_types
+from past.builtins import long
 
 from apache_beam.coders import coders
 from apache_beam.io import filebasedsink
@@ -38,7 +38,8 @@ from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 
-__all__ = ['ReadFromText', 'ReadAllFromText', 'WriteToText']
+__all__ = ['ReadFromText', 'ReadFromTextWithFilename', 'ReadAllFromText',
+           'WriteToText']
 
 
 class _TextSource(filebasedsource.FileBasedSource):
@@ -76,14 +77,14 @@ class _TextSource(filebasedsource.FileBasedSource):
 
     @position.setter
     def position(self, value):
-      assert isinstance(value, integer_types)
+      assert isinstance(value, (int, long))
       if value > len(self._data):
         raise ValueError('Cannot set position to %d since it\'s larger than '
                          'size of data %d.' % (value, len(self._data)))
       self._position = value
 
     def reset(self):
-      self.data = ''
+      self.data = b''
       self.position = 0
 
   def __init__(self,
@@ -147,7 +148,7 @@ class _TextSource(filebasedsource.FileBasedSource):
 
   def read_records(self, file_name, range_tracker):
     start_offset = range_tracker.start_position()
-    read_buffer = _TextSource.ReadBuffer('', 0)
+    read_buffer = _TextSource.ReadBuffer(b'', 0)
 
     next_record_start_position = -1
 
@@ -251,9 +252,9 @@ class _TextSource(filebasedsource.FileBasedSource):
 
       # Using find() here is more efficient than a linear scan of the byte
       # array.
-      next_lf = read_buffer.data.find('\n', current_pos)
+      next_lf = read_buffer.data.find(b'\n', current_pos)
       if next_lf >= 0:
-        if next_lf > 0 and read_buffer.data[next_lf - 1] == '\r':
+        if next_lf > 0 and read_buffer.data[next_lf - 1:next_lf] == b'\r':
           # Found a '\r\n'. Accepting that as the next separator.
           return (next_lf - 1, next_lf + 1)
         else:
@@ -320,6 +321,14 @@ class _TextSource(filebasedsource.FileBasedSource):
               sep_bounds[1] - record_start_position_in_buffer)
 
 
+class _TextSourceWithFilename(_TextSource):
+  def read_records(self, file_name, range_tracker):
+    records = super(_TextSourceWithFilename, self).read_records(file_name,
+                                                                range_tracker)
+    for record in records:
+      yield (file_name, record)
+
+
 class _TextSink(filebasedsink.FileBasedSink):
   """A sink to a GCS or local text file or files."""
 
@@ -381,9 +390,9 @@ class _TextSink(filebasedsink.FileBasedSink):
   def open(self, temp_path):
     file_handle = super(_TextSink, self).open(temp_path)
     if self._header is not None:
-      file_handle.write(self._header)
+      file_handle.write(coders.ToStringCoder().encode(self._header))
       if self._append_trailing_newlines:
-        file_handle.write('\n')
+        file_handle.write(b'\n')
     return file_handle
 
   def display_data(self):
@@ -397,7 +406,7 @@ class _TextSink(filebasedsink.FileBasedSink):
     """Writes a single encoded record."""
     file_handle.write(encoded_value)
     if self._append_trailing_newlines:
-      file_handle.write('\n')
+      file_handle.write(b'\n')
 
 
 def _create_text_source(
@@ -483,6 +492,9 @@ class ReadFromText(PTransform):
   ``ASCII``.
   This does not support other encodings such as ``UTF-16`` or ``UTF-32``.
   """
+
+  _source_class = _TextSource
+
   def __init__(
       self,
       file_pattern=None,
@@ -518,13 +530,24 @@ class ReadFromText(PTransform):
     """
 
     super(ReadFromText, self).__init__(**kwargs)
-    self._source = _TextSource(
+    self._source = self._source_class(
         file_pattern, min_bundle_size, compression_type,
         strip_trailing_newlines, coder, validate=validate,
         skip_header_lines=skip_header_lines)
 
   def expand(self, pvalue):
     return pvalue.pipeline | Read(self._source)
+
+
+class ReadFromTextWithFilename(ReadFromText):
+  r"""A :class:`~apache_beam.io.textio.ReadFromText` for reading text
+  files returning the name of the file and the content of the file.
+
+  This class extend ReadFromText class just setting a different
+  _source_class attribute.
+  """
+
+  _source_class = _TextSourceWithFilename
 
 
 class WriteToText(PTransform):

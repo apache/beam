@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -38,7 +38,6 @@ import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
@@ -148,6 +147,27 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
   @Nullable
   @Override
   public <T> T get(PCollectionView<T> view, BoundedWindow window) {
+
+    Iterable<?> elements = getIterable(view, window);
+    // TODO: Add support for choosing which representation is contained based upon the
+    // side input materialization. We currently can assume that we always have a multimap
+    // materialization as that is the only supported type within the Java SDK.
+    ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
+    Coder<?> keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
+    return (T)
+        viewFn.apply(InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) elements));
+  }
+
+  /**
+   * Retrieve the value as written by {@link #addSideInputValue(PCollectionView, WindowedValue)},
+   * without applying the SDK specific {@link ViewFn}.
+   *
+   * @param view
+   * @param window
+   * @param <T>
+   * @return
+   */
+  public <T> Iterable<?> getIterable(PCollectionView<T> view, BoundedWindow window) {
     @SuppressWarnings("unchecked")
     Coder<BoundedWindow> windowCoder =
         (Coder<BoundedWindow>) view.getWindowingStrategyInternal().getWindowFn().windowCoder();
@@ -157,19 +177,9 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
     ValueState<Iterable<?>> state =
         stateInternals.state(StateNamespaces.window(windowCoder, window), stateTag);
 
-    // TODO: Add support for choosing which representation is contained based upon the
-    // side input materialization. We currently can assume that we always have a multimap
-    // materialization as that is the only supported type within the Java SDK.
-    @Nullable Iterable<KV<?, ?>> elements = (Iterable<KV<?, ?>>) state.read();
-
-    if (elements == null) {
-      elements = Collections.emptyList();
-    }
-
-    ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
-    Coder<?> keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
-    return (T)
-        viewFn.apply(InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) elements));
+    Iterable<?> elements = state.read();
+    // return empty collection when no side input was received for ready window
+    return (elements != null) ? elements : Collections.emptyList();
   }
 
   @Override
@@ -177,8 +187,7 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
     Set<BoundedWindow> readyWindows =
         stateInternals.state(StateNamespaces.global(), availableWindowsTags.get(sideInput)).read();
 
-    boolean result = readyWindows != null && readyWindows.contains(window);
-    return result;
+    return readyWindows != null && readyWindows.contains(window);
   }
 
   @Override

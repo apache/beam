@@ -15,15 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -33,6 +30,9 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.LoadingCache;
 
 /**
  * Vends Java SDK objects rehydrated from a Runner API {@link Components} collection.
@@ -173,5 +173,15 @@ public class RehydratedComponents {
 
   public Components getComponents() {
     return components;
+  }
+
+  public SdkComponents getSdkComponents() {
+    return SdkComponents.create(
+        components,
+        Collections.emptyMap(),
+        pCollections.asMap(),
+        windowingStrategies.asMap(),
+        coders.asMap(),
+        Collections.emptyMap());
   }
 }

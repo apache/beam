@@ -15,18 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.schemas.utils;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.schemas.DefaultSchema;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
+import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
@@ -44,6 +48,23 @@ public class TestPOJOs {
     }
 
     public POJOWithNullables() {}
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      POJOWithNullables that = (POJOWithNullables) o;
+      return anInt == that.anInt && Objects.equals(str, that.str);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(str, anInt);
+    }
   }
 
   /** The schema for {@link POJOWithNullables}. * */
@@ -60,11 +81,271 @@ public class TestPOJOs {
     }
 
     public POJOWithNestedNullable() {}
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      POJOWithNestedNullable that = (POJOWithNestedNullable) o;
+      return Objects.equals(nested, that.nested);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(nested);
+    }
   }
 
   /** The schema for {@link POJOWithNestedNullable}. * */
   public static final Schema NESTED_NULLABLE_SCHEMA =
       Schema.builder().addNullableField("nested", FieldType.row(NULLABLES_SCHEMA)).build();
+
+  /** A POJO for testing static factory methods. */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class StaticCreationSimplePojo {
+    public final String str;
+    public final byte aByte;
+    public final short aShort;
+    public final int anInt;
+    public final long aLong;
+    public final boolean aBoolean;
+    public final DateTime dateTime;
+    public final Instant instant;
+    public final byte[] bytes;
+    public final ByteBuffer byteBuffer;
+    public final BigDecimal bigDecimal;
+    public final StringBuilder stringBuilder;
+
+    private StaticCreationSimplePojo(
+        String str,
+        byte aByte,
+        short aShort,
+        int anInt,
+        long aLong,
+        boolean aBoolean,
+        DateTime dateTime,
+        Instant instant,
+        byte[] bytes,
+        ByteBuffer byteBuffer,
+        BigDecimal bigDecimal,
+        StringBuilder stringBuilder) {
+      this.str = str;
+      this.aByte = aByte;
+      this.aShort = aShort;
+      this.anInt = anInt;
+      this.aLong = aLong;
+      this.aBoolean = aBoolean;
+      this.dateTime = dateTime;
+      this.instant = instant;
+      this.bytes = bytes;
+      this.byteBuffer = byteBuffer;
+      this.bigDecimal = bigDecimal;
+      this.stringBuilder = stringBuilder;
+    }
+
+    @SchemaCreate
+    public static StaticCreationSimplePojo of(
+        String str,
+        long aLong,
+        byte aByte,
+        short aShort,
+        int anInt,
+        boolean aBoolean,
+        DateTime dateTime,
+        ByteBuffer byteBuffer,
+        Instant instant,
+        byte[] bytes,
+        BigDecimal bigDecimal,
+        StringBuilder stringBuilder) {
+      return new StaticCreationSimplePojo(
+          str,
+          aByte,
+          aShort,
+          anInt,
+          aLong,
+          aBoolean,
+          dateTime,
+          instant,
+          bytes,
+          byteBuffer,
+          bigDecimal,
+          stringBuilder);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof StaticCreationSimplePojo)) {
+        return false;
+      }
+      StaticCreationSimplePojo that = (StaticCreationSimplePojo) o;
+      return aByte == that.aByte
+          && aShort == that.aShort
+          && anInt == that.anInt
+          && aLong == that.aLong
+          && aBoolean == that.aBoolean
+          && Objects.equals(str, that.str)
+          && Objects.equals(dateTime, that.dateTime)
+          && Objects.equals(instant, that.instant)
+          && Arrays.equals(bytes, that.bytes)
+          && Objects.equals(byteBuffer, that.byteBuffer)
+          && Objects.equals(bigDecimal, that.bigDecimal)
+          && Objects.equals(stringBuilder.toString(), that.stringBuilder.toString());
+    }
+
+    @Override
+    public int hashCode() {
+      int result =
+          Objects.hash(
+              str,
+              aByte,
+              aShort,
+              anInt,
+              aLong,
+              aBoolean,
+              dateTime,
+              instant,
+              byteBuffer,
+              bigDecimal,
+              stringBuilder);
+      result = 31 * result + Arrays.hashCode(bytes);
+      return result;
+    }
+  }
+
+  /** A POJO for testing annotations. */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class AnnotatedSimplePojo {
+    public final String str;
+
+    @SchemaFieldName("aByte")
+    public final byte theByte;
+
+    @SchemaFieldName("aShort")
+    public final short theShort;
+
+    public final int anInt;
+    public final long aLong;
+    public final boolean aBoolean;
+    public final DateTime dateTime;
+    public final Instant instant;
+    public final byte[] bytes;
+    public final ByteBuffer byteBuffer;
+    public final BigDecimal bigDecimal;
+    public final StringBuilder stringBuilder;
+    @SchemaIgnore public final Integer pleaseIgnore;
+
+    // Marked with SchemaCreate, so this will be called to construct instances.
+    @SchemaCreate
+    public AnnotatedSimplePojo(
+        String str,
+        byte theByte,
+        long aLong,
+        short theShort,
+        int anInt,
+        boolean aBoolean,
+        DateTime dateTime,
+        BigDecimal bigDecimal,
+        Instant instant,
+        byte[] bytes,
+        ByteBuffer byteBuffer,
+        StringBuilder stringBuilder) {
+      this.str = str;
+      this.theByte = theByte;
+      this.theShort = theShort;
+      this.anInt = anInt;
+      this.aLong = aLong;
+      this.aBoolean = aBoolean;
+      this.dateTime = dateTime;
+      this.instant = instant;
+      this.bytes = bytes;
+      this.byteBuffer = byteBuffer;
+      this.bigDecimal = bigDecimal;
+      this.stringBuilder = stringBuilder;
+      this.pleaseIgnore = 42;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      AnnotatedSimplePojo that = (AnnotatedSimplePojo) o;
+      return theByte == that.theByte
+          && theShort == that.theShort
+          && anInt == that.anInt
+          && aLong == that.aLong
+          && aBoolean == that.aBoolean
+          && Objects.equals(str, that.str)
+          && Objects.equals(dateTime, that.dateTime)
+          && Objects.equals(instant, that.instant)
+          && Arrays.equals(bytes, that.bytes)
+          && Objects.equals(byteBuffer, that.byteBuffer)
+          && Objects.equals(bigDecimal, that.bigDecimal)
+          && Objects.equals(stringBuilder.toString(), that.stringBuilder.toString());
+    }
+
+    @Override
+    public int hashCode() {
+      int result =
+          Objects.hash(
+              str,
+              theByte,
+              theShort,
+              anInt,
+              aLong,
+              aBoolean,
+              dateTime,
+              instant,
+              byteBuffer,
+              bigDecimal,
+              stringBuilder.toString());
+      result = 31 * result + Arrays.hashCode(bytes);
+      return result;
+    }
+
+    @Override
+    public String toString() {
+      return "AnnotatedSimplePojo{"
+          + "str='"
+          + str
+          + '\''
+          + ", theByte="
+          + theByte
+          + ", theShort="
+          + theShort
+          + ", anInt="
+          + anInt
+          + ", aLong="
+          + aLong
+          + ", aBoolean="
+          + aBoolean
+          + ", dateTime="
+          + dateTime
+          + ", instant="
+          + instant
+          + ", bytes="
+          + Arrays.toString(bytes)
+          + ", byteBuffer="
+          + byteBuffer
+          + ", bigDecimal="
+          + bigDecimal
+          + ", stringBuilder="
+          + stringBuilder
+          + ", pleaseIgnore="
+          + pleaseIgnore
+          + '}';
+    }
+  }
 
   /** A simple POJO containing basic types. * */
   @DefaultSchema(JavaFieldSchema.class)
@@ -110,6 +391,48 @@ public class TestPOJOs {
       this.bigDecimal = bigDecimal;
       this.stringBuilder = stringBuilder;
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      SimplePOJO that = (SimplePOJO) o;
+      return aByte == that.aByte
+          && aShort == that.aShort
+          && anInt == that.anInt
+          && aLong == that.aLong
+          && aBoolean == that.aBoolean
+          && Objects.equals(str, that.str)
+          && Objects.equals(dateTime, that.dateTime)
+          && Objects.equals(instant, that.instant)
+          && Arrays.equals(bytes, that.bytes)
+          && Objects.equals(byteBuffer, that.byteBuffer)
+          && Objects.equals(bigDecimal, that.bigDecimal)
+          && Objects.equals(stringBuilder.toString(), that.stringBuilder.toString());
+    }
+
+    @Override
+    public int hashCode() {
+      int result =
+          Objects.hash(
+              str,
+              aByte,
+              aShort,
+              anInt,
+              aLong,
+              aBoolean,
+              dateTime,
+              instant,
+              byteBuffer,
+              bigDecimal,
+              stringBuilder);
+      result = 31 * result + Arrays.hashCode(bytes);
+      return result;
+    }
   }
 
   /** The schema for {@link SimplePOJO}. * */
@@ -139,6 +462,23 @@ public class TestPOJOs {
     }
 
     public NestedPOJO() {}
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      NestedPOJO that = (NestedPOJO) o;
+      return Objects.equals(nested, that.nested);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(nested);
+    }
   }
 
   /** The schema for {@link NestedPOJO}. * */
@@ -160,6 +500,28 @@ public class TestPOJOs {
       this.integers = integers;
       this.longs = longs;
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      PrimitiveArrayPOJO that = (PrimitiveArrayPOJO) o;
+      return Objects.equals(strings, that.strings)
+          && Arrays.equals(integers, that.integers)
+          && Arrays.equals(longs, that.longs);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = Objects.hash(strings);
+      result = 31 * result + Arrays.hashCode(integers);
+      result = 31 * result + Arrays.hashCode(longs);
+      return result;
+    }
   }
 
   /** The schema for {@link PrimitiveArrayPOJO}. * */
@@ -180,6 +542,23 @@ public class TestPOJOs {
     }
 
     public NestedArrayPOJO() {}
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      NestedArrayPOJO that = (NestedArrayPOJO) o;
+      return Arrays.equals(pojos, that.pojos);
+    }
+
+    @Override
+    public int hashCode() {
+      return Arrays.hashCode(pojos);
+    }
   }
 
   /** The schema for {@link NestedArrayPOJO}. * */
@@ -196,6 +575,23 @@ public class TestPOJOs {
     }
 
     public NestedArraysPOJO() {}
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      NestedArraysPOJO that = (NestedArraysPOJO) o;
+      return Objects.equals(lists, that.lists);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(lists);
+    }
   }
 
   /** The schema for {@link NestedArraysPOJO}. * */
@@ -212,6 +608,24 @@ public class TestPOJOs {
     }
 
     public NestedCollectionPOJO() {}
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      NestedCollectionPOJO that = (NestedCollectionPOJO) o;
+      return Objects.equals(simples, that.simples);
+    }
+
+    @Override
+    public int hashCode() {
+
+      return Objects.hash(simples);
+    }
   }
 
   /** The schema for {@link NestedCollectionPOJO}. * */
@@ -228,6 +642,24 @@ public class TestPOJOs {
     }
 
     public PrimitiveMapPOJO() {}
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      PrimitiveMapPOJO that = (PrimitiveMapPOJO) o;
+      return Objects.equals(map, that.map);
+    }
+
+    @Override
+    public int hashCode() {
+
+      return Objects.hash(map);
+    }
   }
 
   /** The schema for {@link PrimitiveMapPOJO}. * */
@@ -244,6 +676,23 @@ public class TestPOJOs {
     }
 
     public NestedMapPOJO() {}
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      NestedMapPOJO that = (NestedMapPOJO) o;
+      return Objects.equals(map, that.map);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(map);
+    }
   }
 
   /** The schema for {@link NestedMapPOJO}. * */
@@ -271,6 +720,27 @@ public class TestPOJOs {
     }
 
     public POJOWithBoxedFields() {}
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      POJOWithBoxedFields that = (POJOWithBoxedFields) o;
+      return Objects.equals(aByte, that.aByte)
+          && Objects.equals(aShort, that.aShort)
+          && Objects.equals(anInt, that.anInt)
+          && Objects.equals(aLong, that.aLong)
+          && Objects.equals(aBoolean, that.aBoolean);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(aByte, aShort, anInt, aLong, aBoolean);
+    }
   }
 
   /** The schema for {@link POJOWithBoxedFields}. * */
@@ -295,9 +765,62 @@ public class TestPOJOs {
     }
 
     public POJOWithByteArray() {}
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      POJOWithByteArray that = (POJOWithByteArray) o;
+      return Arrays.equals(bytes1, that.bytes1) && Objects.equals(bytes2, that.bytes2);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = Objects.hash(bytes2);
+      result = 31 * result + Arrays.hashCode(bytes1);
+      return result;
+    }
   }
 
-  /** The schema for {@link POJOWithByteArray}. * */
+  /** The schema for {@link POJOWithByteArray}. */
   public static final Schema POJO_WITH_BYTE_ARRAY_SCHEMA =
       Schema.builder().addByteArrayField("bytes1").addByteArrayField("bytes2").build();
+
+  /** A Pojo containing a doubly-nested array. */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class PojoWithNestedArray {
+    public final List<List<SimplePOJO>> pojos;
+
+    @SchemaCreate
+    public PojoWithNestedArray(List<List<SimplePOJO>> pojos) {
+      this.pojos = pojos;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof PojoWithNestedArray)) {
+        return false;
+      }
+      PojoWithNestedArray that = (PojoWithNestedArray) o;
+      return Objects.equals(pojos, that.pojos);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(pojos);
+    }
+  }
+
+  /** The schema for {@link PojoWithNestedArray}. */
+  public static final Schema POJO_WITH_NESTED_ARRAY_SCHEMA =
+      Schema.builder()
+          .addArrayField("pojos", FieldType.array(FieldType.row(SIMPLE_POJO_SCHEMA)))
+          .build();
 }

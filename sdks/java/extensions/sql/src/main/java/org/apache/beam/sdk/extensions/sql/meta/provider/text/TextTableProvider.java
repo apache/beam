@@ -15,18 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beamRow2CsvLine;
 import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.csvLines2BeamRows;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.alibaba.fastjson.JSONObject;
 import com.google.auto.service.AutoService;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableSet;
 import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
@@ -34,12 +30,16 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.apache.commons.csv.CSVFormat;
 
 /**
@@ -96,9 +96,9 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
       case "lines":
         checkArgument(
             schema.getFieldCount() == 1
-                && schema.getField(0).getType().equals(Schema.FieldType.STRING),
+                && schema.getField(0).getType().getTypeName().equals(TypeName.STRING),
             "Table with type 'text' and format 'lines' "
-                + "must have exactly one STRING/VARCHAR/CHAR column");
+                + "must have exactly one STRING/VARCHAR/CHAR column ");
         return new TextTable(
             schema, filePattern, new LinesReadConverter(), new LinesWriteConverter());
       default:
@@ -132,10 +132,12 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
 
     @Override
     public PCollection<Row> expand(PCollection<String> input) {
-      return input.apply(
-          "linesToRows",
-          MapElements.into(TypeDescriptors.rows())
-              .via(s -> Row.withSchema(SCHEMA).addValue(s).build()));
+      return input
+          .apply(
+              "linesToRows",
+              MapElements.into(TypeDescriptors.rows())
+                  .via(s -> Row.withSchema(SCHEMA).addValue(s).build()))
+          .setRowSchema(SCHEMA);
     }
   }
 
@@ -183,10 +185,12 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
 
     @Override
     public PCollection<Row> expand(PCollection<String> input) {
-      return input.apply(
-          "csvToRow",
-          FlatMapElements.into(TypeDescriptors.rows())
-              .via(s -> csvLines2BeamRows(csvFormat, s, schema)));
+      return input
+          .apply(
+              "csvToRow",
+              FlatMapElements.into(TypeDescriptors.rows())
+                  .via(s -> csvLines2BeamRows(csvFormat, s, schema)))
+          .setRowSchema(schema);
     }
   }
 }

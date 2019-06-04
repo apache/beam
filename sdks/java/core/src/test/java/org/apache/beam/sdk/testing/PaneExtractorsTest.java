@@ -21,13 +21,13 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -141,6 +141,39 @@ public class PaneExtractorsTest {
                 PaneInfo.createPane(true, false, Timing.EARLY)));
 
     assertThat(extractor.apply(onlyOnTime), containsInAnyOrder(2, 4));
+  }
+
+  @Test
+  public void lateAndEarlyPaneTest() {
+    Iterable<ValueInSingleWindow<Integer>> panes =
+        ImmutableList.of(
+            ValueInSingleWindow.of(
+                8,
+                new Instant(0L),
+                GlobalWindow.INSTANCE,
+                PaneInfo.createPane(false, false, Timing.LATE, 2L, 1L)),
+            ValueInSingleWindow.of(
+                4,
+                new Instant(0L),
+                GlobalWindow.INSTANCE,
+                PaneInfo.createPane(false, false, Timing.ON_TIME, 1L, 0L)),
+            ValueInSingleWindow.of(
+                1,
+                new Instant(0L),
+                GlobalWindow.INSTANCE,
+                PaneInfo.createPane(true, false, Timing.EARLY)));
+
+    {
+      SerializableFunction<Iterable<ValueInSingleWindow<Integer>>, Iterable<Integer>> extractor =
+          PaneExtractors.latePanes();
+      assertThat(extractor.apply(panes), containsInAnyOrder(8));
+    }
+
+    {
+      SerializableFunction<Iterable<ValueInSingleWindow<Integer>>, Iterable<Integer>> extractor =
+          PaneExtractors.earlyPanes();
+      assertThat(extractor.apply(panes), containsInAnyOrder(1));
+    }
   }
 
   @Test

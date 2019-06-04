@@ -47,21 +47,16 @@ type iterNative struct {
 }
 
 func (v *iterNative) Init() error {
-	v.cur = v.s.Open()
+    cur, err := v.s.Open()
+    if err != nil {
+       return err
+    }
+	v.cur = cur
 	return nil
 }
 
 func (v *iterNative) Value() interface{} {
 	return v.fn
-}
-
-func convToString(v interface{}) string {
-    switch v.(type) {
-    case []byte:
-       return string(v.([]byte))
-    default:
-       return v.(string)
-    }
 }
 
 func (v *iterNative) Reset() error {
@@ -81,12 +76,7 @@ func (v *iterNative) read{{$x.Name}}(val *{{$x.Type}}) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-
-{{- if eq $x.Type "string"}}
-    *val = convToString(elm.Elm)
-{{- else}}
     *val = elm.Elm.({{$x.Type}})
-{{- end}}
     return true
 }
 
@@ -106,11 +96,7 @@ func (v *iterNative) readET{{$x.Name}}(et *typex.EventTime, val *{{$x.Type}}) bo
 	}
 
     *et = elm.Timestamp
-{{- if eq $x.Type "string"}}
-    *val = convToString(elm.Elm)
-{{- else}}
     *val = elm.Elm.({{$x.Type}})
-{{- end}}
     return true
 }
 
@@ -129,17 +115,8 @@ func (v *iterNative) read{{$x.Name}}{{$y.Name}}(key *{{$x.Type}}, value *{{$y.Ty
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-
-{{- if eq $x.Type "string"}}
-    *key = convToString(elm.Elm)
-{{- else}}
     *key = elm.Elm.({{$x.Type}})
-{{- end}}
-{{- if eq $y.Type "string"}}
-    *value = convToString(elm.Elm2)
-{{- else}}
     *value = elm.Elm2.({{$y.Type}})
-{{- end}}
     return true
 }
 
@@ -159,16 +136,8 @@ func (v *iterNative) readET{{$x.Name}}{{$y.Name}}(et *typex.EventTime, key *{{$x
 	}
 
     *et = elm.Timestamp
-{{- if eq $x.Type "string"}}
-    *key = convToString(elm.Elm)
-{{- else}}
     *key = elm.Elm.({{$x.Type}})
-{{- end}}
-{{- if eq $y.Type "string"}}
-    *value = convToString(elm.Elm2)
-{{- else}}
     *value = elm.Elm2.({{$y.Type}})
-{{- end}}
     return true
 }
 

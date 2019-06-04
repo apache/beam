@@ -24,6 +24,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
 /**
  * A reference to a side input. This includes the PTransform that references the side input as well
@@ -52,10 +53,18 @@ public abstract class SideInputReference {
         PipelineNode.pCollection(collectionId, collection));
   }
 
-  /** The id of the PTransform that uses this side input. */
+  /** The PTransform that uses this side input. */
   public abstract PTransformNode transform();
   /** The local name the referencing PTransform uses to refer to this side input. */
   public abstract String localName();
   /** The PCollection that backs this side input. */
   public abstract PCollectionNode collection();
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+        .add("Transform", transform().toString())
+        .add("PCollection", collection().toString())
+        .toString();
+  }
 }

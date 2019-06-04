@@ -37,10 +37,8 @@ some examples:
  - [user@ archives](https://lists.apache.org/list.html?user@beam.apache.org) and [statistics](https://lists.apache.org/trends.html?user@beam.apache.org)
  - [`apache-beam` StackOverflow tag](https://stackoverflow.com/questions/tagged/apache-beam)
  - Git metrics for [Beam](https://github.com/apache/beam/graphs/contributors)
-   and the [Beam site](https://github.com/apache/beam-site/graphs/contributors)
  - Code reviews given and received on
-   [Beam](https://github.com/apache/beam/pulls) and the [Beam
-   site](https://github.com/apache/beam-site/pulls)
+   [Beam](https://github.com/apache/beam/pulls)
  - Clear areas of ownership (a runner, a DSL, IO connector, documentation,
    etc.)
  - Public events

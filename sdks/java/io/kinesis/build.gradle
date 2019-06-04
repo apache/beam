@@ -16,8 +16,16 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+  // Override the default shading configuration to exclude everything since
+  // AWS-KPL library has hard dependency on guava.
+  shadowClosure: {
+    dependencies {
+      exclude(dependency(".*:.*"))
+    }
+  }
+)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -29,26 +37,25 @@ test {
   forkEvery 1
 }
 
-def aws_version = "1.11.255"
-
 dependencies {
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow library.java.guava
   shadow library.java.slf4j_api
   shadow library.java.joda_time
   shadow library.java.jackson_dataformat_cbor
-  shadow "com.amazonaws:aws-java-sdk-core:$aws_version"
-  shadow "com.amazonaws:aws-java-sdk-kinesis:$aws_version"
-  shadow "com.amazonaws:aws-java-sdk-cloudwatch:$aws_version"
-  shadow "com.amazonaws:amazon-kinesis-client:1.8.8"
-  shadow "com.amazonaws:amazon-kinesis-producer:0.12.8"
+  shadow library.java.aws_java_sdk_cloudwatch
+  shadow library.java.aws_java_sdk_core
+  shadow library.java.aws_java_sdk_kinesis
+  shadow "com.amazonaws:amazon-kinesis-client:1.10.0"
+  shadow "com.amazonaws:amazon-kinesis-producer:0.12.11"
   shadow "commons-lang:commons-lang:2.6"
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile library.java.guava_testlib
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  testCompile library.java.slf4j_jdk14
-  testCompile "org.assertj:assertj-core:2.5.0"
+  testCompile library.java.powermock
+  testCompile "org.assertj:assertj-core:3.11.1"
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(path: ":runners:direct-java")
 }

@@ -90,7 +90,7 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
     }
 
     // update metrics
-    container.updateMetrics();
+    container.updateMetrics(stepName);
   }
 
   @Override

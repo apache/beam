@@ -17,19 +17,24 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.common.collect.ImmutableMap;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 /** A {@link Coder} for {@link Row}. It wraps the {@link Coder} for each element directly. */
 @Experimental
@@ -40,8 +45,8 @@ public class RowCoder extends CustomCoder<Row> {
           .put(TypeName.BYTE, ByteCoder.of())
           .put(TypeName.BYTES, ByteArrayCoder.of())
           .put(TypeName.INT16, BigEndianShortCoder.of())
-          .put(TypeName.INT32, BigEndianIntegerCoder.of())
-          .put(TypeName.INT64, BigEndianLongCoder.of())
+          .put(TypeName.INT32, VarIntCoder.of())
+          .put(TypeName.INT64, VarLongCoder.of())
           .put(TypeName.DECIMAL, BigDecimalCoder.of())
           .put(TypeName.FLOAT, FloatCoder.of())
           .put(TypeName.DOUBLE, DoubleCoder.of())
@@ -64,16 +69,65 @@ public class RowCoder extends CustomCoder<Row> {
           .build();
 
   private final Schema schema;
+
+  public UUID getId() {
+    return id;
+  }
+
   private final UUID id;
   @Nullable private transient Coder<Row> delegateCoder = null;
 
   public static RowCoder of(Schema schema) {
-    return new RowCoder(schema, UUID.randomUUID());
+    UUID id = (schema.getUUID() == null) ? UUID.randomUUID() : schema.getUUID();
+    return new RowCoder(schema, id);
   }
 
   private RowCoder(Schema schema, UUID id) {
+    if (schema.getUUID() != null) {
+      checkArgument(
+          schema.getUUID().equals(id),
+          "Schema has a UUID that doesn't match argument to constructor. %s v.s. %s",
+          schema.getUUID(),
+          id);
+    } else {
+      // Clone the schema before modifying the Java object.
+      schema = SerializableUtils.clone(schema);
+      setSchemaIds(schema, id);
+    }
     this.schema = schema;
     this.id = id;
+  }
+
+  // Sets the schema id, and then recursively ensures that all schemas have ids set.
+  private void setSchemaIds(Schema schema, UUID id) {
+    if (schema.getUUID() == null) {
+      schema.setUUID(id);
+    }
+    for (Field field : schema.getFields()) {
+      setSchemaIds(field.getType());
+    }
+  }
+
+  private void setSchemaIds(FieldType fieldType) {
+    switch (fieldType.getTypeName()) {
+      case ROW:
+        setSchemaIds(fieldType.getRowSchema(), UUID.randomUUID());
+        return;
+      case MAP:
+        setSchemaIds(fieldType.getMapKeyType());
+        setSchemaIds(fieldType.getMapValueType());
+        return;
+      case LOGICAL_TYPE:
+        setSchemaIds(fieldType.getLogicalType().getBaseType());
+        return;
+
+      case ARRAY:
+        setSchemaIds(fieldType.getCollectionElementType());
+        return;
+
+      default:
+        return;
+    }
   }
 
   // Return the generated coder class for this schema.
@@ -81,7 +135,7 @@ public class RowCoder extends CustomCoder<Row> {
     if (delegateCoder == null) {
       // RowCoderGenerator caches based on id, so if a new instance of this RowCoder is
       // deserialized, we don't need to run ByteBuddy again to construct the class.
-      delegateCoder = RowCoderGenerator.generate(schema, id);
+      delegateCoder = RowCoderGenerator.generate(schema);
     }
     return delegateCoder;
   }
@@ -102,11 +156,42 @@ public class RowCoder extends CustomCoder<Row> {
 
   @Override
   public void verifyDeterministic()
-      throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {}
+      throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
+    verifyDeterministic(schema);
+  }
+
+  private void verifyDeterministic(Schema schema)
+      throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
+
+    List<Coder<?>> coders =
+        schema.getFields().stream()
+            .map(Field::getType)
+            .map(RowCoder::coderForFieldType)
+            .collect(Collectors.toList());
+
+    Coder.verifyDeterministic(this, "All fields must have deterministic encoding", coders);
+  }
+
+  @Override
+  public boolean consistentWithEquals() {
+    return true;
+  }
 
   /** Returns the coder used for a given primitive type. */
-  public static <T> Coder<T> coderForPrimitiveType(TypeName typeName) {
-    return (Coder<T>) CODER_MAP.get(typeName);
+  public static <T> Coder<T> coderForFieldType(FieldType fieldType) {
+    switch (fieldType.getTypeName()) {
+      case ROW:
+        return (Coder<T>) RowCoder.of(fieldType.getRowSchema());
+      case ARRAY:
+        return (Coder<T>) ListCoder.of(coderForFieldType(fieldType.getCollectionElementType()));
+      case MAP:
+        return (Coder<T>)
+            MapCoder.of(
+                coderForFieldType(fieldType.getMapKeyType()),
+                coderForFieldType(fieldType.getMapValueType()));
+      default:
+        return (Coder<T>) CODER_MAP.get(fieldType.getTypeName());
+    }
   }
 
   /** Return the estimated serialized size of a give row object. */
@@ -124,6 +209,8 @@ public class RowCoder extends CustomCoder<Row> {
 
   private static long estimatedSizeBytes(FieldType typeDescriptor, Object value) {
     switch (typeDescriptor.getTypeName()) {
+      case LOGICAL_TYPE:
+        return estimatedSizeBytes(typeDescriptor.getLogicalType().getBaseType(), value);
       case ROW:
         return estimatedSizeBytes((Row) value);
       case ARRAY:
@@ -153,5 +240,11 @@ public class RowCoder extends CustomCoder<Row> {
       default:
         return ESTIMATED_FIELD_SIZES.get(typeDescriptor.getTypeName());
     }
+  }
+
+  @Override
+  public String toString() {
+    String string = "Schema: " + schema + "  UUID: " + id + " delegateCoder: " + getDelegateCoder();
+    return string;
   }
 }

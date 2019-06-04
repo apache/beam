@@ -1050,21 +1050,16 @@ type iterNative struct {
 }
 
 func (v *iterNative) Init() error {
-	v.cur = v.s.Open()
+	cur, err := v.s.Open()
+	if err != nil {
+		return err
+	}
+	v.cur = cur
 	return nil
 }
 
 func (v *iterNative) Value() interface{} {
 	return v.fn
-}
-
-func convToString(v interface{}) string {
-	switch v.(type) {
-	case []byte:
-		return string(v.([]byte))
-	default:
-		return v.(string)
-	}
 }
 
 func (v *iterNative) Reset() error {
@@ -1202,7 +1197,7 @@ func (v *iterNative) readByteSliceString(key *[]byte, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 	*key = elm.Elm.([]byte)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -1223,7 +1218,7 @@ func (v *iterNative) readETByteSliceString(et *typex.EventTime, key *[]byte, val
 
 	*et = elm.Timestamp
 	*key = elm.Elm.([]byte)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -2120,7 +2115,7 @@ func (v *iterNative) readBoolString(key *bool, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 	*key = elm.Elm.(bool)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -2141,7 +2136,7 @@ func (v *iterNative) readETBoolString(et *typex.EventTime, key *bool, value *str
 
 	*et = elm.Timestamp
 	*key = elm.Elm.(bool)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -2919,7 +2914,7 @@ func (v *iterNative) readString(val *string) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*val = convToString(elm.Elm)
+	*val = elm.Elm.(string)
 	return true
 }
 
@@ -2939,7 +2934,7 @@ func (v *iterNative) readETString(et *typex.EventTime, val *string) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = convToString(elm.Elm)
+	*val = elm.Elm.(string)
 	return true
 }
 
@@ -2957,7 +2952,7 @@ func (v *iterNative) readStringByteSlice(key *string, value *[]byte) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.([]byte)
 	return true
 }
@@ -2978,7 +2973,7 @@ func (v *iterNative) readETStringByteSlice(et *typex.EventTime, key *string, val
 	}
 
 	*et = elm.Timestamp
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.([]byte)
 	return true
 }
@@ -2997,7 +2992,7 @@ func (v *iterNative) readStringBool(key *string, value *bool) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(bool)
 	return true
 }
@@ -3018,7 +3013,7 @@ func (v *iterNative) readETStringBool(et *typex.EventTime, key *string, value *b
 	}
 
 	*et = elm.Timestamp
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(bool)
 	return true
 }
@@ -3037,8 +3032,8 @@ func (v *iterNative) readStringString(key *string, value *string) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*key = convToString(elm.Elm)
-	*value = convToString(elm.Elm2)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -3058,8 +3053,8 @@ func (v *iterNative) readETStringString(et *typex.EventTime, key *string, value 
 	}
 
 	*et = elm.Timestamp
-	*key = convToString(elm.Elm)
-	*value = convToString(elm.Elm2)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -3077,7 +3072,7 @@ func (v *iterNative) readStringInt(key *string, value *int) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(int)
 	return true
 }
@@ -3098,7 +3093,7 @@ func (v *iterNative) readETStringInt(et *typex.EventTime, key *string, value *in
 	}
 
 	*et = elm.Timestamp
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(int)
 	return true
 }
@@ -3117,7 +3112,7 @@ func (v *iterNative) readStringInt8(key *string, value *int8) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(int8)
 	return true
 }
@@ -3138,7 +3133,7 @@ func (v *iterNative) readETStringInt8(et *typex.EventTime, key *string, value *i
 	}
 
 	*et = elm.Timestamp
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(int8)
 	return true
 }
@@ -3157,7 +3152,7 @@ func (v *iterNative) readStringInt16(key *string, value *int16) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(int16)
 	return true
 }
@@ -3178,7 +3173,7 @@ func (v *iterNative) readETStringInt16(et *typex.EventTime, key *string, value *
 	}
 
 	*et = elm.Timestamp
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(int16)
 	return true
 }
@@ -3197,7 +3192,7 @@ func (v *iterNative) readStringInt32(key *string, value *int32) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(int32)
 	return true
 }
@@ -3218,7 +3213,7 @@ func (v *iterNative) readETStringInt32(et *typex.EventTime, key *string, value *
 	}
 
 	*et = elm.Timestamp
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(int32)
 	return true
 }
@@ -3237,7 +3232,7 @@ func (v *iterNative) readStringInt64(key *string, value *int64) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(int64)
 	return true
 }
@@ -3258,7 +3253,7 @@ func (v *iterNative) readETStringInt64(et *typex.EventTime, key *string, value *
 	}
 
 	*et = elm.Timestamp
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(int64)
 	return true
 }
@@ -3277,7 +3272,7 @@ func (v *iterNative) readStringUint(key *string, value *uint) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(uint)
 	return true
 }
@@ -3298,7 +3293,7 @@ func (v *iterNative) readETStringUint(et *typex.EventTime, key *string, value *u
 	}
 
 	*et = elm.Timestamp
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(uint)
 	return true
 }
@@ -3317,7 +3312,7 @@ func (v *iterNative) readStringUint8(key *string, value *uint8) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(uint8)
 	return true
 }
@@ -3338,7 +3333,7 @@ func (v *iterNative) readETStringUint8(et *typex.EventTime, key *string, value *
 	}
 
 	*et = elm.Timestamp
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(uint8)
 	return true
 }
@@ -3357,7 +3352,7 @@ func (v *iterNative) readStringUint16(key *string, value *uint16) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(uint16)
 	return true
 }
@@ -3378,7 +3373,7 @@ func (v *iterNative) readETStringUint16(et *typex.EventTime, key *string, value 
 	}
 
 	*et = elm.Timestamp
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(uint16)
 	return true
 }
@@ -3397,7 +3392,7 @@ func (v *iterNative) readStringUint32(key *string, value *uint32) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(uint32)
 	return true
 }
@@ -3418,7 +3413,7 @@ func (v *iterNative) readETStringUint32(et *typex.EventTime, key *string, value 
 	}
 
 	*et = elm.Timestamp
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(uint32)
 	return true
 }
@@ -3437,7 +3432,7 @@ func (v *iterNative) readStringUint64(key *string, value *uint64) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(uint64)
 	return true
 }
@@ -3458,7 +3453,7 @@ func (v *iterNative) readETStringUint64(et *typex.EventTime, key *string, value 
 	}
 
 	*et = elm.Timestamp
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(uint64)
 	return true
 }
@@ -3477,7 +3472,7 @@ func (v *iterNative) readStringFloat32(key *string, value *float32) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(float32)
 	return true
 }
@@ -3498,7 +3493,7 @@ func (v *iterNative) readETStringFloat32(et *typex.EventTime, key *string, value
 	}
 
 	*et = elm.Timestamp
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(float32)
 	return true
 }
@@ -3517,7 +3512,7 @@ func (v *iterNative) readStringFloat64(key *string, value *float64) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(float64)
 	return true
 }
@@ -3538,7 +3533,7 @@ func (v *iterNative) readETStringFloat64(et *typex.EventTime, key *string, value
 	}
 
 	*et = elm.Timestamp
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(float64)
 	return true
 }
@@ -3557,7 +3552,7 @@ func (v *iterNative) readStringTypex_T(key *string, value *typex.T) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(typex.T)
 	return true
 }
@@ -3578,7 +3573,7 @@ func (v *iterNative) readETStringTypex_T(et *typex.EventTime, key *string, value
 	}
 
 	*et = elm.Timestamp
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(typex.T)
 	return true
 }
@@ -3597,7 +3592,7 @@ func (v *iterNative) readStringTypex_U(key *string, value *typex.U) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(typex.U)
 	return true
 }
@@ -3618,7 +3613,7 @@ func (v *iterNative) readETStringTypex_U(et *typex.EventTime, key *string, value
 	}
 
 	*et = elm.Timestamp
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(typex.U)
 	return true
 }
@@ -3637,7 +3632,7 @@ func (v *iterNative) readStringTypex_V(key *string, value *typex.V) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(typex.V)
 	return true
 }
@@ -3658,7 +3653,7 @@ func (v *iterNative) readETStringTypex_V(et *typex.EventTime, key *string, value
 	}
 
 	*et = elm.Timestamp
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(typex.V)
 	return true
 }
@@ -3677,7 +3672,7 @@ func (v *iterNative) readStringTypex_W(key *string, value *typex.W) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(typex.W)
 	return true
 }
@@ -3698,7 +3693,7 @@ func (v *iterNative) readETStringTypex_W(et *typex.EventTime, key *string, value
 	}
 
 	*et = elm.Timestamp
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(typex.W)
 	return true
 }
@@ -3717,7 +3712,7 @@ func (v *iterNative) readStringTypex_X(key *string, value *typex.X) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(typex.X)
 	return true
 }
@@ -3738,7 +3733,7 @@ func (v *iterNative) readETStringTypex_X(et *typex.EventTime, key *string, value
 	}
 
 	*et = elm.Timestamp
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(typex.X)
 	return true
 }
@@ -3757,7 +3752,7 @@ func (v *iterNative) readStringTypex_Y(key *string, value *typex.Y) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(typex.Y)
 	return true
 }
@@ -3778,7 +3773,7 @@ func (v *iterNative) readETStringTypex_Y(et *typex.EventTime, key *string, value
 	}
 
 	*et = elm.Timestamp
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(typex.Y)
 	return true
 }
@@ -3797,7 +3792,7 @@ func (v *iterNative) readStringTypex_Z(key *string, value *typex.Z) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(typex.Z)
 	return true
 }
@@ -3818,7 +3813,7 @@ func (v *iterNative) readETStringTypex_Z(et *typex.EventTime, key *string, value
 	}
 
 	*et = elm.Timestamp
-	*key = convToString(elm.Elm)
+	*key = elm.Elm.(string)
 	*value = elm.Elm2.(typex.Z)
 	return true
 }
@@ -3956,7 +3951,7 @@ func (v *iterNative) readIntString(key *int, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 	*key = elm.Elm.(int)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -3977,7 +3972,7 @@ func (v *iterNative) readETIntString(et *typex.EventTime, key *int, value *strin
 
 	*et = elm.Timestamp
 	*key = elm.Elm.(int)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -4874,7 +4869,7 @@ func (v *iterNative) readInt8String(key *int8, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 	*key = elm.Elm.(int8)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -4895,7 +4890,7 @@ func (v *iterNative) readETInt8String(et *typex.EventTime, key *int8, value *str
 
 	*et = elm.Timestamp
 	*key = elm.Elm.(int8)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -5792,7 +5787,7 @@ func (v *iterNative) readInt16String(key *int16, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 	*key = elm.Elm.(int16)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -5813,7 +5808,7 @@ func (v *iterNative) readETInt16String(et *typex.EventTime, key *int16, value *s
 
 	*et = elm.Timestamp
 	*key = elm.Elm.(int16)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -6710,7 +6705,7 @@ func (v *iterNative) readInt32String(key *int32, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 	*key = elm.Elm.(int32)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -6731,7 +6726,7 @@ func (v *iterNative) readETInt32String(et *typex.EventTime, key *int32, value *s
 
 	*et = elm.Timestamp
 	*key = elm.Elm.(int32)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -7628,7 +7623,7 @@ func (v *iterNative) readInt64String(key *int64, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 	*key = elm.Elm.(int64)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -7649,7 +7644,7 @@ func (v *iterNative) readETInt64String(et *typex.EventTime, key *int64, value *s
 
 	*et = elm.Timestamp
 	*key = elm.Elm.(int64)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -8546,7 +8541,7 @@ func (v *iterNative) readUintString(key *uint, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 	*key = elm.Elm.(uint)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -8567,7 +8562,7 @@ func (v *iterNative) readETUintString(et *typex.EventTime, key *uint, value *str
 
 	*et = elm.Timestamp
 	*key = elm.Elm.(uint)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -9464,7 +9459,7 @@ func (v *iterNative) readUint8String(key *uint8, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 	*key = elm.Elm.(uint8)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -9485,7 +9480,7 @@ func (v *iterNative) readETUint8String(et *typex.EventTime, key *uint8, value *s
 
 	*et = elm.Timestamp
 	*key = elm.Elm.(uint8)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -10382,7 +10377,7 @@ func (v *iterNative) readUint16String(key *uint16, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 	*key = elm.Elm.(uint16)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -10403,7 +10398,7 @@ func (v *iterNative) readETUint16String(et *typex.EventTime, key *uint16, value 
 
 	*et = elm.Timestamp
 	*key = elm.Elm.(uint16)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -11300,7 +11295,7 @@ func (v *iterNative) readUint32String(key *uint32, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 	*key = elm.Elm.(uint32)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -11321,7 +11316,7 @@ func (v *iterNative) readETUint32String(et *typex.EventTime, key *uint32, value 
 
 	*et = elm.Timestamp
 	*key = elm.Elm.(uint32)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -12218,7 +12213,7 @@ func (v *iterNative) readUint64String(key *uint64, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 	*key = elm.Elm.(uint64)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -12239,7 +12234,7 @@ func (v *iterNative) readETUint64String(et *typex.EventTime, key *uint64, value 
 
 	*et = elm.Timestamp
 	*key = elm.Elm.(uint64)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -13136,7 +13131,7 @@ func (v *iterNative) readFloat32String(key *float32, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 	*key = elm.Elm.(float32)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -13157,7 +13152,7 @@ func (v *iterNative) readETFloat32String(et *typex.EventTime, key *float32, valu
 
 	*et = elm.Timestamp
 	*key = elm.Elm.(float32)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -14054,7 +14049,7 @@ func (v *iterNative) readFloat64String(key *float64, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 	*key = elm.Elm.(float64)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -14075,7 +14070,7 @@ func (v *iterNative) readETFloat64String(et *typex.EventTime, key *float64, valu
 
 	*et = elm.Timestamp
 	*key = elm.Elm.(float64)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -14972,7 +14967,7 @@ func (v *iterNative) readTypex_TString(key *typex.T, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 	*key = elm.Elm.(typex.T)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -14993,7 +14988,7 @@ func (v *iterNative) readETTypex_TString(et *typex.EventTime, key *typex.T, valu
 
 	*et = elm.Timestamp
 	*key = elm.Elm.(typex.T)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -15890,7 +15885,7 @@ func (v *iterNative) readTypex_UString(key *typex.U, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 	*key = elm.Elm.(typex.U)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -15911,7 +15906,7 @@ func (v *iterNative) readETTypex_UString(et *typex.EventTime, key *typex.U, valu
 
 	*et = elm.Timestamp
 	*key = elm.Elm.(typex.U)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -16808,7 +16803,7 @@ func (v *iterNative) readTypex_VString(key *typex.V, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 	*key = elm.Elm.(typex.V)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -16829,7 +16824,7 @@ func (v *iterNative) readETTypex_VString(et *typex.EventTime, key *typex.V, valu
 
 	*et = elm.Timestamp
 	*key = elm.Elm.(typex.V)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -17726,7 +17721,7 @@ func (v *iterNative) readTypex_WString(key *typex.W, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 	*key = elm.Elm.(typex.W)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -17747,7 +17742,7 @@ func (v *iterNative) readETTypex_WString(et *typex.EventTime, key *typex.W, valu
 
 	*et = elm.Timestamp
 	*key = elm.Elm.(typex.W)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -18644,7 +18639,7 @@ func (v *iterNative) readTypex_XString(key *typex.X, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 	*key = elm.Elm.(typex.X)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -18665,7 +18660,7 @@ func (v *iterNative) readETTypex_XString(et *typex.EventTime, key *typex.X, valu
 
 	*et = elm.Timestamp
 	*key = elm.Elm.(typex.X)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -19562,7 +19557,7 @@ func (v *iterNative) readTypex_YString(key *typex.Y, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 	*key = elm.Elm.(typex.Y)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -19583,7 +19578,7 @@ func (v *iterNative) readETTypex_YString(et *typex.EventTime, key *typex.Y, valu
 
 	*et = elm.Timestamp
 	*key = elm.Elm.(typex.Y)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -20480,7 +20475,7 @@ func (v *iterNative) readTypex_ZString(key *typex.Z, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 	*key = elm.Elm.(typex.Z)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 
@@ -20501,7 +20496,7 @@ func (v *iterNative) readETTypex_ZString(et *typex.EventTime, key *typex.Z, valu
 
 	*et = elm.Timestamp
 	*key = elm.Elm.(typex.Z)
-	*value = convToString(elm.Elm2)
+	*value = elm.Elm2.(string)
 	return true
 }
 

@@ -26,14 +26,16 @@ def testConfiguration = [
                 bqTables: [
                         "beam_performance.textioit_pkb_results",
                         "beam_performance.compressed_textioit_pkb_results",
+                        "beam_performance.many_files_textioit_pkb_results",
                         "beam_performance.avroioit_pkb_results",
                         "beam_performance.tfrecordioit_pkb_results",
                         "beam_performance.xmlioit_pkb_results",
                         "beam_performance.textioit_hdfs_pkb_results",
                         "beam_performance.compressed_textioit_hdfs_pkb_results",
+                        "beam_performance.many_files_textioit_hdfs_pkb_results",
                         "beam_performance.avroioit_hdfs_pkb_results",
                         "beam_performance.xmlioit_hdfs_pkb_results",
-                        "beam_performance.hadoopinputformatioit_pkb_results",
+                        "beam_performance.hadoopformatioit_pkb_results",
                         "beam_performance.mongodbioit_pkb_results",
                         "beam_performance.jdbcioit_pkb_results"
                 ]
@@ -64,14 +66,15 @@ job(testConfiguration.jobName) {
         shell('rm -rf PerfKitBenchmarker')
         shell('rm -rf .env')
 
-        // create new VirtualEnv, inherit already existing packages
-        shell('virtualenv .env --system-site-packages')
+        // create new VirtualEnv, inherit already existing packages. Explicitly
+        // pin to python2.7 here otherwise python3 is used by default.
+        shell('virtualenv .env --python=python2.7 --system-site-packages')
 
         // update setuptools and pip
         shell('.env/bin/pip install --upgrade setuptools pip')
 
         // Install job requirements for analysis script.
-        shell('.env/bin/pip install requests google.cloud.bigquery mock')
+        shell('.env/bin/pip install requests google.cloud.bigquery mock google.cloud.bigtable google.cloud')
 
         // Launch verification tests before executing script.
         shell('.env/bin/python ' + commonJobProperties.checkoutDir + '/.test-infra/jenkins/verify_performance_test_results_test.py')

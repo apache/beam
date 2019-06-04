@@ -20,20 +20,23 @@ package org.apache.beam.sdk.extensions.sql;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.BOOLEAN;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.INTEGER;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.VARCHAR;
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.values.Row;
 import org.junit.Test;
 
 /** UnitTest for {@link BeamSqlCli}. */
@@ -45,7 +48,7 @@ public class BeamSqlCliTest {
 
     BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
     cli.execute(
-        "create table person (\n"
+        "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
@@ -69,7 +72,7 @@ public class BeamSqlCliTest {
 
     BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
     cli.execute(
-        "create table person (\n"
+        "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age', \n"
@@ -99,7 +102,7 @@ public class BeamSqlCliTest {
 
     BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
     cli.execute(
-        "create table person (\n"
+        "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age', \n"
@@ -131,7 +134,7 @@ public class BeamSqlCliTest {
 
     BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
     cli.execute(
-        "create table person (\n"
+        "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age', \n"
@@ -158,16 +161,16 @@ public class BeamSqlCliTest {
                         "address",
                         Schema.FieldType.row(
                             Schema.builder()
-                                .addNullableField("street", Schema.FieldType.STRING)
-                                .addNullableField("country", Schema.FieldType.STRING)
+                                .addNullableField("street", VARCHAR)
+                                .addNullableField("country", VARCHAR)
                                 .build()))
                     .withNullable(true),
                 Field.of(
                         "addressAngular",
                         Schema.FieldType.row(
                             Schema.builder()
-                                .addNullableField("street", Schema.FieldType.STRING)
-                                .addNullableField("country", Schema.FieldType.STRING)
+                                .addNullableField("street", VARCHAR)
+                                .addNullableField("country", VARCHAR)
                                 .build()))
                     .withNullable(true),
                 Field.of("isRobot", BOOLEAN).withNullable(true))
@@ -182,7 +185,7 @@ public class BeamSqlCliTest {
 
     BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
     cli.execute(
-        "create table person (\n"
+        "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
@@ -203,7 +206,7 @@ public class BeamSqlCliTest {
 
     BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
     cli.execute(
-        "create table person (\n"
+        "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
@@ -221,7 +224,7 @@ public class BeamSqlCliTest {
     BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
 
     cli.execute(
-        "create table person (\n"
+        "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
@@ -234,5 +237,41 @@ public class BeamSqlCliTest {
         equalTo(
             "BeamCalcRel(expr#0..2=[{inputs}], proj#0..2=[{exprs}])\n"
                 + "  BeamIOSourceRel(table=[[beam, person]])\n"));
+  }
+
+  @Test
+  public void test_time_types() throws Exception {
+    InMemoryMetaStore metaStore = new InMemoryMetaStore();
+    TestTableProvider testTableProvider = new TestTableProvider();
+    metaStore.registerProvider(testTableProvider);
+
+    BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
+    cli.execute(
+        "CREATE EXTERNAL TABLE test_table (\n"
+            + "f_date DATE, \n"
+            + "f_time TIME, \n"
+            + "f_ts TIMESTAMP"
+            + ") \n"
+            + "TYPE 'test'");
+
+    cli.execute(
+        "INSERT INTO test_table VALUES ("
+            + "DATE '2018-11-01', "
+            + "TIME '15:23:59', "
+            + "TIMESTAMP '2018-07-01 21:26:07.123' )");
+
+    Table table = metaStore.getTables().get("test_table");
+    assertNotNull(table);
+    TestTableProvider.TableWithRows tableWithRows = testTableProvider.tables().get(table.getName());
+    assertEquals(1, tableWithRows.getRows().size());
+    Row row = tableWithRows.getRows().get(0);
+    assertEquals(3, row.getFieldCount());
+
+    // test DATE field
+    assertEquals("2018-11-01", row.getDateTime("f_date").toString("yyyy-MM-dd"));
+    // test TIME field
+    assertEquals("15:23:59.000", row.getDateTime("f_time").toString("HH:mm:ss.SSS"));
+    // test TIMESTAMP field
+    assertEquals(parseTimestampWithUTCTimeZone("2018-07-01 21:26:07.123"), row.getDateTime("f_ts"));
   }
 }

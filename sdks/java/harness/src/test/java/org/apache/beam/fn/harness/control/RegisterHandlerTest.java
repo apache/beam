@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness.control;
 
 import static org.junit.Assert.assertEquals;
@@ -49,11 +48,8 @@ public class RegisterHandlerTest {
                               "10L",
                               RunnerApi.Coder.newBuilder()
                                   .setSpec(
-                                      RunnerApi.SdkFunctionSpec.newBuilder()
-                                          .setSpec(
-                                              RunnerApi.FunctionSpec.newBuilder()
-                                                  .setUrn("urn:10L")
-                                                  .build())
+                                      RunnerApi.FunctionSpec.newBuilder()
+                                          .setUrn("testUrn1")
                                           .build())
                                   .build())
                           .build())
@@ -64,11 +60,8 @@ public class RegisterHandlerTest {
                               "20L",
                               RunnerApi.Coder.newBuilder()
                                   .setSpec(
-                                      RunnerApi.SdkFunctionSpec.newBuilder()
-                                          .setSpec(
-                                              RunnerApi.FunctionSpec.newBuilder()
-                                                  .setUrn("urn:20L")
-                                                  .build())
+                                      RunnerApi.FunctionSpec.newBuilder()
+                                          .setUrn("testUrn2")
                                           .build())
                                   .build())
                           .build())

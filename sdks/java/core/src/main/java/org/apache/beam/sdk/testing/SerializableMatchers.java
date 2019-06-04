@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.testing;
 
-import com.google.common.base.MoreObjects;
+import static org.hamcrest.Matchers.in;
+import static org.hamcrest.core.Is.is;
+
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
@@ -29,6 +31,7 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
@@ -54,7 +57,7 @@ import org.hamcrest.Matchers;
  * iterable is undefined, use a matcher like {@code kv(equalTo("some key"), containsInAnyOrder(1, 2,
  * 3))}.
  */
-class SerializableMatchers implements Serializable {
+public class SerializableMatchers implements Serializable {
 
   // Serializable only because of capture by anonymous inner classes
   private SerializableMatchers() {} // not instantiable
@@ -450,7 +453,7 @@ class SerializableMatchers implements Serializable {
   /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#isIn(Collection)}. */
   public static <T extends Serializable> SerializableMatcher<T> isIn(
       final Collection<T> collection) {
-    return fromSupplier(() -> Matchers.isIn(collection));
+    return fromSupplier(() -> is(in(collection)));
   }
 
   /**
@@ -463,12 +466,12 @@ class SerializableMatchers implements Serializable {
     @SuppressWarnings("unchecked")
     T[] items = (T[]) collection.toArray();
     final SerializableSupplier<T[]> itemsSupplier = new SerializableArrayViaCoder<>(coder, items);
-    return fromSupplier(() -> Matchers.isIn(itemsSupplier.get()));
+    return fromSupplier(() -> is(in(itemsSupplier.get())));
   }
 
   /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#isIn(Object[])}. */
   public static <T extends Serializable> SerializableMatcher<T> isIn(final T[] items) {
-    return fromSupplier(() -> Matchers.isIn(items));
+    return fromSupplier(() -> is(in(items)));
   }
 
   /**
@@ -479,7 +482,7 @@ class SerializableMatchers implements Serializable {
    */
   public static <T> SerializableMatcher<T> isIn(Coder<T> coder, T[] items) {
     final SerializableSupplier<T[]> itemsSupplier = new SerializableArrayViaCoder<>(coder, items);
-    return fromSupplier(() -> Matchers.isIn(itemsSupplier.get()));
+    return fromSupplier(() -> is(in(itemsSupplier.get())));
   }
 
   /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#isOneOf}. */

@@ -89,7 +89,7 @@ class SyntheticPipelineTest(unittest.TestCase):
     splits = source.split(100)
     sources_info = [(split.source, split.start_position, split.stop_position)
                     for split in splits]
-    self.assertEquals(20, len(sources_info))
+    self.assertEqual(20, len(sources_info))
     source_test_utils.assert_sources_equal_reference_source(
         (source, None, None), sources_info)
 
@@ -99,7 +99,7 @@ class SyntheticPipelineTest(unittest.TestCase):
     splits = source.split(100)
     sources_info = [(split.source, split.start_position, split.stop_position)
                     for split in splits]
-    self.assertEquals(10, len(sources_info))
+    self.assertEqual(10, len(sources_info))
     source_test_utils.assert_sources_equal_reference_source(
         (source, None, None), sources_info)
 
@@ -125,7 +125,7 @@ class SyntheticPipelineTest(unittest.TestCase):
     if writes_output:
       read_output = []
       for file_name in glob.glob(output_location + '*'):
-        with open(file_name, 'r') as f:
+        with open(file_name, 'rb') as f:
           read_output.extend(f.read().splitlines())
 
       self.assertEqual(10, len(read_output))

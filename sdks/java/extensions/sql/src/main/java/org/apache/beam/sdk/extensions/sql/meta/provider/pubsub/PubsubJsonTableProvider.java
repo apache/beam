@@ -71,7 +71,8 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
 
     if (schema.getFieldCount() != 3
         || !fieldPresent(schema, TIMESTAMP_FIELD, TIMESTAMP)
-        || !fieldPresent(schema, ATTRIBUTES_FIELD, Schema.FieldType.map(VARCHAR, VARCHAR))
+        || !fieldPresent(
+            schema, ATTRIBUTES_FIELD, Schema.FieldType.map(VARCHAR.withNullable(false), VARCHAR))
         || !(schema.hasField(PAYLOAD_FIELD)
             && ROW.equals(schema.getField(PAYLOAD_FIELD).getType().getTypeName()))) {
 
@@ -85,7 +86,9 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
   }
 
   private boolean fieldPresent(Schema schema, String field, Schema.FieldType expectedType) {
-    return schema.hasField(field) && expectedType.equals(schema.getField(field).getType());
+    return schema.hasField(field)
+        && expectedType.equivalent(
+            schema.getField(field).getType(), Schema.EquivalenceNullablePolicy.IGNORE);
   }
 
   private void validateDlq(String deadLetterQueue) {

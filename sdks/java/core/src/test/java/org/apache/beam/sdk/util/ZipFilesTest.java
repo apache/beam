@@ -26,9 +26,6 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import com.google.common.io.ByteSource;
-import com.google.common.io.CharSource;
-import com.google.common.io.Files;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -38,6 +35,9 @@ import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteSource;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CharSource;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -194,7 +194,7 @@ public class ZipFilesTest {
     assertTrue(zipDir.mkdir());
     ZipFiles.zipDirectory(tmpDir, zipFile);
     File invalidDirectory = new File("/foo/bar");
-    assertTrue(!invalidDirectory.exists());
+    assertFalse(invalidDirectory.exists());
     try {
       ZipFiles.unzipFile(zipFile, invalidDirectory);
       fail("We expect the IllegalArgumentException, but it never occured");

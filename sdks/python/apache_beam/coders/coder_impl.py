@@ -37,8 +37,8 @@ from __future__ import division
 from builtins import chr
 from builtins import object
 
+from past.builtins import unicode as past_unicode
 from past.builtins import long
-from past.builtins import unicode
 
 from apache_beam.coders import observable
 from apache_beam.utils import windowed_value
@@ -62,7 +62,18 @@ except ImportError:
   from .slow_stream import OutputStream as create_OutputStream
   from .slow_stream import ByteCountingOutputStream
   from .slow_stream import get_varint_size
+  if False:  # pylint: disable=using-constant-test
+    # This clause is interpreted by the compiler.
+    from cython import compiled as is_compiled
+  else:
+    is_compiled = False
+    fits_in_64_bits = lambda x: -(1 << 63) <= x <= (1 << 63) - 1
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
+
+
+_TIME_SHIFT = 1 << 63
+MIN_TIMESTAMP_micros = MIN_TIMESTAMP.micros
+MAX_TIMESTAMP_micros = MAX_TIMESTAMP.micros
 
 
 class CoderImpl(object):
@@ -83,6 +94,17 @@ class CoderImpl(object):
   def decode(self, encoded):
     """Decodes an object to an unnested string."""
     raise NotImplementedError
+
+  def encode_all(self, values):
+    out = create_OutputStream()
+    for value in values:
+      self.encode_to_stream(value, out, True)
+    return out.get()
+
+  def decode_all(self, encoded):
+    input_stream = create_InputStream(encoded)
+    while input_stream.size() > 0:
+      yield self.decode_from_stream(input_stream, True)
 
   def encode_nested(self, value):
     out = create_OutputStream()
@@ -197,6 +219,10 @@ class CallbackCoderImpl(CoderImpl):
 
     return self.estimate_size(value, nested), []
 
+  def __repr__(self):
+    return 'CallbackCoderImpl[encoder=%s, decoder=%s]' % (
+        self._encoder, self._decoder)
+
 
 class DeterministicFastPrimitivesCoderImpl(CoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
@@ -206,7 +232,7 @@ class DeterministicFastPrimitivesCoderImpl(CoderImpl):
     self._step_label = step_label
 
   def _check_safe(self, value):
-    if isinstance(value, (bytes, unicode, long, int, float)):
+    if isinstance(value, (bytes, past_unicode, long, int, float)):
       pass
     elif value is None:
       pass
@@ -256,6 +282,13 @@ class ProtoCoderImpl(SimpleCoderImpl):
     return proto_message
 
 
+class DeterministicProtoCoderImpl(ProtoCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
+
+  def encode(self, value):
+    return value.SerializeToString(deterministic=True)
+
+
 UNKNOWN_TYPE = 0xFF
 NONE_TYPE = 0
 INT_TYPE = 1
@@ -267,6 +300,14 @@ LIST_TYPE = 5
 TUPLE_TYPE = 6
 DICT_TYPE = 7
 SET_TYPE = 8
+ITERABLE_LIKE_TYPE = 10
+
+
+# Types that can be encoded as iterables, but are not literally
+# lists, etc. due to being lazy.  The actual type is not preserved
+# through encoding, only the elements. This is particularly useful
+# for the value list types created in GroupByKey.
+_ITERABLE_LIKE_TYPES = set()
 
 
 class FastPrimitivesCoderImpl(StreamCoderImpl):
@@ -274,6 +315,11 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
 
   def __init__(self, fallback_coder_impl):
     self.fallback_coder_impl = fallback_coder_impl
+    self.iterable_coder_impl = IterableCoderImpl(self)
+
+  @staticmethod
+  def register_iterable_like_type(t):
+    _ITERABLE_LIKE_TYPES.add(t)
 
   def get_estimated_size_and_observables(self, value, nested=False):
     if isinstance(value, observable.ObservableMixin):
@@ -289,18 +335,32 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     if value is None:
       stream.write_byte(NONE_TYPE)
     elif t is int:
-      stream.write_byte(INT_TYPE)
-      stream.write_var_int64(value)
+      # In Python 3, an int may be larger than 64 bits.
+      # We need to check whether value fits into a 64 bit integer before
+      # writing the marker byte.
+      try:
+        # In Cython-compiled code this will throw an overflow error
+        # when value does not fit into int64.
+        int_value = value
+        # If Cython is not used, we must do a (slower) check ourselves.
+        if not is_compiled:
+          if not fits_in_64_bits(value):
+            raise OverflowError()
+        stream.write_byte(INT_TYPE)
+        stream.write_var_int64(int_value)
+      except OverflowError:
+        stream.write_byte(UNKNOWN_TYPE)
+        self.fallback_coder_impl.encode_to_stream(value, stream, nested)
     elif t is float:
       stream.write_byte(FLOAT_TYPE)
       stream.write_bigendian_double(value)
     elif t is bytes:
       stream.write_byte(BYTES_TYPE)
       stream.write(value, nested)
-    elif t is unicode:
-      text_value = value  # for typing
+    elif t is past_unicode:
+      unicode_value = value  # for typing
       stream.write_byte(UNICODE_TYPE)
-      stream.write(text_value.encode('utf-8'), nested)
+      stream.write(unicode_value.encode('utf-8'), nested)
     elif t is list or t is tuple or t is set:
       stream.write_byte(
           LIST_TYPE if t is list else TUPLE_TYPE if t is tuple else SET_TYPE)
@@ -317,6 +377,9 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     elif t is bool:
       stream.write_byte(BOOL_TYPE)
       stream.write_byte(value)
+    elif t in _ITERABLE_LIKE_TYPES:
+      stream.write_byte(ITERABLE_LIKE_TYPE)
+      self.iterable_coder_impl.encode_to_stream(value, stream, nested)
     else:
       stream.write_byte(UNKNOWN_TYPE)
       self.fallback_coder_impl.encode_to_stream(value, stream, nested)
@@ -350,8 +413,12 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       return v
     elif t == BOOL_TYPE:
       return not not stream.read_byte()
-
-    return self.fallback_coder_impl.decode_from_stream(stream, nested)
+    elif t == ITERABLE_LIKE_TYPE:
+      return self.iterable_coder_impl.decode_from_stream(stream, nested)
+    elif t == UNKNOWN_TYPE:
+      return self.fallback_coder_impl.decode_from_stream(stream, nested)
+    else:
+      raise ValueError('Unknown type tag %x' % t)
 
 
 class BytesCoderImpl(CoderImpl):
@@ -387,52 +454,96 @@ class FloatCoderImpl(StreamCoderImpl):
     return 8
 
 
+IntervalWindow = None
+
+
 class IntervalWindowCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
 
   # TODO: Fn Harness only supports millis. Is this important enough to fix?
   def _to_normal_time(self, value):
     """Convert "lexicographically ordered unsigned" to signed."""
-    return value - (1 << 63)
+    return value - _TIME_SHIFT
 
   def _from_normal_time(self, value):
     """Convert signed to "lexicographically ordered unsigned"."""
-    return value + (1 << 63)
+    return value + _TIME_SHIFT
 
   def encode_to_stream(self, value, out, nested):
-    span_micros = value.end.micros - value.start.micros
+    typed_value = value
+    span_millis = (typed_value._end_micros // 1000
+                   - typed_value._start_micros // 1000)
     out.write_bigendian_uint64(
-        self._from_normal_time(value.end.micros // 1000))
-    out.write_var_int64(span_micros // 1000)
+        self._from_normal_time(typed_value._end_micros // 1000))
+    out.write_var_int64(span_millis)
 
   def decode_from_stream(self, in_, nested):
-    end_millis = self._to_normal_time(in_.read_bigendian_uint64())
-    start_millis = end_millis - in_.read_var_int64()
-    from apache_beam.transforms.window import IntervalWindow
-    ret = IntervalWindow(start=Timestamp(micros=start_millis * 1000),
-                         end=Timestamp(micros=end_millis * 1000))
-    return ret
+    global IntervalWindow
+    if IntervalWindow is None:
+      from apache_beam.transforms.window import IntervalWindow
+    typed_value = IntervalWindow(None, None)
+    typed_value._end_micros = (
+        1000 * self._to_normal_time(in_.read_bigendian_uint64()))
+    typed_value._start_micros = (
+        typed_value._end_micros - 1000 * in_.read_var_int64())
+    return typed_value
 
   def estimate_size(self, value, nested=False):
     # An IntervalWindow is context-insensitive, with a timestamp (8 bytes)
     # and a varint timespam.
-    span = value.end.micros - value.start.micros
-    return 8 + get_varint_size(span // 1000)
+    typed_value = value
+    span_millis = (typed_value._end_micros // 1000
+                   - typed_value._start_micros // 1000)
+    return 8 + get_varint_size(span_millis)
 
 
 class TimestampCoderImpl(StreamCoderImpl):
-  """For internal use only; no backwards-compatibility guarantees."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  TODO: SDK agnostic encoding
+  For interoperability with Java SDK, encoding needs to match
+  that of the Java SDK InstantCoder.
+  https://github.com/apache/beam/blob/f5029b4f0dfff404310b2ef55e2632bbacc7b04f/sdks/java/core/src/main/java/org/apache/beam/sdk/coders/InstantCoder.java#L79
+  """
 
   def encode_to_stream(self, value, out, nested):
-    out.write_bigendian_int64(value.micros)
+    millis = value.micros // 1000
+    if millis >= 0:
+      millis = millis - _TIME_SHIFT
+    else:
+      millis = millis + _TIME_SHIFT
+    out.write_bigendian_int64(millis)
 
   def decode_from_stream(self, in_stream, nested):
-    return Timestamp(micros=in_stream.read_bigendian_int64())
+    millis = in_stream.read_bigendian_int64()
+    if millis < 0:
+      millis = millis + _TIME_SHIFT
+    else:
+      millis = millis - _TIME_SHIFT
+    return Timestamp(micros=millis * 1000)
 
   def estimate_size(self, unused_value, nested=False):
     # A Timestamp is encoded as a 64-bit integer in 8 bytes, regardless of
     # nesting.
     return 8
+
+
+class TimerCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
+  def __init__(self, payload_coder_impl):
+    self._timestamp_coder_impl = TimestampCoderImpl()
+    self._payload_coder_impl = payload_coder_impl
+
+  def encode_to_stream(self, value, out, nested):
+    self._timestamp_coder_impl.encode_to_stream(value['timestamp'], out, True)
+    self._payload_coder_impl.encode_to_stream(value.get('payload'), out, True)
+
+  def decode_from_stream(self, in_stream, nested):
+    # TODO(robertwb): Consider using a concrete class rather than a dict here.
+    return dict(
+        timestamp=self._timestamp_coder_impl.decode_from_stream(
+            in_stream, True),
+        payload=self._payload_coder_impl.decode_from_stream(in_stream, True))
 
 
 small_ints = [chr(_).encode('latin-1') for _ in range(128)]
@@ -556,6 +667,30 @@ class TupleCoderImpl(AbstractComponentCoderImpl):
     return tuple(components)
 
 
+class _ConcatSequence(object):
+  def __init__(self, head, tail):
+    self._head = head
+    self._tail = tail
+
+  def __iter__(self):
+    for elem in self._head:
+      yield elem
+    for elem in self._tail:
+      yield elem
+
+  def __eq__(self, other):
+    return list(self) == list(other)
+
+  def __hash__(self):
+    raise NotImplementedError
+
+  def __reduce__(self):
+    return list, (list(self),)
+
+
+FastPrimitivesCoderImpl.register_iterable_like_type(_ConcatSequence)
+
+
 class SequenceCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -578,20 +713,33 @@ class SequenceCoderImpl(StreamCoderImpl):
     countX element(0) element(1) ... element(countX - 1)
     0
 
+  If writing to state is enabled, the final terminating 0 will instead be
+  repaced with::
+
+    varInt64(-1)
+    len(state_token)
+    state_token
+
+  where state_token is a bytes object used to retrieve the remainder of the
+  iterable via the state API.
   """
 
   # Default buffer size of 64kB of handling iterables of unknown length.
   _DEFAULT_BUFFER_SIZE = 64 * 1024
 
-  def __init__(self, elem_coder):
+  def __init__(self, elem_coder,
+               read_state=None, write_state=None, write_state_threshold=0):
     self._elem_coder = elem_coder
+    self._read_state = read_state
+    self._write_state = write_state
+    self._write_state_threshold = write_state_threshold
 
   def _construct_from_sequence(self, values):
     raise NotImplementedError
 
   def encode_to_stream(self, value, out, nested):
     # Compatible with Java's IterableLikeCoder.
-    if hasattr(value, '__len__'):
+    if hasattr(value, '__len__') and self._write_state is None:
       out.write_bigendian_int32(len(value))
       for elem in value:
         self._elem_coder.encode_to_stream(elem, out, True)
@@ -603,18 +751,36 @@ class SequenceCoderImpl(StreamCoderImpl):
       # -1 to indicate that the length is not known.
       out.write_bigendian_int32(-1)
       buffer = create_OutputStream()
+      if self._write_state is None:
+        target_buffer_size = self._DEFAULT_BUFFER_SIZE
+      else:
+        target_buffer_size = min(
+            self._DEFAULT_BUFFER_SIZE, self._write_state_threshold)
       prev_index = index = -1
-      for index, elem in enumerate(value):
+      # Don't want to miss out on fast list iteration optimization.
+      value_iter = value if isinstance(value, (list, tuple)) else iter(value)
+      start_size = out.size()
+      for elem in value_iter:
+        index += 1
         self._elem_coder.encode_to_stream(elem, buffer, True)
-        if out.size() > self._DEFAULT_BUFFER_SIZE:
+        if buffer.size() > target_buffer_size:
           out.write_var_int64(index - prev_index)
           out.write(buffer.get())
           prev_index = index
           buffer = create_OutputStream()
-      if index > prev_index:
-        out.write_var_int64(index - prev_index)
-        out.write(buffer.get())
-      out.write_var_int64(0)
+          if (self._write_state is not None
+              and out.size() - start_size > self._write_state_threshold):
+            tail = (value_iter[index + 1:] if isinstance(value, (list, tuple))
+                    else value_iter)
+            state_token = self._write_state(tail, self._elem_coder)
+            out.write_var_int64(-1)
+            out.write(state_token, True)
+            break
+      else:
+        if index > prev_index:
+          out.write_var_int64(index - prev_index)
+          out.write(buffer.get())
+        out.write_var_int64(0)
 
   def decode_from_stream(self, in_stream, nested):
     size = in_stream.read_bigendian_int32()
@@ -629,6 +795,15 @@ class SequenceCoderImpl(StreamCoderImpl):
         for _ in range(count):
           elements.append(self._elem_coder.decode_from_stream(in_stream, True))
         count = in_stream.read_var_int64()
+
+      if count == -1:
+        if self._read_state is None:
+          raise ValueError(
+              'Cannot read state-written iterable without state reader.')
+
+        state_token = in_stream.read_all(True)
+        elements = _ConcatSequence(
+            elements, self._read_state(state_token, self._elem_coder))
 
     return self._construct_from_sequence(elements)
 
@@ -659,6 +834,8 @@ class SequenceCoderImpl(StreamCoderImpl):
     # per block of data since we are not including the count prefix which
     # occurs at most once per 64k of data and is upto 10 bytes long. The upper
     # bound of the underestimate is 10 / 65536 ~= 0.0153% of the actual size.
+    # TODO: More efficient size estimation in the case of state-backed
+    # iterables.
     return estimated_size, observables
 
 
@@ -695,25 +872,31 @@ class PaneInfoEncoding(object):
   TWO_INDICES = 2
 
 
+# These are cdef'd to ints to optimized the common case.
+PaneInfoTiming_UNKNOWN = windowed_value.PaneInfoTiming.UNKNOWN
+PaneInfoEncoding_FIRST = PaneInfoEncoding.FIRST
+
+
 class PaneInfoCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   Coder for a PaneInfo descriptor."""
 
   def _choose_encoding(self, value):
-    if ((value.index == 0 and value.nonspeculative_index == 0) or
-        value.timing == windowed_value.PaneInfoTiming.UNKNOWN):
-      return PaneInfoEncoding.FIRST
-    elif (value.index == value.nonspeculative_index or
-          value.timing == windowed_value.PaneInfoTiming.EARLY):
+    if ((value._index == 0 and value._nonspeculative_index == 0) or
+        value._timing == PaneInfoTiming_UNKNOWN):
+      return PaneInfoEncoding_FIRST
+    elif (value._index == value._nonspeculative_index or
+          value._timing == windowed_value.PaneInfoTiming.EARLY):
       return PaneInfoEncoding.ONE_INDEX
     else:
       return PaneInfoEncoding.TWO_INDICES
 
   def encode_to_stream(self, value, out, nested):
-    encoding_type = self._choose_encoding(value)
-    out.write_byte(value.encoded_byte | (encoding_type << 4))
-    if encoding_type == PaneInfoEncoding.FIRST:
+    pane_info = value  # cast
+    encoding_type = self._choose_encoding(pane_info)
+    out.write_byte(pane_info._encoded_byte | (encoding_type << 4))
+    if encoding_type == PaneInfoEncoding_FIRST:
       return
     elif encoding_type == PaneInfoEncoding.ONE_INDEX:
       out.write_var_int64(value.index)
@@ -728,7 +911,7 @@ class PaneInfoCoderImpl(StreamCoderImpl):
     base = windowed_value._BYTE_TO_PANE_INFO[encoded_first_byte & 0xF]
     assert base is not None
     encoding_type = encoded_first_byte >> 4
-    if encoding_type == PaneInfoEncoding.FIRST:
+    if encoding_type == PaneInfoEncoding_FIRST:
       return base
     elif encoding_type == PaneInfoEncoding.ONE_INDEX:
       index = in_stream.read_var_int64()
@@ -767,11 +950,11 @@ class WindowedValueCoderImpl(StreamCoderImpl):
   # byte representation of timestamps.
   def _to_normal_time(self, value):
     """Convert "lexicographically ordered unsigned" to signed."""
-    return value - (1 << 63)
+    return value - _TIME_SHIFT
 
   def _from_normal_time(self, value):
     """Convert signed to "lexicographically ordered unsigned"."""
-    return value + (1 << 63)
+    return value + _TIME_SHIFT
 
   def __init__(self, value_coder, timestamp_coder, window_coder):
     # TODO(lcwik): Remove the timestamp coder field
@@ -791,7 +974,12 @@ class WindowedValueCoderImpl(StreamCoderImpl):
         # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
         # precision of timestamps.
         self._from_normal_time(
-            restore_sign * (abs(wv.timestamp_micros) // 1000)))
+            restore_sign * (
+                abs(
+                    MIN_TIMESTAMP_micros
+                    if wv.timestamp_micros < MIN_TIMESTAMP_micros
+                    else wv.timestamp_micros
+                ) // 1000)))
     self._windows_coder.encode_to_stream(wv.windows, out, True)
     # Default PaneInfo encoded byte representing NO_FIRING.
     self._pane_info_coder.encode_to_stream(wv.pane_info, out, True)
@@ -805,16 +993,12 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     # were indeed MIN/MAX timestamps.
     # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
     # precision of timestamps.
-    if timestamp == -(abs(MIN_TIMESTAMP.micros) // 1000):
-      timestamp = MIN_TIMESTAMP.micros
-    elif timestamp == (MAX_TIMESTAMP.micros // 1000):
-      timestamp = MAX_TIMESTAMP.micros
+    if timestamp <= -(abs(MIN_TIMESTAMP_micros) // 1000):
+      timestamp = MIN_TIMESTAMP_micros
+    elif timestamp >= MAX_TIMESTAMP_micros // 1000:
+      timestamp = MAX_TIMESTAMP_micros
     else:
       timestamp *= 1000
-      if timestamp > MAX_TIMESTAMP.micros:
-        timestamp = MAX_TIMESTAMP.micros
-      if timestamp < MIN_TIMESTAMP.micros:
-        timestamp = MIN_TIMESTAMP.micros
 
     windows = self._windows_coder.decode_from_stream(in_stream, True)
     # Read PaneInfo encoded byte.

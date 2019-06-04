@@ -58,6 +58,13 @@ public class FilterTest implements Serializable {
     }
   }
 
+  static class EvenProcessFn implements ProcessFunction<Integer, Boolean> {
+    @Override
+    public Boolean apply(Integer elem) throws Exception {
+      return elem % 2 == 0;
+    }
+  }
+
   @Rule public final TestPipeline p = TestPipeline.create();
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -88,6 +95,16 @@ public class FilterTest implements Serializable {
   public void testFilterByPredicate() {
     PCollection<Integer> output =
         p.apply(Create.of(1, 2, 3, 4, 5, 6, 7)).apply(Filter.by(new EvenFn()));
+
+    PAssert.that(output).containsInAnyOrder(2, 4, 6);
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFilterByProcessFunction() {
+    PCollection<Integer> output =
+        p.apply(Create.of(1, 2, 3, 4, 5, 6, 7)).apply(Filter.by(new EvenProcessFn()));
 
     PAssert.that(output).containsInAnyOrder(2, 4, 6);
     p.run();

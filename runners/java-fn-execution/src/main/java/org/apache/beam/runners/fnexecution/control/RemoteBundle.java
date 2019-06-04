@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.control;
 
+import java.util.Map;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 
@@ -29,15 +29,15 @@ import org.apache.beam.sdk.util.WindowedValue;
  * <p>When a RemoteBundle is closed, it will block until bundle processing is finished on remote
  * resources, and throw an exception if bundle processing has failed.
  */
-public interface RemoteBundle<InputT> extends AutoCloseable {
+public interface RemoteBundle extends AutoCloseable {
   /** Get an id used to represent this bundle. */
   String getId();
 
   /**
-   * Get a {@link FnDataReceiver receiver} which consumes input elements, forwarding them to the
-   * remote environment.
+   * Get a map of PCollection ids to {@link FnDataReceiver receiver}s which consume input elements,
+   * forwarding them to the remote environment.
    */
-  FnDataReceiver<WindowedValue<InputT>> getInputReceiver();
+  Map<String, FnDataReceiver<WindowedValue<?>>> getInputReceivers();
 
   /**
    * Closes this bundle. This causes the input {@link FnDataReceiver} to be closed (future calls to

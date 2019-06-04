@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
-import static com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables.getOnlyElement;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
@@ -28,7 +27,6 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableSet;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
@@ -64,6 +62,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -92,11 +91,18 @@ public class QueryablePipelineTest {
     Components components =
         Components.newBuilder()
             .putTransforms(
-                "root", PTransform.newBuilder().putOutputs("output", "output.out").build())
+                "root",
+                PTransform.newBuilder()
+                    .setSpec(
+                        FunctionSpec.newBuilder()
+                            .setUrn(PTransformTranslation.IMPULSE_TRANSFORM_URN)
+                            .build())
+                    .putOutputs("output", "output.out")
+                    .build())
             .build();
 
     thrown.expect(IllegalArgumentException.class);
-    QueryablePipeline.forPrimitivesIn(components);
+    QueryablePipeline.forPrimitivesIn(components).getComponents();
   }
 
   @Test
@@ -204,10 +210,7 @@ public class QueryablePipelineTest {
     PTransform parDoTransform = components.getTransformsOrThrow("par_do");
     String sideInputLocalName =
         getOnlyElement(
-            parDoTransform
-                .getInputsMap()
-                .entrySet()
-                .stream()
+            parDoTransform.getInputsMap().entrySet().stream()
                 .filter(entry -> !entry.getValue().equals(mainInputName))
                 .map(Map.Entry::getKey)
                 .collect(Collectors.toSet()));
@@ -236,7 +239,15 @@ public class QueryablePipelineTest {
         Components.newBuilder()
             .putPcollections("read_pc", RunnerApi.PCollection.getDefaultInstance())
             .putPcollections("pardo_out", RunnerApi.PCollection.getDefaultInstance())
-            .putTransforms("root", PTransform.newBuilder().putOutputs("out", "read_pc").build())
+            .putTransforms(
+                "root",
+                PTransform.newBuilder()
+                    .setSpec(
+                        FunctionSpec.newBuilder()
+                            .setUrn(PTransformTranslation.IMPULSE_TRANSFORM_URN)
+                            .build())
+                    .putOutputs("out", "read_pc")
+                    .build())
             .putTransforms(
                 "multiConsumer",
                 PTransform.newBuilder()

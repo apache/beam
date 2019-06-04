@@ -24,11 +24,9 @@ from __future__ import absolute_import
 
 import hashlib
 import imp
-import logging
 import os
 import shutil
 import tempfile
-import time
 from builtins import object
 
 from mock import Mock
@@ -77,11 +75,14 @@ class TempDir(object):
 
 
 def compute_hash(content, hashing_alg=DEFAULT_HASHING_ALG):
-  """Compute a hash value from a list of string."""
+  """Compute a hash value of a list of objects by hashing their string
+  representations."""
+  content = [str(x).encode('utf-8') if not isinstance(x, bytes) else x
+             for x in content]
   content.sort()
   m = hashlib.new(hashing_alg)
   for elem in content:
-    m.update(str(elem))
+    m.update(elem)
   return m.hexdigest()
 
 
@@ -136,46 +137,61 @@ def delete_files(file_paths):
   FileSystems.delete(file_paths)
 
 
-def wait_for_subscriptions_created(subs, timeout=60):
-  """Wait for all PubSub subscriptions are created."""
-  return _wait_until_all_exist(subs, timeout)
-
-
-def wait_for_topics_created(topics, timeout=60):
-  """Wait for all PubSub topics are created."""
-  return _wait_until_all_exist(topics, timeout)
-
-
-def _wait_until_all_exist(components, timeout):
-  unchecked_components = set(components)
-  start_time = time.time()
-  while time.time() - start_time <= timeout:
-    unchecked_components = set(
-        [c for c in unchecked_components if not c.exists()])
-    if len(unchecked_components) == 0:
-      return True
-    time.sleep(2)
-
-  raise RuntimeError(
-      'Timeout after %d seconds. %d of %d topics/subscriptions not exist. '
-      'They are %s.' % (timeout, len(unchecked_components),
-                        len(components), list(unchecked_components)))
-
-
-def cleanup_subscriptions(subs):
+def cleanup_subscriptions(sub_client, subs):
   """Cleanup PubSub subscriptions if exist."""
-  _cleanup_pubsub(subs)
+  for sub in subs:
+    sub_client.delete_subscription(sub.name)
 
 
-def cleanup_topics(topics):
+def cleanup_topics(pub_client, topics):
   """Cleanup PubSub topics if exist."""
-  _cleanup_pubsub(topics)
+  for topic in topics:
+    pub_client.delete_topic(topic.name)
 
 
-def _cleanup_pubsub(components):
-  for c in components:
-    if c.exists():
-      c.delete()
-    else:
-      logging.debug('Cannot delete topic/subscription. %s does not exist.',
-                    c.full_name)
+class PullResponseMessage(object):
+  """Data representing a pull request response.
+
+  Utility class for ``create_pull_response``.
+  """
+  def __init__(self, data, attributes=None,
+               publish_time_secs=None, publish_time_nanos=None, ack_id=None):
+    self.data = data
+    self.attributes = attributes
+    self.publish_time_secs = publish_time_secs
+    self.publish_time_nanos = publish_time_nanos
+    self.ack_id = ack_id
+
+
+def create_pull_response(responses):
+  """Create an instance of ``google.cloud.pubsub.types.ReceivedMessage``.
+
+  Used to simulate the response from pubsub.SubscriberClient().pull().
+
+  Args:
+    responses: list of ``PullResponseMessage``
+
+  Returns:
+    An instance of ``google.cloud.pubsub.types.PullResponse`` populated with
+    responses.
+  """
+  from google.cloud import pubsub
+
+  res = pubsub.types.PullResponse()
+  for response in responses:
+    received_message = res.received_messages.add()
+
+    message = received_message.message
+    message.data = response.data
+    if response.attributes is not None:
+      for k, v in response.attributes.items():
+        message.attributes[k] = v
+    if response.publish_time_secs is not None:
+      message.publish_time.seconds = response.publish_time_secs
+    if response.publish_time_nanos is not None:
+      message.publish_time.nanos = response.publish_time_nanos
+
+    if response.ack_id is not None:
+      received_message.ack_id = response.ack_id
+
+  return res

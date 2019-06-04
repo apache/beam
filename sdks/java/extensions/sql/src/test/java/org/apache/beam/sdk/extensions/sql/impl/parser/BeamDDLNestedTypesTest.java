@@ -71,7 +71,7 @@ public class BeamDDLNestedTypesTest {
 
   private Table executeCreateTableWith(String fieldType) throws SqlParseException {
     String createTable =
-        "create table tablename ( "
+        "CREATE EXTERNAL TABLE tablename ( "
             + "fieldName "
             + fieldType
             + " ) "
@@ -119,10 +119,7 @@ public class BeamDDLNestedTypesTest {
 
   private String unparseRow(FieldType fieldType) {
     return "ROW<"
-        + fieldType
-            .getRowSchema()
-            .getFields()
-            .stream()
+        + fieldType.getRowSchema().getFields().stream()
             .map(field -> field.getName() + " " + unparse(field.getType()))
             .collect(joining(","))
         + ">";

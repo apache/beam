@@ -22,36 +22,40 @@ from __future__ import absolute_import
 import logging
 import unittest
 
+import mock
 from hamcrest import assert_that as hc_assert_that
-from mock import Mock
-from mock import patch
 
+from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.tests import bigquery_matcher as bq_verifier
 from apache_beam.testing.test_utils import patch_retry
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
+  # TODO: fix usage
   from google.cloud import bigquery
   from google.cloud.exceptions import NotFound
 except ImportError:
   bigquery = None
+  NotFound = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
 @unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
+@mock.patch.object(bigquery, 'Client')
 class BigqueryMatcherTest(unittest.TestCase):
 
   def setUp(self):
-    self._mock_result = Mock()
+    self._mock_result = mock.Mock()
     patch_retry(self, bq_verifier)
 
-  @patch.object(bigquery, 'Client')
   def test_bigquery_matcher_success(self, mock_bigquery):
-    mock_query = Mock()
-    mock_client = mock_bigquery.return_value
-    mock_client.run_sync_query.return_value = mock_query
-    mock_query.fetch_data.return_value = ([], None, None)
+    mock_query_result = [mock.Mock(), mock.Mock(), mock.Mock()]
+    mock_query_result[0].values.return_value = []
+    mock_query_result[1].values.return_value = None
+    mock_query_result[2].values.return_value = None
+
+    mock_bigquery.return_value.query.return_value = mock_query_result
 
     matcher = bq_verifier.BigqueryMatcher(
         'mock_project',
@@ -59,51 +63,54 @@ class BigqueryMatcherTest(unittest.TestCase):
         '59f9d6bdee30d67ea73b8aded121c3a0280f9cd8')
     hc_assert_that(self._mock_result, matcher)
 
-  @patch.object(bigquery, 'Client')
-  def test_bigquery_matcher_query_run_error(self, mock_bigquery):
-    mock_query = Mock()
-    mock_client = mock_bigquery.return_value
-    mock_client.run_sync_query.return_value = mock_query
-    mock_query.run.side_effect = ValueError('job is already running')
-
-    matcher = bq_verifier.BigqueryMatcher('mock_project',
-                                          'mock_query',
-                                          'mock_checksum')
-    with self.assertRaises(ValueError):
-      hc_assert_that(self._mock_result, matcher)
-    self.assertTrue(mock_query.run.called)
-    self.assertEqual(bq_verifier.MAX_RETRIES + 1, mock_query.run.call_count)
-
-  @patch.object(bigquery, 'Client')
-  def test_bigquery_matcher_fetch_data_error(self, mock_bigquery):
-    mock_query = Mock()
-    mock_client = mock_bigquery.return_value
-    mock_client.run_sync_query.return_value = mock_query
-    mock_query.fetch_data.side_effect = ValueError('query job not executed')
-
-    matcher = bq_verifier.BigqueryMatcher('mock_project',
-                                          'mock_query',
-                                          'mock_checksum')
-    with self.assertRaises(ValueError):
-      hc_assert_that(self._mock_result, matcher)
-    self.assertTrue(mock_query.fetch_data.called)
-    self.assertEqual(bq_verifier.MAX_RETRIES + 1,
-                     mock_query.fetch_data.call_count)
-
-  @patch.object(bigquery, 'Client')
-  def test_bigquery_matcher_query_responds_error_code(self, mock_bigquery):
-    mock_query = Mock()
-    mock_client = mock_bigquery.return_value
-    mock_client.run_sync_query.return_value = mock_query
-    mock_query.run.side_effect = NotFound('table is not found')
+  def test_bigquery_matcher_query_error_retry(self, mock_bigquery):
+    mock_query = mock_bigquery.return_value.query
+    mock_query.side_effect = NotFound('table not found')
 
     matcher = bq_verifier.BigqueryMatcher('mock_project',
                                           'mock_query',
                                           'mock_checksum')
     with self.assertRaises(NotFound):
       hc_assert_that(self._mock_result, matcher)
-    self.assertTrue(mock_query.run.called)
-    self.assertEqual(bq_verifier.MAX_RETRIES + 1, mock_query.run.call_count)
+    self.assertEqual(bq_verifier.MAX_RETRIES + 1, mock_query.call_count)
+
+
+@unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
+@mock.patch.object(bigquery_tools, 'BigQueryWrapper')
+class BigqueryTableMatcherTest(unittest.TestCase):
+
+  def setUp(self):
+    self._mock_result = mock.Mock()
+    patch_retry(self, bq_verifier)
+
+  def test_bigquery_table_matcher_success(self, mock_bigquery):
+    mock_query_result = mock.Mock(partitioning='a lot of partitioning',
+                                  clustering={'column': 'FRIENDS'})
+
+    mock_bigquery.return_value.get_table.return_value = mock_query_result
+
+    matcher = bq_verifier.BigQueryTableMatcher(
+        'mock_project',
+        'mock_dataset',
+        'mock_table',
+        {'partitioning': 'a lot of partitioning',
+         'clustering': {'column': 'FRIENDS'}})
+    hc_assert_that(self._mock_result, matcher)
+
+  def test_bigquery_table_matcher_query_error_retry(self, mock_bigquery):
+    mock_query = mock_bigquery.return_value.get_table
+    mock_query.side_effect = ValueError('table not found')
+
+    matcher = bq_verifier.BigQueryTableMatcher(
+        'mock_project',
+        'mock_dataset',
+        'mock_table',
+        {'partitioning': 'a lot of partitioning',
+         'clustering': {'column': 'FRIENDS'}})
+
+    with self.assertRaises(ValueError):
+      hc_assert_that(self._mock_result, matcher)
+    self.assertEqual(bq_verifier.MAX_RETRIES + 1, mock_query.call_count)
 
 
 if __name__ == '__main__':

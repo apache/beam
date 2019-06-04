@@ -15,17 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.aws.s3;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
@@ -59,10 +58,11 @@ class MatchResultMatcher extends BaseMatcher<MatchResult> {
   }
 
   static MatchResultMatcher create(
-      long sizeBytes, ResourceId resourceId, boolean isReadSeekEfficient) {
+      long sizeBytes, long lastModifiedMillis, ResourceId resourceId, boolean isReadSeekEfficient) {
     return create(
         MatchResult.Metadata.builder()
             .setSizeBytes(sizeBytes)
+            .setLastModifiedMillis(lastModifiedMillis)
             .setResourceId(resourceId)
             .setIsReadSeekEfficient(isReadSeekEfficient)
             .build());

@@ -15,11 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.translation;
 
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -37,13 +34,15 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.joda.time.Instant;
 
 /**
  * A {@link org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn} with a {@link
  * CombineWithContext.Context} for the SparkRunner.
  */
-public class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstractCombineFn {
+class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstractCombineFn {
   private final CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn;
 
   public SparkGlobalCombineFn(
@@ -72,7 +71,7 @@ public class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstract
     TimestampCombiner timestampCombiner = windowingStrategy.getTimestampCombiner();
     WindowFn<?, BoundedWindow> windowFn = windowingStrategy.getWindowFn();
 
-    //--- inputs iterator, by window order.
+    // --- inputs iterator, by window order.
     final Iterator<WindowedValue<InputT>> iterator = sortedInputs.iterator();
     WindowedValue<InputT> currentInput = iterator.next();
     BoundedWindow currentWindow = Iterables.getFirst(currentInput.getWindows(), null);
@@ -168,10 +167,9 @@ public class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstract
     // sort accumulators, no need to explode since inputs were exploded.
     Iterable<WindowedValue<AccumT>> sortedAccumulators = sortByWindows(accumulators);
 
-    @SuppressWarnings("unchecked")
     TimestampCombiner timestampCombiner = windowingStrategy.getTimestampCombiner();
 
-    //--- accumulators iterator, by window order.
+    // --- accumulators iterator, by window order.
     final Iterator<WindowedValue<AccumT>> iterator = sortedAccumulators.iterator();
 
     // get the first accumulator and assign it to the current window's accumulators.

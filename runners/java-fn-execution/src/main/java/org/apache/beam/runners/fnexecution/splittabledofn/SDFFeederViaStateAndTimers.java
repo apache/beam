@@ -17,14 +17,13 @@
  */
 package org.apache.beam.runners.fnexecution.splittabledofn;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.List;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleSplit;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleSplit.DelayedApplication;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -44,8 +43,9 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
-import org.joda.time.Duration;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.util.Timestamps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
 /**
@@ -76,7 +76,8 @@ public class SDFFeederViaStateAndTimers<InputT, RestrictionT> {
   private WatermarkHoldState holdState;
 
   private Instant inputTimestamp;
-  private BundleSplit split;
+  private List<BundleApplication> primaryRoots;
+  private List<DelayedBundleApplication> residualRoots;
 
   /** Initializes the feeder. */
   public SDFFeederViaStateAndTimers(
@@ -119,7 +120,7 @@ public class SDFFeederViaStateAndTimers<InputT, RestrictionT> {
    * and sets a wake-up timer if a checkpoint happened.
    */
   public void commit() throws IOException {
-    if (split == null) {
+    if (primaryRoots == null) {
       // No split - the call terminated.
       seedState.clear();
       restrictionState.clear();
@@ -128,9 +129,8 @@ public class SDFFeederViaStateAndTimers<InputT, RestrictionT> {
     }
 
     // For now can only happen on the first instruction which is SPLITTABLE_PROCESS_ELEMENTS.
-    List<DelayedApplication> residuals = split.getResidualRootsList();
-    checkArgument(residuals.size() == 1, "More than 1 residual is unsupported for now");
-    DelayedApplication residual = residuals.get(0);
+    checkArgument(residualRoots.size() == 1, "More than 1 residual is unsupported for now");
+    DelayedBundleApplication residual = residualRoots.get(0);
 
     ByteString encodedResidual = residual.getApplication().getElement();
     WindowedValue<KV<InputT, RestrictionT>> decodedResidual =
@@ -151,8 +151,12 @@ public class SDFFeederViaStateAndTimers<InputT, RestrictionT> {
         inputTimestamp);
     holdState.add(watermarkHold);
 
-    Duration resumeDelay = Duration.millis((long) (1000L * residual.getDelaySec()));
-    Instant wakeupTime = timerInternals.currentProcessingTime().plus(resumeDelay);
+    Instant requestedWakeupTime =
+        new Instant(Timestamps.toMillis(residual.getRequestedExecutionTime()));
+    Instant wakeupTime =
+        timerInternals.currentProcessingTime().isBefore(requestedWakeupTime)
+            ? requestedWakeupTime
+            : timerInternals.currentProcessingTime();
 
     // Set a timer to continue processing this element.
     timerInternals.setTimer(
@@ -160,13 +164,18 @@ public class SDFFeederViaStateAndTimers<InputT, RestrictionT> {
   }
 
   /** Signals that a split happened. */
-  public void split(BundleSplit split) {
+  public void split(
+      List<BundleApplication> primaryRoots, List<DelayedBundleApplication> residualRoots) {
     checkState(
-        this.split == null,
-        "At most 1 split supported, however got new split %s in addition to existing %s",
-        split,
-        this.split);
-    this.split = split;
+        this.primaryRoots == null,
+        "At most 1 split supported, however got new split (%s, %s) "
+            + "in addition to existing (%s, %s)",
+        primaryRoots,
+        residualRoots,
+        this.primaryRoots,
+        this.residualRoots);
+    this.primaryRoots = primaryRoots;
+    this.residualRoots = residualRoots;
   }
 
   private void initState(StateNamespace ns) {

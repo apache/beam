@@ -15,87 +15,83 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.translation;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import java.io.File;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.core.serialization.Base64Serializer;
+import org.apache.beam.runners.samza.SamzaExecutionEnvironment;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
-import org.apache.beam.runners.samza.adapter.BoundedSourceSystem;
-import org.apache.beam.runners.samza.adapter.UnboundedSourceSystem;
-import org.apache.beam.runners.samza.util.Base64Serializer;
-import org.apache.beam.runners.samza.util.SamzaCoders;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.runners.TransformHierarchy;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.runners.samza.container.BeamContainerRunner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.samza.config.ApplicationConfig;
 import org.apache.samza.config.Config;
+import org.apache.samza.config.ConfigFactory;
 import org.apache.samza.config.JobConfig;
 import org.apache.samza.config.JobCoordinatorConfig;
 import org.apache.samza.config.MapConfig;
 import org.apache.samza.config.TaskConfig;
+import org.apache.samza.config.ZkConfig;
 import org.apache.samza.config.factories.PropertiesConfigFactory;
 import org.apache.samza.container.grouper.task.SingleContainerGrouperFactory;
+import org.apache.samza.job.yarn.YarnJobFactory;
 import org.apache.samza.runtime.LocalApplicationRunner;
+import org.apache.samza.runtime.RemoteApplicationRunner;
 import org.apache.samza.serializers.ByteSerdeFactory;
-import org.apache.samza.standalone.PassthroughCoordinationUtilsFactory;
 import org.apache.samza.standalone.PassthroughJobCoordinatorFactory;
+import org.apache.samza.zk.ZkJobCoordinatorFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Builder class to generate configs for BEAM samza runner during runtime. */
-public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
+public class ConfigBuilder {
+  private static final Logger LOG = LoggerFactory.getLogger(ConfigBuilder.class);
+
   private static final String APP_RUNNER_CLASS = "app.runner.class";
+  private static final String YARN_PACKAGE_PATH = "yarn.package.path";
+  private static final String JOB_FACTORY_CLASS = "job.factory.class";
 
-  private final ObjectMapper objectMapper = new ObjectMapper();
-  private final Map<PValue, String> idMap;
   private final Map<String, String> config = new HashMap<>();
-  private final Pipeline pipeline;
-  private boolean foundSource = false;
+  private final SamzaPipelineOptions options;
 
-  public static Config buildConfig(
-      Pipeline pipeline, SamzaPipelineOptions options, Map<PValue, String> idMap) {
+  public ConfigBuilder(SamzaPipelineOptions options) {
+    this.options = options;
+  }
+
+  public void put(String name, String property) {
+    config.put(name, property);
+  }
+
+  public void putAll(Map<String, String> properties) {
+    config.putAll(properties);
+  }
+
+  public Config build() {
     try {
-      final ConfigBuilder builder = new ConfigBuilder(idMap, pipeline);
-      pipeline.traverseTopologically(builder);
-      builder.checkFoundSource();
-      final Map<String, String> config = new HashMap<>(builder.getConfig());
-
-      createConfigForSystemStore(config);
+      // apply framework configs
+      config.putAll(createSystemConfig(options));
 
       // apply user configs
       config.putAll(createUserConfig(options));
 
+      config.put(ApplicationConfig.APP_NAME, options.getJobName());
+      config.put(ApplicationConfig.APP_ID, options.getJobInstance());
       config.put(JobConfig.JOB_NAME(), options.getJobName());
+      config.put(JobConfig.JOB_ID(), options.getJobInstance());
+
       config.put(
           "beamPipelineOptions",
           Base64Serializer.serializeUnchecked(new SerializablePipelineOptions(options)));
-      // TODO: remove after SAMZA-1531 is resolved
-      config.put(
-          ApplicationConfig.APP_RUN_ID,
-          String.valueOf(System.currentTimeMillis())
-              + "-"
-              // use the most significant bits in UUID (8 digits) to avoid collision
-              + UUID.randomUUID().toString().substring(0, 8));
+
+      validateConfigs(options, config);
 
       return new MapConfig(config);
     } catch (Exception e) {
@@ -103,30 +99,93 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
     }
   }
 
-  private static Map<String, String> createUserConfig(SamzaPipelineOptions options) {
-    final String configFilePath = options.getConfigFilePath();
+  private static Map<String, String> createUserConfig(SamzaPipelineOptions options)
+      throws Exception {
     final Map<String, String> config = new HashMap<>();
+
+    // apply user configs
+    final String configFilePath = options.getConfigFilePath();
 
     // If user provides a config file, use it as base configs.
     if (StringUtils.isNoneEmpty(configFilePath)) {
+      LOG.info("configFilePath: " + configFilePath);
+
       final File configFile = new File(configFilePath);
-      checkArgument(configFile.exists(), "Config file %s does not exist", configFilePath);
-      final PropertiesConfigFactory configFactory = new PropertiesConfigFactory();
       final URI configUri = configFile.toURI();
+      final ConfigFactory configFactory =
+          options.getConfigFactory().getDeclaredConstructor().newInstance();
+
+      LOG.info("configFactory: " + configFactory.getClass().getName());
+
+      // Config file must exist for default properties config
+      // TODO: add check to all non-empty files once we don't need to
+      // pass the command-line args through the containers
+      if (configFactory instanceof PropertiesConfigFactory) {
+        checkArgument(configFile.exists(), "Config file %s does not exist", configFilePath);
+      }
+
       config.putAll(configFactory.getConfig(configUri));
     }
-
     // Apply override on top
     if (options.getConfigOverride() != null) {
       config.putAll(options.getConfigOverride());
     }
 
-    // If the config is empty, use the default local running mode
-    if (config.isEmpty()) {
-      config.putAll(localRunConfig());
-    }
-
     return config;
+  }
+
+  private static void validateZKStandAloneRun(Map<String, String> config) {
+    checkArgument(
+        config.containsKey(APP_RUNNER_CLASS),
+        "Config %s not found for %s Deployment",
+        APP_RUNNER_CLASS,
+        SamzaExecutionEnvironment.STANDALONE);
+    checkArgument(
+        config.get(APP_RUNNER_CLASS).equals(LocalApplicationRunner.class.getName()),
+        "Config %s must be set to %s for %s Deployment",
+        APP_RUNNER_CLASS,
+        LocalApplicationRunner.class.getName(),
+        SamzaExecutionEnvironment.STANDALONE);
+    checkArgument(
+        config.containsKey(JobCoordinatorConfig.JOB_COORDINATOR_FACTORY),
+        "Config %s not found for %s Deployment",
+        JobCoordinatorConfig.JOB_COORDINATOR_FACTORY,
+        SamzaExecutionEnvironment.STANDALONE);
+    checkArgument(
+        config
+            .get(JobCoordinatorConfig.JOB_COORDINATOR_FACTORY)
+            .equals(ZkJobCoordinatorFactory.class.getName()),
+        "Config %s must be set to %s for %s Deployment",
+        JobCoordinatorConfig.JOB_COORDINATOR_FACTORY,
+        ZkJobCoordinatorFactory.class.getName(),
+        SamzaExecutionEnvironment.STANDALONE);
+    checkArgument(
+        config.containsKey(ZkConfig.ZK_CONNECT),
+        "Config %s not found for %s Deployment",
+        ZkConfig.ZK_CONNECT,
+        SamzaExecutionEnvironment.STANDALONE);
+  }
+
+  private static void validateYarnRun(Map<String, String> config) {
+    checkArgument(
+        config.containsKey(YARN_PACKAGE_PATH),
+        "Config %s not found for %s Deployment",
+        YARN_PACKAGE_PATH,
+        SamzaExecutionEnvironment.YARN);
+    final String appRunner = config.get(APP_RUNNER_CLASS);
+    checkArgument(
+        appRunner == null
+            || RemoteApplicationRunner.class.getName().equals(appRunner)
+            || BeamContainerRunner.class.getName().equals(appRunner),
+        "Config %s must be set to %s for %s Deployment",
+        APP_RUNNER_CLASS,
+        RemoteApplicationRunner.class.getName(),
+        SamzaExecutionEnvironment.YARN);
+    checkArgument(
+        config.containsKey(JOB_FACTORY_CLASS),
+        "Config %s not found for %s Deployment",
+        JOB_FACTORY_CLASS,
+        SamzaExecutionEnvironment.YARN);
   }
 
   @VisibleForTesting
@@ -137,106 +196,88 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
         .put(
             JobCoordinatorConfig.JOB_COORDINATOR_FACTORY,
             PassthroughJobCoordinatorFactory.class.getName())
-        .put(
-            JobCoordinatorConfig.JOB_COORDINATION_UTILS_FACTORY,
-            PassthroughCoordinationUtilsFactory.class.getName())
         .put(TaskConfig.GROUPER_FACTORY(), SingleContainerGrouperFactory.class.getName())
         .put(TaskConfig.COMMIT_MS(), "-1")
         .put("processor.id", "1")
+        .put(
+            // TODO: remove after SAMZA-1531 is resolved
+            ApplicationConfig.APP_RUN_ID,
+            String.valueOf(System.currentTimeMillis())
+                + "-"
+                // use the most significant bits in UUID (8 digits) to avoid collision
+                + UUID.randomUUID().toString().substring(0, 8))
         .build();
   }
 
-  private static void createConfigForSystemStore(Map<String, String> config) {
-    config.put(
-        "stores.beamStore.factory",
-        "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
-    config.put("stores.beamStore.key.serde", "byteSerde");
-    config.put("stores.beamStore.msg.serde", "byteSerde");
-    config.put("serializers.registry.byteSerde.class", ByteSerdeFactory.class.getName());
+  public static Map<String, String> yarnRunConfig() {
+    // Default Samza config using yarn deployment
+    return ImmutableMap.<String, String>builder()
+        .put(APP_RUNNER_CLASS, RemoteApplicationRunner.class.getName())
+        .put(JOB_FACTORY_CLASS, YarnJobFactory.class.getName())
+        .build();
   }
 
-  private ConfigBuilder(Map<PValue, String> idMap, Pipeline pipeline) {
-    this.idMap = idMap;
-    this.pipeline = pipeline;
+  public static Map<String, String> standAloneRunConfig() {
+    // Default Samza config using stand alone deployment
+    return ImmutableMap.<String, String>builder()
+        .put(APP_RUNNER_CLASS, LocalApplicationRunner.class.getName())
+        .put(JobCoordinatorConfig.JOB_COORDINATOR_FACTORY, ZkJobCoordinatorFactory.class.getName())
+        .build();
   }
 
-  @Override
-  public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-    if (node.getTransform() instanceof Read.Bounded) {
-      foundSource = true;
-      processReadBounded(node, (Read.Bounded<?>) node.getTransform());
-    } else if (node.getTransform() instanceof Read.Unbounded) {
-      foundSource = true;
-      processReadUnbounded(node, (Read.Unbounded<?>) node.getTransform());
-    } else if (node.getTransform() instanceof ParDo.MultiOutput) {
-      processParDo((ParDo.MultiOutput<?, ?>) node.getTransform());
+  private static Map<String, String> createSystemConfig(SamzaPipelineOptions options) {
+    ImmutableMap.Builder<String, String> configBuilder =
+        ImmutableMap.<String, String>builder()
+            .put(
+                "stores.beamStore.factory",
+                "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory")
+            .put("stores.beamStore.key.serde", "byteSerde")
+            .put("stores.beamStore.msg.serde", "byteSerde")
+            .put("serializers.registry.byteSerde.class", ByteSerdeFactory.class.getName());
+
+    if (options.getStateDurable()) {
+      LOG.info("stateDurable is enabled");
+      configBuilder.put("stores.beamStore.changelog", getChangelogTopic(options, "beamStore"));
+      configBuilder.put("job.host-affinity.enabled", "true");
+    }
+
+    LOG.info("Execution environment is " + options.getSamzaExecutionEnvironment());
+    switch (options.getSamzaExecutionEnvironment()) {
+      case YARN:
+        configBuilder.putAll(yarnRunConfig());
+        break;
+      case STANDALONE:
+        configBuilder.putAll(standAloneRunConfig());
+        break;
+      default: // LOCAL
+        configBuilder.putAll(localRunConfig());
+        break;
+    }
+
+    // TODO: remove after we sort out Samza task wrapper
+    configBuilder.put("samza.li.task.wrapper.enabled", "false");
+
+    return configBuilder.build();
+  }
+
+  private static void validateConfigs(SamzaPipelineOptions options, Map<String, String> config) {
+
+    // validate execution environment
+    switch (options.getSamzaExecutionEnvironment()) {
+      case YARN:
+        validateYarnRun(config);
+        break;
+      case STANDALONE:
+        validateZKStandAloneRun(config);
+        break;
+      default:
+        // do nothing
+        break;
     }
   }
 
-  private <T> void processReadBounded(TransformHierarchy.Node node, Read.Bounded<T> transform) {
-    final String id = getId(Iterables.getOnlyElement(node.getOutputs().values()));
-    final BoundedSource<T> source = transform.getSource();
-
-    @SuppressWarnings("unchecked")
-    final PCollection<T> output =
-        (PCollection<T>)
-            Iterables.getOnlyElement(node.toAppliedPTransform(pipeline).getOutputs().values());
-    final Coder<WindowedValue<T>> coder = SamzaCoders.of(output);
-
-    config.putAll(BoundedSourceSystem.createConfigFor(id, source, coder, node.getFullName()));
-  }
-
-  private <T> void processReadUnbounded(TransformHierarchy.Node node, Read.Unbounded<T> transform) {
-    final String id = getId(Iterables.getOnlyElement(node.getOutputs().values()));
-    final UnboundedSource<T, ?> source = transform.getSource();
-
-    @SuppressWarnings("unchecked")
-    final PCollection<T> output =
-        (PCollection<T>)
-            Iterables.getOnlyElement(node.toAppliedPTransform(pipeline).getOutputs().values());
-    final Coder<WindowedValue<T>> coder = SamzaCoders.of(output);
-
-    config.putAll(UnboundedSourceSystem.createConfigFor(id, source, coder, node.getFullName()));
-  }
-
-  private void processParDo(ParDo.MultiOutput<?, ?> parDo) {
-    final DoFnSignature signature = DoFnSignatures.getSignature(parDo.getFn().getClass());
-    if (signature.usesState()) {
-      // set up user state configs
-      for (DoFnSignature.StateDeclaration state : signature.stateDeclarations().values()) {
-        String storeId = state.id();
-        config.put(
-            "stores." + storeId + ".factory",
-            "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
-        config.put("stores." + storeId + ".key.serde", "byteSerde");
-        config.put("stores." + storeId + ".msg.serde", "byteSerde");
-      }
-    }
-  }
-
-  private String getId(PValue pvalue) {
-    final String id = idMap.get(pvalue);
-    if (id == null) {
-      throw new IllegalStateException(String.format("Could not find id for pvalue: %s", pvalue));
-    }
-    return id;
-  }
-
-  private void checkFoundSource() {
-    if (!foundSource) {
-      throw new IllegalStateException("Could not find any sources in pipeline!");
-    }
-  }
-
-  private Map<String, String> getConfig() {
-    return config;
-  }
-
-  private String writeValueAsJsonString(Object object) {
-    try {
-      return objectMapper.writeValueAsString(object);
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
+  static String getChangelogTopic(SamzaPipelineOptions options, String storeName) {
+    return String.format(
+        "%s-%s-%s-changelog", options.getJobName(), options.getJobInstance(), storeName);
   }
 }

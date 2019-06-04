@@ -27,22 +27,25 @@ import (
 	"strings"
 	"time"
 
+	"sync/atomic"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
 // IsWorkerCompatibleBinary returns the path to itself and true if running
 // a linux-amd64 binary that can directly be used as a worker binary.
 func IsWorkerCompatibleBinary() (string, bool) {
-	if runtime.GOOS == "linux" && runtime.GOARCH == "amd64" {
-		return os.Args[0], true
-	}
 	return "", false
 }
+
+var unique int32
 
 // BuildTempWorkerBinary creates a local worker binary in the tmp directory
 // for linux/amd64. Caller responsible for deleting the binary.
 func BuildTempWorkerBinary(ctx context.Context) (string, error) {
-	filename := filepath.Join(os.TempDir(), fmt.Sprintf("beam-go-%v", time.Now().UnixNano()))
+	id := atomic.AddInt32(&unique, 1)
+	filename := filepath.Join(os.TempDir(), fmt.Sprintf("worker-%v-%v", id, time.Now().UnixNano()))
 	if err := BuildWorkerBinary(ctx, filename); err != nil {
 		return "", err
 	}
@@ -66,7 +69,7 @@ func BuildWorkerBinary(ctx context.Context, filename string) error {
 		program = file
 	}
 	if !strings.HasSuffix(program, ".go") {
-		return fmt.Errorf("could not detect user main")
+		return errors.New("could not detect user main")
 	}
 
 	log.Infof(ctx, "Cross-compiling %v as %v", program, filename)
@@ -77,7 +80,7 @@ func BuildWorkerBinary(ctx context.Context, filename string) error {
 	cmd := exec.Command(build[0], build[1:]...)
 	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64")
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to cross-compile %v: %v\n%v", program, err, out)
+		return errors.Errorf("failed to cross-compile %v: %v\n%v", program, err, string(out))
 	}
 	return nil
 }

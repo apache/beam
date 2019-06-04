@@ -55,10 +55,11 @@ class PlayerCoder(coders.Coder):
   def encode(self, o):
     """Encode to bytes with a trace that coder was used."""
     # Our encoding prepends an 'x:' prefix.
-    return 'x:%s' % str(o.name)
+    return b'x:%s' % str(o.name).encode('utf-8')
 
   def decode(self, s):
     # To decode, we strip off the prepended 'x:' prefix.
+    s = s.decode('utf-8')
     assert s[0:2] == 'x:'
     return Player(s[2:])
 

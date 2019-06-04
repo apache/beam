@@ -22,14 +22,14 @@ import static org.apache.beam.sdk.io.Compression.DEFLATE;
 import static org.apache.beam.sdk.io.Compression.GZIP;
 import static org.apache.beam.sdk.io.Compression.UNCOMPRESSED;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.hamcrest.Matchers.isIn;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.Matchers.in;
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
-import com.google.common.base.Charsets;
-import com.google.common.collect.Lists;
-import com.google.common.io.BaseEncoding;
-import com.google.common.io.ByteStreams;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -48,6 +48,10 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -84,7 +88,8 @@ public class TFRecordIOTest {
   private static final String[] FOO_BAR_RECORDS = {"foo", "bar"};
 
   private static final Iterable<String> EMPTY = Collections.emptyList();
-  private static final Iterable<String> LARGE = makeLines(1000);
+  private static final Iterable<String> LARGE = makeLines(1000, 4);
+  private static final Iterable<String> LARGE_RECORDS = makeLines(100, 100000);
 
   @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -168,15 +173,14 @@ public class TFRecordIOTest {
   public void testReadInvalidRecord() throws Exception {
     expectedException.expect(IllegalStateException.class);
     expectedException.expectMessage("Not a valid TFRecord. Fewer than 12 bytes.");
-    System.out.println("abr".getBytes(Charsets.UTF_8).length);
     runTestRead("bar".getBytes(Charsets.UTF_8), new String[0]);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testReadInvalidLengthMask() throws Exception {
-    expectedException.expect(IllegalStateException.class);
-    expectedException.expectMessage("Mismatch of length mask");
+    expectedException.expectCause(instanceOf(IOException.class));
+    expectedException.expectCause(hasMessage(containsString("Mismatch of length mask")));
     byte[] data = BaseEncoding.base64().decode(FOO_RECORD_BASE64);
     data[9] += (byte) 1;
     runTestRead(data, FOO_RECORDS);
@@ -185,8 +189,8 @@ public class TFRecordIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testReadInvalidDataMask() throws Exception {
-    expectedException.expect(IllegalStateException.class);
-    expectedException.expectMessage("Mismatch of data mask");
+    expectedException.expectCause(instanceOf(IOException.class));
+    expectedException.expectCause(hasMessage(containsString("Mismatch of data mask")));
     byte[] data = BaseEncoding.base64().decode(FOO_RECORD_BASE64);
     data[16] += (byte) 1;
     runTestRead(data, FOO_RECORDS);
@@ -230,7 +234,7 @@ public class TFRecordIOTest {
     FileInputStream fis = new FileInputStream(tmpFile);
     String written = BaseEncoding.base64().encode(ByteStreams.toByteArray(fis));
     // bytes written may vary depending the order of elems
-    assertThat(written, isIn(base64));
+    assertThat(written, is(in(base64)));
   }
 
   @Test
@@ -285,6 +289,18 @@ public class TFRecordIOTest {
   @Category(NeedsRunner.class)
   public void runTestRoundTripZlibFilesWithAuto() throws IOException {
     runTestRoundTrip(LARGE, 10, ".tfrecords", DEFLATE, AUTO);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void runTestRoundTripLargeRecords() throws IOException {
+    runTestRoundTrip(LARGE_RECORDS, 10, ".tfrecords", UNCOMPRESSED, UNCOMPRESSED);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void runTestRoundTripLargeRecordsGzip() throws IOException {
+    runTestRoundTrip(LARGE_RECORDS, 10, ".tfrecords", GZIP, GZIP);
   }
 
   private void runTestRoundTrip(
@@ -344,10 +360,15 @@ public class TFRecordIOTest {
     readPipeline.run();
   }
 
-  private static Iterable<String> makeLines(int n) {
+  private static Iterable<String> makeLines(int n, int minRecordSize) {
     List<String> ret = Lists.newArrayList();
+    StringBuilder recordBuilder = new StringBuilder();
+    for (int i = 0; i < minRecordSize; i++) {
+      recordBuilder.append("x");
+    }
+    String record = recordBuilder.toString();
     for (int i = 0; i < n; ++i) {
-      ret.add("word" + i);
+      ret.add(record + " " + i);
     }
     return ret;
   }

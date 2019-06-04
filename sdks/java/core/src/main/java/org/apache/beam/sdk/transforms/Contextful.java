@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import com.google.common.base.MoreObjects;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
 /** Pair of a bit of user code (a "closure") and the {@link Requirements} needed to run it. */
 @Experimental(Kind.CONTEXTFUL)
@@ -104,12 +104,18 @@ public final class Contextful<ClosureT> implements Serializable {
   }
 
   /**
-   * Wraps a {@link SerializableFunction} as a {@link Contextful} of {@link Fn} with empty {@link
+   * Wraps a {@link ProcessFunction} as a {@link Contextful} of {@link Fn} with empty {@link
    * Requirements}.
    */
   public static <InputT, OutputT> Contextful<Fn<InputT, OutputT>> fn(
-      final SerializableFunction<InputT, OutputT> fn) {
+      final ProcessFunction<InputT, OutputT> fn) {
     return new Contextful<>((element, c) -> fn.apply(element), Requirements.empty());
+  }
+
+  /** Binary compatibility adapter for {@link #fn(ProcessFunction)}. */
+  public static <InputT, OutputT> Contextful<Fn<InputT, OutputT>> fn(
+      final SerializableFunction<InputT, OutputT> fn) {
+    return fn((ProcessFunction<InputT, OutputT>) fn);
   }
 
   /** Same with {@link #of} but with better type inference behavior for the case of {@link Fn}. */

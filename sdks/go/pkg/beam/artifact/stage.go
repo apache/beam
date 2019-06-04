@@ -17,9 +17,8 @@ package artifact
 
 import (
 	"context"
-	"crypto/md5"
-	"encoding/base64"
-	"fmt"
+	"crypto/sha256"
+	"encoding/hex"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -30,6 +29,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/errorx"
 )
@@ -103,7 +103,7 @@ func MultiStage(ctx context.Context, client pb.ArtifactStagingServiceClient, cpu
 					}
 					failures = append(failures, err.Error())
 					if len(failures) > attempts {
-						permErr.TrySetError(fmt.Errorf("failed to stage %v in %v attempts: %v", f.Filename, attempts, strings.Join(failures, "; ")))
+						permErr.TrySetError(errors.Errorf("failed to stage %v in %v attempts: %v", f.Filename, attempts, strings.Join(failures, "; ")))
 						break // give up
 					}
 					time.Sleep(time.Duration(rand.Intn(5)+1) * time.Second)
@@ -118,20 +118,20 @@ func MultiStage(ctx context.Context, client pb.ArtifactStagingServiceClient, cpu
 }
 
 // Stage stages a local file as an artifact with the given key. It computes
-// the MD5 and returns the full artifact metadata.
+// the SHA256 and returns the full artifact metadata.
 func Stage(ctx context.Context, client pb.ArtifactStagingServiceClient, key, filename, st string) (*pb.ArtifactMetadata, error) {
 	stat, err := os.Stat(filename)
 	if err != nil {
 		return nil, err
 	}
-	hash, err := computeMD5(filename)
+	hash, err := computeSHA256(filename)
 	if err != nil {
 		return nil, err
 	}
 	md := &pb.ArtifactMetadata{
 		Name:        key,
 		Permissions: uint32(stat.Mode()),
-		Md5:         hash,
+		Sha256:      hash,
 	}
 	pmd := &pb.PutArtifactMetadata{
 		Metadata:            md,
@@ -156,29 +156,29 @@ func Stage(ctx context.Context, client pb.ArtifactStagingServiceClient, key, fil
 	}
 	if err := stream.Send(header); err != nil {
 		stream.CloseAndRecv() // ignore error
-		return nil, fmt.Errorf("failed to send header for %v: %v", filename, err)
+		return nil, errors.Wrapf(err, "failed to send header for %v", filename)
 	}
 	stagedHash, err := stageChunks(stream, fd)
 	if err != nil {
 		stream.CloseAndRecv() // ignore error
-		return nil, fmt.Errorf("failed to send chunks for %v: %v", filename, err)
+		return nil, errors.Wrapf(err, "failed to send chunks for %v", filename)
 	}
 	if _, err := stream.CloseAndRecv(); err != nil && err != io.EOF {
-		return nil, fmt.Errorf("failed to close stream for %v: %v", filename, err)
+		return nil, errors.Wrapf(err, "failed to close stream for %v", filename)
 	}
 	if hash != stagedHash {
-		return nil, fmt.Errorf("unexpected MD5 for sent chunks for %v: %v, want %v", filename, stagedHash, hash)
+		return nil, errors.Errorf("unexpected SHA256 for sent chunks for %v: %v, want %v", filename, stagedHash, hash)
 	}
 	return md, nil
 }
 
 func stageChunks(stream pb.ArtifactStagingService_PutArtifactClient, r io.Reader) (string, error) {
-	md5W := md5.New()
+	sha256W := sha256.New()
 	data := make([]byte, 1<<20)
 	for {
 		n, err := r.Read(data)
 		if n > 0 {
-			if _, err := md5W.Write(data[:n]); err != nil {
+			if _, err := sha256W.Write(data[:n]); err != nil {
 				panic(err) // cannot fail
 			}
 
@@ -190,7 +190,7 @@ func stageChunks(stream pb.ArtifactStagingService_PutArtifactClient, r io.Reader
 				},
 			}
 			if err := stream.Send(chunk); err != nil {
-				return "", fmt.Errorf("chunk send failed: %v", err)
+				return "", errors.Wrap(err, "chunk send failed")
 			}
 		}
 		if err == io.EOF {
@@ -200,7 +200,7 @@ func stageChunks(stream pb.ArtifactStagingService_PutArtifactClient, r io.Reader
 			return "", err
 		}
 	}
-	return base64.StdEncoding.EncodeToString(md5W.Sum(nil)), nil
+	return hex.EncodeToString(sha256W.Sum(nil)), nil
 }
 
 // KeyedFile is a key and filename pair.
@@ -211,7 +211,7 @@ type KeyedFile struct {
 func scan(dir string) ([]KeyedFile, error) {
 	var ret []KeyedFile
 	if err := walk(dir, "", &ret); err != nil {
-		return nil, fmt.Errorf("failed to scan %v for artifacts to stage: %v", dir, err)
+		return nil, errors.Wrapf(err, "failed to scan %v for artifacts to stage", dir)
 	}
 	return ret, nil
 }

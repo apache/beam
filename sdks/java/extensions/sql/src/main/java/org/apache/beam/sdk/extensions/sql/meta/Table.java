@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.meta;
 
 import com.alibaba.fastjson.JSONObject;
@@ -40,13 +39,12 @@ public abstract class Table implements Serializable {
   @Nullable
   public abstract String getLocation();
 
-  @Nullable
   public abstract JSONObject getProperties();
 
   public abstract Builder toBuilder();
 
   public static Builder builder() {
-    return new org.apache.beam.sdk.extensions.sql.meta.AutoValue_Table.Builder();
+    return new AutoValue_Table.Builder().properties(new JSONObject());
   }
 
   /** Builder class for {@link Table}. */

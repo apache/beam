@@ -15,21 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.values;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.schemas.Factory;
+import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.beam.sdk.values.reflect.FieldValueGetter;
-import org.apache.beam.sdk.values.reflect.FieldValueGetterFactory;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 
 /**
  * A Concrete subclass of {@link Row} that delegates to a set of provided {@link FieldValueGetter}s.
@@ -39,18 +39,19 @@ import org.apache.beam.sdk.values.reflect.FieldValueGetterFactory;
  * the appropriate fields from the POJO.
  */
 public class RowWithGetters extends Row {
-  private final FieldValueGetterFactory fieldValueGetterFactory;
+  private final Factory<List<FieldValueGetter>> fieldValueGetterFactory;
   private final Object getterTarget;
   private final List<FieldValueGetter> getters;
 
   private final Map<Integer, List> cachedLists = Maps.newHashMap();
   private final Map<Integer, Map> cachedMaps = Maps.newHashMap();
 
-  RowWithGetters(Schema schema, FieldValueGetterFactory getterFactory, Object getterTarget) {
+  RowWithGetters(
+      Schema schema, Factory<List<FieldValueGetter>> getterFactory, Object getterTarget) {
     super(schema);
     this.fieldValueGetterFactory = getterFactory;
     this.getterTarget = getterTarget;
-    this.getters = fieldValueGetterFactory.createGetters(getterTarget.getClass(), schema);
+    this.getters = fieldValueGetterFactory.create(getterTarget.getClass(), schema);
   }
 
   @Nullable
@@ -60,7 +61,7 @@ public class RowWithGetters extends Row {
     Field field = getSchema().getField(fieldIdx);
     FieldType type = field.getType();
     Object fieldValue = getters.get(fieldIdx).get(getterTarget);
-    if (fieldValue == null && !field.getNullable()) {
+    if (fieldValue == null && !field.getType().getNullable()) {
       throw new RuntimeException("Null value set on non-nullable field" + field);
     }
     return fieldValue != null ? getValue(type, fieldValue, fieldIdx) : null;
@@ -122,5 +123,28 @@ public class RowWithGetters extends Row {
 
   public Object getGetterTarget() {
     return getterTarget;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null) {
+      return false;
+    }
+    if (o instanceof RowWithGetters) {
+      RowWithGetters other = (RowWithGetters) o;
+      return Objects.equals(getSchema(), other.getSchema())
+          && Objects.equals(getterTarget, other.getterTarget);
+    } else if (o instanceof Row) {
+      return super.equals(o);
+    }
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(getSchema(), getterTarget);
   }
 }

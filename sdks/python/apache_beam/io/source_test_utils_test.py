@@ -18,6 +18,7 @@
 from __future__ import absolute_import
 
 import logging
+import sys
 import tempfile
 import unittest
 from builtins import range
@@ -28,16 +29,22 @@ from apache_beam.io.filebasedsource_test import LineSource
 
 class SourceTestUtilsTest(unittest.TestCase):
 
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
+
   def _create_file_with_data(self, lines):
     assert isinstance(lines, list)
     with tempfile.NamedTemporaryFile(delete=False) as f:
       for line in lines:
-        f.write(line + '\n')
+        f.write(line + b'\n')
 
       return f.name
 
   def _create_data(self, num_lines):
-    return ['line ' + str(i) for i in range(num_lines)]
+    return [b'line ' + str(i).encode('latin1') for i in range(num_lines)]
 
   def _create_source(self, data):
     source = LineSource(self._create_file_with_data(data))
@@ -50,7 +57,7 @@ class SourceTestUtilsTest(unittest.TestCase):
   def test_read_from_source(self):
     data = self._create_data(100)
     source = self._create_source(data)
-    self.assertItemsEqual(
+    self.assertCountEqual(
         data, source_test_utils.read_from_source(source, None, None))
 
   def test_source_equals_reference_source(self):
@@ -75,8 +82,8 @@ class SourceTestUtilsTest(unittest.TestCase):
     result2 = source_test_utils.assert_split_at_fraction_behavior(
         source, 20, 0.5,
         source_test_utils.ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT)
-    self.assertEquals(result1, result2)
-    self.assertEquals(100, result1[0] + result1[1])
+    self.assertEqual(result1, result2)
+    self.assertEqual(100, result1[0] + result1[1])
 
     result3 = source_test_utils.assert_split_at_fraction_behavior(
         source, 30, 0.8,
@@ -84,8 +91,8 @@ class SourceTestUtilsTest(unittest.TestCase):
     result4 = source_test_utils.assert_split_at_fraction_behavior(
         source, 50, 0.8,
         source_test_utils.ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT)
-    self.assertEquals(result3, result4)
-    self.assertEquals(100, result3[0] + result4[1])
+    self.assertEqual(result3, result4)
+    self.assertEqual(100, result3[0] + result4[1])
 
     self.assertTrue(result1[0] < result3[0])
     self.assertTrue(result1[1] > result3[1])
@@ -96,8 +103,8 @@ class SourceTestUtilsTest(unittest.TestCase):
 
     result = source_test_utils.assert_split_at_fraction_behavior(
         source, 90, 0.1, source_test_utils.ExpectedSplitOutcome.MUST_FAIL)
-    self.assertEquals(result[0], 100)
-    self.assertEquals(result[1], -1)
+    self.assertEqual(result[0], 100)
+    self.assertEqual(result[1], -1)
 
     with self.assertRaises(ValueError):
       source_test_utils.assert_split_at_fraction_behavior(

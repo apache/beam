@@ -15,29 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.aggregators;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 import java.io.IOException;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint.CheckpointDir;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
 import org.apache.spark.streaming.api.java.JavaStreamingListenerBatchCompleted;
+import org.apache.spark.util.AccumulatorV2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * For resilience, {@link Accumulator Accumulators} are required to be wrapped in a Singleton.
+ * For resilience, {@link AccumulatorV2 Accumulators} are required to be wrapped in a Singleton.
  *
  * @see <a
- *     href="https://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#accumulators-and-broadcast-variables">accumulators</a>
+ *     href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/util/AccumulatorV2.html">accumulatorsV2</a>
  */
 public class AggregatorsAccumulator {
   private static final Logger LOG = LoggerFactory.getLogger(AggregatorsAccumulator.class);
@@ -45,7 +44,7 @@ public class AggregatorsAccumulator {
   private static final String ACCUMULATOR_NAME = "Beam.Aggregators";
   private static final String ACCUMULATOR_CHECKPOINT_FILENAME = "aggregators";
 
-  private static volatile Accumulator<NamedAggregators> instance = null;
+  private static volatile NamedAggregatorsAccumulator instance = null;
   private static volatile FileSystem fileSystem;
   private static volatile Path checkpointFilePath;
 
@@ -58,13 +57,16 @@ public class AggregatorsAccumulator {
               opts.isStreaming()
                   ? Optional.of(new CheckpointDir(opts.getCheckpointDir()))
                   : Optional.absent();
-          Accumulator<NamedAggregators> accumulator =
-              jsc.sc().accumulator(new NamedAggregators(), ACCUMULATOR_NAME, new AggAccumParam());
+          NamedAggregators namedAggregators = new NamedAggregators();
+          NamedAggregatorsAccumulator accumulator =
+              new NamedAggregatorsAccumulator(namedAggregators);
+          jsc.sc().register(accumulator, ACCUMULATOR_NAME);
+
           if (maybeCheckpointDir.isPresent()) {
             Optional<NamedAggregators> maybeRecoveredValue =
                 recoverValueFromCheckpoint(jsc, maybeCheckpointDir.get());
             if (maybeRecoveredValue.isPresent()) {
-              accumulator.setValue(maybeRecoveredValue.get());
+              accumulator = new NamedAggregatorsAccumulator(maybeRecoveredValue.get());
             }
           }
           instance = accumulator;
@@ -74,7 +76,7 @@ public class AggregatorsAccumulator {
     }
   }
 
-  public static Accumulator<NamedAggregators> getInstance() {
+  public static NamedAggregatorsAccumulator getInstance() {
     if (instance == null) {
       throw new IllegalStateException("Aggregrators accumulator has not been instantiated");
     } else {

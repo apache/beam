@@ -28,12 +28,12 @@ from __future__ import absolute_import
 
 import collections
 import itertools
+import typing
 from builtins import hex
 from builtins import object
 
 from past.builtins import unicode
 
-from apache_beam import coders
 from apache_beam import typehints
 from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
@@ -111,7 +111,7 @@ class PValue(object):
     return self.pipeline.apply(ptransform, self)
 
 
-class PCollection(PValue):
+class PCollection(PValue, typing.Generic[typing.TypeVar('T')]):
   """A multiple values (potentially huge) container.
 
   Dataflow users should not construct PCollection objects directly in their
@@ -121,6 +121,10 @@ class PCollection(PValue):
   def __eq__(self, other):
     if isinstance(other, PCollection):
       return self.tag == other.tag and self.producer == other.producer
+
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __hash__(self):
     return hash((self.tag, self.producer))
@@ -140,12 +144,18 @@ class PCollection(PValue):
 
   def to_runner_api(self, context):
     return beam_runner_api_pb2.PCollection(
-        unique_name='%d%s.%s' % (
-            len(self.producer.full_label), self.producer.full_label, self.tag),
-        coder_id=pickler.dumps(self.element_type),
+        unique_name=self._unique_name(),
+        coder_id=context.coder_id_from_element_type(self.element_type),
         is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED,
         windowing_strategy_id=context.windowing_strategies.get_id(
             self.windowing))
+
+  def _unique_name(self):
+    if self.producer:
+      return '%d%s.%s' % (
+          len(self.producer.full_label), self.producer.full_label, self.tag)
+    else:
+      return 'PCollection%s' % id(self)
 
   @staticmethod
   def from_runner_api(proto, context):
@@ -153,7 +163,7 @@ class PCollection(PValue):
     # same object is returned for the same pcollection id.
     return PCollection(
         None,
-        element_type=pickler.loads(proto.coder_id),
+        element_type=context.element_type_from_coder_id(proto.coder_id),
         windowing=context.windowing_strategies.get_by_id(
             proto.windowing_strategy_id))
 
@@ -311,11 +321,6 @@ class AsSideInput(object):
         self._window_mapping_fn,
         lambda iterable: from_runtime_iterable(iterable, view_options))
 
-  def _input_element_coder(self):
-    return coders.WindowedValueCoder(
-        coders.registry.get_coder(self.pvalue.element_type),
-        window_coder=self.pvalue.windowing.windowfn.get_window_coder())
-
   def to_runner_api(self, context):
     return self._side_input_data().to_runner_api(context)
 
@@ -323,6 +328,9 @@ class AsSideInput(object):
   def from_runner_api(proto, context):
     return _UnpickledSideInput(
         SideInputData.from_runner_api(proto, context))
+
+  def requires_keyed_input(self):
+    return False
 
 
 class _UnpickledSideInput(AsSideInput):
@@ -389,9 +397,9 @@ class AsSingleton(AsSideInput):
 
   Wrapping a PCollection side input argument to a PTransform in this container
   (e.g., data.apply('label', MyPTransform(), AsSingleton(my_side_input) )
-  selects the latter behavor.
+  selects the latter behavior.
 
-  The input PCollection must contain exactly one  value per window, unless a
+  The input PCollection must contain exactly one value per window, unless a
   default is given, in which case it may be empty.
   """
   _NO_DEFAULT = object()
@@ -535,6 +543,9 @@ class AsMultiMap(AsSideInput):
         common_urns.side_inputs.MULTIMAP.urn,
         self._window_mapping_fn,
         lambda x: x)
+
+  def requires_keyed_input(self):
+    return True
 
 
 class EmptySideInput(object):

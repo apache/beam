@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.examples.cookbook;
 
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryMatcher;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -61,19 +61,37 @@ public class BigQueryTornadoesIT {
     PipelineOptionsFactory.register(BigQueryTornadoesITOptions.class);
   }
 
-  @Test
-  public void testE2EBigQueryTornadoes() throws Exception {
-    BigQueryTornadoesITOptions options =
-        TestPipeline.testingPipelineOptions().as(BigQueryTornadoesITOptions.class);
-    options.setOutput(
-        String.format(
-            "%s.%s", "BigQueryTornadoesIT", "monthly_tornadoes_" + System.currentTimeMillis()));
-
+  private void runE2EBigQueryTornadoesTest(BigQueryTornadoesITOptions options) throws Exception {
     String query = String.format("SELECT month, tornado_count FROM [%s]", options.getOutput());
     options.setOnSuccessMatcher(
         new BigqueryMatcher(
             options.getAppName(), options.getProject(), query, DEFAULT_OUTPUT_CHECKSUM));
 
     BigQueryTornadoes.runBigQueryTornadoes(options);
+  }
+
+  @Test
+  public void testE2EBigQueryTornadoesWithExport() throws Exception {
+    BigQueryTornadoesITOptions options =
+        TestPipeline.testingPipelineOptions().as(BigQueryTornadoesITOptions.class);
+    options.setReadMethod(Method.EXPORT);
+    options.setOutput(
+        String.format(
+            "%s.%s", "BigQueryTornadoesIT", "monthly_tornadoes_" + System.currentTimeMillis()));
+
+    runE2EBigQueryTornadoesTest(options);
+  }
+
+  @Test
+  public void testE2eBigQueryTornadoesWithStorageApi() throws Exception {
+    BigQueryTornadoesITOptions options =
+        TestPipeline.testingPipelineOptions().as(BigQueryTornadoesITOptions.class);
+    options.setReadMethod(Method.DIRECT_READ);
+    options.setOutput(
+        String.format(
+            "%s.%s",
+            "BigQueryTornadoesIT", "monthly_tornadoes_storage_" + System.currentTimeMillis()));
+
+    runE2EBigQueryTornadoesTest(options);
   }
 }

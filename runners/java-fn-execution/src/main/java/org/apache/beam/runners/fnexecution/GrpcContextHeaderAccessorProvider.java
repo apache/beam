@@ -15,17 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution;
 
-import org.apache.beam.vendor.grpc.v1.io.grpc.Context;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Contexts;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Metadata;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Metadata.Key;
-import org.apache.beam.vendor.grpc.v1.io.grpc.ServerCall;
-import org.apache.beam.vendor.grpc.v1.io.grpc.ServerCall.Listener;
-import org.apache.beam.vendor.grpc.v1.io.grpc.ServerCallHandler;
-import org.apache.beam.vendor.grpc.v1.io.grpc.ServerInterceptor;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Context;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Contexts;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Metadata;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Metadata.Key;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerCall;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerCall.Listener;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerCallHandler;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerInterceptor;
 
 /**
  * A HeaderAccessorProvider which intercept the header in a GRPC request and expose the relevant

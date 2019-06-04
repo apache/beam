@@ -23,6 +23,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 type group struct {
@@ -52,23 +53,23 @@ func (n *CoGBK) Up(ctx context.Context) error {
 	return nil
 }
 
-func (n *CoGBK) StartBundle(ctx context.Context, id string, data exec.DataManager) error {
+func (n *CoGBK) StartBundle(ctx context.Context, id string, data exec.DataContext) error {
 	return n.Out.StartBundle(ctx, id, data)
 }
 
-func (n *CoGBK) ProcessElement(ctx context.Context, elm exec.FullValue, _ ...exec.ReStream) error {
+func (n *CoGBK) ProcessElement(ctx context.Context, elm *exec.FullValue, _ ...exec.ReStream) error {
 	index := elm.Elm.(int)
-	value := elm.Elm2.(exec.FullValue)
+	value := elm.Elm2.(*exec.FullValue)
 
 	for _, w := range elm.Windows {
 		ws := []typex.Window{w}
 
 		var buf bytes.Buffer
-		if err := n.enc.Encode(exec.FullValue{Elm: value.Elm}, &buf); err != nil {
-			return fmt.Errorf("failed to encode key %v for CoGBK: %v", elm, err)
+		if err := n.enc.Encode(&exec.FullValue{Elm: value.Elm}, &buf); err != nil {
+			return errors.WithContextf(err, "encoding key %v for CoGBK", elm)
 		}
 		if err := n.wEnc.Encode(ws, &buf); err != nil {
-			return fmt.Errorf("failed to encode window %v for CoGBK: %v", w, err)
+			return errors.WithContextf(err, "encoding window %v for CoGBK", w)
 		}
 		key := buf.String()
 
@@ -91,7 +92,7 @@ func (n *CoGBK) FinishBundle(ctx context.Context) error {
 		for i, list := range g.values {
 			values[i] = &exec.FixedReStream{Buf: list}
 		}
-		if err := n.Out.ProcessElement(ctx, g.key, values...); err != nil {
+		if err := n.Out.ProcessElement(ctx, &g.key, values...); err != nil {
 			return err
 		}
 		delete(n.m, key)
@@ -123,12 +124,12 @@ func (n *Inject) Up(ctx context.Context) error {
 	return nil
 }
 
-func (n *Inject) StartBundle(ctx context.Context, id string, data exec.DataManager) error {
+func (n *Inject) StartBundle(ctx context.Context, id string, data exec.DataContext) error {
 	return n.Out.StartBundle(ctx, id, data)
 }
 
-func (n *Inject) ProcessElement(ctx context.Context, elm exec.FullValue, values ...exec.ReStream) error {
-	return n.Out.ProcessElement(ctx, exec.FullValue{Elm: n.N, Elm2: elm, Timestamp: elm.Timestamp, Windows: elm.Windows}, values...)
+func (n *Inject) ProcessElement(ctx context.Context, elm *exec.FullValue, values ...exec.ReStream) error {
+	return n.Out.ProcessElement(ctx, &exec.FullValue{Elm: n.N, Elm2: elm, Timestamp: elm.Timestamp, Windows: elm.Windows}, values...)
 }
 
 func (n *Inject) FinishBundle(ctx context.Context) error {

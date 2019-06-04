@@ -17,20 +17,21 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.MoreObjects;
+import java.math.BigDecimal;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.range.OffsetRange;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
 /**
  * A {@link RestrictionTracker} for claiming offsets in an {@link OffsetRange} in a monotonically
  * increasing fashion.
  */
-public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long> {
+public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
+    implements Backlogs.HasBacklog {
   private OffsetRange range;
   @Nullable private Long lastClaimedOffset = null;
   @Nullable private Long lastAttemptedOffset = null;
@@ -40,12 +41,12 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long> {
   }
 
   @Override
-  public synchronized OffsetRange currentRestriction() {
+  public OffsetRange currentRestriction() {
     return range;
   }
 
   @Override
-  public synchronized OffsetRange checkpoint() {
+  public OffsetRange checkpoint() {
     checkState(
         lastClaimedOffset != null, "Can't checkpoint before any offset was successfully claimed");
     OffsetRange res = new OffsetRange(lastClaimedOffset + 1, range.getTo());
@@ -62,7 +63,7 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long> {
    *     current {@link OffsetRange} of this tracker (in that case this operation is a no-op).
    */
   @Override
-  protected synchronized boolean tryClaimImpl(Long i) {
+  public boolean tryClaim(Long i) {
     checkArgument(
         lastAttemptedOffset == null || i > lastAttemptedOffset,
         "Trying to claim offset %s while last attempted was %s",
@@ -79,19 +80,8 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long> {
     return true;
   }
 
-  /**
-   * Marks that there are no more offsets to be claimed in the range.
-   *
-   * <p>E.g., a {@link DoFn} reading a file and claiming the offset of each record in the file might
-   * call this if it hits EOF - even though the last attempted claim was before the end of the
-   * range, there are no more offsets to claim.
-   */
-  public synchronized void markDone() {
-    lastAttemptedOffset = Long.MAX_VALUE;
-  }
-
   @Override
-  public synchronized void checkDone() throws IllegalStateException {
+  public void checkDone() throws IllegalStateException {
     checkState(
         lastAttemptedOffset >= range.getTo() - 1,
         "Last attempted offset was %s in range %s, claiming work in [%s, %s) was not attempted",
@@ -108,5 +98,17 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long> {
         .add("lastClaimedOffset", lastClaimedOffset)
         .add("lastAttemptedOffset", lastAttemptedOffset)
         .toString();
+  }
+
+  @Override
+  public Backlog getBacklog() {
+    // If we have never attempted an offset, we return the length of the entire range.
+    if (lastAttemptedOffset == null) {
+      return Backlog.of(BigDecimal.valueOf(range.getTo() - range.getFrom()));
+    }
+
+    // Otherwise we return the length from where we are to where we are attempting to get to
+    // with a minimum of zero in case we have claimed beyond the end of the range.
+    return Backlog.of(BigDecimal.valueOf(Math.max(range.getTo() - lastAttemptedOffset, 0)));
   }
 }

@@ -16,19 +16,21 @@
 # limitations under the License.
 #
 
-import sys
+import dependency_check.version_comparer as version_comparer
+import logging
 import os.path
 import re
+import requests
+import sys
 import traceback
-import logging
+
 from datetime import datetime
-from bigquery_client_utils import BigQueryClientUtils
+from dependency_check.bigquery_client_utils import BigQueryClientUtils
+from dependency_check.report_generator_config import ReportGeneratorConfig
+from jira_utils.jira_manager import JiraManager
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
-
-_MAX_STALE_DAYS = 360
-_MAX_MINOR_VERSION_DIFF = 3
-_PYPI_URL = "https://pypi.org/project/"
-_MAVEN_CENTRAL_URL = "http://search.maven.org/#search|gav|1|"
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -56,7 +58,7 @@ def extract_results(file_path):
           see_oudated_deps = True
     raw_report.close()
     return outdated_deps
-  except Exception as e:
+  except:
     raise
 
 
@@ -64,7 +66,7 @@ def extract_single_dep(dep):
   """
   Extract a single dependency check record from Java and Python reports.
   Args:
-    dep: e.g "- org.assertj:assertj-core [2.5.0 -> 3.10.0]".
+    dep: e.g " - org.assertj:assertj-core [2.5.0 -> 3.10.0]".
   Return:
     dependency name, current version, latest version.
   """
@@ -75,7 +77,7 @@ def extract_single_dep(dep):
   return match.group(1).strip(), match.group(2).strip(), match.group(3).strip()
 
 
-def prioritize_dependencies(deps, sdk_type, project_id, dataset_id, table_id):
+def prioritize_dependencies(deps, sdk_type):
   """
   Extracts and analyze dependency versions and release dates.
   Returns a collection of dependencies which is "high priority" in html format:
@@ -88,40 +90,63 @@ def prioritize_dependencies(deps, sdk_type, project_id, dataset_id, table_id):
   Return:
     high_priority_deps: A collection of dependencies which need to be taken care of before next release.
   """
+
+  project_id = ReportGeneratorConfig.GCLOUD_PROJECT_ID
+  dataset_id = ReportGeneratorConfig.DATASET_ID
+  table_id = ReportGeneratorConfig.get_bigquery_table_id(sdk_type)
   high_priority_deps = []
   bigquery_client = BigQueryClientUtils(project_id, dataset_id, table_id)
+  jira_manager = JiraManager(ReportGeneratorConfig.BEAM_JIRA_HOST,
+                             ReportGeneratorConfig.BEAM_JIRA_BOT_USRENAME,
+                             ReportGeneratorConfig.BEAM_JIRA_BOT_PASSWORD,
+                             ReportGeneratorConfig.get_owners_file(sdk_type))
 
   for dep in deps:
     try:
-      logging.info("Start processing: %s", dep)
+      logging.info("\n\nStart processing: " + dep)
       dep_name, curr_ver, latest_ver = extract_single_dep(dep)
-      curr_release_date, latest_release_date = query_dependency_release_dates(bigquery_client,
-                                                                              dep_name,
-                                                                              curr_ver,
-                                                                              latest_ver)
+      curr_release_date = None
+      latest_release_date = None
+      group_id = None
+
       if sdk_type == 'Java':
         # extract the groupid and artifactid
         group_id, artifact_id = dep_name.split(":")
-        dep_details_url = "{0}g:\"{1}\" AND a:\"{2}\"".format(_MAVEN_CENTRAL_URL, group_id, artifact_id)
+        dep_details_url = "{0}/{1}/{2}".format(ReportGeneratorConfig.MAVEN_CENTRAL_URL, group_id, artifact_id)
+        curr_release_date = find_release_time_from_maven_central(group_id, artifact_id, curr_ver)
+        latest_release_date = find_release_time_from_maven_central(group_id, artifact_id, latest_ver)
       else:
-        dep_details_url = _PYPI_URL + dep_name
+        dep_details_url = ReportGeneratorConfig.PYPI_URL + dep_name
+        curr_release_date = find_release_time_from_python_compatibility_checking_service(dep_name, curr_ver)
+        latest_release_date = find_release_time_from_python_compatibility_checking_service(dep_name, latest_ver)
 
+      if not curr_release_date or not latest_release_date:
+        curr_release_date, latest_release_date = query_dependency_release_dates_from_bigquery(bigquery_client,
+                                                                                dep_name,
+                                                                                curr_ver,
+                                                                                latest_ver)
       dep_info = """<tr>
         <td><a href=\'{0}\'>{1}</a></td>
         <td>{2}</td>
         <td>{3}</td>
         <td>{4}</td>
-        <td>{5}</td>
-        </tr>\n""".format(dep_details_url,
+        <td>{5}</td>""".format(dep_details_url,
                           dep_name,
                           curr_ver,
                           latest_ver,
                           curr_release_date,
                           latest_release_date)
-      if compare_dependency_versions(curr_ver, latest_ver):
-        high_priority_deps.append(dep_info)
-      elif compare_dependency_release_dates(curr_release_date, latest_release_date):
-        high_priority_deps.append(dep_info)
+      if (version_comparer.compare_dependency_versions(curr_ver, latest_ver) or
+          compare_dependency_release_dates(curr_release_date, latest_release_date)):
+        # Create a new issue or update on the existing issue
+        jira_issue = jira_manager.run(dep_name, curr_ver, latest_ver, sdk_type, group_id = group_id)
+        if (jira_issue.fields.status.name == 'Open' or
+            jira_issue.fields.status.name == 'Reopened'):
+          dep_info += "<td><a href=\'{0}\'>{1}</a></td></tr>".format(
+            ReportGeneratorConfig.BEAM_JIRA_HOST+"browse/"+ jira_issue.key,
+            jira_issue.key)
+          high_priority_deps.append(dep_info)
+
     except:
       traceback.print_exc()
       continue
@@ -130,40 +155,90 @@ def prioritize_dependencies(deps, sdk_type, project_id, dataset_id, table_id):
   return high_priority_deps
 
 
-def compare_dependency_versions(curr_ver, latest_ver):
+def find_release_time_from_maven_central(group_id, artifact_id, version):
   """
-  Compare the current using version and the latest version.
-  Return true if a major version change was found, or 3 minor versions that the current version is behind.
+  Find release dates from Maven Central REST API.
   Args:
-    curr_ver
-    latest_ver
+    group_id:
+    artifact_id:
+    version:
   Return:
-    boolean
+    release date
   """
-  if curr_ver is None or latest_ver is None:
-    return True
-  else:
-    curr_ver_splitted = curr_ver.split('.')
-    latest_ver_splitted = latest_ver.split('.')
-    curr_major_ver = curr_ver_splitted[0]
-    latest_major_ver = latest_ver_splitted[0]
-    # compare major versions
-    if curr_major_ver != latest_major_ver:
-      return True
-    # compare minor versions
-    else:
-      curr_minor_ver = curr_ver_splitted[1] if len(curr_ver_splitted) > 1 else None
-      latest_minor_ver = latest_ver_splitted[1] if len(latest_ver_splitted) > 1 else None
-      if curr_minor_ver is not None and latest_minor_ver is not None:
-        if (not curr_minor_ver.isdigit() or not latest_minor_ver.isdigit()) and curr_minor_ver != latest_minor_ver:
-          return True
-        elif int(curr_minor_ver) + _MAX_MINOR_VERSION_DIFF <= int(latest_minor_ver):
-          return True
-     # TODO: Comparing patch versions if needed.
-  return False
+  url = "http://search.maven.org/solrsearch/select?q=g:{0}+AND+a:{1}+AND+v:{2}".format(
+      group_id,
+      artifact_id,
+      version
+  )
+  logging.info('Finding release date of {0}:{1} {2} from the Maven Central'.format(
+      group_id,
+      artifact_id,
+      version
+  ))
+  try:
+    response = request_session_with_retries().get(url)
+    if not response.ok:
+      logging.error("""Failed finding the release date of {0}:{1} {2}.
+        The response status code is not ok: {3}""".format(group_id,
+                                                          artifact_id,
+                                                          version,
+                                                          str(response.status_code)))
+      return None
+    response_data = response.json()
+    release_timestamp_mills = response_data['response']['docs'][0]['timestamp']
+    release_date = datetime.fromtimestamp(release_timestamp_mills/1000).date()
+    return release_date
+  except Exception as e:
+    logging.error("Errors while extracting the release date: " + str(e))
+    return None
 
 
-def query_dependency_release_dates(bigquery_client, dep_name, curr_ver_in_beam, latest_ver):
+def find_release_time_from_python_compatibility_checking_service(dep_name, version):
+  """
+  Query release dates by using Python compatibility checking service.
+  Args:
+    dep_name:
+    version:
+  Return:
+    release date
+  """
+  url = 'http://104.197.8.72/?package={0}=={1}&python-version=2'.format(
+      dep_name,
+      version
+  )
+  logging.info('Finding release time of {0} {1} from the python compatibility checking service.'.format(
+      dep_name,
+      version
+  ))
+  try:
+    response = request_session_with_retries().get(url)
+    if not response.ok:
+      logging.error("""Failed finding the release date of {0} {1}. 
+        The response status code is not ok: {2}""".format(dep_name,
+                                                          version,
+                                                          str(response.status_code)))
+      return None
+    response_data = response.json()
+    release_datetime = response_data['dependency_info'][dep_name]['installed_version_time']
+    release_date = datetime.strptime(release_datetime, '%Y-%m-%dT%H:%M:%S').date()
+    return release_date
+  except Exception as e:
+    logging.error("Errors while extracting the release date: " + str(e))
+    return None
+
+
+def request_session_with_retries():
+  """
+  Create a http session with retries
+  """
+  session = requests.Session()
+  retries = Retry(total=3)
+  session.mount('http://', HTTPAdapter(max_retries=retries))
+  session.mount('https://', HTTPAdapter(max_retries=retries))
+  return session
+
+
+def query_dependency_release_dates_from_bigquery(bigquery_client, dep_name, curr_ver_in_beam, latest_ver):
   """
   Query release dates of current version and the latest version from BQ tables.
   Args:
@@ -209,25 +284,22 @@ def compare_dependency_release_dates(curr_release_date, latest_release_date):
   Return:
     boolean
   """
-  if curr_release_date is None or latest_release_date is None:
-    return True
+  if not curr_release_date or not latest_release_date:
+    return False
   else:
-    if (latest_release_date - curr_release_date).days >= _MAX_STALE_DAYS:
+    if (latest_release_date - curr_release_date).days >= ReportGeneratorConfig.MAX_STALE_DAYS:
       return True
   return False
 
 
-def generate_report(file_path, sdk_type, project_id, dataset_id, table_id):
+def generate_report(sdk_type):
   """
   Write SDK dependency check results into a html report.
   Args:
-    file_path: the path that report will be write into.
     sdk_type: String [Java, Python, TODO: Go]
-    project_id: the gcloud project ID that is used for BigQuery API requests.
-    dataset_id: the BigQuery dataset ID.
-    table_id: the BigQuery table ID.
   """
-  report_name = 'build/dependencyUpdates/beam-dependency-check-report.html'
+  report_name = ReportGeneratorConfig.FINAL_REPORT
+  raw_report = ReportGeneratorConfig.get_raw_report(sdk_type)
 
   if os.path.exists(report_name):
     append_write = 'a'
@@ -237,15 +309,15 @@ def generate_report(file_path, sdk_type, project_id, dataset_id, table_id):
   try:
     # Extract dependency check results from build/dependencyUpdate
     report = open(report_name, append_write)
-    if os.path.isfile(file_path):
-      outdated_deps = extract_results(file_path)
+    if os.path.isfile(raw_report):
+      outdated_deps = extract_results(raw_report)
     else:
-      report.write("Did not find the raw report of dependency check: {}".format(file_path))
+      report.write("Did not find the raw report of dependency check: {}".format(raw_report))
       report.close()
       return
 
     # Prioritize dependencies by comparing versions and release dates.
-    high_priority_deps = prioritize_dependencies(outdated_deps, sdk_type, project_id, dataset_id, table_id)
+    high_priority_deps = prioritize_dependencies(outdated_deps, sdk_type)
 
     # Write results to a report
     subtitle = "<h2>High Priority Dependency Updates Of Beam {} SDK:</h2>\n".format(sdk_type)
@@ -255,11 +327,13 @@ def generate_report(file_path, sdk_type, project_id, dataset_id, table_id):
       <td><b>{2}</b></td>
       <td><b>{3}</b></td>
       <td><b>{4}</b></td>
+      <td><b>{5}</b></td>
       </tr>""".format("Dependency Name",
                       "Current Version",
                       "Latest Version",
                       "Release Date Of the Current Used Version",
-                      "Release Date Of The Latest Release")
+                      "Release Date Of The Latest Release",
+                      "JIRA Issue")
     report.write(subtitle)
     report.write("<table>\n")
     report.write(table_fields)
@@ -267,6 +341,8 @@ def generate_report(file_path, sdk_type, project_id, dataset_id, table_id):
       report.write("%s" % dep)
     report.write("</table>\n")
   except Exception as e:
+    traceback.print_exc()
+    logging.error("Failed generate the dependency report. " + str(e))
     report.write('<p> {0} </p>'.format(str(e)))
 
   report.close()
@@ -276,13 +352,9 @@ def main(args):
   """
   Main method.
   Args:
-    args[0]: path of the raw report generated by Java/Python dependency check. Typically in build/dependencyUpdates
-    args[1]: type of the check [Java, Python]
-    args[2]: google cloud project id
-    args[3]: BQ dataset id
-    args[4]: BQ table id
+    args[0]: type of the check [Java, Python]
   """
-  generate_report(args[0], args[1], args[2], args[3], args[4])
+  generate_report(args[0])
 
 
 if __name__ == '__main__':

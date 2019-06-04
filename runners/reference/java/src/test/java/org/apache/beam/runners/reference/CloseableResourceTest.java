@@ -37,7 +37,7 @@ public class CloseableResourceTest {
   @Test
   public void alwaysReturnsSameResource() {
     Foo foo = new Foo();
-    CloseableResource<Foo> resource = CloseableResource.of(foo, (ignored) -> {});
+    CloseableResource<Foo> resource = CloseableResource.of(foo, ignored -> {});
     assertThat(resource.get(), is(foo));
     assertThat(resource.get(), is(foo));
   }
@@ -46,11 +46,7 @@ public class CloseableResourceTest {
   public void callsCloser() throws Exception {
     AtomicBoolean closed = new AtomicBoolean(false);
     try (CloseableResource<Foo> ignored =
-        CloseableResource.of(
-            new Foo(),
-            (foo) -> {
-              closed.set(true);
-            })) {
+        CloseableResource.of(new Foo(), foo -> closed.set(true))) {
       // Do nothing.
     }
     assertThat(closed.get(), is(true));
@@ -64,7 +60,7 @@ public class CloseableResourceTest {
     try (CloseableResource<Foo> ignored =
         CloseableResource.of(
             new Foo(),
-            (foo) -> {
+            foo -> {
               throw wrapped;
             })) {
       // Do nothing.
@@ -75,7 +71,7 @@ public class CloseableResourceTest {
   public void transferReleasesCloser() throws Exception {
     try (CloseableResource<Foo> foo =
         CloseableResource.of(
-            new Foo(), (unused) -> fail("Transferred resource should not be closed"))) {
+            new Foo(), unused -> fail("Transferred resource should not be closed"))) {
       foo.transfer();
     }
   }
@@ -83,7 +79,7 @@ public class CloseableResourceTest {
   @Test
   public void transferMovesOwnership() throws Exception {
     AtomicBoolean closed = new AtomicBoolean(false);
-    CloseableResource<Foo> original = CloseableResource.of(new Foo(), (unused) -> closed.set(true));
+    CloseableResource<Foo> original = CloseableResource.of(new Foo(), unused -> closed.set(true));
     CloseableResource<Foo> transferred = original.transfer();
     transferred.close();
     assertThat(closed.get(), is(true));
@@ -91,7 +87,7 @@ public class CloseableResourceTest {
 
   @Test
   public void cannotTransferClosed() throws Exception {
-    CloseableResource<Foo> foo = CloseableResource.of(new Foo(), (unused) -> {});
+    CloseableResource<Foo> foo = CloseableResource.of(new Foo(), unused -> {});
     foo.close();
     thrown.expect(IllegalStateException.class);
     foo.transfer();
@@ -99,7 +95,7 @@ public class CloseableResourceTest {
 
   @Test
   public void cannotTransferTwice() {
-    CloseableResource<Foo> foo = CloseableResource.of(new Foo(), (unused) -> {});
+    CloseableResource<Foo> foo = CloseableResource.of(new Foo(), unused -> {});
     foo.transfer();
     thrown.expect(IllegalStateException.class);
     foo.transfer();

@@ -16,7 +16,10 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
+
+archivesBaseName = 'beam-runners-local-java-core'
+
 applyJavaNature()
 
 description = "Apache Beam :: Runners :: Local Java Core"
@@ -28,7 +31,7 @@ dependencies {
    * but should not be used within this library to execute any UDFs.
    * TODO: Add an APISurfaceTest to force this to be the case, if possible.
   */
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow library.java.joda_time
   shadowTest library.java.hamcrest_core
   shadowTest library.java.hamcrest_library

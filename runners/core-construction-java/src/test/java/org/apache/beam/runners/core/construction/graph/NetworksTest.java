@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
@@ -27,15 +26,6 @@ import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Ordering;
-import com.google.common.collect.Sets;
-import com.google.common.graph.ElementOrder;
-import com.google.common.graph.EndpointPair;
-import com.google.common.graph.MutableNetwork;
-import com.google.common.graph.NetworkBuilder;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -44,6 +34,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.ElementOrder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.EndpointPair;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.NetworkBuilder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -133,6 +132,38 @@ public class NetworksTest {
   }
 
   @Test
+  public void testTopologicalOrderWithFeedbackArcs() throws Exception {
+    MutableNetwork<String, String> network = createNetwork();
+    network.addEdge("F", "B", "FB");
+    Iterable<String> sortedNodes = Networks.topologicalOrder(network);
+    Map<String, Integer> nodeToPosition = new HashMap<>(Iterables.size(sortedNodes));
+    int i = 0;
+    for (String node : sortedNodes) {
+      nodeToPosition.put(node, i);
+      i += 1;
+    }
+
+    for (String node : network.nodes()) {
+      for (String descendant :
+          Sets.difference(
+              Networks.reachableNodes(network, ImmutableSet.of(node), Collections.emptySet()),
+              Sets.newHashSet(node))) {
+        if (!Networks.reachableNodes(network, ImmutableSet.of(descendant), Collections.emptySet())
+            .contains(node)) {
+          // We only reliably compare nodes outside of a loop.
+          assertThat(
+              String.format(
+                  "Expected position of node %s to be before descendant %s,"
+                      + " order returned %s for network %s",
+                  node, descendant, sortedNodes, network),
+              nodeToPosition.get(descendant),
+              greaterThan(nodeToPosition.get(node)));
+        }
+      }
+    }
+  }
+
+  @Test
   public void testReachableNodesWithEmptyNetwork() {
     assertThat(
         Networks.reachableNodes(
@@ -193,18 +224,14 @@ public class NetworksTest {
     MutableNetwork<String, String> originalNetwork = createNetwork();
     for (String node : originalNetwork.nodes()) {
       assertEquals(
-          originalNetwork
-              .successors(node)
-              .stream()
+          originalNetwork.successors(node).stream()
               .map(function)
               .collect(Collectors.toCollection(HashSet::new)),
           network.successors(function.apply(node)));
     }
     assertEquals(
         network.nodes(),
-        originalNetwork
-            .nodes()
-            .stream()
+        originalNetwork.nodes().stream()
             .map(function)
             .collect(Collectors.toCollection(HashSet::new)));
   }

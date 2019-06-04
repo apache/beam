@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.amazonaws.services.kinesis.model.Shard;
 import java.util.Set;
@@ -62,8 +62,7 @@ class DynamicCheckpointGenerator implements CheckpointGenerator {
         shardsAtStartingPoint,
         startingPoint.getTimestamp());
     return new KinesisReaderCheckpoint(
-        shardsAtStartingPoint
-            .stream()
+        shardsAtStartingPoint.stream()
             .map(shard -> new ShardCheckpoint(streamName, shard.getShardId(), startingPoint))
             .collect(Collectors.toList()));
   }

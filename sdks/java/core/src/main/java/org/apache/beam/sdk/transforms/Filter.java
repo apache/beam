@@ -32,7 +32,7 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
   /**
    * Returns a {@code PTransform} that takes an input {@code PCollection<T>} and returns a {@code
    * PCollection<T>} with elements that satisfy the given predicate. The predicate must be a {@code
-   * SerializableFunction<T, Boolean>}.
+   * ProcessFunction<T, Boolean>}.
    *
    * <p>Example of use:
    *
@@ -46,9 +46,15 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
    * #greaterThanEq}, which return elements satisfying various inequalities with the specified value
    * based on the elements' natural ordering.
    */
-  public static <T, PredicateT extends SerializableFunction<T, Boolean>> Filter<T> by(
+  public static <T, PredicateT extends ProcessFunction<T, Boolean>> Filter<T> by(
       PredicateT predicate) {
     return new Filter<>(predicate);
+  }
+
+  /** Binary compatibility adapter for {@link #by(ProcessFunction)}. */
+  public static <T, PredicateT extends SerializableFunction<T, Boolean>> Filter<T> by(
+      PredicateT predicate) {
+    return by((ProcessFunction<T, Boolean>) predicate);
   }
 
   /**
@@ -71,7 +77,7 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
    * <p>See also {@link #by}, which returns elements that satisfy the given predicate.
    */
   public static <T extends Comparable<T>> Filter<T> lessThan(final T value) {
-    return by((SerializableFunction<T, Boolean>) input -> input.compareTo(value) < 0)
+    return by((ProcessFunction<T, Boolean>) input -> input.compareTo(value) < 0)
         .described(String.format("x < %s", value));
   }
 
@@ -95,7 +101,7 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
    * <p>See also {@link #by}, which returns elements that satisfy the given predicate.
    */
   public static <T extends Comparable<T>> Filter<T> greaterThan(final T value) {
-    return by((SerializableFunction<T, Boolean>) input -> input.compareTo(value) > 0)
+    return by((ProcessFunction<T, Boolean>) input -> input.compareTo(value) > 0)
         .described(String.format("x > %s", value));
   }
 
@@ -119,7 +125,7 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
    * <p>See also {@link #by}, which returns elements that satisfy the given predicate.
    */
   public static <T extends Comparable<T>> Filter<T> lessThanEq(final T value) {
-    return by((SerializableFunction<T, Boolean>) input -> input.compareTo(value) <= 0)
+    return by((ProcessFunction<T, Boolean>) input -> input.compareTo(value) <= 0)
         .described(String.format("x ≤ %s", value));
   }
 
@@ -143,7 +149,7 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
    * <p>See also {@link #by}, which returns elements that satisfy the given predicate.
    */
   public static <T extends Comparable<T>> Filter<T> greaterThanEq(final T value) {
-    return by((SerializableFunction<T, Boolean>) input -> input.compareTo(value) >= 0)
+    return by((ProcessFunction<T, Boolean>) input -> input.compareTo(value) >= 0)
         .described(String.format("x ≥ %s", value));
   }
 
@@ -166,20 +172,20 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
    * <p>See also {@link #by}, which returns elements that satisfy the given predicate.
    */
   public static <T extends Comparable<T>> Filter<T> equal(final T value) {
-    return by((SerializableFunction<T, Boolean>) input -> input.compareTo(value) == 0)
+    return by((ProcessFunction<T, Boolean>) input -> input.compareTo(value) == 0)
         .described(String.format("x == %s", value));
   }
 
   ///////////////////////////////////////////////////////////////////////////////
 
-  private SerializableFunction<T, Boolean> predicate;
+  private ProcessFunction<T, Boolean> predicate;
   private String predicateDescription;
 
-  private Filter(SerializableFunction<T, Boolean> predicate) {
+  private Filter(ProcessFunction<T, Boolean> predicate) {
     this(predicate, "Filter.predicate");
   }
 
-  private Filter(SerializableFunction<T, Boolean> predicate, String predicateDescription) {
+  private Filter(ProcessFunction<T, Boolean> predicate, String predicateDescription) {
     this.predicate = predicate;
     this.predicateDescription = predicateDescription;
   }
@@ -199,7 +205,8 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
             ParDo.of(
                 new DoFn<T, T>() {
                   @ProcessElement
-                  public void processElement(@Element T element, OutputReceiver<T> r) {
+                  public void processElement(@Element T element, OutputReceiver<T> r)
+                      throws Exception {
                     if (predicate.apply(element)) {
                       r.output(element);
                     }

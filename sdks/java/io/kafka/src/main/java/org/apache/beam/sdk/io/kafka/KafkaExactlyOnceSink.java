@@ -17,22 +17,12 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.MoreObjects;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.cache.RemovalCause;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -47,7 +37,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.io.kafka.KafkaIO.Write;
+import org.apache.beam.sdk.io.kafka.KafkaIO.WriteRecords;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.SinkMetrics;
@@ -67,6 +57,16 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.RemovalCause;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -88,7 +88,8 @@ import org.slf4j.LoggerFactory;
  * Exactly-once sink transform for Kafka. See {@link KafkaIO} for user visible documentation and
  * example usage.
  */
-class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<Void>> {
+class KafkaExactlyOnceSink<K, V>
+    extends PTransform<PCollection<ProducerRecord<K, V>>, PCollection<Void>> {
 
   // Dataflow ensures at-least once processing for side effects like sinks. In order to provide
   // exactly-once semantics, a sink needs to be idempotent or it should avoid writing records
@@ -132,7 +133,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
   private static final Logger LOG = LoggerFactory.getLogger(KafkaExactlyOnceSink.class);
   private static final String METRIC_NAMESPACE = "KafkaExactlyOnceSink";
 
-  private final Write<K, V> spec;
+  private final WriteRecords<K, V> spec;
 
   static void ensureEOSSupport() {
     checkArgument(
@@ -142,12 +143,12 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
         "exactly-once semantics. Please use Kafka client version 0.11 or newer.");
   }
 
-  KafkaExactlyOnceSink(Write<K, V> spec) {
+  KafkaExactlyOnceSink(WriteRecords<K, V> spec) {
     this.spec = spec;
   }
 
   @Override
-  public PCollection<Void> expand(PCollection<KV<K, V>> input) {
+  public PCollection<Void> expand(PCollection<ProducerRecord<K, V>> input) {
 
     int numShards = spec.getNumShards();
     if (numShards <= 0) {
@@ -164,7 +165,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
 
     return input
         .apply(
-            Window.<KV<K, V>>into(new GlobalWindows()) // Everything into global window.
+            Window.<ProducerRecord<K, V>>into(new GlobalWindows()) // Everything into global window.
                 .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
                 .discardingFiredPanes())
         .apply(
@@ -180,7 +181,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
 
   /** Shuffle messages assigning each randomly to a shard. */
   private static class Reshard<K, V>
-      extends DoFn<KV<K, V>, KV<Integer, TimestampedValue<KV<K, V>>>> {
+      extends DoFn<ProducerRecord<K, V>, KV<Integer, TimestampedValue<ProducerRecord<K, V>>>> {
 
     private final int numShards;
     private transient int shardId;
@@ -203,8 +204,8 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
 
   private static class Sequencer<K, V>
       extends DoFn<
-          KV<Integer, Iterable<TimestampedValue<KV<K, V>>>>,
-          KV<Integer, KV<Long, TimestampedValue<KV<K, V>>>>> {
+          KV<Integer, Iterable<TimestampedValue<ProducerRecord<K, V>>>>,
+          KV<Integer, KV<Long, TimestampedValue<ProducerRecord<K, V>>>>> {
 
     private static final String NEXT_ID = "nextId";
 
@@ -215,7 +216,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
     public void processElement(@StateId(NEXT_ID) ValueState<Long> nextIdState, ProcessContext ctx) {
       long nextId = MoreObjects.firstNonNull(nextIdState.read(), 0L);
       int shard = ctx.element().getKey();
-      for (TimestampedValue<KV<K, V>> value : ctx.element().getValue()) {
+      for (TimestampedValue<ProducerRecord<K, V>> value : ctx.element().getValue()) {
         ctx.output(KV.of(shard, KV.of(nextId, value)));
         nextId++;
       }
@@ -224,7 +225,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
   }
 
   private static class ExactlyOnceWriter<K, V>
-      extends DoFn<KV<Integer, Iterable<KV<Long, TimestampedValue<KV<K, V>>>>>, Void> {
+      extends DoFn<KV<Integer, Iterable<KV<Long, TimestampedValue<ProducerRecord<K, V>>>>>, Void> {
 
     private static final String NEXT_ID = "nextId";
     private static final String MIN_BUFFERED_ID = "minBufferedId";
@@ -242,7 +243,8 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
     private final StateSpec<ValueState<Long>> minBufferedIdSpec = StateSpecs.value();
 
     @StateId(OUT_OF_ORDER_BUFFER)
-    private final StateSpec<BagState<KV<Long, TimestampedValue<KV<K, V>>>>> outOfOrderBufferSpec;
+    private final StateSpec<BagState<KV<Long, TimestampedValue<ProducerRecord<K, V>>>>>
+        outOfOrderBufferSpec;
     // A random id assigned to each shard. Helps with detecting when multiple jobs are mistakenly
     // started with same groupId used for storing state on Kafka side, including the case where
     // a job is restarted with same groupId, but the metadata from previous run was not cleared.
@@ -250,7 +252,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
     @StateId(WRITER_ID)
     private final StateSpec<ValueState<String>> writerIdSpec = StateSpecs.value();
 
-    private final Write<K, V> spec;
+    private final WriteRecords<K, V> spec;
 
     // Metrics
     private final Counter elementsWritten = SinkMetrics.elementsWritten();
@@ -258,7 +260,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
     private final Counter elementsBuffered = Metrics.counter(METRIC_NAMESPACE, "elementsBuffered");
     private final Counter numTransactions = Metrics.counter(METRIC_NAMESPACE, "numTransactions");
 
-    ExactlyOnceWriter(Write<K, V> spec, Coder<KV<K, V>> elemCoder) {
+    ExactlyOnceWriter(WriteRecords<K, V> spec, Coder<ProducerRecord<K, V>> elemCoder) {
       this.spec = spec;
       this.outOfOrderBufferSpec =
           StateSpecs.bag(KvCoder.of(BigEndianLongCoder.of(), TimestampedValueCoder.of(elemCoder)));
@@ -272,11 +274,13 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
 
     // Futures ignored as exceptions will be flushed out in the commitTxn
     @SuppressWarnings("FutureReturnValueIgnored")
+    @RequiresStableInput
     @ProcessElement
     public void processElement(
         @StateId(NEXT_ID) ValueState<Long> nextIdState,
         @StateId(MIN_BUFFERED_ID) ValueState<Long> minBufferedIdState,
-        @StateId(OUT_OF_ORDER_BUFFER) BagState<KV<Long, TimestampedValue<KV<K, V>>>> oooBufferState,
+        @StateId(OUT_OF_ORDER_BUFFER)
+            BagState<KV<Long, TimestampedValue<ProducerRecord<K, V>>>> oooBufferState,
         @StateId(WRITER_ID) ValueState<String> writerIdState,
         ProcessContext ctx)
         throws IOException {
@@ -316,10 +320,11 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
         // There might be out of order messages buffered in earlier iterations. These
         // will get merged if and when minBufferedId matches nextId.
 
-        Iterator<KV<Long, TimestampedValue<KV<K, V>>>> iter = ctx.element().getValue().iterator();
+        Iterator<KV<Long, TimestampedValue<ProducerRecord<K, V>>>> iter =
+            ctx.element().getValue().iterator();
 
         while (iter.hasNext()) {
-          KV<Long, TimestampedValue<KV<K, V>>> kv = iter.next();
+          KV<Long, TimestampedValue<ProducerRecord<K, V>>> kv = iter.next();
           long recordId = kv.getKey();
 
           if (recordId < nextId) {
@@ -364,7 +369,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
             // Read all of them in to memory and sort them. Reading into memory
             // might be problematic in extreme cases. Might need to improve it in future.
 
-            List<KV<Long, TimestampedValue<KV<K, V>>>> buffered =
+            List<KV<Long, TimestampedValue<ProducerRecord<K, V>>>> buffered =
                 Lists.newArrayList(oooBufferState.read());
             buffered.sort(new KV.OrderByKey<>());
 
@@ -440,7 +445,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
       private final String writerId;
       private final Producer<K, V> producer;
       private final String producerName;
-      private final Write<K, V> spec;
+      private final WriteRecords<K, V> spec;
       private long committedId;
 
       ShardWriter(
@@ -448,7 +453,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
           String writerId,
           Producer<K, V> producer,
           String producerName,
-          Write<K, V> spec,
+          WriteRecords<K, V> spec,
           long committedId) {
         this.shard = shard;
         this.writerId = writerId;
@@ -462,7 +467,8 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
         ProducerSpEL.beginTransaction(producer);
       }
 
-      Future<RecordMetadata> sendRecord(TimestampedValue<KV<K, V>> record, Counter sendCounter) {
+      Future<RecordMetadata> sendRecord(
+          TimestampedValue<ProducerRecord<K, V>> record, Counter sendCounter) {
         try {
           Long timestampMillis =
               spec.getPublishTimestampFunction() != null
@@ -477,8 +483,8 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
                       spec.getTopic(),
                       null,
                       timestampMillis,
-                      record.getValue().getKey(),
-                      record.getValue().getValue()));
+                      record.getValue().key(),
+                      record.getValue().value()));
           sendCounter.inc();
           return result;
         } catch (KafkaException e) {
@@ -603,7 +609,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
 
         return new ShardWriter<>(shard, writerId, producer, producerName, spec, committedSeqId);
 
-      } catch (Exception e) {
+      } catch (IOException e) {
         producer.close();
         throw e;
       }
@@ -678,10 +684,10 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
    * Opens a generic consumer that is mainly meant for metadata operations like fetching number of
    * partitions for a topic rather than for fetching messages.
    */
-  private static Consumer<?, ?> openConsumer(Write<?, ?> spec) {
+  private static Consumer<?, ?> openConsumer(WriteRecords<?, ?> spec) {
     return spec.getConsumerFactoryFn()
         .apply(
-            (ImmutableMap.of(
+            ImmutableMap.of(
                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
                 spec.getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG),
                 ConsumerConfig.GROUP_ID_CONFIG,
@@ -689,11 +695,11 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
                 ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
                 ByteArrayDeserializer.class,
                 ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-                ByteArrayDeserializer.class)));
+                ByteArrayDeserializer.class));
   }
 
   private static <K, V> Producer<K, V> initializeExactlyOnceProducer(
-      Write<K, V> spec, String producerName) {
+      WriteRecords<K, V> spec, String producerName) {
 
     Map<String, Object> producerConfig = new HashMap<>(spec.getProducerConfig());
     producerConfig.putAll(
@@ -709,7 +715,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
 
     Producer<K, V> producer =
         spec.getProducerFactoryFn() != null
-            ? spec.getProducerFactoryFn().apply((producerConfig))
+            ? spec.getProducerFactoryFn().apply(producerConfig)
             : new KafkaProducer<>(producerConfig);
 
     ProducerSpEL.initTransactions(producer);

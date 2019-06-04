@@ -16,8 +16,6 @@
 package graphx
 
 import (
-	"fmt"
-
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 )
 
@@ -89,33 +87,4 @@ func (t *treeBuilder) addScope(s *graph.Scope) *ScopeTree {
 		parent.Children = append(parent.Children, tree)
 	}
 	return tree
-}
-
-// EnsureUniqueNames ensures that each name is unique within each ScopeTree
-// recursively. Any conflict is resolved by adding '1, '2, etc to the name.
-func EnsureUniqueNames(tree *ScopeTree) {
-	seen := make(map[string]bool)
-	for _, edge := range tree.Edges {
-		edge.Name = findFreeName(seen, edge.Name)
-		seen[edge.Name] = true
-	}
-
-	for _, s := range tree.Children {
-		EnsureUniqueNames(s)
-
-		s.Scope.Name = findFreeName(seen, s.Scope.Name)
-		seen[s.Scope.Name] = true
-	}
-}
-
-func findFreeName(seen map[string]bool, name string) string {
-	if !seen[name] {
-		return name
-	}
-	for i := 1; ; i++ {
-		next := fmt.Sprintf("%v'%v", name, i)
-		if !seen[next] {
-			return next
-		}
-	}
 }

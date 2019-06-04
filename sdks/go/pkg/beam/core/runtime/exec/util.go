@@ -17,8 +17,9 @@ package exec
 
 import (
 	"context"
-	"fmt"
 	"runtime/debug"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // GenID is a simple UnitID generator.
@@ -36,14 +37,14 @@ func (g *GenID) New() UnitID {
 func callNoPanic(ctx context.Context, fn func(context.Context) error) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("panic: %v %s", r, debug.Stack())
+			err = errors.Errorf("panic: %v %s", r, debug.Stack())
 		}
 	}()
 	return fn(ctx)
 }
 
 // MultiStartBundle calls StartBundle on multiple nodes. Convenience function.
-func MultiStartBundle(ctx context.Context, id string, data DataManager, list ...Node) error {
+func MultiStartBundle(ctx context.Context, id string, data DataContext, list ...Node) error {
 	for _, n := range list {
 		if err := n.StartBundle(ctx, id, data); err != nil {
 			return err

@@ -18,8 +18,8 @@
 
 import groovy.json.JsonOutput
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(exportJavadoc: false)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -45,10 +45,10 @@ configurations.sparkRunnerPreCommit {
 }
 
 dependencies {
-  compile library.java.guava
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  shadow library.java.vendored_guava_20_0
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
   shadow library.java.google_api_client
   shadow library.java.google_api_services_bigquery
   shadow library.java.google_http_client
@@ -62,27 +62,28 @@ dependencies {
   shadow library.java.joda_time
   shadow library.java.slf4j_api
   shadow library.java.slf4j_jdk14
-  runtime project(path: ":beam-runners-direct-java", configuration: "shadow")
-  shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
+  runtime project(path: ":runners:direct-java", configuration: "shadow")
+  shadowTest project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
   shadowTest library.java.hamcrest_core
+  shadowTest library.java.hamcrest_library
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
 
   // Add dependencies for the PreCommit configurations
   // For each runner a project level dependency on the examples project.
   for (String runner : preCommitRunners) {
-    delegate.add(runner + "PreCommit", project(path: ":beam-examples-java", configuration: "shadow"))
-    delegate.add(runner + "PreCommit", project(path: ":beam-examples-java", configuration: "shadowTest"))
+    delegate.add(runner + "PreCommit", project(path: ":examples:java", configuration: "shadow"))
+    delegate.add(runner + "PreCommit", project(path: ":examples:java", configuration: "shadowTest"))
   }
   // https://issues.apache.org/jira/browse/BEAM-3583
-  // apexRunnerPreCommit project(path: ":beam-runners-apex", configuration: "shadow")
-  directRunnerPreCommit project(path: ":beam-runners-direct-java", configuration: "shadow")
-  flinkRunnerPreCommit project(path: ":beam-runners-flink_2.11", configuration: "shadow")
+  // apexRunnerPreCommit project(path: ":runners:apex", configuration: "shadow")
+  directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
+  flinkRunnerPreCommit project(path: ":runners:flink:1.5", configuration: "shadow")
   // TODO: Make the netty version used configurable, we add netty-all 4.1.17.Final so it appears on the classpath
   // before 4.1.8.Final defined by Apache Beam
   sparkRunnerPreCommit "io.netty:netty-all:4.1.17.Final"
-  sparkRunnerPreCommit project(path: ":beam-runners-spark", configuration: "shadow")
-  sparkRunnerPreCommit project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: "shadow")
+  sparkRunnerPreCommit project(path: ":runners:spark", configuration: "shadow")
+  sparkRunnerPreCommit project(path: ":sdks:java:io:hadoop-file-system", configuration: "shadow")
   sparkRunnerPreCommit library.java.spark_streaming
   sparkRunnerPreCommit library.java.spark_core
 }
@@ -123,7 +124,5 @@ task preCommit() {
   for (String runner : preCommitRunners) {
     dependsOn runner + "PreCommit"
   }
-  dependsOn ":beam-runners-google-cloud-dataflow-java-examples:preCommit"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-examples-streaming:preCommit"
 }
 

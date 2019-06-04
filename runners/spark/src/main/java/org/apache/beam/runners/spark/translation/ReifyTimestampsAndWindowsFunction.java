@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.translation;
 
 import org.apache.beam.sdk.util.WindowedValue;
@@ -27,7 +26,7 @@ import org.apache.spark.api.java.function.Function;
  * Simple {@link Function} to bring the windowing information into the value from the implicit
  * background representation of the {@link PCollection}.
  */
-public class ReifyTimestampsAndWindowsFunction<K, V>
+class ReifyTimestampsAndWindowsFunction<K, V>
     implements Function<WindowedValue<KV<K, V>>, WindowedValue<KV<K, WindowedValue<V>>>> {
   @Override
   public WindowedValue<KV<K, WindowedValue<V>>> call(WindowedValue<KV<K, V>> elem)

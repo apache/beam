@@ -22,6 +22,8 @@ class MobileGamingCommands {
 
   private TestScripts testScripts
 
+  private static final INPUT_GAMING_DATA = "gs://dataflow-samples/game/5000_gaming_data.csv"
+
   public static final RUNNERS = [DirectRunner: "direct-runner",
     DataflowRunner: "dataflow-runner",
     SparkRunner: "spark-runner",
@@ -64,10 +66,13 @@ class MobileGamingCommands {
     return "java-hourlyteamscore-result-${RUNNERS[runner]}.txt"
   }
 
-  public String createPipelineCommand(String exampleName, String runner){
+  public String createPipelineCommand(String exampleName, String runner, String jobName='', String className=null){
+    if (className == null) {
+      className = exampleName
+    }
     return """mvn compile exec:java -q \
-      -Dexec.mainClass=org.apache.beam.examples.complete.game.${exampleName} \
-      -Dexec.args=\"${getArgs(exampleName, runner)}\" \
+      -Dexec.mainClass=org.apache.beam.examples.complete.game.${className} \
+      -Dexec.args=\"${getArgs(exampleName, runner, jobName)}\" \
       -P${RUNNERS[runner]}"""
   }
 
@@ -78,7 +83,7 @@ class MobileGamingCommands {
   }
 
 
-  private String getArgs(String exampleName, String runner){
+  private String getArgs(String exampleName, String runner, String jobName){
     def args
     switch (exampleName) {
       case "UserScore":
@@ -88,10 +93,13 @@ class MobileGamingCommands {
         args = getHourlyTeamScoreArgs(runner)
         break
       case "LeaderBoard":
-        args = getLeaderBoardArgs(runner)
+        args = getLeaderBoardArgs(runner, jobName)
+        break
+      case "LeaderBoardWithStreamingEngine":
+        args = getLeaderBoardWithStreamingEngineArgs(runner, jobName)
         break
       case "GameStats":
-        args = getGameStatsArgs(runner)
+        args = getGameStatsArgs(runner, jobName)
         break
       default:
         testScripts.error("Cannot find example ${exampleName} in archetypes.")
@@ -104,41 +112,51 @@ class MobileGamingCommands {
 
   private Map getUserScoreArgs(String runner){
     if(runner == "DataflowRunner"){
-      return [input: "gs://${testScripts.gcsBucket()}/5000_gaming_data.csv",
+      return [input: INPUT_GAMING_DATA,
         project: testScripts.gcpProject(),
         output: "gs://${testScripts.gcsBucket()}/${getUserScoreOutputName(runner)}"]
     }
-    return [input: "gs://${testScripts.gcsBucket()}/5000_gaming_data.csv",
+    return [input: INPUT_GAMING_DATA,
       output: "${getUserScoreOutputName(runner)}"]
   }
 
   private Map getHourlyTeamScoreArgs(String runner){
     if(runner == "DataflowRunner"){
-      return [input: "gs://${testScripts.gcsBucket()}/5000_gaming_data.csv",
+      return [input: INPUT_GAMING_DATA,
         project: testScripts.gcpProject(),
         output: "gs://${testScripts.gcsBucket()}/${getHourlyTeamScoreOutputName(runner)}"]
     }
-    return [input: "gs://${testScripts.gcsBucket()}/5000_gaming_data.csv",
+    return [input: INPUT_GAMING_DATA,
       output: "${getHourlyTeamScoreOutputName(runner)}"]
   }
 
-  private Map getLeaderBoardArgs(String runner){
+  private Map getLeaderBoardArgs(String runner, String jobName){
     return [project: testScripts.gcpProject(),
       dataset: testScripts.bqDataset(),
       topic: "projects/${testScripts.gcpProject()}/topics/${testScripts.pubsubTopic()}",
-      output: "gs://${testScripts.gcsBucket()}/java-leaderboard-result.txt",
       leaderBoardTableName: "leaderboard_${runner}",
-      teamWindowDuration: 5]
+      teamWindowDuration: 5,
+      jobName: jobName]
   }
 
-  private Map getGameStatsArgs(String runner){
+  private Map getLeaderBoardWithStreamingEngineArgs(String runner, String jobName){
+    return [project: testScripts.gcpProject(),
+            dataset: testScripts.bqDataset(),
+            topic: "projects/${testScripts.gcpProject()}/topics/${testScripts.pubsubTopic()}",
+            leaderBoardTableName: "leaderboard_${runner}",
+            teamWindowDuration: 5,
+            jobName: jobName,
+            experiments: "enable_streaming_engine"]
+  }
+
+  private Map getGameStatsArgs(String runner, String jobName){
     return [project: testScripts.gcpProject(),
       dataset: testScripts.bqDataset(),
       topic: "projects/${testScripts.gcpProject()}/topics/${testScripts.pubsubTopic()}",
-      output: "gs://${testScripts.gcsBucket()}/java-leaderboard-result.txt",
       fixedWindowDuration: 5,
       userActivityWindowDuration: 5,
       sessionGap: 1,
-      gameStatsTablePrefix: "gamestats_${runner}"]
+      gameStatsTablePrefix: "gamestats_${runner}",
+      jobName: jobName]
   }
 }

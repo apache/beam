@@ -18,49 +18,47 @@
 package dataflow
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"path"
+	"sync/atomic"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
-	// Importing to get the side effect of the remote execution hook. See init().
-	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/universal/runnerlib"
+	"github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow/dataflowlib"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/hooks/perf"
 	"github.com/golang/protobuf/proto"
-	"golang.org/x/oauth2/google"
-	df "google.golang.org/api/dataflow/v1b3"
-	"google.golang.org/api/storage/v1"
 )
 
 // TODO(herohde) 5/16/2017: the Dataflow flags should match the other SDKs.
 
 var (
-	endpoint        = flag.String("dataflow_endpoint", "", "Dataflow endpoint (optional).")
-	stagingLocation = flag.String("staging_location", "", "GCS staging location (required).")
-	image           = flag.String("worker_harness_container_image", "", "Worker harness container image (required).")
-	labels          = flag.String("labels", "", "JSON-formatted map[string]string of job labels (optional).")
-	numWorkers      = flag.Int64("num_workers", 0, "Number of workers (optional).")
-	zone            = flag.String("zone", "", "GCP zone (optional)")
-	region          = flag.String("region", "us-central1", "GCP Region (optional)")
-	network         = flag.String("network", "", "GCP network (optional)")
-	tempLocation    = flag.String("temp_location", "", "Temp location (optional)")
-	machineType     = flag.String("worker_machine_type", "", "GCE machine type (optional)")
+	endpoint             = flag.String("dataflow_endpoint", "", "Dataflow endpoint (optional).")
+	stagingLocation      = flag.String("staging_location", "", "GCS staging location (required).")
+	image                = flag.String("worker_harness_container_image", "", "Worker harness container image (required).")
+	labels               = flag.String("labels", "", "JSON-formatted map[string]string of job labels (optional).")
+	numWorkers           = flag.Int64("num_workers", 0, "Number of workers (optional).")
+	maxNumWorkers        = flag.Int64("max_num_workers", 0, "Maximum number of workers during scaling (optional).")
+	autoscalingAlgorithm = flag.String("autoscaling_algorithm", "", "Autoscaling mode to use (optional).")
+	zone                 = flag.String("zone", "", "GCP zone (optional)")
+	region               = flag.String("region", "us-central1", "GCP Region (optional)")
+	network              = flag.String("network", "", "GCP network (optional)")
+	tempLocation         = flag.String("temp_location", "", "Temp location (optional)")
+	machineType          = flag.String("worker_machine_type", "", "GCE machine type (optional)")
+	minCPUPlatform       = flag.String("min_cpu_platform", "", "GCE minimum cpu platform (optional)")
+	workerJar            = flag.String("dataflow_worker_jar", "", "Dataflow worker jar (optional)")
 
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
@@ -77,14 +75,13 @@ func init() {
 	perf.RegisterProfCaptureHook("gcs_profile_writer", gcsRecorderHook)
 }
 
-type dataflowOptions struct {
-	PipelineURL string `json:"pipelineUrl"`
-	Region      string `json:"region"`
-}
+var unique int32
 
 // Execute runs the given pipeline on Google Cloud Dataflow. It uses the
 // default application credentials to submit the job.
 func Execute(ctx context.Context, p *beam.Pipeline) error {
+	// (1) Gather job options
+
 	project := *gcpopts.Project
 	if project == "" {
 		return errors.New("no Google Cloud project specified. Use --project=<project>")
@@ -93,19 +90,13 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		return errors.New("no GCS staging location specified. Use --staging_location=gs://<bucket>/<path>")
 	}
 	if *image == "" {
-		*image = jobopts.GetContainerImage(ctx)
+		*image = getContainerImage(ctx)
 	}
 	var jobLabels map[string]string
 	if *labels != "" {
 		if err := json.Unmarshal([]byte(*labels), &jobLabels); err != nil {
-			return fmt.Errorf("error reading --label flag as JSON: %v", err)
+			return errors.Wrapf(err, "error reading --label flag as JSON")
 		}
-	}
-	jobName := jobopts.GetJobName()
-
-	edges, nodes, err := p.Build()
-	if err != nil {
-		return err
 	}
 
 	if *cpuProfiling != "" {
@@ -121,263 +112,74 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		// CaptureHook should create an internal buffer and write chunks out to GCS
 		// once they get to an appropriate size (50M or so?)
 	}
+	if *autoscalingAlgorithm != "" {
+		if *autoscalingAlgorithm != "NONE" && *autoscalingAlgorithm != "THROUGHPUT_BASED" {
+			return errors.New("invalid autoscaling algorithm. Use --autoscaling_algorithm=(NONE|THROUGHPUT_BASED)")
+		}
+	}
 
 	hooks.SerializeHooksToOptions()
-	options := beam.PipelineOptions.Export()
 
-	// (1) Upload Go binary and model to GCS.
-
-	bin := *jobopts.WorkerBinary
-	if bin == "" {
-		if self, ok := runnerlib.IsWorkerCompatibleBinary(); ok {
-			bin = self
-			log.Infof(ctx, "Using running binary as worker binary: '%v'", bin)
-		} else {
-			// Cross-compile as last resort.
-
-			worker, err := runnerlib.BuildTempWorkerBinary(ctx)
-			if err != nil {
-				return err
-			}
-			defer os.Remove(worker)
-
-			bin = worker
-		}
-	} else {
-		log.Infof(ctx, "Using specified worker binary: '%v'", bin)
+	experiments := jobopts.GetExperiments()
+	if *minCPUPlatform != "" {
+		experiments = append(experiments, fmt.Sprintf("min_cpu_platform=%v", *minCPUPlatform))
 	}
 
-	log.Infof(ctx, "Staging worker binary: %v", bin)
+	opts := &dataflowlib.JobOptions{
+		Name:           jobopts.GetJobName(),
+		Experiments:    experiments,
+		Options:        beam.PipelineOptions.Export(),
+		Project:        project,
+		Region:         *region,
+		Zone:           *zone,
+		Network:        *network,
+		NumWorkers:     *numWorkers,
+		MaxNumWorkers:  *maxNumWorkers,
+		Algorithm:      *autoscalingAlgorithm,
+		MachineType:    *machineType,
+		Labels:         jobLabels,
+		TempLocation:   *tempLocation,
+		Worker:         *jobopts.WorkerBinary,
+		WorkerJar:      *workerJar,
+		TeardownPolicy: *teardownPolicy,
+	}
+	if opts.TempLocation == "" {
+		opts.TempLocation = gcsx.Join(*stagingLocation, "tmp")
+	}
 
-	binary, err := stageWorker(ctx, project, *stagingLocation, bin)
+	// (1) Build and submit
+
+	edges, _, err := p.Build()
 	if err != nil {
 		return err
 	}
-	log.Infof(ctx, "Staged worker binary: %v", binary)
-
-	model, err := graphx.Marshal(edges, &graphx.Options{ContainerImageURL: *image})
+	model, err := graphx.Marshal(edges, &graphx.Options{Environment: createEnvironment(ctx)})
 	if err != nil {
-		return fmt.Errorf("failed to generate model pipeline: %v", err)
-	}
-	log.Info(ctx, proto.MarshalTextString(model))
-
-	modelURL, err := stageModel(ctx, project, *stagingLocation, protox.MustEncode(model))
-	if err != nil {
-		return err
-	}
-	log.Infof(ctx, "Staged model pipeline: %v", modelURL)
-
-	// (2) Translate pipeline to v1b3 speak.
-
-	steps, err := translate(edges)
-	if err != nil {
-		return err
+		return errors.WithContext(err, "generating model pipeline")
 	}
 
-	jobType := "JOB_TYPE_BATCH"
-	apiJobType := "FNAPI_BATCH"
+	// NOTE(herohde) 10/8/2018: the last segment of the names must be "worker" and "dataflow-worker.jar".
+	id := fmt.Sprintf("go-%v-%v", atomic.AddInt32(&unique, 1), time.Now().UnixNano())
 
-	streaming := !graph.Bounded(nodes)
-	if streaming {
-		jobType = "JOB_TYPE_STREAMING"
-		apiJobType = "FNAPI_STREAMING"
-	}
-
-	job := &df.Job{
-		ProjectId: project,
-		Name:      jobName,
-		Type:      jobType,
-		Environment: &df.Environment{
-			UserAgent: newMsg(userAgent{
-				Name:    "Apache Beam SDK for Go",
-				Version: "0.3.0",
-			}),
-			Version: newMsg(version{
-				JobType: apiJobType,
-				Major:   "6",
-			}),
-			SdkPipelineOptions: newMsg(pipelineOptions{
-				DisplayData: findPipelineFlags(),
-				Options: dataflowOptions{
-					PipelineURL: modelURL,
-					Region:      *region,
-				},
-				GoOptions: options,
-			}),
-			WorkerPools: []*df.WorkerPool{{
-				Kind: "harness",
-				Packages: []*df.Package{{
-					Location: binary,
-					Name:     "worker",
-				}},
-				WorkerHarnessContainerImage: *image,
-				NumWorkers:                  1,
-				MachineType:                 *machineType,
-				Network:                     *network,
-				Zone:                        *zone,
-			}},
-			TempStoragePrefix: *stagingLocation + "/tmp",
-			Experiments:       append(jobopts.GetExperiments(), "beam_fn_api"),
-		},
-		Labels: jobLabels,
-		Steps:  steps,
-	}
-
-	if *numWorkers > 0 {
-		job.Environment.WorkerPools[0].NumWorkers = *numWorkers
-	}
-	if *teardownPolicy != "" {
-		job.Environment.WorkerPools[0].TeardownPolicy = *teardownPolicy
-	}
-	if *tempLocation != "" {
-		job.Environment.TempStoragePrefix = *tempLocation
-	}
-	if streaming {
-		// Add separate data disk for streaming jobs
-		job.Environment.WorkerPools[0].DataDisks = []*df.Disk{{}}
-	}
-	printJob(ctx, job)
+	modelURL := gcsx.Join(*stagingLocation, id, "model")
+	workerURL := gcsx.Join(*stagingLocation, id, "worker")
+	jarURL := gcsx.Join(*stagingLocation, id, "dataflow-worker.jar")
 
 	if *dryRun {
 		log.Info(ctx, "Dry-run: not submitting job!")
-		return nil
-	}
 
-	// (4) Submit job.
-
-	client, err := newClient(ctx, *endpoint)
-	if err != nil {
-		return err
-	}
-	upd, err := client.Projects.Locations.Jobs.Create(project, *region, job).Do()
-	if err != nil {
-		return err
-	}
-
-	log.Infof(ctx, "Submitted job: %v", upd.Id)
-	printJob(ctx, upd)
-	if *endpoint == "" {
-		log.Infof(ctx, "Console: https://console.cloud.google.com/dataflow/job/%v?project=%v", upd.Id, project)
-	}
-	log.Infof(ctx, "Logs: https://console.cloud.google.com/logs/viewer?project=%v&resource=dataflow_step%%2Fjob_id%%2F%v", project, upd.Id)
-
-	if *jobopts.Async {
-		return nil
-	}
-
-	time.Sleep(1 * time.Minute)
-	for {
-		j, err := client.Projects.Locations.Jobs.Get(project, *region, upd.Id).Do()
+		log.Info(ctx, proto.MarshalTextString(model))
+		job, err := dataflowlib.Translate(model, opts, workerURL, jarURL, modelURL)
 		if err != nil {
-			return fmt.Errorf("failed to get job: %v", err)
+			return err
 		}
-
-		switch j.CurrentState {
-		case "JOB_STATE_DONE":
-			log.Info(ctx, "Job succeeded!")
-			return nil
-
-		case "JOB_STATE_CANCELLED":
-			log.Info(ctx, "Job cancelled")
-			return nil
-
-		case "JOB_STATE_FAILED":
-			return fmt.Errorf("job %s failed", upd.Id)
-
-		case "JOB_STATE_RUNNING":
-			log.Info(ctx, "Job still running ...")
-
-		default:
-			log.Infof(ctx, "Job state: %v ...", j.CurrentState)
-		}
-
-		time.Sleep(30 * time.Second)
+		dataflowlib.PrintJob(ctx, job)
+		return nil
 	}
+
+	_, err = dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, false)
+	return err
 }
-
-// stageModel uploads the pipeline model to GCS as a unique object.
-func stageModel(ctx context.Context, project, location string, model []byte) (string, error) {
-	bucket, prefix, err := gcsx.ParseObject(location)
-	if err != nil {
-		return "", fmt.Errorf("invalid staging location %v: %v", location, err)
-	}
-	obj := path.Join(prefix, fmt.Sprintf("pipeline-%v", time.Now().UnixNano()))
-	if *dryRun {
-		full := fmt.Sprintf("gs://%v/%v", bucket, obj)
-		log.Infof(ctx, "Dry-run: not uploading model %v", full)
-		return full, nil
-	}
-
-	client, err := gcsx.NewClient(ctx, storage.DevstorageReadWriteScope)
-	if err != nil {
-		return "", err
-	}
-	return gcsx.Upload(client, project, bucket, obj, bytes.NewReader(model))
-}
-
-// stageWorker uploads the worker binary to GCS as a unique object.
-func stageWorker(ctx context.Context, project, location, worker string) (string, error) {
-	bucket, prefix, err := gcsx.ParseObject(location)
-	if err != nil {
-		return "", fmt.Errorf("invalid staging location %v: %v", location, err)
-	}
-	obj := path.Join(prefix, fmt.Sprintf("worker-%v", time.Now().UnixNano()))
-	if *dryRun {
-		full := fmt.Sprintf("gs://%v/%v", bucket, obj)
-		log.Infof(ctx, "Dry-run: not uploading binary %v", full)
-		return full, nil
-	}
-
-	client, err := gcsx.NewClient(ctx, storage.DevstorageReadWriteScope)
-	if err != nil {
-		return "", err
-	}
-	fd, err := os.Open(worker)
-	if err != nil {
-		return "", fmt.Errorf("failed to open worker binary %s: %v", worker, err)
-	}
-	defer fd.Close()
-
-	return gcsx.Upload(client, project, bucket, obj, fd)
-}
-
-func findPipelineFlags() []*displayData {
-	var ret []*displayData
-
-	// TODO(herohde) 2/15/2017: decide if we want all set flags.
-	flag.Visit(func(f *flag.Flag) {
-		ret = append(ret, newDisplayData(f.Name, "", "flag", f.Value.(flag.Getter).Get()))
-	})
-
-	return ret
-}
-
-// newClient creates a new dataflow client with default application credentials
-// and CloudPlatformScope. The Dataflow endpoint is optionally overridden.
-func newClient(ctx context.Context, endpoint string) (*df.Service, error) {
-	cl, err := google.DefaultClient(ctx, df.CloudPlatformScope)
-	if err != nil {
-		return nil, err
-	}
-	client, err := df.New(cl)
-	if err != nil {
-		return nil, err
-	}
-	if endpoint != "" {
-		log.Infof(ctx, "Dataflow endpoint override: %s", endpoint)
-		client.BasePath = endpoint
-	}
-	return client, nil
-}
-
-func printJob(ctx context.Context, job *df.Job) {
-	str, err := json.MarshalIndent(job, "", "  ")
-	if err != nil {
-		log.Infof(ctx, "Failed to print job %v: %v", job.Id, err)
-	}
-	log.Info(ctx, string(str))
-}
-
 func gcsRecorderHook(opts []string) perf.CaptureHook {
 	bucket, prefix, err := gcsx.ParseObject(opts[0])
 	if err != nil {
@@ -385,10 +187,42 @@ func gcsRecorderHook(opts []string) perf.CaptureHook {
 	}
 
 	return func(ctx context.Context, spec string, r io.Reader) error {
-		client, err := gcsx.NewClient(ctx, storage.DevstorageReadWriteScope)
+		client, err := gcsx.NewClient(ctx, storage.ScopeReadWrite)
 		if err != nil {
-			return fmt.Errorf("couldn't establish GCS client: %v", err)
+			return errors.WithContext(err, "establishing GCS client")
 		}
-		return gcsx.WriteObject(client, bucket, path.Join(prefix, spec), r)
+		return gcsx.WriteObject(ctx, client, bucket, path.Join(prefix, spec), r)
 	}
+}
+
+func getContainerImage(ctx context.Context) string {
+	urn := jobopts.GetEnvironmentUrn(ctx)
+	if urn == "" || urn == "beam:env:docker:v1" {
+		return jobopts.GetEnvironmentConfig(ctx)
+	}
+	panic(fmt.Sprintf("Unsupported environment %v", urn))
+}
+
+func createEnvironment(ctx context.Context) pb.Environment {
+	var environment pb.Environment
+	switch urn := jobopts.GetEnvironmentUrn(ctx); urn {
+	case "beam:env:process:v1":
+		// TODO Support process based SDK Harness.
+		panic(fmt.Sprintf("Unsupported environment %v", urn))
+	case "beam:env:docker:v1":
+		fallthrough
+	default:
+		config := *image
+		payload := &pb.DockerPayload{ContainerImage: config}
+		serializedPayload, err := proto.Marshal(payload)
+		if err != nil {
+			panic(errors.Wrapf(err,
+				"Failed to serialize Environment payload %v for config %v", payload, config))
+		}
+		environment = pb.Environment{
+			Urn:     urn,
+			Payload: serializedPayload,
+		}
+	}
+	return environment
 }

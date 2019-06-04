@@ -18,8 +18,12 @@
 package org.apache.beam.sdk.extensions.sql.example.model;
 
 import java.io.Serializable;
+import java.util.Objects;
+import org.apache.beam.sdk.schemas.JavaBeanSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 
 /** Describes an order. */
+@DefaultSchema(JavaBeanSchema.class)
 public class Order implements Serializable {
   private int id;
   private int customerId;
@@ -29,11 +33,38 @@ public class Order implements Serializable {
     this.customerId = customerId;
   }
 
+  public Order() {}
+
   public int getId() {
     return id;
   }
 
   public int getCustomerId() {
     return customerId;
+  }
+
+  public void setId(int id) {
+    this.id = id;
+  }
+
+  public void setCustomerId(int customerId) {
+    this.customerId = customerId;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Order order = (Order) o;
+    return id == order.id && customerId == order.customerId;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(id, customerId);
   }
 }

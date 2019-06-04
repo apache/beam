@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
@@ -24,8 +23,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.dataflow.BatchViewOverrides.TransformedMap;
@@ -45,6 +42,8 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -572,6 +571,12 @@ public class BatchViewOverridesTest {
                                 windowA,
                                 WindowedValue.of(
                                     KV.of(1L, 11L), new Instant(3), windowA, PaneInfo.NO_FIRING)),
+                            // [BEAM-5184] Specifically test with a duplicate value to ensure that
+                            // duplicate key/values are not lost.
+                            KV.of(
+                                windowA,
+                                WindowedValue.of(
+                                    KV.of(1L, 11L), new Instant(3), windowA, PaneInfo.NO_FIRING)),
                             KV.of(
                                 windowA,
                                 WindowedValue.of(
@@ -613,7 +618,7 @@ public class BatchViewOverridesTest {
 
     outputMap = output.get(0).getValue().getValue();
     assertEquals(2, outputMap.size());
-    assertThat(outputMap.get(1L), containsInAnyOrder(11L, 12L));
+    assertThat(outputMap.get(1L), containsInAnyOrder(11L, 11L, 12L));
     assertThat(outputMap.get(2L), containsInAnyOrder(21L));
 
     outputMap = output.get(1).getValue().getValue();

@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql.jdbc;
 
-import static java.util.stream.Collectors.toList;
+import static org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLineTestingUtils.buildArgs;
+import static org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLineTestingUtils.toLines;
 import static org.hamcrest.CoreMatchers.everyItem;
 import static org.junit.Assert.assertThat;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.hamcrest.collection.IsIn;
@@ -36,7 +36,6 @@ import org.junit.rules.TemporaryFolder;
  * tests for crashes (due to ClassNotFoundException for example). It does not test output.
  */
 public class BeamSqlLineTest {
-  private static final String QUERY_ARG = "-e";
 
   @Rule public TemporaryFolder folder = new TemporaryFolder();
 
@@ -64,7 +63,7 @@ public class BeamSqlLineTest {
   public void testSqlLine_ddl() throws Exception {
     BeamSqlLine.main(
         new String[] {
-          "-e", "CREATE TABLE test (id INTEGER) TYPE 'text';", "-e", "DROP TABLE test;"
+          "-e", "CREATE EXTERNAL TABLE test (id INTEGER) TYPE 'text';", "-e", "DROP TABLE test;"
         });
   }
 
@@ -75,7 +74,7 @@ public class BeamSqlLineTest {
     BeamSqlLine.main(
         new String[] {
           "-e",
-          "CREATE TABLE test (id INTEGER) TYPE 'text' LOCATION '"
+          "CREATE EXTERNAL TABLE test (id INTEGER) TYPE 'text' LOCATION '"
               + simpleTable.getAbsolutePath()
               + "';",
           "-e",
@@ -103,7 +102,7 @@ public class BeamSqlLineTest {
     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
     String[] args =
         buildArgs(
-            "CREATE TABLE table_test (col_a VARCHAR, col_b VARCHAR, "
+            "CREATE EXTERNAL TABLE table_test (col_a VARCHAR, col_b VARCHAR, "
                 + "col_c VARCHAR, col_x TINYINT, col_y INT, col_z BIGINT) TYPE 'test';",
             "INSERT INTO table_test VALUES ('a', 'b', 'c', 1, 2, 3);",
             "SELECT * FROM table_test;");
@@ -123,7 +122,7 @@ public class BeamSqlLineTest {
     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
     String[] args =
         buildArgs(
-            "CREATE TABLE table_test (col_a VARCHAR, col_b VARCHAR) TYPE 'test';",
+            "CREATE EXTERNAL TABLE table_test (col_a VARCHAR, col_b VARCHAR) TYPE 'test';",
             "INSERT INTO table_test SELECT '3', 'hello';",
             "SELECT * FROM table_test;");
 
@@ -139,7 +138,7 @@ public class BeamSqlLineTest {
     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
     String[] args =
         buildArgs(
-            "CREATE TABLE table_test (col_a VARCHAR, col_b VARCHAR) TYPE 'test';",
+            "CREATE EXTERNAL TABLE table_test (col_a VARCHAR, col_b VARCHAR) TYPE 'test';",
             "INSERT INTO table_test SELECT '3', 'foo';",
             "INSERT INTO table_test SELECT '3', 'bar';",
             "INSERT INTO table_test SELECT '4', 'foo';",
@@ -158,7 +157,7 @@ public class BeamSqlLineTest {
     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
     String[] args =
         buildArgs(
-            "CREATE TABLE table_test (col_a VARCHAR, col_b TIMESTAMP) TYPE 'test';",
+            "CREATE EXTERNAL TABLE table_test (col_a VARCHAR, col_b TIMESTAMP) TYPE 'test';",
             "INSERT INTO table_test SELECT '3', TIMESTAMP '2018-07-01 21:26:06';",
             "INSERT INTO table_test SELECT '3', TIMESTAMP '2018-07-01 21:26:07';",
             "SELECT TUMBLE_START(col_b, INTERVAL '1' SECOND), count(*) FROM table_test "
@@ -178,7 +177,7 @@ public class BeamSqlLineTest {
     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
     String[] args =
         buildArgs(
-            "CREATE TABLE table_test (col_a VARCHAR, col_b TIMESTAMP) TYPE 'test';",
+            "CREATE EXTERNAL TABLE table_test (col_a VARCHAR, col_b TIMESTAMP) TYPE 'test';",
             "INSERT INTO table_test SELECT '3', TIMESTAMP '2018-07-01 21:26:06';",
             "INSERT INTO table_test SELECT '4', TIMESTAMP '2018-07-01 21:26:07';",
             "INSERT INTO table_test SELECT '6', TIMESTAMP '2018-07-01 21:26:08';",
@@ -197,26 +196,5 @@ public class BeamSqlLineTest {
             Arrays.asList("2018-07-01 21:26:10", "2"),
             Arrays.asList("2018-07-01 21:26:11", "1")),
         everyItem(IsIn.isOneOf(lines.toArray())));
-  }
-
-  private String[] buildArgs(String... strs) {
-    List<String> argsList = new ArrayList();
-    for (String str : strs) {
-      argsList.add(QUERY_ARG);
-      argsList.add(str);
-    }
-    return argsList.toArray(new String[argsList.size()]);
-  }
-
-  private List<List<String>> toLines(ByteArrayOutputStream outputStream) {
-    List<String> outputLines = Arrays.asList(outputStream.toString().split("\n"));
-    return outputLines.stream().map(BeamSqlLineTest::splitFields).collect(toList());
-  }
-
-  private static List<String> splitFields(String outputLine) {
-    return Arrays.stream(outputLine.split("\\|"))
-        .map(field -> field.trim())
-        .filter(field -> field.length() != 0)
-        .collect(toList());
   }
 }

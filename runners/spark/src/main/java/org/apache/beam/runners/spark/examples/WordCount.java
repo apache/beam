@@ -43,7 +43,7 @@ public class WordCount {
    * pipeline.
    */
   @SuppressWarnings("StringSplitter")
-  public static class ExtractWordsFn extends DoFn<String, String> {
+  static class ExtractWordsFn extends DoFn<String, String> {
     private final Counter emptyLines = Metrics.counter(ExtractWordsFn.class, "emptyLines");
 
     @ProcessElement
@@ -89,9 +89,7 @@ public class WordCount {
       PCollection<String> words = lines.apply(ParDo.of(new ExtractWordsFn()));
 
       // Count the number of times each word occurs.
-      PCollection<KV<String, Long>> wordCounts = words.apply(Count.perElement());
-
-      return wordCounts;
+      return words.apply(Count.perElement());
     }
   }
 

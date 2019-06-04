@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.Mutation;
@@ -27,11 +27,6 @@ import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowFilter;
 import com.google.bigtable.v2.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
-import com.google.common.base.MoreObjects.ToStringHelper;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -62,6 +57,11 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.ToStringHelper;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -848,19 +848,26 @@ public class BigtableIO {
       // Delegate to testable helper.
       List<BigtableSource> splits =
           splitBasedOnSamples(desiredBundleSizeBytes, getSampleRowKeys(options));
-      return reduceSplits(splits, options, MAX_SPLIT_COUNT);
+
+      // Reduce the splits.
+      List<BigtableSource> reduced = reduceSplits(splits, options, MAX_SPLIT_COUNT);
+      // Randomize the result before returning an immutable copy of the splits, the default behavior
+      // may lead to multiple workers hitting the same tablet.
+      Collections.shuffle(reduced);
+      return ImmutableList.copyOf(reduced);
     }
 
+    /** Returns a mutable list of reduced splits. */
     @VisibleForTesting
     protected List<BigtableSource> reduceSplits(
         List<BigtableSource> splits, PipelineOptions options, long maxSplitCounts)
         throws IOException {
       int numberToCombine = (int) ((splits.size() + maxSplitCounts - 1) / maxSplitCounts);
       if (splits.size() < maxSplitCounts || numberToCombine < 2) {
-        return splits;
+        return new ArrayList<>(splits);
       }
-      ImmutableList.Builder<BigtableSource> reducedSplits = ImmutableList.builder();
-      List<ByteKeyRange> previousSourceRanges = new ArrayList<ByteKeyRange>();
+      List<BigtableSource> reducedSplits = new ArrayList<>();
+      List<ByteKeyRange> previousSourceRanges = new ArrayList<>();
       int counter = 0;
       long size = 0;
       for (BigtableSource source : splits) {
@@ -869,7 +876,7 @@ public class BigtableIO {
           reducedSplits.add(new BigtableSource(config, filter, previousSourceRanges, size));
           counter = 0;
           size = 0;
-          previousSourceRanges = new ArrayList<ByteKeyRange>();
+          previousSourceRanges = new ArrayList<>();
         }
         previousSourceRanges.addAll(source.getRanges());
         previousSourceRanges = mergeRanges(previousSourceRanges);
@@ -879,7 +886,7 @@ public class BigtableIO {
       if (size > 0) {
         reducedSplits.add(new BigtableSource(config, filter, previousSourceRanges, size));
       }
-      return reducedSplits.build();
+      return reducedSplits;
     }
 
     /**
@@ -925,7 +932,7 @@ public class BigtableIO {
      * adjacency see {@link #checkRangeAdjacency(List)}
      */
     private static List<ByteKeyRange> mergeRanges(List<ByteKeyRange> ranges) {
-      List<ByteKeyRange> response = new ArrayList<ByteKeyRange>();
+      List<ByteKeyRange> response = new ArrayList<>();
       if (ranges.size() < 2) {
         response.add(ranges.get(0));
       } else {
@@ -1080,6 +1087,11 @@ public class BigtableIO {
 
     @Override
     public void validate() {
+      if (!config.getValidate()) {
+        LOG.debug("Validation is disabled");
+        return;
+      }
+
       ValueProvider<String> tableId = config.getTableId();
       checkArgument(
           tableId != null && tableId.isAccessible() && !tableId.get().isEmpty(),
@@ -1090,7 +1102,7 @@ public class BigtableIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder.add(DisplayData.item("tableId", config.getTableId().get()).withLabel("Table ID"));
+      builder.add(DisplayData.item("tableId", config.getTableId()).withLabel("Table ID"));
 
       if (filter != null) {
         builder.add(DisplayData.item("rowFilter", filter.toString()).withLabel("Table Row Filter"));
@@ -1122,7 +1134,7 @@ public class BigtableIO {
           "Desired bundle size %s bytes must be greater than 0.",
           desiredBundleSizeBytes);
 
-      int splitCount = (int) Math.ceil(((double) sampleSizeBytes) / (desiredBundleSizeBytes));
+      int splitCount = (int) Math.ceil(((double) sampleSizeBytes) / desiredBundleSizeBytes);
       List<ByteKey> splitKeys = range.split(splitCount);
       ImmutableList.Builder<BigtableSource> splits = ImmutableList.builder();
       Iterator<ByteKey> keys = splitKeys.iterator();

@@ -18,17 +18,19 @@
 package gcs
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"path/filepath"
 	"strings"
 
+	"cloud.google.com/go/storage"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/filesystem"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
-	"google.golang.org/api/storage/v1"
+	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 )
 
 func init() {
@@ -36,28 +38,27 @@ func init() {
 }
 
 type fs struct {
-	client *storage.Service
+	client *storage.Client
 }
 
 // New creates a new Google Cloud Storage filesystem using application
 // default credentials. If it fails, it falls back to unauthenticated
 // access.
 func New(ctx context.Context) filesystem.Interface {
-	client, err := gcsx.NewClient(ctx, storage.DevstorageReadWriteScope)
+	client, err := storage.NewClient(ctx, option.WithScopes(storage.ScopeReadWrite))
 	if err != nil {
 		log.Warnf(ctx, "Warning: falling back to unauthenticated GCS access: %v", err)
 
-		client, err = gcsx.NewUnauthenticatedClient(ctx)
+		client, err = storage.NewClient(ctx, option.WithoutAuthentication())
 		if err != nil {
-			panic(fmt.Sprintf("failed to create GCE client: %v", err))
+			panic(errors.Wrapf(err, "failed to create GCS client"))
 		}
 	}
 	return &fs{client: client}
 }
 
 func (f *fs) Close() error {
-	f.client = nil
-	return nil
+	return f.client.Close()
 }
 
 func (f *fs) List(ctx context.Context, glob string) ([]string, error) {
@@ -72,24 +73,28 @@ func (f *fs) List(ctx context.Context, glob string) ([]string, error) {
 		// For now, we assume * is the first matching character to make a
 		// prefix listing and not list the entire bucket.
 
-		err := f.client.Objects.List(bucket).Prefix(object[:index]).Pages(ctx, func(list *storage.Objects) error {
-			for _, obj := range list.Items {
-				match, err := filepath.Match(object, obj.Name)
-				if err != nil {
-					return err
-				}
-				if match {
-					candidates = append(candidates, obj.Name)
-				}
-			}
-			return nil
+		it := f.client.Bucket(bucket).Objects(ctx, &storage.Query{
+			Prefix: object[:index],
 		})
-		if err != nil {
-			return nil, err
+		for {
+			obj, err := it.Next()
+			if err == iterator.Done {
+				break
+			}
+			if err != nil {
+				return nil, err
+			}
+
+			match, err := filepath.Match(object, obj.Name)
+			if err != nil {
+				return nil, err
+			}
+			if match {
+				candidates = append(candidates, obj.Name)
+			}
 		}
 	} else {
 		// Single object.
-
 		candidates = []string{object}
 	}
 
@@ -106,11 +111,7 @@ func (f *fs) OpenRead(ctx context.Context, filename string) (io.ReadCloser, erro
 		return nil, err
 	}
 
-	resp, err := f.client.Objects.Get(bucket, object).Download()
-	if err != nil {
-		return nil, err
-	}
-	return resp.Body, nil
+	return f.client.Bucket(bucket).Object(object).NewReader(ctx)
 }
 
 // TODO(herohde) 7/12/2017: should we create the bucket in OpenWrite? For now, "no".
@@ -120,20 +121,6 @@ func (f *fs) OpenWrite(ctx context.Context, filename string) (io.WriteCloser, er
 	if err != nil {
 		return nil, err
 	}
-	return &writer{client: f.client, bucket: bucket, object: object}, nil
-}
 
-type writer struct {
-	client         *storage.Service
-	bucket, object string
-
-	buf bytes.Buffer
-}
-
-func (w *writer) Write(data []byte) (n int, err error) {
-	return w.buf.Write(data)
-}
-
-func (w *writer) Close() error {
-	return gcsx.WriteObject(w.client, w.bucket, w.object, &w.buf)
+	return f.client.Bucket(bucket).Object(object).NewWriter(ctx), nil
 }

@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution;
 
-import org.apache.beam.vendor.grpc.v1.io.grpc.BindableService;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.BindableService;
 
 /** An interface sharing common behavior with services used during execution of user Fns. */
 public interface FnService extends AutoCloseable, BindableService {
@@ -26,10 +25,10 @@ public interface FnService extends AutoCloseable, BindableService {
    * {@inheritDoc}.
    *
    * <p>There should be no more calls to any service method by the time a call to {@link #close()}
-   * begins. Specifically, this means that a {@link org.apache.beam.vendor.grpc.v1.io.grpc.Server}
-   * that this service is bound to should have completed a call to the {@link
-   * org.apache.beam.vendor.grpc.v1.io.grpc.Server#shutdown()} method, and all future incoming calls
-   * will be rejected.
+   * begins. Specifically, this means that a {@link
+   * org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server} that this service is bound to should have
+   * completed a call to the {@link org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server#shutdown()}
+   * method, and all future incoming calls will be rejected.
    */
   @Override
   void close() throws Exception;

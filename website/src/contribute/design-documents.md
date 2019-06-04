@@ -37,6 +37,7 @@ This is a collection of documents that may or may not be up to date.
   - Reimplementing Beam API classes on top of Splittable DoFn on top of Source API [[doc](https://s.apache.org/sdf-via-source)]
   - New TextIO features based on SDF [[doc](http://s.apache.org/textio-sdf)]
   - Watch transform [[doc](http://s.apache.org/beam-watch-transform)]
+  - Bundles w/ SplittableDoFns [[doc](https://s.apache.org/beam-bundles-backlog-splitting)]
 - State and Timers for DoFn [[doc](https://s.apache.org/beam-state)]
 - ContextFn [[doc](http://s.apache.org/context-fn)]
 - Static Display Data [[doc](https://docs.google.com/document/d/11enEB9JwVp6vO0uOYYTMYTGkr3TdNfELwWqoiUg5ZxM)]
@@ -53,8 +54,9 @@ This is a collection of documents that may or may not be up to date.
 - Error Reporting Callback (WIP) [[doc](https://docs.google.com/document/d/1o2VXwCL97k3G-1BR9RSKNc6XtJTIA6SEKPMne91S67Y)]
 - Snapshotting and Updating Beam Pipelines [[doc](https://docs.google.com/document/d/1UWhnYPgui0gUYOsuGcCjLuoOUlGA4QaY91n8p3wz9MY)]
 - Requiring PTransform to set a coder on its resulting collections [[mail](https://lists.apache.org/thread.html/1dde0b5a93c2983cbab5f68ce7c74580102f5bb2baaa816585d7eabb@%3Cdev.beam.apache.org%3E)]
-- [PROPOSAL] Support of @RequiresStableInput annotation [[doc](https://docs.google.com/document/d/117yRKbbcEdm3eIKB_26BHOJGmHSZl1YNoF0RqWGtqAM)], [[mail](https://lists.apache.org/thread.html/ae3c838df060e47148439d1dad818d5e927b2a25ff00cc4153221dff@%3Cdev.beam.apache.org%3E)]
+- Support of @RequiresStableInput annotation [[doc](https://docs.google.com/document/d/117yRKbbcEdm3eIKB_26BHOJGmHSZl1YNoF0RqWGtqAM)], [[mail](https://lists.apache.org/thread.html/ae3c838df060e47148439d1dad818d5e927b2a25ff00cc4153221dff@%3Cdev.beam.apache.org%3E)]
 - [PROPOSAL] @onwindowexpiration [[mail](https://lists.apache.org/thread.html/1dab7f17c97378e665928b11116cbd887dc7be93390ab26c593ee49a@%3Cdev.beam.apache.org%3E)]
+- AutoValue Coding and Row Support [[doc](https://docs.google.com/document/d/1ucoik4WzUDfilqIz3I1AuMHc1J8DE6iv7gaUCDI42BI)] 
 
 ### IO / Filesystem
 - IOChannelFactory Redesign [[doc](https://docs.google.com/document/d/11TdPyZ9_zmjokhNWM3Id-XJsVG3qel2lhdKTknmZ_7M)]
@@ -65,6 +67,7 @@ This is a collection of documents that may or may not be up to date.
 - Exactly-once Kafka sink [[doc](https://lists.apache.org/thread.html/fb394e576e6e858205307b033c5a5c6cc3923a17606814a54036c570@%3Cdev.beam.apache.org%3E)]
 
 ### Metrics
+- Get Metrics API: Metric Extraction via proto RPC API. [[doc](https://s.apache.org/get-metrics-api)]
 - Metrics API [[doc](http://s.apache.org/beam-metrics-api)]
 - I/O Metrics [[doc](https://s.apache.org/standard-io-metrics)]
 - Metrics extraction independent from runners / execution engines [[doc](https://s.apache.org/runner_independent_metrics_extraction)]
@@ -75,18 +78,24 @@ This is a collection of documents that may or may not be up to date.
 - Runner Authoring Guide [[doc](https://s.apache.org/beam-runner-guide)] (obsoletes [[doc](http://s.apache.org/beam-runner-api)] and [[doc](https://s.apache.org/beam-runner-1-pager)])
 - Composite PInputs, POutputs, and the Runner API [[doc](https://s.apache.org/beam-runner-composites)]
 - Side Input Architecture for Apache Beam [[doc](https://s.apache.org/beam-side-inputs-1-pager)]
+- Runner supported features plugin [[doc](https://s.apache.org/k79W)]
+- Structured streaming Spark Runner [[doc](https://s.apache.org/spark-structured-streaming-runner)]
 
 ### SQL / Schema
 - Streams and Tables [[doc](https://s.apache.org/beam-streams-tables)]
 - Streaming SQL [[doc](http://s.apache.org/streaming-sql-spec)]
 - Schema-Aware PCollections [[doc](https://docs.google.com/document/d/1tnG2DPHZYbsomvihIpXruUmQ12pHGK0QIvXS1FOTgRc)]
-- Pubsub to Beam SQL [[doc](https://docs.google.com/document/d/1wIXTxh-nQ3u694XbF0iEZX_7-b3yi4ad0ML2pcAxYfE)]
+- Pubsub to Beam SQL [[doc](https://docs.google.com/document/d/1554kJD33ovkBDvSNjasHu90L_EZOS26ZHr4ao1muS-A)]
 - Apache Beam Proposal: design of DSL SQL interface [[doc](https://docs.google.com/document/d/1uWXL_yF3UUO5GfCxbL6kWsmC8xCWfICU3RwiQKsk7Mk)]
-- Calcite/Beam SQL Windowing [[doc](https://docs.google.com/document/d/1RmyV9e1Qab-axsLI1WWpw5oGAJDv0X7y9OSnPnrZWJk)]
-- Reject Unsupported Windowing Strategies in JOIN [[doc](https://docs.google.com/document/d/1V-ZgKVTwHdNSGlQWncWIzcf_Rw2oLKZFSkU43scLff4)]
+- Calcite/Beam SQL Windowing [[doc](https://docs.google.com/document/d/1yuG_fAnbAKEq3qz2jdf8qxyEIZ3xJAbCF1bbd_Y9Ia8)]
+- Reject Unsupported Windowing Strategies in JOIN [[doc](https://docs.google.com/document/d/1Me0orPfH6vEFjfsTGcZ5ELWg-sw4st1ZvXqYyr7Pexc)]
 - Beam DSL_SQL branch API review [[doc](https://s.apache.org/beam-sql-dsl-api-review)]
 - Complex Types Support for Beam SQL DDL [[mail](https://lists.apache.org/thread.html/c494e521cb6865b1ae19a68e8e653afc562df7744e8d08087249cbe0@%3Cdev.beam.apache.org%3E)]
 - [SQL] Reject unsupported inputs to Joins [[mail](https://lists.apache.org/thread.html/e7a442fa9cf6b76a5b435493170508f6c42fb9ccef9bcef434424f79@%3Cdev.beam.apache.org%3E)]
+- Integrating runners & IO [[doc](https://docs.google.com/document/d/1ZFVlnldrIYhUgOfxIT2JcmTFFSWTl4HwAnQsnwiNL1g)]
+- Beam SQL Pipeline Options [[doc](https://docs.google.com/document/d/1UTsSBuruJRfGnVOS9eXbQI6NauCD4WnSAPgA_Y0zjdk)]
+- Unbounded limit [[doc](https://docs.google.com/document/d/13zeTewHH9nfwhSlcE4x77WQwr1U2Z4sTiNRjOXUj2aw)]
+- Portable Beam Schemas [[doc](https://s.apache.org/beam-schemas)]
 
 ### Portability
 - Fn API
@@ -108,6 +117,11 @@ This is a collection of documents that may or may not be up to date.
 - Portability Prototype [[doc](https://s.apache.org/beam-portability-team-doc)]
 - Portable Artifact Staging [[doc](https://docs.google.com/document/d/12zNk3O2nhTB8Zmxw5U78qXrvlk5r42X8tqF248IDlpI)]
 - Portable Beam on Flink [[doc](https://s.apache.org/portable-beam-on-flink)]
+- Portability API: How to Checkpoint and Split Bundles [[doc](https://s.apache.org/beam-checkpoint-and-split-bundles)]
+- Portability API: How to Finalize Bundles [[doc](https://s.apache.org/beam-finalizing-bundles)]
+- Side Input in Universal Reference Runner [[doc](https://docs.google.com/document/d/13N0OJ7QJm81wcgu13pi9GuN29UUxN2iIFn_H8lKpDks)]
+- Spark Portable Runner Overview [[doc](https://docs.google.com/document/d/1j8GERTiHUuc6CzzCXZHc38rBn41uWfATBh2-5JN8hro)]
+- Cross-Language Pipelines & Legacy IO [[doc](https://s.apache.org/beam-cross-language-io)]
 
 ### Build / Testing
 - More Expressive PAsserts [[doc](https://docs.google.com/document/d/1fZUUbG2LxBtqCVabQshldXIhkMcXepsbv2vuuny8Ix4)]
@@ -122,11 +136,16 @@ This is a collection of documents that may or may not be up to date.
 - Beam-Site Automation Reliability [[doc](https://s.apache.org/beam-site-automation)]
 - Managing outdated dependencies [[doc](https://docs.google.com/document/d/15m1MziZ5TNd9rh_XN0YYBJfYkt0Oj-Ou9g0KFDPL2aA)]
 - Automation For Beam Dependency Check [[doc](https://docs.google.com/document/d/1rqr_8a9NYZCgeiXpTIwWLCL7X8amPAVfRXsO72BpBwA)]
+- Test performance of core Apache Beam operations [[doc](https://s.apache.org/load-test-basic-operations)]
+- Add static code analysis quality gates to Beam [[doc](https://docs.google.com/document/d/1YbV18mrHujmiLBtadS1WzCVeiI3Lo7W6awWJDA4A98o)]
 
 ### Python
 - Beam Python User State and Timer APIs [[doc](https://s.apache.org/beam-python-user-state-and-timers)]
 - Python Kafka connector [[doc](https://docs.google.com/document/d/1ogRS-e-HYYTHsXi_l2zDUUOnvfzEbub3BFkPrYIOawU)]
 - Python 3 support [[doc](https://s.apache.org/beam-python-3)]
+- Splittable DoFn for Python SDK [[doc](http://s.apache.org/splittable-do-fn-python-sdk)]
+- Parquet IO for Python SDK [[doc](https://docs.google.com/document/d/1-FT6zmjYhYFWXL8aDM5mNeiUnZdKnnB021zTo4S-0Wg)]
+- Building Python Wheels [[doc](https://docs.google.com/document/d/1MRVFs48e6g7wORshr2UpuOVD_yTSJTbmR65_j8XbGek)]
 
 ### Go
 - Apache Beam Go SDK design [[doc](https://s.apache.org/beam-go-sdk-design-rfc)]
@@ -134,6 +153,9 @@ This is a collection of documents that may or may not be up to date.
 - Go SDK Integration Tests [[doc](https://docs.google.com/document/d/1jy6EE7D4RjgfNV0FhD3rMsT1YKhnUfcHRZMAlC6ygXw)]
 
 ## Other
+- Euphoria - High-Level Java 8 DSL [[doc](https://s.apache.org/beam-euphoria)]
+- Apache Beam Code Review Guide [[doc](https://docs.google.com/document/d/1ZgAsSqEX9CaiTycrcR-tdc3X7MWlyT-F32jfMl89kDQ)]
+
 Some of documents are available on this [google drive](https://drive.google.com/corp/drive/folders/0B-IhJZh9Ab52OFBVZHpsNjc4eXc)
 
 To add new design document it is recommended to use this [design document template](https://docs.google.com/document/d/1kVePqjt2daZd0bQHGUwghlcLbhvrny7VpflAzk9sjUg)

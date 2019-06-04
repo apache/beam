@@ -62,6 +62,13 @@ public class PropertyNames {
   public static final String VALUE = "value";
   public static final String WINDOWING_STRATEGY = "windowing_strategy";
   public static final String DISPLAY_DATA = "display_data";
-  public static final String RESTRICTION_CODER = "restriction_coder";
+  /**
+   * @deprecated Uses the incorrect terminology. {@link #RESTRICTION_ENCODING}. Should be removed
+   *     once non FnAPI SplittableDoFn expansion for Dataflow is removed.
+   */
+  @Deprecated public static final String RESTRICTION_CODER = "restriction_coder";
+
   public static final String IMPULSE_ELEMENT = "impulse_element";
+  public static final String PIPELINE_PROTO_CODER_ID = "pipeline_proto_coder_id";
+  public static final String RESTRICTION_ENCODING = "restriction_encoding";
 }

@@ -24,11 +24,8 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
-
-func init() {
-	RegisterFunction(makePartitionFn)
-}
 
 var (
 	sig = &funcx.Signature{Args: []reflect.Type{TType}, Return: []reflect.Type{reflectx.Int}} // T -> int
@@ -59,7 +56,7 @@ func Partition(s Scope, n int, fn interface{}, col PCollection) []PCollection {
 
 	data, err := json.Marshal(partitionData{N: n, Fn: EncodedFunc{Fn: reflectx.MakeFunc(fn)}})
 	if err != nil {
-		panic(fmt.Sprintf("failed to encode partition function: %v", err))
+		panic(errors.WithContext(err, "encoding partition function"))
 	}
 
 	return ParDoN(s, &graph.DynFn{Name: "beam.partitionFn", Data: data, T: fnT, Gen: makePartitionFn}, col)
@@ -99,7 +96,7 @@ func (f *partitionFn) Call(args []interface{}) []interface{} {
 
 	n := f.fn.Call1x1(value).(int)
 	if n < 0 || n >= f.n {
-		return []interface{}{fmt.Errorf("partitionFn(%v) = %v, want [0,%v)", value, n, f.n)}
+		return []interface{}{errors.Errorf("partitionFn(%v) = %v, want [0,%v)", value, n, f.n)}
 	}
 
 	emit := args[n+2]
@@ -112,7 +109,7 @@ func (f *partitionFn) Call(args []interface{}) []interface{} {
 func makePartitionFn(name string, t reflect.Type, enc []byte) reflectx.Func {
 	var data partitionData
 	if err := json.Unmarshal(enc, &data); err != nil {
-		panic(fmt.Sprintf("failed to unmarshal partitionFn data: %v", err))
+		panic(errors.WithContext(err, "unmarshalling partitionFn data"))
 	}
 	return &partitionFn{
 		name: name,

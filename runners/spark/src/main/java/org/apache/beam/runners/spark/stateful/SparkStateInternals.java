@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.spark.stateful;
 
-import com.google.common.collect.HashBasedTable;
-import com.google.common.collect.Table;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -43,13 +41,15 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBasedTable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Table;
 import org.joda.time.Instant;
 
 /** An implementation of {@link StateInternals} for the SparkRunner. */
 class SparkStateInternals<K> implements StateInternals {
 
   private final K key;
-  //Serializable state for internals (namespace to state tag to coded value).
+  // Serializable state for internals (namespace to state tag to coded value).
   private final Table<String, String, byte[]> stateTable;
 
   private SparkStateInternals(K key) {
@@ -223,7 +223,7 @@ class SparkStateInternals<K> implements StateInternals {
 
     private final TimestampCombiner timestampCombiner;
 
-    public SparkWatermarkHoldState(
+    SparkWatermarkHoldState(
         StateNamespace namespace,
         StateTag<WatermarkHoldState> address,
         TimestampCombiner timestampCombiner) {
@@ -297,8 +297,7 @@ class SparkStateInternals<K> implements StateInternals {
 
     @Override
     public void add(InputT input) {
-      AccumT accum = getAccum();
-      combineFn.addInput(accum, input);
+      AccumT accum = combineFn.addInput(getAccum(), input);
       writeValue(accum);
     }
 

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql;
 
 import org.apache.beam.sdk.schemas.Schema;
@@ -31,6 +30,9 @@ public interface BeamSqlTable {
 
   /** create a {@code IO.write()} instance to write to target. */
   POutput buildIOWriter(PCollection<Row> input);
+
+  /** Whether this table is bounded (known to be finite) or unbounded (may or may not be finite). */
+  PCollection.IsBounded isBounded();
 
   /** Get the schema info of the table. */
   Schema getSchema();

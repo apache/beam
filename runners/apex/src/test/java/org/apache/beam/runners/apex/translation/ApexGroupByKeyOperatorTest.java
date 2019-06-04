@@ -19,7 +19,6 @@ package org.apache.beam.runners.apex.translation;
 
 import com.datatorrent.api.Sink;
 import com.datatorrent.lib.util.KryoCloneUtils;
-import com.google.common.collect.Lists;
 import java.util.List;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.TestApexRunner;
@@ -40,6 +39,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Assert;

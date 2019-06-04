@@ -21,7 +21,6 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -52,6 +51,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
@@ -270,8 +270,7 @@ public class TrafficRoutes {
       fields.add(new TableFieldSchema().setName("avg_speed").setType("FLOAT"));
       fields.add(new TableFieldSchema().setName("slowdown_event").setType("BOOLEAN"));
       fields.add(new TableFieldSchema().setName("window_timestamp").setType("TIMESTAMP"));
-      TableSchema schema = new TableSchema().setFields(fields);
-      return schema;
+      return new TableSchema().setFields(fields);
     }
   }
 
@@ -339,16 +338,7 @@ public class TrafficRoutes {
     void setWindowSlideEvery(Integer value);
   }
 
-  /**
-   * Sets up and starts streaming pipeline.
-   *
-   * @throws IOException if there is a problem setting up resources
-   */
-  public static void main(String[] args) throws IOException {
-    TrafficRoutesOptions options =
-        PipelineOptionsFactory.fromArgs(args).withValidation().as(TrafficRoutesOptions.class);
-
-    options.setBigQuerySchema(FormatStatsFn.getSchema());
+  public static void runTrafficRoutes(TrafficRoutesOptions options) throws IOException {
     // Using ExampleUtils to set up required resources.
     ExampleUtils exampleUtils = new ExampleUtils(options);
     exampleUtils.setup();
@@ -378,12 +368,24 @@ public class TrafficRoutes {
     exampleUtils.waitToFinish(result);
   }
 
+  /**
+   * Sets up and starts streaming pipeline.
+   *
+   * @throws IOException if there is a problem setting up resources
+   */
+  public static void main(String[] args) throws IOException {
+    TrafficRoutesOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(TrafficRoutesOptions.class);
+
+    options.setBigQuerySchema(FormatStatsFn.getSchema());
+
+    runTrafficRoutes(options);
+  }
+
   private static Double tryParseAvgSpeed(String[] inputItems) {
     try {
       return Double.parseDouble(tryParseString(inputItems, 9));
-    } catch (NumberFormatException e) {
-      return null;
-    } catch (NullPointerException e) {
+    } catch (NumberFormatException | NullPointerException e) {
       return null;
     }
   }
@@ -401,7 +403,7 @@ public class TrafficRoutes {
   }
 
   private static String tryParseString(String[] inputItems, int index) {
-    return inputItems.length >= index ? inputItems[index] : null;
+    return inputItems.length > index ? inputItems[index] : null;
   }
 
   /** Define some small hard-wired San Diego 'routes' to track based on sensor station ID. */

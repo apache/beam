@@ -37,10 +37,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
 import com.google.common.testing.EqualsTester;
 import java.io.IOException;
 import java.io.NotSerializableException;
@@ -56,6 +52,10 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -542,7 +542,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /** Test interface for JSON conversion of simple types. */
-  private interface SimpleTypes extends PipelineOptions {
+  public interface SimpleTypes extends PipelineOptions {
     int getInteger();
 
     void setInteger(int value);
@@ -603,7 +603,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /** Test interface for JSON conversion of container types. */
-  private interface ContainerTypes extends PipelineOptions {
+  public interface ContainerTypes extends PipelineOptions {
     List<String> getList();
 
     void setList(List<String> values);
@@ -633,7 +633,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /** Test interface for conversion of inner types. */
-  private static class InnerType {
+  public static class InnerType {
     public double doubleField;
 
     static InnerType of(double value) {
@@ -656,7 +656,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /** Test interface for conversion of generics and inner types. */
-  private static class ComplexType {
+  public static class ComplexType {
     public String stringField;
     public Integer intField;
     public List<InnerType> genericType;
@@ -678,7 +678,8 @@ public class ProxyInvocationHandlerTest {
     }
   }
 
-  private interface ComplexTypes extends PipelineOptions {
+  /** Test interface. */
+  public interface ComplexTypes extends PipelineOptions {
     ComplexType getComplexType();
 
     void setComplexType(ComplexType value);
@@ -699,7 +700,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /** Test interface for testing ignored properties during serialization. */
-  private interface IgnoredProperty extends PipelineOptions {
+  public interface IgnoredProperty extends PipelineOptions {
     @JsonIgnore
     String getValue();
 
@@ -729,7 +730,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /** Test interface containing a class that is not serializable by Jackson. */
-  private interface NotSerializableProperty extends PipelineOptions {
+  public interface NotSerializableProperty extends PipelineOptions {
     NotSerializable getValue();
 
     void setValue(NotSerializable value);
@@ -749,7 +750,7 @@ public class ProxyInvocationHandlerTest {
    * Test interface that has {@link JsonIgnore @JsonIgnore} on a property that Jackson can't
    * serialize.
    */
-  private interface IgnoredNotSerializableProperty extends PipelineOptions {
+  public interface IgnoredNotSerializableProperty extends PipelineOptions {
     @JsonIgnore
     NotSerializable getValue();
 
@@ -785,7 +786,7 @@ public class ProxyInvocationHandlerTest {
    * Test interface containing a property that is serializable by Jackson only with the additional
    * metadata.
    */
-  private interface SerializableWithMetadataProperty extends PipelineOptions {
+  public interface SerializableWithMetadataProperty extends PipelineOptions {
     SerializableWithMetadata getValue();
 
     void setValue(SerializableWithMetadata value);
@@ -842,7 +843,8 @@ public class ProxyInvocationHandlerTest {
     assertThat(displayData, hasDisplayItem("object", "foobar"));
   }
 
-  interface TypedOptions extends PipelineOptions {
+  /** Test interface. */
+  public interface TypedOptions extends PipelineOptions {
     int getInteger();
 
     void setInteger(int value);
@@ -906,13 +908,15 @@ public class ProxyInvocationHandlerTest {
             allOf(hasKey("foo"), hasValue("bar"), hasNamespace(ExtendsBaseOptions.class))));
   }
 
-  interface BaseOptions extends PipelineOptions {
+  /** Test interface. */
+  public interface BaseOptions extends PipelineOptions {
     String getFoo();
 
     void setFoo(String value);
   }
 
-  interface ExtendsBaseOptions extends BaseOptions {
+  /** Test interface. */
+  public interface ExtendsBaseOptions extends BaseOptions {
     @Override
     String getFoo();
 
@@ -942,13 +946,15 @@ public class ProxyInvocationHandlerTest {
     assertThat(data, hasDisplayItem(allOf(hasKey("bar"), hasNamespace(BarOptions.class))));
   }
 
-  interface FooOptions extends PipelineOptions {
+  /** Test interface. */
+  public interface FooOptions extends PipelineOptions {
     String getFoo();
 
     void setFoo(String value);
   }
 
-  interface BarOptions extends PipelineOptions {
+  /** Test interface. */
+  public interface BarOptions extends PipelineOptions {
     String getBar();
 
     void setBar(String value);
@@ -962,7 +968,8 @@ public class ProxyInvocationHandlerTest {
     assertThat(data, not(hasDisplayItem("foo")));
   }
 
-  interface HasDefaults extends PipelineOptions {
+  /** Test interface. */
+  public interface HasDefaults extends PipelineOptions {
     @Default.String("bar")
     String getFoo();
 
@@ -1016,7 +1023,8 @@ public class ProxyInvocationHandlerTest {
     assertThat(deserializedData, hasDisplayItem("deepPrimitiveArray", "[[1, 2], [3]]"));
   }
 
-  private interface ArrayOptions extends PipelineOptions {
+  /** Test interface. */
+  public interface ArrayOptions extends PipelineOptions {
     String[][] getDeepArray();
 
     void setDeepArray(String[][] value);
@@ -1084,7 +1092,8 @@ public class ProxyInvocationHandlerTest {
     assertThat(displayData, hasDisplayItem("classOption", expectedJsonValue));
   }
 
-  interface HasClassOptions extends PipelineOptions {
+  /** Test interface. */
+  public interface HasClassOptions extends PipelineOptions {
     Class<?> getClassOption();
 
     void setClassOption(Class<?> value);

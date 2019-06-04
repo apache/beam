@@ -15,11 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump.translators;
 
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
+import io.gearpump.streaming.dsl.api.functions.FoldFunction;
+import io.gearpump.streaming.dsl.api.functions.MapFunction;
+import io.gearpump.streaming.dsl.javaapi.JavaStream;
+import io.gearpump.streaming.dsl.javaapi.functions.GroupByFunction;
+import io.gearpump.streaming.dsl.window.api.Discarding$;
+import io.gearpump.streaming.dsl.window.api.EventTimeTrigger$;
+import io.gearpump.streaming.dsl.window.api.WindowFunction;
+import io.gearpump.streaming.dsl.window.api.Windows;
+import io.gearpump.streaming.dsl.window.impl.Window;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -37,15 +43,8 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.gearpump.streaming.dsl.api.functions.FoldFunction;
-import org.apache.gearpump.streaming.dsl.api.functions.MapFunction;
-import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
-import org.apache.gearpump.streaming.dsl.javaapi.functions.GroupByFunction;
-import org.apache.gearpump.streaming.dsl.window.api.Discarding$;
-import org.apache.gearpump.streaming.dsl.window.api.EventTimeTrigger$;
-import org.apache.gearpump.streaming.dsl.window.api.WindowFunction;
-import org.apache.gearpump.streaming.dsl.window.api.Windows;
-import org.apache.gearpump.streaming.dsl.window.impl.Window;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.joda.time.Instant;
 
 /** {@link GroupByKey} is translated to Gearpump groupBy function. */

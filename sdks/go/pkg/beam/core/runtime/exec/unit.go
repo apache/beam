@@ -36,7 +36,7 @@ type Unit interface {
 
 	// StartBundle signals that processing preconditions, such as availability
 	// of side input, are met and starts the given bundle.
-	StartBundle(ctx context.Context, id string, data DataManager) error
+	StartBundle(ctx context.Context, id string, data DataContext) error
 
 	// FinishBundle signals end of input and thus finishes the bundle. Any
 	// data connections must be closed.
@@ -64,7 +64,8 @@ type Root interface {
 type ElementProcessor interface {
 	// Call processes a single element. If GBK or CoGBK result, the values
 	// are populated. Otherwise, they're empty.
-	ProcessElement(ctx context.Context, elm FullValue, values ...ReStream) error
+	// The *FullValue  is owned by the caller, and is not safe to cache.
+	ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error
 }
 
 // Node represents an single-bundle processing unit. Each node contains

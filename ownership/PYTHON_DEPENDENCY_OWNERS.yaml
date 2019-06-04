@@ -18,7 +18,7 @@
 
 # Beam Python SDK dependency ownership
 # Please update if new dependencies are introduced to the Beam.
-# Sign up with you JIRA username to take the owership of a package.
+# Sign up with you JIRA username to take the ownership of a package.
 # Separate names by comma.
 
 ---
@@ -42,8 +42,14 @@ deps:
   google-apitools:
     owners:
 
+  google-cloud-core:
+    owners:
+
   google-cloud-bigquery:
     owners: markflyhigh
+
+  google-cloud-bigtable:
+    owners:
 
   google-cloud-pubsub:
     owners: markflyhigh
@@ -85,9 +91,6 @@ deps:
     owners:
 
   pyyaml:
-    owners: robertwb
-
-  six:
     owners: robertwb
 
   typing:

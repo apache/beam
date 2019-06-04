@@ -32,8 +32,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessServerBuilder;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -47,7 +47,7 @@ public class PortableRunnerTest implements Serializable {
   private static final ApiServiceDescriptor ENDPOINT_DESCRIPTOR =
       ApiServiceDescriptor.newBuilder().setUrl(ENDPOINT_URL).build();
 
-  private PipelineOptions options = createPipelineOptions();
+  private final PipelineOptions options = createPipelineOptions();
 
   @Rule public transient TestPipeline p = TestPipeline.fromOptions(options);
 

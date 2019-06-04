@@ -21,16 +21,9 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
-
-func init() {
-	runtime.RegisterFunction(encVarIntZ)
-	runtime.RegisterFunction(decVarIntZ)
-	runtime.RegisterFunction(encVarUintZ)
-	runtime.RegisterFunction(decVarUintZ)
-}
 
 // NewVarIntZ returns a varint coder for the given integer type. It uses a zig-zag scheme,
 // which is _different_ from the Beam standard coding scheme.
@@ -39,7 +32,7 @@ func NewVarIntZ(t reflect.Type) (*coder.CustomCoder, error) {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return coder.NewCustomCoder("varintz", t, encVarIntZ, decVarIntZ)
 	default:
-		return nil, fmt.Errorf("not a signed integer type: %v", t)
+		return nil, errors.Errorf("not a signed integer type: %v", t)
 	}
 }
 
@@ -50,7 +43,7 @@ func NewVarUintZ(t reflect.Type) (*coder.CustomCoder, error) {
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return coder.NewCustomCoder("varuintz", t, encVarUintZ, decVarUintZ)
 	default:
-		return nil, fmt.Errorf("not a unsigned integer type: %v", t)
+		return nil, errors.Errorf("not a unsigned integer type: %v", t)
 	}
 }
 
@@ -78,7 +71,7 @@ func encVarIntZ(v typex.T) []byte {
 func decVarIntZ(t reflect.Type, data []byte) (typex.T, error) {
 	n, size := binary.Varint(data)
 	if size <= 0 {
-		return nil, fmt.Errorf("invalid varintz encoding for: %v", data)
+		return nil, errors.Errorf("invalid varintz encoding for: %v", data)
 	}
 	switch t.Kind() {
 	case reflect.Int:
@@ -120,7 +113,7 @@ func encVarUintZ(v typex.T) []byte {
 func decVarUintZ(t reflect.Type, data []byte) (typex.T, error) {
 	n, size := binary.Uvarint(data)
 	if size <= 0 {
-		return nil, fmt.Errorf("invalid varuintz encoding for: %v", data)
+		return nil, errors.Errorf("invalid varuintz encoding for: %v", data)
 	}
 	switch t.Kind() {
 	case reflect.Uint:

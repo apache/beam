@@ -29,7 +29,9 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
   // Execute shell command to test Python SDK.
+  // TODO: Parallel the script run with Jenkins DSL or Gradle.
   steps {
-    shell('cd ' + commonJobProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh')
+    shell('cd ' + commonJobProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh python2')
+    shell('cd ' + commonJobProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh python3')
   }
 }

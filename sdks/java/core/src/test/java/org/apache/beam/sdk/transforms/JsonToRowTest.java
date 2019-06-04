@@ -22,6 +22,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesSchema;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
@@ -32,6 +33,7 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link JsonToRow}. */
 @RunWith(JUnit4.class)
+@Category(UsesSchema.class)
 public class JsonToRowTest implements Serializable {
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
@@ -57,7 +59,7 @@ public class JsonToRowTest implements Serializable {
                 jsonPerson("person5", "40", "true")));
 
     PCollection<Row> personRows =
-        jsonPersons.apply(JsonToRow.withSchema(personSchema)).setCoder(personSchema.getRowCoder());
+        jsonPersons.apply(JsonToRow.withSchema(personSchema)).setRowSchema(personSchema);
 
     PAssert.that(personRows)
         .containsInAnyOrder(

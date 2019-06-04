@@ -32,8 +32,12 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
+__all__ = ['RangeSource']
+
 
 class RangeSource(iobase.BoundedSource):
+
+  __hash__ = None
 
   def __init__(self, start, end, split_freq=1):
     assert start <= end
@@ -59,7 +63,7 @@ class RangeSource(iobase.BoundedSource):
       yield iobase.SourceBundle(
           sub_end - sub_start,
           RangeSource(sub_start, sub_end, self._split_freq),
-          None, None)
+          sub_start, sub_end)
 
   def get_range_tracker(self, start_position, end_position):
     start, end = self._normalize(start_position, end_position)
@@ -76,9 +80,12 @@ class RangeSource(iobase.BoundedSource):
   # For testing
   def __eq__(self, other):
     return (type(self) == type(other)
-            and self._start == other._start and self._end == other._end)
+            and self._start == other._start
+            and self._end == other._end
+            and self._split_freq == other._split_freq)
 
   def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
 
@@ -140,64 +147,64 @@ class ConcatSourceTest(unittest.TestCase):
                            for range in ranges])
 
     range_tracker = source.get_range_tracker()
-    self.assertEquals(range_tracker.position_at_fraction(0), (0, 0))
-    self.assertEquals(range_tracker.position_at_fraction(.01), (0, 1))
-    self.assertEquals(range_tracker.position_at_fraction(.1), (0, 4))
-    self.assertEquals(range_tracker.position_at_fraction(.125), (1, 4))
-    self.assertEquals(range_tracker.position_at_fraction(.2), (1, 7))
-    self.assertEquals(range_tracker.position_at_fraction(.7), (2, 23))
-    self.assertEquals(range_tracker.position_at_fraction(.75), (3, 24))
-    self.assertEquals(range_tracker.position_at_fraction(.8), (3, 26))
-    self.assertEquals(range_tracker.position_at_fraction(1), (4, None))
+    self.assertEqual(range_tracker.position_at_fraction(0), (0, 0))
+    self.assertEqual(range_tracker.position_at_fraction(.01), (0, 1))
+    self.assertEqual(range_tracker.position_at_fraction(.1), (0, 4))
+    self.assertEqual(range_tracker.position_at_fraction(.125), (1, 4))
+    self.assertEqual(range_tracker.position_at_fraction(.2), (1, 7))
+    self.assertEqual(range_tracker.position_at_fraction(.7), (2, 23))
+    self.assertEqual(range_tracker.position_at_fraction(.75), (3, 24))
+    self.assertEqual(range_tracker.position_at_fraction(.8), (3, 26))
+    self.assertEqual(range_tracker.position_at_fraction(1), (4, None))
 
     range_tracker = source.get_range_tracker((1, None), (3, None))
-    self.assertEquals(range_tracker.position_at_fraction(0), (1, 4))
-    self.assertEquals(range_tracker.position_at_fraction(.01), (1, 5))
-    self.assertEquals(range_tracker.position_at_fraction(.5), (1, 14))
-    self.assertEquals(range_tracker.position_at_fraction(.599), (1, 16))
-    self.assertEquals(range_tracker.position_at_fraction(.601), (2, 17))
-    self.assertEquals(range_tracker.position_at_fraction(1), (3, None))
+    self.assertEqual(range_tracker.position_at_fraction(0), (1, 4))
+    self.assertEqual(range_tracker.position_at_fraction(.01), (1, 5))
+    self.assertEqual(range_tracker.position_at_fraction(.5), (1, 14))
+    self.assertEqual(range_tracker.position_at_fraction(.599), (1, 16))
+    self.assertEqual(range_tracker.position_at_fraction(.601), (2, 17))
+    self.assertEqual(range_tracker.position_at_fraction(1), (3, None))
 
   def test_empty_source(self):
     read_all = source_test_utils.read_from_source
 
     empty = RangeSource(0, 0)
-    self.assertEquals(read_all(ConcatSource([])), [])
-    self.assertEquals(read_all(ConcatSource([empty])), [])
-    self.assertEquals(read_all(ConcatSource([empty, empty])), [])
+    self.assertEqual(read_all(ConcatSource([])), [])
+    self.assertEqual(read_all(ConcatSource([empty])), [])
+    self.assertEqual(read_all(ConcatSource([empty, empty])), [])
 
     range10 = RangeSource(0, 10)
-    self.assertEquals(read_all(ConcatSource([range10]), (0, None), (0, 0)),
-                      [])
-    self.assertEquals(read_all(ConcatSource([range10]), (0, 10), (1, None)),
-                      [])
-    self.assertEquals(read_all(ConcatSource([range10, range10]),
-                               (0, 10), (1, 0)),
-                      [])
+    self.assertEqual(read_all(ConcatSource([range10]), (0, None), (0, 0)),
+                     [])
+    self.assertEqual(read_all(ConcatSource([range10]), (0, 10), (1, None)),
+                     [])
+    self.assertEqual(read_all(ConcatSource([range10, range10]),
+                              (0, 10), (1, 0)),
+                     [])
 
   def test_single_source(self):
     read_all = source_test_utils.read_from_source
 
     range10 = RangeSource(0, 10)
-    self.assertEquals(read_all(ConcatSource([range10])), list(range(10)))
-    self.assertEquals(read_all(ConcatSource([range10]), (0, 5)),
-                      list(range(5, 10)))
-    self.assertEquals(read_all(ConcatSource([range10]), None, (0, 5)),
-                      list(range(5)))
+    self.assertEqual(read_all(ConcatSource([range10])), list(range(10)))
+    self.assertEqual(read_all(ConcatSource([range10]), (0, 5)),
+                     list(range(5, 10)))
+    self.assertEqual(read_all(ConcatSource([range10]), None, (0, 5)),
+                     list(range(5)))
 
   def test_source_with_empty_ranges(self):
     read_all = source_test_utils.read_from_source
 
     empty = RangeSource(0, 0)
-    self.assertEquals(read_all(empty), [])
+    self.assertEqual(read_all(empty), [])
 
     range10 = RangeSource(0, 10)
-    self.assertEquals(read_all(ConcatSource([empty, empty, range10])),
-                      list(range(10)))
-    self.assertEquals(read_all(ConcatSource([empty, range10, empty])),
-                      list(range(10)))
-    self.assertEquals(read_all(ConcatSource([range10, empty, range10, empty])),
-                      list(range(10)) + list(range(10)))
+    self.assertEqual(read_all(ConcatSource([empty, empty, range10])),
+                     list(range(10)))
+    self.assertEqual(read_all(ConcatSource([empty, range10, empty])),
+                     list(range(10)))
+    self.assertEqual(read_all(ConcatSource([range10, empty, range10, empty])),
+                     list(range(10)) + list(range(10)))
 
   def test_source_with_empty_ranges_exhastive(self):
     empty = RangeSource(0, 0)

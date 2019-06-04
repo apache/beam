@@ -69,7 +69,7 @@ public class SubProcessKernel {
           results = collectProcessResults(process, processBuilder, outputFiles);
         } catch (Exception ex) {
           LOG.error("Error running executable ", ex);
-          throw (ex);
+          throw ex;
         }
       } catch (IOException ex) {
         LOG.error(
@@ -91,7 +91,7 @@ public class SubProcessKernel {
           return collectProcessResultsBytes(process, processBuilder, outputFiles);
         } catch (Exception ex) {
           LOG.error("Error running executable ", ex);
-          throw (ex);
+          throw ex;
         }
       } catch (IOException ex) {
         LOG.error(

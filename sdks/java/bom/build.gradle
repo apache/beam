@@ -1,0 +1,124 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// beam-sdks-java-bom generates a BOM (Bill of Materials) in the form of
+// a pom.xml file, which enables users to easily import multiple modules
+// from Beam at the same version. See
+// https://github.com/GoogleCloudPlatform/cloud-opensource-java/blob/master/library-best-practices/JLBP-15.md
+// for more details on BOMs.
+
+plugins {
+  id 'org.apache.beam.module'
+  id 'java'
+  id 'maven-publish'
+}
+
+def isRelease(Project project) {
+  return project.hasProperty('isRelease')
+}
+
+ext {
+  mavenJavaDir = "$project.buildDir/publications/mavenJava"
+  mavenJavaBomOutputFile = file(mavenJavaDir + "/pom-default.xml")
+}
+
+for (p in rootProject.subprojects) {
+  if (!p.path.equals(project.path)) {
+    evaluationDependsOn(p.path)
+  }
+}
+
+def bomModuleNames = new ArrayList<>()
+for (p in rootProject.subprojects) {
+  def subproject = p // project(':' + p.name)
+  if (subproject.ext.properties.containsKey('includeInJavaBom') &&
+      subproject.ext.properties.includeInJavaBom) {
+    bomModuleNames.add(subproject.archivesBaseName)
+  }
+}
+
+// Copy our pom.xml to the location where a generated POM would go
+task copyPom(type: Copy) {
+  from 'pom.xml.template'
+  into mavenJavaDir
+  rename 'pom.xml.template', 'pom-default.xml'
+  expand(version: project.version, modules: bomModuleNames)
+}
+
+assemble.dependsOn copyPom
+
+// We want to use our own pom.xml instead of the generated one, so we disable
+// the pom.xml generation and have the publish tasks depend on `copyPom` instead.
+tasks.whenTaskAdded { task ->
+  if (task.name == 'generatePomFileForMavenJavaPublication') {
+    task.enabled = false
+  } else if (task.name == 'publishMavenJavaPublicationToMavenLocal') {
+    task.dependsOn copyPom
+  } else if (task.name == 'publishMavenJavaPublicationToMavenRepository') {
+    task.dependsOn copyPom
+  }
+}
+
+jar.enabled = false
+
+// Remove the default jar archive which is added by the 'java' plugin.
+configurations.archives.artifacts.with { archives ->
+  def artifacts = []
+  archives.each {
+    if (it.file =~ 'jar') {
+      // We can't just call `archives.remove(it)` here because it triggers
+      // a `ConcurrentModificationException`, so we add matching artifacts
+      // to another list, then remove those elements outside of this iteration.
+      artifacts.add(it)
+    }
+  }
+  artifacts.each {
+    archives.remove(it)
+  }
+}
+
+artifacts {
+  archives(mavenJavaBomOutputFile) {
+    builtBy copyPom
+  }
+}
+
+afterEvaluate {
+  // We can't use the `publishing` section from applyJavaNature because
+  // we don't want all the Java artifacts, and we want to use our own pom.xml
+  // instead of the generated one.
+  publishing {
+    publications {
+      mavenJava(MavenPublication) {
+        groupId = project.mavenGroupId
+        artifactId = archivesBaseName
+        version = project.version
+      }
+    }
+    repositories project.ext.repositories
+  }
+
+  // Only sign artifacts if we are performing a release
+  if (isRelease(project) && !project.hasProperty('noSigning')) {
+    apply plugin: "signing"
+    signing {
+      useGpgCmd()
+      sign publishing.publications
+    }
+  }
+}

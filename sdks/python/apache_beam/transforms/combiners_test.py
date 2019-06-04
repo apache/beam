@@ -16,31 +16,33 @@
 #
 
 """Unit tests for our libraries of combine PTransforms."""
+from __future__ import absolute_import
+from __future__ import division
 
 import itertools
 import random
+import sys
 import unittest
 
 import hamcrest as hc
+from future.builtins import range
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import window
 from apache_beam.transforms.core import CombineGlobally
 from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import Map
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.transforms.ptransform import PTransform
+from apache_beam.typehints import TypeCheckError
 
 
 class CombineTest(unittest.TestCase):
-
-  def setUp(self):
-    # Sort more often for more rigorous testing on small data sets.
-    combine.TopCombineFn._MIN_BUFFER_OVERSIZE = 1
 
   def test_builtin_combines(self):
     pipeline = TestPipeline()
@@ -67,6 +69,28 @@ class CombineTest(unittest.TestCase):
   def test_top(self):
     pipeline = TestPipeline()
 
+    # First for global combines.
+    pcoll = pipeline | 'start' >> Create([6, 3, 1, 1, 9, 1, 5, 2, 0, 6])
+    result_top = pcoll | 'top' >> combine.Top.Largest(5)
+    result_bot = pcoll | 'bot' >> combine.Top.Smallest(4)
+    assert_that(result_top, equal_to([[9, 6, 6, 5, 3]]), label='assert:top')
+    assert_that(result_bot, equal_to([[0, 1, 1, 1]]), label='assert:bot')
+
+    # Again for per-key combines.
+    pcoll = pipeline | 'start-perkye' >> Create(
+        [('a', x) for x in [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]])
+    result_key_top = pcoll | 'top-perkey' >> combine.Top.LargestPerKey(5)
+    result_key_bot = pcoll | 'bot-perkey' >> combine.Top.SmallestPerKey(4)
+    assert_that(result_key_top, equal_to([('a', [9, 6, 6, 5, 3])]),
+                label='key:top')
+    assert_that(result_key_bot, equal_to([('a', [0, 1, 1, 1])]),
+                label='key:bot')
+    pipeline.run()
+
+  @unittest.skipIf(sys.version_info[0] > 2, 'deprecated comparator')
+  def test_top_py2(self):
+    pipeline = TestPipeline()
+
     # A parameter we'll be sharing with a custom comparator.
     names = {0: 'zo',
              1: 'one',
@@ -78,8 +102,7 @@ class CombineTest(unittest.TestCase):
 
     # First for global combines.
     pcoll = pipeline | 'start' >> Create([6, 3, 1, 1, 9, 1, 5, 2, 0, 6])
-    result_top = pcoll | 'top' >> combine.Top.Largest(5)
-    result_bot = pcoll | 'bot' >> combine.Top.Smallest(4)
+
     result_cmp = pcoll | 'cmp' >> combine.Top.Of(
         6,
         lambda a, b, names: len(names[a]) < len(names[b]),
@@ -89,26 +112,34 @@ class CombineTest(unittest.TestCase):
         lambda a, b, names: len(names[a]) < len(names[b]),
         names,  # Note parameter passed to comparator.
         reverse=True)
-    assert_that(result_top, equal_to([[9, 6, 6, 5, 3]]), label='assert:top')
-    assert_that(result_bot, equal_to([[0, 1, 1, 1]]), label='assert:bot')
     assert_that(result_cmp, equal_to([[9, 6, 6, 5, 3, 2]]), label='assert:cmp')
     assert_that(result_cmp_rev, equal_to([[0, 1, 1]]), label='assert:cmp_rev')
 
     # Again for per-key combines.
     pcoll = pipeline | 'start-perkye' >> Create(
         [('a', x) for x in [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]])
-    result_key_top = pcoll | 'top-perkey' >> combine.Top.LargestPerKey(5)
-    result_key_bot = pcoll | 'bot-perkey' >> combine.Top.SmallestPerKey(4)
     result_key_cmp = pcoll | 'cmp-perkey' >> combine.Top.PerKey(
         6,
         lambda a, b, names: len(names[a]) < len(names[b]),
         names)  # Note parameter passed to comparator.
-    assert_that(result_key_top, equal_to([('a', [9, 6, 6, 5, 3])]),
-                label='key:top')
-    assert_that(result_key_bot, equal_to([('a', [0, 1, 1, 1])]),
-                label='key:bot')
     assert_that(result_key_cmp, equal_to([('a', [9, 6, 6, 5, 3, 2])]),
                 label='key:cmp')
+    pipeline.run()
+
+  def test_empty_global_top(self):
+    with TestPipeline() as p:
+      assert_that(p | beam.Create([]) | combine.Top.Largest(10),
+                  equal_to([[]]))
+
+  def test_sharded_top(self):
+    elements = list(range(100))
+    random.shuffle(elements)
+
+    pipeline = TestPipeline()
+    shards = [pipeline | 'Shard%s' % shard >> beam.Create(elements[shard::7])
+              for shard in range(7)]
+    assert_that(shards | beam.Flatten() | combine.Top.Largest(10),
+                equal_to([[99, 98, 97, 96, 95, 94, 93, 92, 91, 90]]))
     pipeline.run()
 
   def test_top_key(self):
@@ -119,6 +150,8 @@ class CombineTest(unittest.TestCase):
         ['aa', 'bbb', 'c', 'dddd'] | combine.Top.Of(3, key=len, reverse=True),
         [['c', 'aa', 'bbb']])
 
+  @unittest.skipIf(sys.version_info[0] > 2, 'deprecated comparator')
+  def test_top_key_py2(self):
     # The largest elements compared by their length mod 5.
     self.assertEqual(
         ['aa', 'bbbb', 'c', 'ddddd', 'eee', 'ffffff'] | combine.Top.Of(
@@ -158,26 +191,16 @@ class CombineTest(unittest.TestCase):
     individual_test_per_key_dd(combine.Largest(5))
 
   def test_combine_sample_display_data(self):
-    def individual_test_per_key_dd(sampleFn, args, kwargs):
-      trs = [sampleFn(*args, **kwargs)]
+    def individual_test_per_key_dd(sampleFn, n):
+      trs = [sampleFn(n)]
       for transform in trs:
         dd = DisplayData.create_from(transform)
-        expected_items = [
-            DisplayDataItemMatcher('fn', transform._fn.__name__)]
-        if args:
-          expected_items.append(
-              DisplayDataItemMatcher('args', str(args)))
-        if kwargs:
-          expected_items.append(
-              DisplayDataItemMatcher('kwargs', str(kwargs)))
-        hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+        hc.assert_that(
+            dd.items,
+            hc.contains_inanyorder(DisplayDataItemMatcher('n', transform._n)))
 
-    individual_test_per_key_dd(combine.Sample.FixedSizePerKey,
-                               args=(5,),
-                               kwargs={})
-    individual_test_per_key_dd(combine.Sample.FixedSizeGlobally,
-                               args=(8,),
-                               kwargs={'arg':  9})
+    individual_test_per_key_dd(combine.Sample.FixedSizePerKey, 5)
+    individual_test_per_key_dd(combine.Sample.FixedSizeGlobally, 5)
 
   def test_combine_globally_display_data(self):
     transform = beam.CombineGlobally(combine.Smallest(5))
@@ -214,6 +237,32 @@ class CombineTest(unittest.TestCase):
         combine.Smallest(4))
     assert_that(result_ktop, equal_to([('a', [9, 6, 6, 5, 3])]), label='k:top')
     assert_that(result_kbot, equal_to([('a', [0, 1, 1, 1])]), label='k:bot')
+    pipeline.run()
+
+  def test_top_no_compact(self):
+
+    class TopCombineFnNoCompact(combine.TopCombineFn):
+
+      def compact(self, accumulator):
+        return accumulator
+
+    pipeline = TestPipeline()
+    pcoll = pipeline | 'Start' >> Create([6, 3, 1, 1, 9, 1, 5, 2, 0, 6])
+    result_top = pcoll | 'Top' >> beam.CombineGlobally(
+        TopCombineFnNoCompact(5, key=lambda x: x))
+    result_bot = pcoll | 'Bot' >> beam.CombineGlobally(
+        TopCombineFnNoCompact(4, reverse=True))
+    assert_that(result_top, equal_to([[9, 6, 6, 5, 3]]), label='Assert:Top')
+    assert_that(result_bot, equal_to([[0, 1, 1, 1]]), label='Assert:Bot')
+
+    pcoll = pipeline | 'Start-Perkey' >> Create(
+        [('a', x) for x in [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]])
+    result_ktop = pcoll | 'Top-PerKey' >> beam.CombinePerKey(
+        TopCombineFnNoCompact(5, key=lambda x: x))
+    result_kbot = pcoll | 'Bot-PerKey' >> beam.CombinePerKey(
+        TopCombineFnNoCompact(4, reverse=True))
+    assert_that(result_ktop, equal_to([('a', [9, 6, 6, 5, 3])]), label='K:Top')
+    assert_that(result_kbot, equal_to([('a', [0, 1, 1, 1])]), label='K:Bot')
     pipeline.run()
 
   def test_global_sample(self):
@@ -286,7 +335,7 @@ class CombineTest(unittest.TestCase):
     def matcher():
       def match(actual):
         equal_to([1])([len(actual)])
-        equal_to(pairs)(actual[0].iteritems())
+        equal_to(pairs)(actual[0].items())
       return match
     assert_that(result, matcher())
     pipeline.run()
@@ -343,6 +392,93 @@ class CombineTest(unittest.TestCase):
           | beam.Create(range(100))
           | beam.CombineGlobally(combine.MeanCombineFn()).with_fanout(11))
       assert_that(result, equal_to([49.5]))
+
+
+class LatestTest(unittest.TestCase):
+
+  def test_globally(self):
+    l = [window.TimestampedValue(3, 100),
+         window.TimestampedValue(1, 200),
+         window.TimestampedValue(2, 300)]
+    with TestPipeline() as p:
+      # Map(lambda x: x) PTransform is added after Create here, because when
+      # a PCollection of TimestampedValues is created with Create PTransform,
+      # the timestamps are not assigned to it. Adding a Map forces the
+      # PCollection to go through a DoFn so that the PCollection consists of
+      # the elements with timestamps assigned to them instead of a PCollection
+      # of TimestampedValue(element, timestamp).
+      pc = p | Create(l) | Map(lambda x: x)
+      latest = pc | combine.Latest.Globally()
+      assert_that(latest, equal_to([2]))
+
+  def test_globally_empty(self):
+    l = []
+    with TestPipeline() as p:
+      pc = p | Create(l) | Map(lambda x: x)
+      latest = pc | combine.Latest.Globally()
+      assert_that(latest, equal_to([None]))
+
+  def test_per_key(self):
+    l = [window.TimestampedValue(('a', 1), 300),
+         window.TimestampedValue(('b', 3), 100),
+         window.TimestampedValue(('a', 2), 200)]
+    with TestPipeline() as p:
+      pc = p | Create(l) | Map(lambda x: x)
+      latest = pc | combine.Latest.PerKey()
+      assert_that(latest, equal_to([('a', 1), ('b', 3)]))
+
+  def test_per_key_empty(self):
+    l = []
+    with TestPipeline() as p:
+      pc = p | Create(l) | Map(lambda x: x)
+      latest = pc | combine.Latest.PerKey()
+      assert_that(latest, equal_to([]))
+
+
+class LatestCombineFnTest(unittest.TestCase):
+
+  def setUp(self):
+    self.fn = combine.LatestCombineFn()
+
+  def test_create_accumulator(self):
+    accumulator = self.fn.create_accumulator()
+    self.assertEquals(accumulator, (None, window.MIN_TIMESTAMP))
+
+  def test_add_input(self):
+    accumulator = self.fn.create_accumulator()
+    element = (1, 100)
+    new_accumulator = self.fn.add_input(accumulator, element)
+    self.assertEquals(new_accumulator, (1, 100))
+
+  def test_merge_accumulators(self):
+    accumulators = [(2, 400), (5, 100), (9, 200)]
+    merged_accumulator = self.fn.merge_accumulators(accumulators)
+    self.assertEquals(merged_accumulator, (2, 400))
+
+  def test_extract_output(self):
+    accumulator = (1, 100)
+    output = self.fn.extract_output(accumulator)
+    self.assertEquals(output, 1)
+
+  def test_with_input_types_decorator_violation(self):
+    l_int = [1, 2, 3]
+    l_dict = [{'a': 3}, {'g': 5}, {'r': 8}]
+    l_3_tuple = [(12, 31, 41), (12, 34, 34), (84, 92, 74)]
+
+    with self.assertRaises(TypeCheckError):
+      with TestPipeline() as p:
+        pc = p | Create(l_int)
+        _ = pc | beam.CombineGlobally(self.fn)
+
+    with self.assertRaises(TypeCheckError):
+      with TestPipeline() as p:
+        pc = p | Create(l_dict)
+        _ = pc | beam.CombineGlobally(self.fn)
+
+    with self.assertRaises(TypeCheckError):
+      with TestPipeline() as p:
+        pc = p | Create(l_3_tuple)
+        _ = pc | beam.CombineGlobally(self.fn)
 
 
 if __name__ == '__main__':

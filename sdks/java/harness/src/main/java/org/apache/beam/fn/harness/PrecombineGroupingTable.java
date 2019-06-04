@@ -15,12 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.io.ByteStreams;
-import com.google.common.io.CountingOutputStream;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -36,6 +32,9 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CountingOutputStream;
 import org.joda.time.Instant;
 
 /** Static utility methods that provide {@link GroupingTable} implementations. */
@@ -558,7 +557,7 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
       // Yes this formula is unstable for small stddev, but we only care about large stddev.
       double mean = sampledSum / (double) sampledElements;
       double sumSquareDiff =
-          (sampledSumSquares - (2 * mean * sampledSum) + (sampledElements * mean * mean));
+          sampledSumSquares - (2 * mean * sampledSum) + (sampledElements * mean * mean);
       double stddev = Math.sqrt(sumSquareDiff / (sampledElements - 1));
       double sqrtDesiredSamples =
           (CONFIDENCE_INTERVAL_SIGMA * stddev) / (CONFIDENCE_INTERVAL_SIZE * mean);

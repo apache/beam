@@ -29,9 +29,16 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/util/execx"
 )
 
-const (
-	pip = "/usr/local/bin/pip"
+var (
+	pip = pipLocation()
 )
+
+func pipLocation() string {
+	if v, ok := os.LookupEnv("pip"); ok {
+		return v
+	}
+	return "/usr/local/bin/pip"
+}
 
 // pipInstallRequirements installs the given requirement, if present.
 func pipInstallRequirements(files []string, dir, name string) error {
@@ -160,7 +167,7 @@ func installSdk(files []string, workDir string, sdkSrcFile string, acceptableWhl
 		log.Printf("Could not install Apache Beam SDK from a wheel: %v, proceeding to install SDK from source tarball.", err)
 	}
 	if !required {
-		_, err := os.Stat(sdkSrcFile)
+		_, err := os.Stat(filepath.Join(workDir, sdkSrcFile))
 		if os.IsNotExist(err) {
 			return nil
 		}

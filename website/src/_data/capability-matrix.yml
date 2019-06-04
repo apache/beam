@@ -30,6 +30,12 @@ columns:
     name: JStorm
   - class: ibmstreams
     name: IBM Streams
+  - class: samza
+    name: Apache Samza
+  - class: nemo
+    name: Apache Nemo
+  - class: jet
+    name: Hazelcast Jet
 
 categories:
   - description: What is being computed?
@@ -77,6 +83,18 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: samza
+            l1: 'Yes'
+            l2: fully supported
+            l3: Supported with per-element transformation.
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: jet
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
       - name: GroupByKey
         values:
           - class: model
@@ -112,6 +130,18 @@ categories:
             l2: fully supported
             l3: ''
           - class: ibmstreams
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: samza
+            l1: 'Yes'
+            l2: fully supported
+            l3: "Uses Samza's partitionBy for key grouping and Beam's logic for window aggregation and triggering."
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: jet
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -153,6 +183,18 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: samza
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: jet
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
       - name: Combine
         values:
           - class: model
@@ -191,6 +233,18 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: samza
+            l1: 'Yes'
+            l2: fully supported
+            l3: Use combiner for efficient pre-aggregation.
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: 'Batch mode uses pre-aggregation'
+          - class: jet
+            l1: 'Yes'
+            l2: fully supported
+            l3: 'Batch mode uses pre-aggregation'
       - name: Composite Transforms
         values:
           - class: model
@@ -226,6 +280,18 @@ categories:
             l2: fully supported
             l3: ''
           - class: ibmstreams
+            l1: 'Partially'
+            l2: supported via inlining
+            l3: ''
+          - class: samza
+            l1: 'Partially'
+            l2: supported via inlining
+            l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: jet
             l1: 'Partially'
             l2: supported via inlining
             l3: ''
@@ -267,6 +333,18 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: samza
+            l1: 'Yes'
+            l2: fully supported
+            l3: Uses Samza's broadcast operator to distribute the side inputs.
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: jet
+            l1: 'Partially'
+            l2: with restrictions
+            l3: Supported only when the side input source is bounded and windowing uses global window
       - name: Source API
         values:
           - class: model
@@ -305,31 +383,43 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
-      - name: Splittable DoFn
+          - class: samza
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: jet
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+      - name: Splittable DoFn (SDF)
         values:
           - class: model
             l1: 'Partially'
             l2: DoFn where processing of each element can be split for parallelism, or suspended and resumed
             l3: Allows users to develop DoFn's that process a single element in portions ("restrictions"), executed in parallel or sequentially. This supersedes the unbounded and bounded `Source` APIs by supporting all of their features on a per-element basis. See http://s.apache.org/splittable-do-fn. Design is in progress on achieving parity with Source API regarding progress signals.
           - class: dataflow
-            l1: 'Partially'
-            l2: supported in streaming mode
-            l3: Supports checkpointing (sequentially processing an element over several, potentially infinitely many calls). Does not yet support autotuning features of the Source API.
+            l1: 'Yes'
+            l2:
+            l3: Does not yet support autotuning features of the Source API.
           - class: flink
-            l1: 'No'
-            l2: implementation in streaming mode coming soon
+            l1: 'Yes'
+            l2:
             l3:
           - class: spark
-            l1: 'No'
-            l2: not implemented
+            l1: 'Partially'
+            l2: supports bounded-per-element SDFs
             l3:
           - class: apex
-            l1: 'No'
-            l2: implementation in streaming mode coming soon
-            l3:
+            l1: 'Partially'
+            l2: supports bounded-per-element SDFs
+            l3: implementation in streaming mode coming soon
           - class: gearpump
-            l1: 'No'
-            l2: not implemented
+            l1: 'Partially'
+            l2: supports bounded-per-element SDFs
             l3:
           - class: mapreduce
             l1: 'No'
@@ -342,7 +432,19 @@ categories:
           - class: ibmstreams
             l1: 'No'
             l2: not implemented
-            l3: 
+            l3:
+          - class: samza
+            l1: 'Partially'
+            l2: supports bounded-per-element SDFs
+            l3:
+          - class: nemo
+            l1: 'No'
+            l2: not implemented
+            l3: ''
+          - class: jet
+            l1: 'No'
+            l2: not implemented
+            l3: ''
       - name: Metrics
         values:
           - class: model
@@ -381,6 +483,18 @@ categories:
             l1: 'Partially'
             l2: All metrics types are supported.
             l3: Only attempted values are supported. No committed values for metrics.
+          - class: samza
+            l1: 'Partially'
+            l2: Counter and Gauge are supported.
+            l3: Only attempted values are supported. No committed values for metrics.
+          - class: nemo
+            l1: 'No'
+            l2: not implemented
+            l3: ''
+          - class: jet
+            l1: 'Partially'
+            l2: All metrics types supported, both in batching and streaming mode.
+            l3: Doesn't differentiate between committed and attempted values.
       - name: Stateful Processing
         values:
           - class: model
@@ -416,6 +530,18 @@ categories:
             l2: non-merging windows
             l3: ''
           - class: ibmstreams
+            l1: 'Partially'
+            l2: non-merging windows
+            l3: ''
+          - class: samza
+            l1: 'Partially'
+            l2: non-merging windows
+            l3: 'States are backed up by either rocksDb KV store or in-memory hash map, and persist using changelog.'
+          - class: nemo
+            l1: 'No'
+            l2: not implemented
+            l3: ''
+          - class: jet
             l1: 'Partially'
             l2: non-merging windows
             l3: ''
@@ -464,6 +590,18 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: samza
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: jet
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Fixed windows
         values:
           - class: model
@@ -499,6 +637,18 @@ categories:
             l2: supported
             l3: ''
           - class: ibmstreams
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: samza
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: jet
             l1: 'Yes'
             l2: supported
             l3: ''
@@ -540,6 +690,18 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: samza
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: jet
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Session windows
         values:
           - class: model
@@ -575,6 +737,18 @@ categories:
             l2: supported
             l3: ''
           - class: ibmstreams
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: samza
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: jet
             l1: 'Yes'
             l2: supported
             l3: ''
@@ -616,6 +790,18 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: samza
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: jet
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Custom merging windows
         values:
           - class: model
@@ -654,6 +840,18 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: samza
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: jet
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Timestamp control
         values:
           - class: model
@@ -689,6 +887,18 @@ categories:
             l2: supported
             l3: ''
           - class: ibmstreams
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: samza
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: jet
             l1: 'Yes'
             l2: supported
             l3: ''
@@ -739,6 +949,18 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: samza
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: jet
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Event-time triggers
         values:
@@ -775,6 +997,18 @@ categories:
             l2: fully supported
             l3: ''
           - class: ibmstreams
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: samza
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: jet
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -817,6 +1051,18 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: samza
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: jet
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Count triggers
         values:
@@ -853,6 +1099,18 @@ categories:
             l2: fully supported
             l3: ''
           - class: ibmstreams
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: samza
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: jet
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -895,7 +1153,19 @@ categories:
           - class: ibmstreams
             l1: 'No'
             l2: pending model support
-            l3: 
+            l3:
+          - class: samza
+            l1: 'No'
+            l2: pending model support
+            l3:
+          - class: nemo
+            l1: 'No'
+            l2: pending model support
+            l3: ''
+          - class: jet
+            l1: 'No'
+            l2: pending model support
+            l3: ''
 
       - name: Composite triggers
         values:
@@ -932,6 +1202,18 @@ categories:
             l2: fully supported
             l3: ''
           - class: ibmstreams
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: samza
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: jet
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -974,6 +1256,18 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: samza
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: jet
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Timers
         values:
@@ -1010,6 +1304,18 @@ categories:
             l2: non-merging windows
             l3: ''
           - class: ibmstreams
+            l1: 'Partially'
+            l2: non-merging windows
+            l3: ''
+          - class: samza
+            l1: 'Partially'
+            l2: non-merging windows
+            l3: The Samza Runner supports timers in non-merging windows.
+          - class: nemo
+            l1: 'No'
+            l2: not implemented
+            l3: ''
+          - class: jet
             l1: 'Partially'
             l2: non-merging windows
             l3: ''
@@ -1060,6 +1366,18 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: samza
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: jet
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Accumulating
         values:
@@ -1096,6 +1414,18 @@ categories:
             l2: fully supported
             l3: ''
           - class: ibmstreams
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: samza
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: jet
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -1136,6 +1466,18 @@ categories:
             l2: pending model support
             l3: ''
           - class: ibmstreams
+            l1: 'No'
+            l2: pending model support
+            l3: ''
+          - class: samza
+            l1: 'No'
+            l2: pending model support
+            l3: ''
+          - class: nemo
+            l1: 'No'
+            l2: pending model support
+            l3: ''
+          - class: jet
             l1: 'No'
             l2: pending model support
             l3: ''

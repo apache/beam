@@ -15,10 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.translation;
 
-import com.google.common.collect.Iterables;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -29,6 +27,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -47,13 +46,14 @@ public class BoundedDataset<T> implements Dataset {
   private Iterable<WindowedValue<T>> windowedValues;
   private Coder<T> coder;
   private JavaRDD<WindowedValue<T>> rdd;
+  private List<byte[]> clientBytes;
 
   BoundedDataset(JavaRDD<WindowedValue<T>> rdd) {
     this.rdd = rdd;
   }
 
   BoundedDataset(Iterable<T> values, JavaSparkContext jsc, Coder<T> coder) {
-    this.windowedValues = Iterables.transform(values, WindowingHelpers.windowValueFunction());
+    this.windowedValues = Iterables.transform(values, WindowedValue::valueInGlobalWindow);
     this.jsc = jsc;
     this.coder = coder;
   }
@@ -70,6 +70,14 @@ public class BoundedDataset<T> implements Dataset {
     return rdd;
   }
 
+  List<byte[]> getBytes(WindowedValue.WindowedValueCoder<T> wvCoder) {
+    if (clientBytes == null) {
+      JavaRDDLike<byte[], ?> bytesRDD = rdd.map(CoderHelpers.toByteFunction(wvCoder));
+      clientBytes = bytesRDD.collect();
+    }
+    return clientBytes;
+  }
+
   Iterable<WindowedValue<T>> getValues(PCollection<T> pcollection) {
     if (windowedValues == null) {
       WindowFn<?, ?> windowFn = pcollection.getWindowingStrategy().getWindowFn();
@@ -84,8 +92,7 @@ public class BoundedDataset<T> implements Dataset {
       JavaRDDLike<byte[], ?> bytesRDD = rdd.map(CoderHelpers.toByteFunction(windowedValueCoder));
       List<byte[]> clientBytes = bytesRDD.collect();
       windowedValues =
-          clientBytes
-              .stream()
+          clientBytes.stream()
               .map(bytes -> CoderHelpers.fromByteArray(bytes, windowedValueCoder))
               .collect(Collectors.toList());
     }
@@ -96,7 +103,7 @@ public class BoundedDataset<T> implements Dataset {
   @SuppressWarnings("unchecked")
   public void cache(String storageLevel, Coder<?> coder) {
     StorageLevel level = StorageLevel.fromString(storageLevel);
-    if (TranslationUtils.avoidRddSerialization(level)) {
+    if (TranslationUtils.canAvoidRddSerialization(level)) {
       // if it is memory only reduce the overhead of moving to bytes
       this.rdd = getRDD().persist(level);
     } else {
@@ -105,9 +112,9 @@ public class BoundedDataset<T> implements Dataset {
       Coder<WindowedValue<T>> windowedValueCoder = (Coder<WindowedValue<T>>) coder;
       this.rdd =
           getRDD()
-              .map(CoderHelpers.toByteFunction(windowedValueCoder))
+              .map(v -> ValueAndCoderLazySerializable.of(v, windowedValueCoder))
               .persist(level)
-              .map(CoderHelpers.fromByteFunction(windowedValueCoder));
+              .map(v -> v.getOrDecode(windowedValueCoder));
     }
   }
 
@@ -119,6 +126,6 @@ public class BoundedDataset<T> implements Dataset {
 
   @Override
   public void setName(String name) {
-    rdd.setName(name);
+    getRDD().setName(name);
   }
 }

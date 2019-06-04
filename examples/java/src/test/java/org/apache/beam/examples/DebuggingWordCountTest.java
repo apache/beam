@@ -17,11 +17,11 @@
  */
 package org.apache.beam.examples;
 
-import com.google.common.io.Files;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.examples.DebuggingWordCount.WordCountOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;

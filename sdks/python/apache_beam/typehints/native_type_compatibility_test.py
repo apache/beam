@@ -78,6 +78,14 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
           native_type_compatibility.convert_to_beam_type(typing_type),
           beam_type, description)
 
+  def test_convert_nested_to_beam_type(self):
+    self.assertEqual(
+        typehints.List[typing.Any],
+        typehints.List[typehints.Any])
+    self.assertEqual(
+        typehints.List[typing.Dict[int, str]],
+        typehints.List[typehints.Dict[int, str]])
+
   def test_convert_to_beam_types(self):
     typing_types = [bytes, typing.List[bytes],
                     typing.List[typing.Tuple[bytes, int]],

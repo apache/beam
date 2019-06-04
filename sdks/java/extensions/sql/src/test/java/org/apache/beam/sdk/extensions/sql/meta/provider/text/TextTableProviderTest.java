@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.base.Charsets;
 import java.io.File;
 import java.nio.file.Files;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
@@ -35,6 +34,7 @@ import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -68,7 +68,7 @@ public class TextTableProviderTest {
   private static final String SINGLE_STRING_SQL_SCHEMA = "(f_string VARCHAR)";
 
   /**
-   * Tests {@code CREATE TABLE TYPE text} with no format reads a default CSV.
+   * Tests {@code CREATE EXTERNAL TABLE TYPE text} with no format reads a default CSV.
    *
    * <p>The default format ignores empty lines, so that is an important part of this test.
    */
@@ -81,7 +81,7 @@ public class TextTableProviderTest {
     BeamSqlEnv env = BeamSqlEnv.inMemory(new TextTableProvider());
     env.executeDdl(
         String.format(
-            "CREATE TABLE test %s TYPE text LOCATION '%s/*'",
+            "CREATE EXTERNAL TABLE test %s TYPE text LOCATION '%s/*'",
             SQL_CSV_SCHEMA, tempFolder.getRoot()));
 
     PCollection<Row> rows =
@@ -95,8 +95,8 @@ public class TextTableProviderTest {
   }
 
   /**
-   * Tests {@code CREATE TABLE TYPE text} with a format other than "csv" or "lines" results in a CSV
-   * read of that format.
+   * Tests {@code CREATE EXTERNAL TABLE TYPE text} with a format other than "csv" or "lines" results
+   * in a CSV read of that format.
    */
   @Test
   public void testLegacyTdfCsv() throws Exception {
@@ -107,7 +107,7 @@ public class TextTableProviderTest {
     BeamSqlEnv env = BeamSqlEnv.inMemory(new TextTableProvider());
     env.executeDdl(
         String.format(
-            "CREATE TABLE test %s TYPE text LOCATION '%s/*' TBLPROPERTIES '{\"format\":\"TDF\"}'",
+            "CREATE EXTERNAL TABLE test %s TYPE text LOCATION '%s/*' TBLPROPERTIES '{\"format\":\"TDF\"}'",
             SQL_CSV_SCHEMA, tempFolder.getRoot()));
 
     PCollection<Row> rows =
@@ -128,7 +128,10 @@ public class TextTableProviderTest {
     pipeline.run();
   }
 
-  /** Tests {@code CREATE TABLE TYPE text TBLPROPERTIES '{"format":"csv"}'} works as expected. */
+  /**
+   * Tests {@code CREATE EXTERNAL TABLE TYPE text TBLPROPERTIES '{"format":"csv"}'} works as
+   * expected.
+   */
   @Test
   public void testExplicitCsv() throws Exception {
     Files.write(
@@ -138,7 +141,7 @@ public class TextTableProviderTest {
     BeamSqlEnv env = BeamSqlEnv.inMemory(new TextTableProvider());
     env.executeDdl(
         String.format(
-            "CREATE TABLE test %s TYPE text LOCATION '%s/*' TBLPROPERTIES '{\"format\":\"csv\"}'",
+            "CREATE EXTERNAL TABLE test %s TYPE text LOCATION '%s/*' TBLPROPERTIES '{\"format\":\"csv\"}'",
             SQL_CSV_SCHEMA, tempFolder.getRoot()));
 
     PCollection<Row> rows =
@@ -152,8 +155,8 @@ public class TextTableProviderTest {
   }
 
   /**
-   * Tests {@code CREATE TABLE TYPE text TBLPROPERTIES '{"format":"csv", "csvFormat": "Excel"}'}
-   * works as expected.
+   * Tests {@code CREATE EXTERNAL TABLE TYPE text TBLPROPERTIES '{"format":"csv", "csvFormat":
+   * "Excel"}'} works as expected.
    *
    * <p>Not that the different with "Excel" format is that blank lines are not ignored but have a
    * single string field.
@@ -166,7 +169,7 @@ public class TextTableProviderTest {
     BeamSqlEnv env = BeamSqlEnv.inMemory(new TextTableProvider());
     env.executeDdl(
         String.format(
-            "CREATE TABLE test %s TYPE text LOCATION '%s/*' "
+            "CREATE EXTERNAL TABLE test %s TYPE text LOCATION '%s/*' "
                 + "TBLPROPERTIES '{\"format\":\"csv\", \"csvFormat\":\"Excel\"}'",
             SINGLE_STRING_SQL_SCHEMA, tempFolder.getRoot()));
 
@@ -180,7 +183,10 @@ public class TextTableProviderTest {
     pipeline.run();
   }
 
-  /** Tests {@code CREATE TABLE TYPE text TBLPROPERTIES '{"format":"lines"}'} works as expected. */
+  /**
+   * Tests {@code CREATE EXTERNAL TABLE TYPE text TBLPROPERTIES '{"format":"lines"}'} works as
+   * expected.
+   */
   @Test
   public void testLines() throws Exception {
     // Data that looks like CSV but isn't parsed as it
@@ -190,7 +196,7 @@ public class TextTableProviderTest {
     BeamSqlEnv env = BeamSqlEnv.inMemory(new TextTableProvider());
     env.executeDdl(
         String.format(
-            "CREATE TABLE test %s TYPE text LOCATION '%s/*' TBLPROPERTIES '{\"format\":\"lines\"}'",
+            "CREATE EXTERNAL TABLE test %s TYPE text LOCATION '%s/*' TBLPROPERTIES '{\"format\":\"lines\"}'",
             SQL_LINES_SCHEMA, tempFolder.getRoot()));
 
     PCollection<Row> rows =
@@ -209,7 +215,7 @@ public class TextTableProviderTest {
     BeamSqlEnv env = BeamSqlEnv.inMemory(new TextTableProvider());
     env.executeDdl(
         String.format(
-            "CREATE TABLE test %s TYPE text LOCATION '%s' TBLPROPERTIES '{\"format\":\"lines\"}'",
+            "CREATE EXTERNAL TABLE test %s TYPE text LOCATION '%s' TBLPROPERTIES '{\"format\":\"lines\"}'",
             SQL_LINES_SCHEMA, destinationFile.getAbsolutePath()));
 
     BeamSqlRelUtils.toPCollection(
@@ -230,7 +236,7 @@ public class TextTableProviderTest {
     // NumberedShardedFile
     env.executeDdl(
         String.format(
-            "CREATE TABLE test %s TYPE text LOCATION '%s' TBLPROPERTIES '{\"format\":\"csv\"}'",
+            "CREATE EXTERNAL TABLE test %s TYPE text LOCATION '%s' TBLPROPERTIES '{\"format\":\"csv\"}'",
             SQL_CSV_SCHEMA, destinationFile.getAbsolutePath()));
 
     BeamSqlRelUtils.toPCollection(

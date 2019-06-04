@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark;
 
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
@@ -29,7 +28,7 @@ public class ClearWatermarksRule extends ExternalResource {
     clearWatermarks();
   }
 
-  public void clearWatermarks() {
+  private void clearWatermarks() {
     GlobalWatermarkHolder.clear();
   }
 }

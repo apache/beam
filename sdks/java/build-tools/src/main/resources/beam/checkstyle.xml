@@ -26,6 +26,11 @@ page at http://checkstyle.sourceforge.net/config.html -->
 <module name="Checker">
   <property name="severity" value="error"/>
 
+  <!-- Allows inline SuppressWarnings annotation, by using for example
+      "@SuppressWarnings("checkstyle:JavadocMethod")".
+  -->
+  <module name="SuppressWarningsFilter" />
+
   <module name="RegexpSingleline">
     <property name="format" value="Throwables.propagate\("/>
     <property name="message" value="Throwables.propagate is deprecated"/>
@@ -90,11 +95,27 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="format" value="com\.google\.api\.client\.util\.(ByteStreams|Charsets|Collections2|Joiner|Lists|Maps|Objects|Preconditions|Sets|Strings|Throwables)"/>
     </module>
 
+    <!--
+        Forbid non-vendored guava imports.
+        testing import is allowed because it comes from guava-testing for the tests.
+    -->
+    <module name="RegexpSinglelineJava">
+      <property name="id" value="ForbidNonVendoredGuava"/>
+      <property name="format" value="(\scom\.google\.common\.(?!testing))|(\scom\.google\.thirdparty)"/>
+      <property name="severity" value="error"/>
+      <property name="message" value="You are using raw guava, please use vendored guava classes."/>
+    </module>
+
     <module name="UnusedImports">
       <property name="severity" value="error"/>
       <property name="processJavadoc" value="true"/>
       <message key="import.unused"
                value="Unused import: {0}."/>
+    </module>
+
+    <module name="IllegalThrows">
+      <property name="illegalClassNames"
+        value="java.lang.Error,java.lang.RuntimeException" />
     </module>
 
     <!--
@@ -103,12 +124,28 @@ page at http://checkstyle.sourceforge.net/config.html -->
 
     -->
 
+    <!-- Required to work in pair with SuppressWarningsFilter-->
+    <module name="SuppressWarningsHolder" />
+
     <!-- Checks for Javadoc comments.                     -->
     <!-- See http://checkstyle.sf.net/config_javadoc.html -->
     <module name="JavadocMethod">
       <property name="scope" value="protected"/>
       <property name="severity" value="error"/>
       <property name="allowMissingJavadoc" value="true"/>
+      <property name="allowMissingParamTags" value="true"/>
+      <property name="allowMissingReturnTag" value="true"/>
+      <property name="allowMissingThrowsTags" value="true"/>
+      <property name="allowThrowsTagsForSubclasses" value="true"/>
+      <property name="allowUndeclaredRTE" value="true"/>
+    </module>
+
+    <module name="JavadocMethod">
+      <property name="scope" value="public"/>
+      <property name="severity" value="error"/>
+      <property name="minLineCount" value="30"/>
+      <property name="allowMissingJavadoc" value="false"/>
+      <property name="allowMissingPropertyJavadoc" value="true"/>
       <property name="allowMissingParamTags" value="true"/>
       <property name="allowMissingReturnTag" value="true"/>
       <property name="allowMissingThrowsTags" value="true"/>
@@ -155,6 +192,8 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="format" value="^[a-z]+(\.[a-z][a-z0-9]{1,})*$"/>
       <property name="severity" value="error"/>
     </module>
+ 
+    <module name="PackageDeclaration" />
 
     <module name="TypeNameCheck">
       <!-- Validates static, final fields against the
@@ -310,6 +349,9 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
       <property name="checkFormat" value="$1"/>
     </module>
+
+    <module name="ArrayTypeStyle"/>
   </module>
+
 </module>
 

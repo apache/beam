@@ -11,6 +11,11 @@
 # limitations under the License.
 # Welcome to Jekyll!
 
-# This config file contains options that override the default config for testing.
+# This config file specifies a set of config overrides necessary to stage
+# the website on GCS as part of the :website:stageWebsite task. This is
+# run automatically on Jenkins for website pull requests to make it easy to
+# preview website changes during code review.
 
-destination: .testcontent
+# Clear our the URL so that links are relative rather
+# than pointing to apache.org
+url: ""

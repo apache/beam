@@ -340,7 +340,7 @@ via the [Fn API](#the-fn-api) may manifest as another implementation of
 
 **Python**
 
-See the [DoFnRunner pydoc](https://beam.apache.org/documentation/sdks/pydoc/2.0.0/apache_beam.runners.html#apache_beam.runners.common.DoFnRunner).
+See the [DoFnRunner pydoc](https://beam.apache.org/releases/pydoc/2.0.0/apache_beam.runners.html#apache_beam.runners.common.DoFnRunner).
 
 #### Side Inputs
 
@@ -387,7 +387,7 @@ is used to implement this.
 
 **Python**
 
-In Python, [`SideInputMap`](https://beam.apache.org/documentation/sdks/pydoc/2.0.0/apache_beam.transforms.html#apache_beam.transforms.sideinputs.SideInputMap) maps
+In Python, [`SideInputMap`](https://beam.apache.org/releases/pydoc/2.0.0/apache_beam.transforms.html#apache_beam.transforms.sideinputs.SideInputMap) maps
 windows to side input values. The `WindowMappingFn` manifests as a simple
 function. See
 [sideinputs.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/sideinputs.py).
@@ -443,9 +443,9 @@ have some special knowledge of the types involved.
 The elements you are processing will be key-value pairs, and you'll need to extract
 the keys. For this reason, the format of key-value pairs is standardized and
 shared across all SDKS. See either
-[`KvCoder`](https://beam.apache.org/documentation/sdks/javadoc/2.0.0/org/apache/beam/sdk/coders/KvCoder.html)
+[`KvCoder`](https://beam.apache.org/releases/javadoc/2.0.0/org/apache/beam/sdk/coders/KvCoder.html)
 in Java or
-[`TupleCoder`](https://beam.apache.org/documentation/sdks/pydoc/2.0.0/apache_beam.coders.html#apache_beam.coders.coders.TupleCoder.key_coder)
+[`TupleCoder`](https://beam.apache.org/releases/pydoc/2.0.0/apache_beam.coders.html#apache_beam.coders.coders.TupleCoder.key_coder)
 in Python for documentation on the binary format.
 
 #### Window Merging
@@ -566,7 +566,7 @@ collection of log files, or a database table. The capabilities are:
  * timestamps to associate with each element read
  * `splitAtFraction` for dynamic splitting to enable work stealing, and other
    methods to support it - see the [Beam blog post on dynamic work
-   rebalancing](https://beam.apache.org/blog/2016/05/18/splitAtFraction-method.html)
+   rebalancing]({{ site.baseurl }}/blog/2016/05/18/splitAtFraction-method.html)
 
 The `BoundedSource` does not report a watermark currently. Most of the time, reading
 from a bounded source can be parallelized in ways that result in utterly out-of-order
@@ -610,9 +610,9 @@ it into primitives for your engine. The general pattern is to write a visitor
 that builds a job specification as it walks the graph of `PTransforms`.
 
 The entry point for this in Java is
-[`Pipeline.traverseTopologically`](https://beam.apache.org/documentation/sdks/javadoc/2.0.0/org/apache/beam/sdk/Pipeline.html#traverseTopologically-org.apache.beam.sdk.Pipeline.PipelineVisitor-)
+[`Pipeline.traverseTopologically`](https://beam.apache.org/releases/javadoc/2.0.0/org/apache/beam/sdk/Pipeline.html#traverseTopologically-org.apache.beam.sdk.Pipeline.PipelineVisitor-)
 and
-[`Pipeline.visit`](https://beam.apache.org/documentation/sdks/pydoc/2.0.0/apache_beam.html#apache_beam.pipeline.Pipeline.visit)
+[`Pipeline.visit`](https://beam.apache.org/releases/pydoc/2.0.0/apache_beam.html#apache_beam.pipeline.Pipeline.visit)
 in Python. See the generated documentation for details.
 
 ### Altering a pipeline
@@ -634,7 +634,7 @@ The Java SDK and the "runners core construction" library (the artifact is
 of work. In Python, support code is still under development.
 
 All pipeline alteration is done via
-[`Pipeline.replaceAll(PTransformOverride)`](https://beam.apache.org/documentation/sdks/javadoc/2.0.0/org/apache/beam/sdk/Pipeline.html#replaceAll-java.util.List-)
+[`Pipeline.replaceAll(PTransformOverride)`](https://beam.apache.org/releases/javadoc/2.0.0/org/apache/beam/sdk/Pipeline.html#replaceAll-java.util.List-)
 method. A
 [`PTransformOverride`](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/runners/PTransformOverride.java)
 is a pair of a
@@ -682,7 +682,7 @@ want the users of that SDK (such as Python) to use it.
 #### Allowing users to pass options to your runner
 
 The mechanism for configuration is
-[`PipelineOptions`](https://beam.apache.org/documentation/sdks/javadoc/2.0.0/org/apache/beam/sdk/options/PipelineOptions.html),
+[`PipelineOptions`](https://beam.apache.org/releases/javadoc/2.0.0/org/apache/beam/sdk/options/PipelineOptions.html),
 an interface that works completely differently than normal Java objects. Forget
 what you know, and follow the rules, and `PipelineOptions` will treat you well.
 
@@ -863,12 +863,12 @@ message FunctionSpec {
 
 A `FunctionSpec` includes a URN identifying the function as well as an arbitrary
 fixed parameter. For example the (hypothetical) "max" CombineFn might have the
-URN `urn:beam:combinefn:max:0.1` and a parameter that indicates by what
+URN `beam:combinefn:max:0.1` and a parameter that indicates by what
 comparison to take the max.
 
 For most UDFs in a pipeline constructed using a particular language's SDK, the
 URN will indicate that the SDK must interpret it, for example
-`urn:beam:dofn:javasdk:0.1` or `urn:beam:dofn:pythonsdk:0.1`. The parameter
+`beam:dofn:javasdk:0.1` or `beam:dofn:pythonsdk:0.1`. The parameter
 will contain serialized code, such as a Java-serialized `DoFn` or a Python
 pickled `DoFn`.
 

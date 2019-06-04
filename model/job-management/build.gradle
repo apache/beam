@@ -16,8 +16,11 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyPortabilityNature()
+plugins { id 'org.apache.beam.module' }
+applyPortabilityNature(shadowJarValidationExcludes:[
+    "org/apache/beam/model/expansion/v1/**",
+    "org/apache/beam/model/jobmanagement/v1/**",
+])
 
 description = "Apache Beam :: Model :: Job Management"
 ext.summary = "Portable definitions for submitting pipelines."
@@ -25,6 +28,6 @@ ext.summary = "Portable definitions for submitting pipelines."
 dependencies {
   // We purposely depend on the unshaded classes for protobuf compilation and
   // export the shaded variant as the actual runtime dependency.
-  protobuf project(path: ":beam-model-pipeline", configuration: "unshaded")
-  runtime project(path: ":beam-model-pipeline", configuration: "shadow")
+  compile project(path: ":model:pipeline", configuration: "unshaded")
+  runtime project(path: ":model:pipeline", configuration: "shadow")
 }

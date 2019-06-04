@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.adapter;
 
 import java.io.IOException;
@@ -53,8 +52,7 @@ public class TestBoundedSource<T> extends BoundedSource<T> {
   @Override
   public List<? extends BoundedSource<T>> split(
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
-    return events
-        .stream()
+    return events.stream()
         .map(ev -> new TestBoundedSource<>(Collections.singletonList(ev)))
         .collect(Collectors.toList());
   }

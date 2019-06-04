@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.Arrays;
@@ -24,8 +23,9 @@ import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSqlOutputToConsoleFn;
-import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
-import org.apache.beam.sdk.extensions.sql.mock.MockedUnboundedTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableUtils;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestUnboundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -52,7 +52,7 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
   public static void prepare() {
     registerTable(
         "ORDER_DETAILS",
-        MockedUnboundedTable.of(
+        TestUnboundedTable.of(
                 Schema.FieldType.INT32, "order_id",
                 Schema.FieldType.INT32, "site_id",
                 Schema.FieldType.INT32, "price",
@@ -88,7 +88,7 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
 
     registerTable(
         "ORDER_DETAILS1",
-        MockedBoundedTable.of(
+        TestBoundedTable.of(
                 Schema.FieldType.INT32, "order_id",
                 Schema.FieldType.STRING, "buyer")
             .addRows(
@@ -98,7 +98,7 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
     registerTable(
         "SITE_LKP",
         new SiteLookupTable(
-            TestUtils.buildBeamSqlSchema(
+            TestTableUtils.buildBeamSqlSchema(
                 Schema.FieldType.INT32, "site_id",
                 Schema.FieldType.STRING, "site_name")));
   }
@@ -108,6 +108,11 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
 
     public SiteLookupTable(Schema schema) {
       super(schema);
+    }
+
+    @Override
+    public PCollection.IsBounded isBounded() {
+      throw new UnsupportedOperationException();
     }
 
     @Override
@@ -184,13 +189,17 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
             + " o1.order_id=o2.order_id";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);
+
     rows.apply(ParDo.of(new BeamSqlOutputToConsoleFn("helloworld")));
+
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    Schema.FieldType.INT32, "order_id",
-                    Schema.FieldType.INT32, "sum_site_id",
-                    Schema.FieldType.STRING, "buyer")
+                    Schema.builder()
+                        .addField("order_id", Schema.FieldType.INT32)
+                        .addField("sum_site_id", Schema.FieldType.INT32)
+                        .addNullableField("buyer", Schema.FieldType.STRING)
+                        .build())
                 .addRows(1, 3, "james", 2, 5, "bond", 3, 3, null)
                 .getStringRows());
     pipeline.run();
@@ -225,9 +234,11 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    Schema.FieldType.INT32, "order_id",
-                    Schema.FieldType.INT32, "sum_site_id",
-                    Schema.FieldType.STRING, "buyer")
+                    Schema.builder()
+                        .addField("order_id", Schema.FieldType.INT32)
+                        .addField("sum_site_id", Schema.FieldType.INT32)
+                        .addNullableField("buyer", Schema.FieldType.STRING)
+                        .build())
                 .addRows(1, 3, "james", 2, 5, "bond", 3, 3, null)
                 .getStringRows());
     pipeline.run();
@@ -270,6 +281,26 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
         "SELECT o1.order_id, o2.site_name FROM "
             + " ORDER_DETAILS o1 "
             + " JOIN SITE_LKP o2 "
+            + " on "
+            + " o1.site_id=o2.site_id "
+            + " WHERE o1.site_id=1";
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
+    PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    Schema.FieldType.INT32, "order_id",
+                    Schema.FieldType.STRING, "site_name")
+                .addRows(1, "SITE1")
+                .getStringRows());
+    pipeline.run();
+  }
+
+  @Test
+  public void testJoinAsLookupSwapped() throws Exception {
+    String sql =
+        "SELECT o1.order_id, o2.site_name FROM "
+            + " SITE_LKP o2 "
+            + " JOIN ORDER_DETAILS o1 "
             + " on "
             + " o1.site_id=o2.site_id "
             + " WHERE o1.site_id=1";

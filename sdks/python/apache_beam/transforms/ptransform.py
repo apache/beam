@@ -36,14 +36,18 @@ FlatMap processing functions.
 
 from __future__ import absolute_import
 
+import contextlib
 import copy
-import inspect
 import itertools
 import operator
 import os
 import sys
 import threading
+from builtins import hex
+from builtins import object
+from builtins import zip
 from functools import reduce
+from functools import wraps
 
 from google.protobuf import message
 
@@ -58,6 +62,7 @@ from apache_beam.typehints import typehints
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
 from apache_beam.typehints.decorators import getcallargs_forhints
+from apache_beam.typehints.decorators import getfullargspec
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import validate_composite_type_param
 from apache_beam.utils import proto_utils
@@ -225,6 +230,23 @@ def get_nested_pvalues(pvalueish):
   pvalues = []
   _GetPValues().visit(pvalueish, pvalues)
   return pvalues
+
+
+def get_nested_pvalues0(pvalueish):
+  if isinstance(pvalueish, (tuple, list)):
+    tagged_values = enumerate(pvalueish)
+  if isinstance(pvalueish, dict):
+    tagged_values = pvalueish.items()
+  else:
+    yield None, pvalueish
+    return
+
+  for tag, subvalue in tagged_values:
+    for subtag, subsubvalue in get_nested_pvalues(subvalue):
+      if subtag is None:
+        yield tag, subsubvalue
+      else:
+        yield '%s.%s' % (tag, subsubvalue), subsubvalue
 
 
 class _ZipPValues(object):
@@ -523,13 +545,37 @@ class PTransform(WithTypeHints, HasDisplayData):
         yield pvalueish
     return pvalueish, tuple(_dict_tuple_leaves(pvalueish))
 
+  def _pvaluish_from_dict(self, input_dict):
+    if len(input_dict) == 1:
+      return next(iter(input_dict.values()))
+    else:
+      return input_dict
+
   _known_urns = {}
 
   @classmethod
   def register_urn(cls, urn, parameter_type, constructor=None):
     def register(constructor):
-      cls._known_urns[urn] = parameter_type, constructor
-      return staticmethod(constructor)
+      if isinstance(constructor, type):
+        constructor.from_runner_api_parameter = register(
+            constructor.from_runner_api_parameter)
+        # pylint isn't smart enough to recognize when this is used
+        # on a class or a method, and will emit a no-self-warning
+        # in the latter case.  Rather than suppressing this at each
+        # use, we fool it here through some dynamic patching that
+        # pylint will also not understand.
+
+        @contextlib.contextmanager
+        def fake_static_method():
+          actual_static_method = staticmethod
+          globals()['staticmethod'] = lambda x: x
+          yield
+          globals()['staticmethod'] = actual_static_method
+        with fake_static_method():
+          return staticmethod(constructor)
+      else:
+        cls._known_urns[urn] = parameter_type, constructor
+        return staticmethod(constructor)
     if constructor:
       # Used as a statement.
       register(constructor)
@@ -547,6 +593,7 @@ class PTransform(WithTypeHints, HasDisplayData):
         urn=urn,
         payload=typed_param.SerializeToString()
         if isinstance(typed_param, message.Message)
+        else typed_param.encode('utf-8') if isinstance(typed_param, str)
         else typed_param)
 
   @classmethod
@@ -554,9 +601,18 @@ class PTransform(WithTypeHints, HasDisplayData):
     if proto is None or not proto.urn:
       return None
     parameter_type, constructor = cls._known_urns[proto.urn]
-    return constructor(
-        proto_utils.parse_Bytes(proto.payload, parameter_type),
-        context)
+
+    try:
+      return constructor(
+          proto_utils.parse_Bytes(proto.payload, parameter_type),
+          context)
+    except Exception:
+      if context.allow_proto_holders:
+        # For external transforms we cannot build a Python ParDo object so
+        # we build a holder transform instead.
+        from apache_beam.transforms.core import RunnerAPIPTransformHolder
+        return RunnerAPIPTransformHolder(proto)
+      raise
 
   def to_runner_api_parameter(self, unused_context):
     # The payload here is just to ease debugging.
@@ -566,6 +622,9 @@ class PTransform(WithTypeHints, HasDisplayData):
   def to_runner_api_pickled(self, unused_context):
     return (python_urns.PICKLED_TRANSFORM,
             pickler.dumps(self))
+
+  def runner_api_requires_keyed_input(self):
+    return False
 
 
 @PTransform.register_urn(python_urns.GENERIC_COMPOSITE_TRANSFORM, None)
@@ -617,12 +676,12 @@ class PTransformWithSideInputs(PTransform):
     if isinstance(fn, type) and issubclass(fn, WithTypeHints):
       # Don't treat Fn class objects as callables.
       raise ValueError('Use %s() not %s.' % (fn.__name__, fn.__name__))
-    self.fn = self.make_fn(fn)
+    self.fn = self.make_fn(fn, bool(args or kwargs))
     # Now that we figure out the label, initialize the super-class.
     super(PTransformWithSideInputs, self).__init__()
 
     if (any([isinstance(v, pvalue.PCollection) for v in args]) or
-        any([isinstance(v, pvalue.PCollection) for v in kwargs.itervalues()])):
+        any([isinstance(v, pvalue.PCollection) for v in kwargs.values()])):
       raise error.SideInputError(
           'PCollection used directly as side input argument. Specify '
           'AsIter(pcollection) or AsSingleton(pcollection) to indicate how the '
@@ -635,7 +694,11 @@ class PTransformWithSideInputs(PTransform):
     self._cached_fn = self.fn
 
     # Ensure fn and side inputs are picklable for remote execution.
-    self.fn = pickler.loads(pickler.dumps(self.fn))
+    try:
+      self.fn = pickler.loads(pickler.dumps(self.fn))
+    except RuntimeError:
+      raise RuntimeError('Unable to pickle fn %s' % self.fn)
+
     self.args = pickler.loads(pickler.dumps(self.args))
     self.kwargs = pickler.loads(pickler.dumps(self.kwargs))
 
@@ -713,7 +776,7 @@ class PTransformWithSideInputs(PTransform):
     """
     raise NotImplementedError
 
-  def make_fn(self, fn):
+  def make_fn(self, fn, has_side_inputs):
     # TODO(silviuc): Add comment describing that this is meant to be overriden
     # by methods detecting callables and wrapping them in DoFns.
     return fn
@@ -746,8 +809,10 @@ class _PTransformFnPTransform(PTransform):
     # .with_output_types() methods.
     kwargs = dict(self._kwargs)
     args = tuple(self._args)
+
+    # TODO(BEAM-5878) Support keyword-only arguments.
     try:
-      if 'type_hints' in inspect.getargspec(self._fn).args:
+      if 'type_hints' in getfullargspec(self._fn).args:
         args = (self.get_type_hints(),) + args
     except TypeError:
       # Might not be a function.
@@ -803,7 +868,7 @@ def ptransform_fn(fn):
   (first argument if no label was specified and second argument otherwise).
   """
   # TODO(robertwb): Consider removing staticmethod to allow for self parameter.
-
+  @wraps(fn)
   def callable_ptransform_factory(*args, **kwargs):
     return _PTransformFnPTransform(fn, *args, **kwargs)
   return callable_ptransform_factory

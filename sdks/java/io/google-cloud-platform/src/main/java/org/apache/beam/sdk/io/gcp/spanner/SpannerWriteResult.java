@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -26,11 +25,19 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 /**
- * A result of {@link SpannerIO#write()} transform. Use {@link #getFailedMutations} to access failed
- * Mutations. {@link #getOutput()} can be used as a completion signal with the {@link
- * org.apache.beam.sdk.transforms.Wait} transform.
+ * The results of a {@link SpannerIO#write()} transform.
+ *
+ * <p>Use {@link #getFailedMutations()} to access a {@link PCollection} of MutationGroups that
+ * failed to write.
+ *
+ * <p>The {@link PCollection} returned by {@link #getOutput()} can be used in batch pipelines as a
+ * completion signal to {@link org.apache.beam.sdk.transforms.Wait Wait.OnSignal} to indicate when
+ * all input has been written. Note that in streaming pipelines, this signal will never be triggered
+ * as the input is unbounded and this {@link PCollection} is using the {@link
+ * org.apache.beam.sdk.transforms.windowing.GlobalWindow GlobalWindow}.
  */
 public class SpannerWriteResult implements POutput {
   private final Pipeline pipeline;

@@ -17,28 +17,35 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.ImmutableMap;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Function;
-import javax.annotation.Nullable;
+import java.util.stream.Collectors;
+import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.ReadableInstant;
 
 /** A set of utilities for inferring a Beam {@link Schema} from static Java types. */
 public class StaticSchemaInference {
+  public static List<FieldValueTypeInformation> sortBySchema(
+      List<FieldValueTypeInformation> types, Schema schema) {
+    Map<String, FieldValueTypeInformation> typeMap =
+        types.stream()
+            .collect(Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
+    return schema.getFields().stream()
+        .map(f -> typeMap.get(f.getName()))
+        .collect(Collectors.toList());
+  }
+
   enum MethodType {
     GETTER,
     SETTER
@@ -63,91 +70,6 @@ public class StaticSchemaInference {
           .put(BigDecimal.class, FieldType.DECIMAL)
           .build();
 
-  /** Relevant information about a Java type. */
-  public static class TypeInformation {
-    private final String name;
-    private final TypeDescriptor type;
-    private final boolean nullable;
-
-    /** Construct a {@link TypeInformation}. */
-    private TypeInformation(String name, TypeDescriptor type, boolean nullable) {
-      this.name = name;
-      this.type = type;
-      this.nullable = nullable;
-    }
-
-    /** Construct a {@link TypeInformation} from a class member variable. */
-    public static TypeInformation forField(Field field) {
-      return new TypeInformation(
-          field.getName(),
-          TypeDescriptor.of(field.getGenericType()),
-          field.isAnnotationPresent(Nullable.class));
-    }
-
-    /** Construct a {@link TypeInformation} from a class getter. */
-    public static TypeInformation forGetter(Method method) {
-      String name;
-      if (method.getName().startsWith("get")) {
-        name = ReflectUtils.stripPrefix(method.getName(), "get");
-      } else if (method.getName().startsWith("is")) {
-        name = ReflectUtils.stripPrefix(method.getName(), "is");
-      } else {
-        throw new RuntimeException("Getter has wrong prefix " + method.getName());
-      }
-      TypeDescriptor type = TypeDescriptor.of(method.getGenericReturnType());
-      boolean nullable = method.isAnnotationPresent(Nullable.class);
-      return new TypeInformation(name, type, nullable);
-    }
-
-    /** Construct a {@link TypeInformation} from a class setter. */
-    public static TypeInformation forSetter(Method method) {
-      String name;
-      if (method.getName().startsWith("set")) {
-        name = ReflectUtils.stripPrefix(method.getName(), "set");
-      } else {
-        throw new RuntimeException("Setter has wrong prefix " + method.getName());
-      }
-      if (method.getParameterCount() != 1) {
-        throw new RuntimeException("Setter methods should take a single argument.");
-      }
-      TypeDescriptor type = TypeDescriptor.of(method.getGenericParameterTypes()[0]);
-      boolean nullable =
-          Arrays.stream(method.getParameterAnnotations()[0]).anyMatch(Nullable.class::isInstance);
-      return new TypeInformation(name, type, nullable);
-    }
-
-    public String getName() {
-      return name;
-    }
-
-    public TypeDescriptor getType() {
-      return type;
-    }
-
-    public boolean isNullable() {
-      return nullable;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      TypeInformation that = (TypeInformation) o;
-      return nullable == that.nullable
-          && Objects.equals(name, that.name)
-          && Objects.equals(type, that.type);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(name, type, nullable);
-    }
-  }
-
   /**
    * Infer a schema from a Java class.
    *
@@ -156,10 +78,10 @@ public class StaticSchemaInference {
    * public getter methods, or special annotations on the class.
    */
   public static Schema schemaFromClass(
-      Class<?> clazz, Function<Class, List<TypeInformation>> getTypesForClass) {
+      Class<?> clazz, FieldValueTypeSupplier fieldValueTypeSupplier) {
     Schema.Builder builder = Schema.builder();
-    for (TypeInformation type : getTypesForClass.apply(clazz)) {
-      Schema.FieldType fieldType = fieldFromType(type.getType(), getTypesForClass);
+    for (FieldValueTypeInformation type : fieldValueTypeSupplier.get(clazz)) {
+      Schema.FieldType fieldType = fieldFromType(type.getType(), fieldValueTypeSupplier);
       if (type.isNullable()) {
         builder.addNullableField(type.getName(), fieldType);
       } else {
@@ -169,9 +91,9 @@ public class StaticSchemaInference {
     return builder.build();
   }
 
-  // Map a Java field type to a Beam Schema FieldType.
-  private static Schema.FieldType fieldFromType(
-      TypeDescriptor type, Function<Class, List<TypeInformation>> getTypesForClass) {
+  /** Map a Java field type to a Beam Schema FieldType. */
+  public static Schema.FieldType fieldFromType(
+      TypeDescriptor type, FieldValueTypeSupplier fieldValueTypeSupplier) {
     FieldType primitiveType = PRIMITIVE_TYPES.get(type.getRawType());
     if (primitiveType != null) {
       return primitiveType;
@@ -184,7 +106,7 @@ public class StaticSchemaInference {
         return FieldType.BYTES;
       } else {
         // Otherwise this is an array type.
-        return FieldType.array(fieldFromType(component, getTypesForClass));
+        return FieldType.array(fieldFromType(component, fieldValueTypeSupplier));
       }
     } else if (type.isSubtypeOf(TypeDescriptor.of(Collection.class))) {
       TypeDescriptor<Collection<?>> collection = type.getSupertype(Collection.class);
@@ -192,7 +114,7 @@ public class StaticSchemaInference {
         ParameterizedType ptype = (ParameterizedType) collection.getType();
         java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
         checkArgument(params.length == 1);
-        return FieldType.array(fieldFromType(TypeDescriptor.of(params[0]), getTypesForClass));
+        return FieldType.array(fieldFromType(TypeDescriptor.of(params[0]), fieldValueTypeSupplier));
       } else {
         throw new RuntimeException("Cannot infer schema from unparameterized collection.");
       }
@@ -202,10 +124,11 @@ public class StaticSchemaInference {
         ParameterizedType ptype = (ParameterizedType) map.getType();
         java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
         checkArgument(params.length == 2);
-        FieldType keyType = fieldFromType(TypeDescriptor.of(params[0]), getTypesForClass);
-        FieldType valueType = fieldFromType(TypeDescriptor.of(params[1]), getTypesForClass);
+        FieldType keyType = fieldFromType(TypeDescriptor.of(params[0]), fieldValueTypeSupplier);
+        FieldType valueType = fieldFromType(TypeDescriptor.of(params[1]), fieldValueTypeSupplier);
         checkArgument(
-            keyType.getTypeName().isPrimitiveType(), "Only primitive types can be map keys");
+            keyType.getTypeName().isPrimitiveType(),
+            "Only primitive types can be map keys. type: " + keyType.getTypeName());
         return FieldType.map(keyType, valueType);
       } else {
         throw new RuntimeException("Cannot infer schema from unparameterized map.");
@@ -217,7 +140,7 @@ public class StaticSchemaInference {
     } else if (type.isSubtypeOf(TypeDescriptor.of(ByteBuffer.class))) {
       return FieldType.BYTES;
     } else {
-      return FieldType.row(schemaFromClass(type.getRawType(), getTypesForClass));
+      return FieldType.row(schemaFromClass(type.getRawType(), fieldValueTypeSupplier));
     }
   }
 }

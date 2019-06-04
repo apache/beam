@@ -21,10 +21,11 @@ import static org.apache.beam.sdk.util.ApiSurface.classesInPackage;
 import static org.apache.beam.sdk.util.ApiSurface.containsOnlyClassesMatching;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-import com.google.common.collect.ImmutableSet;
 import java.util.Set;
+import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryMatcher;
 import org.apache.beam.sdk.util.ApiSurface;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.Test;
@@ -44,6 +45,7 @@ public class GcpApiSurfaceTest {
     final ApiSurface apiSurface =
         ApiSurface.ofPackage(thisPackage, thisClassLoader)
             .pruningPattern(BigqueryMatcher.class.getName())
+            .pruningPattern(BigqueryClient.class.getName())
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
             .pruningPattern("java[.]lang.*")
@@ -59,13 +61,25 @@ public class GcpApiSurfaceTest {
             classesInPackage("com.google.api.client.util"),
             classesInPackage("com.google.api.services.bigquery.model"),
             classesInPackage("com.google.auth"),
+            classesInPackage("com.google.bigtable.admin.v2"),
             classesInPackage("com.google.bigtable.v2"),
+            classesInPackage("com.google.cloud.bigquery.storage.v1beta1"),
             classesInPackage("com.google.cloud.bigtable.config"),
+            classesInPackage("com.google.cloud.bigtable.data"),
             classesInPackage("com.google.spanner.v1"),
             Matchers.equalTo(com.google.api.gax.rpc.ApiException.class),
+            Matchers.<Class<?>>equalTo(com.google.api.gax.longrunning.OperationFuture.class),
+            Matchers.<Class<?>>equalTo(com.google.api.gax.longrunning.OperationSnapshot.class),
             Matchers.<Class<?>>equalTo(com.google.api.gax.paging.Page.class),
+            Matchers.<Class<?>>equalTo(com.google.api.gax.retrying.RetryingFuture.class),
+            Matchers.<Class<?>>equalTo(com.google.api.gax.retrying.RetrySettings.class),
+            Matchers.<Class<?>>equalTo(com.google.api.gax.retrying.RetrySettings.Builder.class),
+            Matchers.<Class<?>>equalTo(com.google.api.gax.retrying.TimedAttemptSettings.class),
+            Matchers.<Class<?>>equalTo(
+                com.google.api.gax.retrying.TimedAttemptSettings.Builder.class),
             Matchers.<Class<?>>equalTo(com.google.api.gax.rpc.StatusCode.class),
             Matchers.<Class<?>>equalTo(com.google.api.gax.rpc.StatusCode.Code.class),
+            Matchers.<Class<?>>equalTo(com.google.api.resourcenames.ResourceName.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableClusterName.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableInstanceName.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableTableName.class),
@@ -94,7 +108,8 @@ public class GcpApiSurfaceTest {
             classesInPackage("org.apache.beam"),
             classesInPackage("org.apache.commons.logging"),
             classesInPackage("org.codehaus.jackson"),
-            classesInPackage("org.joda.time"));
+            classesInPackage("org.joda.time"),
+            classesInPackage("org.threeten.bp"));
 
     assertThat(apiSurface, containsOnlyClassesMatching(allowedClasses));
   }

@@ -131,7 +131,7 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
     @Override
     public String create(PipelineOptions options) {
       String containerVersion = DataflowRunnerInfo.getDataflowRunnerInfo().getContainerVersion();
-      return String.format("dataflow.gcr.io/v1beta3/IMAGE:%s", containerVersion);
+      return String.format("gcr.io/cloud-dataflow/v1beta3/IMAGE:%s", containerVersion);
     }
   }
 
@@ -241,4 +241,17 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   Boolean getUsePublicIps();
 
   void setUsePublicIps(@Nullable Boolean value);
+
+  /**
+   * Specifies a Minimum CPU platform for VM instances.
+   *
+   * <p>More details see <a
+   * href='https://cloud.google.com/compute/docs/instances/specify-min-cpu-platform'>Specifying
+   * Pipeline Execution Parameters</a>.
+   */
+  @Description("GCE minimum CPU platform. Default is determined by GCP.")
+  @Nullable
+  String getMinCpuPlatform();
+
+  void setMinCpuPlatform(String minCpuPlatform);
 }

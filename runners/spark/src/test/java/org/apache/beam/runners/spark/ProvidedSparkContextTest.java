@@ -20,8 +20,6 @@ package org.apache.beam.runners.spark;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import org.apache.beam.runners.spark.examples.WordCount;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -32,6 +30,8 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.junit.Test;
 
@@ -47,11 +47,7 @@ public class ProvidedSparkContextTest {
   private static final String PROVIDED_CONTEXT_EXCEPTION =
       "The provided Spark context was not created or was stopped";
 
-  /**
-   * Provide a context and call pipeline run.
-   *
-   * @throws Exception
-   */
+  /** Provide a context and call pipeline run. */
   @Test
   public void testWithProvidedContext() throws Exception {
     JavaSparkContext jsc = new JavaSparkContext("local[*]", "Existing_Context");
@@ -61,21 +57,13 @@ public class ProvidedSparkContextTest {
     jsc.stop();
   }
 
-  /**
-   * Provide a context and call pipeline run.
-   *
-   * @throws Exception
-   */
+  /** Provide a context and call pipeline run. */
   @Test
   public void testWithNullContext() throws Exception {
     testWithInvalidContext(null);
   }
 
-  /**
-   * A SparkRunner with a stopped provided Spark context cannot run pipelines.
-   *
-   * @throws Exception
-   */
+  /** A SparkRunner with a stopped provided Spark context cannot run pipelines. */
   @Test
   public void testWithStoppedProvidedContext() throws Exception {
     JavaSparkContext jsc = new JavaSparkContext("local[*]", "Existing_Context");
@@ -115,7 +103,7 @@ public class ProvidedSparkContextTest {
       p.run().waitUntilFinish();
       fail("Should throw an exception when The provided Spark context is null or stopped");
     } catch (RuntimeException e) {
-      assert (e.getMessage().contains(PROVIDED_CONTEXT_EXCEPTION));
+      assert e.getMessage().contains(PROVIDED_CONTEXT_EXCEPTION);
     }
   }
 

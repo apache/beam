@@ -19,8 +19,10 @@ package org.apache.beam.examples.complete;
 
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -40,9 +42,9 @@ import org.apache.beam.sdk.transforms.windowing.CalendarWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ComparisonChain;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -76,7 +78,13 @@ public class TopWikipediaSessions {
     @ProcessElement
     public void processElement(ProcessContext c) {
       TableRow row = c.element();
-      int timestamp = (Integer) row.get("timestamp");
+      int timestamp;
+      // TODO(BEAM-5390): Avoid this workaround.
+      try {
+        timestamp = ((BigDecimal) row.get("timestamp")).intValue();
+      } catch (ClassCastException e) {
+        timestamp = ((Integer) row.get("timestamp")).intValue();
+      }
       String userName = (String) row.get("contributor_username");
       if (userName != null) {
         // Sets the implicit timestamp field to be used in windowing.
@@ -105,7 +113,11 @@ public class TopWikipediaSessions {
     @Override
     public PCollection<List<KV<String, Long>>> expand(PCollection<KV<String, Long>> sessions) {
       SerializableComparator<KV<String, Long>> comparator =
-          (o1, o2) -> Long.compare(o1.getValue(), o2.getValue());
+          (o1, o2) ->
+              ComparisonChain.start()
+                  .compare(o1.getValue(), o2.getValue())
+                  .compare(o1.getKey(), o2.getKey())
+                  .result();
       return sessions
           .apply(Window.into(CalendarWindows.months(1)))
           .apply(Top.of(1, comparator).withoutDefaults());
@@ -180,9 +192,9 @@ public class TopWikipediaSessions {
   public interface Options extends PipelineOptions {
     @Description("Input specified as a GCS path containing a BigQuery table exported as json")
     @Default.String(EXPORTED_WIKI_TABLE)
-    String getInput();
+    String getWikiInput();
 
-    void setInput(String value);
+    void setWikiInput(String value);
 
     @Description("File to output results to")
     @Validation.Required
@@ -191,18 +203,21 @@ public class TopWikipediaSessions {
     void setOutput(String value);
   }
 
-  public static void main(String[] args) {
-    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
-
+  public static void run(Options options) {
     Pipeline p = Pipeline.create(options);
 
     double samplingThreshold = 0.1;
 
-    p.apply(TextIO.read().from(options.getInput()))
+    p.apply(TextIO.read().from(options.getWikiInput()))
         .apply(MapElements.via(new ParseTableRowJson()))
         .apply(new ComputeTopSessions(samplingThreshold))
-        .apply("Write", TextIO.write().withoutSharding().to(options.getOutput()));
+        .apply("Write", TextIO.write().to(options.getOutput()));
 
     p.run().waitUntilFinish();
+  }
+
+  public static void main(String[] args) {
+    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+    run(options);
   }
 }

@@ -22,8 +22,6 @@ import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
@@ -36,6 +34,8 @@ import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -59,7 +59,7 @@ public class PubsubToBigqueryIT implements Serializable {
         BeamSqlEnv.inMemory(new PubsubJsonTableProvider(), new BigQueryTableProvider());
 
     String createTableString =
-        "CREATE TABLE pubsub_topic (\n"
+        "CREATE EXTERNAL TABLE pubsub_topic (\n"
             + "event_timestamp TIMESTAMP, \n"
             + "attributes MAP<VARCHAR, VARCHAR>, \n"
             + "payload ROW< \n"
@@ -75,7 +75,7 @@ public class PubsubToBigqueryIT implements Serializable {
     sqlEnv.executeDdl(createTableString);
 
     String createTableStatement =
-        "CREATE TABLE bq_table( \n"
+        "CREATE EXTERNAL TABLE bq_table( \n"
             + "   id BIGINT, \n"
             + "   name VARCHAR \n "
             + ") \n"

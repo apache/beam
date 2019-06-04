@@ -17,13 +17,11 @@
  */
 package org.apache.beam.sdk.io.solr;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -46,6 +44,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.apache.http.client.HttpClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -535,14 +535,11 @@ public class SolrIO {
     /**
      * Provide a maximum size in number of documents for the batch. Depending on the execution
      * engine, size of bundles may vary, this sets the maximum size. Change this if you need to have
-     * smaller batch.
+     * smaller batch. Default max batch size is 1000.
      *
      * @param batchSize maximum batch size in number of documents
      */
-    @VisibleForTesting
-    Write withMaxBatchSize(int batchSize) {
-      // TODO remove this configuration, we can figure out the best number
-      // by tuning batchSize when pipelines run.
+    public Write withMaxBatchSize(int batchSize) {
       checkArgument(batchSize > 0, "batchSize must be larger than 0, but was: %s", batchSize);
       return builder().setMaxBatchSize(batchSize).build();
     }

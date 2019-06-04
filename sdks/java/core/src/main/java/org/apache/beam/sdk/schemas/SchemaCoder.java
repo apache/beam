@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.schemas;
 
 import java.io.IOException;
@@ -26,12 +25,12 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.Row;
 
 /** {@link SchemaCoder} is used as the coder for types that have schemas registered. */
 @Experimental(Kind.SCHEMAS)
 public class SchemaCoder<T> extends CustomCoder<T> {
-  private final Schema schema;
   private final RowCoder rowCoder;
   private final SerializableFunction<T, Row> toRowFunction;
   private final SerializableFunction<Row, T> fromRowFunction;
@@ -40,7 +39,6 @@ public class SchemaCoder<T> extends CustomCoder<T> {
       Schema schema,
       SerializableFunction<T, Row> toRowFunction,
       SerializableFunction<Row, T> fromRowFunction) {
-    this.schema = schema;
     this.toRowFunction = toRowFunction;
     this.fromRowFunction = fromRowFunction;
     this.rowCoder = RowCoder.of(schema);
@@ -57,9 +55,15 @@ public class SchemaCoder<T> extends CustomCoder<T> {
     return new SchemaCoder<>(schema, toRowFunction, fromRowFunction);
   }
 
+  /** Returns a {@link SchemaCoder} for {@link Row} classes. */
+  public static SchemaCoder<Row> of(Schema schema) {
+    return new SchemaCoder<>(
+        schema, SerializableFunctions.identity(), SerializableFunctions.identity());
+  }
+
   /** Returns the schema associated with this type. */
   public Schema getSchema() {
-    return schema;
+    return rowCoder.getSchema();
   }
 
   /** Returns the toRow conversion function. */
@@ -85,5 +89,15 @@ public class SchemaCoder<T> extends CustomCoder<T> {
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     rowCoder.verifyDeterministic();
+  }
+
+  @Override
+  public boolean consistentWithEquals() {
+    return rowCoder.consistentWithEquals();
+  }
+
+  @Override
+  public String toString() {
+    return "SchemaCoder: " + rowCoder.toString();
   }
 }

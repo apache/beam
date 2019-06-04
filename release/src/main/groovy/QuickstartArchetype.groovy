@@ -21,6 +21,7 @@ class QuickstartArchetype {
   def static generate(TestScripts t) {
     // Generate a maven project from the snapshot repository
     String output_text = t.run """mvn archetype:generate \
+      --update-snapshots \
       -DarchetypeGroupId=org.apache.beam \
       -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
       -DarchetypeVersion=${t.ver()} \

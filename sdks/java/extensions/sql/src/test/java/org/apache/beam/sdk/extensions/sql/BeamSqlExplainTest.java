@@ -39,7 +39,7 @@ public class BeamSqlExplainTest {
     cli = new BeamSqlCli().metaStore(metaStore);
 
     cli.execute(
-        "create table person (\n"
+        "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
@@ -47,14 +47,14 @@ public class BeamSqlExplainTest {
             + "COMMENT '' ");
 
     cli.execute(
-        "create table A (\n"
+        "CREATE EXTERNAL TABLE A (\n"
             + "c1 int COMMENT 'c1',\n"
             + "c2 int COMMENT 'c2')\n"
             + "TYPE 'text'\n"
             + "COMMENT '' ");
 
     cli.execute(
-        "create table B (\n"
+        "CREATE EXTERNAL TABLE B (\n"
             + "c1 int COMMENT 'c1',\n"
             + "c2 int COMMENT 'c2')\n"
             + "TYPE 'text'\n"

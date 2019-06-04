@@ -11,6 +11,10 @@
 # limitations under the License.
 # Welcome to Jekyll!
 
+aizhamal:
+    name: Aizhamal Nurmamat kyzy
+    email: aizhamal@google.com
+    twitter: iamaijamal
 aljoscha:
     name: Aljoscha Krettek
     email: aljoscha@apache.org
@@ -18,6 +22,12 @@ aljoscha:
 altay:
     name: Ahmet Altay
     email: altay@apache.org
+ccy:
+    name: Charles Chen
+    email: ccy@apache.org
+chamikara:
+    name: Chamikara Jayalath
+    email: chamikara@apache.org
 davor:
     name: Davor Bonaci
     email: davor@apache.org
@@ -30,6 +40,14 @@ fjp:
     name: Frances Perry
     email: frances@apache.org
     twitter: francesjperry
+harshithdwivedi:
+    name: Harshit Dwivedi
+    email: harshithdwivedi@gmail.com
+    twitter: harshithdwivedi
+henryken:
+    name: Henry Suryawirawan
+    email: henry.ken@gmail.com
+    twitter: henry_ken
 iemejia:
     name: Ismaël Mejía
     email: iemejia@apache.org
@@ -41,10 +59,18 @@ jamesmalone:
 jesseanderson:
     name: Jesse Anderson
     twitter: jessetanderson
+jphalip:
+    name: Julien Phalip
+    email: jphalip@google.com
+    twitter: julienphalip
 klk:
     name: Kenneth Knowles
     email: klk@apache.org
     twitter: KennKnowles
+lkuligin:
+    name: Leonid Kuligin
+    email: kuligin@google.com
+    twitter: lkulighin
 robertwb:
     name: Robert Bradshaw
     email: robertwb@apache.org
@@ -72,3 +98,18 @@ ianand:
     name: Anand Iyer
     email: ianand@google.com
     twitter:
+aromanenko:
+    name: Alexey Romanenko
+    email: aromanenko@apache.org
+    twitter: alexromdev
+pabloem:
+    name: Pablo Estrada
+    email: pabloem@apache.org
+    twitter: polecitoem
+rfernand:
+    name: Rafael Fernández
+    email: rfernand@google.com
+mbaetens:
+    name: Matthias Baetens
+    email: baetensmatthias@gmail.com
+    twitter: matthiasbaetens

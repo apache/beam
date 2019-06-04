@@ -18,15 +18,20 @@
 package org.apache.beam.examples.cookbook;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.apache.beam.examples.cookbook.MaxPerKeyExamples.ExtractTempFn;
 import org.apache.beam.examples.cookbook.MaxPerKeyExamples.FormatMaxesFn;
-import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
-import org.hamcrest.CoreMatchers;
-import org.junit.Assert;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -66,22 +71,27 @@ public class MaxPerKeyExamplesTest {
   private static final TableRow resultRow1 =
       new TableRow().set("month", 6).set("max_mean_temp", 85.3);
   private static final TableRow resultRow2 =
+      new TableRow().set("month", 6).set("max_mean_temp", 45.3);
+  private static final TableRow resultRow3 =
       new TableRow().set("month", 7).set("max_mean_temp", 75.4);
 
+  @Rule public TestPipeline p = TestPipeline.create();
+
   @Test
-  public void testExtractTempFn() throws Exception {
-    DoFnTester<TableRow, KV<Integer, Double>> extractTempFn = DoFnTester.of(new ExtractTempFn());
-    List<KV<Integer, Double>> results = extractTempFn.processBundle(TEST_ROWS);
-    Assert.assertThat(results, CoreMatchers.hasItem(kv1));
-    Assert.assertThat(results, CoreMatchers.hasItem(kv2));
-    Assert.assertThat(results, CoreMatchers.hasItem(kv3));
+  @Category(ValidatesRunner.class)
+  public void testExtractTempFn() {
+    PCollection<KV<Integer, Double>> results =
+        p.apply(Create.of(TEST_ROWS)).apply(ParDo.of(new ExtractTempFn()));
+    PAssert.that(results).containsInAnyOrder(ImmutableList.of(kv1, kv2, kv3));
+    p.run().waitUntilFinish();
   }
 
   @Test
-  public void testFormatMaxesFn() throws Exception {
-    DoFnTester<KV<Integer, Double>, TableRow> formatMaxesFnFn = DoFnTester.of(new FormatMaxesFn());
-    List<TableRow> results = formatMaxesFnFn.processBundle(TEST_KVS);
-    Assert.assertThat(results, CoreMatchers.hasItem(resultRow1));
-    Assert.assertThat(results, CoreMatchers.hasItem(resultRow2));
+  @Category(ValidatesRunner.class)
+  public void testFormatMaxesFn() {
+    PCollection<TableRow> results =
+        p.apply(Create.of(TEST_KVS)).apply(ParDo.of(new FormatMaxesFn()));
+    PAssert.that(results).containsInAnyOrder(resultRow1, resultRow2, resultRow3);
+    p.run().waitUntilFinish();
   }
 }

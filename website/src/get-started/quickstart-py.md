@@ -22,6 +22,8 @@ limitations under the License.
 
 This guide shows you how to set up your Python development environment, get the Apache Beam SDK for Python, and run an example pipeline.
 
+If you're interested in contributing to the Apache Beam Python codebase, see the [Contribution Guide]({{ site.baseurl }}/contribute).
+
 * TOC
 {:toc}
 
@@ -46,8 +48,14 @@ pip --version
 If you do not have `pip` version 7.0.0 or newer, run the following command to
 install it. This command might require administrative privileges.
 
+{:.shell-unix}
 ```
 pip install --upgrade pip
+```
+
+{:.shell-PowerShell}
+```
+PS> python -m pip install --upgrade pip
 ```
 
 
@@ -58,16 +66,28 @@ for initial experiments. If you do not have `virtualenv` version 13.1.0 or
 newer, run the following command to install it. This command might require
 administrative privileges.
 
+{:.shell-unix}
 ```
 pip install --upgrade virtualenv
+```
+
+{:.shell-PowerShell}
+```
+PS> python -m pip install --upgrade virtualenv
 ```
 
 If you do not want to use a Python virtual environment (not recommended), ensure
 `setuptools` is installed on your machine. If you do not have `setuptools`
 version 17.1 or newer, run the following command to install it.
 
+{:.shell-unix}
 ```
 pip install --upgrade setuptools
+```
+
+{:.shell-PowerShell}
+```
+PS> python -m pip install --upgrade setuptools
 ```
 
 ## Get Apache Beam
@@ -76,8 +96,14 @@ pip install --upgrade setuptools
 
 A virtual environment is a directory tree containing its own Python distribution. To create a virtual environment, create a directory and run:
 
+{:.shell-unix}
 ```
 virtualenv /path/to/directory
+```
+
+{:.shell-PowerShell}
+```
+PS> virtualenv C:\path\to\directory
 ```
 
 A virtual environment needs to be activated for each shell that is to use it.
@@ -86,11 +112,17 @@ environment's directories.
 
 To activate a virtual environment in Bash, run:
 
+{:.shell-unix}
 ```
 . /path/to/directory/bin/activate
 ```
 
-That is, source the script `bin/activate` under the virtual environment directory you created.
+{:.shell-PowerShell}
+```
+PS> C:\path\to\directory\Scripts\activate.ps1
+```
+
+That is, execute the `activate` script under the virtual environment directory you created.
 
 For instructions using other shells, see the [virtualenv documentation](https://virtualenv.pypa.io/en/stable/userguide/#activate-script).
 
@@ -98,8 +130,14 @@ For instructions using other shells, see the [virtualenv documentation](https://
 
 Install the latest Python SDK from PyPI:
 
+{:.shell-unix}
 ```
 pip install apache-beam
+```
+
+{:.shell-PowerShell}
+```
+PS> python -m pip install apache-beam
 ```
 
 #### Extra requirements
@@ -154,13 +192,18 @@ This runner is not yet available for the Python SDK.
 {:.runner-dataflow}
 ```
 # As part of the initial setup, install Google Cloud Platform specific extra components. Make sure you
-# complete the setup steps at https://beam.apache.org/documentation/runners/dataflow/#setup
+# complete the setup steps at {{ site.baseurl }}/documentation/runners/dataflow/#setup
 pip install apache-beam[gcp]
 python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
                                          --output gs://<your-gcs-bucket>/counts \
                                          --runner DataflowRunner \
                                          --project your-gcp-project \
                                          --temp_location gs://<your-gcs-bucket>/tmp/
+```
+
+{:.runner-nemo}
+```
+This runner is not yet available for the Python SDK.
 ```
 
 After the pipeline completes, you can view the output files at your specified
@@ -171,9 +214,10 @@ sequentially in the format `counts-0000-of-0001`.
 ## Next Steps
 
 * Learn more about the [Beam SDK for Python]({{ site.baseurl }}/documentation/sdks/python/)
-  and look through the [Python SDK API reference]({{ site.baseurl }}/documentation/sdks/pydoc).
+  and look through the [Python SDK API reference](https://beam.apache.org/releases/pydoc).
 * Walk through these WordCount examples in the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
-* Dive in to some of our favorite [articles and presentations]({{ site.baseurl }}/documentation/resources).
+* Take a self-paced tour through our [Learning Resources]({{ site.baseurl }}/documentation/resources/learning-resources).
+* Dive in to some of our favorite [Videos and Podcasts]({{ site.baseurl }}/documentation/resources/videos-and-podcasts).
 * Join the Beam [users@]({{ site.baseurl }}/community/contact-us) mailing list.
 
 Please don't hesitate to [reach out]({{ site.baseurl }}/community/contact-us) if you encounter any issues!

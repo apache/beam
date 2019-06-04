@@ -54,8 +54,8 @@ import org.apache.beam.sdk.values.PCollectionList;
  *
  * PCollection<T> finalResultCollection =
  *   coGbkResultCollection.apply(ParDo.of(
- *     new DoFn<KV<K, CoGbkResult>, T>() {
- *       {@literal @}ProcessElement
+ *     new DoFn<KV<K, CoGbkResult>, T>() }{
+ *      {@code @ProcessElement
  *       public void processElement(ProcessContext c) {
  *         KV<K, CoGbkResult> e = c.element();
  *         Iterable<V1> pt1Vals = e.getValue().getAll(t1);
@@ -63,8 +63,8 @@ import org.apache.beam.sdk.values.PCollectionList;
  *          ... Do Something ....
  *         c.output(...some T...);
  *       }
- *     }));
- * }</pre>
+ *     }}));
+ * </pre>
  *
  * @param <K> the type of the keys in the input and output {@code PCollection}s
  */
@@ -111,10 +111,11 @@ public class CoGroupByKey<K>
       unionTables = unionTables.and(unionTable);
     }
 
-    PCollection<KV<K, RawUnionValue>> flattenedTable = unionTables.apply(Flatten.pCollections());
+    PCollection<KV<K, RawUnionValue>> flattenedTable =
+        unionTables.apply("Flatten", Flatten.pCollections());
 
     PCollection<KV<K, Iterable<RawUnionValue>>> groupedTable =
-        flattenedTable.apply(GroupByKey.create());
+        flattenedTable.apply("GBK", GroupByKey.create());
 
     CoGbkResultSchema tupleTags = input.getCoGbkResultSchema();
     PCollection<KV<K, CoGbkResult>> result =

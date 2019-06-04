@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -46,9 +45,11 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesSideInputs;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -60,6 +61,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -76,6 +78,7 @@ import org.junit.runners.JUnit4;
  * views can only be observed via {@link ParDo}.
  */
 @RunWith(JUnit4.class)
+@Category(UsesSideInputs.class)
 public class ViewTest implements Serializable {
   // This test is Serializable, just so that it's easy to have
   // anonymous inner classes inside the non-static test methods.
@@ -508,7 +511,9 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline
-            .apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)))
+            .apply(
+                "CreateSideInput",
+                Create.of(KV.of("a", 1), KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)))
             .apply(View.asMultimap());
 
     PCollection<KV<String, Integer>> output =
@@ -529,7 +534,11 @@ public class ViewTest implements Serializable {
 
     PAssert.that(output)
         .containsInAnyOrder(
-            KV.of("apple", 1), KV.of("apple", 2), KV.of("banana", 3), KV.of("blackberry", 3));
+            KV.of("apple", 1),
+            KV.of("apple", 1),
+            KV.of("apple", 2),
+            KV.of("banana", 3),
+            KV.of("blackberry", 3));
 
     pipeline.run();
   }
@@ -540,7 +549,9 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline
-            .apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)))
+            .apply(
+                "CreateSideInput",
+                Create.of(KV.of("a", 1), KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)))
             .apply(View.asMultimap());
 
     PCollection<KV<String, Integer>> output =
@@ -564,7 +575,8 @@ public class ViewTest implements Serializable {
                         })
                     .withSideInputs(view));
 
-    PAssert.that(output).containsInAnyOrder(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3));
+    PAssert.that(output)
+        .containsInAnyOrder(KV.of("a", 1), KV.of("a", 1), KV.of("a", 2), KV.of("b", 3));
 
     pipeline.run();
   }
@@ -600,14 +612,14 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
   public void testMultimapSideInputWithNonDeterministicKeyCoder() {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline
             .apply(
                 "CreateSideInput",
-                Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3))
+                Create.of(KV.of("a", 1), KV.of("a", 1), KV.of("a", 2), KV.of("b", 3))
                     .withCoder(KvCoder.of(new NonDeterministicStringCoder(), VarIntCoder.of())))
             .apply(View.asMultimap());
 
@@ -629,7 +641,11 @@ public class ViewTest implements Serializable {
 
     PAssert.that(output)
         .containsInAnyOrder(
-            KV.of("apple", 1), KV.of("apple", 2), KV.of("banana", 3), KV.of("blackberry", 3));
+            KV.of("apple", 1),
+            KV.of("apple", 1),
+            KV.of("apple", 2),
+            KV.of("banana", 3),
+            KV.of("blackberry", 3));
 
     pipeline.run();
   }
@@ -644,6 +660,7 @@ public class ViewTest implements Serializable {
                 "CreateSideInput",
                 Create.timestamped(
                     TimestampedValue.of(KV.of("a", 1), new Instant(1)),
+                    TimestampedValue.of(KV.of("a", 1), new Instant(2)),
                     TimestampedValue.of(KV.of("a", 2), new Instant(7)),
                     TimestampedValue.of(KV.of("b", 3), new Instant(14))))
             .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
@@ -673,7 +690,11 @@ public class ViewTest implements Serializable {
 
     PAssert.that(output)
         .containsInAnyOrder(
-            KV.of("apple", 1), KV.of("apple", 2), KV.of("banana", 3), KV.of("blackberry", 3));
+            KV.of("apple", 1),
+            KV.of("apple", 1),
+            KV.of("apple", 2),
+            KV.of("banana", 3),
+            KV.of("blackberry", 3));
 
     pipeline.run();
   }
@@ -688,6 +709,7 @@ public class ViewTest implements Serializable {
                 "CreateSideInput",
                 Create.timestamped(
                     TimestampedValue.of(KV.of("a", 1), new Instant(1)),
+                    TimestampedValue.of(KV.of("a", 1), new Instant(2)),
                     TimestampedValue.of(KV.of("a", 2), new Instant(7)),
                     TimestampedValue.of(KV.of("b", 3), new Instant(14))))
             .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
@@ -719,13 +741,14 @@ public class ViewTest implements Serializable {
                         })
                     .withSideInputs(view));
 
-    PAssert.that(output).containsInAnyOrder(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3));
+    PAssert.that(output)
+        .containsInAnyOrder(KV.of("a", 1), KV.of("a", 1), KV.of("a", 2), KV.of("b", 3));
 
     pipeline.run();
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
   public void testWindowedMultimapSideInputWithNonDeterministicKeyCoder() {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
@@ -734,6 +757,7 @@ public class ViewTest implements Serializable {
                 "CreateSideInput",
                 Create.timestamped(
                         TimestampedValue.of(KV.of("a", 1), new Instant(1)),
+                        TimestampedValue.of(KV.of("a", 1), new Instant(2)),
                         TimestampedValue.of(KV.of("a", 2), new Instant(7)),
                         TimestampedValue.of(KV.of("b", 3), new Instant(14)))
                     .withCoder(KvCoder.of(new NonDeterministicStringCoder(), VarIntCoder.of())))
@@ -764,7 +788,11 @@ public class ViewTest implements Serializable {
 
     PAssert.that(output)
         .containsInAnyOrder(
-            KV.of("apple", 1), KV.of("apple", 2), KV.of("banana", 3), KV.of("blackberry", 3));
+            KV.of("apple", 1),
+            KV.of("apple", 1),
+            KV.of("apple", 2),
+            KV.of("banana", 3),
+            KV.of("blackberry", 3));
 
     pipeline.run();
   }
@@ -803,7 +831,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
   public void testEmptyMultimapSideInputWithNonDeterministicKeyCoder() throws Exception {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
@@ -950,7 +978,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
   public void testMapSideInputWithNonDeterministicKeyCoder() {
 
     final PCollectionView<Map<String, Integer>> view =
@@ -1072,7 +1100,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
   public void testWindowedMapSideInputWithNonDeterministicKeyCoder() {
 
     final PCollectionView<Map<String, Integer>> view =
@@ -1150,7 +1178,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
   public void testEmptyMapSideInputWithNonDeterministicKeyCoder() throws Exception {
 
     final PCollectionView<Map<String, Integer>> view =

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyGoNature()
 applyDockerNature()
 
@@ -25,7 +25,7 @@ description = "Apache Beam :: SDKs :: Java :: Container"
 // Figure out why the golang plugin does not add a build dependency between projects.
 // Without the line below, we get spurious errors about not being able to resolve
 // "./github.com/apache/beam/sdks/go"
-resolveBuildDependencies.dependsOn ":beam-sdks-go:build"
+resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
 
 configurations {
   dockerDependency
@@ -35,25 +35,33 @@ dependencies {
   golang {
     // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
     // TODO(herohde): get the pkg subdirectory only, if possible. We spend mins pulling cmd/beamctl deps.
-    build name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-go').projectDir
-    test name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-go').projectDir
+    build name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
+    test name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
   }
   dockerDependency library.java.slf4j_api
   dockerDependency library.java.slf4j_jdk14
-  dockerDependency project(path: ":beam-sdks-java-harness", configuration: "shadow")
+  dockerDependency project(path: ":sdks:java:harness", configuration: "shadow")
+  // For executing KafkaIO, e.g. as an external transform
+  dockerDependency project(path: ":sdks:java:io:kafka", configuration: "shadow")
+  // This dependency is set to 'provided' scope in :sdks:java:io:kafka
+  dockerDependency library.java.kafka_clients
 }
+
+def dockerfileName = project.findProperty('dockerfile') ?: 'Dockerfile'
 
 task copyDockerfileDependencies(type: Copy) {
   from configurations.dockerDependency
   rename "slf4j-api.*", "slf4j-api.jar"
   rename "slf4j-jdk14.*", "slf4j-jdk14.jar"
   rename 'beam-sdks-java-harness-.*.jar', 'beam-sdks-java-harness.jar'
+  rename 'beam-sdks-java-io-kafka.*.jar', 'beam-sdks-java-io-kafka.jar'
+  rename 'kafka-clients.*.jar', 'kafka-clients.jar'
   into "build/target"
 }
 
 golang {
   packagePath = 'github.com/apache/beam/sdks/java/boot'
-  build {
+  goBuild {
     // TODO(herohde): build local platform + linux-amd64, if possible.
     targetPlatform = ['linux-amd64']
     outputLocation = './build/target/${GOOS}_${GOARCH}/boot'
@@ -62,8 +70,9 @@ golang {
 
 docker {
   name containerImageName(name: "java")
+  dockerfile project.file("./${dockerfileName}")
   files "./build/"
 }
 // Ensure that we build the required resources and copy and file dependencies from related projects
-dockerPrepare.dependsOn build
+dockerPrepare.dependsOn goBuild
 dockerPrepare.dependsOn copyDockerfileDependencies

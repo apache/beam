@@ -15,17 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableSet;
 import java.util.Collection;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 
 /** An {@link ExecutableStage} which is constructed with all of its initial state. */
 @AutoValue
@@ -36,6 +35,7 @@ public abstract class ImmutableExecutableStage implements ExecutableStage {
       PCollectionNode input,
       Collection<SideInputReference> sideInputs,
       Collection<UserStateReference> userStates,
+      Collection<TimerReference> timers,
       Collection<PTransformNode> transforms,
       Collection<PCollectionNode> outputs) {
     Components prunedComponents =
@@ -43,11 +43,11 @@ public abstract class ImmutableExecutableStage implements ExecutableStage {
             .toBuilder()
             .clearTransforms()
             .putAllTransforms(
-                transforms
-                    .stream()
+                transforms.stream()
                     .collect(Collectors.toMap(PTransformNode::getId, PTransformNode::getTransform)))
             .build();
-    return of(prunedComponents, environment, input, sideInputs, userStates, transforms, outputs);
+    return of(
+        prunedComponents, environment, input, sideInputs, userStates, timers, transforms, outputs);
   }
 
   public static ImmutableExecutableStage of(
@@ -56,6 +56,7 @@ public abstract class ImmutableExecutableStage implements ExecutableStage {
       PCollectionNode input,
       Collection<SideInputReference> sideInputs,
       Collection<UserStateReference> userStates,
+      Collection<TimerReference> timers,
       Collection<PTransformNode> transforms,
       Collection<PCollectionNode> outputs) {
     return new AutoValue_ImmutableExecutableStage(
@@ -64,6 +65,7 @@ public abstract class ImmutableExecutableStage implements ExecutableStage {
         input,
         ImmutableSet.copyOf(sideInputs),
         ImmutableSet.copyOf(userStates),
+        ImmutableSet.copyOf(timers),
         ImmutableSet.copyOf(transforms),
         ImmutableSet.copyOf(outputs));
   }
@@ -83,6 +85,9 @@ public abstract class ImmutableExecutableStage implements ExecutableStage {
 
   @Override
   public abstract Collection<UserStateReference> getUserStates();
+
+  @Override
+  public abstract Collection<TimerReference> getTimers();
 
   @Override
   public abstract Collection<PTransformNode> getTransforms();

@@ -18,13 +18,12 @@
 package org.apache.beam.runners.dataflow.internal;
 
 import static com.google.api.client.util.Base64.encodeBase64String;
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
 import static org.apache.beam.runners.dataflow.util.Structs.addStringList;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.SourceMetadata;
-import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +49,7 @@ public class CustomSources {
   private static final Logger LOG = LoggerFactory.getLogger(CustomSources.class);
 
   private static int getDesiredNumUnboundedSourceSplits(DataflowPipelineOptions options) {
-    int cores = 4; //TODO: decide at runtime?
+    int cores = 4; // TODO: decide at runtime?
     if (options.getMaxNumWorkers() > 0) {
       return options.getMaxNumWorkers() * cores;
     } else if (options.getNumWorkers() > 0) {

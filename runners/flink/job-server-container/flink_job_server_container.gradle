@@ -1,0 +1,65 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * Build a Docker image to bootstrap FlinkJobServerDriver which requires a Java environment.
+ * Alternatively, it can also be bootstrapped through the runShadow goal
+ * or by directly running the generated JAR file.
+ */
+
+apply plugin: 'org.apache.beam.module'
+apply plugin: 'base'
+applyDockerNature()
+
+// Resolve the Flink project name (and version) the job-server-container is based on
+def flinkJobServerProject = "${project.path.replace('-container', '')}"
+
+description = project(flinkJobServerProject).description + " :: Container"
+
+configurations {
+  dockerDependency
+}
+
+dependencies {
+  dockerDependency project(path: flinkJobServerProject, configuration: "shadow")
+}
+
+task copyDockerfileDependencies(type: Copy) {
+  // Required Jars
+  from configurations.dockerDependency
+  rename 'beam-runners-flink.*-job-server.*.jar', 'beam-runners-flink-job-server.jar'
+  into "build"
+  // Entry script
+  from "$resource_path/flink-job-server.sh"
+  into "build"
+  // Dockerfile
+  from "$resource_path/Dockerfile"
+  into "build"
+}
+
+docker {
+  // We keep a stable name here instead of using ${project.name}.
+  // Currently this is assumed by the Python SDK, but this could
+  // be changed if multiple containers for different Flink versions
+  // should be used.
+  name containerImageName(name: 'flink-job-server')
+  files "./build/"
+}
+
+// Ensure that we build the required resources and copy and file dependencies from related projects
+dockerPrepare.dependsOn copyDockerfileDependencies

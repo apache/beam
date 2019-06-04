@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.translation;
 
 import java.util.List;
@@ -30,11 +29,20 @@ import org.apache.samza.operators.MessageStream;
 /** Translates {@link SamzaPublishView} to a view {@link MessageStream} as side input. */
 class SamzaPublishViewTranslator<ElemT, ViewT>
     implements TransformTranslator<SamzaPublishView<ElemT, ViewT>> {
+
   @Override
   public void translate(
       SamzaPublishView<ElemT, ViewT> transform,
       TransformHierarchy.Node node,
       TranslationContext ctx) {
+    doTranslate(transform, node, ctx);
+  }
+
+  private static <ElemT, ViewT> void doTranslate(
+      SamzaPublishView<ElemT, ViewT> transform,
+      TransformHierarchy.Node node,
+      TranslationContext ctx) {
+
     final PCollection<List<ElemT>> input = ctx.getInput(transform);
     final MessageStream<OpMessage<Iterable<ElemT>>> inputStream = ctx.getMessageStream(input);
     @SuppressWarnings("unchecked")
@@ -52,9 +60,9 @@ class SamzaPublishViewTranslator<ElemT, ViewT>
             : elementStream.broadcast(
                 SamzaCoders.toSerde(elementCoder), "view-" + ctx.getCurrentTopologicalId());
 
+    final String viewId = ctx.getViewId(transform.getView());
     final MessageStream<OpMessage<Iterable<ElemT>>> outputStream =
-        broadcastStream.map(
-            element -> OpMessage.ofSideInput(ctx.getViewId(transform.getView()), element));
+        broadcastStream.map(element -> OpMessage.ofSideInput(viewId, element));
 
     ctx.registerViewStream(transform.getView(), outputStream);
   }

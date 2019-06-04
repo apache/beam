@@ -42,10 +42,10 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.util.Durations;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.util.Timestamps;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.util.Durations;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.util.Timestamps;
 import org.joda.time.Duration;
 
 /** Utilities for working with {@link WindowingStrategy WindowingStrategies}. */
@@ -199,6 +199,13 @@ public class WindowingStrategyTranslation implements Serializable {
   // This URN says that the WindowFn is just a UDF blob the Java SDK understands
   // TODO: standardize such things
   public static final String SERIALIZED_JAVA_WINDOWFN_URN = "beam:windowfn:javasdk:v0.1";
+  public static final String GLOBAL_WINDOWS_URN =
+      BeamUrns.getUrn(GlobalWindowsPayload.Enum.PROPERTIES);
+  public static final String FIXED_WINDOWS_URN =
+      BeamUrns.getUrn(FixedWindowsPayload.Enum.PROPERTIES);
+  public static final String SLIDING_WINDOWS_URN =
+      BeamUrns.getUrn(SlidingWindowsPayload.Enum.PROPERTIES);
+  public static final String SESSION_WINDOWS_URN = BeamUrns.getUrn(SessionsPayload.Enum.PROPERTIES);
 
   /**
    * Converts a {@link WindowFn} into a {@link RunnerApi.MessageWithComponents} where {@link
@@ -210,7 +217,7 @@ public class WindowingStrategyTranslation implements Serializable {
     if (windowFn instanceof GlobalWindows) {
       return SdkFunctionSpec.newBuilder()
           .setEnvironmentId(components.getOnlyEnvironmentId())
-          .setSpec(FunctionSpec.newBuilder().setUrn(getUrn(GlobalWindowsPayload.Enum.PROPERTIES)))
+          .setSpec(FunctionSpec.newBuilder().setUrn(GLOBAL_WINDOWS_URN))
           .build();
     } else if (windowFn instanceof FixedWindows) {
       FixedWindowsPayload fixedWindowsPayload =
@@ -222,7 +229,7 @@ public class WindowingStrategyTranslation implements Serializable {
           .setEnvironmentId(components.getOnlyEnvironmentId())
           .setSpec(
               FunctionSpec.newBuilder()
-                  .setUrn(getUrn(FixedWindowsPayload.Enum.PROPERTIES))
+                  .setUrn(FIXED_WINDOWS_URN)
                   .setPayload(fixedWindowsPayload.toByteString()))
           .build();
     } else if (windowFn instanceof SlidingWindows) {
@@ -236,7 +243,7 @@ public class WindowingStrategyTranslation implements Serializable {
           .setEnvironmentId(components.getOnlyEnvironmentId())
           .setSpec(
               FunctionSpec.newBuilder()
-                  .setUrn(getUrn(SlidingWindowsPayload.Enum.PROPERTIES))
+                  .setUrn(SLIDING_WINDOWS_URN)
                   .setPayload(slidingWindowsPayload.toByteString()))
           .build();
     } else if (windowFn instanceof Sessions) {
@@ -248,7 +255,7 @@ public class WindowingStrategyTranslation implements Serializable {
           .setEnvironmentId(components.getOnlyEnvironmentId())
           .setSpec(
               FunctionSpec.newBuilder()
-                  .setUrn(getUrn(SessionsPayload.Enum.PROPERTIES))
+                  .setUrn(SESSION_WINDOWS_URN)
                   .setPayload(sessionsPayload.toByteString()))
           .build();
     } else {

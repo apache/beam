@@ -50,18 +50,22 @@ import glob
 import logging
 import os
 import shutil
-import subprocess
 import sys
 import tempfile
 
 import pkg_resources
 
 from apache_beam.internal import pickler
+from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import WorkerOptions
 # TODO(angoenka): Remove reference to dataflow internal names
-from apache_beam.runners.dataflow.internal import names
+from apache_beam.runners.dataflow.internal.names import DATAFLOW_SDK_TARBALL_FILE
+from apache_beam.runners.internal import names
 from apache_beam.utils import processes
+from apache_beam.utils import retry
 
 # All constants are for internal use only; no backwards-compatibility
 # guarantees.
@@ -71,8 +75,12 @@ WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
 REQUIREMENTS_FILE = 'requirements.txt'
 EXTRA_PACKAGES_FILE = 'extra_packages.txt'
 
-# Package names for distributions
-BEAM_PACKAGE_NAME = 'apache-beam'
+
+def retry_on_non_zero_exit(exception):
+  if (isinstance(exception, processes.CalledProcessError) and
+      exception.returncode != 0):
+    return True
+  return False
 
 
 class Stager(object):
@@ -95,7 +103,7 @@ class Stager(object):
   def get_sdk_package_name():
     """For internal use only; no backwards-compatibility guarantees.
         Returns the PyPI package name to be staged."""
-    return BEAM_PACKAGE_NAME
+    return names.BEAM_PACKAGE_NAME
 
   def stage_job_resources(self,
                           options,
@@ -123,8 +131,7 @@ class Stager(object):
 
         Returns:
           A list of file names (no paths) for the resources staged. All the
-          files
-          are assumed to be staged at staging_location.
+          files are assumed to be staged at staging_location.
 
         Raises:
           RuntimeError: If files specified are not found or error encountered
@@ -190,6 +197,15 @@ class Stager(object):
               setup_options.extra_packages, staging_location,
               temp_dir=temp_dir))
 
+    # Handle jar packages that should be staged for Java SDK Harness.
+    jar_packages = options.view_as(
+        DebugOptions).lookup_experiment('jar_packages')
+    if jar_packages is not None:
+      resources.extend(
+          self._stage_jar_packages(
+              jar_packages.split(','), staging_location,
+              temp_dir=temp_dir))
+
     # Pickle the main session if requested.
     # We will create the pickled main session locally and then copy it to the
     # staging location because the staging location is a remote path and the
@@ -231,7 +247,7 @@ class Stager(object):
         if os.path.isdir(setup_options.sdk_location):
           # TODO(angoenka): remove reference to Dataflow
           sdk_path = os.path.join(setup_options.sdk_location,
-                                  names.DATAFLOW_SDK_TARBALL_FILE)
+                                  DATAFLOW_SDK_TARBALL_FILE)
         else:
           sdk_path = setup_options.sdk_location
 
@@ -256,6 +272,14 @@ class Stager(object):
                 'The file "%s" cannot be found. Its location was specified by '
                 'the --sdk_location command-line option.' % sdk_path)
 
+    worker_options = options.view_as(WorkerOptions)
+    dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
+    if dataflow_worker_jar is not None:
+      jar_staged_filename = 'dataflow-worker.jar'
+      staged_path = FileSystems.join(staging_location, jar_staged_filename)
+      self.stage_artifact(dataflow_worker_jar, staged_path)
+      resources.append(jar_staged_filename)
+
     # Delete all temp files created while staging job resources.
     shutil.rmtree(temp_dir)
     retrieval_token = self.commit_manifest()
@@ -273,7 +297,7 @@ class Stager(object):
         # even for a 404 response (file will contain the contents of the 404
         # response).
         # TODO(angoenka): Extract and use the filename when downloading file.
-        response, content = __import__('httplib2').Http().request(from_url)
+        response, content = get_new_http().request(from_url)
         if int(response['status']) >= 400:
           raise RuntimeError(
               'Artifact not found at %s (response: %s)' % (from_url, response))
@@ -293,6 +317,56 @@ class Stager(object):
   @staticmethod
   def _is_remote_path(path):
     return path.find('://') != -1
+
+  def _stage_jar_packages(self, jar_packages, staging_location, temp_dir):
+    """Stages a list of local jar packages for Java SDK Harness.
+
+    :param jar_packages: Ordered list of local paths to jar packages to be
+      staged. Only packages on localfile system and GCS are supported.
+    :param staging_location: Staging location for the packages.
+    :param temp_dir: Temporary folder where the resource building can happen.
+    :return: A list of file names (no paths) for the resource staged. All the
+      files are assumed to be staged in staging_location.
+    :raises:
+      RuntimeError: If files specified are not found or do not have expected
+        name patterns.
+    """
+    resources = []
+    staging_temp_dir = tempfile.mkdtemp(dir=temp_dir)
+    local_packages = []
+    for package in jar_packages:
+      if not os.path.basename(package).endswith('.jar'):
+        raise RuntimeError(
+            'The --experiment=\'jar_packages=\' option expects a full path '
+            'ending with ".jar" instead of %s' % package)
+
+      if not os.path.isfile(package):
+        if Stager._is_remote_path(package):
+          # Download remote package.
+          logging.info('Downloading jar package: %s locally before staging',
+                       package)
+          _, last_component = FileSystems.split(package)
+          local_file_path = FileSystems.join(staging_temp_dir, last_component)
+          Stager._download_file(package, local_file_path)
+        else:
+          raise RuntimeError(
+              'The file %s cannot be found. It was specified in the '
+              '--experiment=\'jar_packages=\' command line option.' % package)
+      else:
+        local_packages.append(package)
+
+    local_packages.extend([
+        FileSystems.join(staging_temp_dir, f)
+        for f in os.listdir(staging_temp_dir)
+    ])
+
+    for package in local_packages:
+      basename = os.path.basename(package)
+      staged_path = FileSystems.join(staging_location, basename)
+      self.stage_artifact(package, staged_path)
+      resources.append(basename)
+
+    return resources
 
   def _stage_extra_packages(self, extra_packages, staging_location, temp_dir):
     """Stages a list of local extra packages.
@@ -387,6 +461,8 @@ class Stager(object):
     return python_bin
 
   @staticmethod
+  @retry.with_exponential_backoff(num_retries=4,
+                                  retry_filter=retry_on_non_zero_exit)
   def _populate_requirements_cache(requirements_file, cache_dir):
     # The 'pip download' command will not download again if it finds the
     # tarball with the proper version already present.
@@ -408,7 +484,7 @@ class Stager(object):
         ':all:'
     ]
     logging.info('Executing command: %s', cmd_args)
-    processes.check_call(cmd_args)
+    processes.check_output(cmd_args, stderr=processes.STDOUT)
 
   @staticmethod
   def _build_setup_package(setup_file, temp_dir, build_setup_args=None):
@@ -421,7 +497,7 @@ class Stager(object):
             os.path.basename(setup_file), 'sdist', '--dist-dir', temp_dir
         ]
       logging.info('Executing command: %s', build_setup_args)
-      processes.check_call(build_setup_args)
+      processes.check_output(build_setup_args)
       output_files = glob.glob(os.path.join(temp_dir, '*.tar.gz'))
       if not output_files:
         raise RuntimeError(
@@ -443,7 +519,7 @@ class Stager(object):
       else:
         raise RuntimeError('Unrecognized SDK wheel file: %s' % sdk_location)
     else:
-      return names.DATAFLOW_SDK_TARBALL_FILE
+      return DATAFLOW_SDK_TARBALL_FILE
 
   def _stage_beam_sdk(self, sdk_remote_location, staging_location, temp_dir):
     """Stages a Beam SDK file with the appropriate version.
@@ -473,7 +549,13 @@ class Stager(object):
       try:
         # Stage binary distribution of the SDK, for now on a best-effort basis.
         sdk_local_file = Stager._download_pypi_sdk_package(
-            temp_dir, fetch_binary=True)
+            temp_dir, fetch_binary=True,
+            language_version_tag='%d%d' % (sys.version_info[0],
+                                           sys.version_info[1]),
+            abi_tag='cp%d%d%s' % (
+                sys.version_info[0],
+                sys.version_info[1],
+                'mu' if sys.version_info[0] < 3 else 'm'))
         sdk_binary_staged_name = Stager.\
             _desired_sdk_filename_in_staging_location(sdk_local_file)
         staged_path = FileSystems.join(staging_location, sdk_binary_staged_name)
@@ -549,8 +631,8 @@ class Stager(object):
 
     logging.info('Executing command: %s', cmd_args)
     try:
-      processes.check_call(cmd_args)
-    except subprocess.CalledProcessError as e:
+      processes.check_output(cmd_args)
+    except processes.CalledProcessError as e:
       raise RuntimeError(repr(e))
 
     for sdk_file in expected_files:

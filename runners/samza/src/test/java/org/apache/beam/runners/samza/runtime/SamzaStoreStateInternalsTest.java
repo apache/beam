@@ -15,16 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.runtime;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Sets;
 import java.io.File;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -57,8 +53,13 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.samza.container.SamzaContainerContext;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.samza.context.ContainerContext;
+import org.apache.samza.context.JobContext;
 import org.apache.samza.metrics.MetricsRegistry;
+import org.apache.samza.storage.StorageEngineFactory;
 import org.apache.samza.storage.kv.Entry;
 import org.apache.samza.storage.kv.KeyValueIterator;
 import org.apache.samza.storage.kv.KeyValueStore;
@@ -195,7 +196,9 @@ public class SamzaStoreStateInternalsTest implements Serializable {
         File storeDir,
         MetricsRegistry registry,
         SystemStreamPartition changeLogSystemStreamPartition,
-        SamzaContainerContext containerContext) {
+        JobContext jobContext,
+        ContainerContext containerContext,
+        StorageEngineFactory.StoreMode readWrite) {
       KeyValueStoreMetrics metrics = new KeyValueStoreMetrics(storeName, registry);
       return new TestStore(metrics);
     }

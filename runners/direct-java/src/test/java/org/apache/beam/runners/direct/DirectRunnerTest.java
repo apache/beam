@@ -17,15 +17,16 @@
  */
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import com.google.common.collect.ImmutableMap;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -56,6 +57,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -75,6 +77,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.Rule;
@@ -125,14 +128,13 @@ public class DirectRunnerTest implements Serializable {
                 new SimpleFunction<KV<String, Long>, String>() {
                   @Override
                   public String apply(KV<String, Long> input) {
-                    String str = String.format("%s: %s", input.getKey(), input.getValue());
-                    return str;
+                    return String.format("%s: %s", input.getKey(), input.getValue());
                   }
                 }));
 
     PAssert.that(countStrs).containsInAnyOrder("baz: 1", "bar: 2", "foo: 3");
 
-    DirectPipelineResult result = ((DirectPipelineResult) p.run());
+    DirectPipelineResult result = (DirectPipelineResult) p.run();
     result.waitUntilFinish();
   }
 
@@ -160,8 +162,7 @@ public class DirectRunnerTest implements Serializable {
                 new SimpleFunction<KV<String, Long>, String>() {
                   @Override
                   public String apply(KV<String, Long> input) {
-                    String str = String.format("%s: %s", input.getKey(), input.getValue());
-                    return str;
+                    return String.format("%s: %s", input.getKey(), input.getValue());
                   }
                 }));
 
@@ -176,10 +177,10 @@ public class DirectRunnerTest implements Serializable {
 
     PAssert.that(countStrs).containsInAnyOrder("baz: 1", "bar: 2", "foo: 3");
 
-    DirectPipelineResult result = ((DirectPipelineResult) p.run());
+    DirectPipelineResult result = (DirectPipelineResult) p.run();
     result.waitUntilFinish();
 
-    DirectPipelineResult otherResult = ((DirectPipelineResult) p.run());
+    DirectPipelineResult otherResult = (DirectPipelineResult) p.run();
     otherResult.waitUntilFinish();
 
     assertThat("Each element should have been processed twice", changed.get(), equalTo(6));
@@ -328,7 +329,8 @@ public class DirectRunnerTest implements Serializable {
 
                   @Teardown
                   public void teardown() {
-                    // just to not have a fast execution hiding an issue until we have a shutdown callback
+                    // just to not have a fast execution hiding an issue until we have a shutdown
+                    // callback
                     try {
                       Thread.sleep(1000);
                     } catch (final InterruptedException e) {
@@ -580,6 +582,54 @@ public class DirectRunnerTest implements Serializable {
     thrown.expectCause(isA(CoderException.class));
     thrown.expectMessage("Cannot decode a long");
     p.run();
+  }
+
+  /**
+   * Tests that {@link DirectRunner#fromOptions(PipelineOptions)} drops {@link PipelineOptions}
+   * marked with {@link JsonIgnore} fields.
+   */
+  @Test
+  public void testFromOptionsIfIgnoredFieldsGettingDropped() {
+    TestSerializationOfOptions options =
+        PipelineOptionsFactory.fromArgs(
+                "--foo=testValue", "--ignoredField=overridden", "--runner=DirectRunner")
+            .as(TestSerializationOfOptions.class);
+
+    assertEquals("testValue", options.getFoo());
+    assertEquals("overridden", options.getIgnoredField());
+    Pipeline p = Pipeline.create(options);
+    PCollection<Integer> pc =
+        p.apply(Create.of("1"))
+            .apply(
+                ParDo.of(
+                    new DoFn<String, Integer>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        TestSerializationOfOptions options =
+                            c.getPipelineOptions().as(TestSerializationOfOptions.class);
+                        assertEquals("testValue", options.getFoo());
+                        assertEquals("not overridden", options.getIgnoredField());
+                        c.output(Integer.parseInt(c.element()));
+                      }
+                    }));
+    PAssert.that(pc).containsInAnyOrder(1);
+    p.run();
+  }
+
+  /**
+   * Options for testing if {@link DirectRunner} drops {@link PipelineOptions} marked with {@link
+   * JsonIgnore} fields.
+   */
+  public interface TestSerializationOfOptions extends PipelineOptions {
+    String getFoo();
+
+    void setFoo(String foo);
+
+    @JsonIgnore
+    @Default.String("not overridden")
+    String getIgnoredField();
+
+    void setIgnoredField(String value);
   }
 
   private static class LongNoDecodeCoder extends AtomicCoder<Long> {

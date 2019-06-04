@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import java.util.Map;
@@ -34,22 +33,22 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /** A {@link PCollectionView} created from the components of a {@link SideInput}. */
-class RunnerPCollectionView<T> extends PValueBase implements PCollectionView<T> {
+public class RunnerPCollectionView<T> extends PValueBase implements PCollectionView<T> {
   private final TupleTag<Iterable<WindowedValue<?>>> tag;
   private final ViewFn<Iterable<WindowedValue<?>>, T> viewFn;
   private final WindowMappingFn<?> windowMappingFn;
   private final @Nullable WindowingStrategy<?, ?> windowingStrategy;
-  private final @Nullable Coder<Iterable<WindowedValue<?>>> coder;
-  private final transient PCollection<?> pCollection;
+  private final @Nullable Coder<?> coder;
+  private final transient @Nullable PCollection<?> pCollection;
 
   /** Create a new {@link RunnerPCollectionView} from the provided components. */
-  RunnerPCollectionView(
-      PCollection<?> pCollection,
+  public RunnerPCollectionView(
+      @Nullable PCollection<?> pCollection,
       TupleTag<Iterable<WindowedValue<?>>> tag,
       ViewFn<Iterable<WindowedValue<?>>, T> viewFn,
       WindowMappingFn<?> windowMappingFn,
       @Nullable WindowingStrategy<?, ?> windowingStrategy,
-      @Nullable Coder<Iterable<WindowedValue<?>>> coder) {
+      @Nullable Coder<?> coder) {
     this.pCollection = pCollection;
     this.tag = tag;
     this.viewFn = viewFn;
@@ -84,7 +83,7 @@ class RunnerPCollectionView<T> extends PValueBase implements PCollectionView<T> 
   }
 
   @Override
-  public Coder<Iterable<WindowedValue<?>>> getCoderInternal() {
+  public Coder<?> getCoderInternal() {
     return coder;
   }
 

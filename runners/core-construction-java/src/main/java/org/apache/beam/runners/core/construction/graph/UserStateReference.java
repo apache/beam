@@ -15,23 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
-import java.util.Collections;
-import java.util.Set;
+import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.UserStateId;
-import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
-import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * A reference to user state. This includes the PTransform that references the user state as well as
@@ -49,31 +42,19 @@ public abstract class UserStateReference {
   /** Create a user state reference from a UserStateId proto and components. */
   public static UserStateReference fromUserStateId(
       UserStateId userStateId, RunnerApi.Components components) {
-    String transformId = userStateId.getTransformId();
-    String localName = userStateId.getLocalName();
-
-    PTransform transform = components.getTransformsOrThrow(transformId);
-
-    Set<String> sideInputNames = Collections.emptySet();
-    if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
-      try {
-        sideInputNames =
-            ParDoPayload.parseFrom(transform.getSpec().getPayload()).getSideInputsMap().keySet();
-      } catch (InvalidProtocolBufferException e) {
-        throw new RuntimeException(e);
-      }
+    PTransform transform = components.getTransformsOrThrow(userStateId.getTransformId());
+    String mainInputCollectionId;
+    try {
+      mainInputCollectionId =
+          transform.getInputsOrThrow(ParDoTranslation.getMainInputName(transform));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
-
-    // Get the main input PCollection id.
-    String collectionId =
-        transform.getInputsOrThrow(
-            Iterables.getOnlyElement(
-                Sets.difference(transform.getInputsMap().keySet(), sideInputNames)));
-    PCollection collection = components.getPcollectionsOrThrow(collectionId);
     return UserStateReference.of(
-        PipelineNode.pTransform(transformId, transform),
-        localName,
-        PipelineNode.pCollection(collectionId, collection));
+        PipelineNode.pTransform(userStateId.getTransformId(), transform),
+        userStateId.getLocalName(),
+        PipelineNode.pCollection(
+            mainInputCollectionId, components.getPcollectionsOrThrow(mainInputCollectionId)));
   }
 
   /** The id of the PTransform that uses this user state. */

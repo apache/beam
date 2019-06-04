@@ -24,12 +24,16 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
-import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.api.common.ExecutionMode;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
-/** Options which can be used to configure a Flink PipelineRunner. */
+/** Options which can be used to configure a Flink PortablePipelineRunner. */
 public interface FlinkPipelineOptions
     extends PipelineOptions, ApplicationNameOptions, StreamingOptions {
+
+  String AUTO = "[auto]";
+  String PIPELINED = "PIPELINED";
 
   /**
    * List of local files to make available to workers.
@@ -56,35 +60,62 @@ public interface FlinkPipelineOptions
       "Address of the Flink Master where the Pipeline should be executed. Can"
           + " either be of the form \"host:port\" or one of the special values [local], "
           + "[collection] or [auto].")
+  @Default.String(AUTO)
   String getFlinkMaster();
 
   void setFlinkMaster(String value);
 
-  @Description("The degree of parallelism to be used when distributing operations onto workers.")
-  @Default.InstanceFactory(DefaultParallelismFactory.class)
+  @Description(
+      "The degree of parallelism to be used when distributing operations onto workers. "
+          + "If the parallelism is not set, the configured Flink default is used, or 1 if none can be found.")
+  @Default.Integer(-1)
   Integer getParallelism();
 
   void setParallelism(Integer value);
 
   @Description(
-      "The interval between consecutive checkpoints (i.e. snapshots of the current"
-          + "pipeline state used for fault tolerance).")
+      "The pipeline wide maximum degree of parallelism to be used. The maximum parallelism specifies the upper limit "
+          + "for dynamic scaling and the number of key groups used for partitioned state.")
+  @Default.Integer(-1)
+  Integer getMaxParallelism();
+
+  void setMaxParallelism(Integer value);
+
+  @Description(
+      "The interval in milliseconds at which to trigger checkpoints of the running pipeline. "
+          + "Default: No checkpointing.")
   @Default.Long(-1L)
   Long getCheckpointingInterval();
 
   void setCheckpointingInterval(Long interval);
 
   @Description("The checkpointing mode that defines consistency guarantee.")
-  @Default.Enum("AT_LEAST_ONCE")
+  @Default.Enum("EXACTLY_ONCE")
   CheckpointingMode getCheckpointingMode();
 
   void setCheckpointingMode(CheckpointingMode mode);
 
-  @Description("The maximum time that a checkpoint may take before being discarded.")
-  @Default.Long(20 * 60 * 1000)
+  @Description(
+      "The maximum time in milliseconds that a checkpoint may take before being discarded.")
+  @Default.Long(-1L)
   Long getCheckpointTimeoutMillis();
 
   void setCheckpointTimeoutMillis(Long checkpointTimeoutMillis);
+
+  @Description("The minimal pause in milliseconds before the next checkpoint is triggered.")
+  @Default.Long(-1L)
+  Long getMinPauseBetweenCheckpoints();
+
+  void setMinPauseBetweenCheckpoints(Long minPauseInterval);
+
+  @Description(
+      "Sets the expected behaviour for tasks in case that they encounter an error in their "
+          + "checkpointing procedure. If this is set to true, the task will fail on checkpointing error. "
+          + "If this is set to false, the task will only decline a the checkpoint and continue running. ")
+  @Default.Boolean(true)
+  Boolean getFailOnCheckpointingErrors();
+
+  void setFailOnCheckpointingErrors(Boolean failOnCheckpointingErrors);
 
   @Description(
       "Sets the number of times that failed tasks are re-executed. "
@@ -96,7 +127,7 @@ public interface FlinkPipelineOptions
   void setNumberOfExecutionRetries(Integer retries);
 
   @Description(
-      "Sets the delay between executions. A value of {@code -1} "
+      "Sets the delay in milliseconds between executions. A value of {@code -1} "
           + "indicates that the default value should be used.")
   @Default.Long(-1L)
   Long getExecutionRetryDelay();
@@ -117,9 +148,9 @@ public interface FlinkPipelineOptions
       "Sets the state backend to use in streaming mode. "
           + "Otherwise the default is read from the Flink config.")
   @JsonIgnore
-  AbstractStateBackend getStateBackend();
+  StateBackend getStateBackend();
 
-  void setStateBackend(AbstractStateBackend stateBackend);
+  void setStateBackend(StateBackend stateBackend);
 
   @Description("Enable/disable Beam metrics in Flink Runner")
   @Default.Boolean(true)
@@ -167,4 +198,53 @@ public interface FlinkPipelineOptions
   Boolean isShutdownSourcesOnFinalWatermark();
 
   void setShutdownSourcesOnFinalWatermark(Boolean shutdownOnFinalWatermark);
+
+  @Description(
+      "Interval in milliseconds for sending latency tracking marks from the sources to the sinks. "
+          + "Interval value <= 0 disables the feature.")
+  @Default.Long(0)
+  Long getLatencyTrackingInterval();
+
+  void setLatencyTrackingInterval(Long interval);
+
+  @Description("The interval in milliseconds for automatic watermark emission.")
+  Long getAutoWatermarkInterval();
+
+  void setAutoWatermarkInterval(Long interval);
+
+  @Description(
+      "Flink mode for data exchange of batch pipelines. "
+          + "Reference {@link org.apache.flink.api.common.ExecutionMode}. "
+          + "Set this to BATCH_FORCED if pipelines get blocked, see "
+          + "https://issues.apache.org/jira/browse/FLINK-10672")
+  @Default.Enum(PIPELINED)
+  ExecutionMode getExecutionModeForBatch();
+
+  void setExecutionModeForBatch(ExecutionMode executionMode);
+
+  @Description(
+      "Savepoint restore path. If specified, restores the streaming pipeline from the provided path.")
+  String getSavepointPath();
+
+  void setSavepointPath(String path);
+
+  @Description(
+      "Flag indicating whether non restored state is allowed if the savepoint "
+          + "contains state for an operator that is no longer part of the pipeline.")
+  @Default.Boolean(false)
+  Boolean getAllowNonRestoredState();
+
+  void setAllowNonRestoredState(Boolean allowNonRestoredState);
+
+  @Description(
+      "Flag indicating whether auto-balance sharding for WriteFiles transform should be enabled. "
+          + "This might prove useful in streaming use-case, where pipeline needs to write quite many events "
+          + "into files, typically divided into N shards. Default behavior on Flink would be, that some workers "
+          + "will receive more shards to take care of than others. This cause workers to go out of balance in "
+          + "terms of processing backlog and memory usage. Enabling this feature will make shards to be spread "
+          + "evenly among available workers in improve throughput and memory usage stability.")
+  @Default.Boolean(false)
+  Boolean isAutoBalanceWriteFilesShardingEnabled();
+
+  void setAutoBalanceWriteFilesShardingEnabled(Boolean autoBalanceWriteFilesShardingEnabled);
 }

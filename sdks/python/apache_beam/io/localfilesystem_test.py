@@ -24,10 +24,13 @@ import filecmp
 import logging
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 
 import mock
+from parameterized import param
+from parameterized import parameterized
 
 from apache_beam.io import localfilesystem
 from apache_beam.io.filesystem import BeamIOError
@@ -57,6 +60,12 @@ def _gen_fake_split(separator):
 
 
 class LocalFileSystemTest(unittest.TestCase):
+
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
 
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
@@ -150,17 +159,48 @@ class LocalFileSystemTest(unittest.TestCase):
       self.fs.match([None])
     self.assertEqual(list(error.exception.exception_details.keys()), [None])
 
-  def test_match_glob(self):
-    path1 = os.path.join(self.tmpdir, 'f1')
-    path2 = os.path.join(self.tmpdir, 'f2')
-    open(path1, 'a').close()
-    open(path2, 'a').close()
+  @parameterized.expand([
+      param('*',
+            files=['a', 'b', os.path.join('c', 'x')],
+            expected=['a', 'b']),
+      param('**',
+            files=['a', os.path.join('b', 'x'), os.path.join('c', 'x')],
+            expected=['a', os.path.join('b', 'x'), os.path.join('c', 'x')]),
+      param(os.path.join('*', '*'),
+            files=['a',
+                   os.path.join('b', 'x'),
+                   os.path.join('c', 'x'),
+                   os.path.join('d', 'x', 'y')],
+            expected=[os.path.join('b', 'x'), os.path.join('c', 'x')]),
+      param(os.path.join('**', '*'),
+            files=['a',
+                   os.path.join('b', 'x'),
+                   os.path.join('c', 'x'),
+                   os.path.join('d', 'x', 'y')],
+            expected=[os.path.join('b', 'x'),
+                      os.path.join('c', 'x'),
+                      os.path.join('d', 'x', 'y')]),
+  ])
+  def test_match_glob(self, pattern, files, expected):
+    for filename in files:
+      full_path = os.path.join(self.tmpdir, filename)
+      dirname = os.path.dirname(full_path)
+      if not dirname == full_path:
+        # Make sure we don't go outside the tmpdir
+        assert os.path.commonprefix([self.tmpdir, full_path]) == self.tmpdir
+        try:
+          self.fs.mkdirs(dirname)
+        except IOError:
+          # Directory exists
+          pass
+
+      open(full_path, 'a').close()  # create empty file
 
     # Match both the files in the directory
-    path = os.path.join(self.tmpdir, '*')
-    result = self.fs.match([path])[0]
-    files = [f.path for f in result.metadata_list]
-    self.assertItemsEqual(files, [path1, path2])
+    full_pattern = os.path.join(self.tmpdir, pattern)
+    result = self.fs.match([full_pattern])[0]
+    files = [os.path.relpath(f.path, self.tmpdir) for f in result.metadata_list]
+    self.assertCountEqual(files, expected)
 
   def test_match_directory(self):
     result = self.fs.match([self.tmpdir])[0]
@@ -173,9 +213,9 @@ class LocalFileSystemTest(unittest.TestCase):
     open(path1, 'a').close()
     open(path2, 'a').close()
 
-    result = self.fs.match([self.tmpdir + '/'])[0]
+    result = self.fs.match([os.path.join(self.tmpdir, '*')])[0]
     files = [f.path for f in result.metadata_list]
-    self.assertItemsEqual(files, [path1, path2])
+    self.assertCountEqual(files, [path1, path2])
 
   def test_copy(self):
     path1 = os.path.join(self.tmpdir, 'f1')
@@ -259,8 +299,197 @@ class LocalFileSystemTest(unittest.TestCase):
       f.write('Hello')
     with open(path2, 'a') as f:
       f.write('foo')
-    self.assertEquals(self.fs.checksum(path1), str(5))
-    self.assertEquals(self.fs.checksum(path2), str(3))
+    self.assertEqual(self.fs.checksum(path1), str(5))
+    self.assertEqual(self.fs.checksum(path2), str(3))
+
+  def make_tree(self, path, value, expected_leaf_count=None):
+    """Create a file+directory structure from a simple dict-based DSL
+
+    :param path: root path to create directories+files under
+    :param value: a specification of what ``path`` should contain: ``None`` to
+     make it an empty directory, a string literal to make it a file with those
+      contents, and a ``dict`` to make it a non-empty directory and recurse
+    :param expected_leaf_count: only be set at the top of a recursive call
+     stack; after the whole tree has been created, verify the presence and
+     number of all files+directories, as a sanity check
+    """
+    if value is None:
+      # empty directory
+      os.makedirs(path)
+    elif isinstance(value, str):
+      # file with string-literal contents
+      dir = os.path.dirname(path)
+      if not os.path.exists(dir):
+        os.makedirs(dir)
+      with open(path, 'a') as f:
+        f.write(value)
+    elif isinstance(value, dict):
+      # recurse to create a subdirectory tree
+      for basename, v in value.items():
+        self.make_tree(
+            os.path.join(path, basename),
+            v
+        )
+    else:
+      raise Exception(
+          'Unexpected value in tempdir tree: %s' % value
+      )
+
+    if expected_leaf_count != None:
+      self.assertEqual(
+          self.check_tree(path, value),
+          expected_leaf_count
+      )
+
+  def check_tree(self, path, value, expected_leaf_count=None):
+    """Verify a directory+file structure according to the rules described in
+    ``make_tree``
+
+    :param path: path to check under
+    :param value: DSL-representation of expected files+directories under
+    ``path``
+    :return: number of leaf files/directories that were verified
+    """
+    actual_leaf_count = None
+    if value is None:
+      # empty directory
+      self.assertTrue(os.path.exists(path), msg=path)
+      self.assertEqual(os.listdir(path), [])
+      actual_leaf_count = 1
+    elif isinstance(value, str):
+      # file with string-literal contents
+      with open(path, 'r') as f:
+        self.assertEqual(f.read(), value, msg=path)
+
+      actual_leaf_count = 1
+    elif isinstance(value, dict):
+      # recurse to check subdirectory tree
+      actual_leaf_count = sum(
+          [
+              self.check_tree(
+                  os.path.join(path, basename),
+                  v
+              )
+              for basename, v in value.items()
+          ]
+      )
+    else:
+      raise Exception(
+          'Unexpected value in tempdir tree: %s' % value
+      )
+
+    if expected_leaf_count != None:
+      self.assertEqual(actual_leaf_count, expected_leaf_count)
+
+    return actual_leaf_count
+
+  _test_tree = {
+      'path1': '111',
+      'path2': {
+          '2': '222',
+          'emptydir': None
+      },
+      'aaa': {
+          'b1': 'b1',
+          'b2': None,
+          'bbb': {
+              'ccc': {
+                  'ddd': 'DDD'
+              }
+          },
+          'c': None
+      }
+  }
+
+  def test_delete_globs(self):
+    dir = os.path.join(self.tmpdir, 'dir')
+    self.make_tree(dir, self._test_tree, expected_leaf_count=7)
+
+    self.fs.delete([
+        os.path.join(dir, 'path*'),
+        os.path.join(dir, 'aaa', 'b*')
+    ])
+
+    # One empty nested directory is left
+    self.check_tree(
+        dir,
+        {
+            'aaa': {
+                'c': None
+            }
+        },
+        expected_leaf_count=1
+    )
+
+  def test_recursive_delete(self):
+    dir = os.path.join(self.tmpdir, 'dir')
+    self.make_tree(dir, self._test_tree, expected_leaf_count=7)
+
+    self.fs.delete([dir])
+
+    self.check_tree(
+        self.tmpdir,
+        {'': None},
+        expected_leaf_count=1
+    )
+
+  def test_delete_glob_errors(self):
+    dir = os.path.join(self.tmpdir, 'dir')
+    self.make_tree(dir, self._test_tree, expected_leaf_count=7)
+
+    with self.assertRaisesRegexp(BeamIOError,
+                                 r'^Delete operation failed') as error:
+      self.fs.delete([
+          os.path.join(dir, 'path*'),
+          os.path.join(dir, 'aaa', 'b*'),
+          os.path.join(dir, 'aaa', 'd*')  # doesn't match anything, will raise
+      ])
+
+    self.check_tree(
+        dir,
+        {
+            'aaa': {
+                'c': None
+            }
+        },
+        expected_leaf_count=1
+    )
+
+    self.assertEqual(
+        list(
+            error
+            .exception
+            .exception_details
+            .keys()
+        ),
+        [os.path.join(dir, 'aaa', 'd*')]
+    )
+
+    with self.assertRaisesRegexp(BeamIOError,
+                                 r'^Delete operation failed') as error:
+      self.fs.delete([
+          os.path.join(dir, 'path*')  # doesn't match anything, will raise
+      ])
+
+    self.check_tree(
+        dir,
+        {
+            'aaa': {
+                'c': None
+            }
+        },
+        expected_leaf_count=1
+    )
+
+    self.assertEqual(
+        list(
+            error
+            .exception
+            .exception_details
+            .keys()
+        ),
+        [os.path.join(dir, 'path*')]
+    )
 
   def test_delete(self):
     path1 = os.path.join(self.tmpdir, 'f1')

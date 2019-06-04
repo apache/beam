@@ -32,6 +32,10 @@ from apache_beam.utils import counters
 
 
 class _ExecutionContext(object):
+  """Contains the context for the execution of a single PTransform.
+
+  It holds the watermarks for that transform, as well as keyed states.
+  """
 
   def __init__(self, watermarks, keyed_states):
     self.watermarks = watermarks
@@ -82,7 +86,7 @@ class _SideInputsContainer(object):
 
   def __repr__(self):
     views_string = (', '.join(str(elm) for elm in self._views.values())
-                    if self._views.values() else '[]')
+                    if self._views else '[]')
     return '_SideInputsContainer(_views=%s)' % views_string
 
   def get_value_or_block_until_ready(self, side_input, task, block_until):
@@ -230,6 +234,10 @@ class EvaluationContext(object):
     self._lock = threading.Lock()
 
   def _initialize_keyed_states(self, root_transforms, value_to_consumers):
+    """Initialize user state dicts.
+
+    These dicts track user state per-key, per-transform and per-window.
+    """
     transform_keyed_states = {}
     for transform in root_transforms:
       transform_keyed_states[transform] = {}
@@ -260,7 +268,7 @@ class EvaluationContext(object):
       completed_bundle: the bundle that was processed to produce the result.
       completed_timers: the timers that were delivered to produce the
                         completed_bundle.
-      result: the TransformResult of evaluating the input bundle
+      result: the ``TransformResult`` of evaluating the input bundle
 
     Returns:
       the committed bundles contained within the handled result.
@@ -274,16 +282,7 @@ class EvaluationContext(object):
                                    result.logical_metric_updates)
 
       # If the result is for a view, update side inputs container.
-      if (result.uncommitted_output_bundles
-          and result.uncommitted_output_bundles[0].pcollection
-          in self._pcollection_to_views):
-        for view in self._pcollection_to_views[
-            result.uncommitted_output_bundles[0].pcollection]:
-          for committed_bundle in committed_bundles:
-            # side_input must be materialized.
-            self._side_inputs_container.add_values(
-                view,
-                committed_bundle.get_elements_iterable(make_copy=True))
+      self._update_side_inputs_container(committed_bundles, result)
 
       # Tasks generated from unblocked side inputs as the watermark progresses.
       tasks = self._watermark_manager.update_watermarks(
@@ -303,6 +302,23 @@ class EvaluationContext(object):
       for k, v in result.partial_keyed_state.items():
         existing_keyed_state[k] = v
       return committed_bundles
+
+  def _update_side_inputs_container(self, committed_bundles, result):
+    """Update the side inputs container if we are outputting into a side input.
+
+    Look at the result, and if it's outputing into a PCollection that we have
+    registered as a PCollectionView, we add the result to the PCollectionView.
+    """
+    if (result.uncommitted_output_bundles
+        and result.uncommitted_output_bundles[0].pcollection
+        in self._pcollection_to_views):
+      for view in self._pcollection_to_views[
+          result.uncommitted_output_bundles[0].pcollection]:
+        for committed_bundle in committed_bundles:
+          # side_input must be materialized.
+          self._side_inputs_container.add_values(
+              view,
+              committed_bundle.get_elements_iterable(make_copy=True))
 
   def get_aggregator_values(self, aggregator_or_name):
     return self._counter_factory.get_aggregator_values(aggregator_or_name)

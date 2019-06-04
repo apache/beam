@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.common.base.Throwables;
-import com.google.common.io.BaseEncoding;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -29,6 +27,8 @@ import java.lang.reflect.ParameterizedType;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
 
 /** Utilities for working with Coders. */
 public final class CoderUtils {
@@ -168,7 +168,6 @@ public final class CoderUtils {
   public static TypeDescriptor getCodedType(TypeDescriptor coderDescriptor) {
     ParameterizedType coderType =
         (ParameterizedType) coderDescriptor.getSupertype(Coder.class).getType();
-    TypeDescriptor codedType = TypeDescriptor.of(coderType.getActualTypeArguments()[0]);
-    return codedType;
+    return TypeDescriptor.of(coderType.getActualTypeArguments()[0]);
   }
 }

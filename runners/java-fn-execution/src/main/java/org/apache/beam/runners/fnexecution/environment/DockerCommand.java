@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.fnexecution.environment;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.ImmutableList;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -33,10 +33,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A docker command wrapper. Simplifies communications with the Docker daemon. */
+// Suppressing here due to https://github.com/spotbugs/spotbugs/issues/724
+@SuppressFBWarnings(
+    value = "OS_OPEN_STREAM",
+    justification = "BufferedReader wraps stream we don't own and should not close")
 class DockerCommand {
   private static final Logger LOG = LoggerFactory.getLogger(DockerCommand.class);
 
@@ -77,7 +82,11 @@ class DockerCommand {
       runShortCommand(
           ImmutableList.<String>builder().add(dockerExecutable).add("pull").add(imageTag).build());
     } catch (IOException | TimeoutException | InterruptedException e) {
-      LOG.warn(String.format("Unable to pull docker image %s", imageTag), e);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Unable to pull docker image {}", imageTag, e);
+      } else {
+        LOG.warn("Unable to pull docker image {}, cause: {}", imageTag, e.getMessage());
+      }
     }
     // TODO: Validate args?
     return runShortCommand(
@@ -89,6 +98,26 @@ class DockerCommand {
             .add(imageTag)
             .addAll(args)
             .build());
+  }
+
+  /**
+   * Check if the given container state is running.
+   *
+   * @param containerId Id of the container to check
+   */
+  public boolean isContainerRunning(String containerId)
+      throws IOException, TimeoutException, InterruptedException {
+    checkArgument(!containerId.isEmpty(), "Docker containerId required");
+    // TODO: Validate args?
+    return runShortCommand(
+            ImmutableList.<String>builder()
+                .add(dockerExecutable)
+                .add("inspect")
+                .add("-f")
+                .add("{{.State.Running}}")
+                .add(containerId)
+                .build())
+        .equalsIgnoreCase("true");
   }
 
   /**

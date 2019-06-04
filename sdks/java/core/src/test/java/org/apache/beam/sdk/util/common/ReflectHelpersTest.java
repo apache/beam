@@ -17,9 +17,12 @@
  */
 package org.apache.beam.sdk.util.common;
 
+import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.options.Default;
@@ -127,7 +130,8 @@ public class ReflectHelpersTest {
             new TypeDescriptor<Map<? super InputT, ? extends OutputT>>() {}.getType()));
   }
 
-  private interface Options extends PipelineOptions {
+  /** Test interface. */
+  public interface Options extends PipelineOptions {
     @Default.String("package.OuterClass$InnerClass#method()")
     String getString();
 
@@ -168,5 +172,43 @@ public class ReflectHelpersTest {
     thread.start();
     thread.join();
     assertEquals(cl, classLoader[0]);
+  }
+
+  /**
+   * Test service interface and implementations for loadServicesOrdered.
+   *
+   * <p>Note that rather than using AutoService to create resources, AlphaImpl and ZetaImpl are
+   * listed in reverse lexicographical order in
+   * sdks/java/core/src/test/resources/META-INF/services/org.apache.beam.sdk.util.common.ReflectHelpersTest$FakeService
+   * so that we can verify loadServicesOrdered properly re-orders them.
+   */
+  public interface FakeService {
+    String getName();
+  }
+
+  /** Alpha implemnetation of FakeService. Should be loaded first */
+  public static class AlphaImpl implements FakeService {
+    @Override
+    public String getName() {
+      return "Alpha";
+    }
+  }
+
+  /** Zeta implemnetation of FakeService. Should be loaded second */
+  public static class ZetaImpl implements FakeService {
+    @Override
+    public String getName() {
+      return "Zeta";
+    }
+  }
+
+  @Test
+  public void testLoadServicesOrderedReordersClassesByName() {
+    List<String> names = new ArrayList<>();
+    for (FakeService service : ReflectHelpers.loadServicesOrdered(FakeService.class)) {
+      names.add(service.getName());
+    }
+
+    assertThat(names, contains("Alpha", "Zeta"));
   }
 }

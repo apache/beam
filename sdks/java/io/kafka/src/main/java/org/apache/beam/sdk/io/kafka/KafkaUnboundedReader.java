@@ -2,7 +2,8 @@
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership.  The ASF E 2.0 (the
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
@@ -16,12 +17,8 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterators;
-import com.google.common.io.Closeables;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -55,6 +52,10 @@ import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Closeables;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -140,28 +141,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     consumerPollThread.submit(this::consumerPollLoop);
 
     // offsetConsumer setup :
-
-    Object groupId = spec.getConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG);
-    // override group_id and disable auto_commit so that it does not interfere with main consumer
-    String offsetGroupId =
-        String.format(
-            "%s_offset_consumer_%d_%s",
-            name, (new Random()).nextInt(Integer.MAX_VALUE), (groupId == null ? "none" : groupId));
-    Map<String, Object> offsetConsumerConfig = new HashMap<>(spec.getConsumerConfig());
-    offsetConsumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, offsetGroupId);
-    offsetConsumerConfig.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-    // Force read isolation level to 'read_uncommitted' for offset consumer. This consumer
-    // fetches latest offset for two reasons : (a) to calculate backlog (number of records
-    // yet to be consumed) (b) to advance watermark if the backlog is zero. The right thing to do
-    // for (a) is to leave this config unchanged from the main config (i.e. if there are records
-    // that can't be read because of uncommitted records before them, they shouldn't
-    // ideally count towards backlog when "read_committed" is enabled. But (b)
-    // requires finding out if there are any records left to be read (committed or uncommitted).
-    // Rather than using two separate consumers we will go with better support for (b). If we do
-    // hit a case where a lot of records are not readable (due to some stuck transactions), the
-    // pipeline would report more backlog, but would not be able to consume it. It might be ok
-    // since CPU consumed on the workers would be low and will likely avoid unnecessary upscale.
-    offsetConsumerConfig.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_uncommitted");
+    Map<String, Object> offsetConsumerConfig = getOffsetConsumerConfig();
 
     offsetConsumer = spec.getConsumerFactoryFn().apply(offsetConsumerConfig);
     consumerSpEL.evaluateAssign(offsetConsumer, spec.getTopicPartitions());
@@ -172,7 +152,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     offsetFetcherThread.scheduleAtFixedRate(
         this::updateLatestOffsets, 0, OFFSET_UPDATE_INTERVAL_SECONDS, TimeUnit.SECONDS);
 
-    nextBatch();
     return advance();
   }
 
@@ -229,7 +208,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
                 rawRecord.offset(),
                 consumerSpEL.getRecordTimestamp(rawRecord),
                 consumerSpEL.getRecordTimestampType(rawRecord),
-                ConsumerSpEL.hasHeaders ? rawRecord.headers() : null,
+                ConsumerSpEL.hasHeaders() ? rawRecord.headers() : null,
                 keyDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.key()),
                 valueDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.value()));
 
@@ -268,8 +247,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     }
 
     // Return minimum watermark among partitions.
-    return partitionStates
-        .stream()
+    return partitionStates.stream()
         .map(PartitionState::updateAndGetWatermark)
         .min(Comparator.naturalOrder())
         .get();
@@ -279,8 +257,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   public CheckpointMark getCheckpointMark() {
     reportBacklog();
     return new KafkaCheckpointMark(
-        partitionStates
-            .stream()
+        partitionStates.stream()
             .map(
                 p ->
                     new PartitionMark(
@@ -376,6 +353,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   // like 100 milliseconds does not work well. This along with large receive buffer for
   // consumer achieved best throughput in tests (see `defaultConsumerProperties`).
   private final ExecutorService consumerPollThread = Executors.newSingleThreadExecutor();
+  private AtomicReference<Exception> consumerPollException = new AtomicReference<>();
   private final SynchronousQueue<ConsumerRecords<byte[], byte[]>> availableRecordsQueue =
       new SynchronousQueue<>();
   private AtomicReference<KafkaCheckpointMark> finalizedCheckpointMark = new AtomicReference<>();
@@ -391,9 +369,9 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       Executors.newSingleThreadScheduledExecutor();
   private static final int OFFSET_UPDATE_INTERVAL_SECONDS = 1;
 
-  static final long UNINITIALIZED_OFFSET = -1;
+  private static final long UNINITIALIZED_OFFSET = -1;
 
-  //Add SpEL instance to cover the interface difference of Kafka client
+  // Add SpEL instance to cover the interface difference of Kafka client
   private transient ConsumerSpEL consumerSpEL;
 
   /** watermark before any records have been read. */
@@ -570,37 +548,40 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   private void consumerPollLoop() {
     // Read in a loop and enqueue the batch of records, if any, to availableRecordsQueue.
 
-    ConsumerRecords<byte[], byte[]> records = ConsumerRecords.empty();
-    while (!closed.get()) {
-      try {
-        if (records.isEmpty()) {
-          records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
-        } else if (availableRecordsQueue.offer(
-            records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS)) {
-          records = ConsumerRecords.empty();
+    try {
+      ConsumerRecords<byte[], byte[]> records = ConsumerRecords.empty();
+      while (!closed.get()) {
+        try {
+          if (records.isEmpty()) {
+            records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
+          } else if (availableRecordsQueue.offer(
+              records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS)) {
+            records = ConsumerRecords.empty();
+          }
+          KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
+          if (checkpointMark != null) {
+            commitCheckpointMark(checkpointMark);
+          }
+        } catch (InterruptedException e) {
+          LOG.warn("{}: consumer thread is interrupted", this, e); // not expected
+          break;
+        } catch (WakeupException e) {
+          break;
         }
-        KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
-        if (checkpointMark != null) {
-          commitCheckpointMark(checkpointMark);
-        }
-      } catch (InterruptedException e) {
-        LOG.warn("{}: consumer thread is interrupted", this, e); // not expected
-        break;
-      } catch (WakeupException e) {
-        break;
       }
+      LOG.info("{}: Returning from consumer pool loop", this);
+    } catch (Exception e) { // mostly an unrecoverable KafkaException.
+      LOG.error("{}: Exception while reading from Kafka", this, e);
+      consumerPollException.set(e);
+      throw e;
     }
-
-    LOG.info("{}: Returning from consumer pool loop", this);
   }
 
   private void commitCheckpointMark(KafkaCheckpointMark checkpointMark) {
     LOG.debug("{}: Committing finalized checkpoint {}", this, checkpointMark);
 
     consumer.commitSync(
-        checkpointMark
-            .getPartitions()
-            .stream()
+        checkpointMark.getPartitions().stream()
             .filter(p -> p.getNextOffset() != UNINITIALIZED_OFFSET)
             .collect(
                 Collectors.toMap(
@@ -622,7 +603,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     checkpointMarkCommitsEnqueued.inc();
   }
 
-  private void nextBatch() {
+  private void nextBatch() throws IOException {
     curBatch = Collections.emptyIterator();
 
     ConsumerRecords<byte[], byte[]> records;
@@ -638,6 +619,10 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     }
 
     if (records == null) {
+      // Check if the poll thread failed with an exception.
+      if (consumerPollException.get() != null) {
+        throw new IOException("Exception while reading from Kafka", consumerPollException.get());
+      }
       return;
     }
 
@@ -653,7 +638,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     if (pState.nextOffset != UNINITIALIZED_OFFSET) {
       consumer.seek(pState.topicPartition, pState.nextOffset);
     } else {
-      // nextOffset is unininitialized here, meaning start reading from latest record as of now
+      // nextOffset is uninitialized here, meaning start reading from latest record as of now
       // ('latest' is the default, and is configurable) or 'look up offset by startReadTime.
       // Remember the current position without waiting until the first record is read. This
       // ensures checkpoint is accurate even if the reader is closed before reading any records.
@@ -718,6 +703,39 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     }
 
     return backlogCount;
+  }
+
+  @VisibleForTesting
+  Map<String, Object> getOffsetConsumerConfig() {
+    Map<String, Object> offsetConsumerConfig = new HashMap<>(source.getSpec().getConsumerConfig());
+    offsetConsumerConfig.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+
+    Object groupId = source.getSpec().getConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG);
+    // override group_id and disable auto_commit so that it does not interfere with main consumer
+    String offsetGroupId =
+        String.format(
+            "%s_offset_consumer_%d_%s",
+            name, (new Random()).nextInt(Integer.MAX_VALUE), (groupId == null ? "none" : groupId));
+    offsetConsumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, offsetGroupId);
+
+    if (source.getSpec().getOffsetConsumerConfig() != null) {
+      offsetConsumerConfig.putAll(source.getSpec().getOffsetConsumerConfig());
+    }
+
+    // Force read isolation level to 'read_uncommitted' for offset consumer. This consumer
+    // fetches latest offset for two reasons : (a) to calculate backlog (number of records
+    // yet to be consumed) (b) to advance watermark if the backlog is zero. The right thing to do
+    // for (a) is to leave this config unchanged from the main config (i.e. if there are records
+    // that can't be read because of uncommitted records before them, they shouldn't
+    // ideally count towards backlog when "read_committed" is enabled. But (b)
+    // requires finding out if there are any records left to be read (committed or uncommitted).
+    // Rather than using two separate consumers we will go with better support for (b). If we do
+    // hit a case where a lot of records are not readable (due to some stuck transactions), the
+    // pipeline would report more backlog, but would not be able to consume it. It might be ok
+    // since CPU consumed on the workers would be low and will likely avoid unnecessary upscale.
+    offsetConsumerConfig.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_uncommitted");
+
+    return offsetConsumerConfig;
   }
 
   @Override

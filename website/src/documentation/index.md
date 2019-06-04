@@ -31,7 +31,7 @@ Learn about the Beam Programming Model and the concepts common to all Beam SDKs 
 
 * The [Programming Guide]({{ site.baseurl }}/documentation/programming-guide/) introduces all the key Beam concepts.
 * Learn about Beam's [execution model]({{ site.baseurl }}/documentation/execution-model/) to better understand how pipelines execute.
-* Visit [Additional Resources]({{ site.baseurl }}/documentation/resources/) for some of our favorite articles and talks about Beam.
+* Visit [Learning Resources]({{ site.baseurl }}/documentation/resources/learning-resources) for some of our favorite articles and talks about Beam.
 
 ## Pipeline Fundamentals
 
@@ -59,6 +59,9 @@ A Beam Runner runs a Beam pipeline on a specific (often distributed) data proces
 * [SparkRunner]({{ site.baseurl }}/documentation/runners/spark/): Runs on [Apache Spark](http://spark.apache.org).
 * [DataflowRunner]({{ site.baseurl }}/documentation/runners/dataflow/): Runs on [Google Cloud Dataflow](https://cloud.google.com/dataflow), a fully managed service within [Google Cloud Platform](https://cloud.google.com/).
 * [GearpumpRunner]({{ site.baseurl }}/documentation/runners/gearpump/): Runs on [Apache Gearpump (incubating)](http://gearpump.apache.org).
+* [SamzaRunner]({{ site.baseurl }}/documentation/runners/samza/): Runs on [Apache Samza](http://samza.apache.org).
+* [NemoRunner]({{ site.baseurl }}/documentation/runners/nemo/): Runs on [Apache Nemo](http://nemo.apache.org).
+* [JetRunner]({{ site.baseurl }}/documentation/runners/jet/): Runs on [Hazelcast Jet](https://jet.hazelcast.org/).
 
 ### Choosing a Runner
 

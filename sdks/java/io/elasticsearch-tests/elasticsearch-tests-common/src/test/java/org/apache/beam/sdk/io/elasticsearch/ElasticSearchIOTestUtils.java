@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.elasticsearch;
 
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.getBackendVersion;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.parseResponse;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -29,6 +29,7 @@ import java.util.List;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.nio.entity.NStringEntity;
+import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 
@@ -60,9 +61,15 @@ class ElasticSearchIOTestUtils {
     deleteIndex(restClient, connectionConfiguration.getIndex());
   }
 
+  private static void closeIndex(RestClient restClient, String index) throws IOException {
+    restClient.performRequest("POST", String.format("/%s/_close", index));
+  }
+
   private static void deleteIndex(RestClient restClient, String index) throws IOException {
     try {
-      restClient.performRequest("DELETE", String.format("/%s", index));
+      closeIndex(restClient, index);
+      restClient.performRequest(
+          "DELETE", String.format("/%s", index), Collections.singletonMap("refresh", "wait_for"));
     } catch (IOException e) {
       // it is fine to ignore this expression as deleteIndex occurs in @before,
       // so when the first tests is run, the index does not exist yet
@@ -84,7 +91,8 @@ class ElasticSearchIOTestUtils {
                 "{\"source\" : { \"index\" : \"%s\" }, \"dest\" : { \"index\" : \"%s\" } }",
                 source, target),
             ContentType.APPLICATION_JSON);
-    restClient.performRequest("POST", "/_reindex", Collections.EMPTY_MAP, entity);
+    restClient.performRequest(
+        "POST", "/_reindex", Collections.singletonMap("refresh", "wait_for"), entity);
   }
 
   /** Inserts the given number of test documents into Elasticsearch. */
@@ -112,11 +120,10 @@ class ElasticSearchIOTestUtils {
         new NStringEntity(bulkRequest.toString(), ContentType.APPLICATION_JSON);
     Response response =
         restClient.performRequest(
-            "POST", endPoint, Collections.singletonMap("refresh", "true"), requestBody);
+            "POST", endPoint, Collections.singletonMap("refresh", "wait_for"), requestBody);
     ElasticsearchIO.checkForErrors(
-        response, ElasticsearchIO.getBackendVersion(connectionConfiguration));
+        response.getEntity(), ElasticsearchIO.getBackendVersion(connectionConfiguration), false);
   }
-
   /**
    * Forces a refresh of the given index to make recently inserted documents available for search
    * using the index and type named in the connectionConfiguration.
@@ -150,7 +157,7 @@ class ElasticSearchIOTestUtils {
 
       endPoint = String.format("/%s/%s/_search", index, type);
       Response response = restClient.performRequest("GET", endPoint);
-      JsonNode searchResult = ElasticsearchIO.parseResponse(response);
+      JsonNode searchResult = ElasticsearchIO.parseResponse(response.getEntity());
       result = searchResult.path("hits").path("total").asLong();
     } catch (IOException e) {
       // it is fine to ignore bellow exceptions because in testWriteWithBatchSize* sometimes,
@@ -234,7 +241,22 @@ class ElasticSearchIOTestUtils {
     HttpEntity httpEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
     Response response =
         restClient.performRequest("GET", endPoint, Collections.emptyMap(), httpEntity);
-    JsonNode searchResult = parseResponse(response);
+    JsonNode searchResult = parseResponse(response.getEntity());
     return searchResult.path("hits").path("total").asInt();
+  }
+
+  public static void setIndexMapping(
+      ConnectionConfiguration connectionConfiguration, RestClient restClient) throws IOException {
+    String endpoint = String.format("/%s", connectionConfiguration.getIndex());
+    String requestString =
+        String.format(
+            "{\"mappings\":{\"%s\":{\"properties\":{\"age\":{\"type\":\"long\"},"
+                + " \"scientist\":{\"type\":\"%s\"}, \"id\":{\"type\":\"long\"}}}}}",
+            connectionConfiguration.getType(),
+            getBackendVersion(connectionConfiguration) == 2 ? "string" : "text");
+    HttpEntity requestBody = new NStringEntity(requestString, ContentType.APPLICATION_JSON);
+    Request request = new Request("PUT", endpoint);
+    request.setEntity(requestBody);
+    restClient.performRequest(request);
   }
 }

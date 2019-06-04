@@ -17,16 +17,12 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
 import static org.apache.beam.sdk.transforms.Contextful.fn;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Objects;
-import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
@@ -76,6 +72,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -360,6 +360,7 @@ public class FileIO {
         .setDynamic(false)
         .setCompression(Compression.UNCOMPRESSED)
         .setIgnoreWindowing(false)
+        .setNoSpilling(false)
         .build();
   }
 
@@ -372,6 +373,7 @@ public class FileIO {
         .setDynamic(true)
         .setCompression(Compression.UNCOMPRESSED)
         .setIgnoreWindowing(false)
+        .setNoSpilling(false)
         .build();
   }
 
@@ -412,7 +414,7 @@ public class FileIO {
           getMetadata().isReadSeekEfficient(),
           "The file %s is not seekable",
           metadata.resourceId());
-      return ((SeekableByteChannel) open());
+      return (SeekableByteChannel) open();
     }
 
     /** Returns the full contents of the file as bytes. */
@@ -566,6 +568,15 @@ public class FileIO {
           .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
           .apply("Via MatchAll", matchAll().withConfiguration(getConfiguration()));
     }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+          .addIfNotNull(
+              DisplayData.item("filePattern", getFilepattern()).withLabel("Input File Pattern"))
+          .include("configuration", getConfiguration());
+    }
   }
 
   /** Implementation of {@link #matchAll}. */
@@ -623,6 +634,12 @@ public class FileIO {
       return res.apply(Reshuffle.viaRandomKey());
     }
 
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.include("configuration", getConfiguration());
+    }
+
     private static class MatchFn extends DoFn<String, MatchResult.Metadata> {
       private final EmptyMatchTreatment emptyMatchTreatment;
 
@@ -665,7 +682,8 @@ public class FileIO {
   @AutoValue
   public abstract static class ReadMatches
       extends PTransform<PCollection<MatchResult.Metadata>, PCollection<ReadableFile>> {
-    enum DirectoryTreatment {
+    /** Enum to control how directories are handled. */
+    public enum DirectoryTreatment {
       SKIP,
       PROHIBIT
     }
@@ -745,6 +763,7 @@ public class FileIO {
                 MatchResult.Metadata.builder()
                     .setResourceId(metadata.resourceId())
                     .setSizeBytes(metadata.sizeBytes())
+                    .setLastModifiedMillis(metadata.lastModifiedMillis())
                     .setIsReadSeekEfficient(
                         metadata.isReadSeekEfficient() && compression == Compression.UNCOMPRESSED)
                     .build(),
@@ -797,6 +816,11 @@ public class FileIO {
       return defaultNaming(StaticValueProvider.of(prefix), StaticValueProvider.of(suffix));
     }
 
+    /**
+     * Defines a default {@link FileNaming} which will use the prefix and suffix supplied to create
+     * a name based on the window, pane, number of shards, shard index, and compression. Removes
+     * window when in the {@link GlobalWindow} and pane info when it is the only firing of the pane.
+     */
     public static FileNaming defaultNaming(
         final ValueProvider<String> prefix, final ValueProvider<String> suffix) {
       return (window, pane, numShards, shardIndex, compression) -> {
@@ -893,6 +917,8 @@ public class FileIO {
 
     abstract boolean getIgnoreWindowing();
 
+    abstract boolean getNoSpilling();
+
     abstract Builder<DestinationT, UserT> toBuilder();
 
     @AutoValue.Builder
@@ -936,6 +962,8 @@ public class FileIO {
           PTransform<PCollection<UserT>, PCollectionView<Integer>> sharding);
 
       abstract Builder<DestinationT, UserT> setIgnoreWindowing(boolean ignoreWindowing);
+
+      abstract Builder<DestinationT, UserT> setNoSpilling(boolean noSpilling);
 
       abstract Write<DestinationT, UserT> build();
     }
@@ -1158,6 +1186,11 @@ public class FileIO {
       return toBuilder().setIgnoreWindowing(true).build();
     }
 
+    /** See {@link WriteFiles#withNoSpilling()}. */
+    public Write<DestinationT, UserT> withNoSpilling() {
+      return toBuilder().setNoSpilling(true).build();
+    }
+
     @VisibleForTesting
     Contextful<Fn<DestinationT, FileNaming>> resolveFileNamingFn() {
       if (getDynamic()) {
@@ -1242,6 +1275,7 @@ public class FileIO {
       resolvedSpec.setNumShards(getNumShards());
       resolvedSpec.setSharding(getSharding());
       resolvedSpec.setIgnoreWindowing(getIgnoreWindowing());
+      resolvedSpec.setNoSpilling(getNoSpilling());
 
       Write<DestinationT, UserT> resolved = resolvedSpec.build();
       WriteFiles<UserT, DestinationT, ?> writeFiles =
@@ -1256,6 +1290,9 @@ public class FileIO {
       }
       if (!getIgnoreWindowing()) {
         writeFiles = writeFiles.withWindowedWrites();
+      }
+      if (getNoSpilling()) {
+        writeFiles = writeFiles.withNoSpilling();
       }
       return input.apply(writeFiles);
     }

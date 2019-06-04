@@ -15,32 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.util;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.hash.HashCode;
-import com.google.common.hash.Hashing;
-import com.google.common.io.CharStreams;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.annotation.Nonnull;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CharStreams;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -141,7 +136,7 @@ public class NumberedShardedFile implements ShardedFile {
   }
 
   /**
-   * Discovers all shards of this file using the provided {@link Sleeper} and {@link BackOff}.
+   * Discovers all shards of this file.
    *
    * <p>Because of eventual consistency, reads may discover no files or fewer files than the shard
    * template implies. In this case, the read is considered to have failed.
@@ -203,17 +198,5 @@ public class NumberedShardedFile implements ShardedFile {
       return files.size() == Integer.parseInt(matcher.group("numshards"));
     }
     return false;
-  }
-
-  private String computeHash(@Nonnull List<String> strs) {
-    if (strs.isEmpty()) {
-      return Hashing.sha1().hashString("", StandardCharsets.UTF_8).toString();
-    }
-
-    List<HashCode> hashCodes = new ArrayList<>();
-    for (String str : strs) {
-      hashCodes.add(Hashing.sha1().hashString(str, StandardCharsets.UTF_8));
-    }
-    return Hashing.combineUnordered(hashCodes).toString();
   }
 }

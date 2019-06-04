@@ -17,13 +17,9 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -67,6 +63,10 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
 /**
@@ -143,6 +143,19 @@ public class Create<T> {
     input.add(elem);
     input.addAll(Arrays.asList(elems));
     return of(input);
+  }
+
+  /**
+   * Returns a new {@code Create.Values} transform that produces an empty {@link PCollection} of
+   * rows.
+   */
+  public static Values<Row> empty(Schema schema) {
+    return new Values<Row>(
+        new ArrayList<>(),
+        Optional.of(
+            SchemaCoder.of(
+                schema, SerializableFunctions.identity(), SerializableFunctions.identity())),
+        Optional.absent());
   }
 
   /**
@@ -285,6 +298,19 @@ public class Create<T> {
         SerializableFunction<T, Row> toRowFunction,
         SerializableFunction<Row, T> fromRowFunction) {
       return withCoder(SchemaCoder.of(schema, toRowFunction, fromRowFunction));
+    }
+
+    /**
+     * Returns a {@link Create.Values} PTransform like this one that uses the given {@code Schema}
+     * to represent objects.
+     */
+    @Experimental(Kind.SCHEMAS)
+    public Values<T> withRowSchema(Schema schema) {
+      return withCoder(
+          SchemaCoder.of(
+              schema,
+              (SerializableFunction<T, Row>) SerializableFunctions.<Row>identity(),
+              (SerializableFunction<Row, T>) SerializableFunctions.<Row>identity()));
     }
 
     /**
@@ -764,14 +790,13 @@ public class Create<T> {
       return TimestampedValueCoder.of(
           inferCoderFromObject(coderRegistry, schemaRegistry, ((TimestampedValue) o).getValue()));
     } else if (o instanceof List) {
-      return ListCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, ((Iterable) o)));
+      return ListCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, (Iterable) o));
     } else if (o instanceof Set) {
-      return SetCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, ((Iterable) o)));
+      return SetCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, (Iterable) o));
     } else if (o instanceof Collection) {
-      return CollectionCoder.of(
-          inferCoderFromObjects(coderRegistry, schemaRegistry, ((Iterable) o)));
+      return CollectionCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, (Iterable) o));
     } else if (o instanceof Iterable) {
-      return IterableCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, ((Iterable) o)));
+      return IterableCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, (Iterable) o));
     } else if (o instanceof Map) {
       return MapCoder.of(
           inferCoderFromObjects(coderRegistry, schemaRegistry, ((Map) o).keySet()),

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.adapter;
 
 import java.io.IOException;
@@ -63,8 +62,7 @@ public class TestUnboundedSource<T> extends UnboundedSource<T, TestCheckpointMar
   @Override
   public List<? extends UnboundedSource<T, TestCheckpointMark>> split(
       int desiredNumSplits, PipelineOptions options) throws Exception {
-    return events
-        .stream()
+    return events.stream()
         .map(ev -> new TestUnboundedSource<>(Collections.singletonList(ev)))
         .collect(Collectors.toList());
   }

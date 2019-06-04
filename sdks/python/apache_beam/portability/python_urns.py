@@ -29,4 +29,22 @@ PICKLED_WINDOW_MAPPING_FN = "beam:window_mapping_fn:pickled_python:v1"
 PICKLED_WINDOWFN = "beam:windowfn:pickled_python:v1"
 PICKLED_VIEWFN = "beam:view_fn:pickled_python_data:v1"
 
+IMPULSE_READ_TRANSFORM = "beam:transform:read_from_impulse_python:v1"
+
 GENERIC_COMPOSITE_TRANSFORM = "beam:transform:generic_composite:v1"
+
+# Invoke UserFns in process, via direct function calls.
+# Payload: None.
+EMBEDDED_PYTHON = "beam:env:embedded_python:v1"
+
+# Invoke UserFns in process, but over GRPC channels.
+# Payload: (optional) Number of worker threads, as a decimal string.
+# (Used for testing.)
+EMBEDDED_PYTHON_GRPC = "beam:env:embedded_python_grpc:v1"
+
+# Instantiate SDK harness via a command line provided in the payload.
+# This is different than the standard process environment in that it
+# starts up the SDK harness directly, rather than the bootstrapping
+# and artifact fetching code.
+# (Used for testing.)
+SUBPROCESS_SDK = "beam:env:harness_subprocess_python:v1"

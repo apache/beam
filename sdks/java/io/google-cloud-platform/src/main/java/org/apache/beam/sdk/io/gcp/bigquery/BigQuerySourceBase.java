@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.io.FileSystems.match;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getExtractJobId;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
@@ -29,11 +29,6 @@ import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.base.Function;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
@@ -42,11 +37,17 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.AvroSource;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,10 +92,17 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   protected static class ExtractResult {
     public final TableSchema schema;
     public final List<ResourceId> extractedFiles;
+    public List<MatchResult.Metadata> metadata = null;
 
     public ExtractResult(TableSchema schema, List<ResourceId> extractedFiles) {
+      this(schema, extractedFiles, null);
+    }
+
+    public ExtractResult(
+        TableSchema schema, List<ResourceId> extractedFiles, List<MatchResult.Metadata> metadata) {
       this.schema = schema;
       this.extractedFiles = extractedFiles;
+      this.metadata = metadata;
     }
   }
 
@@ -139,8 +147,19 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
     if (cachedSplitResult == null) {
       ExtractResult res = extractFiles(options);
       LOG.info("Extract job produced {} files", res.extractedFiles.size());
+
+      if (res.extractedFiles.size() > 0) {
+        BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+        final String extractDestinationDir =
+            resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", stepUuid);
+        // Match all files in the destination directory to stat them in bulk.
+        List<MatchResult> matches = match(ImmutableList.of(extractDestinationDir + "*"));
+        if (matches.size() > 0) {
+          res.metadata = matches.get(0).metadata();
+        }
+      }
       cleanupTempResource(options.as(BigQueryOptions.class));
-      cachedSplitResult = checkNotNull(createSources(res.extractedFiles, res.schema));
+      cachedSplitResult = checkNotNull(createSources(res.extractedFiles, res.schema, res.metadata));
     }
     return cachedSplitResult;
   }
@@ -207,7 +226,8 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
     }
   }
 
-  List<BoundedSource<T>> createSources(List<ResourceId> files, TableSchema schema)
+  List<BoundedSource<T>> createSources(
+      List<ResourceId> files, TableSchema schema, List<MatchResult.Metadata> metadata)
       throws IOException, InterruptedException {
 
     final String jsonSchema = BigQueryIO.JSON_FACTORY.toString(schema);
@@ -222,9 +242,18 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
             return parseFn.apply(new SchemaAndRecord(input, schema.get()));
           }
         };
+
     List<BoundedSource<T>> avroSources = Lists.newArrayList();
-    for (ResourceId file : files) {
-      avroSources.add(AvroSource.from(file.toString()).withParseFn(fnWrapper, getOutputCoder()));
+    // If metadata is available, create AvroSources with said metadata in SINGLE_FILE_OR_SUBRANGE
+    // mode.
+    if (metadata != null) {
+      for (MatchResult.Metadata file : metadata) {
+        avroSources.add(AvroSource.from(file).withParseFn(fnWrapper, getOutputCoder()));
+      }
+    } else {
+      for (ResourceId file : files) {
+        avroSources.add(AvroSource.from(file.toString()).withParseFn(fnWrapper, getOutputCoder()));
+      }
     }
     return ImmutableList.copyOf(avroSources);
   }

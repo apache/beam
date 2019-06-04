@@ -17,15 +17,13 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
@@ -45,6 +43,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
@@ -64,6 +63,8 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.joda.time.Instant;
 
 /**
@@ -170,7 +171,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
             .invokeGetRestrictionCoder(input.getPipeline().getCoderRegistry());
     Coder<KV<InputT, RestrictionT>> splitCoder = KvCoder.of(input.getCoder(), restrictionCoder);
 
-    PCollection<KV<String, KV<InputT, RestrictionT>>> keyedRestrictions =
+    PCollection<KV<byte[], KV<InputT, RestrictionT>>> keyedRestrictions =
         input
             .apply(
                 "Pair with initial restriction",
@@ -220,7 +221,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
    * {@link KV KVs} keyed with arbitrary but globally unique keys.
    */
   public static class ProcessKeyedElements<InputT, OutputT, RestrictionT>
-      extends PTransform<PCollection<KV<String, KV<InputT, RestrictionT>>>, PCollectionTuple> {
+      extends PTransform<PCollection<KV<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple> {
     private final DoFn<InputT, OutputT> fn;
     private final Coder<InputT> elementCoder;
     private final Coder<RestrictionT> restrictionCoder;
@@ -291,7 +292,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     }
 
     @Override
-    public PCollectionTuple expand(PCollection<KV<String, KV<InputT, RestrictionT>>> input) {
+    public PCollectionTuple expand(PCollection<KV<byte[], KV<InputT, RestrictionT>>> input) {
       return createPrimitiveOutputFor(
           input, fn, mainOutputTag, additionalOutputTags, outputTagsToCoders, windowingStrategy);
     }
@@ -365,7 +366,9 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
               new ParDoLike() {
                 @Override
                 public SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
-                  return ParDoTranslation.translateDoFn(fn, pke.getMainOutputTag(), newComponents);
+                  // Schemas not yet supported on splittable DoFn.
+                  return ParDoTranslation.translateDoFn(
+                      fn, pke.getMainOutputTag(), DoFnSchemaInformation.create(), newComponents);
                 }
 
                 @Override
@@ -414,10 +417,12 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
    * collection is effectively the same elements as input, but the per-key state and timers are now
    * effectively per-element.
    */
-  private static class RandomUniqueKeyFn<T> implements SerializableFunction<T, String> {
+  private static class RandomUniqueKeyFn<T> implements SerializableFunction<T, byte[]> {
     @Override
-    public String apply(T input) {
-      return UUID.randomUUID().toString();
+    public byte[] apply(T input) {
+      byte[] key = new byte[128];
+      ThreadLocalRandom.current().nextBytes(key);
+      return key;
     }
   }
 

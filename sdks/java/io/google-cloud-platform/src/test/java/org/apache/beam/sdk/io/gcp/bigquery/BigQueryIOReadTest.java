@@ -26,11 +26,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
-import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatistics2;
-import com.google.api.services.bigquery.model.JobStatistics4;
-import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.Streamingbuffer;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -38,9 +35,6 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.bigtable.v2.Mutation;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
@@ -71,6 +65,9 @@ import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -133,6 +130,10 @@ public class BigQueryIOReadTest implements Serializable {
     checkReadQueryObjectWithValidate(read, query, true);
   }
 
+  private void checkTypedReadQueryObject(BigQueryIO.TypedRead read, String query, String kmsKey) {
+    checkTypedReadQueryObjectWithValidate(read, query, kmsKey, true);
+  }
+
   private void checkReadTableObjectWithValidate(
       BigQueryIO.Read read, String project, String dataset, String table, boolean validate) {
     assertEquals(project, read.getTable().getProjectId());
@@ -146,6 +147,14 @@ public class BigQueryIOReadTest implements Serializable {
       BigQueryIO.Read read, String query, boolean validate) {
     assertNull(read.getTable());
     assertEquals(query, read.getQuery().get());
+    assertEquals(validate, read.getValidate());
+  }
+
+  private void checkTypedReadQueryObjectWithValidate(
+      BigQueryIO.TypedRead read, String query, String kmsKey, boolean validate) {
+    assertNull(read.getTable());
+    assertEquals(query, read.getQuery().get());
+    assertEquals(kmsKey, read.getKmsKey());
     assertEquals(validate, read.getValidate());
   }
 
@@ -200,6 +209,13 @@ public class BigQueryIOReadTest implements Serializable {
             .setTableId("sometable");
     BigQueryIO.Read read = BigQueryIO.read().from(table);
     checkReadTableObject(read, "foo.com:project", "somedataset", "sometable");
+  }
+
+  @Test
+  public void testBuildQueryBasedTypedReadSource() {
+    BigQueryIO.TypedRead read =
+        BigQueryIO.readTableRows().fromQuery("foo_query").withKmsKey("kms_key");
+    checkTypedReadQueryObject(read, "foo_query", "kms_key");
   }
 
   @Test
@@ -598,33 +614,29 @@ public class BigQueryIOReadTest implements Serializable {
   @Test
   public void testBigQueryQuerySourceEstimatedSize() throws Exception {
 
-    List<TableRow> data =
-        ImmutableList.of(
-            new TableRow().set("name", "A").set("number", 10L),
-            new TableRow().set("name", "B").set("number", 11L),
-            new TableRow().set("name", "C").set("number", 12L));
+    String queryString = "fake query string";
 
     PipelineOptions options = PipelineOptionsFactory.create();
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     bqOptions.setProject("project");
     String stepUuid = "testStepUuid";
 
-    String query = FakeBigQueryServices.encodeQuery(data);
     BigQueryQuerySource<TableRow> bqSource =
         BigQueryQuerySource.create(
             stepUuid,
-            ValueProvider.StaticValueProvider.of(query),
+            ValueProvider.StaticValueProvider.of(queryString),
             true /* flattenResults */,
             true /* useLegacySql */,
             fakeBqServices,
             TableRowJsonCoder.of(),
             BigQueryIO.TableRowParser.INSTANCE,
             QueryPriority.BATCH,
+            null,
             null);
 
     fakeJobService.expectDryRunQuery(
         bqOptions.getProject(),
-        query,
+        queryString,
         new JobStatistics().setQuery(new JobStatistics2().setTotalBytesProcessed(100L)));
 
     assertEquals(100, bqSource.getEstimatedSizeBytes(bqOptions));
@@ -632,21 +644,31 @@ public class BigQueryIOReadTest implements Serializable {
 
   @Test
   public void testBigQueryQuerySourceInitSplit() throws Exception {
-    TableReference dryRunTable = new TableReference();
 
-    Job queryJob = new Job();
-    JobStatistics queryJobStats = new JobStatistics();
-    JobStatistics2 queryStats = new JobStatistics2();
-    queryStats.setReferencedTables(ImmutableList.of(dryRunTable));
-    queryJobStats.setQuery(queryStats);
-    queryJob.setStatus(new JobStatus()).setStatistics(queryJobStats);
+    PipelineOptions options = PipelineOptionsFactory.create();
+    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+    bqOptions.setProject("project");
 
-    Job extractJob = new Job();
-    JobStatistics extractJobStats = new JobStatistics();
-    JobStatistics4 extractStats = new JobStatistics4();
-    extractStats.setDestinationUriFileCounts(ImmutableList.of(1L));
-    extractJobStats.setExtract(extractStats);
-    extractJob.setStatus(new JobStatus()).setStatistics(extractJobStats);
+    TableReference sourceTableRef = BigQueryHelpers.parseTableSpec("project:dataset.table");
+
+    fakeDatasetService.createDataset(
+        sourceTableRef.getProjectId(),
+        sourceTableRef.getDatasetId(),
+        "asia-northeast1",
+        "Fake plastic tree^H^H^H^Htables",
+        null);
+
+    fakeDatasetService.createTable(
+        new Table().setTableReference(sourceTableRef).setLocation("asia-northeast1"));
+
+    Table queryResultTable =
+        new Table()
+            .setSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("name").setType("STRING"),
+                            new TableFieldSchema().setName("number").setType("INTEGER"))));
 
     List<TableRow> expected =
         ImmutableList.of(
@@ -657,54 +679,37 @@ public class BigQueryIOReadTest implements Serializable {
             new TableRow().set("name", "e").set("number", 5L),
             new TableRow().set("name", "f").set("number", 6L));
 
-    PipelineOptions options = PipelineOptionsFactory.create();
-    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    bqOptions.setProject("project");
+    String encodedQuery = FakeBigQueryServices.encodeQueryResult(queryResultTable, expected);
+
     String stepUuid = "testStepUuid";
 
     TableReference tempTableReference =
         createTempTableReference(
-            bqOptions.getProject(), createJobIdToken(bqOptions.getJobName(), stepUuid));
-    fakeDatasetService.createDataset(
-        bqOptions.getProject(), tempTableReference.getDatasetId(), "", "", null);
-    fakeDatasetService.createTable(
-        new Table()
-            .setTableReference(tempTableReference)
-            .setSchema(
-                new TableSchema()
-                    .setFields(
-                        ImmutableList.of(
-                            new TableFieldSchema().setName("name").setType("STRING"),
-                            new TableFieldSchema().setName("number").setType("INTEGER")))));
+            bqOptions.getProject(), createJobIdToken(options.getJobName(), stepUuid));
 
-    String query = FakeBigQueryServices.encodeQuery(expected);
+    fakeJobService.expectDryRunQuery(
+        bqOptions.getProject(),
+        encodedQuery,
+        new JobStatistics()
+            .setQuery(
+                new JobStatistics2()
+                    .setTotalBytesProcessed(100L)
+                    .setReferencedTables(ImmutableList.of(sourceTableRef, tempTableReference))));
+
     BoundedSource<TableRow> bqSource =
         BigQueryQuerySource.create(
             stepUuid,
-            ValueProvider.StaticValueProvider.of(query),
+            ValueProvider.StaticValueProvider.of(encodedQuery),
             true /* flattenResults */,
             true /* useLegacySql */,
             fakeBqServices,
             TableRowJsonCoder.of(),
             BigQueryIO.TableRowParser.INSTANCE,
             QueryPriority.BATCH,
+            null,
             null);
+
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
-
-    TableReference queryTable =
-        new TableReference()
-            .setProjectId(bqOptions.getProject())
-            .setDatasetId(tempTableReference.getDatasetId())
-            .setTableId(tempTableReference.getTableId());
-
-    fakeJobService.expectDryRunQuery(
-        bqOptions.getProject(),
-        query,
-        new JobStatistics()
-            .setQuery(
-                new JobStatistics2()
-                    .setTotalBytesProcessed(100L)
-                    .setReferencedTables(ImmutableList.of(queryTable))));
 
     List<TableRow> read =
         convertStringsToLong(
@@ -715,28 +720,27 @@ public class BigQueryIOReadTest implements Serializable {
     assertEquals(2, sources.size());
   }
 
+  /**
+   * This test simulates the scenario where the SQL text which is executed by the query job doesn't
+   * by itself refer to any tables (e.g. "SELECT 17 AS value"), and thus there are no referenced
+   * tables when the dry run of the query is performed.
+   */
   @Test
-  public void testBigQueryNoTableQuerySourceInitSplit() throws Exception {
-    TableReference dryRunTable = new TableReference();
+  public void testBigQueryQuerySourceInitSplit_NoReferencedTables() throws Exception {
 
-    Job queryJob = new Job();
-    JobStatistics queryJobStats = new JobStatistics();
-    JobStatistics2 queryStats = new JobStatistics2();
-    queryStats.setReferencedTables(ImmutableList.of(dryRunTable));
-    queryJobStats.setQuery(queryStats);
-    queryJob.setStatus(new JobStatus()).setStatistics(queryJobStats);
+    PipelineOptions options = PipelineOptionsFactory.create();
+    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+    bqOptions.setProject("project");
 
-    Job extractJob = new Job();
-    JobStatistics extractJobStats = new JobStatistics();
-    JobStatistics4 extractStats = new JobStatistics4();
-    extractStats.setDestinationUriFileCounts(ImmutableList.of(1L));
-    extractJobStats.setExtract(extractStats);
-    extractJob.setStatus(new JobStatus()).setStatistics(extractJobStats);
+    Table queryResultTable =
+        new Table()
+            .setSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("name").setType("STRING"),
+                            new TableFieldSchema().setName("number").setType("INTEGER"))));
 
-    String stepUuid = "testStepUuid";
-
-    TableReference tempTableReference =
-        createTempTableReference("project-id", createJobIdToken(options.getJobName(), stepUuid));
     List<TableRow> expected =
         ImmutableList.of(
             new TableRow().set("name", "a").set("number", 1L),
@@ -745,39 +749,31 @@ public class BigQueryIOReadTest implements Serializable {
             new TableRow().set("name", "d").set("number", 4L),
             new TableRow().set("name", "e").set("number", 5L),
             new TableRow().set("name", "f").set("number", 6L));
-    fakeDatasetService.createDataset(
-        tempTableReference.getProjectId(), tempTableReference.getDatasetId(), "", "", null);
-    Table table =
-        new Table()
-            .setTableReference(tempTableReference)
-            .setSchema(
-                new TableSchema()
-                    .setFields(
-                        ImmutableList.of(
-                            new TableFieldSchema().setName("name").setType("STRING"),
-                            new TableFieldSchema().setName("number").setType("INTEGER"))));
-    fakeDatasetService.createTable(table);
 
-    String query = FakeBigQueryServices.encodeQuery(expected);
+    String encodedQuery = FakeBigQueryServices.encodeQueryResult(queryResultTable, expected);
+
+    String stepUuid = "testStepUuid";
+
     fakeJobService.expectDryRunQuery(
-        "project-id",
-        query,
+        bqOptions.getProject(),
+        encodedQuery,
         new JobStatistics()
             .setQuery(
                 new JobStatistics2()
                     .setTotalBytesProcessed(100L)
-                    .setReferencedTables(ImmutableList.of(table.getTableReference()))));
+                    .setReferencedTables(ImmutableList.of())));
 
     BoundedSource<TableRow> bqSource =
         BigQueryQuerySource.create(
             stepUuid,
-            ValueProvider.StaticValueProvider.of(query),
+            ValueProvider.StaticValueProvider.of(encodedQuery),
             true /* flattenResults */,
             true /* useLegacySql */,
             fakeBqServices,
             TableRowJsonCoder.of(),
             BigQueryIO.TableRowParser.INSTANCE,
             QueryPriority.BATCH,
+            null,
             null);
 
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());

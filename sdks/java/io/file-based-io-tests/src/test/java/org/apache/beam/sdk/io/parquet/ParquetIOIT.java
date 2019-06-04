@@ -22,9 +22,15 @@ import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashF
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 
+import com.google.cloud.Timestamp;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Function;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -33,6 +39,12 @@ import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
+import org.apache.beam.sdk.testutils.metrics.CountMonitor;
+import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
+import org.apache.beam.sdk.testutils.metrics.MetricsReader;
+import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -82,8 +94,11 @@ public class ParquetIOIT {
 
   private static String filenamePrefix;
   private static Integer numberOfRecords;
+  private static String bigQueryDataset;
+  private static String bigQueryTable;
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
+  private static final String PARQUET_NAMESPACE = ParquetIOIT.class.getName();
 
   @BeforeClass
   public static void setup() {
@@ -91,6 +106,8 @@ public class ParquetIOIT {
 
     numberOfRecords = options.getNumberOfRecords();
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
+    bigQueryDataset = options.getBigQueryDataset();
+    bigQueryTable = options.getBigQueryTable();
   }
 
   @Test
@@ -104,16 +121,32 @@ public class ParquetIOIT {
             .apply("Produce Avro records", ParDo.of(new DeterministicallyConstructAvroRecordsFn()))
             .setCoder(AvroCoder.of(SCHEMA))
             .apply(
+                "Gather write start times",
+                ParDo.of(new TimeMonitor<>(PARQUET_NAMESPACE, "writeStart")))
+            .apply(
                 "Write Parquet files",
                 FileIO.<GenericRecord>write().via(ParquetIO.sink(SCHEMA)).to(filenamePrefix))
             .getPerDestinationOutputFilenames()
+            .apply(
+                "Gather write end times",
+                ParDo.of(new TimeMonitor<>(PARQUET_NAMESPACE, "writeEnd")))
             .apply("Get file names", Values.create());
 
     PCollection<String> consolidatedHashcode =
         testFiles
             .apply("Find files", FileIO.matchAll())
             .apply("Read matched files", FileIO.readMatches())
+            .apply(
+                "Gather read start time",
+                ParDo.of(new TimeMonitor<>(PARQUET_NAMESPACE, "readStart")))
+            .apply(
+                "Collect byte count", ParDo.of(new ByteMonitor<>(PARQUET_NAMESPACE, "byteCount")))
+            .apply(
+                "Collect element count",
+                ParDo.of(new CountMonitor<>(PARQUET_NAMESPACE, "itemCount")))
             .apply("Read parquet files", ParquetIO.readFiles(SCHEMA))
+            .apply(
+                "Gather read end time", ParDo.of(new TimeMonitor<>(PARQUET_NAMESPACE, "readEnd")))
             .apply(
                 "Map records to strings",
                 MapElements.into(strings())
@@ -130,7 +163,60 @@ public class ParquetIOIT {
         ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
             .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
-    pipeline.run().waitUntilFinish();
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+    collectAndPublishMetrics(result);
+  }
+
+  private void collectAndPublishMetrics(PipelineResult result) {
+    String uuid = UUID.randomUUID().toString();
+    String timestamp = Timestamp.now().toString();
+    Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
+        fillMetricSuppliers(uuid, timestamp);
+    new IOITMetrics(metricSuppliers, result, PARQUET_NAMESPACE, uuid, timestamp)
+        .publish(bigQueryDataset, bigQueryTable);
+  }
+
+  private Set<Function<MetricsReader, NamedTestResult>> fillMetricSuppliers(
+      String uuid, String timestamp) {
+    Set<Function<MetricsReader, NamedTestResult>> metricSuppliers = new HashSet<>();
+    metricSuppliers.add(
+        reader -> {
+          long writeStart = reader.getStartTimeMetric("writeStart");
+          long writeEnd = reader.getEndTimeMetric("writeEnd");
+          double writeTime = (writeEnd - writeStart) / 1e3;
+          return NamedTestResult.create(uuid, timestamp, "write_time", writeTime);
+        });
+
+    metricSuppliers.add(
+        reader -> {
+          long readStart = reader.getStartTimeMetric("readStart");
+          long readEnd = reader.getEndTimeMetric("readEnd");
+          double readTime = (readEnd - readStart) / 1e3;
+          return NamedTestResult.create(uuid, timestamp, "read_time", readTime);
+        });
+
+    metricSuppliers.add(
+        reader -> {
+          long writeStart = reader.getStartTimeMetric("writeStart");
+          long readEnd = reader.getEndTimeMetric("readEnd");
+          double runTime = (readEnd - writeStart) / 1e3;
+          return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
+        });
+
+    metricSuppliers.add(
+        reader -> {
+          double totalBytes = reader.getCounterMetric("byteCount");
+          return NamedTestResult.create(uuid, timestamp, "byte_count", totalBytes);
+        });
+
+    metricSuppliers.add(
+        reader -> {
+          double totalBytes = reader.getCounterMetric("itemCount");
+          return NamedTestResult.create(uuid, timestamp, "item_count", totalBytes);
+        });
+
+    return metricSuppliers;
   }
 
   private static class DeterministicallyConstructAvroRecordsFn extends DoFn<String, GenericRecord> {

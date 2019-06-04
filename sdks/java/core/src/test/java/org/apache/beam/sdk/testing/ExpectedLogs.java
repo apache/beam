@@ -175,6 +175,17 @@ public class ExpectedLogs extends ExternalResource {
     verifyNo(Level.SEVERE, substring, t);
   }
 
+  /**
+   * Verify that the list of log records matches the provided {@code matcher}.
+   *
+   * @param matcher The matcher to use.
+   */
+  public void verifyLogRecords(Matcher<Iterable<LogRecord>> matcher) {
+    if (!matcher.matches(logSaver.getLogs())) {
+      fail(String.format("Missing match for [%s]", matcher));
+    }
+  }
+
   private void verify(final Level level, final String substring) {
     verifyLogged(matcher(level, substring));
   }

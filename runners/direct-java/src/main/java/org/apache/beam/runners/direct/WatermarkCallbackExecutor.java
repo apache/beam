@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.Ordering;
 import java.io.Serializable;
 import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,6 +25,8 @@ import java.util.concurrent.Executor;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ComparisonChain;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
 import org.joda.time.Instant;
 
 /**

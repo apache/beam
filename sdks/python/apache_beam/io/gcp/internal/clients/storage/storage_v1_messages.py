@@ -31,10 +31,13 @@ package = 'storage'
 
 
 class Bucket(_messages.Message):
-  """A bucket.
+  r"""A bucket.
 
   Messages:
+    BillingValue: The bucket's billing configuration.
     CorsValueListEntry: A CorsValueListEntry object.
+    EncryptionValue: Encryption configuration for a bucket.
+    LabelsValue: User-provided labels, in key/value pairs.
     LifecycleValue: The bucket's lifecycle configuration. See lifecycle
       management for more information.
     LoggingValue: The bucket's logging configuration, which defines the
@@ -42,18 +45,46 @@ class Bucket(_messages.Message):
       logs.
     OwnerValue: The owner of the bucket. This is always the project team's
       owner group.
+    RetentionPolicyValue: The bucket's retention policy. The retention policy
+      enforces a minimum retention time for all objects contained in the
+      bucket, based on their creation time. Any attempt to overwrite or delete
+      objects younger than the retention period will result in a
+      PERMISSION_DENIED error. An unlocked retention policy can be modified or
+      removed from the bucket via a storage.buckets.update operation. A locked
+      retention policy cannot be removed or shortened in duration for the
+      lifetime of the bucket. Attempting to remove or decrease period of a
+      locked retention policy will result in a PERMISSION_DENIED error.
     VersioningValue: The bucket's versioning configuration.
-    WebsiteValue: The bucket's website configuration.
+    WebsiteValue: The bucket's website configuration, controlling how the
+      service behaves when accessing bucket contents as a web site. See the
+      Static Website Examples for more information.
 
   Fields:
     acl: Access controls on the bucket.
+    billing: The bucket's billing configuration.
     cors: The bucket's Cross-Origin Resource Sharing (CORS) configuration.
+    defaultEventBasedHold: The default value for event-based hold on newly
+      created objects in this bucket. Event-based hold is a way to retain
+      objects indefinitely until an event occurs, signified by the hold's
+      release. After being released, such objects will be subject to bucket-
+      level retention (if any). One sample use case of this flag is for banks
+      to hold loan documents for at least 3 years after loan is paid in full.
+      Here, bucket-level retention is 3 years and the event is loan being paid
+      in full. In this example, these objects will be held intact for any
+      number of years until the event has occurred (event-based hold on the
+      object is released) and then 3 more years after that. That means
+      retention duration of the objects begins from the moment event-based
+      hold transitioned from true to false. Objects under event-based hold
+      cannot be deleted, overwritten or archived until the hold is removed.
     defaultObjectAcl: Default access controls to apply to new objects when no
       ACL is provided.
+    encryption: Encryption configuration for a bucket.
     etag: HTTP 1.1 Entity tag for the bucket.
-    id: The ID of the bucket.
+    id: The ID of the bucket. For buckets, the id and name properties are the
+      same.
     kind: The kind of item this is. For buckets, this is always
       storage#bucket.
+    labels: User-provided labels, in key/value pairs.
     lifecycle: The bucket's lifecycle configuration. See lifecycle management
       for more information.
     location: The location of the bucket. Object data for objects in the
@@ -66,19 +97,43 @@ class Bucket(_messages.Message):
     owner: The owner of the bucket. This is always the project team's owner
       group.
     projectNumber: The project number of the project the bucket belongs to.
+    retentionPolicy: The bucket's retention policy. The retention policy
+      enforces a minimum retention time for all objects contained in the
+      bucket, based on their creation time. Any attempt to overwrite or delete
+      objects younger than the retention period will result in a
+      PERMISSION_DENIED error. An unlocked retention policy can be modified or
+      removed from the bucket via a storage.buckets.update operation. A locked
+      retention policy cannot be removed or shortened in duration for the
+      lifetime of the bucket. Attempting to remove or decrease period of a
+      locked retention policy will result in a PERMISSION_DENIED error.
     selfLink: The URI of this bucket.
-    storageClass: The bucket's storage class. This defines how objects in the
-      bucket are stored and determines the SLA and the cost of storage. Values
-      include STANDARD, NEARLINE and DURABLE_REDUCED_AVAILABILITY. Defaults to
-      STANDARD. For more information, see storage classes.
+    storageClass: The bucket's default storage class, used whenever no
+      storageClass is specified for a newly-created object. This defines how
+      objects in the bucket are stored and determines the SLA and the cost of
+      storage. Values include MULTI_REGIONAL, REGIONAL, STANDARD, NEARLINE,
+      COLDLINE, and DURABLE_REDUCED_AVAILABILITY. If this value is not
+      specified when the bucket is created, it will default to STANDARD. For
+      more information, see storage classes.
     timeCreated: The creation time of the bucket in RFC 3339 format.
     updated: The modification time of the bucket in RFC 3339 format.
     versioning: The bucket's versioning configuration.
-    website: The bucket's website configuration.
+    website: The bucket's website configuration, controlling how the service
+      behaves when accessing bucket contents as a web site. See the Static
+      Website Examples for more information.
   """
 
+  class BillingValue(_messages.Message):
+    r"""The bucket's billing configuration.
+
+    Fields:
+      requesterPays: When set to true, Requester Pays is enabled for this
+        bucket.
+    """
+
+    requesterPays = _messages.BooleanField(1)
+
   class CorsValueListEntry(_messages.Message):
-    """A CorsValueListEntry object.
+    r"""A CorsValueListEntry object.
 
     Fields:
       maxAgeSeconds: The value, in seconds, to return in the  Access-Control-
@@ -97,9 +152,43 @@ class Bucket(_messages.Message):
     origin = _messages.StringField(3, repeated=True)
     responseHeader = _messages.StringField(4, repeated=True)
 
+  class EncryptionValue(_messages.Message):
+    r"""Encryption configuration for a bucket.
+
+    Fields:
+      defaultKmsKeyName: A Cloud KMS key that will be used to encrypt objects
+        inserted into this bucket, if no encryption method is specified.
+    """
+
+    defaultKmsKeyName = _messages.StringField(1)
+
+  @encoding.MapUnrecognizedFields('additionalProperties')
+  class LabelsValue(_messages.Message):
+    r"""User-provided labels, in key/value pairs.
+
+    Messages:
+      AdditionalProperty: An additional property for a LabelsValue object.
+
+    Fields:
+      additionalProperties: An individual label entry.
+    """
+
+    class AdditionalProperty(_messages.Message):
+      r"""An additional property for a LabelsValue object.
+
+      Fields:
+        key: Name of the additional property.
+        value: A string attribute.
+      """
+
+      key = _messages.StringField(1)
+      value = _messages.StringField(2)
+
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+
   class LifecycleValue(_messages.Message):
-    """The bucket's lifecycle configuration. See lifecycle management for more
-    information.
+    r"""The bucket's lifecycle configuration. See lifecycle management for
+    more information.
 
     Messages:
       RuleValueListEntry: A RuleValueListEntry object.
@@ -110,7 +199,7 @@ class Bucket(_messages.Message):
     """
 
     class RuleValueListEntry(_messages.Message):
-      """A RuleValueListEntry object.
+      r"""A RuleValueListEntry object.
 
       Messages:
         ActionValue: The action to take.
@@ -122,16 +211,20 @@ class Bucket(_messages.Message):
       """
 
       class ActionValue(_messages.Message):
-        """The action to take.
+        r"""The action to take.
 
         Fields:
-          type: Type of the action. Currently, only Delete is supported.
+          storageClass: Target storage class. Required iff the type of the
+            action is SetStorageClass.
+          type: Type of the action. Currently, only Delete and SetStorageClass
+            are supported.
         """
 
-        type = _messages.StringField(1)
+        storageClass = _messages.StringField(1)
+        type = _messages.StringField(2)
 
       class ConditionValue(_messages.Message):
-        """The condition(s) under which the action will be taken.
+        r"""The condition(s) under which the action will be taken.
 
         Fields:
           age: Age of an object (in days). This condition is satisfied when an
@@ -142,6 +235,16 @@ class Bucket(_messages.Message):
           isLive: Relevant only for versioned objects. If the value is true,
             this condition matches live objects; if the value is false, it
             matches archived objects.
+          matchesPattern: A regular expression that satisfies the RE2 syntax.
+            This condition is satisfied when the name of the object matches
+            the RE2 pattern. Note: This feature is currently in the "Early
+            Access" launch stage and is only available to a whitelisted set of
+            users; that means that this feature may be changed in backward-
+            incompatible ways and that it is not guaranteed to be released.
+          matchesStorageClass: Objects having any of the storage classes
+            specified by this condition will be matched. Values include
+            MULTI_REGIONAL, REGIONAL, NEARLINE, COLDLINE, STANDARD, and
+            DURABLE_REDUCED_AVAILABILITY.
           numNewerVersions: Relevant only for versioned objects. If the value
             is N, this condition is satisfied when there are at least N
             versions (including the live version) newer than this version of
@@ -151,7 +254,9 @@ class Bucket(_messages.Message):
         age = _messages.IntegerField(1, variant=_messages.Variant.INT32)
         createdBefore = extra_types.DateField(2)
         isLive = _messages.BooleanField(3)
-        numNewerVersions = _messages.IntegerField(4, variant=_messages.Variant.INT32)
+        matchesPattern = _messages.StringField(4)
+        matchesStorageClass = _messages.StringField(5, repeated=True)
+        numNewerVersions = _messages.IntegerField(6, variant=_messages.Variant.INT32)
 
       action = _messages.MessageField('ActionValue', 1)
       condition = _messages.MessageField('ConditionValue', 2)
@@ -159,7 +264,7 @@ class Bucket(_messages.Message):
     rule = _messages.MessageField('RuleValueListEntry', 1, repeated=True)
 
   class LoggingValue(_messages.Message):
-    """The bucket's logging configuration, which defines the destination
+    r"""The bucket's logging configuration, which defines the destination
     bucket and optional name prefix for the current bucket's logs.
 
     Fields:
@@ -172,7 +277,8 @@ class Bucket(_messages.Message):
     logObjectPrefix = _messages.StringField(2)
 
   class OwnerValue(_messages.Message):
-    """The owner of the bucket. This is always the project team's owner group.
+    r"""The owner of the bucket. This is always the project team's owner
+    group.
 
     Fields:
       entity: The entity, in the form project-owner-projectId.
@@ -182,8 +288,35 @@ class Bucket(_messages.Message):
     entity = _messages.StringField(1)
     entityId = _messages.StringField(2)
 
+  class RetentionPolicyValue(_messages.Message):
+    r"""The bucket's retention policy. The retention policy enforces a minimum
+    retention time for all objects contained in the bucket, based on their
+    creation time. Any attempt to overwrite or delete objects younger than the
+    retention period will result in a PERMISSION_DENIED error. An unlocked
+    retention policy can be modified or removed from the bucket via a
+    storage.buckets.update operation. A locked retention policy cannot be
+    removed or shortened in duration for the lifetime of the bucket.
+    Attempting to remove or decrease period of a locked retention policy will
+    result in a PERMISSION_DENIED error.
+
+    Fields:
+      effectiveTime: Server-determined value that indicates the time from
+        which policy was enforced and effective. This value is in RFC 3339
+        format.
+      isLocked: Once locked, an object retention policy cannot be modified.
+      retentionPeriod: The duration in seconds that objects need to be
+        retained. Retention duration must be greater than zero and less than
+        100 years. Note that enforcement of retention periods less than a day
+        is not guaranteed. Such periods should only be used for testing
+        purposes.
+    """
+
+    effectiveTime = _message_types.DateTimeField(1)
+    isLocked = _messages.BooleanField(2)
+    retentionPeriod = _messages.IntegerField(3)
+
   class VersioningValue(_messages.Message):
-    """The bucket's versioning configuration.
+    r"""The bucket's versioning configuration.
 
     Fields:
       enabled: While set to true, versioning is fully enabled for this bucket.
@@ -192,41 +325,52 @@ class Bucket(_messages.Message):
     enabled = _messages.BooleanField(1)
 
   class WebsiteValue(_messages.Message):
-    """The bucket's website configuration.
+    r"""The bucket's website configuration, controlling how the service
+    behaves when accessing bucket contents as a web site. See the Static
+    Website Examples for more information.
 
     Fields:
-      mainPageSuffix: Behaves as the bucket's directory index where missing
-        objects are treated as potential directories.
-      notFoundPage: The custom object to return when a requested resource is
-        not found.
+      mainPageSuffix: If the requested object path is missing, the service
+        will ensure the path has a trailing '/', append this suffix, and
+        attempt to retrieve the resulting object. This allows the creation of
+        index.html objects to represent directory pages.
+      notFoundPage: If the requested object path is missing, and any
+        mainPageSuffix object is missing, if applicable, the service will
+        return the named object from this bucket as the content for a 404 Not
+        Found result.
     """
 
     mainPageSuffix = _messages.StringField(1)
     notFoundPage = _messages.StringField(2)
 
   acl = _messages.MessageField('BucketAccessControl', 1, repeated=True)
-  cors = _messages.MessageField('CorsValueListEntry', 2, repeated=True)
-  defaultObjectAcl = _messages.MessageField('ObjectAccessControl', 3, repeated=True)
-  etag = _messages.StringField(4)
-  id = _messages.StringField(5)
-  kind = _messages.StringField(6, default=u'storage#bucket')
-  lifecycle = _messages.MessageField('LifecycleValue', 7)
-  location = _messages.StringField(8)
-  logging = _messages.MessageField('LoggingValue', 9)
-  metageneration = _messages.IntegerField(10)
-  name = _messages.StringField(11)
-  owner = _messages.MessageField('OwnerValue', 12)
-  projectNumber = _messages.IntegerField(13, variant=_messages.Variant.UINT64)
-  selfLink = _messages.StringField(14)
-  storageClass = _messages.StringField(15)
-  timeCreated = _message_types.DateTimeField(16)
-  updated = _message_types.DateTimeField(17)
-  versioning = _messages.MessageField('VersioningValue', 18)
-  website = _messages.MessageField('WebsiteValue', 19)
+  billing = _messages.MessageField('BillingValue', 2)
+  cors = _messages.MessageField('CorsValueListEntry', 3, repeated=True)
+  defaultEventBasedHold = _messages.BooleanField(4)
+  defaultObjectAcl = _messages.MessageField('ObjectAccessControl', 5, repeated=True)
+  encryption = _messages.MessageField('EncryptionValue', 6)
+  etag = _messages.StringField(7)
+  id = _messages.StringField(8)
+  kind = _messages.StringField(9, default=u'storage#bucket')
+  labels = _messages.MessageField('LabelsValue', 10)
+  lifecycle = _messages.MessageField('LifecycleValue', 11)
+  location = _messages.StringField(12)
+  logging = _messages.MessageField('LoggingValue', 13)
+  metageneration = _messages.IntegerField(14)
+  name = _messages.StringField(15)
+  owner = _messages.MessageField('OwnerValue', 16)
+  projectNumber = _messages.IntegerField(17, variant=_messages.Variant.UINT64)
+  retentionPolicy = _messages.MessageField('RetentionPolicyValue', 18)
+  selfLink = _messages.StringField(19)
+  storageClass = _messages.StringField(20)
+  timeCreated = _message_types.DateTimeField(21)
+  updated = _message_types.DateTimeField(22)
+  versioning = _messages.MessageField('VersioningValue', 23)
+  website = _messages.MessageField('WebsiteValue', 24)
 
 
 class BucketAccessControl(_messages.Message):
-  """An access-control entry.
+  r"""An access-control entry.
 
   Messages:
     ProjectTeamValue: The project team associated with the entity, if any.
@@ -248,17 +392,16 @@ class BucketAccessControl(_messages.Message):
     kind: The kind of item this is. For bucket access control entries, this is
       always storage#bucketAccessControl.
     projectTeam: The project team associated with the entity, if any.
-    role: The access permission for the entity. Can be READER, WRITER, or
-      OWNER.
+    role: The access permission for the entity.
     selfLink: The link to this access-control entry.
   """
 
   class ProjectTeamValue(_messages.Message):
-    """The project team associated with the entity, if any.
+    r"""The project team associated with the entity, if any.
 
     Fields:
       projectNumber: The project number.
-      team: The team. Can be owners, editors, or viewers.
+      team: The team.
     """
 
     projectNumber = _messages.StringField(1)
@@ -278,7 +421,7 @@ class BucketAccessControl(_messages.Message):
 
 
 class BucketAccessControls(_messages.Message):
-  """An access-control list.
+  r"""An access-control list.
 
   Fields:
     items: The list of items.
@@ -291,7 +434,7 @@ class BucketAccessControls(_messages.Message):
 
 
 class Buckets(_messages.Message):
-  """A list of buckets.
+  r"""A list of buckets.
 
   Fields:
     items: The list of items.
@@ -308,7 +451,7 @@ class Buckets(_messages.Message):
 
 
 class Channel(_messages.Message):
-  """An notification channel used to watch for resource changes.
+  r"""An notification channel used to watch for resource changes.
 
   Messages:
     ParamsValue: Additional parameters controlling delivery channel behavior.
@@ -334,7 +477,7 @@ class Channel(_messages.Message):
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class ParamsValue(_messages.Message):
-    """Additional parameters controlling delivery channel behavior. Optional.
+    r"""Additional parameters controlling delivery channel behavior. Optional.
 
     Messages:
       AdditionalProperty: An additional property for a ParamsValue object.
@@ -344,7 +487,7 @@ class Channel(_messages.Message):
     """
 
     class AdditionalProperty(_messages.Message):
-      """An additional property for a ParamsValue object.
+      r"""An additional property for a ParamsValue object.
 
       Fields:
         key: Name of the additional property.
@@ -369,7 +512,7 @@ class Channel(_messages.Message):
 
 
 class ComposeRequest(_messages.Message):
-  """A Compose request.
+  r"""A Compose request.
 
   Messages:
     SourceObjectsValueListEntry: A SourceObjectsValueListEntry object.
@@ -382,7 +525,7 @@ class ComposeRequest(_messages.Message):
   """
 
   class SourceObjectsValueListEntry(_messages.Message):
-    """A SourceObjectsValueListEntry object.
+    r"""A SourceObjectsValueListEntry object.
 
     Messages:
       ObjectPreconditionsValue: Conditions that must be met for this operation
@@ -390,14 +533,14 @@ class ComposeRequest(_messages.Message):
 
     Fields:
       generation: The generation of this object to use as the source.
-      name: The source object's name. The source object's bucket is implicitly
-        the destination bucket.
+      name: The source object's name. All source objects must reside in the
+        same bucket.
       objectPreconditions: Conditions that must be met for this operation to
         execute.
     """
 
     class ObjectPreconditionsValue(_messages.Message):
-      """Conditions that must be met for this operation to execute.
+      r"""Conditions that must be met for this operation to execute.
 
       Fields:
         ifGenerationMatch: Only perform the composition if the generation of
@@ -417,8 +560,85 @@ class ComposeRequest(_messages.Message):
   sourceObjects = _messages.MessageField('SourceObjectsValueListEntry', 3, repeated=True)
 
 
+class Notification(_messages.Message):
+  r"""A subscription to receive Google PubSub notifications.
+
+  Messages:
+    CustomAttributesValue: An optional list of additional attributes to attach
+      to each Cloud PubSub message published for this notification
+      subscription.
+
+  Fields:
+    custom_attributes: An optional list of additional attributes to attach to
+      each Cloud PubSub message published for this notification subscription.
+    etag: HTTP 1.1 Entity tag for this subscription notification.
+    event_types: If present, only send notifications about listed event types.
+      If empty, sent notifications for all event types.
+    id: The ID of the notification.
+    kind: The kind of item this is. For notifications, this is always
+      storage#notification.
+    object_name_prefix: If present, only apply this notification configuration
+      to object names that begin with this prefix.
+    payload_format: The desired content of the Payload.
+    selfLink: The canonical URL of this notification.
+    topic: The Cloud PubSub topic to which this subscription publishes.
+      Formatted as: '//pubsub.googleapis.com/projects/{project-
+      identifier}/topics/{my-topic}'
+  """
+
+  @encoding.MapUnrecognizedFields('additionalProperties')
+  class CustomAttributesValue(_messages.Message):
+    r"""An optional list of additional attributes to attach to each Cloud
+    PubSub message published for this notification subscription.
+
+    Messages:
+      AdditionalProperty: An additional property for a CustomAttributesValue
+        object.
+
+    Fields:
+      additionalProperties: Additional properties of type
+        CustomAttributesValue
+    """
+
+    class AdditionalProperty(_messages.Message):
+      r"""An additional property for a CustomAttributesValue object.
+
+      Fields:
+        key: Name of the additional property.
+        value: A string attribute.
+      """
+
+      key = _messages.StringField(1)
+      value = _messages.StringField(2)
+
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+
+  custom_attributes = _messages.MessageField('CustomAttributesValue', 1)
+  etag = _messages.StringField(2)
+  event_types = _messages.StringField(3, repeated=True)
+  id = _messages.StringField(4)
+  kind = _messages.StringField(5, default=u'storage#notification')
+  object_name_prefix = _messages.StringField(6)
+  payload_format = _messages.StringField(7, default=u'JSON_API_V1')
+  selfLink = _messages.StringField(8)
+  topic = _messages.StringField(9)
+
+
+class Notifications(_messages.Message):
+  r"""A list of notification subscriptions.
+
+  Fields:
+    items: The list of items.
+    kind: The kind of item this is. For lists of notifications, this is always
+      storage#notifications.
+  """
+
+  items = _messages.MessageField('Notification', 1, repeated=True)
+  kind = _messages.StringField(2, default=u'storage#notifications')
+
+
 class Object(_messages.Message):
-  """An object.
+  r"""An object.
 
   Messages:
     CustomerEncryptionValue: Metadata of customer-supplied encryption key, if
@@ -430,24 +650,42 @@ class Object(_messages.Message):
   Fields:
     acl: Access controls on the object.
     bucket: The name of the bucket containing this object.
-    cacheControl: Cache-Control directive for the object data.
+    cacheControl: Cache-Control directive for the object data. If omitted, and
+      the object is accessible to all anonymous users, the default will be
+      public, max-age=3600.
     componentCount: Number of underlying components that make up this object.
       Components are accumulated by compose operations.
     contentDisposition: Content-Disposition of the object data.
     contentEncoding: Content-Encoding of the object data.
     contentLanguage: Content-Language of the object data.
-    contentType: Content-Type of the object data.
+    contentType: Content-Type of the object data. If an object is stored
+      without a Content-Type, it is served as application/octet-stream.
     crc32c: CRC32c checksum, as described in RFC 4960, Appendix B; encoded
       using base64 in big-endian byte order. For more information about using
       the CRC32c checksum, see Hashes and ETags: Best Practices.
     customerEncryption: Metadata of customer-supplied encryption key, if the
       object is encrypted by such a key.
     etag: HTTP 1.1 Entity tag for the object.
+    eventBasedHold: Whether an object is under event-based hold. Event-based
+      hold is a way to retain objects until an event occurs, which is
+      signified by the hold's release (i.e. this value is set to false). After
+      being released (set to false), such objects will be subject to bucket-
+      level retention (if any). One sample use case of this flag is for banks
+      to hold loan documents for at least 3 years after loan is paid in full.
+      Here, bucket-level retention is 3 years and the event is the loan being
+      paid in full. In this example, these objects will be held intact for any
+      number of years until the event has occurred (event-based hold on the
+      object is released) and then 3 more years after that. That means
+      retention duration of the objects begins from the moment event-based
+      hold transitioned from true to false.
     generation: The content generation of this object. Used for object
       versioning.
-    id: The ID of the object.
+    id: The ID of the object, including the bucket name, object name, and
+      generation number.
     kind: The kind of item this is. For objects, this is always
       storage#object.
+    kmsKeyName: Cloud KMS Key used to encrypt this object, if the object is
+      encrypted by such a key.
     md5Hash: MD5 hash of the data; encoded using base64. For more information
       about using the MD5 hash, see Hashes and ETags: Best Practices.
     mediaLink: Media download link.
@@ -456,20 +694,36 @@ class Object(_messages.Message):
       generation. Used for preconditions and for detecting changes in
       metadata. A metageneration number is only meaningful in the context of a
       particular generation of a particular object.
-    name: The name of this object. Required if not specified by URL parameter.
+    name: The name of the object. Required if not specified by URL parameter.
     owner: The owner of the object. This will always be the uploader of the
       object.
+    retentionExpirationTime: A server-determined value that specifies the
+      earliest time that the object's retention period expires. This value is
+      in RFC 3339 format. Note 1: This field is not provided for objects with
+      an active event-based hold, since retention expiration is unknown until
+      the hold is removed. Note 2: This value can be provided even when
+      temporary hold is set (so that the user can reason about policy without
+      having to first unset the temporary hold).
     selfLink: The link to this object.
     size: Content-Length of the data in bytes.
     storageClass: Storage class of the object.
+    temporaryHold: Whether an object is under temporary hold. While this flag
+      is set to true, the object is protected against deletion and overwrites.
+      A common use case of this flag is regulatory investigations where
+      objects need to be retained while the investigation is ongoing. Note
+      that unlike event-based hold, temporary hold does not impact retention
+      expiration time of an object.
     timeCreated: The creation time of the object in RFC 3339 format.
     timeDeleted: The deletion time of the object in RFC 3339 format. Will be
       returned if and only if this version of the object has been deleted.
+    timeStorageClassUpdated: The time at which the object's storage class was
+      last changed. When the object is initially created, it will be set to
+      timeCreated.
     updated: The modification time of the object metadata in RFC 3339 format.
   """
 
   class CustomerEncryptionValue(_messages.Message):
-    """Metadata of customer-supplied encryption key, if the object is
+    r"""Metadata of customer-supplied encryption key, if the object is
     encrypted by such a key.
 
     Fields:
@@ -482,7 +736,7 @@ class Object(_messages.Message):
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class MetadataValue(_messages.Message):
-    """User-provided metadata, in key/value pairs.
+    r"""User-provided metadata, in key/value pairs.
 
     Messages:
       AdditionalProperty: An additional property for a MetadataValue object.
@@ -492,7 +746,7 @@ class Object(_messages.Message):
     """
 
     class AdditionalProperty(_messages.Message):
-      """An additional property for a MetadataValue object.
+      r"""An additional property for a MetadataValue object.
 
       Fields:
         key: Name of the additional property.
@@ -505,7 +759,7 @@ class Object(_messages.Message):
     additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   class OwnerValue(_messages.Message):
-    """The owner of the object. This will always be the uploader of the
+    r"""The owner of the object. This will always be the uploader of the
     object.
 
     Fields:
@@ -527,25 +781,30 @@ class Object(_messages.Message):
   crc32c = _messages.StringField(9)
   customerEncryption = _messages.MessageField('CustomerEncryptionValue', 10)
   etag = _messages.StringField(11)
-  generation = _messages.IntegerField(12)
-  id = _messages.StringField(13)
-  kind = _messages.StringField(14, default=u'storage#object')
-  md5Hash = _messages.StringField(15)
-  mediaLink = _messages.StringField(16)
-  metadata = _messages.MessageField('MetadataValue', 17)
-  metageneration = _messages.IntegerField(18)
-  name = _messages.StringField(19)
-  owner = _messages.MessageField('OwnerValue', 20)
-  selfLink = _messages.StringField(21)
-  size = _messages.IntegerField(22, variant=_messages.Variant.UINT64)
-  storageClass = _messages.StringField(23)
-  timeCreated = _message_types.DateTimeField(24)
-  timeDeleted = _message_types.DateTimeField(25)
-  updated = _message_types.DateTimeField(26)
+  eventBasedHold = _messages.BooleanField(12)
+  generation = _messages.IntegerField(13)
+  id = _messages.StringField(14)
+  kind = _messages.StringField(15, default=u'storage#object')
+  kmsKeyName = _messages.StringField(16)
+  md5Hash = _messages.StringField(17)
+  mediaLink = _messages.StringField(18)
+  metadata = _messages.MessageField('MetadataValue', 19)
+  metageneration = _messages.IntegerField(20)
+  name = _messages.StringField(21)
+  owner = _messages.MessageField('OwnerValue', 22)
+  retentionExpirationTime = _message_types.DateTimeField(23)
+  selfLink = _messages.StringField(24)
+  size = _messages.IntegerField(25, variant=_messages.Variant.UINT64)
+  storageClass = _messages.StringField(26)
+  temporaryHold = _messages.BooleanField(27)
+  timeCreated = _message_types.DateTimeField(28)
+  timeDeleted = _message_types.DateTimeField(29)
+  timeStorageClassUpdated = _message_types.DateTimeField(30)
+  updated = _message_types.DateTimeField(31)
 
 
 class ObjectAccessControl(_messages.Message):
-  """An access-control entry.
+  r"""An access-control entry.
 
   Messages:
     ProjectTeamValue: The project team associated with the entity, if any.
@@ -563,22 +822,22 @@ class ObjectAccessControl(_messages.Message):
       for Business domain example.com, the entity would be domain-example.com.
     entityId: The ID for the entity, if any.
     etag: HTTP 1.1 Entity tag for the access-control entry.
-    generation: The content generation of the object.
+    generation: The content generation of the object, if applied to an object.
     id: The ID of the access-control entry.
     kind: The kind of item this is. For object access control entries, this is
       always storage#objectAccessControl.
-    object: The name of the object.
+    object: The name of the object, if applied to an object.
     projectTeam: The project team associated with the entity, if any.
-    role: The access permission for the entity. Can be READER or OWNER.
+    role: The access permission for the entity.
     selfLink: The link to this access-control entry.
   """
 
   class ProjectTeamValue(_messages.Message):
-    """The project team associated with the entity, if any.
+    r"""The project team associated with the entity, if any.
 
     Fields:
       projectNumber: The project number.
-      team: The team. Can be owners, editors, or viewers.
+      team: The team.
     """
 
     projectNumber = _messages.StringField(1)
@@ -600,7 +859,7 @@ class ObjectAccessControl(_messages.Message):
 
 
 class ObjectAccessControls(_messages.Message):
-  """An access-control list.
+  r"""An access-control list.
 
   Fields:
     items: The list of items.
@@ -608,12 +867,12 @@ class ObjectAccessControls(_messages.Message):
       entries, this is always storage#objectAccessControls.
   """
 
-  items = _messages.MessageField('extra_types.JsonValue', 1, repeated=True)
+  items = _messages.MessageField('ObjectAccessControl', 1, repeated=True)
   kind = _messages.StringField(2, default=u'storage#objectAccessControls')
 
 
 class Objects(_messages.Message):
-  """A list of objects.
+  r"""A list of objects.
 
   Fields:
     items: The list of items.
@@ -632,8 +891,87 @@ class Objects(_messages.Message):
   prefixes = _messages.StringField(4, repeated=True)
 
 
+class Policy(_messages.Message):
+  r"""A bucket/object IAM policy.
+
+  Messages:
+    BindingsValueListEntry: A BindingsValueListEntry object.
+
+  Fields:
+    bindings: An association between a role, which comes with a set of
+      permissions, and members who may assume that role.
+    etag: HTTP 1.1  Entity tag for the policy.
+    kind: The kind of item this is. For policies, this is always
+      storage#policy. This field is ignored on input.
+    resourceId: The ID of the resource to which this policy belongs. Will be
+      of the form projects/_/buckets/bucket for buckets, and
+      projects/_/buckets/bucket/objects/object for objects. A specific
+      generation may be specified by appending #generationNumber to the end of
+      the object name, e.g. projects/_/buckets/my-bucket/objects/data.txt#17.
+      The current generation can be denoted with #0. This field is ignored on
+      input.
+  """
+
+  class BindingsValueListEntry(_messages.Message):
+    r"""A BindingsValueListEntry object.
+
+    Fields:
+      condition: A extra_types.JsonValue attribute.
+      members: A collection of identifiers for members who may assume the
+        provided role. Recognized identifiers are as follows:   - allUsers - A
+        special identifier that represents anyone on the internet; with or
+        without a Google account.   - allAuthenticatedUsers - A special
+        identifier that represents anyone who is authenticated with a Google
+        account or a service account.   - user:emailid - An email address that
+        represents a specific account. For example, user:alice@gmail.com or
+        user:joe@example.com.   - serviceAccount:emailid - An email address
+        that represents a service account. For example,  serviceAccount:my-
+        other-app@appspot.gserviceaccount.com .   - group:emailid - An email
+        address that represents a Google group. For example,
+        group:admins@example.com.   - domain:domain - A Google Apps domain
+        name that represents all the users of that domain. For example,
+        domain:google.com or domain:example.com.   - projectOwner:projectid -
+        Owners of the given project. For example, projectOwner:my-example-
+        project   - projectEditor:projectid - Editors of the given project.
+        For example, projectEditor:my-example-project   -
+        projectViewer:projectid - Viewers of the given project. For example,
+        projectViewer:my-example-project
+      role: The role to which members belong. Two types of roles are
+        supported: new IAM roles, which grant permissions that do not map
+        directly to those provided by ACLs, and legacy IAM roles, which do map
+        directly to ACL permissions. All roles are of the format
+        roles/storage.specificRole. The new IAM roles are:   -
+        roles/storage.admin - Full control of Google Cloud Storage resources.
+        - roles/storage.objectViewer - Read-Only access to Google Cloud
+        Storage objects.   - roles/storage.objectCreator - Access to create
+        objects in Google Cloud Storage.   - roles/storage.objectAdmin - Full
+        control of Google Cloud Storage objects.   The legacy IAM roles are:
+        - roles/storage.legacyObjectReader - Read-only access to objects
+        without listing. Equivalent to an ACL entry on an object with the
+        READER role.   - roles/storage.legacyObjectOwner - Read/write access
+        to existing objects without listing. Equivalent to an ACL entry on an
+        object with the OWNER role.   - roles/storage.legacyBucketReader -
+        Read access to buckets with object listing. Equivalent to an ACL entry
+        on a bucket with the READER role.   - roles/storage.legacyBucketWriter
+        - Read access to buckets with object listing/creation/deletion.
+        Equivalent to an ACL entry on a bucket with the WRITER role.   -
+        roles/storage.legacyBucketOwner - Read and write access to existing
+        buckets with object listing/creation/deletion. Equivalent to an ACL
+        entry on a bucket with the OWNER role.
+    """
+
+    condition = _messages.MessageField('extra_types.JsonValue', 1)
+    members = _messages.StringField(2, repeated=True)
+    role = _messages.StringField(3)
+
+  bindings = _messages.MessageField('BindingsValueListEntry', 1, repeated=True)
+  etag = _messages.BytesField(2)
+  kind = _messages.StringField(3, default=u'storage#policy')
+  resourceId = _messages.StringField(4)
+
+
 class RewriteResponse(_messages.Message):
-  """A rewrite response.
+  r"""A rewrite response.
 
   Fields:
     done: true if the copy is finished; otherwise, false if the copy is in
@@ -653,14 +991,27 @@ class RewriteResponse(_messages.Message):
 
   done = _messages.BooleanField(1)
   kind = _messages.StringField(2, default=u'storage#rewriteResponse')
-  objectSize = _messages.IntegerField(3, variant=_messages.Variant.UINT64)
+  objectSize = _messages.IntegerField(3)
   resource = _messages.MessageField('Object', 4)
   rewriteToken = _messages.StringField(5)
-  totalBytesRewritten = _messages.IntegerField(6, variant=_messages.Variant.UINT64)
+  totalBytesRewritten = _messages.IntegerField(6)
+
+
+class ServiceAccount(_messages.Message):
+  r"""A subscription to receive Google PubSub notifications.
+
+  Fields:
+    email_address: The ID of the notification.
+    kind: The kind of item this is. For notifications, this is always
+      storage#notification.
+  """
+
+  email_address = _messages.StringField(1)
+  kind = _messages.StringField(2, default=u'storage#serviceAccount')
 
 
 class StandardQueryParameters(_messages.Message):
-  """Query parameters accepted by all methods.
+  r"""Query parameters accepted by all methods.
 
   Enums:
     AltValueValuesEnum: Data format for the response.
@@ -673,17 +1024,15 @@ class StandardQueryParameters(_messages.Message):
       token.
     oauth_token: OAuth 2.0 token for the current user.
     prettyPrint: Returns response with indentations and line breaks.
-    quotaUser: Available to use for quota purposes for server-side
-      applications. Can be any arbitrary string assigned to a user, but should
-      not exceed 40 characters. Overrides userIp if both are provided.
+    quotaUser: An opaque string that represents a user for quota purposes.
+      Must not exceed 40 characters.
     trace: A tracing token of the form "token:<tokenid>" to include in api
       requests.
-    userIp: IP address of the site where the request originates. Use this if
-      you want to enforce per-user limits.
+    userIp: Deprecated. Please use quotaUser instead.
   """
 
   class AltValueValuesEnum(_messages.Enum):
-    """Data format for the response.
+    r"""Data format for the response.
 
     Values:
       json: Responses with Content-Type of application/json
@@ -701,49 +1050,114 @@ class StandardQueryParameters(_messages.Message):
 
 
 class StorageBucketAccessControlsDeleteRequest(_messages.Message):
-  """A StorageBucketAccessControlsDeleteRequest object.
+  r"""A StorageBucketAccessControlsDeleteRequest object.
 
   Fields:
     bucket: Name of a bucket.
     entity: The entity holding the permission. Can be user-userId, user-
       emailAddress, group-groupId, group-emailAddress, allUsers, or
       allAuthenticatedUsers.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   bucket = _messages.StringField(1, required=True)
   entity = _messages.StringField(2, required=True)
+  userProject = _messages.StringField(3)
 
 
 class StorageBucketAccessControlsDeleteResponse(_messages.Message):
-  """An empty StorageBucketAccessControlsDelete response."""
+  r"""An empty StorageBucketAccessControlsDelete response."""
 
 
 class StorageBucketAccessControlsGetRequest(_messages.Message):
-  """A StorageBucketAccessControlsGetRequest object.
+  r"""A StorageBucketAccessControlsGetRequest object.
 
   Fields:
     bucket: Name of a bucket.
     entity: The entity holding the permission. Can be user-userId, user-
       emailAddress, group-groupId, group-emailAddress, allUsers, or
       allAuthenticatedUsers.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   bucket = _messages.StringField(1, required=True)
   entity = _messages.StringField(2, required=True)
+  userProject = _messages.StringField(3)
 
 
-class StorageBucketAccessControlsListRequest(_messages.Message):
-  """A StorageBucketAccessControlsListRequest object.
+class StorageBucketAccessControlsInsertRequest(_messages.Message):
+  r"""A StorageBucketAccessControlsInsertRequest object.
 
   Fields:
     bucket: Name of a bucket.
+    bucketAccessControl: A BucketAccessControl resource to be passed as the
+      request body.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   bucket = _messages.StringField(1, required=True)
+  bucketAccessControl = _messages.MessageField('BucketAccessControl', 2)
+  userProject = _messages.StringField(3)
+
+
+class StorageBucketAccessControlsListRequest(_messages.Message):
+  r"""A StorageBucketAccessControlsListRequest object.
+
+  Fields:
+    bucket: Name of a bucket.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
+  """
+
+  bucket = _messages.StringField(1, required=True)
+  userProject = _messages.StringField(2)
+
+
+class StorageBucketAccessControlsPatchRequest(_messages.Message):
+  r"""A StorageBucketAccessControlsPatchRequest object.
+
+  Fields:
+    bucket: Name of a bucket.
+    bucketAccessControl: A BucketAccessControl resource to be passed as the
+      request body.
+    entity: The entity holding the permission. Can be user-userId, user-
+      emailAddress, group-groupId, group-emailAddress, allUsers, or
+      allAuthenticatedUsers.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
+  """
+
+  bucket = _messages.StringField(1, required=True)
+  bucketAccessControl = _messages.MessageField('BucketAccessControl', 2)
+  entity = _messages.StringField(3, required=True)
+  userProject = _messages.StringField(4)
+
+
+class StorageBucketAccessControlsUpdateRequest(_messages.Message):
+  r"""A StorageBucketAccessControlsUpdateRequest object.
+
+  Fields:
+    bucket: Name of a bucket.
+    bucketAccessControl: A BucketAccessControl resource to be passed as the
+      request body.
+    entity: The entity holding the permission. Can be user-userId, user-
+      emailAddress, group-groupId, group-emailAddress, allUsers, or
+      allAuthenticatedUsers.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
+  """
+
+  bucket = _messages.StringField(1, required=True)
+  bucketAccessControl = _messages.MessageField('BucketAccessControl', 2)
+  entity = _messages.StringField(3, required=True)
+  userProject = _messages.StringField(4)
 
 
 class StorageBucketsDeleteRequest(_messages.Message):
-  """A StorageBucketsDeleteRequest object.
+  r"""A StorageBucketsDeleteRequest object.
 
   Fields:
     bucket: Name of a bucket.
@@ -751,19 +1165,35 @@ class StorageBucketsDeleteRequest(_messages.Message):
       metageneration matches this value.
     ifMetagenerationNotMatch: If set, only deletes the bucket if its
       metageneration does not match this value.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   bucket = _messages.StringField(1, required=True)
   ifMetagenerationMatch = _messages.IntegerField(2)
   ifMetagenerationNotMatch = _messages.IntegerField(3)
+  userProject = _messages.StringField(4)
 
 
 class StorageBucketsDeleteResponse(_messages.Message):
-  """An empty StorageBucketsDelete response."""
+  r"""An empty StorageBucketsDelete response."""
+
+
+class StorageBucketsGetIamPolicyRequest(_messages.Message):
+  r"""A StorageBucketsGetIamPolicyRequest object.
+
+  Fields:
+    bucket: Name of a bucket.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
+  """
+
+  bucket = _messages.StringField(1, required=True)
+  userProject = _messages.StringField(2)
 
 
 class StorageBucketsGetRequest(_messages.Message):
-  """A StorageBucketsGetRequest object.
+  r"""A StorageBucketsGetRequest object.
 
   Enums:
     ProjectionValueValuesEnum: Set of properties to return. Defaults to noAcl.
@@ -776,14 +1206,16 @@ class StorageBucketsGetRequest(_messages.Message):
       conditional on whether the bucket's current metageneration does not
       match the given value.
     projection: Set of properties to return. Defaults to noAcl.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   class ProjectionValueValuesEnum(_messages.Enum):
-    """Set of properties to return. Defaults to noAcl.
+    r"""Set of properties to return. Defaults to noAcl.
 
     Values:
       full: Include all properties.
-      noAcl: Omit acl and defaultObjectAcl properties.
+      noAcl: Omit owner, acl and defaultObjectAcl properties.
     """
     full = 0
     noAcl = 1
@@ -792,10 +1224,11 @@ class StorageBucketsGetRequest(_messages.Message):
   ifMetagenerationMatch = _messages.IntegerField(2)
   ifMetagenerationNotMatch = _messages.IntegerField(3)
   projection = _messages.EnumField('ProjectionValueValuesEnum', 4)
+  userProject = _messages.StringField(5)
 
 
 class StorageBucketsInsertRequest(_messages.Message):
-  """A StorageBucketsInsertRequest object.
+  r"""A StorageBucketsInsertRequest object.
 
   Enums:
     PredefinedAclValueValuesEnum: Apply a predefined set of access controls to
@@ -815,10 +1248,11 @@ class StorageBucketsInsertRequest(_messages.Message):
     projection: Set of properties to return. Defaults to noAcl, unless the
       bucket resource specifies acl or defaultObjectAcl properties, when it
       defaults to full.
+    userProject: The project to be billed for this request.
   """
 
   class PredefinedAclValueValuesEnum(_messages.Enum):
-    """Apply a predefined set of access controls to this bucket.
+    r"""Apply a predefined set of access controls to this bucket.
 
     Values:
       authenticatedRead: Project team owners get OWNER access, and
@@ -838,7 +1272,7 @@ class StorageBucketsInsertRequest(_messages.Message):
     publicReadWrite = 4
 
   class PredefinedDefaultObjectAclValueValuesEnum(_messages.Enum):
-    """Apply a predefined set of default object access controls to this
+    r"""Apply a predefined set of default object access controls to this
     bucket.
 
     Values:
@@ -862,13 +1296,13 @@ class StorageBucketsInsertRequest(_messages.Message):
     publicRead = 5
 
   class ProjectionValueValuesEnum(_messages.Enum):
-    """Set of properties to return. Defaults to noAcl, unless the bucket
+    r"""Set of properties to return. Defaults to noAcl, unless the bucket
     resource specifies acl or defaultObjectAcl properties, when it defaults to
     full.
 
     Values:
       full: Include all properties.
-      noAcl: Omit acl and defaultObjectAcl properties.
+      noAcl: Omit owner, acl and defaultObjectAcl properties.
     """
     full = 0
     noAcl = 1
@@ -878,42 +1312,62 @@ class StorageBucketsInsertRequest(_messages.Message):
   predefinedDefaultObjectAcl = _messages.EnumField('PredefinedDefaultObjectAclValueValuesEnum', 3)
   project = _messages.StringField(4, required=True)
   projection = _messages.EnumField('ProjectionValueValuesEnum', 5)
+  userProject = _messages.StringField(6)
 
 
 class StorageBucketsListRequest(_messages.Message):
-  """A StorageBucketsListRequest object.
+  r"""A StorageBucketsListRequest object.
 
   Enums:
     ProjectionValueValuesEnum: Set of properties to return. Defaults to noAcl.
 
   Fields:
-    maxResults: Maximum number of buckets to return.
+    maxResults: Maximum number of buckets to return in a single response. The
+      service will use this parameter or 1,000 items, whichever is smaller.
     pageToken: A previously-returned page token representing part of the
       larger set of results to view.
     prefix: Filter results to buckets whose names begin with this prefix.
     project: A valid API project identifier.
     projection: Set of properties to return. Defaults to noAcl.
+    userProject: The project to be billed for this request.
   """
 
   class ProjectionValueValuesEnum(_messages.Enum):
-    """Set of properties to return. Defaults to noAcl.
+    r"""Set of properties to return. Defaults to noAcl.
 
     Values:
       full: Include all properties.
-      noAcl: Omit acl and defaultObjectAcl properties.
+      noAcl: Omit owner, acl and defaultObjectAcl properties.
     """
     full = 0
     noAcl = 1
 
-  maxResults = _messages.IntegerField(1, variant=_messages.Variant.UINT32)
+  maxResults = _messages.IntegerField(1, variant=_messages.Variant.UINT32, default=1000)
   pageToken = _messages.StringField(2)
   prefix = _messages.StringField(3)
   project = _messages.StringField(4, required=True)
   projection = _messages.EnumField('ProjectionValueValuesEnum', 5)
+  userProject = _messages.StringField(6)
+
+
+class StorageBucketsLockRetentionPolicyRequest(_messages.Message):
+  r"""A StorageBucketsLockRetentionPolicyRequest object.
+
+  Fields:
+    bucket: Name of a bucket.
+    ifMetagenerationMatch: Makes the operation conditional on whether bucket's
+      current metageneration matches the given value.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
+  """
+
+  bucket = _messages.StringField(1, required=True)
+  ifMetagenerationMatch = _messages.IntegerField(2, required=True)
+  userProject = _messages.StringField(3)
 
 
 class StorageBucketsPatchRequest(_messages.Message):
-  """A StorageBucketsPatchRequest object.
+  r"""A StorageBucketsPatchRequest object.
 
   Enums:
     PredefinedAclValueValuesEnum: Apply a predefined set of access controls to
@@ -934,10 +1388,12 @@ class StorageBucketsPatchRequest(_messages.Message):
     predefinedDefaultObjectAcl: Apply a predefined set of default object
       access controls to this bucket.
     projection: Set of properties to return. Defaults to full.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   class PredefinedAclValueValuesEnum(_messages.Enum):
-    """Apply a predefined set of access controls to this bucket.
+    r"""Apply a predefined set of access controls to this bucket.
 
     Values:
       authenticatedRead: Project team owners get OWNER access, and
@@ -957,7 +1413,7 @@ class StorageBucketsPatchRequest(_messages.Message):
     publicReadWrite = 4
 
   class PredefinedDefaultObjectAclValueValuesEnum(_messages.Enum):
-    """Apply a predefined set of default object access controls to this
+    r"""Apply a predefined set of default object access controls to this
     bucket.
 
     Values:
@@ -981,11 +1437,11 @@ class StorageBucketsPatchRequest(_messages.Message):
     publicRead = 5
 
   class ProjectionValueValuesEnum(_messages.Enum):
-    """Set of properties to return. Defaults to full.
+    r"""Set of properties to return. Defaults to full.
 
     Values:
       full: Include all properties.
-      noAcl: Omit acl and defaultObjectAcl properties.
+      noAcl: Omit owner, acl and defaultObjectAcl properties.
     """
     full = 0
     noAcl = 1
@@ -997,10 +1453,41 @@ class StorageBucketsPatchRequest(_messages.Message):
   predefinedAcl = _messages.EnumField('PredefinedAclValueValuesEnum', 5)
   predefinedDefaultObjectAcl = _messages.EnumField('PredefinedDefaultObjectAclValueValuesEnum', 6)
   projection = _messages.EnumField('ProjectionValueValuesEnum', 7)
+  userProject = _messages.StringField(8)
+
+
+class StorageBucketsSetIamPolicyRequest(_messages.Message):
+  r"""A StorageBucketsSetIamPolicyRequest object.
+
+  Fields:
+    bucket: Name of a bucket.
+    policy: A Policy resource to be passed as the request body.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
+  """
+
+  bucket = _messages.StringField(1, required=True)
+  policy = _messages.MessageField('Policy', 2)
+  userProject = _messages.StringField(3)
+
+
+class StorageBucketsTestIamPermissionsRequest(_messages.Message):
+  r"""A StorageBucketsTestIamPermissionsRequest object.
+
+  Fields:
+    bucket: Name of a bucket.
+    permissions: Permissions to test.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
+  """
+
+  bucket = _messages.StringField(1, required=True)
+  permissions = _messages.StringField(2, required=True)
+  userProject = _messages.StringField(3)
 
 
 class StorageBucketsUpdateRequest(_messages.Message):
-  """A StorageBucketsUpdateRequest object.
+  r"""A StorageBucketsUpdateRequest object.
 
   Enums:
     PredefinedAclValueValuesEnum: Apply a predefined set of access controls to
@@ -1021,10 +1508,12 @@ class StorageBucketsUpdateRequest(_messages.Message):
     predefinedDefaultObjectAcl: Apply a predefined set of default object
       access controls to this bucket.
     projection: Set of properties to return. Defaults to full.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   class PredefinedAclValueValuesEnum(_messages.Enum):
-    """Apply a predefined set of access controls to this bucket.
+    r"""Apply a predefined set of access controls to this bucket.
 
     Values:
       authenticatedRead: Project team owners get OWNER access, and
@@ -1044,7 +1533,7 @@ class StorageBucketsUpdateRequest(_messages.Message):
     publicReadWrite = 4
 
   class PredefinedDefaultObjectAclValueValuesEnum(_messages.Enum):
-    """Apply a predefined set of default object access controls to this
+    r"""Apply a predefined set of default object access controls to this
     bucket.
 
     Values:
@@ -1068,11 +1557,11 @@ class StorageBucketsUpdateRequest(_messages.Message):
     publicRead = 5
 
   class ProjectionValueValuesEnum(_messages.Enum):
-    """Set of properties to return. Defaults to full.
+    r"""Set of properties to return. Defaults to full.
 
     Values:
       full: Include all properties.
-      noAcl: Omit acl and defaultObjectAcl properties.
+      noAcl: Omit owner, acl and defaultObjectAcl properties.
     """
     full = 0
     noAcl = 1
@@ -1084,46 +1573,69 @@ class StorageBucketsUpdateRequest(_messages.Message):
   predefinedAcl = _messages.EnumField('PredefinedAclValueValuesEnum', 5)
   predefinedDefaultObjectAcl = _messages.EnumField('PredefinedDefaultObjectAclValueValuesEnum', 6)
   projection = _messages.EnumField('ProjectionValueValuesEnum', 7)
+  userProject = _messages.StringField(8)
 
 
 class StorageChannelsStopResponse(_messages.Message):
-  """An empty StorageChannelsStop response."""
+  r"""An empty StorageChannelsStop response."""
 
 
 class StorageDefaultObjectAccessControlsDeleteRequest(_messages.Message):
-  """A StorageDefaultObjectAccessControlsDeleteRequest object.
+  r"""A StorageDefaultObjectAccessControlsDeleteRequest object.
 
   Fields:
     bucket: Name of a bucket.
     entity: The entity holding the permission. Can be user-userId, user-
       emailAddress, group-groupId, group-emailAddress, allUsers, or
       allAuthenticatedUsers.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   bucket = _messages.StringField(1, required=True)
   entity = _messages.StringField(2, required=True)
+  userProject = _messages.StringField(3)
 
 
 class StorageDefaultObjectAccessControlsDeleteResponse(_messages.Message):
-  """An empty StorageDefaultObjectAccessControlsDelete response."""
+  r"""An empty StorageDefaultObjectAccessControlsDelete response."""
 
 
 class StorageDefaultObjectAccessControlsGetRequest(_messages.Message):
-  """A StorageDefaultObjectAccessControlsGetRequest object.
+  r"""A StorageDefaultObjectAccessControlsGetRequest object.
 
   Fields:
     bucket: Name of a bucket.
     entity: The entity holding the permission. Can be user-userId, user-
       emailAddress, group-groupId, group-emailAddress, allUsers, or
       allAuthenticatedUsers.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   bucket = _messages.StringField(1, required=True)
   entity = _messages.StringField(2, required=True)
+  userProject = _messages.StringField(3)
+
+
+class StorageDefaultObjectAccessControlsInsertRequest(_messages.Message):
+  r"""A StorageDefaultObjectAccessControlsInsertRequest object.
+
+  Fields:
+    bucket: Name of a bucket.
+    objectAccessControl: A ObjectAccessControl resource to be passed as the
+      request body.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
+  """
+
+  bucket = _messages.StringField(1, required=True)
+  objectAccessControl = _messages.MessageField('ObjectAccessControl', 2)
+  userProject = _messages.StringField(3)
 
 
 class StorageDefaultObjectAccessControlsListRequest(_messages.Message):
-  """A StorageDefaultObjectAccessControlsListRequest object.
+  r"""A StorageDefaultObjectAccessControlsListRequest object.
 
   Fields:
     bucket: Name of a bucket.
@@ -1131,15 +1643,120 @@ class StorageDefaultObjectAccessControlsListRequest(_messages.Message):
       bucket's current metageneration matches this value.
     ifMetagenerationNotMatch: If present, only return default ACL listing if
       the bucket's current metageneration does not match the given value.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   bucket = _messages.StringField(1, required=True)
   ifMetagenerationMatch = _messages.IntegerField(2)
   ifMetagenerationNotMatch = _messages.IntegerField(3)
+  userProject = _messages.StringField(4)
+
+
+class StorageDefaultObjectAccessControlsPatchRequest(_messages.Message):
+  r"""A StorageDefaultObjectAccessControlsPatchRequest object.
+
+  Fields:
+    bucket: Name of a bucket.
+    entity: The entity holding the permission. Can be user-userId, user-
+      emailAddress, group-groupId, group-emailAddress, allUsers, or
+      allAuthenticatedUsers.
+    objectAccessControl: A ObjectAccessControl resource to be passed as the
+      request body.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
+  """
+
+  bucket = _messages.StringField(1, required=True)
+  entity = _messages.StringField(2, required=True)
+  objectAccessControl = _messages.MessageField('ObjectAccessControl', 3)
+  userProject = _messages.StringField(4)
+
+
+class StorageDefaultObjectAccessControlsUpdateRequest(_messages.Message):
+  r"""A StorageDefaultObjectAccessControlsUpdateRequest object.
+
+  Fields:
+    bucket: Name of a bucket.
+    entity: The entity holding the permission. Can be user-userId, user-
+      emailAddress, group-groupId, group-emailAddress, allUsers, or
+      allAuthenticatedUsers.
+    objectAccessControl: A ObjectAccessControl resource to be passed as the
+      request body.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
+  """
+
+  bucket = _messages.StringField(1, required=True)
+  entity = _messages.StringField(2, required=True)
+  objectAccessControl = _messages.MessageField('ObjectAccessControl', 3)
+  userProject = _messages.StringField(4)
+
+
+class StorageNotificationsDeleteRequest(_messages.Message):
+  r"""A StorageNotificationsDeleteRequest object.
+
+  Fields:
+    bucket: The parent bucket of the notification.
+    notification: ID of the notification to delete.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
+  """
+
+  bucket = _messages.StringField(1, required=True)
+  notification = _messages.StringField(2, required=True)
+  userProject = _messages.StringField(3)
+
+
+class StorageNotificationsDeleteResponse(_messages.Message):
+  r"""An empty StorageNotificationsDelete response."""
+
+
+class StorageNotificationsGetRequest(_messages.Message):
+  r"""A StorageNotificationsGetRequest object.
+
+  Fields:
+    bucket: The parent bucket of the notification.
+    notification: Notification ID
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
+  """
+
+  bucket = _messages.StringField(1, required=True)
+  notification = _messages.StringField(2, required=True)
+  userProject = _messages.StringField(3)
+
+
+class StorageNotificationsInsertRequest(_messages.Message):
+  r"""A StorageNotificationsInsertRequest object.
+
+  Fields:
+    bucket: The parent bucket of the notification.
+    notification: A Notification resource to be passed as the request body.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
+  """
+
+  bucket = _messages.StringField(1, required=True)
+  notification = _messages.MessageField('Notification', 2)
+  userProject = _messages.StringField(3)
+
+
+class StorageNotificationsListRequest(_messages.Message):
+  r"""A StorageNotificationsListRequest object.
+
+  Fields:
+    bucket: Name of a Google Cloud Storage bucket.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
+  """
+
+  bucket = _messages.StringField(1, required=True)
+  userProject = _messages.StringField(2)
 
 
 class StorageObjectAccessControlsDeleteRequest(_messages.Message):
-  """A StorageObjectAccessControlsDeleteRequest object.
+  r"""A StorageObjectAccessControlsDeleteRequest object.
 
   Fields:
     bucket: Name of a bucket.
@@ -1150,20 +1767,23 @@ class StorageObjectAccessControlsDeleteRequest(_messages.Message):
       opposed to the latest version, the default).
     object: Name of the object. For information about how to URL encode object
       names to be path safe, see Encoding URI Path Parts.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   bucket = _messages.StringField(1, required=True)
   entity = _messages.StringField(2, required=True)
   generation = _messages.IntegerField(3)
   object = _messages.StringField(4, required=True)
+  userProject = _messages.StringField(5)
 
 
 class StorageObjectAccessControlsDeleteResponse(_messages.Message):
-  """An empty StorageObjectAccessControlsDelete response."""
+  r"""An empty StorageObjectAccessControlsDelete response."""
 
 
 class StorageObjectAccessControlsGetRequest(_messages.Message):
-  """A StorageObjectAccessControlsGetRequest object.
+  r"""A StorageObjectAccessControlsGetRequest object.
 
   Fields:
     bucket: Name of a bucket.
@@ -1174,16 +1794,19 @@ class StorageObjectAccessControlsGetRequest(_messages.Message):
       opposed to the latest version, the default).
     object: Name of the object. For information about how to URL encode object
       names to be path safe, see Encoding URI Path Parts.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   bucket = _messages.StringField(1, required=True)
   entity = _messages.StringField(2, required=True)
   generation = _messages.IntegerField(3)
   object = _messages.StringField(4, required=True)
+  userProject = _messages.StringField(5)
 
 
 class StorageObjectAccessControlsInsertRequest(_messages.Message):
-  """A StorageObjectAccessControlsInsertRequest object.
+  r"""A StorageObjectAccessControlsInsertRequest object.
 
   Fields:
     bucket: Name of a bucket.
@@ -1193,16 +1816,19 @@ class StorageObjectAccessControlsInsertRequest(_messages.Message):
       names to be path safe, see Encoding URI Path Parts.
     objectAccessControl: A ObjectAccessControl resource to be passed as the
       request body.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   bucket = _messages.StringField(1, required=True)
   generation = _messages.IntegerField(2)
   object = _messages.StringField(3, required=True)
   objectAccessControl = _messages.MessageField('ObjectAccessControl', 4)
+  userProject = _messages.StringField(5)
 
 
 class StorageObjectAccessControlsListRequest(_messages.Message):
-  """A StorageObjectAccessControlsListRequest object.
+  r"""A StorageObjectAccessControlsListRequest object.
 
   Fields:
     bucket: Name of a bucket.
@@ -1210,15 +1836,18 @@ class StorageObjectAccessControlsListRequest(_messages.Message):
       opposed to the latest version, the default).
     object: Name of the object. For information about how to URL encode object
       names to be path safe, see Encoding URI Path Parts.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   bucket = _messages.StringField(1, required=True)
   generation = _messages.IntegerField(2)
   object = _messages.StringField(3, required=True)
+  userProject = _messages.StringField(4)
 
 
 class StorageObjectAccessControlsPatchRequest(_messages.Message):
-  """A StorageObjectAccessControlsPatchRequest object.
+  r"""A StorageObjectAccessControlsPatchRequest object.
 
   Fields:
     bucket: Name of a bucket.
@@ -1231,6 +1860,8 @@ class StorageObjectAccessControlsPatchRequest(_messages.Message):
       names to be path safe, see Encoding URI Path Parts.
     objectAccessControl: A ObjectAccessControl resource to be passed as the
       request body.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   bucket = _messages.StringField(1, required=True)
@@ -1238,10 +1869,11 @@ class StorageObjectAccessControlsPatchRequest(_messages.Message):
   generation = _messages.IntegerField(3)
   object = _messages.StringField(4, required=True)
   objectAccessControl = _messages.MessageField('ObjectAccessControl', 5)
+  userProject = _messages.StringField(6)
 
 
 class StorageObjectAccessControlsUpdateRequest(_messages.Message):
-  """A StorageObjectAccessControlsUpdateRequest object.
+  r"""A StorageObjectAccessControlsUpdateRequest object.
 
   Fields:
     bucket: Name of a bucket.
@@ -1254,6 +1886,8 @@ class StorageObjectAccessControlsUpdateRequest(_messages.Message):
       names to be path safe, see Encoding URI Path Parts.
     objectAccessControl: A ObjectAccessControl resource to be passed as the
       request body.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   bucket = _messages.StringField(1, required=True)
@@ -1261,10 +1895,11 @@ class StorageObjectAccessControlsUpdateRequest(_messages.Message):
   generation = _messages.IntegerField(3)
   object = _messages.StringField(4, required=True)
   objectAccessControl = _messages.MessageField('ObjectAccessControl', 5)
+  userProject = _messages.StringField(6)
 
 
 class StorageObjectsComposeRequest(_messages.Message):
-  """A StorageObjectsComposeRequest object.
+  r"""A StorageObjectsComposeRequest object.
 
   Enums:
     DestinationPredefinedAclValueValuesEnum: Apply a predefined set of access
@@ -1273,19 +1908,27 @@ class StorageObjectsComposeRequest(_messages.Message):
   Fields:
     composeRequest: A ComposeRequest resource to be passed as the request
       body.
-    destinationBucket: Name of the bucket in which to store the new object.
+    destinationBucket: Name of the bucket containing the source objects. The
+      destination object is stored in this bucket.
     destinationObject: Name of the new object. For information about how to
       URL encode object names to be path safe, see Encoding URI Path Parts.
     destinationPredefinedAcl: Apply a predefined set of access controls to the
       destination object.
     ifGenerationMatch: Makes the operation conditional on whether the object's
-      current generation matches the given value.
+      current generation matches the given value. Setting to 0 makes the
+      operation succeed only if there are no live versions of the object.
     ifMetagenerationMatch: Makes the operation conditional on whether the
       object's current metageneration matches the given value.
+    kmsKeyName: Resource name of the Cloud KMS key, of the form projects/my-
+      project/locations/global/keyRings/my-kr/cryptoKeys/my-key, that will be
+      used to encrypt the object. Overrides the object metadata's kms_key_name
+      value, if any.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   class DestinationPredefinedAclValueValuesEnum(_messages.Enum):
-    """Apply a predefined set of access controls to the destination object.
+    r"""Apply a predefined set of access controls to the destination object.
 
     Values:
       authenticatedRead: Object owner gets OWNER access, and
@@ -1313,10 +1956,12 @@ class StorageObjectsComposeRequest(_messages.Message):
   destinationPredefinedAcl = _messages.EnumField('DestinationPredefinedAclValueValuesEnum', 4)
   ifGenerationMatch = _messages.IntegerField(5)
   ifMetagenerationMatch = _messages.IntegerField(6)
+  kmsKeyName = _messages.StringField(7)
+  userProject = _messages.StringField(8)
 
 
 class StorageObjectsCopyRequest(_messages.Message):
-  """A StorageObjectsCopyRequest object.
+  r"""A StorageObjectsCopyRequest object.
 
   Enums:
     DestinationPredefinedAclValueValuesEnum: Apply a predefined set of access
@@ -1336,18 +1981,22 @@ class StorageObjectsCopyRequest(_messages.Message):
     destinationPredefinedAcl: Apply a predefined set of access controls to the
       destination object.
     ifGenerationMatch: Makes the operation conditional on whether the
-      destination object's current generation matches the given value.
+      destination object's current generation matches the given value. Setting
+      to 0 makes the operation succeed only if there are no live versions of
+      the object.
     ifGenerationNotMatch: Makes the operation conditional on whether the
       destination object's current generation does not match the given value.
+      If no live object exists, the precondition fails. Setting to 0 makes the
+      operation succeed only if there is a live version of the object.
     ifMetagenerationMatch: Makes the operation conditional on whether the
       destination object's current metageneration matches the given value.
     ifMetagenerationNotMatch: Makes the operation conditional on whether the
       destination object's current metageneration does not match the given
       value.
     ifSourceGenerationMatch: Makes the operation conditional on whether the
-      source object's generation matches the given value.
+      source object's current generation matches the given value.
     ifSourceGenerationNotMatch: Makes the operation conditional on whether the
-      source object's generation does not match the given value.
+      source object's current generation does not match the given value.
     ifSourceMetagenerationMatch: Makes the operation conditional on whether
       the source object's current metageneration matches the given value.
     ifSourceMetagenerationNotMatch: Makes the operation conditional on whether
@@ -1361,10 +2010,12 @@ class StorageObjectsCopyRequest(_messages.Message):
       object (as opposed to the latest version, the default).
     sourceObject: Name of the source object. For information about how to URL
       encode object names to be path safe, see Encoding URI Path Parts.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   class DestinationPredefinedAclValueValuesEnum(_messages.Enum):
-    """Apply a predefined set of access controls to the destination object.
+    r"""Apply a predefined set of access controls to the destination object.
 
     Values:
       authenticatedRead: Object owner gets OWNER access, and
@@ -1387,12 +2038,12 @@ class StorageObjectsCopyRequest(_messages.Message):
     publicRead = 5
 
   class ProjectionValueValuesEnum(_messages.Enum):
-    """Set of properties to return. Defaults to noAcl, unless the object
+    r"""Set of properties to return. Defaults to noAcl, unless the object
     resource specifies the acl property, when it defaults to full.
 
     Values:
       full: Include all properties.
-      noAcl: Omit the acl property.
+      noAcl: Omit the owner, acl property.
     """
     full = 0
     noAcl = 1
@@ -1413,25 +2064,31 @@ class StorageObjectsCopyRequest(_messages.Message):
   sourceBucket = _messages.StringField(14, required=True)
   sourceGeneration = _messages.IntegerField(15)
   sourceObject = _messages.StringField(16, required=True)
+  userProject = _messages.StringField(17)
 
 
 class StorageObjectsDeleteRequest(_messages.Message):
-  """A StorageObjectsDeleteRequest object.
+  r"""A StorageObjectsDeleteRequest object.
 
   Fields:
     bucket: Name of the bucket in which the object resides.
     generation: If present, permanently deletes a specific revision of this
       object (as opposed to the latest version, the default).
     ifGenerationMatch: Makes the operation conditional on whether the object's
-      current generation matches the given value.
+      current generation matches the given value. Setting to 0 makes the
+      operation succeed only if there are no live versions of the object.
     ifGenerationNotMatch: Makes the operation conditional on whether the
-      object's current generation does not match the given value.
+      object's current generation does not match the given value. If no live
+      object exists, the precondition fails. Setting to 0 makes the operation
+      succeed only if there is a live version of the object.
     ifMetagenerationMatch: Makes the operation conditional on whether the
       object's current metageneration matches the given value.
     ifMetagenerationNotMatch: Makes the operation conditional on whether the
       object's current metageneration does not match the given value.
     object: Name of the object. For information about how to URL encode object
       names to be path safe, see Encoding URI Path Parts.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   bucket = _messages.StringField(1, required=True)
@@ -1441,14 +2098,34 @@ class StorageObjectsDeleteRequest(_messages.Message):
   ifMetagenerationMatch = _messages.IntegerField(5)
   ifMetagenerationNotMatch = _messages.IntegerField(6)
   object = _messages.StringField(7, required=True)
+  userProject = _messages.StringField(8)
 
 
 class StorageObjectsDeleteResponse(_messages.Message):
-  """An empty StorageObjectsDelete response."""
+  r"""An empty StorageObjectsDelete response."""
+
+
+class StorageObjectsGetIamPolicyRequest(_messages.Message):
+  r"""A StorageObjectsGetIamPolicyRequest object.
+
+  Fields:
+    bucket: Name of the bucket in which the object resides.
+    generation: If present, selects a specific revision of this object (as
+      opposed to the latest version, the default).
+    object: Name of the object. For information about how to URL encode object
+      names to be path safe, see Encoding URI Path Parts.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
+  """
+
+  bucket = _messages.StringField(1, required=True)
+  generation = _messages.IntegerField(2)
+  object = _messages.StringField(3, required=True)
+  userProject = _messages.StringField(4)
 
 
 class StorageObjectsGetRequest(_messages.Message):
-  """A StorageObjectsGetRequest object.
+  r"""A StorageObjectsGetRequest object.
 
   Enums:
     ProjectionValueValuesEnum: Set of properties to return. Defaults to noAcl.
@@ -1458,9 +2135,12 @@ class StorageObjectsGetRequest(_messages.Message):
     generation: If present, selects a specific revision of this object (as
       opposed to the latest version, the default).
     ifGenerationMatch: Makes the operation conditional on whether the object's
-      generation matches the given value.
+      current generation matches the given value. Setting to 0 makes the
+      operation succeed only if there are no live versions of the object.
     ifGenerationNotMatch: Makes the operation conditional on whether the
-      object's generation does not match the given value.
+      object's current generation does not match the given value. If no live
+      object exists, the precondition fails. Setting to 0 makes the operation
+      succeed only if there is a live version of the object.
     ifMetagenerationMatch: Makes the operation conditional on whether the
       object's current metageneration matches the given value.
     ifMetagenerationNotMatch: Makes the operation conditional on whether the
@@ -1468,14 +2148,16 @@ class StorageObjectsGetRequest(_messages.Message):
     object: Name of the object. For information about how to URL encode object
       names to be path safe, see Encoding URI Path Parts.
     projection: Set of properties to return. Defaults to noAcl.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   class ProjectionValueValuesEnum(_messages.Enum):
-    """Set of properties to return. Defaults to noAcl.
+    r"""Set of properties to return. Defaults to noAcl.
 
     Values:
       full: Include all properties.
-      noAcl: Omit the acl property.
+      noAcl: Omit the owner, acl property.
     """
     full = 0
     noAcl = 1
@@ -1488,10 +2170,11 @@ class StorageObjectsGetRequest(_messages.Message):
   ifMetagenerationNotMatch = _messages.IntegerField(6)
   object = _messages.StringField(7, required=True)
   projection = _messages.EnumField('ProjectionValueValuesEnum', 8)
+  userProject = _messages.StringField(9)
 
 
 class StorageObjectsInsertRequest(_messages.Message):
-  """A StorageObjectsInsertRequest object.
+  r"""A StorageObjectsInsertRequest object.
 
   Enums:
     PredefinedAclValueValuesEnum: Apply a predefined set of access controls to
@@ -1509,13 +2192,20 @@ class StorageObjectsInsertRequest(_messages.Message):
       an object with uploadType=media to indicate the encoding of the content
       being uploaded.
     ifGenerationMatch: Makes the operation conditional on whether the object's
-      current generation matches the given value.
+      current generation matches the given value. Setting to 0 makes the
+      operation succeed only if there are no live versions of the object.
     ifGenerationNotMatch: Makes the operation conditional on whether the
-      object's current generation does not match the given value.
+      object's current generation does not match the given value. If no live
+      object exists, the precondition fails. Setting to 0 makes the operation
+      succeed only if there is a live version of the object.
     ifMetagenerationMatch: Makes the operation conditional on whether the
       object's current metageneration matches the given value.
     ifMetagenerationNotMatch: Makes the operation conditional on whether the
       object's current metageneration does not match the given value.
+    kmsKeyName: Resource name of the Cloud KMS key, of the form projects/my-
+      project/locations/global/keyRings/my-kr/cryptoKeys/my-key, that will be
+      used to encrypt the object. Overrides the object metadata's kms_key_name
+      value, if any.
     name: Name of the object. Required when the object metadata is not
       otherwise provided. Overrides the object metadata's name value, if any.
       For information about how to URL encode object names to be path safe,
@@ -1524,10 +2214,12 @@ class StorageObjectsInsertRequest(_messages.Message):
     predefinedAcl: Apply a predefined set of access controls to this object.
     projection: Set of properties to return. Defaults to noAcl, unless the
       object resource specifies the acl property, when it defaults to full.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   class PredefinedAclValueValuesEnum(_messages.Enum):
-    """Apply a predefined set of access controls to this object.
+    r"""Apply a predefined set of access controls to this object.
 
     Values:
       authenticatedRead: Object owner gets OWNER access, and
@@ -1550,12 +2242,12 @@ class StorageObjectsInsertRequest(_messages.Message):
     publicRead = 5
 
   class ProjectionValueValuesEnum(_messages.Enum):
-    """Set of properties to return. Defaults to noAcl, unless the object
+    r"""Set of properties to return. Defaults to noAcl, unless the object
     resource specifies the acl property, when it defaults to full.
 
     Values:
       full: Include all properties.
-      noAcl: Omit the acl property.
+      noAcl: Omit the owner, acl property.
     """
     full = 0
     noAcl = 1
@@ -1566,14 +2258,16 @@ class StorageObjectsInsertRequest(_messages.Message):
   ifGenerationNotMatch = _messages.IntegerField(4)
   ifMetagenerationMatch = _messages.IntegerField(5)
   ifMetagenerationNotMatch = _messages.IntegerField(6)
-  name = _messages.StringField(7)
-  object = _messages.MessageField('Object', 8)
-  predefinedAcl = _messages.EnumField('PredefinedAclValueValuesEnum', 9)
-  projection = _messages.EnumField('ProjectionValueValuesEnum', 10)
+  kmsKeyName = _messages.StringField(7)
+  name = _messages.StringField(8)
+  object = _messages.MessageField('Object', 9)
+  predefinedAcl = _messages.EnumField('PredefinedAclValueValuesEnum', 10)
+  projection = _messages.EnumField('ProjectionValueValuesEnum', 11)
+  userProject = _messages.StringField(12)
 
 
 class StorageObjectsListRequest(_messages.Message):
-  """A StorageObjectsListRequest object.
+  r"""A StorageObjectsListRequest object.
 
   Enums:
     ProjectionValueValuesEnum: Set of properties to return. Defaults to noAcl.
@@ -1585,38 +2279,46 @@ class StorageObjectsListRequest(_messages.Message):
       delimiter. Objects whose names, aside from the prefix, contain delimiter
       will have their name, truncated after the delimiter, returned in
       prefixes. Duplicate prefixes are omitted.
-    maxResults: Maximum number of items plus prefixes to return. As duplicate
-      prefixes are omitted, fewer total results may be returned than
-      requested. The default value of this parameter is 1,000 items.
+    includeTrailingDelimiter: If true, objects that end in exactly one
+      instance of delimiter will have their metadata included in items in
+      addition to prefixes.
+    maxResults: Maximum number of items plus prefixes to return in a single
+      page of responses. As duplicate prefixes are omitted, fewer total
+      results may be returned than requested. The service will use this
+      parameter or 1,000 items, whichever is smaller.
     pageToken: A previously-returned page token representing part of the
       larger set of results to view.
     prefix: Filter results to objects whose names begin with this prefix.
     projection: Set of properties to return. Defaults to noAcl.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
     versions: If true, lists all versions of an object as distinct results.
       The default is false. For more information, see Object Versioning.
   """
 
   class ProjectionValueValuesEnum(_messages.Enum):
-    """Set of properties to return. Defaults to noAcl.
+    r"""Set of properties to return. Defaults to noAcl.
 
     Values:
       full: Include all properties.
-      noAcl: Omit the acl property.
+      noAcl: Omit the owner, acl property.
     """
     full = 0
     noAcl = 1
 
   bucket = _messages.StringField(1, required=True)
   delimiter = _messages.StringField(2)
-  maxResults = _messages.IntegerField(3, variant=_messages.Variant.UINT32)
-  pageToken = _messages.StringField(4)
-  prefix = _messages.StringField(5)
-  projection = _messages.EnumField('ProjectionValueValuesEnum', 6)
-  versions = _messages.BooleanField(7)
+  includeTrailingDelimiter = _messages.BooleanField(3)
+  maxResults = _messages.IntegerField(4, variant=_messages.Variant.UINT32, default=1000)
+  pageToken = _messages.StringField(5)
+  prefix = _messages.StringField(6)
+  projection = _messages.EnumField('ProjectionValueValuesEnum', 7)
+  userProject = _messages.StringField(8)
+  versions = _messages.BooleanField(9)
 
 
 class StorageObjectsPatchRequest(_messages.Message):
-  """A StorageObjectsPatchRequest object.
+  r"""A StorageObjectsPatchRequest object.
 
   Enums:
     PredefinedAclValueValuesEnum: Apply a predefined set of access controls to
@@ -1628,9 +2330,12 @@ class StorageObjectsPatchRequest(_messages.Message):
     generation: If present, selects a specific revision of this object (as
       opposed to the latest version, the default).
     ifGenerationMatch: Makes the operation conditional on whether the object's
-      current generation matches the given value.
+      current generation matches the given value. Setting to 0 makes the
+      operation succeed only if there are no live versions of the object.
     ifGenerationNotMatch: Makes the operation conditional on whether the
-      object's current generation does not match the given value.
+      object's current generation does not match the given value. If no live
+      object exists, the precondition fails. Setting to 0 makes the operation
+      succeed only if there is a live version of the object.
     ifMetagenerationMatch: Makes the operation conditional on whether the
       object's current metageneration matches the given value.
     ifMetagenerationNotMatch: Makes the operation conditional on whether the
@@ -1640,10 +2345,12 @@ class StorageObjectsPatchRequest(_messages.Message):
     objectResource: A Object resource to be passed as the request body.
     predefinedAcl: Apply a predefined set of access controls to this object.
     projection: Set of properties to return. Defaults to full.
+    userProject: The project to be billed for this request, for Requester Pays
+      buckets.
   """
 
   class PredefinedAclValueValuesEnum(_messages.Enum):
-    """Apply a predefined set of access controls to this object.
+    r"""Apply a predefined set of access controls to this object.
 
     Values:
       authenticatedRead: Object owner gets OWNER access, and
@@ -1666,11 +2373,11 @@ class StorageObjectsPatchRequest(_messages.Message):
     publicRead = 5
 
   class ProjectionValueValuesEnum(_messages.Enum):
-    """Set of properties to return. Defaults to full.
+    r"""Set of properties to return. Defaults to full.
 
     Values:
       full: Include all properties.
-      noAcl: Omit the acl property.
+      noAcl: Omit the owner, acl property.
     """
     full = 0
     noAcl = 1
@@ -1685,10 +2392,11 @@ class StorageObjectsPatchRequest(_messages.Message):
   objectResource = _messages.MessageField('Object', 8)
   predefinedAcl = _messages.EnumField('PredefinedAclValueValuesEnum', 9)
   projection = _messages.EnumField('ProjectionValueValuesEnum', 10)
+  userProject = _messages.StringField(11)
 
 
 class StorageObjectsRewriteRequest(_messages.Message):
-  """A StorageObjectsRewriteRequest object.
+  r"""A StorageObjectsRewriteRequest object.
 
   Enums:
     DestinationPredefinedAclValueValuesEnum: Apply a predefined set of access
@@ -1700,25 +2408,32 @@ class StorageObjectsRewriteRequest(_messages.Message):
   Fields:
     destinationBucket: Name of the bucket in which to store the new object.
       Overrides the provided object metadata's bucket value, if any.
+    destinationKmsKeyName: Resource name of the Cloud KMS key, of the form
+      projects/my-project/locations/global/keyRings/my-kr/cryptoKeys/my-key,
+      that will be used to encrypt the object. Overrides the object metadata's
+      kms_key_name value, if any.
     destinationObject: Name of the new object. Required when the object
       metadata is not otherwise provided. Overrides the object metadata's name
       value, if any. For information about how to URL encode object names to
       be path safe, see Encoding URI Path Parts.
     destinationPredefinedAcl: Apply a predefined set of access controls to the
       destination object.
-    ifGenerationMatch: Makes the operation conditional on whether the
-      destination object's current generation matches the given value.
+    ifGenerationMatch: Makes the operation conditional on whether the object's
+      current generation matches the given value. Setting to 0 makes the
+      operation succeed only if there are no live versions of the object.
     ifGenerationNotMatch: Makes the operation conditional on whether the
-      destination object's current generation does not match the given value.
+      object's current generation does not match the given value. If no live
+      object exists, the precondition fails. Setting to 0 makes the operation
+      succeed only if there is a live version of the object.
     ifMetagenerationMatch: Makes the operation conditional on whether the
       destination object's current metageneration matches the given value.
     ifMetagenerationNotMatch: Makes the operation conditional on whether the
       destination object's current metageneration does not match the given
       value.
     ifSourceGenerationMatch: Makes the operation conditional on whether the
-      source object's generation matches the given value.
+      source object's current generation matches the given value.
     ifSourceGenerationNotMatch: Makes the operation conditional on whether the
-      source object's generation does not match the given value.
+      source object's current generation does not match the given value.
     ifSourceMetagenerationMatch: Makes the operation conditional on whether
       the source object's current metageneration matches the given value.
     ifSourceMetagenerationNotMatch: Makes the operation conditional on whether
@@ -1745,10 +2460,12 @@ class StorageObjectsRewriteRequest(_messages.Message):
       object (as opposed to the latest version, the default).
     sourceObject: Name of the source object. For information about how to URL
       encode object names to be path safe, see Encoding URI Path Parts.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   class DestinationPredefinedAclValueValuesEnum(_messages.Enum):
-    """Apply a predefined set of access controls to the destination object.
+    r"""Apply a predefined set of access controls to the destination object.
 
     Values:
       authenticatedRead: Object owner gets OWNER access, and
@@ -1771,38 +2488,82 @@ class StorageObjectsRewriteRequest(_messages.Message):
     publicRead = 5
 
   class ProjectionValueValuesEnum(_messages.Enum):
-    """Set of properties to return. Defaults to noAcl, unless the object
+    r"""Set of properties to return. Defaults to noAcl, unless the object
     resource specifies the acl property, when it defaults to full.
 
     Values:
       full: Include all properties.
-      noAcl: Omit the acl property.
+      noAcl: Omit the owner, acl property.
     """
     full = 0
     noAcl = 1
 
   destinationBucket = _messages.StringField(1, required=True)
-  destinationObject = _messages.StringField(2, required=True)
-  destinationPredefinedAcl = _messages.EnumField('DestinationPredefinedAclValueValuesEnum', 3)
-  ifGenerationMatch = _messages.IntegerField(4)
-  ifGenerationNotMatch = _messages.IntegerField(5)
-  ifMetagenerationMatch = _messages.IntegerField(6)
-  ifMetagenerationNotMatch = _messages.IntegerField(7)
-  ifSourceGenerationMatch = _messages.IntegerField(8)
-  ifSourceGenerationNotMatch = _messages.IntegerField(9)
-  ifSourceMetagenerationMatch = _messages.IntegerField(10)
-  ifSourceMetagenerationNotMatch = _messages.IntegerField(11)
-  maxBytesRewrittenPerCall = _messages.IntegerField(12)
-  object = _messages.MessageField('Object', 13)
-  projection = _messages.EnumField('ProjectionValueValuesEnum', 14)
-  rewriteToken = _messages.StringField(15)
-  sourceBucket = _messages.StringField(16, required=True)
-  sourceGeneration = _messages.IntegerField(17)
-  sourceObject = _messages.StringField(18, required=True)
+  destinationKmsKeyName = _messages.StringField(2)
+  destinationObject = _messages.StringField(3, required=True)
+  destinationPredefinedAcl = _messages.EnumField('DestinationPredefinedAclValueValuesEnum', 4)
+  ifGenerationMatch = _messages.IntegerField(5)
+  ifGenerationNotMatch = _messages.IntegerField(6)
+  ifMetagenerationMatch = _messages.IntegerField(7)
+  ifMetagenerationNotMatch = _messages.IntegerField(8)
+  ifSourceGenerationMatch = _messages.IntegerField(9)
+  ifSourceGenerationNotMatch = _messages.IntegerField(10)
+  ifSourceMetagenerationMatch = _messages.IntegerField(11)
+  ifSourceMetagenerationNotMatch = _messages.IntegerField(12)
+  maxBytesRewrittenPerCall = _messages.IntegerField(13)
+  object = _messages.MessageField('Object', 14)
+  projection = _messages.EnumField('ProjectionValueValuesEnum', 15)
+  rewriteToken = _messages.StringField(16)
+  sourceBucket = _messages.StringField(17, required=True)
+  sourceGeneration = _messages.IntegerField(18)
+  sourceObject = _messages.StringField(19, required=True)
+  userProject = _messages.StringField(20)
+
+
+class StorageObjectsSetIamPolicyRequest(_messages.Message):
+  r"""A StorageObjectsSetIamPolicyRequest object.
+
+  Fields:
+    bucket: Name of the bucket in which the object resides.
+    generation: If present, selects a specific revision of this object (as
+      opposed to the latest version, the default).
+    object: Name of the object. For information about how to URL encode object
+      names to be path safe, see Encoding URI Path Parts.
+    policy: A Policy resource to be passed as the request body.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
+  """
+
+  bucket = _messages.StringField(1, required=True)
+  generation = _messages.IntegerField(2)
+  object = _messages.StringField(3, required=True)
+  policy = _messages.MessageField('Policy', 4)
+  userProject = _messages.StringField(5)
+
+
+class StorageObjectsTestIamPermissionsRequest(_messages.Message):
+  r"""A StorageObjectsTestIamPermissionsRequest object.
+
+  Fields:
+    bucket: Name of the bucket in which the object resides.
+    generation: If present, selects a specific revision of this object (as
+      opposed to the latest version, the default).
+    object: Name of the object. For information about how to URL encode object
+      names to be path safe, see Encoding URI Path Parts.
+    permissions: Permissions to test.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
+  """
+
+  bucket = _messages.StringField(1, required=True)
+  generation = _messages.IntegerField(2)
+  object = _messages.StringField(3, required=True)
+  permissions = _messages.StringField(4, required=True)
+  userProject = _messages.StringField(5)
 
 
 class StorageObjectsUpdateRequest(_messages.Message):
-  """A StorageObjectsUpdateRequest object.
+  r"""A StorageObjectsUpdateRequest object.
 
   Enums:
     PredefinedAclValueValuesEnum: Apply a predefined set of access controls to
@@ -1814,9 +2575,12 @@ class StorageObjectsUpdateRequest(_messages.Message):
     generation: If present, selects a specific revision of this object (as
       opposed to the latest version, the default).
     ifGenerationMatch: Makes the operation conditional on whether the object's
-      current generation matches the given value.
+      current generation matches the given value. Setting to 0 makes the
+      operation succeed only if there are no live versions of the object.
     ifGenerationNotMatch: Makes the operation conditional on whether the
-      object's current generation does not match the given value.
+      object's current generation does not match the given value. If no live
+      object exists, the precondition fails. Setting to 0 makes the operation
+      succeed only if there is a live version of the object.
     ifMetagenerationMatch: Makes the operation conditional on whether the
       object's current metageneration matches the given value.
     ifMetagenerationNotMatch: Makes the operation conditional on whether the
@@ -1826,10 +2590,12 @@ class StorageObjectsUpdateRequest(_messages.Message):
     objectResource: A Object resource to be passed as the request body.
     predefinedAcl: Apply a predefined set of access controls to this object.
     projection: Set of properties to return. Defaults to full.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
   """
 
   class PredefinedAclValueValuesEnum(_messages.Enum):
-    """Apply a predefined set of access controls to this object.
+    r"""Apply a predefined set of access controls to this object.
 
     Values:
       authenticatedRead: Object owner gets OWNER access, and
@@ -1852,11 +2618,11 @@ class StorageObjectsUpdateRequest(_messages.Message):
     publicRead = 5
 
   class ProjectionValueValuesEnum(_messages.Enum):
-    """Set of properties to return. Defaults to full.
+    r"""Set of properties to return. Defaults to full.
 
     Values:
       full: Include all properties.
-      noAcl: Omit the acl property.
+      noAcl: Omit the owner, acl property.
     """
     full = 0
     noAcl = 1
@@ -1871,10 +2637,11 @@ class StorageObjectsUpdateRequest(_messages.Message):
   objectResource = _messages.MessageField('Object', 8)
   predefinedAcl = _messages.EnumField('PredefinedAclValueValuesEnum', 9)
   projection = _messages.EnumField('ProjectionValueValuesEnum', 10)
+  userProject = _messages.StringField(11)
 
 
 class StorageObjectsWatchAllRequest(_messages.Message):
-  """A StorageObjectsWatchAllRequest object.
+  r"""A StorageObjectsWatchAllRequest object.
 
   Enums:
     ProjectionValueValuesEnum: Set of properties to return. Defaults to noAcl.
@@ -1887,23 +2654,29 @@ class StorageObjectsWatchAllRequest(_messages.Message):
       delimiter. Objects whose names, aside from the prefix, contain delimiter
       will have their name, truncated after the delimiter, returned in
       prefixes. Duplicate prefixes are omitted.
-    maxResults: Maximum number of items plus prefixes to return. As duplicate
-      prefixes are omitted, fewer total results may be returned than
-      requested. The default value of this parameter is 1,000 items.
+    includeTrailingDelimiter: If true, objects that end in exactly one
+      instance of delimiter will have their metadata included in items in
+      addition to prefixes.
+    maxResults: Maximum number of items plus prefixes to return in a single
+      page of responses. As duplicate prefixes are omitted, fewer total
+      results may be returned than requested. The service will use this
+      parameter or 1,000 items, whichever is smaller.
     pageToken: A previously-returned page token representing part of the
       larger set of results to view.
     prefix: Filter results to objects whose names begin with this prefix.
     projection: Set of properties to return. Defaults to noAcl.
+    userProject: The project to be billed for this request. Required for
+      Requester Pays buckets.
     versions: If true, lists all versions of an object as distinct results.
       The default is false. For more information, see Object Versioning.
   """
 
   class ProjectionValueValuesEnum(_messages.Enum):
-    """Set of properties to return. Defaults to noAcl.
+    r"""Set of properties to return. Defaults to noAcl.
 
     Values:
       full: Include all properties.
-      noAcl: Omit the acl property.
+      noAcl: Omit the owner, acl property.
     """
     full = 0
     noAcl = 1
@@ -1911,8 +2684,47 @@ class StorageObjectsWatchAllRequest(_messages.Message):
   bucket = _messages.StringField(1, required=True)
   channel = _messages.MessageField('Channel', 2)
   delimiter = _messages.StringField(3)
-  maxResults = _messages.IntegerField(4, variant=_messages.Variant.UINT32)
-  pageToken = _messages.StringField(5)
-  prefix = _messages.StringField(6)
-  projection = _messages.EnumField('ProjectionValueValuesEnum', 7)
-  versions = _messages.BooleanField(8)
+  includeTrailingDelimiter = _messages.BooleanField(4)
+  maxResults = _messages.IntegerField(5, variant=_messages.Variant.UINT32, default=1000)
+  pageToken = _messages.StringField(6)
+  prefix = _messages.StringField(7)
+  projection = _messages.EnumField('ProjectionValueValuesEnum', 8)
+  userProject = _messages.StringField(9)
+  versions = _messages.BooleanField(10)
+
+
+class StorageProjectsServiceAccountGetRequest(_messages.Message):
+  r"""A StorageProjectsServiceAccountGetRequest object.
+
+  Fields:
+    projectId: Project ID
+    userProject: The project to be billed for this request.
+  """
+
+  projectId = _messages.StringField(1, required=True)
+  userProject = _messages.StringField(2)
+
+
+class TestIamPermissionsResponse(_messages.Message):
+  r"""A storage.(buckets|objects).testIamPermissions response.
+
+  Fields:
+    kind: The kind of item this is.
+    permissions: The permissions held by the caller. Permissions are always of
+      the format storage.resource.capability, where resource is one of buckets
+      or objects. The supported permissions are as follows:   -
+      storage.buckets.delete - Delete bucket.   - storage.buckets.get - Read
+      bucket metadata.   - storage.buckets.getIamPolicy - Read bucket IAM
+      policy.   - storage.buckets.create - Create bucket.   -
+      storage.buckets.list - List buckets.   - storage.buckets.setIamPolicy -
+      Update bucket IAM policy.   - storage.buckets.update - Update bucket
+      metadata.   - storage.objects.delete - Delete object.   -
+      storage.objects.get - Read object data and metadata.   -
+      storage.objects.getIamPolicy - Read object IAM policy.   -
+      storage.objects.create - Create object.   - storage.objects.list - List
+      objects.   - storage.objects.setIamPolicy - Update object IAM policy.
+      - storage.objects.update - Update object metadata.
+  """
+
+  kind = _messages.StringField(1, default=u'storage#testIamPermissionsResponse')
+  permissions = _messages.StringField(2, repeated=True)

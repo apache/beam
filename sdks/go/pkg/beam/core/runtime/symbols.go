@@ -16,33 +16,51 @@
 package runtime
 
 import (
-	"fmt"
 	"os"
 	"reflect"
 	"sync"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/symtab"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 var (
+	// Resolver is the accessible symbol resolver the runtime uses to find functions.
 	Resolver SymbolResolver
 	cache    = make(map[string]interface{})
 	mu       sync.Mutex
 )
 
 func init() {
+	// defer initialization of the default resolver. This way
+	// the symbol table isn't read in unless strictly necessary.
+	Resolver = &deferedResolver{initFn: initResolver}
+}
+
+type deferedResolver struct {
+	initFn func() SymbolResolver
+	r      SymbolResolver
+	init   sync.Once
+}
+
+func (d *deferedResolver) Sym2Addr(name string) (uintptr, error) {
+	d.init.Do(func() {
+		d.r = d.initFn()
+	})
+	return d.r.Sym2Addr(name)
+}
+
+func initResolver() SymbolResolver {
 	// First try the Linux location, since it's the most reliable.
 	if r, err := symtab.New("/proc/self/exe"); err == nil {
-		Resolver = r
-		return
+		return r
 	}
 	// For other OS's this works in most cases we need.
 	if r, err := symtab.New(os.Args[0]); err == nil {
-		Resolver = r
-		return
+		return r
 	}
-	Resolver = failResolver(false)
+	return failResolver(false)
 }
 
 // SymbolResolver resolves a symbol to an unsafe address.
@@ -61,9 +79,7 @@ func RegisterFunction(fn interface{}) {
 	}
 
 	key := reflectx.FunctionName(fn)
-	if _, exists := cache[key]; exists {
-		panic(fmt.Sprintf("Function %v already registred", key))
-	}
+	// If the function was registered already, the key and value will be the same anyway.
 	cache[key] = fn
 }
 
@@ -89,5 +105,5 @@ func ResolveFunction(name string, t reflect.Type) (interface{}, error) {
 type failResolver bool
 
 func (p failResolver) Sym2Addr(name string) (uintptr, error) {
-	return 0, fmt.Errorf("%v not found. Use runtime.RegisterFunction in unit tests", name)
+	return 0, errors.Errorf("%v not found. Use runtime.RegisterFunction in unit tests", name)
 }

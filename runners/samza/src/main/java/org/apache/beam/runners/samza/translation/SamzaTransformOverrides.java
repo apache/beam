@@ -15,16 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.translation;
 
-import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
+import org.apache.beam.runners.core.construction.UnsupportedOverrideFactory;
 import org.apache.beam.sdk.runners.PTransformOverride;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
 /** {@link org.apache.beam.sdk.transforms.PTransform} overrides for Samza runner. */
 public class SamzaTransformOverrides {
@@ -41,6 +41,12 @@ public class SamzaTransformOverrides {
             PTransformOverride.of(
                 PTransformMatchers.splittableProcessKeyedBounded(),
                 new SplittableParDoNaiveBounded.OverrideFactory()))
+        // TODO: [BEAM-5362] Support @RequiresStableInput on Samza runner
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.requiresStableInputParDoMulti(),
+                UnsupportedOverrideFactory.withMessage(
+                    "Samza runner currently doesn't support @RequiresStableInput annotation.")))
         .build();
   }
 }

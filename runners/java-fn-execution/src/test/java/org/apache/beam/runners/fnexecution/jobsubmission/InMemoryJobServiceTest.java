@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsNull.notNullValue;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -30,8 +30,8 @@ import java.util.ArrayList;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -58,7 +58,8 @@ public class InMemoryJobServiceTest {
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
     stagingServiceDescriptor = Endpoints.ApiServiceDescriptor.getDefaultInstance();
-    service = InMemoryJobService.create(stagingServiceDescriptor, session -> "token", invoker);
+    service =
+        InMemoryJobService.create(stagingServiceDescriptor, session -> "token", null, invoker);
     when(invoker.invoke(TEST_PIPELINE, TEST_OPTIONS, TEST_RETRIEVAL_TOKEN)).thenReturn(invocation);
     when(invocation.getId()).thenReturn(TEST_JOB_ID);
   }
@@ -105,6 +106,9 @@ public class InMemoryJobServiceTest {
     assertThat(runRecorder.values, hasSize(1));
     JobApi.RunJobResponse runResponse = runRecorder.values.get(0);
     assertThat(runResponse.getJobId(), is(TEST_JOB_ID));
+
+    verify(invocation, times(1)).addStateListener(any());
+    verify(invocation, times(1)).start();
   }
 
   private static class RecordingObserver<T> implements StreamObserver<T> {

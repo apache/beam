@@ -17,16 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 
-import static com.google.common.collect.Iterables.size;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toSet;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.VARCHAR;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMessageToRow.DLQ_TAG;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMessageToRow.MAIN_TAG;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables.size;
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Set;
@@ -34,6 +32,7 @@ import java.util.function.Function;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -43,6 +42,8 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -55,7 +56,11 @@ public class PubsubMessageToRowTest implements Serializable {
 
   @Test
   public void testConvertsMessages() {
-    Schema payloadSchema = Schema.builder().addInt32Field("id").addStringField("name").build();
+    Schema payloadSchema =
+        Schema.builder()
+            .addNullableField("id", FieldType.INT32)
+            .addNullableField("name", FieldType.STRING)
+            .build();
 
     Schema messageSchema =
         Schema.builder()
@@ -72,7 +77,8 @@ public class PubsubMessageToRowTest implements Serializable {
                     message(1, map("attr", "val"), "{ \"id\" : 3, \"name\" : \"foo\" }"),
                     message(2, map("bttr", "vbl"), "{ \"name\" : \"baz\", \"id\" : 5 }"),
                     message(3, map("cttr", "vcl"), "{ \"id\" : 7, \"name\" : \"bar\" }"),
-                    message(4, map("dttr", "vdl"), "{ \"name\" : \"qaz\", \"id\" : 8 }")))
+                    message(4, map("dttr", "vdl"), "{ \"name\" : \"qaz\", \"id\" : 8 }"),
+                    message(4, map("dttr", "vdl"), "{ \"name\" : null, \"id\" : null }")))
             .apply(
                 "convert",
                 ParDo.of(
@@ -94,6 +100,9 @@ public class PubsubMessageToRowTest implements Serializable {
                 .build(),
             Row.withSchema(messageSchema)
                 .addValues(ts(4), map("dttr", "vdl"), row(payloadSchema, 8, "qaz"))
+                .build(),
+            Row.withSchema(messageSchema)
+                .addValues(ts(4), map("dttr", "vdl"), row(payloadSchema, null, null))
                 .build());
 
     pipeline.run();
@@ -157,8 +166,8 @@ public class PubsubMessageToRowTest implements Serializable {
     pipeline.run();
   }
 
-  private Row row(Schema schema, int id, String name) {
-    return Row.withSchema(schema).addValues(id, name).build();
+  private Row row(Schema schema, Object... objects) {
+    return Row.withSchema(schema).addValues(objects).build();
   }
 
   private Map<String, String> map(String attr, String val) {
@@ -172,8 +181,8 @@ public class PubsubMessageToRowTest implements Serializable {
         new PubsubMessage(payload.getBytes(UTF_8), attributes), ts(timestamp));
   }
 
-  private Instant ts(long timestamp) {
-    return new DateTime(timestamp).toInstant();
+  private Instant ts(long epochMills) {
+    return new DateTime(epochMills).toInstant();
   }
 
   private static <V> Set<V> convertToSet(

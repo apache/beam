@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core.triggers;
 
-import com.google.common.base.Joiner;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
@@ -28,6 +27,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 import org.joda.time.Instant;
 
 /**

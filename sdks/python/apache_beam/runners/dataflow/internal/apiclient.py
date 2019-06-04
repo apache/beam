@@ -21,27 +21,28 @@ Dataflow client utility functions."""
 
 from __future__ import absolute_import
 
-from builtins import object
 import codecs
 import getpass
+import io
 import json
 import logging
 import os
 import re
+import sys
 import tempfile
 import time
 from datetime import datetime
-import io
 
+from builtins import object
 from past.builtins import unicode
 
-import pkg_resources
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
 
 from apache_beam import version as beam_version
 from apache_beam.internal.gcp.auth import get_service_credentials
 from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp.internal.clients import storage
 from apache_beam.options.pipeline_options import DebugOptions
@@ -51,9 +52,10 @@ from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow
 from apache_beam.runners.dataflow.internal.names import PropertyNames
+from apache_beam.runners.internal import names as shared_names
 from apache_beam.runners.portability.stager import Stager
-from apache_beam.transforms import cy_combiners
 from apache_beam.transforms import DataflowDistributionCounter
+from apache_beam.transforms import cy_combiners
 from apache_beam.transforms.display import DisplayData
 from apache_beam.utils import retry
 
@@ -114,7 +116,7 @@ class Step(object):
       ValueError: if the tag does not exist within outputs.
     """
     outputs = self._get_outputs()
-    if tag is None:
+    if tag is None or len(outputs) == 1:
       return outputs[0]
     else:
       name = '%s_%s' % (PropertyNames.OUT, tag)
@@ -148,17 +150,18 @@ class Environment(object):
     if self.google_cloud_options.service_account_email:
       self.proto.serviceAccountEmail = (
           self.google_cloud_options.service_account_email)
-
-    sdk_name, version_string = get_sdk_name_and_version()
+    if self.google_cloud_options.dataflow_kms_key:
+      self.proto.serviceKmsKeyName = self.google_cloud_options.dataflow_kms_key
 
     self.proto.userAgent.additionalProperties.extend([
         dataflow.Environment.UserAgentValue.AdditionalProperty(
             key='name',
-            value=to_json_value(sdk_name)),
+            value=to_json_value(self._get_python_sdk_name())),
         dataflow.Environment.UserAgentValue.AdditionalProperty(
-            key='version', value=to_json_value(version_string))])
+            key='version', value=to_json_value(beam_version.__version__))])
     # Version information.
     self.proto.version = dataflow.Environment.VersionValue()
+    _verify_interpreter_version_is_supported(options)
     if self.standard_options.streaming:
       job_type = 'FNAPI_STREAMING'
     else:
@@ -174,19 +177,36 @@ class Environment(object):
             key='major', value=to_json_value(environment_version))])
     # TODO: Use enumerated type instead of strings for job types.
     if job_type.startswith('FNAPI_'):
+      self.debug_options.experiments = self.debug_options.experiments or []
+      debug_options_experiments = self.debug_options.experiments
       runner_harness_override = (
           get_runner_harness_container_image())
-      self.debug_options.experiments = self.debug_options.experiments or []
       if runner_harness_override:
-        self.debug_options.experiments.append(
+        debug_options_experiments.append(
             'runner_harness_container_image=' + runner_harness_override)
-      # Add use_multiple_sdk_containers flag if its not already present. Do not
+      # Add use_multiple_sdk_containers flag if it's not already present. Do not
       # add the flag if 'no_use_multiple_sdk_containers' is present.
       # TODO: Cleanup use_multiple_sdk_containers once we deprecate Python SDK
       # till version 2.4.
-      if ('use_multiple_sdk_containers' not in self.proto.experiments and
-          'no_use_multiple_sdk_containers' not in self.proto.experiments):
-        self.debug_options.experiments.append('use_multiple_sdk_containers')
+      if ('use_multiple_sdk_containers' not in debug_options_experiments and
+          'no_use_multiple_sdk_containers' not in debug_options_experiments):
+        debug_options_experiments.append('use_multiple_sdk_containers')
+      # Add enable_health_checker flag if it's not already present. Do not
+      # add the flag if 'disable_health_checker' is present.
+      # TODO[BEAM-7466]: Cleanup enable_health_checker once Python SDK 2.13
+      # becomes unsupported.
+      if ('enable_health_checker' not in debug_options_experiments and
+          'disable_health_checker' not in debug_options_experiments):
+        debug_options_experiments.append('enable_health_checker')
+    # FlexRS
+    if self.google_cloud_options.flexrs_goal == 'COST_OPTIMIZED':
+      self.proto.flexResourceSchedulingGoal = (
+          dataflow.Environment.FlexResourceSchedulingGoalValueValuesEnum.
+          FLEXRS_COST_OPTIMIZED)
+    elif self.google_cloud_options.flexrs_goal == 'SPEED_OPTIMIZED':
+      self.proto.flexResourceSchedulingGoal = (
+          dataflow.Environment.FlexResourceSchedulingGoalValueValuesEnum.
+          FLEXRS_SPEED_OPTIMIZED)
     # Experiments
     if self.debug_options.experiments:
       for experiment in self.debug_options.experiments:
@@ -278,6 +298,10 @@ class Environment(object):
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='display_data', value=to_json_value(items)))
+
+  def _get_python_sdk_name(self):
+    python_version = '%d.%d' % (sys.version_info[0], sys.version_info[1])
+    return 'Apache Beam Python %s SDK' % python_version
 
 
 class Job(object):
@@ -383,6 +407,8 @@ class Job(object):
       self.proto.type = dataflow.Job.TypeValueValuesEnum.JOB_TYPE_STREAMING
     else:
       self.proto.type = dataflow.Job.TypeValueValuesEnum.JOB_TYPE_BATCH
+    if self.google_cloud_options.update:
+      self.proto.replaceJobId = self.job_id_for_name(self.proto.name)
 
     # Labels.
     if self.google_cloud_options.labels:
@@ -396,6 +422,10 @@ class Job(object):
 
     self.base64_str_re = re.compile(r'^[A-Za-z0-9+/]*=*$')
     self.coder_str_re = re.compile(r'^([A-Za-z]+\$)([A-Za-z0-9+/]*=*)$')
+
+  def job_id_for_name(self, job_name):
+    return DataflowApplicationClient(
+        self.google_cloud_options).job_id_for_name(job_name)
 
   def json(self):
     return encoding.MessageToJson(self.proto)
@@ -422,14 +452,20 @@ class DataflowApplicationClient(object):
       credentials = None
     else:
       credentials = get_service_credentials()
+
+    http_client = get_new_http()
     self._client = dataflow.DataflowV1b3(
         url=self.google_cloud_options.dataflow_endpoint,
         credentials=credentials,
-        get_credentials=(not self.google_cloud_options.no_auth))
+        get_credentials=(not self.google_cloud_options.no_auth),
+        http=http_client,
+        response_encoding=get_response_encoding())
     self._storage_client = storage.StorageV1(
         url='https://www.googleapis.com/storage/v1',
         credentials=credentials,
-        get_credentials=(not self.google_cloud_options.no_auth))
+        get_credentials=(not self.google_cloud_options.no_auth),
+        http=http_client,
+        response_encoding=get_response_encoding())
 
   # TODO(silviuc): Refactor so that retry logic can be applied.
   @retry.no_retries  # Using no_retries marks this as an integration point.
@@ -466,6 +502,7 @@ class DataflowApplicationClient(object):
 
     request = storage.StorageObjectsInsertRequest(
         bucket=bucket, name=name)
+    start_time = time.time()
     logging.info('Starting GCS upload to %s...', gcs_location)
     upload = storage.Upload(stream, mime_type)
     try:
@@ -481,7 +518,8 @@ class DataflowApplicationClient(object):
                        'access to the specified path.') %
                       (gcs_or_local_path, reportable_errors[e.status_code]))
       raise
-    logging.info('Completed GCS upload to %s', gcs_location)
+    logging.info('Completed GCS upload to %s in %s seconds.', gcs_location,
+                 int(time.time() - start_time))
     return response
 
   @retry.no_retries  # Using no_retries marks this as an integration point.
@@ -498,7 +536,8 @@ class DataflowApplicationClient(object):
     if job_location:
       gcs_or_local_path = os.path.dirname(job_location)
       file_name = os.path.basename(job_location)
-      self.stage_file(gcs_or_local_path, file_name, io.BytesIO(job.json()))
+      self.stage_file(gcs_or_local_path, file_name,
+                      io.BytesIO(job.json().encode('utf-8')))
 
     if not template_location:
       return self.submit_job_description(job)
@@ -512,7 +551,7 @@ class DataflowApplicationClient(object):
 
     # Stage the pipeline for the runner harness
     self.stage_file(job.google_cloud_options.staging_location,
-                    names.STAGED_PIPELINE_FILENAME,
+                    shared_names.STAGED_PIPELINE_FILENAME,
                     io.BytesIO(job.proto_pipeline.SerializeToString()))
 
     # Stage other resources for the SDK harness
@@ -520,7 +559,7 @@ class DataflowApplicationClient(object):
 
     job.proto.environment = Environment(
         pipeline_url=FileSystems.join(job.google_cloud_options.staging_location,
-                                      names.STAGED_PIPELINE_FILENAME),
+                                      shared_names.STAGED_PIPELINE_FILENAME),
         packages=resources, options=job.options,
         environment_version=self.environment_version).proto
     logging.debug('JOB: %s', job)
@@ -714,6 +753,23 @@ class DataflowApplicationClient(object):
     response = self._client.projects_locations_jobs_messages.List(request)
     return response.jobMessages, response.nextPageToken
 
+  def job_id_for_name(self, job_name):
+    token = None
+    while True:
+      request = dataflow.DataflowProjectsLocationsJobsListRequest(
+          projectId=self.google_cloud_options.project,
+          location=self.google_cloud_options.region,
+          pageToken=token)
+      response = self._client.projects_locations_jobs.List(request)
+      for job in response.jobs:
+        if (job.name == job_name
+            and job.currentState
+            == dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_RUNNING):
+          return job.id
+      token = response.nextPageToken
+      if token is None:
+        raise ValueError("No running job found with name '%s'" % job_name)
+
 
 class MetricUpdateTranslators(object):
   """Translators between accumulators and dataflow metric updates."""
@@ -768,11 +824,7 @@ class _LegacyDataflowStager(Stager):
 
           Returns the PyPI package name to be staged to Google Cloud Dataflow.
     """
-    sdk_name, _ = get_sdk_name_and_version()
-    if sdk_name == names.GOOGLE_SDK_NAME:
-      return names.GOOGLE_PACKAGE_NAME
-    else:
-      return names.BEAM_PACKAGE_NAME
+    return shared_names.BEAM_PACKAGE_NAME
 
 
 def to_split_int(n):
@@ -786,8 +838,8 @@ def translate_distribution(distribution_update, metric_update_proto):
   """Translate metrics DistributionUpdate to dataflow distribution update.
 
   Args:
-    distribution_update: Instance of DistributionData or
-    DataflowDistributionCounter.
+    distribution_update: Instance of DistributionData,
+    DistributionInt64Accumulator or DataflowDistributionCounter.
     metric_update_proto: Used for report metrics.
   """
   dist_update_proto = dataflow.DistributionUpdate()
@@ -795,7 +847,7 @@ def translate_distribution(distribution_update, metric_update_proto):
   dist_update_proto.max = to_split_int(distribution_update.max)
   dist_update_proto.count = to_split_int(distribution_update.count)
   dist_update_proto.sum = to_split_int(distribution_update.sum)
-  # DatadflowDistributionCounter needs to translate histogram
+  # DataflowDistributionCounter needs to translate histogram
   if isinstance(distribution_update, DataflowDistributionCounter):
     dist_update_proto.histogram = dataflow.Histogram()
     distribution_update.translate_to_histogram(dist_update_proto.histogram)
@@ -824,15 +876,19 @@ def _use_fnapi(pipeline_options):
       debug_options.experiments and 'beam_fn_api' in debug_options.experiments)
 
 
-def get_sdk_name_and_version():
-  """For internal use only; no backwards-compatibility guarantees.
+def _use_unified_worker(pipeline_options):
+  debug_options = pipeline_options.view_as(DebugOptions)
 
-    Returns name and version of SDK reported to Google Cloud Dataflow."""
-  try:
-    pkg_resources.get_distribution(names.GOOGLE_PACKAGE_NAME)
-    return (names.GOOGLE_SDK_NAME, beam_version.__version__)
-  except pkg_resources.DistributionNotFound:
-    return (names.BEAM_SDK_NAME, beam_version.__version__)
+  return _use_fnapi(pipeline_options) and (
+      debug_options.experiments and
+      'use_unified_worker' in debug_options.experiments)
+
+
+def _use_sdf_bounded_source(pipeline_options):
+  debug_options = pipeline_options.view_as(DebugOptions)
+  return _use_fnapi(pipeline_options) and (
+      debug_options.experiments and
+      'use_sdf_bounded_source' in debug_options.experiments)
 
 
 def get_default_container_image_for_current_sdk(job_type):
@@ -844,11 +900,29 @@ def get_default_container_image_for_current_sdk(job_type):
     Returns:
       str: Google Cloud Dataflow container image for remote execution.
     """
+  if sys.version_info[0] == 2:
+    version_suffix = ''
+  elif sys.version_info[0:2] == (3, 5):
+    version_suffix = '3'
+  elif sys.version_info[0:2] == (3, 6):
+    version_suffix = '36'
+  elif sys.version_info[0:2] == (3, 7):
+    version_suffix = '37'
+  else:
+    raise Exception('Dataflow only supports Python versions 2 and 3.5+, got: %s'
+                    % str(sys.version_info[0:2]))
+
   # TODO(tvalentyn): Use enumerated type instead of strings for job types.
   if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
-    image_name = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python-fnapi'
+    fnapi_suffix = '-fnapi'
   else:
-    image_name = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python'
+    fnapi_suffix = ''
+
+  image_name = '{repository}/python{version_suffix}{fnapi_suffix}'.format(
+      repository=names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY,
+      version_suffix=version_suffix,
+      fnapi_suffix=fnapi_suffix)
+
   image_tag = _get_required_container_version(job_type)
   return image_name + ':' + image_tag
 
@@ -889,7 +963,33 @@ def get_runner_harness_container_image():
   return None
 
 
+def get_response_encoding():
+  """Encoding to use to decode HTTP response from Google APIs."""
+  return None if sys.version_info[0] < 3 else 'utf8'
+
+
+def _verify_interpreter_version_is_supported(pipeline_options):
+  if sys.version_info[0:2] in [(2, 7), (3, 5), (3, 6), (3, 7)]:
+    return
+
+  debug_options = pipeline_options.view_as(DebugOptions)
+  if (debug_options.experiments and 'ignore_py3_minor_version' in
+      debug_options.experiments):
+    return
+
+  raise Exception(
+      'Dataflow runner currently supports Python versions '
+      '2.7, 3.5, 3.6, and 3.7. To ignore this requirement and start a job '
+      'using a different version of Python 3 interpreter, pass '
+      '--experiment ignore_py3_minor_version pipeline option.')
+
+
 # To enable a counter on the service, add it to this dictionary.
+# This is required for the legacy python dataflow runner, as portability
+# does not communicate to the service via python code, but instead via a
+# a runner harness (in C++ or Java).
+# TODO(BEAM-7050) : Remove this antipattern, legacy dataflow python
+# pipelines will break whenever a new cy_combiner type is used.
 structured_counter_translations = {
     cy_combiners.CountCombineFn: (
         dataflow.CounterMetadata.KindValueValuesEnum.SUM,
@@ -926,7 +1026,10 @@ structured_counter_translations = {
         MetricUpdateTranslators.translate_boolean),
     cy_combiners.DataflowDistributionCounterFn: (
         dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
-        translate_distribution)
+        translate_distribution),
+    cy_combiners.DistributionInt64Fn: (
+        dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
+        translate_distribution),
 }
 
 
@@ -966,5 +1069,8 @@ counter_translations = {
         MetricUpdateTranslators.translate_boolean),
     cy_combiners.DataflowDistributionCounterFn: (
         dataflow.NameAndKind.KindValueValuesEnum.DISTRIBUTION,
-        translate_distribution)
+        translate_distribution),
+    cy_combiners.DistributionInt64Fn: (
+        dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
+        translate_distribution),
 }

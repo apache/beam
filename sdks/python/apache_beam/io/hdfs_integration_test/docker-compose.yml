@@ -24,6 +24,7 @@ services:
     hostname: namenode
     environment:
       - CLUSTER_NAME=test
+      - HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check=false
     networks:
       - test_net
 

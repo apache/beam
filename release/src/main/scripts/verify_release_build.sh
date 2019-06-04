@@ -80,6 +80,10 @@ if [[ -z `which cython` ]]; then
     sudo `which pip` install cython
     sudo apt-get install gcc
     sudo apt-get install python-dev
+    sudo apt-get install python3-dev
+    sudo apt-get install python3.5-dev
+    sudo apt-get install python3.6-dev
+    sudo apt-get install python3.7-dev
   fi
 else
   cython --version
@@ -102,7 +106,31 @@ else
   which time
 fi
 
+echo "=================Checking hub========================"
+HUB_VERSION=2.5.0
+HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
+if [[ -z `which hub` ]]; then
+  echo "There is no hub installed on your machine."
+  echo "Would you like to install hub with root permission? [y|N]"
+  read confirmation
+  if [[ $confirmation != "y"  ]]; then
+    echo "Refused to install hub. Cannot proceed into next setp."
+    exit
+  fi
+  echo "=================Installing hub======================="
+  wget https://github.com/github/hub/releases/download/v${HUB_VERSION}/${HUB_ARTIFACTS_NAME}.tgz
+  tar zvxvf ${HUB_ARTIFACTS_NAME}.tgz
+  sudo ./${HUB_ARTIFACTS_NAME}/install
+  echo "eval "$(hub alias -s)"" >> ~/.bashrc
+  rm -rf ${HUB_ARTIFACTS_NAME}*
+fi
+hub version
+
+cd ~
 echo "======================Starting Clone Repo======================"
+if [[ -d ${LOCAL_CLONE_DIR} ]]; then
+  rm -rf ${LOCAL_CLONE_DIR}
+fi
 mkdir ${LOCAL_CLONE_DIR}
 cd  ${LOCAL_CLONE_DIR}
 git clone ${GIT_REPO_URL}
@@ -113,10 +141,60 @@ echo "==============================================================="
 echo "======================Starting Release Build==================="
 git clean -fdx
 ./gradlew clean
-gpg --output ~/doc.sig --sign ~/.bashrc
 # If build fails, we want to catch as much errors as possible once.
 ./gradlew build -PisRelease --scan --stacktrace --no-parallel --continue
 echo "==============================================================="
+
+echo "[Current Task] Run All PostCommit Tests against Release Branch"
+echo "This task will create a PR against apache/beam."
+echo "After PR created, you need to comment phrases listed in description in the created PR:"
+
+echo "[Confirmation Required] Do you want to proceed? [y|N]"
+read confirmation
+if [[ $confirmation = "y" ]]; then
+  echo "[Input Required] Please enter your github repo URL forked from apache/beam:"
+  read USER_REMOTE_URL
+  echo "[Input Required] Please enter your github username:"
+  read GITHUB_USERNAME
+  echo "[Input Required] Please enter your github token:"
+  read GITHUB_TOKEN
+  export GITHUB_TOKEN=${GITHUB_TOKEN}
+  WORKING_BRANCH=postcommit_validation_pr
+  git checkout -b ${WORKING_BRANCH}
+  touch empty_file.txt
+  git add empty_file.txt
+  git commit -m "Add empty file in order to create PR"
+  git push -f ${USER_REMOTE_URL}
+  hub pull-request -o -b apache:${branch} -h ${GITHUB_USERNAME}:${WORKING_BRANCH} -F- <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch
+
+  Please comment as instructions below, one phrase per comment please:
+  Run Go PostCommit
+  Run Java PostCommit
+  Run Java PortabilityApi PostCommit
+  Run Java Flink PortableValidatesRunner Batch
+  Run Java Flink PortableValidatesRunner Streaming'
+  Run Apex ValidatesRunner
+  Run Dataflow ValidatesRunner
+  Run Flink ValidatesRunner
+  Run Gearpump ValidatesRunner
+  Run Dataflow PortabilityApi ValidatesRunner
+  Run Samza ValidatesRunner
+  Run Spark ValidatesRunner
+  Run Python Dataflow ValidatesContainer
+  Run Python Dataflow ValidatesRunner
+  Run Python Flink ValidatesRunner
+  Run Python PostCommit
+  Run SQL PostCommit
+  Run Go PreCommit
+  Run Java PreCommit
+  Run Java_Examples_Dataflow PreCommit
+  Run JavaPortabilityApi PreCommit
+  Run Portable_Python PreCommit
+  Run Python PreCommit"
+
+  echo "[NOTE]: Please make sure all test targets have been invoked."
+  echo "Please check the test results. If there is any failure, follow the policy in release guide."
+fi
 
 echo "Do you want to clean local clone repo? [y|N]"
 read confirmation

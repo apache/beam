@@ -23,30 +23,32 @@ The Apex Runner executes Apache Beam pipelines using [Apache Apex](http://apex.a
 
 [Apache Apex](http://apex.apache.org/) is a stream processing platform and framework for low-latency, high-throughput and fault-tolerant analytics applications on Apache Hadoop. Apex has a unified streaming architecture and can be used for real-time and batch processing.
 
+The following instructions are for running Beam pipelines with Apex on a YARN cluster.
+They are not required for Apex in embedded mode (see [quickstart]({{ site.baseurl }}/get-started/quickstart-java/)).
+
 ## Apex Runner prerequisites
 
 You may set up your own Hadoop cluster. Beam does not require anything extra to launch the pipelines on YARN.
 An optional Apex installation may be useful for monitoring and troubleshooting.
 The Apex CLI can be [built](http://apex.apache.org/docs/apex/apex_development_setup/) or
-obtained as [binary build](http://www.atrato.io/blog/2017/04/08/apache-apex-cli/).
+obtained as binary build.
 For more download options see [distribution information on the Apache Apex website](http://apex.apache.org/downloads.html).
 
-## Running wordcount using Apex Runner
+## Running wordcount with Apex
 
-Put data for processing into HDFS:
+Typically the build environment is separate from the target YARN cluster. In such case, it is necessary to build a fat jar that will include all dependencies. Ensure that `hadoop.version` in `pom.xml` matches the version of your YARN cluster and then build the jar file:
 ```
-hdfs dfs -mkdir -p /tmp/input/
-hdfs dfs -put pom.xml /tmp/input/
-```
-
-The output directory should not exist on HDFS:
-```
-hdfs dfs -rm -r -f /tmp/output/
+mvn package -Papex-runner
 ```
 
-Run the wordcount example (*example project needs to be modified to include HDFS file provider*)
+Copy the resulting `target/word-count-beam-bundled-0.1.jar` to the cluster and submit the application using:
 ```
-mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount -Dexec.args="--inputFile=/tmp/input/pom.xml --output=/tmp/output/ --runner=ApexRunner --embeddedExecution=false --configFile=beam-runners-apex.properties" -Papex-runner
+java -cp word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount --inputFile=/etc/profile --output=/tmp/counts --embeddedExecution=false --configFile=beam-runners-apex.properties --runner=ApexRunner
+```
+
+If the build environment is setup as cluster client, it is possible to run the example directly:
+```
+mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount -Dexec.args="--inputFile=/etc/profile --output=/tmp/counts --runner=ApexRunner --embeddedExecution=false --configFile=beam-runners-apex.properties" -Papex-runner
 ```
 
 The application will run asynchronously. Check status with `yarn application -list -appStates ALL`
@@ -61,13 +63,8 @@ apex.stream.*.prop.locality=CONTAINER_LOCAL
 apex.application.*.operator.*.attr.TIMEOUT_WINDOW_COUNT=1200
 ```
 
-
-## Checking output
-
-Check the output of the pipeline in the HDFS location.
-```
-hdfs dfs -ls /tmp/output/
-```
+This example uses local files. To use a distributed file system (HDFS, S3 etc.),
+it is necessary to augment the build to include the respective file system provider.
 
 ## Montoring progress of your job
 
@@ -75,3 +72,8 @@ Depending on your installation, you may be able to monitor the progress of your 
 
 * YARN : Using YARN web UI generally running on 8088 on the node running resource manager.
 * Apex command-line interface: [Using the Apex CLI to get running application information](http://apex.apache.org/docs/apex/apex_cli/#apex-cli-commands).
+
+Check the output of the pipeline:
+```
+ls /tmp/counts*
+```

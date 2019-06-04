@@ -18,13 +18,13 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Predicates;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -39,7 +39,7 @@ import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RowParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
@@ -47,6 +47,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
 
 /**
  * Describes the signature of a {@link DoFn}, in particular, which features it uses, which extra
@@ -83,6 +84,10 @@ public abstract class DoFnSignature {
   /** Details about this {@link DoFn}'s {@link DoFn.Teardown} method. */
   @Nullable
   public abstract LifecycleMethod teardown();
+
+  /** Details about this {@link DoFn}'s {@link DoFn.OnWindowExpiration} method. */
+  @Nullable
+  public abstract OnWindowExpirationMethod onWindowExpiration();
 
   /** Timer declarations present on the {@link DoFn} class. Immutable. */
   public abstract Map<String, TimerDeclaration> timerDeclarations();
@@ -146,6 +151,8 @@ public abstract class DoFnSignature {
     abstract Builder setSetup(LifecycleMethod setup);
 
     abstract Builder setTeardown(LifecycleMethod teardown);
+
+    abstract Builder setOnWindowExpiration(OnWindowExpirationMethod onWindowExpiration);
 
     abstract Builder setGetInitialRestriction(GetInitialRestrictionMethod getInitialRestriction);
 
@@ -225,8 +232,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((PipelineOptionsParameter) this);
       } else if (this instanceof ElementParameter) {
         return cases.dispatch((ElementParameter) this);
-      } else if (this instanceof RowParameter) {
-        return cases.dispatch((RowParameter) this);
+      } else if (this instanceof SchemaElementParameter) {
+        return cases.dispatch((SchemaElementParameter) this);
       } else if (this instanceof TimestampParameter) {
         return cases.dispatch((TimestampParameter) this);
       } else if (this instanceof OutputReceiverParameter) {
@@ -253,7 +260,7 @@ public abstract class DoFnSignature {
 
       ResultT dispatch(ElementParameter p);
 
-      ResultT dispatch(RowParameter p);
+      ResultT dispatch(SchemaElementParameter p);
 
       ResultT dispatch(TimestampParameter p);
 
@@ -303,7 +310,7 @@ public abstract class DoFnSignature {
         }
 
         @Override
-        public ResultT dispatch(RowParameter p) {
+        public ResultT dispatch(SchemaElementParameter p) {
           return dispatchDefault(p);
         }
 
@@ -381,6 +388,8 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_TimeDomainParameter();
     private static final TaggedOutputReceiverParameter TAGGED_OUTPUT_RECEIVER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_TaggedOutputReceiverParameter();
+    private static final PipelineOptionsParameter PIPELINE_OPTIONS_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_PipelineOptionsParameter();
 
     /** Returns a {@link ProcessContextParameter}. */
     public static ProcessContextParameter processContext() {
@@ -391,8 +400,13 @@ public abstract class DoFnSignature {
       return new AutoValue_DoFnSignature_Parameter_ElementParameter(elementT);
     }
 
-    public static RowParameter rowParameter(@Nullable String id) {
-      return new AutoValue_DoFnSignature_Parameter_RowParameter(id);
+    public static SchemaElementParameter schemaElementParameter(
+        TypeDescriptor<?> elementT, @Nullable String fieldAccessString, int index) {
+      return new AutoValue_DoFnSignature_Parameter_SchemaElementParameter.Builder()
+          .setElementT(elementT)
+          .setFieldAccessString(fieldAccessString)
+          .setIndex(index)
+          .build();
     }
 
     public static TimestampParameter timestampParameter() {
@@ -427,7 +441,7 @@ public abstract class DoFnSignature {
 
     /** Returns a {@link PipelineOptionsParameter}. */
     public static PipelineOptionsParameter pipelineOptions() {
-      return new AutoValue_DoFnSignature_Parameter_PipelineOptionsParameter();
+      return PIPELINE_OPTIONS_PARAMETER;
     }
 
     /** Returns a {@link RestrictionTrackerParameter}. */
@@ -493,16 +507,33 @@ public abstract class DoFnSignature {
     }
 
     /**
-     * Descriptor for a {@link Parameter} of Row type.
-     *
-     * <p>All such descriptors are equal.
+     * Descriptor for a (@link Parameter} of type {@link DoFn.Element} where the type does not match
+     * the DoFn's input type. This implies that the input must have a schema that is compatible.
      */
     @AutoValue
-    public abstract static class RowParameter extends Parameter {
-      RowParameter() {}
+    public abstract static class SchemaElementParameter extends Parameter {
+      SchemaElementParameter() {}
+
+      public abstract TypeDescriptor<?> elementT();
 
       @Nullable
-      public abstract String fieldAccessId();
+      public abstract String fieldAccessString();
+
+      public abstract int index();
+
+      /** Builder class. */
+      @AutoValue.Builder
+      public abstract static class Builder {
+        public abstract Builder setElementT(TypeDescriptor<?> elementT);
+
+        public abstract Builder setFieldAccessString(@Nullable String fieldAccess);
+
+        public abstract Builder setIndex(int index);
+
+        public abstract SchemaElementParameter build();
+      }
+
+      public abstract Builder toBuilder();
     }
 
     /**
@@ -673,8 +704,7 @@ public abstract class DoFnSignature {
      * each scoped to a single window.
      */
     public boolean observesWindow() {
-      return extraParameters()
-          .stream()
+      return extraParameters().stream()
           .anyMatch(
               Predicates.or(
                       Predicates.instanceOf(WindowParameter.class),
@@ -683,26 +713,19 @@ public abstract class DoFnSignature {
                   ::apply);
     }
 
-    /**
-     * Whether this {@link DoFn} reads a schema {@link PCollection} type as a {@link
-     * org.apache.beam.sdk.values.Row} object.
-     */
     @Nullable
-    public RowParameter getRowParameter() {
-      Optional<Parameter> parameter =
-          extraParameters()
-              .stream()
-              .filter(Predicates.instanceOf(RowParameter.class)::apply)
-              .findFirst();
-      return parameter.isPresent() ? ((RowParameter) parameter.get()) : null;
+    public List<SchemaElementParameter> getSchemaElementParameters() {
+      return extraParameters().stream()
+          .filter(Predicates.instanceOf(SchemaElementParameter.class)::apply)
+          .map(SchemaElementParameter.class::cast)
+          .collect(Collectors.toList());
     }
 
     /** The {@link OutputReceiverParameter} for a main output, or null if there is none. */
     @Nullable
     public OutputReceiverParameter getMainOutputReceiver() {
       Optional<Parameter> parameter =
-          extraParameters()
-              .stream()
+          extraParameters().stream()
               .filter(Predicates.instanceOf(OutputReceiverParameter.class)::apply)
               .findFirst();
       return parameter.isPresent() ? ((OutputReceiverParameter) parameter.get()) : null;
@@ -712,8 +735,7 @@ public abstract class DoFnSignature {
      * Whether this {@link DoFn} is <a href="https://s.apache.org/splittable-do-fn">splittable</a>.
      */
     public boolean isSplittable() {
-      return extraParameters()
-          .stream()
+      return extraParameters().stream()
           .anyMatch(Predicates.instanceOf(RestrictionTrackerParameter.class)::apply);
     }
   }
@@ -753,6 +775,44 @@ public abstract class DoFnSignature {
         List<Parameter> extraParameters) {
       return new AutoValue_DoFnSignature_OnTimerMethod(
           id,
+          targetMethod,
+          requiresStableInput,
+          windowT,
+          Collections.unmodifiableList(extraParameters));
+    }
+  }
+
+  /** Describes a {@link DoFn.OnWindowExpiration} method. */
+  @AutoValue
+  public abstract static class OnWindowExpirationMethod implements MethodWithExtraParameters {
+
+    /** The annotated method itself. */
+    @Override
+    public abstract Method targetMethod();
+
+    /**
+     * Whether this method requires stable input, expressed via {@link
+     * org.apache.beam.sdk.transforms.DoFn.RequiresStableInput}. For {@link
+     * org.apache.beam.sdk.transforms.DoFn.OnWindowExpiration}, this means that any state must be
+     * stably persisted prior to calling it.
+     */
+    public abstract boolean requiresStableInput();
+
+    /** The window type used by this method, if any. */
+    @Nullable
+    @Override
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
+    /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
+    public abstract List<Parameter> extraParameters();
+
+    static OnWindowExpirationMethod create(
+        Method targetMethod,
+        boolean requiresStableInput,
+        TypeDescriptor<? extends BoundedWindow> windowT,
+        List<Parameter> extraParameters) {
+      return new AutoValue_DoFnSignature_OnWindowExpirationMethod(
           targetMethod,
           requiresStableInput,
           windowT,

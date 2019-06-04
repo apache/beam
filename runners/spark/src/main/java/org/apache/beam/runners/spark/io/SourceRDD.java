@@ -15,13 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
@@ -29,15 +27,16 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
+import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.spark.Accumulator;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.spark.Dependency;
 import org.apache.spark.HashPartitioner;
 import org.apache.spark.InterruptibleIterator;
@@ -65,8 +64,9 @@ public class SourceRDD {
     private final BoundedSource<T> source;
     private final SerializablePipelineOptions options;
     private final int numPartitions;
+    private final long bundleSize;
     private final String stepName;
-    private final Accumulator<MetricsContainerStepMap> metricsAccum;
+    private final MetricsContainerStepMapAccumulator metricsAccum;
 
     // to satisfy Scala API.
     private static final scala.collection.immutable.Seq<Dependency<?>> NIL =
@@ -88,6 +88,7 @@ public class SourceRDD {
       // ** the configuration "spark.default.parallelism" takes precedence over all of the above **
       this.numPartitions = sc.defaultParallelism();
       checkArgument(this.numPartitions > 0, "Number of partitions must be greater than zero.");
+      this.bundleSize = options.get().as(SparkPipelineOptions.class).getBundleSize();
       this.stepName = stepName;
       this.metricsAccum = MetricsAccumulator.getInstance();
     }
@@ -96,17 +97,20 @@ public class SourceRDD {
 
     @Override
     public Partition[] getPartitions() {
-      long desiredSizeBytes = DEFAULT_BUNDLE_SIZE;
       try {
-        desiredSizeBytes = source.getEstimatedSizeBytes(options.get()) / numPartitions;
-      } catch (Exception e) {
-        LOG.warn(
-            "Failed to get estimated bundle size for source {}, using default bundle "
-                + "size of {} bytes.",
-            source,
-            DEFAULT_BUNDLE_SIZE);
-      }
-      try {
+        long desiredSizeBytes = (bundleSize > 0) ? bundleSize : DEFAULT_BUNDLE_SIZE;
+        if (bundleSize == 0) {
+          try {
+            desiredSizeBytes = source.getEstimatedSizeBytes(options.get()) / numPartitions;
+          } catch (Exception e) {
+            LOG.warn(
+                "Failed to get estimated bundle size for source {}, using default bundle "
+                    + "size of {} bytes.",
+                source,
+                DEFAULT_BUNDLE_SIZE);
+          }
+        }
+
         List<? extends Source<T>> partitionedSources =
             source.split(desiredSizeBytes, options.get());
         Partition[] partitions = new SourcePartition[partitionedSources.size()];
@@ -131,7 +135,7 @@ public class SourceRDD {
     @Override
     public scala.collection.Iterator<WindowedValue<T>> compute(
         final Partition split, final TaskContext context) {
-      final MetricsContainer metricsContainer = metricsAccum.localValue().getContainer(stepName);
+      final MetricsContainer metricsContainer = metricsAccum.value().getContainer(stepName);
 
       @SuppressWarnings("unchecked")
       final BoundedSource.BoundedReader<T> reader = createReader((SourcePartition<T>) split);
@@ -269,7 +273,7 @@ public class SourceRDD {
       return 41 * (41 + rddId) + index;
     }
 
-    public Source<T> getSource() {
+    Source<T> getSource() {
       return source;
     }
   }

@@ -16,21 +16,21 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch"
 ext.summary = "IO to read and write on Elasticsearch"
 
 dependencies {
-  compile library.java.guava
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow library.java.vendored_guava_20_0
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow library.java.jackson_databind
   shadow library.java.jackson_annotations
-  shadow "org.elasticsearch.client:elasticsearch-rest-client:5.6.3"
-  shadow "org.apache.httpcomponents:httpasyncclient:4.1.2"
-  shadow "org.apache.httpcomponents:httpcore-nio:4.4.5"
-  shadow "org.apache.httpcomponents:httpcore:4.4.5"
-  shadow "org.apache.httpcomponents:httpclient:4.5.2"
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
+  shadow "org.elasticsearch.client:elasticsearch-rest-client:6.4.0"
+  shadow "org.apache.httpcomponents:httpasyncclient:4.1.4"
+  shadow "org.apache.httpcomponents:httpcore-nio:4.4.10"
+  shadow "org.apache.httpcomponents:httpcore:4.4.10"
+  shadow "org.apache.httpcomponents:httpclient:4.5.6"
+  testCompile project(path: ":sdks:java:io:common", configuration: "shadowTest")
 }

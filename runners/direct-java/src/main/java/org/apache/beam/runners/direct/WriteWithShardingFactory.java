@@ -15,12 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
@@ -43,6 +39,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
 
 /**
  * A {@link PTransformOverrideFactory} that overrides {@link WriteFiles} {@link PTransform
@@ -52,7 +51,8 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 class WriteWithShardingFactory<InputT, DestinationT>
     implements PTransformOverrideFactory<
-        PCollection<InputT>, WriteFilesResult<DestinationT>,
+        PCollection<InputT>,
+        WriteFilesResult<DestinationT>,
         PTransform<PCollection<InputT>, WriteFilesResult<DestinationT>>> {
   static final int MAX_RANDOM_EXTRA_SHARDS = 3;
   @VisibleForTesting static final int MIN_SHARDS_FOR_LOG = 3;
@@ -61,7 +61,8 @@ class WriteWithShardingFactory<InputT, DestinationT>
   public PTransformReplacement<PCollection<InputT>, WriteFilesResult<DestinationT>>
       getReplacementTransform(
           AppliedPTransform<
-                  PCollection<InputT>, WriteFilesResult<DestinationT>,
+                  PCollection<InputT>,
+                  WriteFilesResult<DestinationT>,
                   PTransform<PCollection<InputT>, WriteFilesResult<DestinationT>>>
               transform) {
     try {

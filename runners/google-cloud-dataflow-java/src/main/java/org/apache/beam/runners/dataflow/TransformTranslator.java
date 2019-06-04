@@ -49,7 +49,7 @@ public interface TransformTranslator<TransformT extends PTransform> {
   interface TranslationContext {
     default boolean isFnApi() {
       List<String> experiments = getPipelineOptions().getExperiments();
-      return (experiments != null && experiments.contains("beam_fn_api"));
+      return experiments != null && experiments.contains("beam_fn_api");
     }
 
     /** Returns the configured pipeline options. */

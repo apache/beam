@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.apex.translation;
 
 import static org.apache.beam.sdk.testing.PCollectionViewTesting.materializeValuesFor;
@@ -25,8 +24,6 @@ import static org.junit.Assert.fail;
 import com.datatorrent.api.DAG;
 import com.datatorrent.api.Sink;
 import com.datatorrent.lib.util.KryoCloneUtils;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -50,6 +47,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
@@ -60,6 +58,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -213,6 +213,7 @@ public class ParDoTranslatorTest {
             Collections.singletonList(singletonView),
             VarIntCoder.of(),
             Collections.emptyMap(),
+            DoFnSchemaInformation.create(),
             new ApexStateInternals.ApexStateBackend());
     operator.setup(null);
     operator.beginWindow(0);

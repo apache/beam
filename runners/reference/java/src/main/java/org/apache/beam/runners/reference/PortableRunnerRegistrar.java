@@ -18,11 +18,11 @@
 package org.apache.beam.runners.reference;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
-/** Registrar for the poratble runner. */
+/** Registrar for the portable runner. */
 @AutoService(PipelineRunnerRegistrar.class)
 public class PortableRunnerRegistrar implements PipelineRunnerRegistrar {
 

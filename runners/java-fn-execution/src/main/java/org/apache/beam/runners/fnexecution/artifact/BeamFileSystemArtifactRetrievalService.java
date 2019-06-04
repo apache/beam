@@ -15,24 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.artifact;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.hash.Hasher;
-import com.google.common.hash.Hashing;
-import com.google.common.io.ByteStreams;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -42,11 +32,19 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hasher;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,15 +98,13 @@ public class BeamFileSystemArtifactRetrievalService
   public void getArtifact(
       ArtifactApi.GetArtifactRequest request,
       StreamObserver<ArtifactApi.ArtifactChunk> responseObserver) {
-    LOG.info("GetArtifact {}", request);
+    LOG.debug("GetArtifact {}", request);
     String name = request.getName();
     try {
       ArtifactApi.ProxyManifest proxyManifest = MANIFEST_CACHE.get(request.getRetrievalToken());
       // look for file at URI specified by proxy manifest location
       ArtifactApi.ProxyManifest.Location location =
-          proxyManifest
-              .getLocationList()
-              .stream()
+          proxyManifest.getLocationList().stream()
               .filter(loc -> loc.getName().equals(name))
               .findFirst()
               .orElseThrow(
@@ -119,8 +115,7 @@ public class BeamFileSystemArtifactRetrievalService
 
       List<ArtifactMetadata> existingArtifacts = proxyManifest.getManifest().getArtifactList();
       ArtifactMetadata metadata =
-          existingArtifacts
-              .stream()
+          existingArtifacts.stream()
               .filter(meta -> meta.getName().equals(name))
               .findFirst()
               .orElseThrow(
@@ -131,8 +126,8 @@ public class BeamFileSystemArtifactRetrievalService
 
       ResourceId artifactResourceId =
           FileSystems.matchNewResource(location.getUri(), false /* is directory */);
-      LOG.info("Artifact {} located in {}", name, artifactResourceId);
-      Hasher hasher = Hashing.md5().newHasher();
+      LOG.debug("Artifact {} located in {}", name, artifactResourceId);
+      Hasher hasher = Hashing.sha256().newHasher();
       byte[] data = new byte[ARTIFACT_CHUNK_SIZE_BYTES];
       try (InputStream stream = Channels.newInputStream(FileSystems.open(artifactResourceId))) {
         int len;
@@ -144,15 +139,15 @@ public class BeamFileSystemArtifactRetrievalService
                   .build());
         }
       }
-      if (metadata.getMd5() != null && !metadata.getMd5().isEmpty()) {
-        ByteString expected = ByteString.copyFrom(Base64.getDecoder().decode(metadata.getMd5()));
-        ByteString actual = ByteString.copyFrom(hasher.hash().asBytes());
+      if (metadata.getSha256() != null && !metadata.getSha256().isEmpty()) {
+        String expected = metadata.getSha256();
+        String actual = hasher.hash().toString();
         if (!actual.equals(expected)) {
           throw new StatusRuntimeException(
               Status.DATA_LOSS.withDescription(
                   String.format(
-                      "Artifact %s is corrupt: expected md5 %s, actual %s",
-                      name, expected.toString(), actual.toString())));
+                      "Artifact %s is corrupt: expected sha256 %s, actual %s",
+                      name, expected, actual)));
         }
       }
       responseObserver.onCompleted();
@@ -182,6 +177,10 @@ public class BeamFileSystemArtifactRetrievalService
     LOG.info("Loading manifest for retrieval token {}", retrievalToken);
     // look for manifest file at $retrieval_token
     ResourceId manifestResourceId = getManifestLocationFromToken(retrievalToken);
+    return loadManifest(manifestResourceId);
+  }
+
+  static ProxyManifest loadManifest(ResourceId manifestResourceId) throws IOException {
     ProxyManifest.Builder manifestBuilder = ProxyManifest.newBuilder();
     try (InputStream stream = Channels.newInputStream(FileSystems.open(manifestResourceId))) {
       String contents = new String(ByteStreams.toByteArray(stream), StandardCharsets.UTF_8);

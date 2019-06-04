@@ -17,10 +17,10 @@ package runnerlib
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/artifact"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
 )
@@ -31,7 +31,7 @@ func Stage(ctx context.Context, id, endpoint, binary, st string, files ...artifa
 	ctx = grpcx.WriteWorkerID(ctx, id)
 	cc, err := grpcx.Dial(ctx, endpoint, 2*time.Minute)
 	if err != nil {
-		return "", fmt.Errorf("failed to connect to artifact service: %v", err)
+		return "", errors.WithContext(err, "connecting to artifact service")
 	}
 	defer cc.Close()
 
@@ -41,11 +41,11 @@ func Stage(ctx context.Context, id, endpoint, binary, st string, files ...artifa
 
 	md, err := artifact.MultiStage(ctx, client, 10, files, st)
 	if err != nil {
-		return "", fmt.Errorf("failed to stage artifacts: %v", err)
+		return "", errors.WithContext(err, "staging artifacts")
 	}
 	token, err := artifact.Commit(ctx, client, md, st)
 	if err != nil {
-		return "", fmt.Errorf("failed to commit artifacts: %v", err)
+		return "", errors.WithContext(err, "committing artifacts")
 	}
 	return token, nil
 }

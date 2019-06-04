@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static com.google.common.collect.Lists.newArrayList;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists.newArrayList;
 
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
@@ -37,11 +37,14 @@ import org.joda.time.Instant;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
  * Integration test, that writes and reads data to and from real Kinesis. You need to provide all
  * {@link KinesisTestOptions} in order to run this.
  */
+@RunWith(JUnit4.class)
 public class KinesisIOIT implements Serializable {
   public static final int NUM_RECORDS = 1000;
   public static final int NUM_SHARDS = 2;

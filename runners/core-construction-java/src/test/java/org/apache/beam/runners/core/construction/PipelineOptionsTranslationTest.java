@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -25,14 +24,16 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.common.collect.ImmutableList;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.NullValue;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Value;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.NullValue;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Value;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -45,6 +46,10 @@ public class PipelineOptionsTranslationTest {
   /** Tests that translations can round-trip through the proto format. */
   @RunWith(Parameterized.class)
   public static class ToFromProtoTest {
+    private static final ObjectMapper MAPPER =
+        new ObjectMapper()
+            .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+
     @Parameters(name = "{index}: {0}")
     public static Iterable<? extends PipelineOptions> options() {
       PipelineOptionsFactory.register(TestUnserializableOptions.class);
@@ -81,6 +86,23 @@ public class PipelineOptionsTranslationTest {
 
       Struct reserializedStruct = PipelineOptionsTranslation.toProto(deserializedStruct);
       assertThat(reserializedStruct.getFieldsMap(), equalTo(originalStruct.getFieldsMap()));
+    }
+
+    @Test
+    public void testToFromJson() throws Exception {
+      options.getOptionsId();
+      Struct originalStruct = PipelineOptionsTranslation.toProto(options);
+      String json = PipelineOptionsTranslation.toJson(options);
+      String legacyJson = MAPPER.writeValueAsString(options);
+
+      assertThat(
+          PipelineOptionsTranslation.toProto(PipelineOptionsTranslation.fromJson(json))
+              .getFieldsMap(),
+          equalTo(originalStruct.getFieldsMap()));
+      assertThat(
+          PipelineOptionsTranslation.toProto(PipelineOptionsTranslation.fromJson(legacyJson))
+              .getFieldsMap(),
+          equalTo(originalStruct.getFieldsMap()));
     }
   }
 

@@ -56,6 +56,7 @@ cdef class OperationCounters(object):
   cdef public Counter mean_byte_counter
   cdef public coder_impl
   cdef public SumAccumulator active_accumulator
+  cdef public object current_size
   cdef public libc.stdint.int64_t _sample_counter
   cdef public libc.stdint.int64_t _next_sample
 

@@ -15,26 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.schemas;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.util.common.ReflectHelpers.ObjectsClassComparator;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 
 /**
  * A {@link SchemaRegistry} allows registering {@link Schema}s for a given Java {@link Class} or a
@@ -67,8 +68,71 @@ public class SchemaRegistry {
   private final Map<TypeDescriptor, SchemaEntry> entries = Maps.newHashMap();
   private final ArrayDeque<SchemaProvider> providers;
 
+  private static class PerTypeRegisteredProvider implements SchemaProvider {
+    private final Map<TypeDescriptor, SchemaProvider> providers = Maps.newHashMap();
+
+    void registerProvider(TypeDescriptor typeDescriptor, SchemaProvider schemaProvider) {
+      providers.put(typeDescriptor, schemaProvider);
+    }
+
+    @Nullable
+    @Override
+    public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
+      TypeDescriptor<?> type = typeDescriptor;
+      do {
+        SchemaProvider schemaProvider = providers.get(type);
+        if (schemaProvider != null) {
+          return schemaProvider.schemaFor(type);
+        }
+        Class<?> superClass = type.getRawType().getSuperclass();
+        if (superClass == null || superClass.equals(Object.class)) {
+          return null;
+        }
+        type = TypeDescriptor.of(superClass);
+      } while (true);
+    }
+
+    @Nullable
+    @Override
+    public <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor) {
+      TypeDescriptor<?> type = typeDescriptor;
+      do {
+        SchemaProvider schemaProvider = providers.get(type);
+        if (schemaProvider != null) {
+          return (SerializableFunction<T, Row>) schemaProvider.toRowFunction(type);
+        }
+        Class<?> superClass = type.getRawType().getSuperclass();
+        if (superClass == null || superClass.equals(Object.class)) {
+          return null;
+        }
+        type = TypeDescriptor.of(superClass);
+      } while (true);
+    }
+
+    @Nullable
+    @Override
+    public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
+      TypeDescriptor<?> type = typeDescriptor;
+      do {
+        SchemaProvider schemaProvider = providers.get(type);
+        if (schemaProvider != null) {
+          return (SerializableFunction<Row, T>) schemaProvider.fromRowFunction(type);
+        }
+        Class<?> superClass = type.getRawType().getSuperclass();
+        if (superClass == null || superClass.equals(Object.class)) {
+          return null;
+        }
+        type = TypeDescriptor.of(superClass);
+      } while (true);
+    }
+  }
+
+  private final PerTypeRegisteredProvider perTypeRegisteredProviders =
+      new PerTypeRegisteredProvider();
+
   private SchemaRegistry() {
     providers = new ArrayDeque<>(REGISTERED_SCHEMA_PROVIDERS);
+    providers.addFirst(perTypeRegisteredProviders);
   }
 
   public static SchemaRegistry createDefault() {
@@ -102,6 +166,63 @@ public class SchemaRegistry {
    */
   public void registerSchemaProvider(SchemaProvider schemaProvider) {
     providers.addFirst(schemaProvider);
+  }
+
+  /** Register a {@link SchemaProvider} to be used for a specific type. * */
+  public <T> void registerSchemaProvider(Class<T> clazz, SchemaProvider schemaProvider) {
+    registerSchemaProvider(TypeDescriptor.of(clazz), schemaProvider);
+  }
+
+  /** Register a {@link SchemaProvider} to be used for a specific type. * */
+  public <T> void registerSchemaProvider(
+      TypeDescriptor<T> typeDescriptor, SchemaProvider schemaProvider) {
+    perTypeRegisteredProviders.registerProvider(typeDescriptor, schemaProvider);
+  }
+
+  /**
+   * Register a POJO type for automatic schema inference.
+   *
+   * <p>Currently schema field names will match field names in the POJO, and all fields must be
+   * mutable (i.e. no final fields).
+   */
+  public <T> void registerPOJO(Class<T> clazz) {
+    registerPOJO(TypeDescriptor.of(clazz));
+  }
+
+  /**
+   * Register a POJO type for automatic schema inference.
+   *
+   * <p>Currently schema field names will match field names in the POJO, and all fields must be
+   * mutable (i.e. no final fields). The Java object is expected to have implemented a correct
+   * .equals() and .hashCode methods The equals method must be completely determined by the schema
+   * fields. i.e. if the object has hidden fields that are not reflected in the schema but are
+   * compared in equals, then results will be incorrect.
+   */
+  public <T> void registerPOJO(TypeDescriptor<T> typeDescriptor) {
+    registerSchemaProvider(typeDescriptor, new JavaFieldSchema());
+  }
+
+  /**
+   * Register a JavaBean type for automatic schema inference.
+   *
+   * <p>Currently schema field names will match getter names in the bean, and all getters must have
+   * matching setters. The Java object is expected to have implemented a correct .equals() and
+   * .hashCode methods The equals method must be completely determined by the schema fields. i.e. if
+   * the object has hidden fields that are not reflected in the schema but are compared in equals,
+   * then results will be incorrect.
+   */
+  public <T> void registerJavaBean(Class<T> clazz) {
+    registerJavaBean(TypeDescriptor.of(clazz));
+  }
+
+  /**
+   * Register a JavaBean type for automatic schema inference.
+   *
+   * <p>Currently schema field names will match getter names in the bean, and all getters must have
+   * matching setters.
+   */
+  public <T> void registerJavaBean(TypeDescriptor<T> typeDescriptor) {
+    registerSchemaProvider(typeDescriptor, new JavaBeanSchema());
   }
 
   /**
@@ -151,13 +272,13 @@ public class SchemaRegistry {
     return getProviderResult((SchemaProvider p) -> p.toRowFunction(typeDescriptor));
   }
 
-  /** Rerieve the function that converts a {@link Row} object to an object of the specified type. */
+  /** Retrieve the function that converts a {@link Row} object to the specified type. */
   public <T> SerializableFunction<Row, T> getFromRowFunction(Class<T> clazz)
       throws NoSuchSchemaException {
     return getFromRowFunction(TypeDescriptor.of(clazz));
   }
 
-  /** Rerieve the function that converts a {@link Row} object to an object of the specified type. */
+  /** Retrieve the function that converts a {@link Row} object to the specified type. */
   public <T> SerializableFunction<Row, T> getFromRowFunction(TypeDescriptor<T> typeDescriptor)
       throws NoSuchSchemaException {
     SchemaEntry entry = entries.get(typeDescriptor);

@@ -22,15 +22,10 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
-
-func init() {
-	runtime.RegisterFunction(encFloat)
-	runtime.RegisterFunction(decFloat)
-}
 
 func encFloat(v typex.T) []byte {
 	var val float64
@@ -49,7 +44,7 @@ func encFloat(v typex.T) []byte {
 func decFloat(t reflect.Type, data []byte) (typex.T, error) {
 	uval, err := decVarUintZ(reflectx.Uint64, data)
 	if err != nil {
-		return nil, fmt.Errorf("invalid float encoding for: %v", data)
+		return nil, errors.Errorf("invalid float encoding for: %v", data)
 	}
 
 	n := math.Float64frombits(bits.ReverseBytes64(uval.(uint64)))
@@ -70,6 +65,6 @@ func NewFloat(t reflect.Type) (*coder.CustomCoder, error) {
 	case reflect.Float32, reflect.Float64:
 		return coder.NewCustomCoder("float", t, encFloat, decFloat)
 	default:
-		return nil, fmt.Errorf("not a float type: %v", t)
+		return nil, errors.Errorf("not a float type: %v", t)
 	}
 }

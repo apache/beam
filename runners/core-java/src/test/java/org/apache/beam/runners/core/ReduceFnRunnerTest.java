@@ -38,7 +38,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
-import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -84,6 +83,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -1060,7 +1060,7 @@ public class ReduceFnRunnerTest {
       Instant hold = tester.getWatermarkHold();
       if (hold != null) {
         assertThat(hold, greaterThanOrEqualTo(new Instant(watermark)));
-        assertThat(watermark, lessThan((maxTs + gapDuration.getMillis())));
+        assertThat(watermark, lessThan(maxTs + gapDuration.getMillis()));
       }
     }
     tester.setAutoAdvanceOutputWatermark(true);

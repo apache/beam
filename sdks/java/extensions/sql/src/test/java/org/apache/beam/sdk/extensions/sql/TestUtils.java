@@ -15,24 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static java.util.stream.Collectors.toList;
-import static org.apache.beam.sdk.schemas.Schema.toSchema;
-import static org.apache.beam.sdk.values.Row.toRow;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Stream;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableUtils;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -102,7 +97,7 @@ public class TestUtils {
      * @args pairs of column type and column names.
      */
     public static RowsBuilder of(final Object... args) {
-      Schema beamSQLSchema = buildBeamSqlSchema(args);
+      Schema beamSQLSchema = TestTableUtils.buildBeamSqlSchema(args);
       RowsBuilder builder = new RowsBuilder();
       builder.type = beamSQLSchema;
 
@@ -133,7 +128,7 @@ public class TestUtils {
      * <p>Note: check the class javadoc for for detailed example.
      */
     public RowsBuilder addRows(final Object... args) {
-      this.rows.addAll(buildRows(type, Arrays.asList(args)));
+      this.rows.addAll(TestTableUtils.buildRows(type, Arrays.asList(args)));
       return this;
     }
 
@@ -143,7 +138,7 @@ public class TestUtils {
      * <p>Note: check the class javadoc for for detailed example.
      */
     public RowsBuilder addRows(final List args) {
-      this.rows.addAll(buildRows(type, args));
+      this.rows.addAll(TestTableUtils.buildRows(type, args));
       return this;
     }
 
@@ -206,7 +201,9 @@ public class TestUtils {
         type = rows.get(0).getSchema();
       }
 
-      TestStream.Builder<Row> values = TestStream.create(type.getRowCoder());
+      TestStream.Builder<Row> values =
+          TestStream.create(
+              type, SerializableFunctions.identity(), SerializableFunctions.identity());
 
       for (Row row : rows) {
         if (timestampField != null) {
@@ -218,54 +215,6 @@ public class TestUtils {
 
       return PBegin.in(pipeline).apply("unboundedPCollection", values.advanceWatermarkToInfinity());
     }
-  }
-
-  /**
-   * Convenient way to build a {@link Schema}.
-   *
-   * <p>e.g.
-   *
-   * <pre>{@code
-   * buildBeamSqlSchema(
-   *     SqlCoders.BIGINT, "order_id",
-   *     SqlCoders.INTEGER, "site_id",
-   *     SqlCoders.DOUBLE, "price",
-   *     SqlCoders.TIMESTAMP, "order_time"
-   * )
-   * }</pre>
-   */
-  public static Schema buildBeamSqlSchema(Object... args) {
-    return Stream.iterate(0, i -> i + 2)
-        .limit(args.length / 2)
-        .map(i -> toRecordField(args, i))
-        .collect(toSchema());
-  }
-
-  // TODO: support nested.
-  // TODO: support nullable.
-  private static Schema.Field toRecordField(Object[] args, int i) {
-    return Schema.Field.of((String) args[i + 1], (FieldType) args[i]).withNullable(true);
-  }
-
-  /**
-   * Convenient way to build a {@code BeamSqlRow}s.
-   *
-   * <p>e.g.
-   *
-   * <pre>{@code
-   * buildRows(
-   *     schema,
-   *     1, 1, 1, // the first row
-   *     2, 2, 2, // the second row
-   *     ...
-   * )
-   * }</pre>
-   */
-  public static List<Row> buildRows(Schema type, List<?> rowsValues) {
-    return Lists.partition(rowsValues, type.getFieldCount())
-        .stream()
-        .map(values -> values.stream().collect(toRow(type)))
-        .collect(toList());
   }
 
   public static <T> PCollectionTuple tuple(String tag, PCollection<T> pCollection) {

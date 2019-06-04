@@ -48,10 +48,10 @@ import com.fasterxml.jackson.databind.jsontype.TypeDeserializer;
 import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Map;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 
 /**
  * A Jackson {@link Module} that registers a {@link JsonSerializer} and {@link JsonDeserializer} for
@@ -171,7 +171,7 @@ public class AwsModule extends SimpleModule {
           Field field =
               PropertiesFileCredentialsProvider.class.getDeclaredField(CREDENTIALS_FILE_PATH);
           field.setAccessible(true);
-          String credentialsFilePath = ((String) field.get(specificProvider));
+          String credentialsFilePath = (String) field.get(specificProvider);
           jsonGenerator.writeStringField(CREDENTIALS_FILE_PATH, credentialsFilePath);
         } catch (NoSuchFieldException | IllegalAccessException e) {
           throw new IOException("failed to access private field with reflection", e);
@@ -187,7 +187,7 @@ public class AwsModule extends SimpleModule {
               ClasspathPropertiesFileCredentialsProvider.class.getDeclaredField(
                   CREDENTIALS_FILE_PATH);
           field.setAccessible(true);
-          String credentialsFilePath = ((String) field.get(specificProvider));
+          String credentialsFilePath = (String) field.get(specificProvider);
           jsonGenerator.writeStringField(CREDENTIALS_FILE_PATH, credentialsFilePath);
         } catch (NoSuchFieldException | IllegalAccessException e) {
           throw new IOException("failed to access private field with reflection", e);
@@ -241,10 +241,9 @@ public class AwsModule extends SimpleModule {
   }
 
   @JsonAutoDetect(
-    fieldVisibility = Visibility.NONE,
-    getterVisibility = Visibility.NONE,
-    setterVisibility = Visibility.NONE
-  )
+      fieldVisibility = Visibility.NONE,
+      getterVisibility = Visibility.NONE,
+      setterVisibility = Visibility.NONE)
   interface ClientConfigurationMixin {
     @JsonProperty
     String getProxyHost();

@@ -16,17 +16,20 @@
  * limitations under the License.
  */
 
+plugins { id 'org.apache.beam.module' }
 
 // We specifically enumerate all the projects that we depend on since
 // the list is used in both defining the included set for the uber jar
 // and also the set of project level dependencies.
-def dependOnProjects = [":beam-model-pipeline", ":beam-model-fn-execution", ":beam-sdks-java-core",
-                        ":beam-sdks-java-fn-execution",
-                        ":beam-sdks-java-extensions-google-cloud-platform-core",
-                        ":beam-runners-core-java", ":beam-runners-core-construction-java"]
+def dependOnProjects = [":model:pipeline", ":model:fn-execution", ":sdks:java:core",
+                        ":sdks:java:fn-execution",
+                        ":sdks:java:extensions:google-cloud-platform-core",
+                        ":runners:core-java", ":runners:core-construction-java"]
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE <<
+applyJavaNature(
+  validateShadowJar: false,
+  testShadowJar: true,
+  shadowClosure: DEFAULT_SHADOW_CLOSURE <<
   // Create an uber jar without repackaging for the SDK harness
   // TODO: We have been releasing this in the past, consider not
   // releasing it since its typically bad practice to release 'all'
@@ -50,14 +53,16 @@ dependencies {
     compile project(path: it, configuration: "shadow")
   }
   compile library.java.jackson_databind
-  compile library.java.guava
+  shadow library.java.vendored_guava_20_0
+  shadowTest library.java.powermock
   compile library.java.joda_time
   compile library.java.slf4j_api
+  compile library.java.vendored_grpc_1_13_1
   provided library.java.error_prone_annotations
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompile library.java.mockito_core
-  testCompile library.java.slf4j_jdk14
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  shadowTestRuntimeClasspath library.java.slf4j_jdk14
 }

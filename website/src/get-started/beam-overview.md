@@ -48,6 +48,7 @@ Beam currently supports Runners that work with the following distributed process
 * Apache Apex  ![Apache Apex logo]({{ "/images/logos/runners/apex.png" | prepend: site.baseurl }})
 * Apache Flink ![Apache Flink logo]({{ "/images/logos/runners/flink.png" | prepend: site.baseurl }})
 * Apache Gearpump (incubating) ![Apache Gearpump logo]({{ "/images/logos/runners/gearpump.png" | prepend: site.baseurl }})
+* Apache Samza ![Apache Samza logo]({{ "/images/logos/runners/samza.png" | prepend: site.baseurl }}){:height="20px" width="50"}
 * Apache Spark ![Apache Spark logo]({{ "/images/logos/runners/spark.png" | prepend: site.baseurl }})
 * Google Cloud Dataflow ![Google Cloud Dataflow logo]({{ "/images/logos/runners/dataflow.png" | prepend: site.baseurl }})
 
@@ -57,12 +58,16 @@ Beam currently supports Runners that work with the following distributed process
 
 Get started using Beam for your data processing tasks.
 
+1. [Try Apache Beam]({{ stie.baseurl }}/get-started/try-apache-beam) in an online interactive environment.
+
 1. Follow the Quickstart for the [Java SDK]({{ site.baseurl }}/get-started/quickstart-java), the [Python SDK]({{ site.baseurl }}/get-started/quickstart-py) or the [Go SDK]({{ site.baseurl }}/get-started/quickstart-go).
 
-2. See the [WordCount Examples Walkthrough]({{ site.baseurl }}/get-started/wordcount-example) for examples that introduce various features of the SDKs.
+1. See the [WordCount Examples Walkthrough]({{ site.baseurl }}/get-started/wordcount-example) for examples that introduce various features of the SDKs.
 
-3. Dive into the [Documentation]({{ site.baseurl }}/documentation/) section for in-depth concepts and reference materials for the Beam model, SDKs, and runners.
+1. Take a self-paced tour through our [Learning Resources]({{ site.baseurl }}/documentation/resources/learning-resources).
+
+1. Dive into the [Documentation]({{ site.baseurl }}/documentation/) section for in-depth concepts and reference materials for the Beam model, SDKs, and runners.
 
 ## Contribute
 
-Beam is an [Apache Software Foundation](http://www.apache.org) project, available under the Apache v2 license. Beam is an open source community and contributions are greatly appreciated! If you'd like to contribute, please see the [Contribute]({{ site.baseurl }}/contribute/) section.
+Beam is an [Apache Software Foundation](http://www.apache.org){:target="_blank"} project, available under the Apache v2 license. Beam is an open source community and contributions are greatly appreciated! If you'd like to contribute, please see the [Contribute]({{ site.baseurl }}/contribute/) section.

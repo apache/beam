@@ -25,10 +25,13 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import java.lang.reflect.Field;
+import java.util.List;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -52,6 +55,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputRece
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PaneInfoParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PipelineOptionsParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TaggedOutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimeDomainParameter;
@@ -64,6 +68,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -135,15 +140,16 @@ public class DoFnSignaturesTest {
   }
 
   @Test
-  public void testWrongElementType() throws Exception {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("@Element argument must have type java.lang.String");
+  public void testMismatchingElementType() throws Exception {
     DoFnSignature sig =
         DoFnSignatures.getSignature(
             new DoFn<String, String>() {
               @ProcessElement
               public void process(@Element Integer element) {}
             }.getClass());
+    assertThat(sig.processElement().extraParameters().size(), equalTo(1));
+    assertThat(
+        sig.processElement().extraParameters().get(0), instanceOf(SchemaElementParameter.class));
   }
 
   @Test
@@ -178,7 +184,35 @@ public class DoFnSignaturesTest {
               @ProcessElement
               public void process(@Element Row row) {}
             }.getClass());
-    assertThat(sig.processElement().getRowParameter(), notNullValue());
+    assertFalse(sig.processElement().getSchemaElementParameters().isEmpty());
+  }
+
+  @Test
+  public void testMultipleSchemaParameters() {
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<String, String>() {
+              @ProcessElement
+              public void process(
+                  @Element Row row1,
+                  @Timestamp Instant ts,
+                  @Element Row row2,
+                  OutputReceiver<String> o,
+                  @Element Integer intParameter) {}
+            }.getClass());
+    assertEquals(3, sig.processElement().getSchemaElementParameters().size());
+    assertEquals(0, sig.processElement().getSchemaElementParameters().get(0).index());
+    assertEquals(
+        TypeDescriptors.rows(),
+        sig.processElement().getSchemaElementParameters().get(0).elementT());
+    assertEquals(1, sig.processElement().getSchemaElementParameters().get(1).index());
+    assertEquals(
+        TypeDescriptors.rows(),
+        sig.processElement().getSchemaElementParameters().get(1).elementT());
+    assertEquals(2, sig.processElement().getSchemaElementParameters().get(2).index());
+    assertEquals(
+        TypeDescriptors.integers(),
+        sig.processElement().getSchemaElementParameters().get(2).elementT());
   }
 
   @Test
@@ -190,7 +224,7 @@ public class DoFnSignaturesTest {
           final FieldAccessDescriptor fieldAccess = descriptor;
 
           @ProcessElement
-          public void process(@FieldAccess("foo") Row row) {}
+          public void process(@FieldAccess("foo") @Element Row row) {}
         };
 
     DoFnSignature sig = DoFnSignatures.getSignature(doFn.getClass());
@@ -199,19 +233,7 @@ public class DoFnSignaturesTest {
     assertThat(field.getName(), equalTo("fieldAccess"));
     assertThat(field.get(doFn), equalTo(descriptor));
 
-    assertThat(sig.processElement().getRowParameter(), notNullValue());
-  }
-
-  @Test
-  public void testMissingFieldAccess() {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("No FieldAccessDescriptor defined.");
-    DoFnSignature sig =
-        DoFnSignatures.getSignature(
-            new DoFn<String, String>() {
-              @ProcessElement
-              public void process(@FieldAccess("foo") Row row) {}
-            }.getClass());
+    assertFalse(sig.processElement().getSchemaElementParameters().isEmpty());
   }
 
   @Test
@@ -1052,6 +1074,112 @@ public class DoFnSignaturesTest {
     assertThat(
         decl.stateType(),
         Matchers.<TypeDescriptor<?>>equalTo(new TypeDescriptor<ValueState<Integer>>() {}));
+  }
+
+  @Test
+  public void testOnWindowExpirationMultipleAnnotation() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Found multiple methods annotated with @OnWindowExpiration");
+    thrown.expectMessage("bar()");
+    thrown.expectMessage("baz()");
+    thrown.expectMessage(getClass().getName() + "$");
+    DoFnSignatures.getSignature(
+        new DoFn<String, String>() {
+          @ProcessElement
+          public void foo() {}
+
+          @OnWindowExpiration
+          public void bar() {}
+
+          @OnWindowExpiration
+          public void baz() {}
+        }.getClass());
+  }
+
+  @Test
+  public void testOnWindowExpirationMustBePublic() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("OnWindowExpiration");
+    thrown.expectMessage("Must be public");
+    thrown.expectMessage("bar()");
+
+    DoFnSignatures.getSignature(
+        new DoFn<String, String>() {
+          @ProcessElement
+          public void foo() {}
+
+          @OnWindowExpiration
+          void bar() {}
+        }.getClass());
+  }
+
+  @Test
+  public void testOnWindowExpirationDisallowedParameter() throws Exception {
+    // Timers are not allowed in OnWindowExpiration
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Illegal parameter type");
+    thrown.expectMessage("TimerParameter");
+    thrown.expectMessage("myTimer");
+    DoFnSignatures.getSignature(
+        new DoFn<String, String>() {
+          @TimerId("foo")
+          private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void foo() {}
+
+          @OnTimer("foo")
+          public void onFoo() {}
+
+          @OnWindowExpiration
+          public void bar(@TimerId("foo") Timer t) {}
+        }.getClass());
+  }
+
+  @Test
+  public void testOnWindowExpirationNoParam() {
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<String, String>() {
+
+              @ProcessElement
+              public void process(ProcessContext c) {}
+
+              @OnWindowExpiration
+              public void bar() {}
+            }.getClass());
+
+    assertThat(sig.onWindowExpiration().extraParameters().size(), equalTo(0));
+  }
+
+  @Test
+  public void testOnWindowExpirationWithAllowedParams() {
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<String, String>() {
+              @StateId("foo")
+              private final StateSpec<ValueState<Integer>> bizzle =
+                  StateSpecs.value(VarIntCoder.of());
+
+              @ProcessElement
+              public void process(ProcessContext c) {}
+
+              @OnWindowExpiration
+              public void bar(
+                  BoundedWindow b,
+                  @StateId("foo") ValueState<Integer> s,
+                  PipelineOptions p,
+                  OutputReceiver<String> o,
+                  MultiOutputReceiver m) {}
+            }.getClass());
+
+    List<Parameter> params = sig.onWindowExpiration().extraParameters();
+    assertThat(params.size(), equalTo(5));
+    assertThat(params.get(0), instanceOf(WindowParameter.class));
+    assertThat(params.get(1), instanceOf(StateParameter.class));
+    assertThat(params.get(2), instanceOf(PipelineOptionsParameter.class));
+    assertThat(params.get(3), instanceOf(OutputReceiverParameter.class));
+    assertThat(params.get(4), instanceOf(TaggedOutputReceiverParameter.class));
   }
 
   private Matcher<String> mentionsTimers() {

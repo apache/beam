@@ -27,6 +27,7 @@ from __future__ import absolute_import
 
 try:
   from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
+  from apache_beam.runners.direct.test_direct_runner import TestDirectRunner
 except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position

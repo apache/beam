@@ -21,9 +21,9 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
-import com.google.common.io.BaseEncoding;
 import java.io.IOException;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
 
 /** MatcherSerializer is used with Jackson to enable serialization of SerializableMatchers. */
 class MatcherSerializer extends JsonSerializer<SerializableMatcher<?>> {

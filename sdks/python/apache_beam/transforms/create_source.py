@@ -15,6 +15,13 @@
 # limitations under the License.
 #
 
+from __future__ import absolute_import
+from __future__ import division
+
+from builtins import map
+from builtins import next
+from builtins import range
+
 from apache_beam.io import iobase
 from apache_beam.transforms.core import Create
 
@@ -57,15 +64,15 @@ class _CreateSource(iobase.BoundedSource):
         start_position = 0
       if stop_position is None:
         stop_position = len(self._serialized_values)
-      avg_size_per_value = self._total_size / len(self._serialized_values)
+      avg_size_per_value = self._total_size // len(self._serialized_values)
       num_values_per_split = max(
-          int(desired_bundle_size / avg_size_per_value), 1)
+          int(desired_bundle_size // avg_size_per_value), 1)
       start = start_position
       while start < stop_position:
         end = min(start + num_values_per_split, stop_position)
         remaining = stop_position - end
         # Avoid having a too small bundle at the end.
-        if remaining < (num_values_per_split / 4):
+        if remaining < (num_values_per_split // 4):
           end = stop_position
         sub_source = Create._create_source(
             self._serialized_values[start:end], self._coder)

@@ -21,7 +21,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/golang/protobuf/proto"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 // Class is the type "class" of data as distinguished by the runtime. The class
@@ -47,7 +47,22 @@ const (
 	Composite
 )
 
-var protoMessageType = reflect.TypeOf((*proto.Message)(nil)).Elem()
+func (c Class) String() string {
+	switch c {
+	case Invalid:
+		return "Invalid"
+	case Concrete:
+		return "Concrete"
+	case Universal:
+		return "Universal"
+	case Container:
+		return "Container"
+	case Composite:
+		return "Composite"
+	default:
+		panic(fmt.Sprintf("invalid Class value: %v", int(c)))
+	}
+}
 
 // TODO(herohde) 5/16/2017: maybe we should add more classes, so that every
 // reasonable type (such as error) is not Invalid, even though it is not
@@ -76,31 +91,41 @@ func ClassOf(t reflect.Type) Class {
 // data must be fully serializable. Functions and channels are examples of invalid
 // types. Aggregate types with no universals are considered concrete here.
 func IsConcrete(t reflect.Type) bool {
-	if t == nil || t == EventTimeType || t.Implements(WindowType) {
+	return isConcrete(t, make(map[uintptr]bool))
+}
+
+func isConcrete(t reflect.Type, visited map[uintptr]bool) bool {
+	// Check that we haven't hit a recursive loop.
+	key := reflect.ValueOf(t).Pointer()
+	// If there's an invalid field in a recursive type
+	// then the layer above will find it.
+	if visited[key] {
+		return true
+	}
+	visited[key] = true
+
+	// Handle special types.
+	if t == nil ||
+		t == EventTimeType ||
+		t.Implements(WindowType) ||
+		t == reflectx.Error ||
+		t == reflectx.Context ||
+		IsUniversal(t) {
 		return false
 	}
 
-	// TODO(BEAM-3306): the coder registry should be consulted here for user
-	// specified types and their coders.
-	if t.Implements(protoMessageType) {
-		return true
-	}
-
 	switch t.Kind() {
-	case reflect.Invalid, reflect.UnsafePointer, reflect.Uintptr, reflect.Interface:
+	case reflect.Invalid, reflect.UnsafePointer, reflect.Uintptr:
 		return false // no unmanageable types
 
 	case reflect.Chan, reflect.Func:
 		return false // no unserializable types
 
-	case reflect.Map, reflect.Array:
-		return false // TBD
+	case reflect.Map:
+		return isConcrete(t.Elem(), visited) && isConcrete(t.Key(), visited)
 
-	case reflect.Slice:
-		return IsConcrete(t.Elem())
-
-	case reflect.Ptr:
-		return false // TBD
+	case reflect.Array, reflect.Slice, reflect.Ptr:
+		return isConcrete(t.Elem(), visited)
 
 	case reflect.Struct:
 		for i := 0; i < t.NumField(); i++ {
@@ -112,11 +137,15 @@ func IsConcrete(t reflect.Type) bool {
 			f := t.Field(i)
 			if len(f.Name) > 0 {
 				r, _ := utf8.DecodeRuneInString(f.Name)
-				if unicode.IsUpper(r) && !IsConcrete(f.Type) {
+				if unicode.IsUpper(r) && !isConcrete(f.Type, visited) {
 					return false
 				}
 			}
 		}
+		return true
+
+	case reflect.Interface:
+		// Interface types must fail at construction time if no coder is registered for them.
 		return true
 
 	case reflect.Bool:
@@ -145,6 +174,8 @@ func IsConcrete(t reflect.Type) bool {
 // IsContainer returns true iff the given type is an container data type,
 // such as []int or []T.
 func IsContainer(t reflect.Type) bool {
+	// TODO(lostluck) 2019.02.03: Should we consider maps a container for
+	// beam specific purposes?
 	switch {
 	case IsList(t):
 		if IsUniversal(t.Elem()) || IsConcrete(t.Elem()) {

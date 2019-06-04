@@ -17,12 +17,24 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.beam.sdk.util.ZipFiles;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Funnels;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hasher;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 
 /** Utilities for working with classpath resources for pipelines. */
 public class PipelineResources {
@@ -56,5 +68,62 @@ public class PipelineResources {
       }
     }
     return files;
+  }
+
+  /**
+   * Goes through the list of files that need to be staged on runner. Removes nonexistent
+   * directories and packages existing ones. This is necessary for runners that require filesToStage
+   * to be jars only.
+   *
+   * @param resourcesToStage list of resources that need to be staged
+   * @param tmpJarLocation temporary directory to store the jars
+   * @return A list of absolute paths to resources (jar files)
+   */
+  public static List<String> prepareFilesForStaging(
+      List<String> resourcesToStage, String tmpJarLocation) {
+    return resourcesToStage.stream()
+        .map(File::new)
+        .map(
+            file -> {
+              Preconditions.checkState(
+                  file.exists(), "To-be-staged file does not exist: '%s'", file);
+              return file.isDirectory()
+                  ? packageDirectoriesToStage(file, tmpJarLocation)
+                  : file.getAbsolutePath();
+            })
+        .collect(Collectors.toList());
+  }
+
+  private static String packageDirectoriesToStage(File directoryToStage, String tmpJarLocation) {
+    String hash = calculateDirectoryContentHash(directoryToStage);
+    String pathForJar = getUniqueJarPath(hash, tmpJarLocation);
+    zipDirectory(directoryToStage, pathForJar);
+    return pathForJar;
+  }
+
+  private static String calculateDirectoryContentHash(File directoryToStage) {
+    Hasher hasher = Hashing.sha256().newHasher();
+    try (OutputStream hashStream = Funnels.asOutputStream(hasher)) {
+      ZipFiles.zipDirectory(directoryToStage, hashStream);
+      return hasher.hash().toString();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private static String getUniqueJarPath(String contentHash, String tmpJarLocation) {
+    checkArgument(
+        !Strings.isNullOrEmpty(tmpJarLocation),
+        "Please provide temporary location for storing the jar files.");
+
+    return String.format("%s%s%s.jar", tmpJarLocation, File.separator, contentHash);
+  }
+
+  private static void zipDirectory(File directoryToStage, String uniqueDirectoryPath) {
+    try {
+      ZipFiles.zipDirectory(directoryToStage, new FileOutputStream(uniqueDirectoryPath));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

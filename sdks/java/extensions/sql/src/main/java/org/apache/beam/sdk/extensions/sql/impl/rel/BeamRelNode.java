@@ -28,6 +28,22 @@ import org.apache.calcite.rel.RelNode;
 /** A {@link RelNode} that can also give a {@link PTransform} that implements the expression. */
 public interface BeamRelNode extends RelNode {
 
+  /**
+   * Whether the collection of rows represented by this relational expression is bounded (known to
+   * be finite) or unbounded (may or may not be finite).
+   *
+   * @return bounded if and only if all PCollection inputs are bounded
+   */
+  default PCollection.IsBounded isBounded() {
+    return getPCollectionInputs().stream()
+            .allMatch(
+                rel ->
+                    BeamSqlRelUtils.getBeamRelInput(rel).isBounded()
+                        == PCollection.IsBounded.BOUNDED)
+        ? PCollection.IsBounded.BOUNDED
+        : PCollection.IsBounded.UNBOUNDED;
+  }
+
   default List<RelNode> getPCollectionInputs() {
     return getInputs();
   };

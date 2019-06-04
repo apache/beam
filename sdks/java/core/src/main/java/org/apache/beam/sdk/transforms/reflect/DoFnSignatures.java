@@ -17,14 +17,9 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Predicates;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
@@ -59,6 +54,7 @@ import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
@@ -73,6 +69,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.joda.time.Instant;
 
 /** Utilities for working with {@link DoFnSignature}. See {@link #getSignature}. */
@@ -87,7 +88,7 @@ public class DoFnSignatures {
           ImmutableList.of(
               Parameter.ProcessContextParameter.class,
               Parameter.ElementParameter.class,
-              Parameter.RowParameter.class,
+              Parameter.SchemaElementParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.OutputReceiverParameter.class,
               Parameter.TaggedOutputReceiverParameter.class,
@@ -102,7 +103,6 @@ public class DoFnSignatures {
           ImmutableList.of(
               Parameter.PipelineOptionsParameter.class,
               Parameter.ElementParameter.class,
-              Parameter.RowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.OutputReceiverParameter.class,
               Parameter.TaggedOutputReceiverParameter.class,
@@ -120,6 +120,15 @@ public class DoFnSignatures {
           Parameter.TaggedOutputReceiverParameter.class,
           Parameter.TimerParameter.class,
           Parameter.StateParameter.class);
+
+  private static final Collection<Class<? extends Parameter>>
+      ALLOWED_ON_WINDOW_EXPIRATION_PARAMETERS =
+          ImmutableList.of(
+              Parameter.WindowParameter.class,
+              Parameter.PipelineOptionsParameter.class,
+              Parameter.OutputReceiverParameter.class,
+              Parameter.TaggedOutputReceiverParameter.class,
+              Parameter.StateParameter.class);
 
   /** @return the {@link DoFnSignature} for the given {@link DoFn} instance. */
   public static <FnT extends DoFn<?, ?>> DoFnSignature signatureForDoFn(FnT fn) {
@@ -216,8 +225,7 @@ public class DoFnSignatures {
 
     /** Indicates whether a {@link RestrictionTrackerParameter} is known in this context. */
     public boolean hasRestrictionTrackerParameter() {
-      return extraParameters
-          .stream()
+      return extraParameters.stream()
           .anyMatch(Predicates.instanceOf(RestrictionTrackerParameter.class)::apply);
     }
 
@@ -228,8 +236,7 @@ public class DoFnSignatures {
 
     /** Indicates whether a {@link Parameter.PipelineOptionsParameter} is known in this context. */
     public boolean hasPipelineOptionsParamter() {
-      return extraParameters
-          .stream()
+      return extraParameters.stream()
           .anyMatch(Predicates.instanceOf(Parameter.PipelineOptionsParameter.class)::apply);
     }
 
@@ -252,6 +259,10 @@ public class DoFnSignatures {
     /** Extra parameters in their entirety. Unmodifiable. */
     public List<Parameter> getExtraParameters() {
       return Collections.unmodifiableList(extraParameters);
+    }
+
+    public void setParameter(int index, Parameter parameter) {
+      extraParameters.set(index, parameter);
     }
 
     /**
@@ -336,7 +347,8 @@ public class DoFnSignatures {
         findAnnotatedMethod(errors, DoFn.FinishBundle.class, fnClass, false);
     Method setupMethod = findAnnotatedMethod(errors, DoFn.Setup.class, fnClass, false);
     Method teardownMethod = findAnnotatedMethod(errors, DoFn.Teardown.class, fnClass, false);
-
+    Method onWindowExpirationMethod =
+        findAnnotatedMethod(errors, DoFn.OnWindowExpiration.class, fnClass, false);
     Method getInitialRestrictionMethod =
         findAnnotatedMethod(errors, DoFn.GetInitialRestriction.class, fnClass, false);
     Method splitRestrictionMethod =
@@ -410,6 +422,12 @@ public class DoFnSignatures {
       signatureBuilder.setTeardown(
           analyzeLifecycleMethod(
               errors.forMethod(DoFn.Teardown.class, teardownMethod), teardownMethod));
+    }
+
+    if (onWindowExpirationMethod != null) {
+      signatureBuilder.setOnWindowExpiration(
+          analyzeOnWindowExpirationMethod(
+              errors, fnT, onWindowExpirationMethod, inputT, outputT, fnContext));
     }
 
     ErrorReporter getInitialRestrictionErrors;
@@ -539,9 +557,6 @@ public class DoFnSignatures {
     ErrorReporter processElementErrors =
         errors.forMethod(DoFn.ProcessElement.class, processElement.targetMethod());
 
-    final TypeDescriptor<?> trackerT;
-    final String originOfTrackerT;
-
     List<String> missingRequiredMethods = new ArrayList<>();
     if (getInitialRestriction == null) {
       missingRequiredMethods.add("@" + DoFn.GetInitialRestriction.class.getSimpleName());
@@ -551,27 +566,11 @@ public class DoFnSignatures {
           && getInitialRestriction
               .restrictionT()
               .isSubtypeOf(TypeDescriptor.of(HasDefaultTracker.class))) {
-        trackerT =
-            getInitialRestriction
-                .restrictionT()
-                .resolveType(HasDefaultTracker.class.getTypeParameters()[1]);
-        originOfTrackerT =
-            String.format(
-                "restriction type %s of @%s method %s",
-                formatType(getInitialRestriction.restrictionT()),
-                DoFn.GetInitialRestriction.class.getSimpleName(),
-                format(getInitialRestriction.targetMethod()));
+        // no-op we are using the annotation @HasDefaultTracker
       } else {
         missingRequiredMethods.add("@" + DoFn.NewTracker.class.getSimpleName());
-        trackerT = null;
-        originOfTrackerT = null;
       }
     } else {
-      trackerT = newTracker.trackerT();
-      originOfTrackerT =
-          String.format(
-              "%s method %s",
-              DoFn.NewTracker.class.getSimpleName(), format(newTracker.targetMethod()));
       ErrorReporter getInitialRestrictionErrors =
           errors.forMethod(DoFn.GetInitialRestriction.class, getInitialRestriction.targetMethod());
       TypeDescriptor<?> restrictionT = getInitialRestriction.restrictionT();
@@ -594,11 +593,9 @@ public class DoFnSignatures {
         errors.forMethod(DoFn.GetInitialRestriction.class, getInitialRestriction.targetMethod());
     TypeDescriptor<?> restrictionT = getInitialRestriction.restrictionT();
     processElementErrors.checkArgument(
-        processElement.trackerT().equals(trackerT),
-        "Has tracker type %s, but the DoFn's tracker type was inferred as %s from %s",
-        formatType(processElement.trackerT()),
-        trackerT,
-        originOfTrackerT);
+        processElement.trackerT().getRawType().equals(RestrictionTracker.class),
+        "Has tracker type %s, but the DoFn's tracker type must be of type RestrictionTracker.",
+        formatType(processElement.trackerT()));
 
     if (getRestrictionCoder != null) {
       getInitialRestrictionErrors.checkArgument(
@@ -740,6 +737,50 @@ public class DoFnSignatures {
   }
 
   @VisibleForTesting
+  static DoFnSignature.OnWindowExpirationMethod analyzeOnWindowExpirationMethod(
+      ErrorReporter errors,
+      TypeDescriptor<? extends DoFn<?, ?>> fnClass,
+      Method m,
+      TypeDescriptor<?> inputT,
+      TypeDescriptor<?> outputT,
+      FnAnalysisContext fnContext) {
+    errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
+
+    Type[] params = m.getGenericParameterTypes();
+
+    MethodAnalysisContext methodContext = MethodAnalysisContext.create();
+
+    boolean requiresStableInput = m.isAnnotationPresent(DoFn.RequiresStableInput.class);
+
+    @Nullable TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnClass, m);
+
+    List<DoFnSignature.Parameter> extraParameters = new ArrayList<>();
+    ErrorReporter onWindowExpirationErrors = errors.forMethod(DoFn.OnWindowExpiration.class, m);
+    for (int i = 0; i < params.length; ++i) {
+      Parameter parameter =
+          analyzeExtraParameter(
+              onWindowExpirationErrors,
+              fnContext,
+              methodContext,
+              fnClass,
+              ParameterDescription.of(
+                  m,
+                  i,
+                  fnClass.resolveType(params[i]),
+                  Arrays.asList(m.getParameterAnnotations()[i])),
+              inputT,
+              outputT);
+
+      checkParameterOneOf(errors, parameter, ALLOWED_ON_WINDOW_EXPIRATION_PARAMETERS);
+
+      extraParameters.add(parameter);
+    }
+
+    return DoFnSignature.OnWindowExpirationMethod.create(
+        m, requiresStableInput, windowT, extraParameters);
+  }
+
+  @VisibleForTesting
   static DoFnSignature.ProcessElementMethod analyzeProcessElementMethod(
       ErrorReporter errors,
       TypeDescriptor<? extends DoFn<?, ?>> fnClass,
@@ -762,7 +803,6 @@ public class DoFnSignatures {
     TypeDescriptor<?> trackerT = getTrackerType(fnClass, m);
     TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnClass, m);
     for (int i = 0; i < params.length; ++i) {
-
       Parameter extraParam =
           analyzeExtraParameter(
               errors.forMethod(DoFn.ProcessElement.class, m),
@@ -778,6 +818,16 @@ public class DoFnSignatures {
               outputT);
 
       methodContext.addParameter(extraParam);
+    }
+    int schemaElementIndex = 0;
+    for (int i = 0; i < methodContext.getExtraParameters().size(); ++i) {
+      Parameter parameter = methodContext.getExtraParameters().get(i);
+      if (parameter instanceof SchemaElementParameter) {
+        SchemaElementParameter schemaParameter = (SchemaElementParameter) parameter;
+        schemaParameter = schemaParameter.toBuilder().setIndex(schemaElementIndex).build();
+        methodContext.setParameter(i, schemaParameter);
+        ++schemaElementIndex;
+      }
     }
 
     // The allowed parameters depend on whether this DoFn is splittable
@@ -832,17 +882,13 @@ public class DoFnSignatures {
 
     ErrorReporter paramErrors = methodErrors.forParameter(param);
 
-    if (hasElementAnnotation(param.getAnnotations())) {
-      if (paramT.equals(TypeDescriptor.of(Row.class)) && !paramT.equals(inputT)) {
-        // a null id means that there is no registered FieldAccessDescriptor, so we should default
-        // to all fields. If the input type of the DoFn is already Row, then no need to do
-        // anything special.
-        return Parameter.rowParameter(null);
-      } else {
-        methodErrors.checkArgument(
-            paramT.equals(inputT), "@Element argument must have type %s", inputT);
-        return Parameter.elementParameter(paramT);
-      }
+    String fieldAccessString = getFieldAccessId(param.getAnnotations());
+    if (fieldAccessString != null) {
+      return Parameter.schemaElementParameter(paramT, fieldAccessString, param.getIndex());
+    } else if (hasElementAnnotation(param.getAnnotations())) {
+      return (paramT.equals(inputT))
+          ? Parameter.elementParameter(paramT)
+          : Parameter.schemaElementParameter(paramT, null, param.getIndex());
     } else if (hasTimestampAnnotation(param.getAnnotations())) {
       methodErrors.checkArgument(
           rawType.equals(Instant.class),
@@ -970,15 +1016,6 @@ public class DoFnSignatures {
           stateDecl.field().getDeclaringClass().getName());
 
       return Parameter.stateParameter(stateDecl);
-    } else if (rawType.equals(Row.class)) {
-      String id = getFieldAccessId(param.getAnnotations());
-      paramErrors.checkArgument(
-          id != null, "missing %s annotation", DoFn.FieldAccess.class.getSimpleName());
-      FieldAccessDeclaration fieldAccessDeclaration =
-          fnContext.getFieldAccessDeclarations().get(id);
-      paramErrors.checkArgument(
-          fieldAccessDeclaration != null, "No FieldAccessDescriptor defined.");
-      return Parameter.rowParameter(id);
     } else {
       List<String> allowedParamTypes =
           Arrays.asList(
@@ -1018,21 +1055,11 @@ public class DoFnSignatures {
   }
 
   private static boolean hasElementAnnotation(List<Annotation> annotations) {
-    for (Annotation anno : annotations) {
-      if (anno.annotationType().equals(DoFn.Element.class)) {
-        return true;
-      }
-    }
-    return false;
+    return annotations.stream().anyMatch(a -> a.annotationType().equals(DoFn.Element.class));
   }
 
   private static boolean hasTimestampAnnotation(List<Annotation> annotations) {
-    for (Annotation anno : annotations) {
-      if (anno.annotationType().equals(DoFn.Timestamp.class)) {
-        return true;
-      }
-    }
-    return false;
+    return annotations.stream().anyMatch(a -> a.annotationType().equals(DoFn.Timestamp.class));
   }
 
   @Nullable

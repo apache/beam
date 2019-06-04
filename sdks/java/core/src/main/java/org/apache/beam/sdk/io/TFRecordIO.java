@@ -17,13 +17,10 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -47,6 +44,9 @@ import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashFunction;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 
 /**
  * {@link PTransform}s for reading and writing TensorFlow TFRecord files.
@@ -84,6 +84,7 @@ public class TFRecordIO {
         .setFilenameSuffix(null)
         .setNumShards(0)
         .setCompression(Compression.UNCOMPRESSED)
+        .setNoSpilling(false)
         .build();
   }
 
@@ -231,19 +232,24 @@ public class TFRecordIO {
     /** Option to indicate the output sink's compression type. Default is NONE. */
     abstract Compression getCompression();
 
+    /** Whether to skip the spilling of data caused by having maxNumWritersPerBundle. */
+    abstract boolean getNoSpilling();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setOutputPrefix(ValueProvider<ResourceId> outputPrefix);
 
-      abstract Builder setShardTemplate(String shardTemplate);
+      abstract Builder setShardTemplate(@Nullable String shardTemplate);
 
       abstract Builder setFilenameSuffix(@Nullable String filenameSuffix);
 
       abstract Builder setNumShards(int numShards);
 
       abstract Builder setCompression(Compression compression);
+
+      abstract Builder setNoSpilling(boolean noSpilling);
 
       abstract Write build();
     }
@@ -340,6 +346,11 @@ public class TFRecordIO {
       return toBuilder().setCompression(compression).build();
     }
 
+    /** See {@link WriteFiles#withNoSpilling()}. */
+    public Write withNoSpilling() {
+      return toBuilder().setNoSpilling(true).build();
+    }
+
     @Override
     public PDone expand(PCollection<byte[]> input) {
       checkState(
@@ -351,6 +362,9 @@ public class TFRecordIO {
                   getOutputPrefix(), getShardTemplate(), getFilenameSuffix(), getCompression()));
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
+      }
+      if (getNoSpilling()) {
+        write = write.withNoSpilling();
       }
       input.apply("Write", write);
       return PDone.in(input.getPipeline());
@@ -619,20 +633,39 @@ public class TFRecordIO {
         return null;
       }
       checkState(headerBytes == HEADER_LEN, "Not a valid TFRecord. Fewer than 12 bytes.");
+
       header.rewind();
       long length = header.getLong();
+      long lengthHash = hashLong(length);
       int maskedCrc32OfLength = header.getInt();
-      checkState(hashLong(length) == maskedCrc32OfLength, "Mismatch of length mask");
+      if (lengthHash != maskedCrc32OfLength) {
+        throw new IOException(
+            String.format(
+                "Mismatch of length mask when reading a record. Expected %d but received %d.",
+                maskedCrc32OfLength, lengthHash));
+      }
 
       ByteBuffer data = ByteBuffer.allocate((int) length);
-      checkState(inChannel.read(data) == length, "Invalid data");
+      while (data.hasRemaining() && inChannel.read(data) >= 0) {}
+      if (data.hasRemaining()) {
+        throw new IOException(
+            String.format(
+                "EOF while reading record of length %d. Read only %d bytes. Input might be truncated.",
+                length, data.position()));
+      }
 
       footer.clear();
       inChannel.read(footer);
       footer.rewind();
-      int maskedCrc32OfData = footer.getInt();
 
-      checkState(hashBytes(data.array()) == maskedCrc32OfData, "Mismatch of data mask");
+      int maskedCrc32OfData = footer.getInt();
+      int dataHash = hashBytes(data.array());
+      if (dataHash != maskedCrc32OfData) {
+        throw new IOException(
+            String.format(
+                "Mismatch of data mask when reading a record. Expected %d but received %d.",
+                maskedCrc32OfData, dataHash));
+      }
       return data.array();
     }
 

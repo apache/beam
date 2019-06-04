@@ -20,10 +20,6 @@
 set -e
 set -v
 
-PROJECT_ID='apache-beam-testing'
-DATASET_ID='beam_dependency_states'
-PYTHON_DEP_TABLE_ID='python_dependency_states'
-JAVA_DEP_TABLE_ID='java_dependency_states'
 REPORT_DESCRIPTION="
 <h4> A dependency update is high priority if it satisfies one of following criteria: </h4>
 <ul>
@@ -39,34 +35,28 @@ REPORT_DESCRIPTION="
      In the future, issues will be filed and tracked for these automatically,
      but in the meantime you can search for existing issues or open a new one.
 </h4>
-<h4> For more information: <a href=\"https://docs.google.com/document/d/15m1MziZ5TNd9rh_XN0YYBJfYkt0Oj-Ou9g0KFDPL2aA/edit#\"> Beam Dependency Update Policy </a></h4>"
+<h4> For more information: <a href=\"https://beam.apache.org/contribute/dependencies/\"> Beam Dependency Guide </a></h4>"
 
 
 # Virtualenv for the rest of the script to run setup
-/usr/bin/virtualenv dependency/check
+virtualenv dependency/check
 . dependency/check/bin/activate
 pip install --upgrade google-cloud-bigquery
-
-# Run the unit tests of the report generator
-pip install mock
-python $WORKSPACE/src/.test-infra/jenkins/dependency_check/dependency_check_report_generator_test.py \
-
+pip install --upgrade google-cloud-bigtable
+pip install --upgrade google-cloud-core
 rm -f build/dependencyUpdates/beam-dependency-check-report.txt
+
+# Insall packages and run the unit tests of the report generator and the jira manager
+pip install mock jira pyyaml
+cd $WORKSPACE/src/.test-infra/jenkins
+python -m dependency_check.dependency_check_report_generator_test
+python -m jira_utils.jira_manager_test
+python -m dependency_check.version_comparer_test
 
 echo "<html><body>" > $WORKSPACE/src/build/dependencyUpdates/beam-dependency-check-report.html
 
-python $WORKSPACE/src/.test-infra/jenkins/dependency_check/dependency_check_report_generator.py \
-build/dependencyUpdates/python_dependency_report.txt \
-Python \
-$PROJECT_ID \
-$DATASET_ID \
-$PYTHON_DEP_TABLE_ID
+python -m dependency_check.dependency_check_report_generator Python
 
-python $WORKSPACE/src/.test-infra/jenkins/dependency_check/dependency_check_report_generator.py \
-build/dependencyUpdates/report.txt \
-Java \
-$PROJECT_ID \
-$DATASET_ID \
-$JAVA_DEP_TABLE_ID
+python -m dependency_check.dependency_check_report_generator Java
 
 echo "$REPORT_DESCRIPTION </body></html>" >> $WORKSPACE/src/build/dependencyUpdates/beam-dependency-check-report.html

@@ -17,12 +17,19 @@
  */
 package org.apache.beam.sdk.io.range;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
+import org.apache.beam.sdk.util.VarInt;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** A restriction represented by a range of integers [from, to). */
 public class OffsetRange
@@ -97,5 +104,48 @@ public class OffsetRange
       start = end;
     }
     return res;
+  }
+
+  /** A coder for {@link OffsetRange}s. */
+  public static class Coder extends AtomicCoder<OffsetRange> {
+    private static final Coder INSTANCE = new Coder();
+    private static final TypeDescriptor<OffsetRange> TYPE_DESCRIPTOR =
+        new TypeDescriptor<OffsetRange>() {};
+
+    public static Coder of() {
+      return INSTANCE;
+    }
+
+    @Override
+    public void encode(OffsetRange value, OutputStream outStream)
+        throws CoderException, IOException {
+      VarInt.encode(value.from, outStream);
+      VarInt.encode(value.to, outStream);
+    }
+
+    @Override
+    public OffsetRange decode(InputStream inStream) throws CoderException, IOException {
+      return new OffsetRange(VarInt.decodeLong(inStream), VarInt.decodeLong(inStream));
+    }
+
+    @Override
+    public boolean isRegisterByteSizeObserverCheap(OffsetRange value) {
+      return true;
+    }
+
+    @Override
+    protected long getEncodedElementByteSize(OffsetRange value) throws Exception {
+      return (long) VarInt.getLength(value.from) + VarInt.getLength(value.to);
+    }
+
+    @Override
+    public boolean consistentWithEquals() {
+      return true;
+    }
+
+    @Override
+    public TypeDescriptor<OffsetRange> getEncodedTypeDescriptor() {
+      return TYPE_DESCRIPTOR;
+    }
   }
 }

@@ -86,6 +86,8 @@ defined, or before importing a module containing type-hinted functions.
 from __future__ import absolute_import
 
 import inspect
+import logging
+import sys
 import types
 from builtins import next
 from builtins import object
@@ -105,43 +107,46 @@ __all__ = [
     'TypeCheckError',
 ]
 
-
 # This is missing in the builtin types module.  str.upper is arbitrary, any
 # method on a C-implemented type will do.
 # pylint: disable=invalid-name
 _MethodDescriptorType = type(str.upper)
 # pylint: enable=invalid-name
 
+try:
+  _original_getfullargspec = inspect.getfullargspec
+  _use_full_argspec = True
+except AttributeError:  # Python 2
+  _original_getfullargspec = inspect.getargspec
+  _use_full_argspec = False
 
-# Monkeypatch inspect.getargspec to allow passing non-function objects.
-# This is needed to use higher-level functions such as getcallargs.
-_original_getargspec = inspect.getargspec
 
-
-def getargspec(func):
+def getfullargspec(func):
   try:
-    return _original_getargspec(func)
+    return _original_getfullargspec(func)
   except TypeError:
     if isinstance(func, type):
-      argspec = getargspec(func.__init__)
+      argspec = getfullargspec(func.__init__)
       del argspec.args[0]
       return argspec
     elif callable(func):
       try:
-        return _original_getargspec(func.__call__)
+        return _original_getfullargspec(func.__call__)
       except TypeError:
         # Return an ArgSpec with at least one positional argument,
         # and any number of other (positional or keyword) arguments
-        # whose name won't match any real agument.
+        # whose name won't match any real argument.
         # Arguments with the %unknown% prefix will be ignored in the type
         # checking code.
-        return inspect.ArgSpec(
-            ['_'], '__unknown__varargs', '__unknown__keywords', ())
+        if _use_full_argspec:
+          return inspect.FullArgSpec(
+              ['_'], '__unknown__varargs', '__unknown__keywords', (),
+              [], {}, {})
+        else:  # Python 2
+          return inspect.ArgSpec(
+              ['_'], '__unknown__varargs', '__unknown__keywords', ())
     else:
       raise
-
-
-inspect.getargspec = getargspec
 
 
 class IOTypeHints(object):
@@ -240,7 +245,7 @@ def _positional_arg_hints(arg, hints):
 def _unpack_positional_arg_hints(arg, hint):
   """Unpacks the given hint according to the nested structure of arg.
 
-  For example, if arg is [[a, b], c] and hint is Tuple[Any, int], than
+  For example, if arg is [[a, b], c] and hint is Tuple[Any, int], then
   this function would return ((Any, Any), int) so it can be used in conjunction
   with inspect.getcallargs.
   """
@@ -259,15 +264,32 @@ def _unpack_positional_arg_hints(arg, hint):
 def getcallargs_forhints(func, *typeargs, **typekwargs):
   """Like inspect.getcallargs, but understands that Tuple[] and an Any unpack.
   """
-  argspec = inspect.getargspec(func)
+  argspec = getfullargspec(func)
   # Turn Tuple[x, y] into (x, y) so getcallargs can do the proper unpacking.
   packed_typeargs = [_unpack_positional_arg_hints(arg, hint)
                      for (arg, hint) in zip(argspec.args, typeargs)]
   packed_typeargs += list(typeargs[len(packed_typeargs):])
+
+  if sys.version_info.major < 3:
+    return getcallargs_forhints_impl_py2(func, argspec, packed_typeargs,
+                                         typekwargs)
+  else:
+    return getcallargs_forhints_impl_py3(func, packed_typeargs, typekwargs)
+
+
+def getcallargs_forhints_impl_py2(func, argspec, packed_typeargs, typekwargs):
+  # Monkeypatch inspect.getfullargspec to allow passing non-function objects.
+  # getfullargspec (getargspec on Python 2) are used by inspect.getcallargs.
+  # TODO(BEAM-5490): Reimplement getcallargs and stop relying on monkeypatch.
+  inspect.getargspec = getfullargspec
   try:
     callargs = inspect.getcallargs(func, *packed_typeargs, **typekwargs)
   except TypeError as e:
     raise TypeCheckError(e)
+  finally:
+    # Revert monkey-patch.
+    inspect.getargspec = _original_getfullargspec
+
   if argspec.defaults:
     # Declare any default arguments to be Any.
     for k, var in enumerate(reversed(argspec.args)):
@@ -279,17 +301,49 @@ def getcallargs_forhints(func, *typeargs, **typekwargs):
   if argspec.varargs:
     callargs[argspec.varargs] = typekwargs.get(
         argspec.varargs, typehints.Tuple[typehints.Any, ...])
-  if argspec.keywords:
+
+  varkw = argspec.keywords
+  if varkw:
     # TODO(robertwb): Consider taking the union of key and value types.
-    callargs[argspec.keywords] = typekwargs.get(
-        argspec.keywords, typehints.Dict[typehints.Any, typehints.Any])
+    callargs[varkw] = typekwargs.get(
+        varkw, typehints.Dict[typehints.Any, typehints.Any])
+
+  # TODO(BEAM-5878) Support kwonlyargs.
+
   return callargs
+
+
+def getcallargs_forhints_impl_py3(func, packed_typeargs, typekwargs):
+  try:
+    # TODO(udim): Function signature returned by getfullargspec (in
+    #  packed_typeargs) might differ from the one below. Migrate to use
+    #  inspect.signature in getfullargspec (for Py3).
+    signature = inspect.signature(func)
+  except ValueError as e:
+    logging.warning('Could not get signature for function: %s: %s', func, e)
+    return {}
+  try:
+    bindings = signature.bind(*packed_typeargs, **typekwargs)
+  except TypeError as e:
+    # Might be raised due to too few or too many arguments.
+    raise TypeCheckError(e)
+  bound_args = bindings.arguments
+  for param in signature.parameters.values():
+    if param.kind == inspect.Parameter.VAR_POSITIONAL:
+      bound_args[param.name] = typehints.Tuple[typehints.Any, ...]
+    elif param.kind == inspect.Parameter.VAR_KEYWORD:
+      bound_args[param.name] = typehints.Dict[typehints.Any, typehints.Any]
+    elif param.name not in bound_args and param.default is not param.empty:
+      # Declare unbound parameters with defaults to be Any.
+      bound_args[param.name] = typehints.Any
+
+  return dict(bound_args)
 
 
 def get_type_hints(fn):
   """Gets the type hint associated with an arbitrary object fn.
 
-  Always returns a valid IOTypeHints object, creating one if necissary.
+  Always returns a valid IOTypeHints object, creating one if necessary.
   """
   # pylint: disable=protected-access
   if not hasattr(fn, '_type_hints'):
@@ -580,7 +634,6 @@ class GeneratorWrapper(object):
   next = __next__
 
   def __iter__(self):
-    while True:
-      x = next(self.internal_gen)
+    for x in self.internal_gen:
       self.interleave_func(x)
       yield x

@@ -21,9 +21,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableList;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -34,6 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -96,7 +95,7 @@ public class WindowingStrategyTranslationTest {
   public void testToProtoAndBack() throws Exception {
     WindowingStrategy<?, ?> windowingStrategy = toProtoAndBackSpec.getWindowingStrategy();
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
     WindowingStrategy<?, ?> toProtoAndBackWindowingStrategy =
         WindowingStrategyTranslation.fromProto(
             WindowingStrategyTranslation.toMessageProto(windowingStrategy, components));
@@ -110,7 +109,7 @@ public class WindowingStrategyTranslationTest {
   public void testToProtoAndBackWithComponents() throws Exception {
     WindowingStrategy<?, ?> windowingStrategy = toProtoAndBackSpec.getWindowingStrategy();
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
     RunnerApi.WindowingStrategy proto =
         WindowingStrategyTranslation.toProto(windowingStrategy, components);
     RehydratedComponents protoComponents =

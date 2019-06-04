@@ -19,7 +19,10 @@ layout: default
 
   <header class="post-header">
     <h1 class="post-title" itemprop="name headline">{{ page.title }}</h1>
-    <p class="post-meta"><time datetime="{{ page.date | date_to_xmlschema }}" itemprop="datePublished">{{ page.date | date: "%b %-d, %Y" }}</time>{% if authors %} • {% include authors-list.md %}{% endif %}</p>
+    <p class="post-meta"><time datetime="{{ page.date | date_to_xmlschema }}" itemprop="datePublished">{{ page.date | date: "%b %-d, %Y" }}</time>{% if authors %} •
+      {% assign count = authors | size %}{% for name in authors %}{% if forloop.first == false and count > 2 %},{% endif %}{% if forloop.last and count > 1 %} &amp;{% endif %}{% assign author = site.data.authors[name] %} {{ author.name }} {% if author.twitter %}[<a href="https://twitter.com/{{ author.twitter }}">@{{ author.twitter }}</a>]{% endif %}{% endfor %}
+      {% endif %}
+    </p>
   </header>
 
   <div class="post-content" itemprop="articleBody">

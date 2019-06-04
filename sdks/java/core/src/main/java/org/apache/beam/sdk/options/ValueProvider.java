@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.options;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
@@ -32,7 +32,6 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.deser.ContextualDeserializer;
-import com.google.common.base.MoreObjects;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
@@ -44,6 +43,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
 /**
  * A {@link ValueProvider} abstracts the notion of fetching a value that may or may not be currently
@@ -83,8 +83,7 @@ public interface ValueProvider<T> extends Serializable {
 
     /** Creates a {@link StaticValueProvider} that wraps the provided value. */
     public static <T> StaticValueProvider<T> of(T value) {
-      StaticValueProvider<T> factory = new StaticValueProvider<>(value);
-      return factory;
+      return new StaticValueProvider<>(value);
     }
 
     @Override
@@ -121,8 +120,7 @@ public interface ValueProvider<T> extends Serializable {
     /** Creates a {@link NestedValueProvider} that wraps the provided value. */
     public static <T, X> NestedValueProvider<T, X> of(
         ValueProvider<X> value, SerializableFunction<X, T> translator) {
-      NestedValueProvider<T, X> factory = new NestedValueProvider<>(value, translator);
-      return factory;
+      return new NestedValueProvider<>(value, translator);
     }
 
     @Override

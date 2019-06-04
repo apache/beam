@@ -18,7 +18,6 @@
 cimport cython
 
 from apache_beam.utils.windowed_value cimport WindowedValue
-from apache_beam.metrics.execution cimport ScopedMetricsContainer
 from apache_beam.transforms.cy_dataflow_distribution_counter cimport DataflowDistributionCounter
 
 from libc.stdint cimport int64_t
@@ -35,22 +34,33 @@ cdef class MethodWrapper(object):
   cdef public object args
   cdef public object defaults
   cdef public object method_value
+  cdef bint has_userstate_arguments
+  cdef object state_args_to_replace
+  cdef object timer_args_to_replace
+  cdef object timestamp_arg_name
+  cdef object window_arg_name
 
 
 cdef class DoFnSignature(object):
   cdef public MethodWrapper process_method
   cdef public MethodWrapper start_bundle_method
   cdef public MethodWrapper finish_bundle_method
+  cdef public MethodWrapper setup_lifecycle_method
+  cdef public MethodWrapper teardown_lifecycle_method
   cdef public MethodWrapper initial_restriction_method
   cdef public MethodWrapper restriction_coder_method
   cdef public MethodWrapper create_tracker_method
   cdef public MethodWrapper split_method
   cdef public object do_fn
+  cdef public object timer_methods
+  cdef bint _is_stateful_dofn
 
 
 cdef class DoFnInvoker(object):
   cdef public DoFnSignature signature
   cdef OutputProcessor output_processor
+  cdef object user_state_context
+  cdef public object bundle_finalizer_param
 
   cpdef invoke_process(self, WindowedValue windowed_value,
                        restriction_tracker=*,
@@ -77,6 +87,9 @@ cdef class PerWindowInvoker(DoFnInvoker):
   cdef bint has_windowed_inputs
   cdef bint cache_globally_windowed_args
   cdef object process_method
+  cdef bint is_splittable
+  cdef object restriction_tracker
+  cdef WindowedValue current_windowed_value
 
 
 cdef class DoFnRunner(Receiver):
@@ -84,7 +97,7 @@ cdef class DoFnRunner(Receiver):
   cdef object step_name
   cdef list side_inputs
   cdef DoFnInvoker do_fn_invoker
-
+  cdef public object bundle_finalizer_param
   cpdef process(self, WindowedValue windowed_value)
 
 

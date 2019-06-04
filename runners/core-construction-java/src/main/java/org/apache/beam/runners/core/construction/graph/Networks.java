@@ -17,29 +17,31 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
-import com.google.common.graph.ElementOrder;
-import com.google.common.graph.EndpointPair;
-import com.google.common.graph.MutableNetwork;
-import com.google.common.graph.Network;
-import com.google.common.graph.NetworkBuilder;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
 import java.util.function.Function;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.ElementOrder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.EndpointPair;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Graphs;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.NetworkBuilder;
 
 /** Static utility methods for {@link Network} instances that are directed. */
 public class Networks {
@@ -147,15 +149,21 @@ public class Networks {
   /**
    * Return a set of nodes in sorted topological order.
    *
+   * <p>Note that back edges within directed graphs are "broken" returning a topological order for a
+   * directed acyclic network which approximates the original network.
+   *
    * <p>Nodes will be considered in the order specified by the {@link Network Network's} {@link
    * Network#nodeOrder()}.
    */
   public static <NodeT> Iterable<NodeT> topologicalOrder(Network<NodeT, ?> network) {
-    return computeTopologicalOrder(network);
+    return computeTopologicalOrder(Graphs.copyOf(network));
   }
 
   /**
    * Return a set of nodes in sorted topological order.
+   *
+   * <p>Note that back edges within directed graphs are "broken" returning a topological order for a
+   * directed acyclic network which approximates the original network.
    *
    * <p>Nodes will be considered in the order specified by the {@link
    * ElementOrder#sorted(Comparator) sorted ElementOrder} created with the provided comparator.
@@ -183,7 +191,7 @@ public class Networks {
    * Network#nodeOrder()}. This ensures that any two Networks with the same nodes and node orders
    * produce the same result.
    */
-  private static <NodeT> Iterable<NodeT> computeTopologicalOrder(Network<NodeT, ?> network) {
+  private static <NodeT> Iterable<NodeT> computeTopologicalOrder(MutableNetwork<NodeT, ?> network) {
     // TODO: (github/guava/2641) Upgrade Guava and remove this method if topological sorting becomes
     // supported externally or remove this comment if its not going to be supported externally.
 
@@ -193,29 +201,68 @@ public class Networks {
         "Only networks without self loops are supported, given %s",
         network);
 
-    // Linked hashset will prevent duplicates from appearing and will maintain insertion order.
-    LinkedHashSet<NodeT> nodes = new LinkedHashSet<>(network.nodes().size());
-    Queue<NodeT> processingOrder = new ArrayDeque<>();
-    // Add all the roots
-    for (NodeT node : network.nodes()) {
-      if (network.inDegree(node) == 0) {
-        processingOrder.add(node);
+    // Uses the following algorithm:
+    //    A FAST & EFFECTIVE HEURISTIC FOR THE FEEDBACK ARC SET PROBLEM
+    //    Peter Eades, Xuemin Lin, W. F. Smyth
+    // https://pdfs.semanticscholar.org/c7ed/d9acce96ca357876540e19664eb9d976637f.pdf
+    //
+    // The only edges that are ignored by the algorithm are back edges.
+    // The algorithm (while there are still nodes in the graph):
+    //   1) Removes all sinks from the graph adding them to the beginning of "s2". Continue to do
+    // this till there
+    //      are no more sinks.
+    //   2) Removes all source from the graph adding them to the end of "s1". Continue to do this
+    // till there
+    //      are no more sources.
+    //   3) Remote a single node with the highest delta within the graph and add it to the end of
+    // "s1".
+    //
+    // The topological order is then the s1 concatenated with s2.
+
+    Deque<NodeT> s1 = new ArrayDeque<>();
+    Deque<NodeT> s2 = new ArrayDeque<>();
+
+    Ordering<NodeT> maximumOrdering =
+        new Ordering<NodeT>() {
+          @Override
+          public int compare(NodeT t0, NodeT t1) {
+            return (network.outDegree(t0) - network.inDegree(t0))
+                - (network.outDegree(t1) - network.inDegree(t1));
+          }
+        };
+
+    while (!network.nodes().isEmpty()) {
+      boolean nodeRemoved;
+      do {
+        nodeRemoved = false;
+        for (NodeT possibleSink : ImmutableList.copyOf(network.nodes())) {
+          if (network.outDegree(possibleSink) == 0) {
+            network.removeNode(possibleSink);
+            s2.addFirst(possibleSink);
+            nodeRemoved = true;
+          }
+        }
+      } while (nodeRemoved);
+
+      do {
+        nodeRemoved = false;
+        for (NodeT possibleSource : ImmutableList.copyOf(network.nodes())) {
+          if (network.inDegree(possibleSource) == 0) {
+            network.removeNode(possibleSource);
+            s1.addLast(possibleSource);
+            nodeRemoved = true;
+          }
+        }
+      } while (nodeRemoved);
+
+      if (!network.nodes().isEmpty()) {
+        NodeT maximum = maximumOrdering.max(network.nodes());
+        network.removeNode(maximum);
+        s1.addLast(maximum);
       }
     }
 
-    while (!processingOrder.isEmpty()) {
-      NodeT current = processingOrder.remove();
-      // If all predecessors have already been added, then we can add this node, otherwise
-      // we need to add the node to the back of the processing queue.
-      if (nodes.containsAll(network.predecessors(current))) {
-        nodes.add(current);
-        processingOrder.addAll(network.successors(current));
-      } else {
-        processingOrder.add(current);
-      }
-    }
-
-    return nodes;
+    return ImmutableList.<NodeT>builder().addAll(s1).addAll(s2).build();
   }
 
   public static <NodeT, EdgeT> String toDot(Network<NodeT, EdgeT> network) {

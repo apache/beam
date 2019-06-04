@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -26,17 +25,21 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Optional;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ProcessPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -55,9 +58,46 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class EnvironmentsTest implements Serializable {
   @Test
+  public void createEnvironments() throws IOException {
+    assertThat(
+        Environments.createOrGetDefaultEnvironment(Environments.ENVIRONMENT_DOCKER, "java"),
+        is(
+            Environment.newBuilder()
+                .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER))
+                .setPayload(
+                    DockerPayload.newBuilder().setContainerImage("java").build().toByteString())
+                .build()));
+    assertThat(
+        Environments.createOrGetDefaultEnvironment(
+            Environments.ENVIRONMENT_PROCESS,
+            "{\"os\": \"linux\", \"arch\": \"amd64\", \"command\": \"run.sh\", \"env\":{\"k1\": \"v1\", \"k2\": \"v2\"} }"),
+        is(
+            Environment.newBuilder()
+                .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS))
+                .setPayload(
+                    ProcessPayload.newBuilder()
+                        .setOs("linux")
+                        .setArch("amd64")
+                        .setCommand("run.sh")
+                        .putEnv("k1", "v1")
+                        .putEnv("k2", "v2")
+                        .build()
+                        .toByteString())
+                .build()));
+    assertThat(
+        Environments.createOrGetDefaultEnvironment(
+            Environments.ENVIRONMENT_PROCESS, "{\"command\": \"run.sh\"}"),
+        is(
+            Environment.newBuilder()
+                .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS))
+                .setPayload(ProcessPayload.newBuilder().setCommand("run.sh").build().toByteString())
+                .build()));
+  }
+
+  @Test
   public void getEnvironmentUnknownFnType() throws IOException {
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
     RehydratedComponents rehydratedComponents =
         RehydratedComponents.forComponents(components.toComponents());
     PTransform builder =
@@ -74,7 +114,7 @@ public class EnvironmentsTest implements Serializable {
   @Test
   public void getEnvironmentParDo() throws IOException {
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
     ParDoPayload payload =
         ParDoTranslation.translateParDo(
             ParDo.of(
@@ -83,6 +123,7 @@ public class EnvironmentsTest implements Serializable {
                       public void process(ProcessContext ctxt) {}
                     })
                 .withOutputTags(new TupleTag<>(), TupleTagList.empty()),
+            DoFnSchemaInformation.create(),
             Pipeline.create(),
             components);
     RehydratedComponents rehydratedComponents =
@@ -107,7 +148,7 @@ public class EnvironmentsTest implements Serializable {
   @Test
   public void getEnvironmentWindowIntoKnown() throws IOException {
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
     WindowIntoPayload payload =
         WindowIntoPayload.newBuilder()
             .setWindowFn(
@@ -136,7 +177,7 @@ public class EnvironmentsTest implements Serializable {
   @Test
   public void getEnvironmentWindowIntoCustom() throws IOException {
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
     WindowIntoPayload payload =
         WindowIntoPayload.newBuilder()
             .setWindowFn(
@@ -181,7 +222,7 @@ public class EnvironmentsTest implements Serializable {
   @Test
   public void getEnvironmentRead() throws IOException {
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
     ReadPayload payload =
         ReadTranslation.toProto(Read.from(CountingSource.unbounded()), components);
     RehydratedComponents rehydratedComponents =
@@ -206,7 +247,7 @@ public class EnvironmentsTest implements Serializable {
   @Test
   public void getEnvironmentCombine() throws IOException {
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
     CombinePayload payload =
         CombinePayload.newBuilder()
             .setCombineFn(CombineTranslation.toProto(Sum.ofLongs(), components))

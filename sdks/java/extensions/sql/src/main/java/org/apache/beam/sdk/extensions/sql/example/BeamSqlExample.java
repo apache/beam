@@ -25,6 +25,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -38,7 +39,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * <p>Run the example from the Beam source root with
  *
  * <pre>
- *   ./gradlew :beam-sdks-java-extensions-sql:runBasicExample
+ *   ./gradlew :sdks:java:extensions:sql:runBasicExample
  * </pre>
  *
  * <p>The above command executes the example locally using direct runner. Running the pipeline in
@@ -50,7 +51,7 @@ class BeamSqlExample {
     PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
     Pipeline p = Pipeline.create(options);
 
-    //define the input row format
+    // define the input row format
     Schema type =
         Schema.builder().addInt32Field("c1").addStringField("c2").addDoubleField("c3").build();
 
@@ -58,11 +59,15 @@ class BeamSqlExample {
     Row row2 = Row.withSchema(type).addValues(2, "row", 2.0).build();
     Row row3 = Row.withSchema(type).addValues(3, "row", 3.0).build();
 
-    //create a source PCollection with Create.of();
+    // create a source PCollection with Create.of();
     PCollection<Row> inputTable =
-        PBegin.in(p).apply(Create.of(row1, row2, row3).withCoder(type.getRowCoder()));
+        PBegin.in(p)
+            .apply(
+                Create.of(row1, row2, row3)
+                    .withSchema(
+                        type, SerializableFunctions.identity(), SerializableFunctions.identity()));
 
-    //Case 1. run a simple SQL query over input PCollection with BeamSql.simpleQuery;
+    // Case 1. run a simple SQL query over input PCollection with BeamSql.simpleQuery;
     PCollection<Row> outputStream =
         inputTable.apply(SqlTransform.query("select c1, c2, c3 from PCOLLECTION where c1 > 1"));
 

@@ -21,14 +21,18 @@
 from __future__ import absolute_import
 
 import logging
+import time
 
+from apache_beam.io import filesystems
 from apache_beam.utils import retry
 
 # Protect against environments where bigquery library is not available.
 try:
   from google.cloud import bigquery
+  from google.cloud.exceptions import NotFound
 except ImportError:
   bigquery = None
+  NotFound = None
 
 
 class GcpTestIOError(retry.PermanentException):
@@ -40,26 +44,69 @@ class GcpTestIOError(retry.PermanentException):
 @retry.with_exponential_backoff(
     num_retries=3,
     retry_filter=retry.retry_on_server_errors_filter)
-def delete_bq_table(project, dataset, table):
-  """Delete a Biqquery table.
+def create_bq_dataset(project, dataset_base_name):
+  """Creates an empty BigQuery dataset.
+
+  Args:
+    project: Project to work in.
+    dataset_base_name: Prefix for dataset id.
+
+  Returns:
+    A ``google.cloud.bigquery.dataset.DatasetReference`` object pointing to the
+    new dataset.
+  """
+  client = bigquery.Client(project=project)
+  unique_dataset_name = dataset_base_name + str(int(time.time()))
+  dataset_ref = client.dataset(unique_dataset_name, project=project)
+  dataset = bigquery.Dataset(dataset_ref)
+  client.create_dataset(dataset)
+  return dataset_ref
+
+
+@retry.with_exponential_backoff(
+    num_retries=3,
+    retry_filter=retry.retry_on_server_errors_filter)
+def delete_bq_dataset(project, dataset_ref):
+  """Deletes a BigQuery dataset and its contents.
+
+  Args:
+    project: Project to work in.
+    dataset_ref: A ``google.cloud.bigquery.dataset.DatasetReference`` object
+      pointing to the dataset to delete.
+  """
+  client = bigquery.Client(project=project)
+  client.delete_dataset(dataset_ref, delete_contents=True)
+
+
+@retry.with_exponential_backoff(
+    num_retries=3,
+    retry_filter=retry.retry_on_server_errors_filter)
+def delete_bq_table(project, dataset_id, table_id):
+  """Delete a BiqQuery table.
 
   Args:
     project: Name of the project.
-    dataset: Name of the dataset where table is.
-    table:   Name of the table.
+    dataset_id: Name of the dataset where table is.
+    table_id: Name of the table.
   """
-  logging.info('Clean up a Bigquery table with project: %s, dataset: %s, '
-               'table: %s.', project, dataset, table)
-  bq_dataset = bigquery.Client(project=project).dataset(dataset)
-  if not bq_dataset.exists():
-    raise GcpTestIOError('Failed to cleanup. Bigquery dataset %s doesn\'t '
-                         'exist in project %s.' % (dataset, project))
-  bq_table = bq_dataset.table(table)
-  if not bq_table.exists():
-    raise GcpTestIOError('Failed to cleanup. Bigquery table %s doesn\'t '
-                         'exist in project %s, dataset %s.' %
-                         (table, project, dataset))
-  bq_table.delete()
-  if bq_table.exists():
-    raise RuntimeError('Failed to cleanup. Bigquery table %s still exists '
-                       'after cleanup.' % table)
+  logging.info('Clean up a BigQuery table with project: %s, dataset: %s, '
+               'table: %s.', project, dataset_id, table_id)
+  client = bigquery.Client(project=project)
+  table_ref = client.dataset(dataset_id).table(table_id)
+  try:
+    client.delete_table(table_ref)
+  except NotFound:
+    raise GcpTestIOError('BigQuery table does not exist: %s' % table_ref)
+
+
+@retry.with_exponential_backoff(
+    num_retries=3,
+    retry_filter=retry.retry_on_server_errors_filter)
+def delete_directory(directory):
+  """Delete a directory in a filesystem.
+
+  Args:
+    directory: Full path to a directory supported by Beam filesystems (e.g.
+      "gs://mybucket/mydir/", "s3://...", ...)
+  """
+  filesystems.FileSystems.delete([directory])

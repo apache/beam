@@ -111,9 +111,13 @@ class LocalFileSystem(FileSystem):
     if not self.exists(dir_or_prefix):
       return
 
+    def list_files(root):
+      for dirpath, _, files in os.walk(root):
+        for filename in files:
+          yield self.join(dirpath, filename)
+
     try:
-      for f in os.listdir(dir_or_prefix):
-        f = self.join(dir_or_prefix, f)
+      for f in list_files(dir_or_prefix):
         try:
           yield FileMetadata(f, os.path.getsize(f))
         except OSError:
@@ -257,6 +261,21 @@ class LocalFileSystem(FileSystem):
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("Size operation failed", {path: e})
 
+  def last_updated(self, path):
+    """Get UNIX Epoch time in seconds on the FileSystem.
+
+    Args:
+      path: string path of file.
+
+    Returns: float UNIX Epoch time
+
+    Raises:
+      ``BeamIOError`` if path doesn't exist.
+    """
+    if not self.exists(path):
+      raise BeamIOError('Path does not exist: %s' % path)
+    return os.path.getmtime(path)
+
   def checksum(self, path):
     """Fetch checksum metadata of a file on the
     :class:`~apache_beam.io.filesystem.FileSystem`.
@@ -295,11 +314,22 @@ class LocalFileSystem(FileSystem):
         raise IOError(err)
 
     exceptions = {}
-    for path in paths:
+
+    def try_delete(path):
       try:
         _delete_path(path)
       except Exception as e:  # pylint: disable=broad-except
         exceptions[path] = e
+
+    for match_result in self.match(paths):
+      metadata_list = match_result.metadata_list
+
+      if not metadata_list:
+        exceptions[match_result.pattern] = \
+          IOError('No files found to delete under: %s' % match_result.pattern)
+
+      for metadata in match_result.metadata_list:
+        try_delete(metadata.path)
 
     if exceptions:
       raise BeamIOError("Delete operation failed", exceptions)

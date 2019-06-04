@@ -24,6 +24,7 @@ import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSinkRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.calcite.adapter.java.AbstractQueryableTable;
 import org.apache.calcite.linq4j.QueryProvider;
 import org.apache.calcite.linq4j.Queryable;
@@ -40,15 +41,19 @@ import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.TranslatableTable;
 
 /** Adapter from {@link BeamSqlTable} to a calcite Table. */
-class BeamCalciteTable extends AbstractQueryableTable
+public class BeamCalciteTable extends AbstractQueryableTable
     implements ModifiableTable, TranslatableTable {
   private final BeamSqlTable beamTable;
   private final Map<String, String> pipelineOptions;
 
-  public BeamCalciteTable(BeamSqlTable beamTable, Map<String, String> pipelineOptions) {
+  BeamCalciteTable(BeamSqlTable beamTable, Map<String, String> pipelineOptions) {
     super(Object[].class);
     this.beamTable = beamTable;
     this.pipelineOptions = pipelineOptions;
+  }
+
+  public static BeamCalciteTable of(BeamSqlTable table) {
+    return new BeamCalciteTable(table, ImmutableMap.of());
   }
 
   @Override

@@ -15,18 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -46,6 +43,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -98,7 +96,7 @@ public class CombineTranslationTest {
       assertEquals(combineFn, combine.get().getTransform().getFn());
 
       SdkComponents sdkComponents = SdkComponents.create();
-      sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+      sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
       CombinePayload combineProto = CombineTranslation.toProto(combine.get(), sdkComponents);
       RunnerApi.Components componentsProto = sdkComponents.toComponents();
 
@@ -139,7 +137,7 @@ public class CombineTranslationTest {
       assertEquals(combineFn, combine.get().getTransform().getFn());
 
       SdkComponents sdkComponents = SdkComponents.create();
-      sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+      sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
       CombinePayload combineProto = CombineTranslation.toProto(combine.get(), sdkComponents);
       RunnerApi.Components componentsProto = sdkComponents.toComponents();
 
@@ -184,7 +182,7 @@ public class CombineTranslationTest {
           });
 
       SdkComponents sdkComponents = SdkComponents.create();
-      sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+      sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
       CombinePayload payload = CombineTranslation.toProto(combine.get(), sdkComponents);
     }
   }

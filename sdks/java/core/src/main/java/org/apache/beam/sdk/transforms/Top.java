@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -46,6 +45,7 @@ import org.apache.beam.sdk.util.NameUtils.NameOverride;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
 /**
  * {@code PTransform}s for finding the largest (or smallest) set of elements in a {@code
@@ -168,7 +168,40 @@ public class Top {
    * {@code PCollection} of {@code KV}s and return the top values associated with each key.
    */
   public static <T extends Comparable<T>> Combine.Globally<T, List<T>> largest(int count) {
-    return Combine.globally(new TopCombineFn<>(count, new Natural<T>()));
+    return Combine.globally(largestFn(count));
+  }
+
+  /** Returns a {@link TopCombineFn} that aggregates the largest count values. */
+  public static <T extends Comparable<T>> TopCombineFn<T, Natural<T>> largestFn(int count) {
+    return new TopCombineFn<T, Natural<T>>(count, new Natural<T>()) {};
+  }
+  /** Returns a {@link TopCombineFn} that aggregates the largest count long values. */
+  public static TopCombineFn<Long, Natural<Long>> largestLongsFn(int count) {
+    return new TopCombineFn<Long, Natural<Long>>(count, new Natural<Long>()) {};
+  }
+  /** Returns a {@link TopCombineFn} that aggregates the largest count int values. */
+  public static TopCombineFn<Integer, Natural<Integer>> largestIntsFn(int count) {
+    return new TopCombineFn<Integer, Natural<Integer>>(count, new Natural<>()) {};
+  }
+  /** Returns a {@link TopCombineFn} that aggregates the largest count double values. */
+  public static TopCombineFn<Double, Natural<Double>> largestDoublesFn(int count) {
+    return new TopCombineFn<Double, Natural<Double>>(count, new Natural<>()) {};
+  }
+  /** Returns a {@link TopCombineFn} that aggregates the smallest count values. */
+  public static <T extends Comparable<T>> TopCombineFn<T, Reversed<T>> smallestFn(int count) {
+    return new TopCombineFn<T, Reversed<T>>(count, new Reversed<>()) {};
+  }
+  /** Returns a {@link TopCombineFn} that aggregates the smallest count long values. */
+  public static TopCombineFn<Long, Reversed<Long>> smallestLongsFn(int count) {
+    return new TopCombineFn<Long, Reversed<Long>>(count, new Reversed<>()) {};
+  }
+  /** Returns a {@link TopCombineFn} that aggregates the smallest count int values. */
+  public static TopCombineFn<Integer, Reversed<Integer>> smallestIntsFn(int count) {
+    return new TopCombineFn<Integer, Reversed<Integer>>(count, new Reversed<>()) {};
+  }
+  /** Returns a {@link TopCombineFn} that aggregates the smallest count double values. */
+  public static TopCombineFn<Double, Reversed<Double>> smallestDoublesFn(int count) {
+    return new TopCombineFn<Double, Reversed<Double>>(count, new Reversed<>()) {};
   }
 
   /**
@@ -248,7 +281,7 @@ public class Top {
    */
   public static <K, V extends Comparable<V>>
       PTransform<PCollection<KV<K, V>>, PCollection<KV<K, List<V>>>> smallestPerKey(int count) {
-    return Combine.perKey(new TopCombineFn<>(count, new Reversed<V>()));
+    return Combine.perKey(smallestFn(count));
   }
 
   /**
@@ -287,7 +320,7 @@ public class Top {
    * PCollection} and return the top elements.
    */
   public static <K, V extends Comparable<V>> PerKey<K, V, List<V>> largestPerKey(int count) {
-    return Combine.perKey(new TopCombineFn<>(count, new Natural<V>()));
+    return Combine.perKey(largestFn(count));
   }
 
   /** @deprecated use {@link Natural} instead */
@@ -381,10 +414,10 @@ public class Top {
 
     @Override
     public String getIncompatibleGlobalWindowErrorMessage() {
-      return "Default values are not supported in Top.[of, smallest, largest]() if the output "
+      return "Default values are not supported in Top.[of, smallest, largest]() if the input "
           + "PCollection is not windowed by GlobalWindows. Instead, use "
-          + "Top.[of, smallest, largest]().withoutDefaults() to output an empty PCollection if the"
-          + " input PCollection is empty, or Top.[of, smallest, largest]().asSingletonView() to "
+          + "Top.[of, smallest, largest]().withoutDefaults() to output an empty PCollection if the "
+          + "input PCollection is empty, or Top.[of, smallest, largest]().asSingletonView() to "
           + "get a PCollection containing the empty list if the input PCollection is empty.";
     }
   }

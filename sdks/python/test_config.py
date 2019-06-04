@@ -22,6 +22,8 @@ includes ValidatesRunner test and E2E integration test.
 
 """
 
+from __future__ import absolute_import
+
 from nose.plugins import Plugin
 
 
@@ -32,8 +34,8 @@ class BeamTestPlugin(Plugin):
   """
 
   def options(self, parser, env):
-    """Add '--test-pipeline-options' to command line option to avoid
-    unrecognized option error thrown by nose.
+    """Add '--test-pipeline-options' and '--not_use-test-runner-api'
+    to command line option to avoid unrecognized option error thrown by nose.
 
     The value of this option will be processed by TestPipeline and used to
     build customized pipeline for ValidatesRunner tests.
@@ -42,3 +44,7 @@ class BeamTestPlugin(Plugin):
                       action='store',
                       type=str,
                       help='providing pipeline options to run tests on runner')
+    parser.add_option('--not-use-test-runner-api',
+                      action='store_true',
+                      default=False,
+                      help='whether not to use test-runner-api')

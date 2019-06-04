@@ -15,19 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Objects;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -84,6 +77,12 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -165,6 +164,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
   abstract List<PCollectionView<?>> getSideInputs();
 
+  @Nullable
+  public abstract ShardingFunction<UserT, DestinationT> getShardingFunction();
+
   abstract Builder<UserT, DestinationT, OutputT> toBuilder();
 
   @AutoValue.Builder
@@ -185,6 +187,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     abstract Builder<UserT, DestinationT, OutputT> setSideInputs(
         List<PCollectionView<?>> sideInputs);
+
+    abstract Builder<UserT, DestinationT, OutputT> setShardingFunction(
+        @Nullable ShardingFunction<UserT, DestinationT> shardingFunction);
 
     abstract WriteFiles<UserT, DestinationT, OutputT> build();
   }
@@ -257,6 +262,15 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   }
 
   /**
+   * Returns a new {@link WriteFiles} that will write to the current {@link FileBasedSink} using the
+   * specified sharding function to assign shard for inputs.
+   */
+  public WriteFiles<UserT, DestinationT, OutputT> withShardingFunction(
+      ShardingFunction<UserT, DestinationT> shardingFunction) {
+    return toBuilder().setShardingFunction(shardingFunction).build();
+  }
+
+  /**
    * Returns a new {@link WriteFiles} that writes preserves windowing on it's input.
    *
    * <p>If this option is not specified, windowing and triggering are replaced by {@link
@@ -270,6 +284,17 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
    */
   public WriteFiles<UserT, DestinationT, OutputT> withWindowedWrites() {
     return toBuilder().setWindowedWrites(true).build();
+  }
+
+  /**
+   * Returns a new {@link WriteFiles} that writes all data without spilling, simplifying the
+   * pipeline. This option should not be used with {@link #withMaxNumWritersPerBundle(int)} and it
+   * will eliminate this limit possibly causing many writers to be opened. Use with caution.
+   *
+   * <p>This option only applies to writes {@link #withRunnerDeterminedSharding()}.
+   */
+  public WriteFiles<UserT, DestinationT, OutputT> withNoSpilling() {
+    return toBuilder().setMaxNumWritersPerBundle(-1).build();
   }
 
   @Override
@@ -404,15 +429,21 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     @Override
     public PCollection<FileResult<DestinationT>> expand(PCollection<UserT> input) {
+      if (getMaxNumWritersPerBundle() < 0) {
+        return input
+            .apply(
+                "WritedUnshardedBundles",
+                ParDo.of(new WriteUnshardedTempFilesFn(null, destinationCoder))
+                    .withSideInputs(getSideInputs()))
+            .setCoder(fileResultCoder);
+      }
       TupleTag<FileResult<DestinationT>> writtenRecordsTag = new TupleTag<>("writtenRecords");
       TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag =
           new TupleTag<>("unwrittenRecords");
       PCollectionTuple writeTuple =
           input.apply(
               "WriteUnshardedBundles",
-              ParDo.of(
-                      new WriteUnshardedTempFilesWithSpillingFn(
-                          unwrittenRecordsTag, destinationCoder))
+              ParDo.of(new WriteUnshardedTempFilesFn(unwrittenRecordsTag, destinationCoder))
                   .withSideInputs(getSideInputs())
                   .withOutputTags(writtenRecordsTag, TupleTagList.of(unwrittenRecordsTag)));
       PCollection<FileResult<DestinationT>> writtenBundleFiles =
@@ -454,9 +485,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
    * Writes all the elements in a bundle using a {@link Writer} produced by the {@link
    * WriteOperation} associated with the {@link FileBasedSink}.
    */
-  private class WriteUnshardedTempFilesWithSpillingFn
-      extends DoFn<UserT, FileResult<DestinationT>> {
-    private final TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag;
+  private class WriteUnshardedTempFilesFn extends DoFn<UserT, FileResult<DestinationT>> {
+    @Nullable private final TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag;
     private final Coder<DestinationT> destinationCoder;
 
     // Initialized in startBundle()
@@ -464,8 +494,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     private int spilledShardNum = UNKNOWN_SHARDNUM;
 
-    WriteUnshardedTempFilesWithSpillingFn(
-        TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag,
+    WriteUnshardedTempFilesFn(
+        @Nullable TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag,
         Coder<DestinationT> destinationCoder) {
       this.unwrittenRecordsTag = unwrittenRecordsTag;
       this.destinationCoder = destinationCoder;
@@ -490,7 +520,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       WriterKey<DestinationT> key = new WriterKey<>(window, c.pane(), destination);
       Writer<DestinationT, OutputT> writer = writers.get(key);
       if (writer == null) {
-        if (writers.size() <= getMaxNumWritersPerBundle()) {
+        if (getMaxNumWritersPerBundle() < 0 || writers.size() <= getMaxNumWritersPerBundle()) {
           String uuid = UUID.randomUUID().toString();
           LOG.info(
               "Opening writer {} for window {} pane {} destination {}",
@@ -625,10 +655,16 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       if (numShardsView != null) {
         shardingSideInputs.add(numShardsView);
       }
+
+      ShardingFunction<UserT, DestinationT> shardingFunction =
+          getShardingFunction() == null
+              ? new RandomShardingFunction(destinationCoder)
+              : getShardingFunction();
+
       return input
           .apply(
               "ApplyShardingKey",
-              ParDo.of(new ApplyShardingKeyFn(numShardsView, destinationCoder))
+              ParDo.of(new ApplyShardingFunctionFn(shardingFunction, numShardsView))
                   .withSideInputs(shardingSideInputs))
           .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()))
           .apply("GroupIntoShards", GroupByKey.create())
@@ -639,34 +675,20 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
   }
 
-  private class ApplyShardingKeyFn extends DoFn<UserT, KV<ShardedKey<Integer>, UserT>> {
-    private final @Nullable PCollectionView<Integer> numShardsView;
+  private class RandomShardingFunction implements ShardingFunction<UserT, DestinationT> {
     private final Coder<DestinationT> destinationCoder;
 
     private int shardNumber;
 
-    ApplyShardingKeyFn(
-        @Nullable PCollectionView<Integer> numShardsView, Coder<DestinationT> destinationCoder) {
-      this.numShardsView = numShardsView;
+    RandomShardingFunction(Coder<DestinationT> destinationCoder) {
       this.destinationCoder = destinationCoder;
       this.shardNumber = UNKNOWN_SHARDNUM;
     }
 
-    @ProcessElement
-    public void processElement(ProcessContext context) throws IOException {
-      getDynamicDestinations().setSideInputAccessorFromProcessContext(context);
-      final int shardCount;
-      if (numShardsView != null) {
-        shardCount = context.sideInput(numShardsView);
-      } else {
-        checkNotNull(getNumShardsProvider());
-        shardCount = getNumShardsProvider().get();
-      }
-      checkArgument(
-          shardCount > 0,
-          "Must have a positive number of shards specified for non-runner-determined sharding."
-              + " Got %s",
-          shardCount);
+    @Override
+    public ShardedKey<Integer> assignShardKey(
+        DestinationT destination, UserT element, int shardCount) throws Exception {
+
       if (shardNumber == UNKNOWN_SHARDNUM) {
         // We want to desynchronize the first record sharding key for each instance of
         // ApplyShardingKey, so records in a small PCollection will be statistically balanced.
@@ -682,11 +704,42 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       // the destinations. This does mean that multiple destinations might end up on the same shard,
       // however the number of collisions should be small, so there's no need to worry about memory
       // issues.
+      return ShardedKey.of(hashDestination(destination, destinationCoder), shardNumber);
+    }
+  }
+
+  private class ApplyShardingFunctionFn extends DoFn<UserT, KV<ShardedKey<Integer>, UserT>> {
+
+    private final ShardingFunction<UserT, DestinationT> shardingFn;
+    private final @Nullable PCollectionView<Integer> numShardsView;
+
+    ApplyShardingFunctionFn(
+        ShardingFunction<UserT, DestinationT> shardingFn,
+        @Nullable PCollectionView<Integer> numShardsView) {
+      this.numShardsView = numShardsView;
+      this.shardingFn = shardingFn;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext context) throws Exception {
+      getDynamicDestinations().setSideInputAccessorFromProcessContext(context);
+      final int shardCount;
+      if (numShardsView != null) {
+        shardCount = context.sideInput(numShardsView);
+      } else {
+        checkNotNull(getNumShardsProvider());
+        shardCount = getNumShardsProvider().get();
+      }
+      checkArgument(
+          shardCount > 0,
+          "Must have a positive number of shards specified for non-runner-determined sharding."
+              + " Got %s",
+          shardCount);
+
       DestinationT destination = getDynamicDestinations().getDestination(context.element());
-      context.output(
-          KV.of(
-              ShardedKey.of(hashDestination(destination, destinationCoder), shardNumber),
-              context.element()));
+      ShardedKey<Integer> shardKey =
+          shardingFn.assignShardKey(destination, context.element(), shardCount);
+      context.output(KV.of(shardKey, context.element()));
     }
   }
 
@@ -794,11 +847,11 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                 ? writeOperation.finalizeDestination(
                     defaultDest, GlobalWindow.INSTANCE, fixedNumShards, fileResults)
                 : finalizeAllDestinations(fileResults, fixedNumShards);
+        writeOperation.moveToOutputFiles(resultsToFinalFilenames);
         for (KV<FileResult<DestinationT>, ResourceId> entry : resultsToFinalFilenames) {
           FileResult<DestinationT> res = entry.getKey();
           c.output(KV.of(res.getDestination(), entry.getValue().toString()));
         }
-        writeOperation.moveToOutputFiles(resultsToFinalFilenames);
       }
     }
   }

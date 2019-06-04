@@ -62,6 +62,9 @@ if [[ $confirmation != "y" ]]; then
     echo "Please input your name: "
     read name
     echo "======Starting updating KEYS file in dev repo===="
+    if [[ -d ${LOCAL_SVN_DIR} ]]; then
+      rm -rf ${LOCAL_SVN_DIR}
+    fi
     mkdir ${LOCAL_SVN_DIR}
     cd ${LOCAL_SVN_DIR}
     svn co ${ROOT_SVN_URL}/${DEV_REPO}/${BEAM_REPO}
@@ -71,7 +74,7 @@ if [[ $confirmation != "y" ]]; then
     echo "Please review all changes. Do you confirm to commit? [y|N]"
     read commit_confirmation
     if [[ $commit_confirmation = "y" ]]; then
-      svn commit KEYS
+      svn commit --no-auth-cache KEYS
     else
       echo "Not commit new changes into ${ROOT_SVN_URL}/${DEV_REPO}/${BEAM_REPO}${DEV_REPO}/KEYS"
     fi
@@ -85,7 +88,7 @@ if [[ $confirmation != "y" ]]; then
     echo "Please review all changes. Do you confirm to commit? [y|N]"
     read commit_confirmation
     if [[ $commit_confirmation = "y" ]]; then
-      svn commit KEYS
+      svn commit --no-auth-cache KEYS
     else
       echo "Not commit new changes into ${ROOT_SVN_URL}/${DEV_REPO}/${BEAM_REPO}${RELEASE_REPO}/KEYS"
     fi

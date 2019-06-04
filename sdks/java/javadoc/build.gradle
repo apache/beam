@@ -16,62 +16,49 @@
  * limitations under the License.
  */
 
+/*
+ * Aggregate Javadoc is not published to Maven Central. Each Java module that is published
+ * to Maven Cental packages its own Javadoc. To generate aggregated javadocs, run:
+ *   ./gradlew :sdks:java:javadoc:aggregateJavadoc
+ * Generated files will be located under beam/sdks/java/javadoc/build/docs/javadoc and are
+ * used as part of the beam-site source tree.
+ */
+plugins { id 'org.apache.beam.module' }
+applyJavaNature()
 description = "Apache Beam :: SDKs :: Java :: Aggregated Javadoc"
-apply plugin: 'java'
 
-def exportedJavadocProjects = [
-  ':beam-runners-apex',
-  ':beam-runners-core-construction-java',
-  ':beam-runners-core-java',
-  ':beam-runners-java-fn-execution',
-  ':beam-runners-local-java-core',
-  ':beam-runners-direct-java',
-  ':beam-runners-reference-java',
-  ':beam-runners-flink_2.11',
-  ':beam-runners-google-cloud-dataflow-java',
-  ':beam-runners-spark',
-  ':beam-runners-gearpump',
-  ':beam-sdks-java-core',
-  ':beam-sdks-java-fn-execution',
-  ':beam-sdks-java-extensions-google-cloud-platform-core',
-  ':beam-sdks-java-extensions-join-library',
-  ':beam-sdks-java-extensions-json-jackson',
-  ':beam-sdks-java-extensions-protobuf',
-  ':beam-sdks-java-extensions-sketching',
-  ':beam-sdks-java-extensions-sorter',
-  ':beam-sdks-java-extensions-sql',
-  ':beam-sdks-java-harness',
-  ':beam-sdks-java-io-amazon-web-services',
-  ':beam-sdks-java-io-amqp',
-  ':beam-sdks-java-io-cassandra',
-  ':beam-sdks-java-io-elasticsearch',
-  ':beam-sdks-java-io-elasticsearch-tests-2',
-  ':beam-sdks-java-io-elasticsearch-tests-5',
-  ':beam-sdks-java-io-elasticsearch-tests-common',
-  ':beam-sdks-java-io-google-cloud-platform',
-  ':beam-sdks-java-io-hadoop-common',
-  ':beam-sdks-java-io-hadoop-file-system',
-  ':beam-sdks-java-io-hadoop-input-format',
-  ':beam-sdks-java-io-hbase',
-  ':beam-sdks-java-io-hcatalog',
-  ':beam-sdks-java-io-jdbc',
-  ':beam-sdks-java-io-jms',
-  ':beam-sdks-java-io-kafka',
-  ':beam-sdks-java-io-kinesis',
-  ':beam-sdks-java-io-mongodb',
-  ':beam-sdks-java-io-mqtt',
-  ':beam-sdks-java-io-parquet',
-  ':beam-sdks-java-io-redis',
-  ':beam-sdks-java-io-solr',
-  ':beam-sdks-java-io-tika',
-  ':beam-sdks-java-io-xml',
-]
+for (p in rootProject.subprojects) {
+  if (!p.path.equals(project.path) && !p.path.equals(':sdks:java:bom')) {
+    evaluationDependsOn(p.path)
+  }
+}
 
-for (String exportedJavadocProject : exportedJavadocProjects) {
-  evaluationDependsOn(exportedJavadocProject)
+ext.getExportedJavadocProjects = {
+  def exportedJavadocProjects = new ArrayList<>();
+  for (p in rootProject.subprojects) {
+    if (!p.path.equals(project.path) && !p.path.equals(':sdks:java:bom')) {
+      def subproject = p // project(':' + p.name)
+      if (subproject.ext.properties.containsKey('exportJavadoc') &&
+          subproject.ext.properties.exportJavadoc) {
+        exportedJavadocProjects.add(p.path)
+      }
+    }
+  }
+  return exportedJavadocProjects
+}
+
+task allJavadoc() {
+  def exportedJavadocProjects = getExportedJavadocProjects()
+  dependsOn exportedJavadocProjects.collect { "$it:javadoc" }
 }
 
 task aggregateJavadoc(type: Javadoc) {
+  def createJavadocIOUrlForDependency = {
+    def dependency = dependencies.create(it)
+    return 'https://static.javadoc.io/' + dependency.getGroup() + '/' + dependency.getName() + '/' + dependency.getVersion()
+  }
+
+  def exportedJavadocProjects = getExportedJavadocProjects()
   source exportedJavadocProjects.collect { project(it).sourceSets.main.allJava }
   classpath = files(exportedJavadocProjects.collect { project(it).sourceSets.main.compileClasspath })
   destinationDir = file("${buildDir}/docs/javadoc")
@@ -91,20 +78,10 @@ task aggregateJavadoc(type: Javadoc) {
 
   options.with {
     failOnError false
-    title "Apache Beam 2.5.0"
+    title "Apache Beam " + project.version
     overview 'overview.html'
-    addStringOption('Xdoclint:all', '-quiet')
-    addStringOption('Xdoclint:-missing', '-quiet')
-    linksOffline 'http://avro.apache.org/docs/1.7.7/api/java/', 'avro-docs'
-    linksOffline 'https://developers.google.com/api-client-library/java/google-api-java-client/reference/1.22.0/', 'apiclient-docs'
-    linksOffline 'https://developers.google.com/api-client-library/java/google-oauth-java-client/reference/1.22.0/', 'oauth-docs'
-    linksOffline 'https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/', 'bq-docs'
-    linksOffline 'http://googlecloudplatform.github.io/google-cloud-java/0.8.0/apidocs/index.html', 'datastore-docs'
-    linksOffline 'http://google.github.io/guava/releases/20.0/api/docs/', 'guava-docs'
-    linksOffline 'http://fasterxml.github.io/jackson-annotations/javadoc/2.9/', 'jackson-annotations-docs'
-    linksOffline 'http://fasterxml.github.io/jackson-databind/javadoc/2.9/', 'jackson-databind-docs'
-    linksOffline 'http://hamcrest.org/JavaHamcrest/javadoc/1.3/', 'hamcrest-docs'
-    linksOffline 'http://www.joda.org/joda-time/apidocs', 'joda-docs'
-    linksOffline 'http://junit.sourceforge.net/javadoc/', 'junit-docs'
+    for (dep in project.library.java.values()) {
+      links createJavadocIOUrlForDependency(dep)
+    }
   }
 }

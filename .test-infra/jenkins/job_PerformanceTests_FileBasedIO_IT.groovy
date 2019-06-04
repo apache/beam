@@ -27,6 +27,8 @@ def testsConfigurations = [
                 prCommitStatusName: 'Java TextIO Performance Test',
                 prTriggerPhase    : 'Run Java TextIO Performance Test',
                 extraPipelineArgs: [
+                        bigQueryDataset: 'beam_performance',
+                        bigQueryTable: 'textioit_results',
                         numberOfRecords: '1000000'
                 ]
 
@@ -39,9 +41,28 @@ def testsConfigurations = [
                 prCommitStatusName : 'Java CompressedTextIO Performance Test',
                 prTriggerPhase     : 'Run Java CompressedTextIO Performance Test',
                 extraPipelineArgs: [
+                        bigQueryDataset: 'beam_performance',
+                        bigQueryTable: 'compressed_textioit_results',
                         numberOfRecords: '1000000',
                         compressionType: 'GZIP'
                 ]
+        ],
+        [
+                jobName           : 'beam_PerformanceTests_ManyFiles_TextIOIT',
+                jobDescription    : 'Runs PerfKit tests for TextIOIT with many output files',
+                itClass           : 'org.apache.beam.sdk.io.text.TextIOIT',
+                bqTable           : 'beam_performance.many_files_textioit_pkb_results',
+                prCommitStatusName: 'Java ManyFilesTextIO Performance Test',
+                prTriggerPhase    : 'Run Java ManyFilesTextIO Performance Test',
+                extraPipelineArgs: [
+                        bigQueryDataset: 'beam_performance',
+                        bigQueryTable: 'many_files_textioit_results',
+                        reportGcsPerformanceMetrics: 'true',
+                        gcsPerformanceMetrics: 'true',
+                        numberOfRecords: '1000000',
+                        numberOfShards: '1000'
+                ]
+
         ],
         [
                 jobName           : 'beam_PerformanceTests_AvroIOIT',
@@ -51,7 +72,9 @@ def testsConfigurations = [
                 prCommitStatusName: 'Java AvroIO Performance Test',
                 prTriggerPhase    : 'Run Java AvroIO Performance Test',
                 extraPipelineArgs: [
-                        numberOfRecords: '1000000'
+                        numberOfRecords: '1000000',
+                        bigQueryDataset: 'beam_performance',
+                        bigQueryTable: 'avroioit_results',
                 ]
         ],
         [
@@ -62,6 +85,8 @@ def testsConfigurations = [
                 prCommitStatusName: 'Java TFRecordIO Performance Test',
                 prTriggerPhase    : 'Run Java TFRecordIO Performance Test',
                 extraPipelineArgs: [
+                        bigQueryDataset: 'beam_performance',
+                        bigQueryTable: 'tfrecordioit_results',
                         numberOfRecords: '1000000'
                 ]
         ],
@@ -73,6 +98,8 @@ def testsConfigurations = [
                 prCommitStatusName: 'Java XmlIOPerformance Test',
                 prTriggerPhase    : 'Run Java XmlIO Performance Test',
                 extraPipelineArgs: [
+                        bigQueryDataset: 'beam_performance',
+                        bigQueryTable: 'xmlioit_results',
                         numberOfRecords: '100000000',
                         charset: 'UTF-8'
                 ]
@@ -85,6 +112,8 @@ def testsConfigurations = [
                 prCommitStatusName: 'Java ParquetIOPerformance Test',
                 prTriggerPhase    : 'Run Java ParquetIO Performance Test',
                 extraPipelineArgs: [
+                        bigQueryDataset: 'beam_performance',
+                        bigQueryTable: 'parquetioit_results',
                         numberOfRecords: '100000000'
                 ]
         ]

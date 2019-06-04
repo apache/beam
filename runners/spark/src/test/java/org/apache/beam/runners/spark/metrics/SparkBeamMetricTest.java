@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.metrics;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.junit.Test;
@@ -28,29 +28,13 @@ import org.junit.Test;
 /** Test SparkBeamMetric. */
 public class SparkBeamMetricTest {
   @Test
-  public void testRenderName() throws Exception {
+  public void testRenderName() {
     MetricResult<Object> metricResult =
-        new MetricResult<Object>() {
-          @Override
-          public MetricName getName() {
-            return MetricName.named("myNameSpace//", "myName()");
-          }
-
-          @Override
-          public String getStep() {
-            return "myStep.one.two(three)";
-          }
-
-          @Override
-          public Object getCommitted() {
-            return null;
-          }
-
-          @Override
-          public Object getAttempted() {
-            return null;
-          }
-        };
+        MetricResult.create(
+            MetricKey.create(
+                "myStep.one.two(three)", MetricName.named("myNameSpace//", "myName()")),
+            123,
+            456);
     String renderedName = new SparkBeamMetric().renderName(metricResult);
     assertThat(
         "Metric name was not rendered correctly",

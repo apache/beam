@@ -16,21 +16,24 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(exportJavadoc: false)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Synthetic"
 ext.summary = "Generators of Synthetic IO for Testing."
 
 dependencies {
   compile library.java.joda_time
-  compile library.java.commons_math3
+  shadow library.java.commons_math3
   shadow library.java.jackson_core
   shadow library.java.jackson_annotations
   shadow library.java.jackson_databind
-  testCompile library.java.guava
+  shadow library.java.guava
+
+  shadowTest library.java.vendored_guava_20_0
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  testRuntimeOnly project(path: ":runners:direct-java")
 }

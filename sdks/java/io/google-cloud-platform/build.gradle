@@ -18,9 +18,9 @@
 
 import groovy.json.JsonOutput
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableFindbugs: false,
+  enableSpotbugs: false,
   // Override the default shading configuration to exclude everything since
   // Bigtable needs to expose Guava types.
   shadowClosure: {
@@ -33,9 +33,9 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
 ext.summary = "IO library to read and write Google Cloud Platform systems from Beam."
 
 dependencies {
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-extensions-protobuf", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:extensions:protobuf", configuration: "shadow")
   shadow library.java.guava
   shadow library.java.jackson_databind
   shadow library.java.grpc_core
@@ -53,6 +53,8 @@ dependencies {
   shadow library.java.netty_handler
   shadow library.java.grpc_stub
   shadow library.java.joda_time
+  shadow library.java.google_cloud_bigquery_storage
+  shadow library.java.google_cloud_bigquery_storage_proto
   shadow library.java.google_cloud_core
   shadow library.java.google_cloud_spanner
   shadow library.java.bigtable_protos
@@ -69,14 +71,15 @@ dependencies {
   shadow library.java.proto_google_common_protos
   shadow library.java.grpc_all
   shadow library.java.netty_tcnative_boringssl_static
-  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  shadowTest project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadowTest")
-  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
+  shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadowTest")
+  shadowTest project(path: ":runners:direct-java", configuration: "shadow")
   shadowTest library.java.hamcrest_core
   shadowTest library.java.hamcrest_library
   shadowTest library.java.mockito_core
   shadowTest library.java.junit
-  shadowTest library.java.slf4j_jdk14
+  shadowTest library.java.powermock
+  testRuntimeOnly library.java.slf4j_jdk14
 }
 
 /**
@@ -96,6 +99,34 @@ task integrationTest(type: Test) {
   outputs.upToDateWhen { false }
 
   include '**/*IT.class'
+  exclude '**/BigQueryIOReadIT.class'
+  exclude '**/BigQueryIOStorageQueryIT.class'
+  exclude '**/BigQueryIOStorageReadIT.class'
+  exclude '**/BigQueryIOStorageReadTableRowIT.class'
+  exclude '**/BigQueryToTableIT.class'
+  exclude '**/*KmsKeyIT.class'
+  maxParallelForks 4
+  classpath = sourceSets.test.runtimeClasspath
+  testClassesDirs = sourceSets.test.output.classesDirs
+  useJUnit { }
+}
+
+task integrationTestKms(type: Test) {
+  group = "Verification"
+  def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+  def gcpTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+  def dataflowKmsKey = project.findProperty('dataflowKmsKey') ?: "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=DirectRunner",
+          "--project=${gcpProject}",
+          "--tempRoot=${gcpTempRoot}",
+          "--dataflowKmsKey=${dataflowKmsKey}",
+  ])
+
+  // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
+  outputs.upToDateWhen { false }
+
+  include '**/*KmsKeyIT.class'
   maxParallelForks 4
   classpath = sourceSets.test.runtimeClasspath
   testClassesDirs = sourceSets.test.output.classesDirs
@@ -106,4 +137,5 @@ task postCommit {
   group = "Verification"
   description = "Integration tests of GCP connectors using the DirectRunner."
   dependsOn integrationTest
+  dependsOn integrationTestKms
 }

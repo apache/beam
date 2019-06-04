@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import com.google.common.base.Objects;
 import java.util.List;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
 import org.joda.time.Instant;
 
 /**

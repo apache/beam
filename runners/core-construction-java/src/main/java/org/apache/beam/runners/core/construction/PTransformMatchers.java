@@ -19,9 +19,9 @@ package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.runners.core.construction.PTransformTranslation.WRITE_FILES_TRANSFORM_URN;
 
-import com.google.common.base.MoreObjects;
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -39,6 +39,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
 /**
  * A {@link PTransformMatcher} that matches {@link PTransform PTransforms} based on the class of the
@@ -74,6 +75,23 @@ public class PTransformMatchers {
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(this).add("urn", urn).toString();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      EqualUrnPTransformMatcher that = (EqualUrnPTransformMatcher) o;
+      return urn.equals(that.urn);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(urn);
     }
   }
 

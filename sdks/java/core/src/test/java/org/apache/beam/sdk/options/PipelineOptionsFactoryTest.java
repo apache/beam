@@ -18,10 +18,13 @@
 package org.apache.beam.sdk.options;
 
 import static java.util.Locale.ROOT;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps.uniqueIndex;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.isEmptyString;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -46,17 +49,15 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.auto.service.AutoService;
-import com.google.common.base.Charsets;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ListMultimap;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionDescriptor;
+import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionType;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
@@ -66,6 +67,13 @@ import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.InterceptingUrlClassLoader;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Collections2;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -450,7 +458,8 @@ public class PipelineOptionsFactoryTest {
     options.as(CombinedObject.class);
   }
 
-  private interface MultiGetters extends PipelineOptions {
+  /** Test interface. */
+  public interface MultiGetters extends PipelineOptions {
     Object getObject();
 
     void setObject(Object value);
@@ -465,7 +474,8 @@ public class PipelineOptionsFactoryTest {
     void setConsistent(Void consistent);
   }
 
-  private interface MultipleGettersWithInconsistentJsonIgnore extends PipelineOptions {
+  /** Test interface. */
+  public interface MultipleGettersWithInconsistentJsonIgnore extends PipelineOptions {
     @JsonIgnore
     Object getObject();
 
@@ -559,7 +569,7 @@ public class PipelineOptionsFactoryTest {
    * This class is has a conflicting field with {@link CombinedObject} that doesn't have {@link
    * Default @Default}.
    */
-  private interface GetterWithDefault extends PipelineOptions {
+  public interface GetterWithDefault extends PipelineOptions {
     @Default.Integer(1)
     Object getObject();
 
@@ -570,7 +580,7 @@ public class PipelineOptionsFactoryTest {
    * This class is consistent with {@link GetterWithDefault} that has the same {@link
    * Default @Default}.
    */
-  private interface GetterWithConsistentDefault extends PipelineOptions {
+  public interface GetterWithConsistentDefault extends PipelineOptions {
     @Default.Integer(1)
     Object getObject();
 
@@ -581,7 +591,7 @@ public class PipelineOptionsFactoryTest {
    * This class is inconsistent with {@link GetterWithDefault} that has a different {@link
    * Default @Default}.
    */
-  private interface GetterWithInconsistentDefaultType extends PipelineOptions {
+  public interface GetterWithInconsistentDefaultType extends PipelineOptions {
     @Default.String("abc")
     Object getObject();
 
@@ -592,7 +602,7 @@ public class PipelineOptionsFactoryTest {
    * This class is inconsistent with {@link GetterWithDefault} that has a different {@link
    * Default @Default} value.
    */
-  private interface GetterWithInconsistentDefaultValue extends PipelineOptions {
+  public interface GetterWithInconsistentDefaultValue extends PipelineOptions {
     @Default.Integer(0)
     Object getObject();
 
@@ -675,7 +685,8 @@ public class PipelineOptionsFactoryTest {
     options.as(GetterWithInconsistentJsonIgnoreValue.class);
   }
 
-  private interface GettersWithMultipleDefault extends PipelineOptions {
+  /** Test interface. */
+  public interface GettersWithMultipleDefault extends PipelineOptions {
     @Default.String("abc")
     @Default.Integer(0)
     Object getObject();
@@ -697,7 +708,8 @@ public class PipelineOptionsFactoryTest {
     PipelineOptionsFactory.as(GettersWithMultipleDefault.class);
   }
 
-  private interface MultiGettersWithDefault extends PipelineOptions {
+  /** Test interface. */
+  public interface MultiGettersWithDefault extends PipelineOptions {
     Object getObject();
 
     void setObject(Object value);
@@ -712,7 +724,8 @@ public class PipelineOptionsFactoryTest {
     void setConsistent(Void consistent);
   }
 
-  private interface MultipleGettersWithInconsistentDefault extends PipelineOptions {
+  /** Test interface. */
+  public interface MultipleGettersWithInconsistentDefault extends PipelineOptions {
     @Default.Boolean(true)
     Object getObject();
 
@@ -1006,7 +1019,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** A test interface for verifying JSON -> complex type conversion. */
-  interface ComplexTypes extends PipelineOptions {
+  public interface ComplexTypes extends PipelineOptions {
     Map<String, String> getMap();
 
     void setMap(Map<String, String> value);
@@ -1421,6 +1434,19 @@ public class PipelineOptionsFactoryTest {
     expectedLogs.verifyWarn("Strict parsing is disabled, ignoring option");
   }
 
+  private interface NonPublicPipelineOptions extends PipelineOptions {}
+
+  @Test
+  public void testNonPublicInterfaceThrowsException() throws Exception {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Please mark non-public interface "
+            + NonPublicPipelineOptions.class.getName()
+            + " as public.");
+
+    PipelineOptionsFactory.as(NonPublicPipelineOptions.class);
+  }
+
   /** A test interface containing all supported List return types. */
   public interface Maps extends PipelineOptions {
     Map<Integer, Integer> getMap();
@@ -1533,7 +1559,8 @@ public class PipelineOptionsFactoryTest {
     PipelineOptionsFactory.fromArgs(args).create();
   }
 
-  interface SuggestedOptions extends PipelineOptions {
+  /** Test interface. */
+  public interface SuggestedOptions extends PipelineOptions {
     String getAbc();
 
     void setAbc(String value);
@@ -1685,15 +1712,15 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** Used for a name collision test with the other NameConflict interfaces. */
-  private static class NameConflictClassA {
+  public static class NameConflictClassA {
     /** Used for a name collision test with the other NameConflict interfaces. */
-    private interface NameConflict extends PipelineOptions {}
+    public interface NameConflict extends PipelineOptions {}
   }
 
   /** Used for a name collision test with the other NameConflict interfaces. */
-  private static class NameConflictClassB {
+  public static class NameConflictClassB {
     /** Used for a name collision test with the other NameConflict interfaces. */
-    private interface NameConflict extends PipelineOptions {}
+    public interface NameConflict extends PipelineOptions {}
   }
 
   @Test
@@ -1785,20 +1812,23 @@ public class PipelineOptionsFactoryTest {
         output, containsString("The pipeline runner that will be used to execute the pipeline."));
   }
 
-  interface PipelineOptionsInheritedInvalid
+  /** Test interface. */
+  public interface PipelineOptionsInheritedInvalid
       extends Invalid1, InvalidPipelineOptions2, PipelineOptions {
     String getFoo();
 
     void setFoo(String value);
   }
 
-  interface InvalidPipelineOptions1 {
+  /** Test interface. */
+  public interface InvalidPipelineOptions1 {
     String getBar();
 
     void setBar(String value);
   }
 
-  interface Invalid1 extends InvalidPipelineOptions1 {
+  /** Test interface. */
+  public interface Invalid1 extends InvalidPipelineOptions1 {
     @Override
     String getBar();
 
@@ -1806,7 +1836,8 @@ public class PipelineOptionsFactoryTest {
     void setBar(String value);
   }
 
-  interface InvalidPipelineOptions2 {
+  /** Test interface. */
+  public interface InvalidPipelineOptions2 {
     String getBar();
 
     void setBar(String value);
@@ -1864,7 +1895,8 @@ public class PipelineOptionsFactoryTest {
     }
   }
 
-  private interface RegisteredTestOptions extends PipelineOptions {
+  /** Test interface. */
+  public interface RegisteredTestOptions extends PipelineOptions {
     Object getRegisteredExampleFooBar();
 
     void setRegisteredExampleFooBar(Object registeredExampleFooBar);
@@ -1890,7 +1922,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** PipelineOptions used to test auto registration of Jackson modules. */
-  interface JacksonIncompatibleOptions extends PipelineOptions {
+  public interface JacksonIncompatibleOptions extends PipelineOptions {
     JacksonIncompatible getJacksonIncompatible();
 
     void setJacksonIncompatible(JacksonIncompatible value);
@@ -1988,7 +2020,8 @@ public class PipelineOptionsFactoryTest {
     assertThat(optsWithDefault.getValue(), equalTo(12.25));
   }
 
-  private interface ExtendedOptionsWithDefault extends OptionsWithDefaultMethod {}
+  /** Test interface. */
+  public interface ExtendedOptionsWithDefault extends OptionsWithDefaultMethod {}
 
   @Test
   public void testDefaultMethodInExtendedClassIgnoresDefaultImplementation() {
@@ -2000,7 +2033,8 @@ public class PipelineOptionsFactoryTest {
     assertThat(extendedOptsWithDefault.getValue(), equalTo(Double.NEGATIVE_INFINITY));
   }
 
-  private interface OptionsWithDefaultMethod extends PipelineOptions {
+  /** Test interface. */
+  public interface OptionsWithDefaultMethod extends PipelineOptions {
     default Number getValue() {
       return 1024;
     }
@@ -2016,7 +2050,8 @@ public class PipelineOptionsFactoryTest {
             PipelineOptionsFactory.fromArgs("--myMethod=value").as(OptionsWithStaticMethod.class)));
   }
 
-  private interface OptionsWithStaticMethod extends PipelineOptions {
+  /** Test interface. */
+  public interface OptionsWithStaticMethod extends PipelineOptions {
     String getMyMethod();
 
     void setMyMethod(String value);
@@ -2024,5 +2059,89 @@ public class PipelineOptionsFactoryTest {
     static String myStaticMethod(OptionsWithStaticMethod o) {
       return o.getMyMethod();
     }
+  }
+
+  /** Test interface. */
+  public interface TestDescribeOptions extends PipelineOptions {
+    String getString();
+
+    void setString(String value);
+
+    @Description("integer property")
+    Integer getInteger();
+
+    void setInteger(Integer value);
+
+    @Description("float number property")
+    Float getFloat();
+
+    void setFloat(Float value);
+
+    @Description("simple boolean property")
+    @Default.Boolean(true)
+    boolean getBooleanSimple();
+
+    void setBooleanSimple(boolean value);
+
+    @Default.Boolean(false)
+    Boolean getBooleanWrapper();
+
+    void setBooleanWrapper(Boolean value);
+
+    List<Integer> getList();
+
+    void setList(List<Integer> value);
+  }
+
+  @Test
+  public void testDescribe() {
+    List<PipelineOptionDescriptor> described =
+        PipelineOptionsFactory.describe(
+            Sets.newHashSet(PipelineOptions.class, TestDescribeOptions.class));
+
+    Map<String, PipelineOptionDescriptor> mapped = uniqueIndex(described, input -> input.getName());
+    assertEquals("no duplicates", described.size(), mapped.size());
+
+    Collection<PipelineOptionDescriptor> filtered =
+        Collections2.filter(
+            described, input -> input.getGroup().equals(TestDescribeOptions.class.getName()));
+    assertEquals(6, filtered.size());
+    mapped = uniqueIndex(filtered, input -> input.getName());
+
+    PipelineOptionDescriptor listDesc = mapped.get("list");
+    assertThat(listDesc, notNullValue());
+    assertThat(listDesc.getDescription(), isEmptyString());
+    assertEquals(PipelineOptionType.Enum.ARRAY, listDesc.getType());
+    assertThat(listDesc.getDefaultValue(), isEmptyString());
+
+    PipelineOptionDescriptor stringDesc = mapped.get("string");
+    assertThat(stringDesc, notNullValue());
+    assertThat(stringDesc.getDescription(), isEmptyString());
+    assertEquals(PipelineOptionType.Enum.STRING, stringDesc.getType());
+    assertThat(stringDesc.getDefaultValue(), isEmptyString());
+
+    PipelineOptionDescriptor integerDesc = mapped.get("integer");
+    assertThat(integerDesc, notNullValue());
+    assertEquals("integer property", integerDesc.getDescription());
+    assertEquals(PipelineOptionType.Enum.INTEGER, integerDesc.getType());
+    assertThat(integerDesc.getDefaultValue(), isEmptyString());
+
+    PipelineOptionDescriptor floatDesc = mapped.get("float");
+    assertThat(integerDesc, notNullValue());
+    assertEquals("float number property", floatDesc.getDescription());
+    assertEquals(PipelineOptionType.Enum.NUMBER, floatDesc.getType());
+    assertThat(floatDesc.getDefaultValue(), isEmptyString());
+
+    PipelineOptionDescriptor booleanSimpleDesc = mapped.get("boolean_simple");
+    assertThat(booleanSimpleDesc, notNullValue());
+    assertEquals("simple boolean property", booleanSimpleDesc.getDescription());
+    assertEquals(PipelineOptionType.Enum.BOOLEAN, booleanSimpleDesc.getType());
+    assertThat(booleanSimpleDesc.getDefaultValue(), equalTo("true"));
+
+    PipelineOptionDescriptor booleanWrapperDesc = mapped.get("boolean_wrapper");
+    assertThat(booleanWrapperDesc, notNullValue());
+    assertThat(booleanWrapperDesc.getDescription(), isEmptyString());
+    assertEquals(PipelineOptionType.Enum.BOOLEAN, booleanWrapperDesc.getType());
+    assertThat(booleanWrapperDesc.getDefaultValue(), equalTo("false"));
   }
 }

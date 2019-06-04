@@ -60,6 +60,7 @@ class FileBasedSink(iobase.Sink):
 
   # Max number of threads to be used for renaming.
   _MAX_RENAME_THREADS = 64
+  __hash__ = None
 
   def __init__(self,
                file_path_prefix,
@@ -372,6 +373,10 @@ class FileBasedSink(iobase.Sink):
     # TODO: Clean up workitem_test which uses this.
     # pylint: disable=unidiomatic-typecheck
     return type(self) == type(other) and self.__dict__ == other.__dict__
+
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
 
 class FileBasedSinkWriter(iobase.Writer):

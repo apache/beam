@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.junit.Assert.assertThat;
@@ -52,13 +51,15 @@ public class SingleInputOutputOverrideFactoryTest implements Serializable {
           PCollection<? extends Integer>, PCollection<Integer>, MapElements<Integer, Integer>>
       factory =
           new SingleInputOutputOverrideFactory<
-              PCollection<? extends Integer>, PCollection<Integer>,
+              PCollection<? extends Integer>,
+              PCollection<Integer>,
               MapElements<Integer, Integer>>() {
             @Override
             public PTransformReplacement<PCollection<? extends Integer>, PCollection<Integer>>
                 getReplacementTransform(
                     AppliedPTransform<
-                            PCollection<? extends Integer>, PCollection<Integer>,
+                            PCollection<? extends Integer>,
+                            PCollection<Integer>,
                             MapElements<Integer, Integer>>
                         transform) {
               return PTransformReplacement.of(

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.metrics;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -54,10 +53,19 @@ public abstract class MetricResults {
    *     .addNameFilter("my-counter")
    *     .addStepFilter("myStepName1").addStepFilter("myStepName2")
    *     .build());
-   * Iterable<MetricResult<Long>> counters = metricResults.counters();
+   * Iterable<MetricResult<Long>> counters = metricResults.getCounters();
    * // counters should contain the value of my-counter reported from each of the ParDo
    * // applications.
    * }</pre>
    */
-  public abstract MetricQueryResults queryMetrics(@Nullable MetricsFilter filter);
+  public abstract MetricQueryResults queryMetrics(MetricsFilter filter);
+
+  public MetricQueryResults allMetrics() {
+    return queryMetrics(MetricsFilter.builder().build());
+  }
+
+  @Override
+  public String toString() {
+    return allMetrics().toString();
+  }
 }

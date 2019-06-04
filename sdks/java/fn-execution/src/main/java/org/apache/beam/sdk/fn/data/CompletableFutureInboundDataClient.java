@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.data;
 
 import java.util.concurrent.CompletableFuture;
@@ -66,6 +65,8 @@ public class CompletableFutureInboundDataClient implements InboundDataClient {
 
   @Override
   public void fail(Throwable t) {
-    future.completeExceptionally(t);
+    // Use obtrudeException instead of CompleteExceptionally, forcing any future calls to .get()
+    // to raise the execption, even if the future is already compelted.
+    future.obtrudeException(t);
   }
 }

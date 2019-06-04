@@ -17,19 +17,18 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import CommonTestProperties.Runner
+import CommonTestProperties.SDK
+import CommonTestProperties.TriggeringContext
 import NexmarkBigqueryProperties
+import NexmarkBuilder as Nexmark
 import NoPhraseTriggeringPostCommitBuilder
+import PhraseTriggeringPostCommitBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Dataflow runner.
 NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Dataflow',
         'Dataflow Runner Nexmark Tests', this) {
   description('Runs the Nexmark suite on the Dataflow runner.')
-
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
-  throttleConcurrentBuilds {
-    maxTotal(10)
-  }
 
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
@@ -45,6 +44,10 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
+              '--numWorkers=4',
+              '--maxNumWorkers=4',
+              '--autoscalingAlgorithm=NONE',
+              '--nexmarkParallel=16',
               '--streaming=false',
               '--suite=STRESS',
               '--manageResources=false',
@@ -61,6 +64,10 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
+              '--numWorkers=4',
+              '--maxNumWorkers=4',
+              '--autoscalingAlgorithm=NONE',
+              '--nexmarkParallel=16',
               '--streaming=true',
               '--suite=STRESS',
               '--manageResources=false',
@@ -77,6 +84,10 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
+              '--numWorkers=4',
+              '--maxNumWorkers=4',
+              '--autoscalingAlgorithm=NONE',
+              '--nexmarkParallel=16',
               '--queryLanguage=sql',
               '--streaming=false',
               '--suite=STRESS',
@@ -94,6 +105,10 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
+              '--numWorkers=4',
+              '--maxNumWorkers=4',
+              '--autoscalingAlgorithm=NONE',
+              '--nexmarkParallel=16',
               '--queryLanguage=sql',
               '--streaming=true',
               '--suite=STRESS',
@@ -103,4 +118,23 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--enforceImmutability=true"'].join(' '))
     }
   }
+}
+
+PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Dataflow',
+        'Run Dataflow Runner Nexmark Tests', 'Dataflow Runner Nexmark Tests', this) {
+
+  description('Runs the Nexmark suite on the Dataflow runner against a Pull Request, on demand.')
+
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+
+  def final JOB_SPECIFIC_OPTIONS = [
+          'suite' : 'STRESS',
+          'numWorkers' : 4,
+          'maxNumWorkers' : 4,
+          'autoscalingAlgorithm' : 'NONE',
+          'nexmarkParallel' : 16,
+          'enforceEncodability' : true,
+          'enforceImmutability' : true
+  ]
+  Nexmark.standardJob(delegate, Runner.DATAFLOW, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
 }

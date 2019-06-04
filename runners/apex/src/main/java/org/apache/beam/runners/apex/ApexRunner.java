@@ -21,9 +21,6 @@ import com.datatorrent.api.Attribute;
 import com.datatorrent.api.Context.DAGContext;
 import com.datatorrent.api.DAG;
 import com.datatorrent.api.StreamingApplication;
-import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
-import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,6 +43,7 @@ import org.apache.beam.runners.core.construction.PrimitiveCreate;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
+import org.apache.beam.runners.core.construction.UnsupportedOverrideFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.Coder;
@@ -64,6 +62,9 @@ import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 
@@ -132,6 +133,12 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
             PTransformOverride.of(
                 PTransformMatchers.splittableProcessKeyedUnbounded(),
                 new SplittableParDoViaKeyedWorkItems.OverrideFactory<>()))
+        // TODO: [BEAM-5360] Support @RequiresStableInput on Apex runner
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.requiresStableInputParDoMulti(),
+                UnsupportedOverrideFactory.withMessage(
+                    "Apex runner currently doesn't support @RequiresStableInput annotation.")))
         .build();
   }
 

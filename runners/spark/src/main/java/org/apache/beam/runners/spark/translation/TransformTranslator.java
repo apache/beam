@@ -15,26 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.translation;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.runners.spark.translation.TranslationUtils.avoidRddSerialization;
+import static org.apache.beam.runners.spark.translation.TranslationUtils.canAvoidRddSerialization;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SystemReduceFn;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
-import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
-import org.apache.beam.runners.spark.aggregators.NamedAggregators;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.SourceRDD;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
+import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -43,8 +41,8 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -54,6 +52,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
@@ -64,7 +63,11 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.spark.Accumulator;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.spark.HashPartitioner;
+import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -115,9 +118,7 @@ public final class TransformTranslator {
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<KV<K, V>>> inRDD =
             ((BoundedDataset<KV<K, V>>) context.borrowDataset(transform)).getRDD();
-        @SuppressWarnings("unchecked")
         final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
-        final Accumulator<NamedAggregators> accum = AggregatorsAccumulator.getInstance();
         @SuppressWarnings("unchecked")
         final WindowingStrategy<?, W> windowingStrategy =
             (WindowingStrategy<?, W>) context.getInput(transform).getWindowingStrategy();
@@ -129,22 +130,31 @@ public final class TransformTranslator {
         final WindowedValue.WindowedValueCoder<V> wvCoder =
             WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
 
-        // --- group by key only.
-        JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKey =
-            GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder);
+        JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupedByKey;
+        if (windowingStrategy.getWindowFn().isNonMerging()
+            && windowingStrategy.getTimestampCombiner() == TimestampCombiner.END_OF_WINDOW) {
+          // we can have a memory sensitive translation for non-merging windows
+          groupedByKey =
+              GroupNonMergingWindowsFunctions.groupByKeyAndWindow(
+                  inRDD, keyCoder, coder.getValueCoder(), windowingStrategy);
+        } else {
 
-        // --- now group also by window.
-        // for batch, GroupAlsoByWindow uses an in-memory StateInternals.
-        JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupedAlsoByWindow =
-            groupedByKey.flatMap(
-                new SparkGroupAlsoByWindowViaOutputBufferFn<>(
-                    windowingStrategy,
-                    new TranslationUtils.InMemoryStateInternalsFactory<>(),
-                    SystemReduceFn.buffering(coder.getValueCoder()),
-                    context.getSerializableOptions(),
-                    accum));
+          // --- group by key only.
+          Partitioner partitioner = getPartitioner(context);
+          JavaRDD<KV<K, Iterable<WindowedValue<V>>>> groupedByKeyOnly =
+              GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder, partitioner);
 
-        context.putDataset(transform, new BoundedDataset<>(groupedAlsoByWindow));
+          // --- now group also by window.
+          // for batch, GroupAlsoByWindow uses an in-memory StateInternals.
+          groupedByKey =
+              groupedByKeyOnly.flatMap(
+                  new SparkGroupAlsoByWindowViaOutputBufferFn<>(
+                      windowingStrategy,
+                      new TranslationUtils.InMemoryStateInternalsFactory<>(),
+                      SystemReduceFn.buffering(coder.getValueCoder()),
+                      context.getSerializableOptions()));
+        }
+        context.putDataset(transform, new BoundedDataset<>(groupedByKey));
       }
 
       @Override
@@ -232,8 +242,7 @@ public final class TransformTranslator {
         JavaRDD<WindowedValue<OutputT>> outRdd;
 
         Optional<Iterable<WindowedValue<AccumT>>> maybeAccumulated =
-            GroupCombineFunctions.combineGlobally(
-                inRdd, sparkCombineFn, iCoder, aCoder, windowingStrategy);
+            GroupCombineFunctions.combineGlobally(inRdd, sparkCombineFn, aCoder, windowingStrategy);
 
         if (maybeAccumulated.isPresent()) {
           Iterable<WindowedValue<OutputT>> output =
@@ -252,7 +261,7 @@ public final class TransformTranslator {
             outRdd =
                 jsc.parallelize(Lists.newArrayList(CoderHelpers.toByteArray(defaultValue, oCoder)))
                     .map(CoderHelpers.fromByteFunction(oCoder))
-                    .map(WindowingHelpers.windowFunction());
+                    .map(WindowedValue::valueInGlobalWindow);
           } else {
             outRdd = jsc.emptyRDD();
           }
@@ -276,7 +285,6 @@ public final class TransformTranslator {
           Combine.PerKey<K, InputT, OutputT> transform, EvaluationContext context) {
         final PCollection<KV<K, InputT>> input = context.getInput(transform);
         // serializable arguments to pass.
-        @SuppressWarnings("unchecked")
         final KvCoder<K, InputT> inputCoder =
             (KvCoder<K, InputT>) context.getInput(transform).getCoder();
         @SuppressWarnings("unchecked")
@@ -304,12 +312,7 @@ public final class TransformTranslator {
 
         JavaPairRDD<K, Iterable<WindowedValue<KV<K, AccumT>>>> accumulatePerKey =
             GroupCombineFunctions.combinePerKey(
-                inRdd,
-                sparkCombineFn,
-                inputCoder.getKeyCoder(),
-                inputCoder.getValueCoder(),
-                vaCoder,
-                windowingStrategy);
+                inRdd, sparkCombineFn, inputCoder.getKeyCoder(), vaCoder, windowingStrategy);
 
         JavaRDD<WindowedValue<KV<K, OutputT>>> outRdd =
             accumulatePerKey
@@ -343,7 +346,7 @@ public final class TransformTranslator {
             ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
         WindowingStrategy<?, ?> windowingStrategy =
             context.getInput(transform).getWindowingStrategy();
-        Accumulator<MetricsContainerStepMap> metricsAccum = MetricsAccumulator.getInstance();
+        MetricsContainerStepMapAccumulator metricsAccum = MetricsAccumulator.getInstance();
         Coder<InputT> inputCoder = (Coder<InputT>) context.getInput(transform).getCoder();
         Map<TupleTag<?>, Coder<?>> outputCoders = context.getOutputCoders();
         JavaPairRDD<TupleTag<?>, WindowedValue<?>> all;
@@ -351,6 +354,10 @@ public final class TransformTranslator {
         DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
         boolean stateful =
             signature.stateDeclarations().size() > 0 || signature.timerDeclarations().size() > 0;
+
+        DoFnSchemaInformation doFnSchemaInformation;
+        doFnSchemaInformation =
+            ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
 
         MultiDoFnFunction<InputT, OutputT> multiDoFnFunction =
             new MultiDoFnFunction<>(
@@ -364,7 +371,8 @@ public final class TransformTranslator {
                 outputCoders,
                 TranslationUtils.getSideInputs(transform.getSideInputs(), context),
                 windowingStrategy,
-                stateful);
+                stateful,
+                doFnSchemaInformation);
 
         if (stateful) {
           // Based on the fact that the signature is stateful, DoFnSignatures ensures
@@ -374,6 +382,7 @@ public final class TransformTranslator {
                   (KvCoder) context.getInput(transform).getCoder(),
                   windowingStrategy.getWindowFn().windowCoder(),
                   (JavaRDD) inRDD,
+                  getPartitioner(context),
                   (MultiDoFnFunction) multiDoFnFunction);
         } else {
           all = inRDD.mapPartitionsToPair(multiDoFnFunction);
@@ -382,7 +391,7 @@ public final class TransformTranslator {
         Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);
         if (outputs.size() > 1) {
           StorageLevel level = StorageLevel.fromString(context.storageLevel());
-          if (avoidRddSerialization(level)) {
+          if (canAvoidRddSerialization(level)) {
             // if it is memory only reduce the overhead of moving to bytes
             all = all.persist(level);
           } else {
@@ -402,7 +411,7 @@ public final class TransformTranslator {
           // Object is the best we can do since different outputs can have different tags
           JavaRDD<WindowedValue<Object>> values =
               (JavaRDD<WindowedValue<Object>>) (JavaRDD<?>) filtered.values();
-          context.putDataset(output.getValue(), new BoundedDataset<>(values), false);
+          context.putDataset(output.getValue(), new BoundedDataset<>(values));
         }
       }
 
@@ -417,20 +426,21 @@ public final class TransformTranslator {
       KvCoder<K, V> kvCoder,
       Coder<? extends BoundedWindow> windowCoder,
       JavaRDD<WindowedValue<KV<K, V>>> kvInRDD,
+      Partitioner partitioner,
       MultiDoFnFunction<KV<K, V>, OutputT> doFnFunction) {
     Coder<K> keyCoder = kvCoder.getKeyCoder();
 
     final WindowedValue.WindowedValueCoder<V> wvCoder =
         WindowedValue.FullWindowedValueCoder.of(kvCoder.getValueCoder(), windowCoder);
 
-    JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupRDD =
-        GroupCombineFunctions.groupByKeyOnly(kvInRDD, keyCoder, wvCoder);
+    JavaRDD<KV<K, Iterable<WindowedValue<V>>>> groupRDD =
+        GroupCombineFunctions.groupByKeyOnly(kvInRDD, keyCoder, wvCoder, partitioner);
 
     return groupRDD
         .map(
             input -> {
-              final K key = input.getValue().getKey();
-              Iterable<WindowedValue<V>> value = input.getValue().getValue();
+              final K key = input.getKey();
+              Iterable<WindowedValue<V>> value = input.getValue();
               return FluentIterable.from(value)
                   .transform(
                       windowedValue ->
@@ -451,8 +461,8 @@ public final class TransformTranslator {
             new SourceRDD.Bounded<>(
                     jsc.sc(), transform.getSource(), context.getSerializableOptions(), stepName)
                 .toJavaRDD();
-        // cache to avoid re-evaluation of the source by Spark's lazy DAG evaluation.
-        context.putDataset(transform, new BoundedDataset<>(input), true);
+
+        context.putDataset(transform, new BoundedDataset<>(input));
       }
 
       @Override
@@ -482,24 +492,6 @@ public final class TransformTranslator {
       @Override
       public String toNativeString() {
         return "map(new <windowFn>())";
-      }
-    };
-  }
-
-  private static <T> TransformEvaluator<Create.Values<T>> create() {
-    return new TransformEvaluator<Create.Values<T>>() {
-      @Override
-      public void evaluate(Create.Values<T> transform, EvaluationContext context) {
-        Iterable<T> elems = transform.getElements();
-        // Use a coder to convert the objects in the PCollection to byte arrays, so they
-        // can be transferred over the network.
-        Coder<T> coder = context.getOutput(transform).getCoder();
-        context.putBoundedDatasetFromValues(transform, elems, coder);
-      }
-
-      @Override
-      public String toNativeString() {
-        return "sparkContext.parallelize(Arrays.asList(...))";
       }
     };
   }
@@ -543,7 +535,6 @@ public final class TransformTranslator {
         @SuppressWarnings("unchecked")
         final WindowingStrategy<?, W> windowingStrategy =
             (WindowingStrategy<?, W>) context.getInput(transform).getWindowingStrategy();
-        @SuppressWarnings("unchecked")
         final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
         @SuppressWarnings("unchecked")
         final WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
@@ -565,49 +556,60 @@ public final class TransformTranslator {
     };
   }
 
-  private static final Map<Class<? extends PTransform>, TransformEvaluator<?>> EVALUATORS =
-      Maps.newHashMap();
+  @Nullable
+  private static Partitioner getPartitioner(EvaluationContext context) {
+    Long bundleSize =
+        context.getSerializableOptions().get().as(SparkPipelineOptions.class).getBundleSize();
+    return (bundleSize > 0)
+        ? null
+        : new HashPartitioner(context.getSparkContext().defaultParallelism());
+  }
+
+  private static final Map<String, TransformEvaluator<?>> EVALUATORS = new HashMap<>();
 
   static {
-    EVALUATORS.put(Read.Bounded.class, readBounded());
-    EVALUATORS.put(ParDo.MultiOutput.class, parDo());
-    EVALUATORS.put(GroupByKey.class, groupByKey());
-    EVALUATORS.put(Combine.GroupedValues.class, combineGrouped());
-    EVALUATORS.put(Combine.Globally.class, combineGlobally());
-    EVALUATORS.put(Combine.PerKey.class, combinePerKey());
-    EVALUATORS.put(Flatten.PCollections.class, flattenPColl());
-    EVALUATORS.put(Create.Values.class, create());
-    //    EVALUATORS.put(View.AsSingleton.class, viewAsSingleton());
-    //    EVALUATORS.put(View.AsIterable.class, viewAsIter());
-    EVALUATORS.put(View.CreatePCollectionView.class, createPCollView());
-    EVALUATORS.put(Window.Assign.class, window());
-    EVALUATORS.put(Reshuffle.class, reshuffle());
+    EVALUATORS.put(PTransformTranslation.READ_TRANSFORM_URN, readBounded());
+    EVALUATORS.put(PTransformTranslation.PAR_DO_TRANSFORM_URN, parDo());
+    EVALUATORS.put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, groupByKey());
+    EVALUATORS.put(PTransformTranslation.COMBINE_GROUPED_VALUES_TRANSFORM_URN, combineGrouped());
+    EVALUATORS.put(PTransformTranslation.COMBINE_GLOBALLY_TRANSFORM_URN, combineGlobally());
+    EVALUATORS.put(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, combinePerKey());
+    EVALUATORS.put(PTransformTranslation.FLATTEN_TRANSFORM_URN, flattenPColl());
+    EVALUATORS.put(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN, createPCollView());
+    EVALUATORS.put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, window());
+    EVALUATORS.put(PTransformTranslation.RESHUFFLE_URN, reshuffle());
+  }
+
+  @Nullable
+  private static TransformEvaluator<?> getTranslator(PTransform<?, ?> transform) {
+    @Nullable String urn = PTransformTranslation.urnForTransformOrNull(transform);
+    return urn == null ? null : EVALUATORS.get(urn);
   }
 
   /** Translator matches Beam transformation with the appropriate evaluator. */
   public static class Translator implements SparkPipelineTranslator {
 
     @Override
-    public boolean hasTranslation(Class<? extends PTransform<?, ?>> clazz) {
-      return EVALUATORS.containsKey(clazz);
+    public boolean hasTranslation(PTransform<?, ?> transform) {
+      return EVALUATORS.containsKey(PTransformTranslation.urnForTransformOrNull(transform));
     }
 
     @Override
     public <TransformT extends PTransform<?, ?>> TransformEvaluator<TransformT> translateBounded(
-        Class<TransformT> clazz) {
+        PTransform<?, ?> transform) {
       @SuppressWarnings("unchecked")
       TransformEvaluator<TransformT> transformEvaluator =
-          (TransformEvaluator<TransformT>) EVALUATORS.get(clazz);
+          (TransformEvaluator<TransformT>) getTranslator(transform);
       checkState(
           transformEvaluator != null,
           "No TransformEvaluator registered for BOUNDED transform %s",
-          clazz);
+          transform);
       return transformEvaluator;
     }
 
     @Override
     public <TransformT extends PTransform<?, ?>> TransformEvaluator<TransformT> translateUnbounded(
-        Class<TransformT> clazz) {
+        PTransform<?, ?> transform) {
       throw new IllegalStateException(
           "TransformTranslator used in a batch pipeline only " + "supports BOUNDED transforms.");
     }

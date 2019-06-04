@@ -27,6 +27,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/memfs"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/go/test/integration/primitives"
 	"github.com/apache/beam/sdks/go/test/integration/wordcount"
 )
 
@@ -57,9 +58,17 @@ func main() {
 	pipelines := []namedPipeline{
 		{"wordcount:memfs", wordcount.WordCount(old_pond, "+Qj8iAnV5BI2A4sbzUbb6Q==", 8)},
 		{"wordcount:kinglear", wordcount.WordCount("gs://apache-beam-samples/shakespeare/kinglear.txt", "7ZCh5ih9m8IW1w+iS8sRKg==", 4749)},
+		{"pardo:multioutput", primitives.ParDoMultiOutput()},
+		{"pardo:sideinput", primitives.ParDoSideInput()},
+		{"pardo:kvsideinput", primitives.ParDoKVSideInput()},
+		{"cogbk:cogbk", primitives.CoGBK()},
+		{"flatten:flatten", primitives.Flatten()},
+		// {"flatten:dup", primitives.FlattenDup()},
 	}
 
 	re := regexp.MustCompile(*filter)
+
+	ctx := context.Background()
 
 	ch := make(chan namedPipeline, len(pipelines))
 	for _, np := range pipelines {
@@ -68,8 +77,6 @@ func main() {
 		}
 	}
 	close(ch)
-
-	ctx := context.Background()
 
 	var failures int32
 	var wg sync.WaitGroup

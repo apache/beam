@@ -15,13 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -63,6 +60,8 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 import org.joda.time.Duration;
 
 /**
@@ -84,10 +83,10 @@ import org.joda.time.Duration;
  */
 public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, PDone> {
   /** Default maximum number of messages per publish. */
-  private static final int DEFAULT_PUBLISH_BATCH_SIZE = 1000;
+  static final int DEFAULT_PUBLISH_BATCH_SIZE = 1000;
 
   /** Default maximum size of a publish batch, in bytes. */
-  private static final int DEFAULT_PUBLISH_BATCH_BYTES = 400000;
+  static final int DEFAULT_PUBLISH_BATCH_BYTES = 400000;
 
   /** Default longest delay between receiving a message and pushing it to Pubsub. */
   private static final Duration DEFAULT_MAX_LATENCY = Duration.standardSeconds(2);
@@ -367,6 +366,25 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
         RecordIdMethod.RANDOM);
   }
 
+  public PubsubUnboundedSink(
+      PubsubClientFactory pubsubFactory,
+      ValueProvider<TopicPath> topic,
+      String timestampAttribute,
+      String idAttribute,
+      int numShards,
+      int publishBatchSize,
+      int publishBatchBytes) {
+    this(
+        pubsubFactory,
+        topic,
+        timestampAttribute,
+        idAttribute,
+        numShards,
+        publishBatchSize,
+        publishBatchBytes,
+        DEFAULT_MAX_LATENCY,
+        RecordIdMethod.RANDOM);
+  }
   /** Get the topic being written to. */
   public TopicPath getTopic() {
     return topic.get();

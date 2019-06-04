@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -32,6 +30,8 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
 

@@ -31,26 +31,38 @@ from builtins import object
 from builtins import range
 
 import grpc
-from future import standard_library
 from future.utils import raise_
 from future.utils import with_metaclass
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
+from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
-standard_library.install_aliases()
-
 # This module is experimental. No backwards-compatibility guarantees.
+
+
+_DEFAULT_FLUSH_THRESHOLD = 10 << 20  # 10MB
 
 
 class ClosableOutputStream(type(coder_impl.create_OutputStream())):
   """A Outputstream for use with CoderImpls that has a close() method."""
 
-  def __init__(self, close_callback=None):
+  def __init__(self,
+               close_callback=None,
+               flush_callback=None,
+               flush_threshold=_DEFAULT_FLUSH_THRESHOLD):
     super(ClosableOutputStream, self).__init__()
     self._close_callback = close_callback
+    self._flush_callback = flush_callback
+    self._flush_threshold = flush_threshold
+
+  # This must be called explicitly to avoid flushing partial elements.
+  def maybe_flush(self):
+    if self._flush_callback and self.size() > self._flush_threshold:
+      self._flush_callback(self.get())
+      self._clear()
 
   def close(self):
     if self._close_callback:
@@ -77,7 +89,8 @@ class DataChannel(with_metaclass(abc.ABCMeta, object)):
   """
 
   @abc.abstractmethod
-  def input_elements(self, instruction_id, expected_targets):
+  def input_elements(
+      self, instruction_id, expected_targets, abort_callback=None):
     """Returns an iterable of all Element.Data bundles for instruction_id.
 
     This iterable terminates only once the full set of data has been recieved
@@ -86,6 +99,8 @@ class DataChannel(with_metaclass(abc.ABCMeta, object)):
     Args:
         instruction_id: which instruction the results must belong to
         expected_targets: which targets to wait on for completion
+        abort_callback: a callback to invoke if blocking returning whether
+            to abort before consuming all the data
     """
     raise NotImplementedError(type(self))
 
@@ -125,10 +140,16 @@ class InMemoryDataChannel(DataChannel):
   def inverse(self):
     return self._inverse
 
-  def input_elements(self, instruction_id, unused_expected_targets=None):
+  def input_elements(self, instruction_id, unused_expected_targets=None,
+                     abort_callback=None):
+    other_inputs = []
     for data in self._inputs:
       if data.instruction_reference == instruction_id:
-        yield data
+        if data.data:
+          yield data
+      else:
+        other_inputs.append(data)
+    self._inputs = other_inputs
 
   def output_stream(self, instruction_id, target):
     def add_to_inverse_output(data):
@@ -137,7 +158,8 @@ class InMemoryDataChannel(DataChannel):
               instruction_reference=instruction_id,
               target=target,
               data=data))
-    return ClosableOutputStream(add_to_inverse_output)
+    return ClosableOutputStream(
+        add_to_inverse_output, flush_callback=add_to_inverse_output)
 
   def close(self):
     pass
@@ -171,7 +193,8 @@ class _GrpcDataChannel(DataChannel):
     with self._receive_lock:
       self._received.pop(instruction_id)
 
-  def input_elements(self, instruction_id, expected_targets):
+  def input_elements(self, instruction_id, expected_targets,
+                     abort_callback=None):
     """
     Generator to retrieve elements for an instruction_id
     input_elements should be called only once for an instruction_id
@@ -182,11 +205,16 @@ class _GrpcDataChannel(DataChannel):
     """
     received = self._receiving_queue(instruction_id)
     done_targets = []
+    abort_callback = abort_callback or (lambda: False)
     try:
       while len(done_targets) < len(expected_targets):
         try:
           data = received.get(timeout=1)
         except queue.Empty:
+          if self._closed:
+            raise RuntimeError('Channel closed prematurely.')
+          if abort_callback():
+            return
           if self._exc_info:
             t, v, tb = self._exc_info
             raise_(t, v, tb)
@@ -202,10 +230,6 @@ class _GrpcDataChannel(DataChannel):
       self._clean_receiving_queue(instruction_id)
 
   def output_stream(self, instruction_id, target):
-    # TODO: Return an output stream that sends data
-    # to the Runner once a fixed size buffer is full.
-    # Currently we buffer all the data before sending
-    # any messages.
     def add_to_send_queue(data):
       if data:
         self._to_send.put(
@@ -213,13 +237,17 @@ class _GrpcDataChannel(DataChannel):
                 instruction_reference=instruction_id,
                 target=target,
                 data=data))
+
+    def close_callback(data):
+      add_to_send_queue(data)
       # End of stream marker.
       self._to_send.put(
           beam_fn_api_pb2.Elements.Data(
               instruction_reference=instruction_id,
               target=target,
-              data=''))
-    return ClosableOutputStream(add_to_send_queue)
+              data=b''))
+    return ClosableOutputStream(
+        close_callback, flush_callback=add_to_send_queue)
 
   def _write_outputs(self):
     done = False
@@ -249,6 +277,7 @@ class _GrpcDataChannel(DataChannel):
         self._exc_info = sys.exc_info()
         raise
     finally:
+      self._closed = True
       self._reads_finished.set()
 
   def _start_reader(self, elements_iterator):
@@ -318,9 +347,10 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
                              ("grpc.max_send_message_length", -1)]
           grpc_channel = None
           if self._credentials is None:
-            grpc_channel = grpc.insecure_channel(url, options=channel_options)
+            grpc_channel = GRPCChannelFactory.insecure_channel(
+                url, options=channel_options)
           else:
-            grpc_channel = grpc.secure_channel(
+            grpc_channel = GRPCChannelFactory.secure_channel(
                 url, self._credentials, options=channel_options)
           # Add workerId to the grpc channel
           grpc_channel = grpc.intercept_channel(grpc_channel,

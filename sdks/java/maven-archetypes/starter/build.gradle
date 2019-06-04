@@ -16,14 +16,23 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(exportJavadoc: false)
 
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Starter"
 ext.summary = """A Maven archetype to create a simple starter pipeline to
 get started using the Apache Beam Java SDK."""
 
+processResources {
+  filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
+    'project.version': version,
+    'slf4j.version': dependencies.create(project.library.java.slf4j_api).getVersion(),
+    'maven-compiler-plugin.version': dependencies.create(project.library.maven.maven_compiler_plugin).getVersion(),
+    'maven-exec-plugin.version': dependencies.create(project.library.maven.maven_exec_plugin).getVersion(),
+  ]
+}
+
 dependencies {
-  shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":runners:direct-java", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
 }

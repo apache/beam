@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature()
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
@@ -25,18 +25,18 @@ description = "Apache Beam :: SDKs :: Java :: IO :: MongoDB"
 ext.summary = "IO to read and write on MongoDB."
 
 dependencies {
-  compile library.java.guava
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow library.java.vendored_guava_20_0
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.joda_time
-  shadow "org.mongodb:mongo-java-driver:3.2.2"
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadow "org.mongodb:mongo-java-driver:3.9.1"
   testCompile library.java.junit
-  testCompile library.java.slf4j_jdk14
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
-  testCompile "de.flapdoodle.embed:de.flapdoodle.embed.mongo:1.50.1"
-  testCompile "de.flapdoodle.embed:de.flapdoodle.embed.process:1.50.1"
+  testCompile project(path: ":sdks:java:io:common", configuration: "shadowTest")
+  shadowTest project(path: ":sdks:java:testing:test-utils", configuration: "shadowTest")
+  testCompile "de.flapdoodle.embed:de.flapdoodle.embed.mongo:2.2.0"
+  testCompile "de.flapdoodle.embed:de.flapdoodle.embed.process:2.1.2"
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(path: ":runners:direct-java")
 }

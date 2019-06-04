@@ -24,28 +24,51 @@ This guide is for
 [committers](https://www.apache.org/foundation/how-it-works.html#committers)
 and covers Beam's guidelines for reviewing and merging code.
 
+## Pull request review objectives
+
+The review process aims for:
+
+* Review iterations should be efficient, timely and of quality (avoid tiny or out-of-context changes or huge mega-changes)
+* Support efficiency of authoring (don't want to wait on a review for a tiny bit because GitHub makes it very hard to stack up reviews in sequence / don't want to have major changes blocked because of difficulty of review)
+* Ease of first-time contribution (encourage to follow [contribution guildelines](/contribute/#contributing-code)
+  but committer may absorb some extra effort for new contributors)
+* Pull requests and commit messages establish a clear history with purpose and origin of changes
+* Ability to perform a granular rollback, if necessary (also see [policies](/contribute/postcommits-policies/))
+
+Granularity of changes:
+
+* We prefer small independent, incremental PRs with descriptive, isolated commits. Each commit is a single clear change
+* It is OK to keep separate commits for different logical pieces of the code, if they make reviewing and revisiting code easier
+* Making commits isolated is a good practice, authors should be able to relatively easily split the PR upon reviewer's request
+* Generally, every commit should compile and pass tests.
+* Avoid keeping in history formatting messages such as checkstyle or spotless fixes.  Squash such commits with previous one.
+
 ## Always get to LGTM ("Looks good to me!")
 
 After a pull request goes through rounds of reviews and revisions, it will
-become ready for merge. A committer (who is _not_ the author of the code)
-should signal this either by GitHub "approval" or by a comment such as "Looks
-good to me!" (LGTM). Any committer can then merge the pull request. It is fine
-for a committer to self-merge if another committer has reviewed the code and
-approved it, just be sure to be explicit about whose job it is!
+become ready for merge. A reviewer signals their approval either
+by GitHub "approval" or by a comment such as "Looks good to me!" (LGTM).
 
-Pull requests should not be merged before the review has received an explicit
-LGTM from another committer. Exceptions to this rule are rare and made on a
-case-by-case basis. A committer may use their discretion for situations such as
-build breaks. In this case, you should still seek a review on the pull request!
-A common acronym you may see is "TBR" -- "to be reviewed".
+ - If the author of the pull request is not a committer, a committer must be
+   the one to approve the change.
+ - If the author of the pull request is a committer, approval from their chosen
+   reviewer is enough. A committer is trusted to choose an appropriate
+   reviewer, even if the reviewer is not a committer.
 
-Committers should never commit anything without going through a pull request,
-because that bypasses test coverage and could potentially cause the build to
-fail. In addition, pull requests ensure that changes are communicated properly
-and potential flaws or improvements can be spotted.  **Always go through a pull
-request, even if you won’t wait for the code review.** Even then, reviewers
-can provide comments in the pull request after the merge happens, for use
-in follow-up pull requests.
+Once a pull request is approved, any committer can merge it.
+
+Exceptions to this rule are rare and made on a case-by-case basis. A committer
+may use their discretion for situations such as build breaks. In this case, you
+should still seek a review on the pull request!  A common acronym you may see
+is "TBR" -- "to be reviewed".
+
+**Always go through a pull request, even if you won’t wait for the code
+review.** Committers should never commit anything without going through a pull
+request, even when it is an urgent fix or rollback due to build breakage.
+Skipping pull request bypasses test coverage and could potentially cause the
+build to fail, or fail to fix breakage.  In addition, pull requests ensure that
+changes are communicated properly and potential flaws or improvements can be
+spotted, even after the merge happens.
 
 ## Contributor License Agreement
 
@@ -77,16 +100,27 @@ At some point in the review process, the change to the codebase will be
 complete. However, the pull request may have a collection of review-related
 commits that are not meaningful to preserve in the history. The reviewer should
 give the LGTM and then request that the author of the pull request rebase,
-squash, split, etc, the commits, so that the history is most useful. Favor
-commits that do just one thing. The commit is the smallest unit of easy
+squash, split, etc, the commits, so that the history is most useful:
+* Favor commits that do just one thing. The commit is the smallest unit of easy
 rollback; it is easy to roll back many commits, or a whole pull request, but
 harder to roll back part of a commit.
+* Commit messages should tag JIRAs and be otherwise descriptive.
+It should later not be necessary to find a merge or first PR commit to find out what caused a change.
+* Squash the "Fixup!", "Address comments" type of commits that resulted from review iterations.
 
 ## Merging it!
 
+While it is preferred that authors squash commits after review is complete,
+there may be situations where it is more practical for the committer to handle this
+(such as when the action to be taken is obvious or the author isn't available).
+The committer may use the "Squash and merge" option in Github (or modify the PR commits in other ways).
+The committer is ultimately responsible and we "trust the committer's judgment"!
+
 After all the tests pass, there should be a green merge button at the bottom of
-the pull request.  There are multiple choices and you should choose "Merge pull
-request" (the default). This preserves the commit history and adds a merge
+the pull request. There are multiple choices. Unless you want to squash commits
+as part of the merge (see above) you should choose "Merge pull
+request" and ensure "Create a merge commit" is selected from the drop down.
+This preserves the commit history and adds a merge
 commit, so be sure the commit history has been curated appropriately.
 
 Do _not_ use the default GitHub commit message, which looks like this:

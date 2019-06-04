@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.gcp.options;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Strings.isNullOrEmpty;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings.isNullOrEmpty;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.api.client.http.HttpRequestInitializer;
@@ -27,14 +27,12 @@ import com.google.api.client.util.Sleeper;
 import com.google.api.services.cloudresourcemanager.CloudResourceManager;
 import com.google.api.services.cloudresourcemanager.model.Project;
 import com.google.api.services.storage.model.Bucket;
+import com.google.api.services.storage.model.Bucket.Encryption;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.cloud.hadoop.util.ResilientOperation;
 import com.google.cloud.hadoop.util.RetryDeterminer;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
-import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -45,20 +43,25 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.gcp.auth.CredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.GcpCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
+import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
+import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
+import org.apache.beam.sdk.extensions.gcp.util.Transport;
+import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.InstanceBuilder;
-import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
-import org.apache.beam.sdk.util.Transport;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -125,6 +128,19 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   Credentials getGcpCredential();
 
   void setGcpCredential(Credentials value);
+
+  /** Experiment to turn on the Streaming Engine experiment. */
+  String STREAMING_ENGINE_EXPERIMENT = "enable_streaming_engine";
+
+  /** @deprecated Use STREAMING_ENGINE_EXPERIMENT instead. */
+  @Deprecated String WINDMILL_SERVICE_EXPERIMENT = "enable_windmill_service";
+
+  @Description(
+      "If true will use Streaming Engine.  Defaults to false unless the experiments enable_streaming_engine or enable_windmill_service are set.")
+  @Default.InstanceFactory(EnableStreamingEngineFactory.class)
+  boolean isEnableStreamingEngine();
+
+  void setEnableStreamingEngine(boolean value);
 
   /**
    * Attempts to infer the default project based upon the environment this application is executing
@@ -216,6 +232,15 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
     }
   }
 
+  /** EneableStreamingEngine defaults to false unless one of the two experiments is set. */
+  class EnableStreamingEngineFactory implements DefaultValueFactory<Boolean> {
+    @Override
+    public Boolean create(PipelineOptions options) {
+      return ExperimentalOptions.hasExperiment(options, STREAMING_ENGINE_EXPERIMENT)
+          || ExperimentalOptions.hasExperiment(options, WINDMILL_SERVICE_EXPERIMENT);
+    }
+  }
+
   /**
    * A GCS path for storing temporary files in GCP.
    *
@@ -268,9 +293,9 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
      */
     @VisibleForTesting
     static String tryCreateDefaultBucket(PipelineOptions options, CloudResourceManager crmClient) {
-      GcsOptions gcpOptions = options.as(GcsOptions.class);
+      GcsOptions gcsOptions = options.as(GcsOptions.class);
 
-      final String projectId = gcpOptions.getProject();
+      final String projectId = gcsOptions.getProject();
       checkArgument(!isNullOrEmpty(projectId), "--project is a required option.");
 
       // Look up the project number, to create a default bucket with a stable
@@ -282,16 +307,20 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
         throw new RuntimeException("Unable to verify project with ID " + projectId, e);
       }
       String region = DEFAULT_REGION;
-      if (!isNullOrEmpty(gcpOptions.getZone())) {
-        region = getRegionFromZone(gcpOptions.getZone());
+      if (!isNullOrEmpty(gcsOptions.getZone())) {
+        region = getRegionFromZone(gcsOptions.getZone());
       }
       final String bucketName = "dataflow-staging-" + region + "-" + projectNumber;
       LOG.info("No tempLocation specified, attempting to use default bucket: {}", bucketName);
-      Bucket bucket = new Bucket().setName(bucketName).setLocation(region);
+      Bucket bucket =
+          new Bucket()
+              .setName(bucketName)
+              .setLocation(region)
+              .setEncryption(new Encryption().setDefaultKmsKeyName(gcsOptions.getDataflowKmsKey()));
       // Always try to create the bucket before checking access, so that we do not
       // race with other pipelines that may be attempting to do the same thing.
       try {
-        gcpOptions.getGcsUtil().createBucket(projectId, bucket);
+        gcsOptions.getGcsUtil().createBucket(projectId, bucket);
       } catch (FileAlreadyExistsException e) {
         LOG.debug("Bucket '{}'' already exists, verifying access.", bucketName);
       } catch (IOException e) {
@@ -301,7 +330,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       // Once the bucket is expected to exist, verify that it is correctly owned
       // by the project executing the job.
       try {
-        long owner = gcpOptions.getGcsUtil().bucketOwner(GcsPath.fromComponents(bucketName, ""));
+        long owner = gcsOptions.getGcsUtil().bucketOwner(GcsPath.fromComponents(bucketName, ""));
         checkArgument(
             owner == projectNumber,
             "Bucket owner does not match the project from --project:" + " %s vs. %s",
@@ -372,7 +401,8 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
               Transport.getJsonFactory(),
               chainHttpRequestInitializer(
                   credentials,
-                  // Do not log 404. It clutters the output and is possibly even required by the caller.
+                  // Do not log 404. It clutters the output and is possibly even required by the
+                  // caller.
                   new RetryHttpRequestInitializer(ImmutableList.of(404))))
           .setApplicationName(options.getAppName())
           .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
@@ -389,4 +419,18 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       }
     }
   }
+
+  /**
+   * GCP <a href="https://cloud.google.com/kms/">Cloud KMS</a> key for Dataflow pipelines and
+   * buckets created by GcpTempLocationFactory.
+   */
+  @Description(
+      "GCP Cloud KMS key for Dataflow pipelines. Also used by gcpTempLocation as the default key "
+          + "for new buckets. Key format is: "
+          + "projects/<project>/locations/<location>/keyRings/<keyring>/cryptoKeys/<key>")
+  @Experimental
+  @Nullable
+  String getDataflowKmsKey();
+
+  void setDataflowKmsKey(String dataflowKmsKey);
 }

@@ -22,8 +22,10 @@ import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.transforms.Contextful;
+import org.apache.beam.sdk.transforms.ProcessFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /**
@@ -224,11 +226,8 @@ public class TypeDescriptors {
    */
   public static <K, V> TypeDescriptor<KV<K, V>> kvs(
       TypeDescriptor<K> key, TypeDescriptor<V> value) {
-    TypeDescriptor<KV<K, V>> typeDescriptor =
-        new TypeDescriptor<KV<K, V>>() {}.where(new TypeParameter<K>() {}, key)
-            .where(new TypeParameter<V>() {}, value);
-
-    return typeDescriptor;
+    return new TypeDescriptor<KV<K, V>>() {}.where(new TypeParameter<K>() {}, key)
+        .where(new TypeParameter<V>() {}, value);
   }
 
   /**
@@ -251,10 +250,14 @@ public class TypeDescriptors {
    * @return A {@link TypeDescriptor} for {@link Set}
    */
   public static <T> TypeDescriptor<Set<T>> sets(TypeDescriptor<T> element) {
-    TypeDescriptor<Set<T>> typeDescriptor =
-        new TypeDescriptor<Set<T>>() {}.where(new TypeParameter<T>() {}, element);
+    return new TypeDescriptor<Set<T>>() {}.where(new TypeParameter<T>() {}, element);
+  }
 
-    return typeDescriptor;
+  /** The {@link TypeDescriptor} for {@link Map}. */
+  public static <K, V> TypeDescriptor<Map<K, V>> maps(
+      TypeDescriptor<K> keyType, TypeDescriptor<V> valueType) {
+    return new TypeDescriptor<Map<K, V>>() {}.where(new TypeParameter<K>() {}, keyType)
+        .where(new TypeParameter<V>() {}, valueType);
   }
 
   /**
@@ -277,10 +280,7 @@ public class TypeDescriptors {
    * @return A {@link TypeDescriptor} for {@link List}
    */
   public static <T> TypeDescriptor<List<T>> lists(TypeDescriptor<T> element) {
-    TypeDescriptor<List<T>> typeDescriptor =
-        new TypeDescriptor<List<T>>() {}.where(new TypeParameter<T>() {}, element);
-
-    return typeDescriptor;
+    return new TypeDescriptor<List<T>>() {}.where(new TypeParameter<T>() {}, element);
   }
 
   /**
@@ -303,10 +303,7 @@ public class TypeDescriptors {
    * @return A {@link TypeDescriptor} for {@link Iterable}
    */
   public static <T> TypeDescriptor<Iterable<T>> iterables(TypeDescriptor<T> iterable) {
-    TypeDescriptor<Iterable<T>> typeDescriptor =
-        new TypeDescriptor<Iterable<T>>() {}.where(new TypeParameter<T>() {}, iterable);
-
-    return typeDescriptor;
+    return new TypeDescriptor<Iterable<T>>() {}.where(new TypeParameter<T>() {}, iterable);
   }
 
   public static TypeDescriptor<Void> voids() {
@@ -329,16 +326,16 @@ public class TypeDescriptors {
    *
    * <pre>{@code
    * class Foo<BarT> {
-   *   private SerializableFunction<BarT, String> fn;
+   *   private ProcessFunction<BarT, String> fn;
    *
    *   TypeDescriptor<BarT> inferBarTypeDescriptorFromFn() {
    *     return TypeDescriptors.extractFromTypeParameters(
    *       fn,
-   *       SerializableFunction.class,
+   *       ProcessFunction.class,
    *       // The actual type of "fn" is matched against the input type of the extractor,
    *       // and the obtained values of type variables of the superclass are substituted
    *       // into the output type of the extractor.
-   *       new TypeVariableExtractor<SerializableFunction<BarT, String>, BarT>() {});
+   *       new TypeVariableExtractor<ProcessFunction<BarT, String>, BarT>() {});
    *   }
    * }
    * }</pre>
@@ -364,20 +361,20 @@ public class TypeDescriptors {
   public static <T, V> TypeDescriptor<V> extractFromTypeParameters(
       TypeDescriptor<T> type, Class<? super T> supertype, TypeVariableExtractor<T, V> extractor) {
     // Get the type signature of the extractor, e.g.
-    // TypeVariableExtractor<SerializableFunction<BarT, String>, BarT>
+    // TypeVariableExtractor<ProcessFunction<BarT, String>, BarT>
     TypeDescriptor<TypeVariableExtractor<T, V>> extractorSupertype =
         (TypeDescriptor<TypeVariableExtractor<T, V>>)
             TypeDescriptor.of(extractor.getClass()).getSupertype(TypeVariableExtractor.class);
 
-    // Get the actual type argument, e.g. SerializableFunction<BarT, String>
+    // Get the actual type argument, e.g. ProcessFunction<BarT, String>
     Type inputT = ((ParameterizedType) extractorSupertype.getType()).getActualTypeArguments()[0];
 
     // Get the actual supertype of the type being analyzed, hopefully with all type parameters
-    // resolved, e.g. SerializableFunction<Integer, String>
+    // resolved, e.g. ProcessFunction<Integer, String>
     TypeDescriptor supertypeDescriptor = type.getSupertype(supertype);
 
     // Substitute actual supertype into the extractor, e.g.
-    // TypeVariableExtractor<SerializableFunction<Integer, String>, Integer>
+    // TypeVariableExtractor<ProcessFunction<Integer, String>, Integer>
     TypeDescriptor<TypeVariableExtractor<T, V>> extractorT =
         extractorSupertype.where(inputT, supertypeDescriptor.getType());
 
@@ -387,30 +384,42 @@ public class TypeDescriptors {
   }
 
   /**
-   * Returns a type descriptor for the input of the given {@link SerializableFunction}, subject to
-   * Java type erasure: may contain unresolved type variables if the type was erased.
+   * Returns a type descriptor for the input of the given {@link ProcessFunction}, subject to Java
+   * type erasure: may contain unresolved type variables if the type was erased.
    */
   public static <InputT, OutputT> TypeDescriptor<InputT> inputOf(
-      SerializableFunction<InputT, OutputT> fn) {
+      ProcessFunction<InputT, OutputT> fn) {
     return extractFromTypeParameters(
         fn,
-        SerializableFunction.class,
-        new TypeVariableExtractor<SerializableFunction<InputT, OutputT>, InputT>() {});
+        ProcessFunction.class,
+        new TypeVariableExtractor<ProcessFunction<InputT, OutputT>, InputT>() {});
+  }
+
+  /** Binary compatibility adapter for {@link #inputOf(ProcessFunction)}. */
+  public static <InputT, OutputT> TypeDescriptor<InputT> inputOf(
+      SerializableFunction<InputT, OutputT> fn) {
+    return inputOf((ProcessFunction<InputT, OutputT>) fn);
   }
 
   /**
-   * Returns a type descriptor for the output of the given {@link SerializableFunction}, subject to
-   * Java type erasure: may contain unresolved type variables if the type was erased.
+   * Returns a type descriptor for the output of the given {@link ProcessFunction}, subject to Java
+   * type erasure: may contain unresolved type variables if the type was erased.
    */
   public static <InputT, OutputT> TypeDescriptor<OutputT> outputOf(
-      SerializableFunction<InputT, OutputT> fn) {
+      ProcessFunction<InputT, OutputT> fn) {
     return extractFromTypeParameters(
         fn,
-        SerializableFunction.class,
-        new TypeVariableExtractor<SerializableFunction<InputT, OutputT>, OutputT>() {});
+        ProcessFunction.class,
+        new TypeVariableExtractor<ProcessFunction<InputT, OutputT>, OutputT>() {});
   }
 
-  /** Like {@link #inputOf(SerializableFunction)} but for {@link Contextful.Fn}. */
+  /** Binary compatibility adapter for {@link #outputOf(ProcessFunction)}. */
+  public static <InputT, OutputT> TypeDescriptor<OutputT> outputOf(
+      SerializableFunction<InputT, OutputT> fn) {
+    return outputOf((ProcessFunction<InputT, OutputT>) fn);
+  }
+
+  /** Like {@link #inputOf(ProcessFunction)} but for {@link Contextful.Fn}. */
   public static <InputT, OutputT> TypeDescriptor<InputT> inputOf(
       Contextful.Fn<InputT, OutputT> fn) {
     return TypeDescriptors.extractFromTypeParameters(
@@ -419,7 +428,7 @@ public class TypeDescriptors {
         new TypeDescriptors.TypeVariableExtractor<Contextful.Fn<InputT, OutputT>, InputT>() {});
   }
 
-  /** Like {@link #outputOf(SerializableFunction)} but for {@link Contextful.Fn}. */
+  /** Like {@link #outputOf(ProcessFunction)} but for {@link Contextful.Fn}. */
   public static <InputT, OutputT> TypeDescriptor<OutputT> outputOf(
       Contextful.Fn<InputT, OutputT> fn) {
     return TypeDescriptors.extractFromTypeParameters(

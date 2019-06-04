@@ -28,16 +28,17 @@ import threading
 import traceback
 from builtins import object
 
-from future import standard_library
 from google.protobuf import text_format
 
 from apache_beam.internal import pickler
+from apache_beam.options import pipeline_options
+from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.portability.api import endpoints_pb2
-from apache_beam.runners.dataflow.internal import names
+from apache_beam.runners.internal import names
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
-
-standard_library.install_aliases()
+from apache_beam.utils import profiler
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -96,7 +97,7 @@ def main(unused_argv):
 
     # Send all logs to the runner.
     fn_log_handler = FnApiLogRecordHandler(logging_service_descriptor)
-    # TODO(vikasrk): This should be picked up from pipeline options.
+    # TODO(BEAM-5468): This should be picked up from pipeline options.
     logging.getLogger().setLevel(logging.INFO)
     logging.getLogger().addHandler(fn_log_handler)
     logging.info('Logging handler created.')
@@ -110,9 +111,10 @@ def main(unused_argv):
   thread.start()
 
   if 'PIPELINE_OPTIONS' in os.environ:
-    sdk_pipeline_options = json.loads(os.environ['PIPELINE_OPTIONS'])
+    sdk_pipeline_options = _parse_pipeline_options(
+        os.environ['PIPELINE_OPTIONS'])
   else:
-    sdk_pipeline_options = {}
+    sdk_pipeline_options = PipelineOptions.from_dictionary({})
 
   if 'SEMI_PERSISTENT_DIRECTORY' in os.environ:
     semi_persistent_directory = os.environ['SEMI_PERSISTENT_DIRECTORY']
@@ -130,7 +132,7 @@ def main(unused_argv):
 
   try:
     logging.info('Python sdk harness started with pipeline_options: %s',
-                 sdk_pipeline_options)
+                 sdk_pipeline_options.get_all_options(drop_default=True))
     service_descriptor = endpoints_pb2.ApiServiceDescriptor()
     text_format.Merge(os.environ['CONTROL_API_SERVICE_DESCRIPTOR'],
                       service_descriptor)
@@ -138,7 +140,10 @@ def main(unused_argv):
     assert not service_descriptor.oauth2_client_credentials_grant.url
     SdkHarness(
         control_address=service_descriptor.url,
-        worker_count=_get_worker_count(sdk_pipeline_options)).run()
+        worker_count=_get_worker_count(sdk_pipeline_options),
+        profiler_factory=profiler.Profile.factory_from_options(
+            sdk_pipeline_options.view_as(pipeline_options.ProfilingOptions))
+    ).run()
     logging.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
     logging.exception('Python sdk harness failed: ')
@@ -146,6 +151,21 @@ def main(unused_argv):
   finally:
     if fn_log_handler:
       fn_log_handler.close()
+
+
+def _parse_pipeline_options(options_json):
+  options = json.loads(options_json)
+  # Check the options field first for backward compatibility.
+  if 'options' in options:
+    return PipelineOptions.from_dictionary(options.get('options'))
+  else:
+    # Remove extra urn part from the key.
+    portable_option_regex = r'^beam:option:(?P<key>.*):v1$'
+    return PipelineOptions.from_dictionary({
+        re.match(portable_option_regex, k).group('key')
+        if re.match(portable_option_regex, k) else k: v
+        for k, v in options.items()
+    })
 
 
 def _get_worker_count(pipeline_options):
@@ -161,13 +181,9 @@ def _get_worker_count(pipeline_options):
   future releases.
 
   Returns:
-    an int containing the worker_threads to use. Default is 1
+    an int containing the worker_threads to use. Default is 12
   """
-  pipeline_options = pipeline_options.get(
-      'options') if 'options' in pipeline_options else {}
-  experiments = pipeline_options.get(
-      'experiments'
-  ) if pipeline_options and 'experiments' in pipeline_options else []
+  experiments = pipeline_options.view_as(DebugOptions).experiments
 
   experiments = experiments if experiments else []
 

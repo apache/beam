@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -63,12 +63,10 @@ public class BeamUncollectRel extends Uncollect implements BeamRelNode {
 
       // Each row of the input contains a single array of things to be emitted; Calcite knows
       // what the row looks like
-      Schema outputSchema = CalciteUtils.toBeamSchema(getRowType());
+      Schema outputSchema = CalciteUtils.toSchema(getRowType());
 
       PCollection<Row> uncollected =
-          upstream
-              .apply(ParDo.of(new UncollectDoFn(outputSchema)))
-              .setCoder(outputSchema.getRowCoder());
+          upstream.apply(ParDo.of(new UncollectDoFn(outputSchema))).setRowSchema(outputSchema);
 
       return uncollected;
     }

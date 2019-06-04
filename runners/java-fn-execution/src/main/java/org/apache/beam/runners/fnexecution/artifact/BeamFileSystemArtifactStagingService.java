@@ -17,18 +17,15 @@
  */
 package org.apache.beam.runners.fnexecution.artifact;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.hash.Hasher;
-import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.Collections;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.CommitManifestRequest;
@@ -45,11 +42,13 @@ import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.util.MimeTypes;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hasher;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,8 +87,10 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
   public void commitManifest(
       CommitManifestRequest request, StreamObserver<CommitManifestResponse> responseObserver) {
     try {
-      ResourceId manifestResourceId = getManifestFileResourceId(request.getStagingSessionToken());
-      ResourceId artifactDirResourceId = getArtifactDirResourceId(request.getStagingSessionToken());
+      StagingSessionToken stagingSessionToken =
+          StagingSessionToken.decode(request.getStagingSessionToken());
+      ResourceId manifestResourceId = getManifestFileResourceId(stagingSessionToken);
+      ResourceId artifactDirResourceId = getArtifactDirResourceId(stagingSessionToken);
       ProxyManifest.Builder proxyManifestBuilder =
           ProxyManifest.newBuilder().setManifest(request.getManifest());
       for (ArtifactMetadata artifactMetadata : request.getManifest().getArtifactList()) {
@@ -133,12 +134,11 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
    * @param basePath Base path to upload artifacts.
    * @return Encoded stagingSessionToken.
    */
-  public static String generateStagingSessionToken(String sessionId, String basePath)
-      throws Exception {
+  public static String generateStagingSessionToken(String sessionId, String basePath) {
     StagingSessionToken stagingSessionToken = new StagingSessionToken();
     stagingSessionToken.setSessionId(sessionId);
     stagingSessionToken.setBasePath(basePath);
-    return encodeStagingSessionToken(stagingSessionToken);
+    return stagingSessionToken.encode();
   }
 
   private String encodedFileName(ArtifactMetadata artifactMetadata) {
@@ -146,48 +146,52 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
         + Hashing.sha256().hashString(artifactMetadata.getName(), CHARSET).toString();
   }
 
-  private static StagingSessionToken decodeStagingSessionToken(String stagingSessionToken)
-      throws Exception {
-    try {
-      return MAPPER.readValue(stagingSessionToken, StagingSessionToken.class);
-    } catch (JsonProcessingException e) {
-      String message =
-          String.format(
-              "Unable to deserialize staging token %s. Expected format: %s. Error: %s",
-              stagingSessionToken,
-              "{\"sessionId\": \"sessionId\", \"basePath\": \"basePath\"}",
-              e.getMessage());
-      throw new StatusRuntimeException(Status.INVALID_ARGUMENT.withDescription(message));
+  public void removeArtifacts(String stagingSessionToken) throws Exception {
+    StagingSessionToken parsedToken = StagingSessionToken.decode(stagingSessionToken);
+    ResourceId dir = getJobDirResourceId(parsedToken);
+    ResourceId manifestResourceId = dir.resolve(MANIFEST, StandardResolveOptions.RESOLVE_FILE);
+
+    LOG.debug("Removing dir {}", dir);
+
+    ProxyManifest proxyManifest =
+        BeamFileSystemArtifactRetrievalService.loadManifest(manifestResourceId);
+    for (Location location : proxyManifest.getLocationList()) {
+      String uri = location.getUri();
+      LOG.debug("Removing artifact: {}", uri);
+      FileSystems.delete(
+          Collections.singletonList(FileSystems.matchNewResource(uri, false /* is directory */)));
     }
+
+    ResourceId artifactsResourceId =
+        dir.resolve(ARTIFACTS, StandardResolveOptions.RESOLVE_DIRECTORY);
+    if (!proxyManifest.getLocationList().isEmpty()) {
+      // directory only exists when there is at least one artifact
+      LOG.debug("Removing artifacts dir: {}", artifactsResourceId);
+      FileSystems.delete(Collections.singletonList(artifactsResourceId));
+    }
+    LOG.debug("Removing manifest: {}", manifestResourceId);
+    FileSystems.delete(Collections.singletonList(manifestResourceId));
+    LOG.debug("Removing empty dir: {}", dir);
+    FileSystems.delete(Collections.singletonList(dir));
+    LOG.info("Removed dir {}", dir);
   }
 
-  private static String encodeStagingSessionToken(StagingSessionToken stagingSessionToken)
-      throws Exception {
-    try {
-      return MAPPER.writeValueAsString(stagingSessionToken);
-    } catch (JsonProcessingException e) {
-      LOG.error("Error {} occurred while serializing {}.", e.getMessage(), stagingSessionToken);
-      throw e;
-    }
-  }
-
-  private ResourceId getJobDirResourceId(String stagingSessionToken) throws Exception {
+  private ResourceId getJobDirResourceId(StagingSessionToken stagingSessionToken) {
     ResourceId baseResourceId;
-    StagingSessionToken parsedToken = decodeStagingSessionToken(stagingSessionToken);
     // Get or Create the base path
     baseResourceId =
-        FileSystems.matchNewResource(parsedToken.getBasePath(), true /* isDirectory */);
+        FileSystems.matchNewResource(stagingSessionToken.getBasePath(), true /* isDirectory */);
     // Using sessionId as the subDir to store artifacts and manifest.
     return baseResourceId.resolve(
-        parsedToken.getSessionId(), StandardResolveOptions.RESOLVE_DIRECTORY);
+        stagingSessionToken.getSessionId(), StandardResolveOptions.RESOLVE_DIRECTORY);
   }
 
-  private ResourceId getManifestFileResourceId(String stagingSessionToken) throws Exception {
+  private ResourceId getManifestFileResourceId(StagingSessionToken stagingSessionToken) {
     return getJobDirResourceId(stagingSessionToken)
         .resolve(MANIFEST, StandardResolveOptions.RESOLVE_FILE);
   }
 
-  private ResourceId getArtifactDirResourceId(String stagingSessionToken) throws Exception {
+  private ResourceId getArtifactDirResourceId(StagingSessionToken stagingSessionToken) {
     return getJobDirResourceId(stagingSessionToken)
         .resolve(ARTIFACTS, StandardResolveOptions.RESOLVE_DIRECTORY);
   }
@@ -211,21 +215,25 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
         checkNotNull(putArtifactRequest);
         checkNotNull(putArtifactRequest.getMetadata());
         metadata = putArtifactRequest.getMetadata();
+        LOG.debug("stored metadata: {}", metadata);
         // Check the base path exists or create the base path
         try {
           ResourceId artifactsDirId =
-              getArtifactDirResourceId(putArtifactRequest.getMetadata().getStagingSessionToken());
+              getArtifactDirResourceId(
+                  StagingSessionToken.decode(
+                      putArtifactRequest.getMetadata().getStagingSessionToken()));
           artifactId =
               artifactsDirId.resolve(
                   encodedFileName(metadata.getMetadata()), StandardResolveOptions.RESOLVE_FILE);
-          LOG.info(
+          LOG.debug(
               "Going to stage artifact {} to {}.", metadata.getMetadata().getName(), artifactId);
           artifactWritableByteChannel = FileSystems.create(artifactId, MimeTypes.BINARY);
-          hasher = Hashing.md5().newHasher();
+          hasher = Hashing.sha256().newHasher();
         } catch (Exception e) {
           String message =
               String.format(
                   "Failed to begin staging artifact %s", metadata.getMetadata().getName());
+          LOG.error(message, e);
           outboundObserver.onError(
               new StatusRuntimeException(Status.DATA_LOSS.withDescription(message).withCause(e)));
         }
@@ -239,6 +247,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
               String.format(
                   "Failed to write chunk of artifact %s to %s",
                   metadata.getMetadata().getName(), artifactId);
+          LOG.error(message, e);
           outboundObserver.onError(
               new StatusRuntimeException(Status.DATA_LOSS.withDescription(message).withCause(e)));
         }
@@ -275,7 +284,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
     @Override
     public void onCompleted() {
       // Close the stream.
-      LOG.info("Staging artifact completed for " + artifactId);
+      LOG.debug("Staging artifact completed for " + artifactId);
       if (artifactWritableByteChannel != null) {
         try {
           artifactWritableByteChannel.close();
@@ -284,16 +293,16 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
           return;
         }
       }
-      String expectedMd5 = metadata.getMetadata().getMd5();
-      if (expectedMd5 != null && !expectedMd5.isEmpty()) {
-        String actualMd5 = Base64.getEncoder().encodeToString(hasher.hash().asBytes());
-        if (!actualMd5.equals(expectedMd5)) {
+      String expectedSha256 = metadata.getMetadata().getSha256();
+      if (expectedSha256 != null && !expectedSha256.isEmpty()) {
+        String actualSha256 = hasher.hash().toString();
+        if (!actualSha256.equals(expectedSha256)) {
           outboundObserver.onError(
               new StatusRuntimeException(
                   Status.INVALID_ARGUMENT.withDescription(
                       String.format(
-                          "Artifact %s is corrupt: expected md5 %s, but has md5 %s",
-                          metadata.getMetadata().getName(), expectedMd5, actualMd5))));
+                          "Artifact %s is corrupt: expected sah256 %s, but has sha256 %s",
+                          metadata.getMetadata().getName(), expectedSha256, actualSha256))));
           return;
         }
       }
@@ -327,6 +336,30 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
 
     private void setBasePath(String basePath) {
       this.basePath = basePath;
+    }
+
+    public String encode() {
+      try {
+        return MAPPER.writeValueAsString(this);
+      } catch (JsonProcessingException e) {
+        String message =
+            String.format("Error %s occurred while serializing %s", e.getMessage(), this);
+        throw new StatusRuntimeException(Status.INVALID_ARGUMENT.withDescription(message));
+      }
+    }
+
+    public static StagingSessionToken decode(String stagingSessionToken) throws Exception {
+      try {
+        return MAPPER.readValue(stagingSessionToken, StagingSessionToken.class);
+      } catch (JsonProcessingException e) {
+        String message =
+            String.format(
+                "Unable to deserialize staging token %s. Expected format: %s. Error: %s",
+                stagingSessionToken,
+                "{\"sessionId\": \"sessionId\", \"basePath\": \"basePath\"}",
+                e.getMessage());
+        throw new StatusRuntimeException(Status.INVALID_ARGUMENT.withDescription(message));
+      }
     }
 
     @Override

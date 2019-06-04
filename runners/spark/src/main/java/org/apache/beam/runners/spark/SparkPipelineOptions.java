@@ -15,16 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark;
 
 import java.util.List;
+import org.apache.beam.runners.core.construction.PipelineResources;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
 /**
  * Spark runner {@link PipelineOptions} handles Spark execution-related configurations, such as the
@@ -33,8 +35,10 @@ import org.apache.beam.sdk.options.StreamingOptions;
 public interface SparkPipelineOptions
     extends PipelineOptions, StreamingOptions, ApplicationNameOptions {
 
+  String DEFAULT_MASTER_URL = "local[4]";
+
   @Description("The url of the spark master to connect to, (e.g. spark://host:port, local[4]).")
-  @Default.String("local[4]")
+  @Default.String(DEFAULT_MASTER_URL)
   String getSparkMaster();
 
   void setSparkMaster(String master);
@@ -99,6 +103,16 @@ public interface SparkPipelineOptions
 
   void setCheckpointDurationMillis(Long durationMillis);
 
+  @Description(
+      "If set bundleSize will be used for splitting BoundedSources, otherwise default to "
+          + "splitting BoundedSources on Spark defaultParallelism. Most effective when used with "
+          + "Spark dynamicAllocation.")
+  @Default.Long(0)
+  Long getBundleSize();
+
+  @Experimental
+  void setBundleSize(Long value);
+
   @Description("Enable/disable sending aggregator values to Spark's metric sinks")
   @Default.Boolean(true)
   Boolean getEnableSparkMetricSinks();
@@ -126,4 +140,27 @@ public interface SparkPipelineOptions
   List<String> getFilesToStage();
 
   void setFilesToStage(List<String> value);
+
+  @Description(
+      "Disable caching of reused PCollections for whole Pipeline."
+          + " It's useful when it's faster to recompute RDD rather than save. ")
+  @Default.Boolean(false)
+  boolean isCacheDisabled();
+
+  void setCacheDisabled(boolean value);
+
+  /**
+   * Local configurations work in the same JVM and have no problems with improperly formatted files
+   * on classpath (eg. directories with .class files or empty directories). Prepare files for
+   * staging only when using remote cluster (passing the master address explicitly).
+   */
+  static void prepareFilesToStageForRemoteClusterExecution(SparkPipelineOptions options) {
+    if (!options.getSparkMaster().matches("local\\[?\\d*\\]?")) {
+      options.setFilesToStage(
+          PipelineResources.prepareFilesForStaging(
+              options.getFilesToStage(),
+              MoreObjects.firstNonNull(
+                  options.getTempLocation(), System.getProperty("java.io.tmpdir"))));
+    }
+  }
 }

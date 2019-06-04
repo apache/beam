@@ -32,14 +32,16 @@ def run(argv):
   parser.add_argument('-p', '--port',
                       type=int,
                       help='port on which to serve the job api')
-  parser.add_argument('--worker_command_line',
-                      help='command line for starting up a worker process')
+  parser.add_argument('--staging_dir')
   options = parser.parse_args(argv)
-  job_servicer = local_job_service.LocalJobServicer(options.worker_command_line)
+  job_servicer = local_job_service.LocalJobServicer(options.staging_dir)
   port = job_servicer.start_grpc_server(options.port)
-  while True:
-    logging.info("Listening for jobs at %d", port)
-    time.sleep(300)
+  try:
+    while True:
+      logging.info("Listening for jobs at %d", port)
+      time.sleep(300)
+  finally:
+    job_servicer.stop()
 
 
 if __name__ == '__main__':

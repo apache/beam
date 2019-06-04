@@ -67,11 +67,11 @@ func TestParDo(t *testing.T) {
 
 	out := &CaptureNode{UID: 1}
 	sum := &CaptureNode{UID: 2}
-	pardo := &ParDo{UID: 3, Fn: edge.DoFn, Inbound: edge.Input, Out: []Node{out, sum}, Side: []ReStream{
-		&FixedReStream{Buf: makeValues(1)},       // a
-		&FixedReStream{Buf: makeValues(2, 3, 4)}, // b
-		&FixedReStream{Buf: makeValues(5, 6)},    // c
-		&FixedReStream{Buf: makeValues(7, 8, 9)}, // d
+	pardo := &ParDo{UID: 3, Fn: edge.DoFn, Inbound: edge.Input, Out: []Node{out, sum}, Side: []SideInputAdapter{
+		&FixedSideInputAdapter{Val: &FixedReStream{Buf: makeValues(1)}},       // a
+		&FixedSideInputAdapter{Val: &FixedReStream{Buf: makeValues(2, 3, 4)}}, // b
+		&FixedSideInputAdapter{Val: &FixedReStream{Buf: makeValues(5, 6)}},    // c
+		&FixedSideInputAdapter{Val: &FixedReStream{Buf: makeValues(7, 8, 9)}}, // d
 	}}
 	n := &FixedRoot{UID: 4, Elements: makeInput(10, 20, 30), Out: pardo}
 
@@ -80,7 +80,7 @@ func TestParDo(t *testing.T) {
 		t.Fatalf("failed to construct plan: %v", err)
 	}
 
-	if err := p.Execute(context.Background(), "1", nil); err != nil {
+	if err := p.Execute(context.Background(), "1", DataContext{}); err != nil {
 		t.Fatalf("execute failed: %v", err)
 	}
 	if err := p.Down(context.Background()); err != nil {
@@ -104,7 +104,7 @@ func emitSumFn(n int, emit func(int)) {
 // BenchmarkParDo_EmitSumFn measures the overhead of invoking a ParDo in a plan.
 //
 // On @lostluck's desktop:
-// BenchmarkParDo_EmitSumFn-12    	 1000000	      1606 ns/op	     585 B/op	       7 allocs/op
+// BenchmarkParDo_EmitSumFn-12    	 1000000	      1070 ns/op	     481 B/op	       3 allocs/op
 func BenchmarkParDo_EmitSumFn(b *testing.B) {
 	fn, err := graph.NewDoFn(emitSumFn)
 	if err != nil {
@@ -131,7 +131,7 @@ func BenchmarkParDo_EmitSumFn(b *testing.B) {
 		b.Fatalf("failed to construct plan: %v", err)
 	}
 	go func() {
-		if err := p.Execute(context.Background(), "1", nil); err != nil {
+		if err := p.Execute(context.Background(), "1", DataContext{}); err != nil {
 			b.Fatalf("execute failed: %v", err)
 		}
 		if err := p.Down(context.Background()); err != nil {

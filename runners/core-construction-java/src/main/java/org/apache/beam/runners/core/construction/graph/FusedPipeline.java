@@ -15,11 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +30,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.SyntheticComponents;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 
 /** A {@link Pipeline} which has been separated into collections of executable components. */
 @AutoValue
@@ -66,8 +65,7 @@ public abstract class FusedPipeline {
     Set<String> executableTransformIds =
         Sets.union(
             executableStageTransforms.keySet(),
-            getRunnerExecutedTransforms()
-                .stream()
+            getRunnerExecutedTransforms().stream()
                 .map(PTransformNode::getId)
                 .collect(Collectors.toSet()));
 
@@ -107,7 +105,7 @@ public abstract class FusedPipeline {
           String.format(
               "%s/%s",
               stage.getInputPCollection().getPCollection().getUniqueName(),
-              stage.getEnvironment().getUrl());
+              stage.getEnvironment().getUrn());
       Set<String> usedNames =
           Sets.union(topLevelTransforms.keySet(), getComponents().getTransformsMap().keySet());
       String uniqueId = SyntheticComponents.uniqueId(baseName, usedNames::contains);

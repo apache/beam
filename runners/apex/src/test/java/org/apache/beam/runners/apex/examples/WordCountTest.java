@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.apex.examples;
 
-import com.google.common.collect.Sets;
 import java.io.File;
+import java.nio.file.Files;
 import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
@@ -41,7 +41,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.commons.io.FileUtils;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Test;
@@ -135,8 +135,8 @@ public class WordCountTest {
 
     Assert.assertTrue("result files exist", outFile1.exists() && outFile2.exists());
     HashSet<String> results = new HashSet<>();
-    results.addAll(FileUtils.readLines(outFile1));
-    results.addAll(FileUtils.readLines(outFile2));
+    results.addAll(Files.readAllLines(outFile1.toPath()));
+    results.addAll(Files.readAllLines(outFile2.toPath()));
     HashSet<String> expectedOutput =
         Sets.newHashSet(
             "foo - 5 @ 294247-01-09T04:00:54.775Z", "bar - 5 @ 294247-01-09T04:00:54.775Z");

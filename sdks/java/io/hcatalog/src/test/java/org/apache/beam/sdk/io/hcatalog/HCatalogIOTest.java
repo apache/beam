@@ -17,15 +17,15 @@
  */
 package org.apache.beam.sdk.io.hcatalog;
 
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_DATABASE;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_FILTER;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_RECORDS_COUNT;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_TABLE;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.buildHCatRecords;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getConfigPropertiesAsMap;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getExpectedRecords;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getReaderContext;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.insertTestData;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.TEST_DATABASE;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.TEST_FILTER;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.TEST_RECORDS_COUNT;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.TEST_TABLE;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.buildHCatRecords;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.getConfigPropertiesAsMap;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.getExpectedRecords;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.getReaderContext;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.insertTestData;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.isA;
@@ -43,6 +43,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hcatalog.HCatalogIO.BoundedHCatalogSource;
+import org.apache.beam.sdk.io.hcatalog.test.EmbeddedMetastoreService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -54,7 +55,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
-import org.apache.hadoop.hive.ql.CommandNeedRetryException;
 import org.apache.hive.hcatalog.data.HCatRecord;
 import org.apache.hive.hcatalog.data.transfer.ReaderContext;
 import org.junit.AfterClass;
@@ -67,9 +67,12 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.junit.runners.model.Statement;
 
 /** Test for HCatalogIO. */
+@RunWith(JUnit4.class)
 public class HCatalogIOTest implements Serializable {
   private static final PipelineOptions OPTIONS = PipelineOptionsFactory.create();
 
@@ -119,14 +122,16 @@ public class HCatalogIOTest implements Serializable {
 
   @AfterClass
   public static void shutdownEmbeddedMetastoreService() throws Exception {
-    service.executeQuery("drop table " + TEST_TABLE);
-    service.close();
+    if (service != null) {
+      service.executeQuery("drop table " + TEST_TABLE);
+      service.close();
+    }
   }
 
   /** Perform end-to-end test of Write-then-Read operation. */
   @Test
   @NeedsEmptyTestTables
-  public void testWriteThenReadSuccess() throws Exception {
+  public void testWriteThenReadSuccess() {
     defaultPipeline
         .apply(Create.of(buildHCatRecords(TEST_RECORDS_COUNT)))
         .apply(
@@ -160,7 +165,7 @@ public class HCatalogIOTest implements Serializable {
 
   /** Test of Write to a non-existent table. */
   @Test
-  public void testWriteFailureTableDoesNotExist() throws Exception {
+  public void testWriteFailureTableDoesNotExist() {
     thrown.expectCause(isA(UserCodeException.class));
     thrown.expectMessage(containsString("org.apache.hive.hcatalog.common.HCatException"));
     thrown.expectMessage(containsString("NoSuchObjectException"));
@@ -175,7 +180,7 @@ public class HCatalogIOTest implements Serializable {
 
   /** Test of Write without specifying a table. */
   @Test
-  public void testWriteFailureValidationTable() throws Exception {
+  public void testWriteFailureValidationTable() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("withTable() is required");
     HCatalogIO.write()
@@ -185,7 +190,7 @@ public class HCatalogIOTest implements Serializable {
 
   /** Test of Write without specifying configuration properties. */
   @Test
-  public void testWriteFailureValidationConfigProp() throws Exception {
+  public void testWriteFailureValidationConfigProp() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("withConfigProperties() is required");
     HCatalogIO.write().withTable("myowntable").expand(null);
@@ -193,7 +198,7 @@ public class HCatalogIOTest implements Serializable {
 
   /** Test of Read from a non-existent table. */
   @Test
-  public void testReadFailureTableDoesNotExist() throws Exception {
+  public void testReadFailureTableDoesNotExist() {
     defaultPipeline.apply(
         HCatalogIO.read()
             .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
@@ -204,7 +209,7 @@ public class HCatalogIOTest implements Serializable {
 
   /** Test of Read without specifying configuration properties. */
   @Test
-  public void testReadFailureValidationConfig() throws Exception {
+  public void testReadFailureValidationConfig() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("withConfigProperties() is required");
     HCatalogIO.read().withTable("myowntable").expand(null);
@@ -212,7 +217,7 @@ public class HCatalogIOTest implements Serializable {
 
   /** Test of Read without specifying a table. */
   @Test
-  public void testReadFailureValidationTable() throws Exception {
+  public void testReadFailureValidationTable() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("withTable() is required");
     HCatalogIO.read()
@@ -266,7 +271,7 @@ public class HCatalogIOTest implements Serializable {
     SourceTestUtils.assertSourcesEqualReferenceSource(unSplitSource.get(0), splits, OPTIONS);
   }
 
-  private void reCreateTestTable() throws CommandNeedRetryException {
+  private void reCreateTestTable() {
     service.executeQuery("drop table " + TEST_TABLE);
     service.executeQuery("create table " + TEST_TABLE + "(mycol1 string, mycol2 int)");
   }

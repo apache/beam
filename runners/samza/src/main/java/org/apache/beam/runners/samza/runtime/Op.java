@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.runtime;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.samza.config.Config;
-import org.apache.samza.operators.TimerRegistry;
-import org.apache.samza.task.TaskContext;
+import org.apache.samza.context.Context;
+import org.apache.samza.operators.Scheduler;
 import org.joda.time.Instant;
 
 /**
@@ -42,8 +41,8 @@ public interface Op<InT, OutT, K> extends Serializable {
    */
   default void open(
       Config config,
-      TaskContext taskContext,
-      TimerRegistry<TimerKey<K>> timerRegistry,
+      Context context,
+      Scheduler<KeyedTimerData<K>> timerRegistry,
       OpEmitter<OutT> emitter) {}
 
   void processElement(WindowedValue<InT> inputElement, OpEmitter<OutT> emitter);

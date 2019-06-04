@@ -18,20 +18,18 @@
 package filter
 
 import (
-	"reflect"
-
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
+//go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
+//go:generate starcgen --package=filter --identifiers=filterFn,mapFn,keyFn
+//go:generate go fmt
+
 var (
 	sig = funcx.MakePredicate(beam.TType) // T -> bool
 )
-
-func init() {
-	beam.RegisterType(reflect.TypeOf((*filterFn)(nil)).Elem())
-}
 
 // Include filters the elements of a PCollection<A> based on the given function,
 // which must be of the form: A -> bool. Include removes all element for which

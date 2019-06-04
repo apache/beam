@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -292,4 +293,42 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    */
   @Override
   public void populateDisplayData(Builder builder) {}
+
+  /**
+   * For a {@code SerializableFunction<InputT, OutputT>} {@code fn}, returns a {@code PTransform}
+   * given by applying {@code fn.apply(v)} to the input {@code PCollection<InputT>}.
+   *
+   * <p>Allows users to define a concise composite transform using a Java 8 lambda expression. For
+   * example:
+   *
+   * <pre>{@code
+   * PCollection<String> words = wordsAndErrors.apply(
+   *   (PCollectionTuple input) -> {
+   *     input.get(errorsTag).apply(new WriteErrorOutput());
+   *     return input.get(wordsTag);
+   *   });
+   * }</pre>
+   */
+  @Experimental
+  public static <InputT extends PInput, OutputT extends POutput>
+      PTransform<InputT, OutputT> compose(SerializableFunction<InputT, OutputT> fn) {
+    return new PTransform<InputT, OutputT>() {
+      @Override
+      public OutputT expand(InputT input) {
+        return fn.apply(input);
+      }
+    };
+  }
+
+  /** Like {@link #compose(SerializableFunction)}, but with a custom name. */
+  @Experimental
+  public static <InputT extends PInput, OutputT extends POutput>
+      PTransform<InputT, OutputT> compose(String name, SerializableFunction<InputT, OutputT> fn) {
+    return new PTransform<InputT, OutputT>(name) {
+      @Override
+      public OutputT expand(InputT input) {
+        return fn.apply(input);
+      }
+    };
+  }
 }

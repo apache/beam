@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.meta.store;
 
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;

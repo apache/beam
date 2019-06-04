@@ -24,12 +24,33 @@ class CommonJobProperties {
 
   static String checkoutDir = 'src'
 
-  static void setSCM(def context, String repositoryName, boolean allowRemotePoll = true) {
+  // Sets common top-level job properties for main repository jobs.
+  static void setTopLevelMainJobProperties(def context,
+                                           String defaultBranch = 'master',
+                                           int defaultTimeout = 100,
+                                           boolean allowRemotePoll = true,
+                                           String jenkinsExecutorLabel =  'beam') {
+    // GitHub project.
+    context.properties {
+      githubProjectUrl('https://github.com/apache/beam/')
+    }
+
+    // Set JDK version.
+    context.jdk('JDK 1.8 (latest)')
+
+    // Restrict this project to run only on Jenkins executors as specified
+    context.label(jenkinsExecutorLabel)
+
+    // Discard old builds. Build records are only kept up to this number of days.
+    context.logRotator {
+      daysToKeep(14)
+    }
+
+    // Source code management.
     context.scm {
       git {
         remote {
-          // Double quotes here mean ${repositoryName} is interpolated.
-          github("apache/${repositoryName}")
+          github("apache/beam")
           // Single quotes here mean that ${ghprbPullId} is not interpolated and instead passed
           // through to Jenkins where it refers to the environment variable.
           refspec('+refs/heads/*:refs/remotes/origin/* ' +
@@ -45,59 +66,6 @@ class CommonJobProperties {
         }
       }
     }
-  }
-
-  // Sets common top-level job properties for website repository jobs.
-  static void setTopLevelWebsiteJobProperties(def context,
-                                              String branch = 'asf-site',
-                                              int timeout = 100) {
-    setTopLevelJobProperties(
-            context,
-            'beam-site',
-            branch,
-            timeout)
-  }
-
-  // Sets common top-level job properties for main repository jobs.
-  static void setTopLevelMainJobProperties(def context,
-                                           String branch = 'master',
-                                           int timeout = 100,
-                                           boolean allowRemotePoll = true) {
-    setTopLevelJobProperties(
-            context,
-            'beam',
-            branch,
-            timeout,
-            allowRemotePoll)
-  }
-
-  // Sets common top-level job properties. Accessed through one of the above
-  // methods to protect jobs from internal details of param defaults.
-  private static void setTopLevelJobProperties(def context,
-                                               String repositoryName,
-                                               String defaultBranch,
-                                               int defaultTimeout,
-                                               boolean allowRemotePoll = true) {
-    def jenkinsExecutorLabel = 'beam'
-
-    // GitHub project.
-    context.properties {
-      githubProjectUrl('https://github.com/apache/' + repositoryName + '/')
-    }
-
-    // Set JDK version.
-    context.jdk('JDK 1.8 (latest)')
-
-    // Restrict this project to run only on Jenkins executors as specified
-    context.label(jenkinsExecutorLabel)
-
-    // Discard old builds. Build records are only kept up to this number of days.
-    context.logRotator {
-      daysToKeep(30)
-    }
-
-    // Source code management.
-    setSCM(context, repositoryName, allowRemotePoll)
 
     context.parameters {
       // This is a recommended setup if you want to run the job manually. The
@@ -123,6 +91,7 @@ class CommonJobProperties {
         string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
         string("SLACK_WEBHOOK_URL", "beam-slack-webhook-url")
       }
+      timestamps()
     }
   }
 
@@ -176,8 +145,6 @@ class CommonJobProperties {
   // Default maxWorkers is 12 to avoid jvm oom as in [BEAM-4847].
   static void setGradleSwitches(context, maxWorkers = 12) {
     def defaultSwitches = [
-      // Gradle log verbosity enough to diagnose basic build issues
-      "--info",
       // Continue the build even if there is a failure to show as many potential failures as possible.
       '--continue',
     ]
@@ -192,14 +159,6 @@ class CommonJobProperties {
     // For [BEAM-4847], hardcode Xms and Xmx to reasonable values (2g/4g).
     context.switches("-Dorg.gradle.jvmargs=-Xms2g")
     context.switches("-Dorg.gradle.jvmargs=-Xmx4g")
-  }
-
-  // Sets common config for PreCommit jobs.
-  static void setPreCommit(context,
-                           String commitStatusName,
-                           String prTriggerPhrase = '') {
-    // Set pull request build trigger.
-    setPullRequestBuildTrigger(context, commitStatusName, prTriggerPhrase, false)
   }
 
   // Enable triggering postcommit runs against pull requests. Users can comment the trigger phrase
@@ -225,20 +184,39 @@ class CommonJobProperties {
   // Sets common config for jobs which run on a schedule; optionally on push
   static void setAutoJob(context,
                          String buildSchedule = '0 */6 * * *',
-                         notifyAddress = 'commits@beam.apache.org') {
+                         notifyAddress = 'builds@beam.apache.org',
+                         triggerOnCommit = false,
+                         emailIndividuals = false) {
 
     // Set build triggers
     context.triggers {
       // By default runs every 6 hours.
       cron(buildSchedule)
+
+      if (triggerOnCommit){
+        githubPush()
+      }
     }
 
+
+
     context.publishers {
-      // Notify an email address for each failed build (defaults to commits@).
+      // Notify an email address for each failed build (defaults to builds@).
       mailer(
           notifyAddress,
           /* _do_ notify every unstable build */ false,
           /* do not email individuals */ false)
+      if (emailIndividuals){
+        extendedEmail {
+          triggers {
+            firstFailure {
+              sendTo {
+                firstFailingBuildSuspects()
+              }
+            }
+          }
+        }
+      }
     }
   }
 
@@ -258,13 +236,19 @@ class CommonJobProperties {
       project: 'apache-beam-testing',
       dpb_log_level: 'INFO',
       bigquery_table: 'beam_performance.pkb_results',
-      k8s_get_retry_count: 36, // wait up to 6 minutes for K8s LoadBalancer
+      // wait up to 6 minutes for K8s LoadBalancer
+      k8s_get_retry_count: 36,
       k8s_get_wait_interval: 10,
       temp_dir: '$WORKSPACE',
       // Use source cloned by Jenkins and not clone it second time (redundantly).
       beam_location: '$WORKSPACE/src',
       // Publishes results with official tag, for use in dashboards.
-      official: 'true'
+      official: 'true',
+      // dpb_service_zone is required in Perfkit BaseDpbService which Beam Perfkit benchmarks
+      // depends on. However, it doesn't get used in Beam. Passing a fake value from here is to
+      // avoid breakage.
+      // TODO(BEAM-7347): Remove this flag after dpb_service_zone is not required.
+      dpb_service_zone: 'fake_zone',
     ]
     // Note: in case of key collision, keys present in ArgMap win.
     LinkedHashMap<String, String> joinedArgs = standardArgs.plus(argMap)
@@ -301,28 +285,31 @@ class CommonJobProperties {
   // Adds the standard performance test job steps.
   static def buildPerformanceTest(def context, def argMap) {
     def pkbArgs = genPerformanceArgs(argMap)
+
+    // Absolute path of project root and virtualenv path of Perfkit.
+    def perfkit_root = makePathAbsolute("PerfKitBenchmarker")
+    def perfkit_env = makePathAbsolute("env/.perfkit_env")
+
     context.steps {
         // Clean up environment.
-        shell('rm -rf PerfKitBenchmarker')
-        shell('rm -rf .env')
+        shell("rm -rf ${perfkit_root}")
+        shell("rm -rf ${perfkit_env}")
 
-        // create new VirtualEnv, inherit already existing packages
-        shell('virtualenv .env --system-site-packages')
+        // create new VirtualEnv for Perfkit framework. Explicitly pin to python2.7
+        // here otherwise python3 is used by default.
+        shell("virtualenv ${perfkit_env} --python=python2.7")
 
         // update setuptools and pip
-        shell('.env/bin/pip install --upgrade setuptools pip')
+        shell("${perfkit_env}/bin/pip install --upgrade setuptools pip")
 
         // Clone appropriate perfkit branch
-        shell('git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git')
-
-        // Install job requirements for Python SDK.
-        shell('.env/bin/pip install -e ' + CommonJobProperties.checkoutDir + '/sdks/python/[gcp,test]')
+        shell("git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git ${perfkit_root}")
 
         // Install Perfkit benchmark requirements.
-        shell('.env/bin/pip install -r PerfKitBenchmarker/requirements.txt')
+        shell("${perfkit_env}/bin/pip install -r ${perfkit_root}/requirements.txt")
 
         // Launch performance test.
-        shell(".env/bin/python PerfKitBenchmarker/pkb.py $pkbArgs")
+        shell("${perfkit_env}/bin/python ${perfkit_root}/pkb.py ${pkbArgs}")
     }
   }
 

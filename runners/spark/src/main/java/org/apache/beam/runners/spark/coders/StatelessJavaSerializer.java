@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.coders;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -50,7 +49,7 @@ class StatelessJavaSerializer extends Serializer {
   // with this particular signature spares exploring further ones, which involves
   // NoSuchMethodException(s) being thrown as part of the exploration process and may slow
   // things down, see Kryo#newSerializer(), see https://goo.gl/Jn425G
-  public StatelessJavaSerializer(final Kryo ignore1, final Class<?> ignore2) {}
+  private StatelessJavaSerializer(final Kryo ignore1, final Class<?> ignore2) {}
 
   public StatelessJavaSerializer() {
     this(null, null);

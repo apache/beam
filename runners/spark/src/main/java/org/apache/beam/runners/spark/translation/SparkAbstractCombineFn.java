@@ -15,14 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.translation;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Comparator;
@@ -41,17 +38,19 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
 /**
  * An abstract for the SparkRunner implementation of {@link
  * org.apache.beam.sdk.transforms.Combine.CombineFn}.
  */
-public class SparkAbstractCombineFn implements Serializable {
-  protected final SerializablePipelineOptions options;
-  protected final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
-  protected final WindowingStrategy<?, BoundedWindow> windowingStrategy;
+class SparkAbstractCombineFn implements Serializable {
+  private final SerializablePipelineOptions options;
+  private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
+  final WindowingStrategy<?, BoundedWindow> windowingStrategy;
 
-  public SparkAbstractCombineFn(
+  SparkAbstractCombineFn(
       SerializablePipelineOptions options,
       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
       WindowingStrategy<?, ?> windowingStrategy) {
@@ -68,24 +67,24 @@ public class SparkAbstractCombineFn implements Serializable {
   // ** DO NOT use combineContext directly inside this class, use ctxtForInput instead. **
   private transient SparkCombineContext combineContext;
 
-  protected SparkCombineContext ctxtForInput(WindowedValue<?> input) {
+  SparkCombineContext ctxtForInput(WindowedValue<?> input) {
     if (combineContext == null) {
       combineContext = new SparkCombineContext(options.get(), new SparkSideInputReader(sideInputs));
     }
     return combineContext.forInput(input);
   }
 
-  protected static <T> Iterable<WindowedValue<T>> sortByWindows(Iterable<WindowedValue<T>> iter) {
+  static <T> Iterable<WindowedValue<T>> sortByWindows(Iterable<WindowedValue<T>> iter) {
     List<WindowedValue<T>> sorted = Lists.newArrayList(iter);
     sorted.sort(Comparator.comparing(o -> Iterables.getOnlyElement(o.getWindows()).maxTimestamp()));
     return sorted;
   }
 
-  protected static boolean isIntersecting(IntervalWindow union, IntervalWindow window) {
+  static boolean isIntersecting(IntervalWindow union, IntervalWindow window) {
     return union == null || union.intersects(window);
   }
 
-  protected static IntervalWindow merge(IntervalWindow union, IntervalWindow window) {
+  static IntervalWindow merge(IntervalWindow union, IntervalWindow window) {
     return union == null ? window : union.span(window);
   }
 
@@ -114,7 +113,7 @@ public class SparkAbstractCombineFn implements Serializable {
     @Override
     public <T> T sideInput(PCollectionView<T> view) {
       checkNotNull(input, "Input in SparkCombineContext must not be null!");
-      //validate element window.
+      // validate element window.
       final Collection<? extends BoundedWindow> elementWindows = input.getWindows();
       checkState(
           elementWindows.size() == 1,

@@ -17,12 +17,12 @@
  */
 package org.apache.beam.runners.core.triggers;
 
-import com.google.common.base.Objects;
 import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
 import org.joda.time.Instant;
 
 // This should not really have the superclass https://issues.apache.org/jira/browse/BEAM-1486

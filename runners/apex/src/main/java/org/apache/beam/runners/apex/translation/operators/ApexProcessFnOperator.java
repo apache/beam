@@ -23,8 +23,6 @@ import com.datatorrent.api.annotation.OutputPortFieldAnnotation;
 import com.datatorrent.common.util.BaseOperator;
 import com.esotericsoftware.kryo.serializers.FieldSerializer.Bind;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
-import com.google.common.base.Throwables;
-import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
@@ -36,6 +34,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -136,24 +136,23 @@ public class ApexProcessFnOperator<InputT> extends BaseOperator {
       } else {
         final WindowedValue<T> input = tuple.getValue();
         Collection<W> windows =
-            (windowFn)
-                .assignWindows(
-                    (windowFn).new AssignContext() {
-                      @Override
-                      public T element() {
-                        return input.getValue();
-                      }
+            windowFn.assignWindows(
+                windowFn.new AssignContext() {
+                  @Override
+                  public T element() {
+                    return input.getValue();
+                  }
 
-                      @Override
-                      public Instant timestamp() {
-                        return input.getTimestamp();
-                      }
+                  @Override
+                  public Instant timestamp() {
+                    return input.getTimestamp();
+                  }
 
-                      @Override
-                      public BoundedWindow window() {
-                        return Iterables.getOnlyElement(input.getWindows());
-                      }
-                    });
+                  @Override
+                  public BoundedWindow window() {
+                    return Iterables.getOnlyElement(input.getWindows());
+                  }
+                });
         for (W w : windows) {
           WindowedValue<T> wv =
               WindowedValue.of(input.getValue(), input.getTimestamp(), w, input.getPane());

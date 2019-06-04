@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 import collections
 import glob
+import io
 import tempfile
 from builtins import object
 
@@ -39,6 +40,7 @@ __all__ = [
     'assert_that',
     'equal_to',
     'is_empty',
+    'is_not_empty',
     # open_shards is internal and has no backwards compatibility guarantees.
     'open_shards',
     'TestWindowedValue',
@@ -69,6 +71,10 @@ def contains_in_any_order(iterable):
 
     def __eq__(self, other):
       return self._counter == collections.Counter(other)
+
+    def __ne__(self, other):
+      # TODO(BEAM-5949): Needed for Python 2 compatibility.
+      return not self == other
 
     def __hash__(self):
       return hash(self._counter)
@@ -104,19 +110,35 @@ def equal_to_per_window(expected_window_to_elements):
   return matcher
 
 
-# Note that equal_to always sorts the expected and actual since what we
-# compare are PCollections for which there is no guaranteed order.
-# However the sorting does not go beyond top level therefore [1,2] and [2,1]
-# are considered equal and [[1,2]] and [[2,1]] are not.
+# Note that equal_to checks if expected and actual are permutations of each
+# other. However, only permutations of the top level are checked. Therefore
+# [1,2] and [2,1] are considered equal and [[1,2]] and [[2,1]] are not.
 def equal_to(expected):
-  expected = list(expected)
 
   def _equal(actual):
-    sorted_expected = sorted(expected)
-    sorted_actual = sorted(actual)
-    if sorted_expected != sorted_actual:
-      raise BeamAssertException(
-          'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
+    expected_list = list(expected)
+
+    # Try to compare actual and expected by sorting. This fails with a
+    # TypeError in Python 3 if different types are present in the same
+    # collection.
+    try:
+      sorted_expected = sorted(expected)
+      sorted_actual = sorted(actual)
+      if sorted_expected != sorted_actual:
+        raise BeamAssertException(
+            'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
+    # Fall back to slower method which works for different types on Python 3.
+    except TypeError:
+      for element in actual:
+        try:
+          expected_list.remove(element)
+        except ValueError:
+          raise BeamAssertException(
+              'Failed assert: %r == %r' % (expected, actual))
+      if expected_list:
+        raise BeamAssertException(
+            'Failed assert: %r == %r' % (expected, actual))
+
   return _equal
 
 
@@ -127,6 +149,19 @@ def is_empty():
       raise BeamAssertException(
           'Failed assert: [] == %r' % actual)
   return _empty
+
+
+def is_not_empty():
+  """
+  This is test method which makes sure that the pcol is not empty and it has
+  some data in it.
+  :return:
+  """
+  def _not_empty(actual):
+    actual = list(actual)
+    if not actual:
+      raise BeamAssertException('Failed assert: pcol is empty')
+  return _not_empty
 
 
 def assert_that(actual, matcher, label='assert_that',
@@ -193,11 +228,25 @@ def assert_that(actual, matcher, label='assert_that',
 
 
 @experimental()
-def open_shards(glob_pattern):
-  """Returns a composite file of all shards matching the given glob pattern."""
+def open_shards(glob_pattern, mode='rt', encoding='utf-8'):
+  """Returns a composite file of all shards matching the given glob pattern.
+
+  Args:
+    glob_pattern (str): Pattern used to match files which should be opened.
+    mode (str): Specify the mode in which the file should be opened. For
+                available modes, check io.open() documentation.
+    encoding (str): Name of the encoding used to decode or encode the file.
+                    This should only be used in text mode.
+
+  Returns:
+    A stream with the contents of the opened files.
+  """
+  if 'b' in mode:
+    encoding = None
+
   with tempfile.NamedTemporaryFile(delete=False) as out_file:
     for shard in glob.glob(glob_pattern):
-      with open(shard) as in_file:
+      with open(shard, 'rb') as in_file:
         out_file.write(in_file.read())
     concatenated_file_name = out_file.name
-  return open(concatenated_file_name, 'rb')
+  return io.open(concatenated_file_name, mode, encoding=encoding)

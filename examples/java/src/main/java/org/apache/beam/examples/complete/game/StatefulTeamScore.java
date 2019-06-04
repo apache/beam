@@ -17,9 +17,8 @@
  */
 package org.apache.beam.examples.complete.game;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.examples.common.ExampleUtils;
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Instant;
 
 /**
@@ -79,7 +79,7 @@ import org.joda.time.Instant;
 public class StatefulTeamScore extends LeaderBoard {
 
   /** Options supported by {@link StatefulTeamScore}. */
-  interface Options extends LeaderBoard.Options {
+  public interface Options extends LeaderBoard.Options {
 
     @Description("Numeric value, multiple of which is used as threshold for outputting team score.")
     @Default.Integer(5000)

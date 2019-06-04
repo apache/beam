@@ -40,7 +40,7 @@ public class BeamSqlLine {
   }
 
   private static String[] checkConnectionArgs(String[] args) {
-    List<String> argsList = new ArrayList<String>(Arrays.asList(args));
+    List<String> argsList = new ArrayList<>(Arrays.asList(args));
 
     if (!argsList.contains("-nn")) {
       argsList.add("-nn");

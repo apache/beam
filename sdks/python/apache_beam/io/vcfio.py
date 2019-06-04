@@ -23,15 +23,16 @@ The 4.2 spec is available at https://samtools.github.io/hts-specs/VCFv4.2.pdf.
 from __future__ import absolute_import
 
 import logging
+import sys
 import traceback
+import warnings
 from builtins import next
 from builtins import object
 from collections import namedtuple
 
 from future.utils import iteritems
+from past.builtins import long
 from past.builtins import unicode
-
-import vcf
 
 from apache_beam.coders import coders
 from apache_beam.io import filebasedsource
@@ -39,6 +40,12 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.transforms import PTransform
+
+if sys.version_info[0] < 3:
+  import vcf
+else:
+  warnings.warn("VCF IO will support Python 3 after migration to Nucleus, "
+                "see: BEAM-5628.")
 
 
 __all__ = ['ReadFromVcf', 'Variant', 'VariantCall', 'VariantInfo',
@@ -72,6 +79,7 @@ class Variant(object):
 
   Each object corresponds to a single record in a VCF file.
   """
+  __hash__ = None
 
   def __init__(self,
                reference_name=None,
@@ -122,6 +130,10 @@ class Variant(object):
   def __eq__(self, other):
     return (isinstance(other, Variant) and
             vars(self) == vars(other))
+
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __repr__(self):
     return ', '.join(
@@ -187,6 +199,8 @@ class VariantCall(object):
   variant. It may include associated information such as quality and phasing.
   """
 
+  __hash__ = None
+
   def __init__(self, name=None, genotype=None, phaseset=None, info=None):
     """Initialize the :class:`VariantCall` object.
 
@@ -214,6 +228,10 @@ class VariantCall(object):
   def __eq__(self, other):
     return ((self.name, self.genotype, self.phaseset, self.info) ==
             (other.name, other.genotype, other.phaseset, other.info))
+
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __repr__(self):
     return ', '.join(
@@ -317,6 +335,7 @@ class _VcfSource(filebasedsource.FileBasedSource):
     def __iter__(self):
       return self
 
+    # pylint: disable=next-method-defined
     def next(self):
       return self.__next__()
 
@@ -407,7 +426,7 @@ class _VcfSource(filebasedsource.FileBasedSource):
           # Note: this is already done for INFO fields in PyVCF.
           if (field in formats and
               formats[field].num is None and
-              isinstance(data, (int, float, int, str, unicode, bool))):
+              isinstance(data, (int, float, long, str, unicode, bool))):
             data = [data]
           call.info[field] = data
         variant.calls.append(call)

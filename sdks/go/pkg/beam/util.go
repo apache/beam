@@ -15,13 +15,9 @@
 
 package beam
 
-func init() {
-	RegisterFunction(addFixedKeyFn)
-	RegisterFunction(dropKeyFn)
-	RegisterFunction(dropValueFn)
-	RegisterFunction(swapKVFn)
-	RegisterFunction(explodeFn)
-}
+//go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
+//go:generate starcgen --package=beam --identifiers=addFixedKeyFn,dropKeyFn,dropValueFn,swapKVFn,explodeFn,jsonDec,jsonEnc,protoEnc,protoDec,makePartitionFn,createFn
+//go:generate go fmt
 
 // We have some freedom to create various utilities, users can use depending on
 // preferences. One point of keeping Pipeline transformation functions plain Go
@@ -116,12 +112,4 @@ func Must(a PCollection, err error) PCollection {
 		panic(err)
 	}
 	return a
-}
-
-// Must2 returns the input, but panics if err != nil.
-func Must2(a, b PCollection, err error) (PCollection, PCollection) {
-	if err != nil {
-		panic(err)
-	}
-	return a, b
 }

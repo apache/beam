@@ -24,6 +24,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 
+import java.util.Arrays;
 import java.util.Collections;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
@@ -59,7 +60,7 @@ public class CoderTest {
   }
 
   @Test
-  public void testNonDeterministicExcpetionRequiresReason() {
+  public void testNonDeterministicExceptionRequiresReason() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Reasons must not be empty");
     new NonDeterministicException(VoidCoder.of(), Collections.emptyList());
@@ -75,6 +76,20 @@ public class CoderTest {
     assertThat(exception.getReasons(), contains("Problem"));
     assertThat(exception.toString(), containsString("Problem"));
     assertThat(exception.toString(), containsString("is not deterministic"));
+  }
+
+  @Test
+  public void testNonDeterministicExceptionMultipleReasons() {
+    NonDeterministicException rootCause =
+        new NonDeterministicException(VoidCoder.of(), "Root Cause");
+    NonDeterministicException exception =
+        new NonDeterministicException(
+            StringUtf8Coder.of(), Arrays.asList("Problem1", "Problem2"), rootCause);
+
+    String expectedMessage =
+        "StringUtf8Coder is not deterministic because:\n\tProblem1\n\tProblem2";
+
+    assertThat(exception.getMessage(), equalTo(expectedMessage));
   }
 
   @Test

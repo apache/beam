@@ -39,8 +39,8 @@ func RegisterType(t reflect.Type) string {
 		panic(fmt.Sprintf("invalid registration type: %v", t))
 	}
 
-	if _, exists := types[k]; exists {
-		panic(fmt.Sprintf("type already registered for %v", k))
+	if v, exists := types[k]; exists && v != t {
+		panic(fmt.Sprintf("type already registered for %v, and new type %v != %v (existing type)", k, t, v))
 	}
 	types[k] = t
 	return k

@@ -34,6 +34,7 @@ cdef class OutputStream(object):
   cpdef bytes get(self)
   cpdef size_t size(self) except? -1
   cdef extend(self, size_t missing)
+  cpdef _clear(self)
 
 
 cdef class ByteCountingOutputStream(OutputStream):

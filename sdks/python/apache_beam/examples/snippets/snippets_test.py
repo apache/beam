@@ -24,6 +24,7 @@ import glob
 import gzip
 import logging
 import os
+import sys
 import tempfile
 import unittest
 import uuid
@@ -372,10 +373,10 @@ class TypeHintsTest(unittest.TestCase):
 
       class PlayerCoder(beam.coders.Coder):
         def encode(self, player):
-          return '%s:%s' % (player.team, player.name)
+          return ('%s:%s' % (player.team, player.name)).encode('utf-8')
 
         def decode(self, s):
-          return Player(*s.split(':'))
+          return Player(*s.decode('utf-8').split(':'))
 
         def is_deterministic(self):
           return True
@@ -427,14 +428,14 @@ class SnippetsTest(unittest.TestCase):
         assert self.file_to_read
         for file_name in glob.glob(self.file_to_read):
           if self.compression_type is None:
-            with open(file_name) as file:
+            with open(file_name, 'rb') as file:
               for record in file:
-                value = self.coder.decode(record.rstrip('\n'))
+                value = self.coder.decode(record.rstrip(b'\n'))
                 yield WindowedValue(value, -1, [window.GlobalWindow()])
           else:
-            with gzip.open(file_name, 'r') as file:
+            with gzip.open(file_name, 'rb') as file:
               for record in file:
-                value = self.coder.decode(record.rstrip('\n'))
+                value = self.coder.decode(record.rstrip(b'\n'))
                 yield WindowedValue(value, -1, [window.GlobalWindow()])
 
     def expand(self, pcoll):
@@ -460,11 +461,11 @@ class SnippetsTest(unittest.TestCase):
       def start_bundle(self):
         assert self.file_to_write
         # Appending a UUID to create a unique file object per invocation.
-        self.file_obj = open(self.file_to_write + str(uuid.uuid4()), 'w')
+        self.file_obj = open(self.file_to_write + str(uuid.uuid4()), 'wb')
 
       def process(self, element):
         assert self.file_obj
-        self.file_obj.write(self.coder.encode(element) + '\n')
+        self.file_obj.write(self.coder.encode(element) + b'\n')
 
       def finish_bundle(self):
         assert self.file_obj
@@ -473,6 +474,12 @@ class SnippetsTest(unittest.TestCase):
     def expand(self, pcoll):
       return pcoll | 'DummyWriteForTesting' >> beam.ParDo(
           SnippetsTest.DummyWriteTransform.WriteDoFn(self.file_to_write))
+
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
 
   def setUp(self):
     self.old_read_from_text = beam.io.ReadFromText
@@ -492,7 +499,7 @@ class SnippetsTest(unittest.TestCase):
 
   def create_temp_file(self, contents=''):
     with tempfile.NamedTemporaryFile(delete=False) as f:
-      f.write(contents)
+      f.write(contents.encode('utf-8'))
       self.temp_files.append(f.name)
       return f.name
 
@@ -562,7 +569,8 @@ class SnippetsTest(unittest.TestCase):
         file_name = self._tmp_dir + os.sep + table_name
         assert os.path.exists(file_name)
         with open(file_name, 'ab') as f:
-          f.write(key + ':' + value + os.linesep)
+          content = (key + ':' + value + os.linesep).encode('utf-8')
+          f.write(content)
 
       def rename_table(self, access_token, old_name, new_name):
         assert access_token == self._dummy_token
@@ -591,7 +599,7 @@ class SnippetsTest(unittest.TestCase):
         for line in f:
           received_output.append(line.rstrip(os.linesep))
 
-    self.assertItemsEqual(expected_output, received_output)
+    self.assertCountEqual(expected_output, received_output)
 
     glob_pattern = tempdir_name + os.sep + 'final_table_with_ptransform*'
     output_files = glob.glob(glob_pattern)
@@ -603,7 +611,7 @@ class SnippetsTest(unittest.TestCase):
         for line in f:
           received_output.append(line.rstrip(os.linesep))
 
-    self.assertItemsEqual(expected_output, received_output)
+    self.assertCountEqual(expected_output, received_output)
 
   def test_model_textio(self):
     temp_path = self.create_temp_file('aa bb cc\n bb cc\n cc')
@@ -616,13 +624,17 @@ class SnippetsTest(unittest.TestCase):
   def test_model_textio_compressed(self):
     temp_path = self.create_temp_file('aa\nbb\ncc')
     gzip_file_name = temp_path + '.gz'
-    with open(temp_path) as src, gzip.open(gzip_file_name, 'wb') as dst:
+    with open(temp_path, 'rb') as src, gzip.open(gzip_file_name, 'wb') as dst:
       dst.writelines(src)
       # Add the temporary gzip file to be cleaned up as well.
       self.temp_files.append(gzip_file_name)
     snippets.model_textio_compressed(
         {'read': gzip_file_name}, ['aa', 'bb', 'cc'])
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-4543')
   @unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
   def test_model_datastoreio(self):
     # We cannot test DatastoreIO functionality in unit tests, therefore we limit
@@ -750,9 +762,9 @@ class SnippetsTest(unittest.TestCase):
 
     # Test basic execution.
     input_topic = 'projects/fake-beam-test-project/topic/intopic'
-    input_values = [TimestampedValue('a a b', 1),
+    input_values = [TimestampedValue(b'a a b', 1),
                     TimestampedValue(u'🤷 ¯\\_(ツ)_/¯ b b '.encode('utf-8'), 12),
-                    TimestampedValue('a b c c c', 20)]
+                    TimestampedValue(b'a b c c c', 20)]
     output_topic = 'projects/fake-beam-test-project/topic/outtopic'
     output_values = ['a: 1', 'a: 2', 'b: 1', 'b: 3', 'c: 3']
     beam.io.ReadFromPubSub = (
@@ -1177,18 +1189,17 @@ class CombineTest(unittest.TestCase):
       unkeyed_items = p | beam.Create([2, 11, 16, 27])
       items = (unkeyed_items
                | 'key' >> beam.Map(
-                   lambda x: beam.window.TimestampedValue(('k', x), x)))
+                   lambda x: beam.window.TimestampedValue(('k', x), x * 60)))
       # [START setting_session_windows]
       from apache_beam import window
       session_windowed_items = (
-          items | 'window' >> beam.WindowInto(window.Sessions(10)))
+          items | 'window' >> beam.WindowInto(window.Sessions(10 * 60)))
       # [END setting_session_windows]
       summed = (session_windowed_items
                 | 'group' >> beam.GroupByKey()
                 | 'combine' >> beam.CombineValues(sum))
       unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
-      assert_that(unkeyed,
-                  equal_to([29, 27]))
+      assert_that(unkeyed, equal_to([29, 27]))
 
   def test_setting_global_window(self):
     with TestPipeline() as p:

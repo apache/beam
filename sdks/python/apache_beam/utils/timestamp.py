@@ -31,6 +31,8 @@ from builtins import object
 import pytz
 from past.builtins import long
 
+from apache_beam.portability import common_urns
+
 
 @functools.total_ordering
 class Timestamp(object):
@@ -152,6 +154,10 @@ class Timestamp(object):
       other = Timestamp.of(other)
     return self.micros == other.micros
 
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
+
   def __lt__(self, other):
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Duration):
@@ -177,8 +183,10 @@ class Timestamp(object):
     return Duration(micros=self.micros % other.micros)
 
 
-MIN_TIMESTAMP = Timestamp(micros=-0x7fffffffffffffff - 1)
-MAX_TIMESTAMP = Timestamp(micros=0x7fffffffffffffff)
+MIN_TIMESTAMP = Timestamp(micros=int(
+    common_urns.constants.MIN_TIMESTAMP_MILLIS.constant)*1000)
+MAX_TIMESTAMP = Timestamp(micros=int(
+    common_urns.constants.MAX_TIMESTAMP_MILLIS.constant)*1000)
 
 
 @functools.total_ordering
@@ -236,6 +244,10 @@ class Duration(object):
     if not isinstance(other, Timestamp):
       other = Duration.of(other)
     return self.micros == other.micros
+
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __lt__(self, other):
     # Allow comparisons between Duration and Timestamp values.

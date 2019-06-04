@@ -29,8 +29,6 @@ import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionIn
 import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import com.amazonaws.services.kinesis.producer.IKinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Properties;
@@ -39,6 +37,8 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -132,16 +132,14 @@ public class KinesisMockWriteTest {
 
   @Test
   public void testNotExistedStream() {
-    Iterable<byte[]> data = ImmutableList.of("1".getBytes(StandardCharsets.UTF_8));
-    p.apply(Create.of(data))
-        .apply(
-            KinesisIO.write()
-                .withStreamName(STREAM)
-                .withPartitionKey(PARTITION_KEY)
-                .withAWSClientsProvider(new FakeKinesisProvider(false)));
+    KinesisIO.Write write =
+        KinesisIO.write()
+            .withStreamName(STREAM)
+            .withPartitionKey(PARTITION_KEY)
+            .withAWSClientsProvider(new FakeKinesisProvider(false));
 
-    thrown.expect(RuntimeException.class);
-    p.run().waitUntilFinish();
+    thrown.expect(IllegalArgumentException.class);
+    write.expand(null);
   }
 
   @Test

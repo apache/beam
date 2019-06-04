@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -23,11 +22,9 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.sdk.coders.Coder;
@@ -50,6 +47,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine.BinaryCombineLongFn;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.View;
@@ -64,6 +62,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -117,8 +116,9 @@ public class ParDoTranslationTest {
     @Test
     public void testToProto() throws Exception {
       SdkComponents components = SdkComponents.create();
-      components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
-      ParDoPayload payload = ParDoTranslation.translateParDo(parDo, p, components);
+      components.registerEnvironment(Environments.createDockerEnvironment("java"));
+      ParDoPayload payload =
+          ParDoTranslation.translateParDo(parDo, DoFnSchemaInformation.create(), p, components);
 
       assertThat(ParDoTranslation.getDoFn(payload), equalTo(parDo.getFn()));
       assertThat(ParDoTranslation.getMainOutputTag(payload), equalTo(parDo.getMainOutputTag()));
@@ -130,12 +130,12 @@ public class ParDoTranslationTest {
     @Test
     public void toTransformProto() throws Exception {
       Map<TupleTag<?>, PValue> inputs = new HashMap<>();
-      inputs.put(new TupleTag<KV<Long, String>>() {}, mainInput);
+      inputs.put(new TupleTag<KV<Long, String>>("mainInputName") {}, mainInput);
       inputs.putAll(parDo.getAdditionalInputs());
       PCollectionTuple output = mainInput.apply(parDo);
 
       SdkComponents sdkComponents = SdkComponents.create();
-      sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+      sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
 
       // Encode
       RunnerApi.PTransform protoTransform =
@@ -170,6 +170,7 @@ public class ParDoTranslationTest {
       assertThat(
           ParDoTranslation.getMainInput(protoTransform, components),
           equalTo(components.getPcollectionsOrThrow(mainInputId)));
+      assertThat(ParDoTranslation.getMainInputName(protoTransform), equalTo("mainInputName"));
 
       // Validate that the timer PCollections are added correctly.
       DoFnSignature signature = DoFnSignatures.signatureForDoFn(parDo.getFn());
@@ -221,7 +222,7 @@ public class ParDoTranslationTest {
     public void testStateSpecToFromProto() throws Exception {
       // Encode
       SdkComponents sdkComponents = SdkComponents.create();
-      sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+      sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
       RunnerApi.StateSpec stateSpecProto =
           ParDoTranslation.translateStateSpec(stateSpec, sdkComponents);
 

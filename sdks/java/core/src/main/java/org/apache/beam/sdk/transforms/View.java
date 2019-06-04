@@ -82,7 +82,7 @@ import org.apache.beam.sdk.values.PCollectionViews;
  *
  * <pre>{@code
  * PCollectionView<Map<K, Iterable<V>> output =
- *     somePCollection.apply(View.<K, Iterable<V>>asMap());
+ *     somePCollection.apply(View.<K, Iterable<V>>asMultimap());
  * }</pre>
  *
  * <p>To iterate over an entire window of a {@link PCollection} via side input, use {@link
@@ -109,16 +109,16 @@ import org.apache.beam.sdk.values.PCollectionViews;
  *
  * PCollection<PageVisit> pageVisits = urlVisits
  *     .apply(ParDo.withSideInputs(urlToPageView)
- *         .of(new DoFn<UrlVisit, PageVisit>() {
- *             {@literal @}Override
+ *         .of(new DoFn<UrlVisit, PageVisit>() }{
+ *            {@code @Override
  *             void processElement(ProcessContext context) {
- *               UrlVisit urlVisit = context.element();
- *               Map<URL, Page> urlToPage = context.sideInput(urlToPageView);
- *               Page page = urlToPage.get(urlVisit.getUrl());
- *               c.output(new PageVisit(page, urlVisit.getVisitData()));
+ *                 UrlVisit urlVisit = context.element();
+ *                 Map<URL, Page> urlToPage = context.sideInput(urlToPageView);
+ *                 Page page = urlToPage.get(urlVisit.getUrl());
+ *                 c.output(new PageVisit(page, urlVisit.getVisitData()));
  *             }
- *         }));
- * }</pre>
+ *         }}));
+ * </pre>
  *
  * <p>See {@link ParDo.SingleOutput#withSideInputs} for details on how to access this variable
  * inside a {@link ParDo} over another {@link PCollection}.

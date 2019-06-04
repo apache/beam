@@ -40,12 +40,12 @@ func (w *WindowInto) Up(ctx context.Context) error {
 	return nil
 }
 
-func (w *WindowInto) StartBundle(ctx context.Context, id string, data DataManager) error {
+func (w *WindowInto) StartBundle(ctx context.Context, id string, data DataContext) error {
 	return w.Out.StartBundle(ctx, id, data)
 }
 
-func (w *WindowInto) ProcessElement(ctx context.Context, elm FullValue, values ...ReStream) error {
-	windowed := FullValue{
+func (w *WindowInto) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
+	windowed := &FullValue{
 		Windows:   assignWindows(w.Fn, elm.Timestamp),
 		Timestamp: elm.Timestamp,
 		Elm:       elm.Elm,

@@ -1,0 +1,127 @@
+import org.apache.beam.gradle.BeamModulePlugin
+
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * Spark Runner JobServer build file
+ */
+
+apply plugin: 'org.apache.beam.module'
+apply plugin: 'application'
+// we need to set mainClassName before applying shadow plugin
+mainClassName = "org.apache.beam.runners.spark.SparkJobServerDriver"
+
+applyJavaNature(
+  validateShadowJar: false,
+  exportJavadoc: false,
+  shadowClosure: {
+    append "reference.conf"
+  },
+)
+
+def sparkRunnerProject = project.parent.path
+
+description = project(sparkRunnerProject).description + " :: Job Server"
+
+configurations {
+  validatesPortableRunner
+}
+
+configurations.all {
+  exclude group: "org.slf4j", module: "slf4j-jdk14"
+}
+
+dependencies {
+  compile project(path: sparkRunnerProject, configuration: "shadow")
+  compile project(path: sparkRunnerProject, configuration: "provided")
+  validatesPortableRunner project(path: sparkRunnerProject, configuration: "shadowTest")
+  validatesPortableRunner project(path: sparkRunnerProject, configuration: "provided")
+  validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":runners:core-java", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":runners:reference:java", configuration: "shadowTest")
+  compile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
+//  TODO: Enable AWS and HDFS file system.
+}
+
+// NOTE: runShadow must be used in order to run the job server. The standard run
+// task will not work because the Spark runner classes only exist in the shadow
+// jar.
+runShadow {
+  args = []
+  if (project.hasProperty('jobHost'))
+    args += ["--job-host=${project.property('jobHost')}"]
+  if (project.hasProperty('artifactsDir'))
+    args += ["--artifacts-dir=${project.property('artifactsDir')}"]
+  if (project.hasProperty('cleanArtifactsPerJob'))
+    args += ["--clean-artifacts-per-job=${project.property('cleanArtifactsPerJob')}"]
+  if (project.hasProperty('sparkMasterUrl'))
+    args += ["--spark-master-url=${project.property('sparkMasterUrl')}"]
+
+  systemProperties System.properties
+
+  // Enable remote debugging.
+  jvmArgs = ["-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"]
+  if (project.hasProperty("logLevel"))
+    jvmArgs += ["-Dorg.slf4j.simpleLogger.defaultLogLevel=${project.property('logLevel')}"]
+}
+
+def portableValidatesRunnerTask(String name) {
+  createPortableValidatesRunnerTask(
+    name: "validatesPortableRunner${name}",
+    jobServerDriver: "org.apache.beam.runners.spark.SparkJobServerDriver",
+    jobServerConfig: "--job-host=localhost,--job-port=0,--artifact-port=0,--expansion-port=0",
+    testClasspathConfiguration: configurations.validatesPortableRunner,
+    numParallelTests: 1,
+    environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
+    systemProperties: [
+      "beam.spark.test.reuseSparkContext": "false",
+      "spark.ui.enabled": "false",
+      "spark.ui.showConsoleProgress": "false",
+    ],
+    testCategories: {
+      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+      excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesCounterMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesDistributionMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+      // TODO re-enable when state is supported
+      excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+      //SplitableDoFnTests
+      excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+    },
+  )
+}
+
+project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch")
+
+task validatesPortableRunner() {
+  dependsOn validatesPortableRunnerBatch
+}

@@ -10,6 +10,7 @@
 **/.gogradle/**/*
 **/gogradle.lock
 **/build/**/*
+.test-infra/**/vendor/**/*
 sdks/**/vendor/**/*
 runners/**/vendor/**/*
 **/.gradletasknamecache
@@ -41,7 +42,9 @@ sdks/python/LICENSE
 sdks/python/NOTICE
 sdks/python/README.md
 sdks/python/apache_beam/portability/api/*pb2*.*
+sdks/python/apache_beam/portability/api/*.yaml
 sdks/python/nosetests.xml
+sdks/python/postcommit_requirements.txt
 
 # Ignore IntelliJ files.
 **/.idea/**/*
@@ -72,6 +75,7 @@ sdks/python/nosetests.xml
 
 # Ignore MacOSX files.
 **/.DS_Store/**/*
+**/.DS_Store
 
 # Ignore Jupyter notebook checkpoints.
 **/.ipynb_checkpoints/**/*
@@ -79,3 +83,7 @@ sdks/python/nosetests.xml
 # NOTE: if you modify this file, you probably need to modify the file set that
 # is an input to 'maven-assembly-plugin' that generates source distribution.
 # This is typically in files named 'src.xml' throughout this repository.
+
+# JetBrains Education files
+!**/study_project.xml
+**/.coursecreator/**/*

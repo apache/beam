@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.translation.streaming;
 
 import java.io.ByteArrayInputStream;
@@ -37,7 +36,7 @@ public class Checkpoint {
   private static final String TEMP_FILE_SUFFIX = ".tmp";
   private static final String BACKUP_FILE_SUFFIX = ".bak";
 
-  public static void write(FileSystem fileSystem, Path checkpointFilePath, byte[] value)
+  private static void write(FileSystem fileSystem, Path checkpointFilePath, byte[] value)
       throws IOException {
     Path tmpPath = checkpointFilePath.suffix(TEMP_FILE_SUFFIX);
     Path backupPath = checkpointFilePath.suffix(BACKUP_FILE_SUFFIX);
@@ -62,7 +61,7 @@ public class Checkpoint {
     write(fileSystem, checkpointFilePath, bos.toByteArray());
   }
 
-  public static byte[] read(FileSystem fileSystem, Path checkpointFilePath) throws IOException {
+  private static byte[] read(FileSystem fileSystem, Path checkpointFilePath) throws IOException {
     Path backupCheckpointPath = checkpointFilePath.suffix(".bak");
     FSDataInputStream is = null;
     if (fileSystem.exists(checkpointFilePath)) {

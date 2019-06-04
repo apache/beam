@@ -22,8 +22,7 @@ from __future__ import absolute_import
 import logging
 import unittest
 
-from mock import Mock
-from mock import patch
+import mock
 
 from apache_beam.io.gcp.tests import utils
 from apache_beam.testing.test_utils import patch_retry
@@ -31,74 +30,47 @@ from apache_beam.testing.test_utils import patch_retry
 # Protect against environments where bigquery library is not available.
 try:
   from google.cloud import bigquery
+  from google.cloud.exceptions import NotFound
 except ImportError:
   bigquery = None
+  NotFound = None
 
 
 @unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
+@mock.patch.object(bigquery, 'Client')
 class UtilsTest(unittest.TestCase):
 
   def setUp(self):
-    self._mock_result = Mock()
     patch_retry(self, utils)
 
-  @patch.object(bigquery, 'Client')
-  def test_delete_table_succeeds(self, mock_client):
-    mock_dataset = Mock()
-    mock_client.return_value.dataset = mock_dataset
-    mock_dataset.return_value.exists.return_value = True
+  @mock.patch.object(bigquery, 'Dataset')
+  def test_create_bq_dataset(self, mock_dataset, mock_client):
+    mock_client.dataset.return_value = 'dataset_ref'
+    mock_dataset.return_value = 'dataset_obj'
 
-    mock_table = Mock()
-    mock_dataset.return_value.table = mock_table
-    mock_table.return_value.exists.side_effect = [True, False]
+    utils.create_bq_dataset('project', 'dataset_base_name')
+    mock_client.return_value.create_dataset.assert_called_with('dataset_obj')
+
+  def test_delete_bq_dataset(self, mock_client):
+    utils.delete_bq_dataset('project', 'dataset_ref')
+    mock_client.return_value.delete_dataset.assert_called_with(
+        'dataset_ref', delete_contents=mock.ANY)
+
+  def test_delete_table_succeeds(self, mock_client):
+    mock_client.return_value.dataset.return_value.table.return_value = (
+        'table_ref')
 
     utils.delete_bq_table('unused_project',
                           'unused_dataset',
                           'unused_table')
+    mock_client.return_value.delete_table.assert_called_with('table_ref')
 
-  @patch.object(bigquery, 'Client')
-  def test_delete_table_fails_dataset_not_exist(self, mock_client):
-    mock_dataset = Mock()
-    mock_client.return_value.dataset = mock_dataset
-    mock_dataset.return_value.exists.return_value = False
+  def test_delete_table_fails_not_found(self, mock_client):
+    mock_client.return_value.dataset.return_value.table.return_value = (
+        'table_ref')
+    mock_client.return_value.delete_table.side_effect = NotFound('test')
 
-    with self.assertRaisesRegexp(
-        Exception, r'^Failed to cleanup. Bigquery dataset unused_dataset '
-                   r'doesn\'t exist'):
-      utils.delete_bq_table('unused_project',
-                            'unused_dataset',
-                            'unused_table')
-
-  @patch.object(bigquery, 'Client')
-  def test_delete_table_fails_table_not_exist(self, mock_client):
-    mock_dataset = Mock()
-    mock_client.return_value.dataset = mock_dataset
-    mock_dataset.return_value.exists.return_value = True
-
-    mock_table = Mock()
-    mock_dataset.return_value.table = mock_table
-    mock_table.return_value.exists.return_value = False
-
-    with self.assertRaisesRegexp(Exception,
-                                 r'^Failed to cleanup. Bigquery table '
-                                 'unused_table doesn\'t exist'):
-      utils.delete_bq_table('unused_project',
-                            'unused_dataset',
-                            'unused_table')
-
-  @patch.object(bigquery, 'Client')
-  def test_delete_table_fails_service_error(self, mock_client):
-    mock_dataset = Mock()
-    mock_client.return_value.dataset = mock_dataset
-    mock_dataset.return_value.exists.return_value = True
-
-    mock_table = Mock()
-    mock_dataset.return_value.table = mock_table
-    mock_table.return_value.exists.return_value = True
-
-    with self.assertRaisesRegexp(Exception,
-                                 r'^Failed to cleanup. Bigquery table '
-                                 'unused_table still exists'):
+    with self.assertRaisesRegexp(Exception, r'does not exist:.*table_ref'):
       utils.delete_bq_table('unused_project',
                             'unused_dataset',
                             'unused_table')

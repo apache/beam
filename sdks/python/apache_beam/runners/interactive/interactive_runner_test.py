@@ -43,11 +43,9 @@ def print_with_message(msg):
 class InteractiveRunnerTest(unittest.TestCase):
 
   def test_basic(self):
-    # TODO(qinyeli, BEAM-4755) remove explicitly overriding underlying runner
-    # once interactive_runner works with FnAPI mode
     p = beam.Pipeline(
         runner=interactive_runner.InteractiveRunner(
-            direct_runner.BundleBasedDirectRunner()))
+            direct_runner.DirectRunner()))
     p.run().wait_until_finish()
     pc0 = (
         p | 'read' >> beam.Create([1, 2, 3])
@@ -68,11 +66,9 @@ class InteractiveRunnerTest(unittest.TestCase):
         words = text_line.split()
         return words
 
-    # TODO(qinyeli, BEAM-4755) remove explicitly overriding underlying runner
-    # once interactive_runner works with FnAPI mode
     p = beam.Pipeline(
         runner=interactive_runner.InteractiveRunner(
-            direct_runner.BundleBasedDirectRunner()))
+            direct_runner.DirectRunner()))
 
     # Count the occurrences of each word.
     counts = (

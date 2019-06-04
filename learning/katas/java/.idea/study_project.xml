@@ -1,0 +1,1740 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="StudySettings">
+    <StudyTaskManager>
+      <option name="VERSION" value="14" />
+      <option name="myUserTests">
+        <map />
+      </option>
+      <option name="course">
+        <EduCourse>
+          <option name="authors">
+            <list>
+              <StepikUserInfo>
+                <option name="firstName" value="Henry" />
+                <option name="id" value="48485817" />
+                <option name="lastName" value="Suryawirawan" />
+              </StepikUserInfo>
+            </list>
+          </option>
+          <option name="compatible" value="true" />
+          <option name="courseMode" value="Course Creator" />
+          <option name="createDate" value="1557823043901" />
+          <option name="customPresentableName" />
+          <option name="description" value="This course provides a series of katas to get familiar with Apache Beam. &#10;&#10;Apache Beam website – https://beam.apache.org/" />
+          <option name="environment" value="" />
+          <option name="fromZip" value="false" />
+          <option name="id" value="54530" />
+          <option name="index" value="-1" />
+          <option name="instructors">
+            <list>
+              <option value="48485817" />
+            </list>
+          </option>
+          <option name="language" value="JAVA 8" />
+          <option name="languageCode" value="en" />
+          <option name="name" value="Beam Katas - Java" />
+          <option name="public" value="true" />
+          <option name="sectionIds">
+            <list />
+          </option>
+          <option name="stepikChangeStatus" value="Up to date" />
+          <option name="type" value="pycharm11 JAVA 8" />
+          <option name="updateDate" value="1559325078000" />
+          <option name="items">
+            <list>
+              <Section>
+                <option name="courseId" value="54530" />
+                <option name="customPresentableName" />
+                <option name="id" value="85639" />
+                <option name="index" value="1" />
+                <option name="name" value="Introduction" />
+                <option name="position" value="0" />
+                <option name="stepikChangeStatus" value="Up to date" />
+                <option name="updateDate" value="1558359731000" />
+                <option name="items">
+                  <list>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="229506" />
+                      <option name="index" value="1" />
+                      <option name="name" value="Hello Beam" />
+                      <option name="stepikChangeStatus" value="Up to date" />
+                      <option name="updateDate" value="1558359731000" />
+                      <option name="unitId" value="202031" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Hello Beam Pipeline&lt;/h2&gt;&#10;&lt;p&gt;&#10;  Apache Beam is an open source, unified model for defining both batch and streaming data-parallel&#10;  processing pipelines. Using one of the open source Beam SDKs, you build a program that defines the&#10;  pipeline. The pipeline is then executed by one of Beam’s supported distributed processing&#10;  back-ends, which include Apache Apex, Apache Flink, Apache Spark, and Google Cloud Dataflow.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  Beam is particularly useful for Embarrassingly Parallel data processing tasks, in which the&#10;  problem can be decomposed into many smaller bundles of data that can be processed independently&#10;  and in parallel. You can also use Beam for Extract, Transform, and Load (ETL) tasks and pure data&#10;  integration. These tasks are useful for moving data between different storage media and data&#10;  sources, transforming data into a more desirable format, or loading data onto a new system.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  To learn more about Apache Beam, refer to&#10;  &lt;a href=&quot;https://beam.apache.org/get-started/beam-overview/&quot;&gt;Apache Beam Overview&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br/&gt;&#10;&lt;p&gt;The first kata is to create a simple pipeline that takes a hardcoded input element &quot;Hello Beam&quot;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Hardcoded input can be created using&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Create.html&quot;&gt;Create&lt;/a&gt;&#10;&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="713723" />
+                            <option name="index" value="1" />
+                            <option name="name" value="Hello Beam" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1461" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="pipeline.apply(Create.of(&quot;Hello Beam&quot;))" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1559325015000" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                  </list>
+                </option>
+              </Section>
+              <Section>
+                <option name="courseId" value="54530" />
+                <option name="customPresentableName" />
+                <option name="id" value="85640" />
+                <option name="index" value="2" />
+                <option name="name" value="Core Transforms" />
+                <option name="position" value="0" />
+                <option name="stepikChangeStatus" value="Up to date" />
+                <option name="updateDate" value="1558359740000" />
+                <option name="items">
+                  <list>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="229507" />
+                      <option name="index" value="1" />
+                      <option name="name" value="Map" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" value="1557824502000" />
+                      <option name="unitId" value="202032" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;ParDo&lt;/h2&gt;&#10;&lt;p&gt;ParDo is a Beam transform for generic parallel processing. The ParDo processing paradigm is similar to the&#10;  “Map” phase of a Map/Shuffle/Reduce-style algorithm: a ParDo transform considers each element in the&#10;  input PCollection, performs some processing function (your user code) on that element, and emits&#10;  zero, one, or multiple elements to an output PCollection.&lt;/p&gt;&#10;&lt;p&gt;For this task, please write a simple ParDo that maps the input element by multiplying it by 10.&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ParDo.html&quot;&gt;ParDo&lt;/a&gt;&#10;  with &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.html&quot;&gt;DoFn&lt;/a&gt;&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="713724" />
+                            <option name="index" value="1" />
+                            <option name="name" value="ParDo" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1648" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="input.apply(ParDo.of(new DoFn&lt;Integer, Integer&gt;() {&#10;&#10;      @ProcessElement&#10;      public void processElement(@Element Integer number, OutputReceiver&lt;Integer&gt; out) {&#10;        out.output(number * 10);&#10;      }&#10;&#10;    }))" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1559325018000" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;ParDo OneToMany&lt;/h2&gt;&#10;&lt;p&gt;For this task, please write a ParDo that maps each input sentence into words tokenized by whitespace (&quot; &quot;).&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Hint: You can call DoFn.ProcessContext.output(..) multiple times in a&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ParDo.html&quot;&gt;ParDo&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="713725" />
+                            <option name="index" value="2" />
+                            <option name="name" value="ParDo OneToMany" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1664" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="input.apply(ParDo.of(new DoFn&lt;String, String&gt;() {&#10;&#10;      @ProcessElement&#10;      public void processElement(@Element String sentence, OutputReceiver&lt;String&gt; out) {&#10;        String[] words = sentence.split(&quot; &quot;);&#10;&#10;        for (String word : words) {&#10;          out.output(word);&#10;        }&#10;      }&#10;&#10;    }))" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1559325020000" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;MapElements&lt;/h2&gt;&#10;&lt;p&gt;The Beam SDKs provide language-specific ways to simplify how you provide your DoFn implementation.&lt;/p&gt;&#10;&lt;p&gt;MapElements can be used to simplify DoFn that maps an element to another element (one to one).&lt;/p&gt;&#10;&lt;p&gt;In this task, we are going to implement a simple map function that multiplies all input elements by 5 using&#10;    &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/MapElements.html&quot;&gt;&#10;        MapElements.into(...).via(...)&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/MapElements.html&quot;&gt;MapElements.into(...).via(...)&lt;/a&gt;&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="713726" />
+                            <option name="index" value="3" />
+                            <option name="name" value="MapElements" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1666" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="input.apply(&#10;        MapElements.into(TypeDescriptors.integers())&#10;            .via(number -&gt; number * 5)&#10;    )" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1559325023000" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;FlatMapElements&lt;/h2&gt;&#10;&lt;p&gt;The Beam SDKs provide language-specific ways to simplify how you provide your DoFn implementation.&lt;/p&gt;&#10;&lt;p&gt;FlatMapElements can be used to simplify DoFn that maps an element to multiple elements (one to many).&lt;/p&gt;&#10;&lt;p&gt;In this task, we are going to implement a function that maps each input sentence into words tokenized by whitespace (&quot; &quot;) using&#10;    &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/FlatMapElements.html&quot;&gt;&#10;        FlatMapElements.into(...).via(...)&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Use&#10;    &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/FlatMapElements.html&quot;&gt;FlatMapElements.into(...).via(...)&lt;/a&gt;&#10;&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="713727" />
+                            <option name="index" value="4" />
+                            <option name="name" value="FlatMapElements" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1721" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="input.apply(&#10;        FlatMapElements.into(TypeDescriptors.strings())&#10;            .via(sentence -&gt; Arrays.asList(sentence.split(&quot; &quot;)))&#10;    )" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1559325026000" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="229508" />
+                      <option name="index" value="2" />
+                      <option name="name" value="GroupByKey" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" value="1557824519000" />
+                      <option name="unitId" value="202033" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;GroupByKey&lt;/h2&gt;&#10;&lt;p&gt;GroupByKey is a Beam transform for processing collections of key/value pairs. It’s a parallel reduction operation,&#10;    analogous to the Shuffle phase of a Map/Shuffle/Reduce-style algorithm. The input to GroupByKey is a collection of&#10;    key/value pairs that represents a multimap, where the collection contains multiple pairs that have the same key,&#10;    but different values. Given such a collection, you use GroupByKey to collect all of the values associated with each&#10;    unique key.&lt;/p&gt;&#10;&lt;p&gt;In this task, we are going to implement a&#10;    &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/GroupByKey.html&quot;&gt;&#10;        GroupByKey&lt;/a&gt; transform that groups words by its first letter.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Refer to &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/values/KV.html&quot;&gt;KV&lt;/a&gt;&#10;    and &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/GroupByKey.html&quot;&gt;GroupByKey&lt;/a&gt;&#10;    to solve this problem.&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="713728" />
+                            <option name="index" value="1" />
+                            <option name="name" value="GroupByKey" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1920" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="input&#10;        .apply(MapElements.into(kvs(strings(), strings()))&#10;            .via(word -&gt; KV.of(word.substring(0, 1), word)))&#10;&#10;        .apply(GroupByKey.create())" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1559325029000" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="229509" />
+                      <option name="index" value="3" />
+                      <option name="name" value="CoGroupByKey" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" value="1557824522000" />
+                      <option name="unitId" value="202034" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;CoGroupByKey&lt;/h2&gt;&#10;&lt;p&gt;CoGroupByKey performs a relational join of two or more key/value PCollections that have the same key type.&lt;/p&gt;&#10;&lt;p&gt;In this task, we are going to implement a&#10;    &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/join/CoGroupByKey.html&quot;&gt;&#10;        CoGroupByKey&lt;/a&gt; transform that join words by its first alphabetical letter, and then produces the toString()&#10;    representation of the WordsAlphabet model.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Refer to &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/join/CoGroupByKey.html&quot;&gt;CoGroupByKey&lt;/a&gt;,&#10;    &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/values/TupleTag.html&quot;&gt;TupleTag&lt;/a&gt;,&#10;    and &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/join/CoGbkResult.html&quot;&gt;CoGbkResult&lt;/a&gt;.&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="713729" />
+                            <option name="index" value="1" />
+                            <option name="name" value="CoGroupByKey" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="2290" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="TupleTag&lt;String&gt; fruitsTag = new TupleTag&lt;&gt;();&#10;    TupleTag&lt;String&gt; countriesTag = new TupleTag&lt;&gt;();&#10;&#10;    MapElements&lt;String, KV&lt;String, String&gt;&gt; mapToAlphabetKv =&#10;        MapElements.into(kvs(strings(), strings()))&#10;            .via(word -&gt; KV.of(word.substring(0, 1), word));&#10;&#10;    PCollection&lt;KV&lt;String, String&gt;&gt; fruitsPColl = fruits.apply(&quot;Fruit to KV&quot;, mapToAlphabetKv);&#10;    PCollection&lt;KV&lt;String, String&gt;&gt; countriesPColl = countries&#10;        .apply(&quot;Country to KV&quot;, mapToAlphabetKv);&#10;&#10;    return KeyedPCollectionTuple&#10;        .of(fruitsTag, fruitsPColl)&#10;        .and(countriesTag, countriesPColl)&#10;&#10;        .apply(CoGroupByKey.create())&#10;&#10;        .apply(ParDo.of(new DoFn&lt;KV&lt;String, CoGbkResult&gt;, String&gt;() {&#10;&#10;          @ProcessElement&#10;          public void processElement(&#10;              @Element KV&lt;String, CoGbkResult&gt; element, OutputReceiver&lt;String&gt; out) {&#10;&#10;            String alphabet = element.getKey();&#10;            CoGbkResult coGbkResult = element.getValue();&#10;&#10;            String fruit = coGbkResult.getOnly(fruitsTag);&#10;            String country = coGbkResult.getOnly(countriesTag);&#10;&#10;            out.output(new WordsAlphabet(alphabet, fruit, country).toString());&#10;          }&#10;&#10;        }))" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="src/WordsAlphabet.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/WordsAlphabet.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1559325032000" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="229510" />
+                      <option name="index" value="4" />
+                      <option name="name" value="Combine" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" value="1558359740000" />
+                      <option name="unitId" value="202035" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Combine - Simple Function&lt;/h2&gt;&#10;&lt;p&gt;Combine is a Beam transform for combining collections of elements or values in your data.&#10;  When you apply a Combine transform, you must provide the function that contains the logic for&#10;  combining the elements or values. The combining function should be commutative and associative,&#10;  as the function is not necessarily invoked exactly once on all values with a given key. Because&#10;  the input data (including the value collection) may be distributed across multiple workers, the&#10;  combining function might be called multiple times to perform partial combining on subsets of&#10;  the value collection.&lt;/p&gt;&#10;&lt;p&gt;Simple combine operations, such as sums, can usually be implemented as a simple function.&lt;/p&gt;&#10;&lt;p&gt;In this task, we are going to implement the summation of numbers using&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/SerializableFunction.html&quot;&gt;&#10;    Combine.globally(SerializableFunction)&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Implement the&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/SerializableFunction.html#apply-InputT-&quot;&gt;SerializableFunction.apply&lt;/a&gt;&#10;  method that performs the summation of the Iterable.&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="713730" />
+                            <option name="index" value="1" />
+                            <option name="name" value="Simple Function" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1814" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="@Override&#10;    public Integer apply(Iterable&lt;Integer&gt; input) {&#10;      int sum = 0;&#10;&#10;      for (int item : input) {&#10;        sum += item;&#10;      }&#10;&#10;      return sum;&#10;    }" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1559325035000" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Combine - CombineFn&lt;/h2&gt;&#10;&lt;p&gt;Combine is a Beam transform for combining collections of elements or values in your data.&#10;  When you apply a Combine transform, you must provide the function that contains the logic for&#10;  combining the elements or values. The combining function should be commutative and associative,&#10;  as the function is not necessarily invoked exactly once on all values with a given key. Because&#10;  the input data (including the value collection) may be distributed across multiple workers, the&#10;  combining function might be called multiple times to perform partial combining on subsets of&#10;  the value collection.&lt;/p&gt;&#10;&lt;p&gt;Complex combination operations might require you to create a subclass of CombineFn that has an&#10;  accumulation type distinct from the input/output type. You should use CombineFn if the combine&#10;  function requires a more sophisticated accumulator, must perform additional pre- or&#10;  post-processing, might change the output type, or takes the key into account.&lt;/p&gt;&#10;&lt;p&gt;In this task, we are going to implement the average of numbers using&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Combine.CombineFn.html&quot;&gt;&#10;    Combine.CombineFn&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Extend the&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Combine.CombineFn.html&quot;&gt;Combine.CombineFn&lt;/a&gt;&#10;  class that counts the average of the number.&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="713731" />
+                            <option name="index" value="2" />
+                            <option name="name" value="CombineFn" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1850" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="class Accum implements Serializable {&#10;      int sum = 0;&#10;      int count = 0;&#10;&#10;      @Override&#10;      public boolean equals(Object o) {&#10;        if (this == o) {&#10;          return true;&#10;        }&#10;        if (o == null || getClass() != o.getClass()) {&#10;          return false;&#10;        }&#10;        Accum accum = (Accum) o;&#10;        return sum == accum.sum &amp;&amp;&#10;            count == accum.count;&#10;      }&#10;&#10;      @Override&#10;      public int hashCode() {&#10;        return Objects.hash(sum, count);&#10;      }&#10;    }&#10;&#10;    @Override&#10;    public Accum createAccumulator() {&#10;      return new Accum();&#10;    }&#10;&#10;    @Override&#10;    public Accum addInput(Accum accumulator, Integer input) {&#10;      accumulator.sum += input;&#10;      accumulator.count++;&#10;&#10;      return accumulator;&#10;    }&#10;&#10;    @Override&#10;    public Accum mergeAccumulators(Iterable&lt;Accum&gt; accumulators) {&#10;      Accum merged = createAccumulator();&#10;&#10;      for (Accum accumulator : accumulators) {&#10;        merged.sum += accumulator.sum;&#10;        merged.count += accumulator.count;&#10;      }&#10;&#10;      return merged;&#10;    }&#10;&#10;    @Override&#10;    public Double extractOutput(Accum accumulator) {&#10;      return ((double) accumulator.sum) / accumulator.count;&#10;    }" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1559325038000" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Combine - BinaryCombineFn&lt;/h2&gt;&#10;&lt;p&gt;Combine is a Beam transform for combining collections of elements or values in your data.&#10;  When you apply a Combine transform, you must provide the function that contains the logic for&#10;  combining the elements or values. The combining function should be commutative and associative,&#10;  as the function is not necessarily invoked exactly once on all values with a given key. Because&#10;  the input data (including the value collection) may be distributed across multiple workers, the&#10;  combining function might be called multiple times to perform partial combining on subsets of&#10;  the value collection.&lt;/p&gt;&#10;&lt;p&gt;BinaryCombineFn is used for implementing combiners that are more easily expressed as binary operations.&lt;/p&gt;&#10;&lt;p&gt;In this task, we are going to implement the summation of BigInteger using&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Combine.BinaryCombineFn.html&quot;&gt;&#10;    Combine.BinaryCombineFn&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Extend the&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Combine.BinaryCombineFn.html&quot;&gt;Combine.BinaryCombineFn&lt;/a&gt;&#10;  class that counts the sum of the number.&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="713732" />
+                            <option name="index" value="3" />
+                            <option name="name" value="BinaryCombineFn" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="2007" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="@Override&#10;    public BigInteger apply(BigInteger left, BigInteger right) {&#10;      return left.add(right);&#10;    }" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1559325041000" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Combine - Combine PerKey&lt;/h2&gt;&#10;&lt;p&gt;After creating a keyed PCollection (for example, by using a GroupByKey transform), a common&#10;  pattern is to combine the collection of values associated with each key into a single, merged value.&#10;  This pattern of a GroupByKey followed by merging the collection of values is equivalent to&#10;  Combine PerKey transform. The combine function you supply to Combine PerKey must be an associative&#10;  reduction function or a subclass of CombineFn.&lt;/p&gt;&#10;&lt;p&gt;In this task, we are going to implement the sum of scores per player using&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/CombineFnBase.GlobalCombineFn.html&quot;&gt;&#10;    Combine.perKey&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/CombineFnBase.GlobalCombineFn.html&quot;&gt;Combine.perKey(GlobalCombineFn)&lt;/a&gt;.&lt;/div&gt;&#10;&lt;div class='hint'&gt;Extend the&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Combine.BinaryCombineFn.html&quot;&gt;Combine.BinaryCombineFn&lt;/a&gt;&#10;  class that counts the sum of the number.&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="713733" />
+                            <option name="index" value="4" />
+                            <option name="name" value="Combine PerKey" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="2039" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="input.apply(Combine.perKey(new SumIntBinaryCombineFn()))" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="1" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="2179" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="@Override&#10;    public Integer apply(Integer left, Integer right) {&#10;      return left + right;&#10;    }" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1559325044000" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="229511" />
+                      <option name="index" value="5" />
+                      <option name="name" value="Flatten" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" value="1557824540000" />
+                      <option name="unitId" value="202036" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Flatten&lt;/h2&gt;&#10;&lt;p&gt;Flatten is a Beam transform for PCollection objects that store the same data type.&#10;  Flatten merges multiple PCollection objects into a single logical PCollection.&lt;/p&gt;&#10;&lt;p&gt;In this task, we are going to implement a&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Flatten.html&quot;&gt;&#10;    Flatten&lt;/a&gt; transform that merges two PCollection of words into a single PCollection.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Refer to&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Flatten.html&quot;&gt;Flatten&lt;/a&gt;&#10;  to solve this problem.&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="713734" />
+                            <option name="index" value="1" />
+                            <option name="name" value="Flatten" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1938" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="PCollectionList.of(words1).and(words2)&#10;        .apply(Flatten.pCollections())" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1559325047000" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="229512" />
+                      <option name="index" value="6" />
+                      <option name="name" value="Partition" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" value="1557824556000" />
+                      <option name="unitId" value="202037" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Partition&lt;/h2&gt;&#10;&lt;p&gt;Partition is a Beam transform for PCollection objects that store the same data type.&#10;  Partition splits a single PCollection into a fixed number of smaller collections.&#10;  Partition divides the elements of a PCollection according to a partitioning function&#10;  that you provide. The partitioning function contains the logic that determines how to split up&#10;  the elements of the input PCollection into each resulting partition PCollection.&lt;/p&gt;&#10;&lt;p&gt;In this task, we are going to implement a&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Partition.html&quot;&gt;&#10;    Partition&lt;/a&gt; transform that splits a PCollection of numbers into two PCollections.&#10;  The first PCollection contains numbers greater than 100, and the second PCollection contains&#10;  the remaining numbers.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Refer to&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Partition.html&quot;&gt;Partition&lt;/a&gt;&#10;  to solve this problem.&#10;&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="713735" />
+                            <option name="index" value="1" />
+                            <option name="name" value="Partition" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1862" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="input&#10;        .apply(Partition.of(2,&#10;            (PartitionFn&lt;Integer&gt;) (number, numPartitions) -&gt; {&#10;              if (number &gt; 100) {&#10;                return 0;&#10;              } else {&#10;                return 1;&#10;              }&#10;            }))" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1559325050000" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                  </list>
+                </option>
+              </Section>
+              <Section>
+                <option name="courseId" value="54530" />
+                <option name="customPresentableName" />
+                <option name="id" value="85641" />
+                <option name="index" value="3" />
+                <option name="name" value="Common Transforms" />
+                <option name="position" value="0" />
+                <option name="stepikChangeStatus" value="Up to date" />
+                <option name="updateDate" value="1557824583000" />
+                <option name="items">
+                  <list>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="229513" />
+                      <option name="index" value="1" />
+                      <option name="name" value="Filter" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" value="1557824569000" />
+                      <option name="unitId" value="202038" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Filter using ParDo&lt;/h2&gt;&#10;&lt;p&gt;In this task, we are going to implement a filter function that filters out the even numbers by using&#10;    &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.html&quot;&gt;&#10;        DoFn&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ParDo.html&quot;&gt;ParDo&lt;/a&gt;&#10;    with &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.html&quot;&gt;DoFn&lt;/a&gt;&#10;    and only output the intended element.&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="713736" />
+                            <option name="index" value="1" />
+                            <option name="name" value="ParDo" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1656" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="input.apply(ParDo.of(&#10;        new DoFn&lt;Integer, Integer&gt;() {&#10;&#10;          @ProcessElement&#10;          public void processElement(@Element Integer number, OutputReceiver&lt;Integer&gt; out) {&#10;            if (number % 2 == 1) {&#10;              out.output(number);&#10;            }&#10;          }&#10;        })&#10;    )" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1559325053000" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Filter&lt;/h2&gt;&#10;&lt;p&gt;The Beam SDKs provide language-specific ways to simplify how you provide your DoFn implementation.&lt;/p&gt;&#10;&lt;p&gt;In this task, we are going to implement a filter function that filters out the odd numbers by using&#10;    &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Filter.html&quot;&gt;&#10;        Filter&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Filter.html&quot;&gt;Filter.by(...)&lt;/a&gt;&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="713737" />
+                            <option name="index" value="2" />
+                            <option name="name" value="Filter" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1621" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="input.apply(Filter.by(number -&gt; number % 2 == 0))" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1559325056000" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="229514" />
+                      <option name="index" value="2" />
+                      <option name="name" value="Aggregation" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" value="1557824583000" />
+                      <option name="unitId" value="202039" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Aggregation - Count&lt;/h2&gt;&#10;&lt;p&gt;In this task, we are going to count the number of elements from an input.&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Count.html&quot;&gt;Count&lt;/a&gt;&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="713738" />
+                            <option name="index" value="1" />
+                            <option name="name" value="Count" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1606" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="input.apply(Count.globally())" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1559325060000" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Aggregation - Sum&lt;/h2&gt;&#10;&lt;p&gt;In this task, we are going to compute the sum of all elements from an input.&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Sum.html&quot;&gt;Sum&lt;/a&gt;&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="713739" />
+                            <option name="index" value="2" />
+                            <option name="name" value="Sum" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1610" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="input.apply(Sum.integersGlobally())" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1559325063000" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Aggregation - Mean&lt;/h2&gt;&#10;&lt;p&gt;In this task, we are going to compute the mean/average of all elements from an input.&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Mean.html&quot;&gt;Mean&lt;/a&gt;&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="713740" />
+                            <option name="index" value="3" />
+                            <option name="name" value="Mean" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1609" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="input.apply(Mean.globally())" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1559325066000" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Aggregation - Min&lt;/h2&gt;&#10;&lt;p&gt;In this task, we are going to compute the minimum of the elements from an input.&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Min.html&quot;&gt;Min&lt;/a&gt;&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="713741" />
+                            <option name="index" value="4" />
+                            <option name="name" value="Min" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1610" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="input.apply(Min.integersGlobally())" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1559325069000" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Aggregation - Max&lt;/h2&gt;&#10;&lt;p&gt;In this task, we are going to compute the maximum of the elements from an input.&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Max.html&quot;&gt;Max&lt;/a&gt;&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="713742" />
+                            <option name="index" value="5" />
+                            <option name="name" value="Max" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1610" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="input.apply(Max.integersGlobally())" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1559325072000" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                  </list>
+                </option>
+              </Section>
+              <Section>
+                <option name="courseId" value="54530" />
+                <option name="customPresentableName" />
+                <option name="id" value="85642" />
+                <option name="index" value="4" />
+                <option name="name" value="Examples" />
+                <option name="position" value="0" />
+                <option name="stepikChangeStatus" value="Up to date" />
+                <option name="updateDate" value="1557824624000" />
+                <option name="items">
+                  <list>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="229515" />
+                      <option name="index" value="1" />
+                      <option name="name" value="Word Count" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" value="1557824624000" />
+                      <option name="unitId" value="202040" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Word Count Pipeline&lt;/h2&gt;&#10;&lt;p&gt;This kata is to create a pipeline that counts the number of words.&lt;/p&gt;&#10;&lt;p&gt;For this task, please output the count of each word in the following format:&lt;br/&gt;&#10;  &lt;pre&gt;&#10;    word:count&#10;    ball:5&#10;    book:3&#10;  &lt;/pre&gt;&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Refer to your lessons above.&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="713743" />
+                            <option name="index" value="1" />
+                            <option name="name" value="Word Count" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1990" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="input&#10;&#10;        .apply(FlatMapElements.into(TypeDescriptors.strings())&#10;            .via(line -&gt; Arrays.asList(line.split(&quot; &quot;))))&#10;&#10;        .apply(Count.perElement())&#10;&#10;        .apply(ParDo.of(new DoFn&lt;KV&lt;String, Long&gt;, String&gt;() {&#10;&#10;          @ProcessElement&#10;          public void processElement(&#10;              @Element KV&lt;String, Long&gt; element, OutputReceiver&lt;String&gt; out) {&#10;&#10;            out.output(element.getKey() + &quot;:&quot; + element.getValue());&#10;          }&#10;&#10;        }))" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1557823128000" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                  </list>
+                </option>
+              </Section>
+            </list>
+          </option>
+        </EduCourse>
+      </option>
+    </StudyTaskManager>
+  </component>
+</project>

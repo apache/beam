@@ -74,13 +74,22 @@ has some examples.
 
 from __future__ import absolute_import
 
+import os
 import sys
+import warnings
 
 
-if not (sys.version_info[0] == 2 and sys.version_info[1] == 7):
+if sys.version_info[0] == 3:
+  warnings.warn(
+      'Running the Apache Beam SDK on Python 3 is not yet fully supported. '
+      'You may encounter buggy behavior or missing features.')
+elif sys.version_info[0] == 2 and sys.version_info[1] == 7:
+  pass
+else:
   raise RuntimeError(
-      'The Apache Beam SDK for Python is supported only on Python 2.7. '
-      'It is not supported on Python ['+ str(sys.version_info) + '].')
+      'The Apache Beam SDK for Python is only supported on Python 2.7 or '
+      'Python 3. It is not supported on Python [' +
+      str(sys.version_info) + '].')
 
 # pylint: disable=wrong-import-position
 import apache_beam.internal.pickler

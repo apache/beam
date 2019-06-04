@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -58,6 +58,11 @@ public class DistributionCell implements Distribution, MetricCell<DistributionDa
     update(DistributionData.singleton(n));
   }
 
+  @Override
+  public void update(long sum, long count, long min, long max) {
+    update(DistributionData.create(sum, count, min, max));
+  }
+
   void update(DistributionData data) {
     DistributionData original;
     do {
@@ -79,5 +84,22 @@ public class DistributionCell implements Distribution, MetricCell<DistributionDa
   @Override
   public MetricName getName() {
     return name;
+  }
+
+  @Override
+  public boolean equals(Object object) {
+    if (object instanceof DistributionCell) {
+      DistributionCell distributionCell = (DistributionCell) object;
+      return Objects.equals(dirty, distributionCell.dirty)
+          && Objects.equals(value.get(), distributionCell.value.get())
+          && Objects.equals(name, distributionCell.name);
+    }
+
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(dirty, value.get(), name);
   }
 }

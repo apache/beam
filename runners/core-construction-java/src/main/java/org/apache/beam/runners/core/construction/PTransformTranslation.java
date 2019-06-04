@@ -15,17 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSortedSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -39,7 +33,9 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.CombineComponents;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.SplittableParDoComponents;
+import org.apache.beam.runners.core.construction.ExternalTranslation.ExternalTranslator;
 import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoTranslator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -51,6 +47,11 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSortedSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 
 /**
  * Utilities for converting {@link PTransform PTransforms} to {@link RunnerApi Runner API protocol
@@ -67,7 +68,14 @@ public class PTransformTranslation {
       getUrn(StandardPTransforms.Primitives.ASSIGN_WINDOWS);
   public static final String TEST_STREAM_TRANSFORM_URN =
       getUrn(StandardPTransforms.Primitives.TEST_STREAM);
+  public static final String MAP_WINDOWS_TRANSFORM_URN =
+      getUrn(StandardPTransforms.Primitives.MAP_WINDOWS);
 
+  /**
+   * @deprecated SDKs should move away from creating `Read` transforms and migrate to using Impulse
+   *     + SplittableDoFns.
+   */
+  @Deprecated
   public static final String READ_TRANSFORM_URN =
       getUrn(StandardPTransforms.DeprecatedPrimitives.READ);
   /**
@@ -82,13 +90,31 @@ public class PTransformTranslation {
       getUrn(StandardPTransforms.Composites.COMBINE_PER_KEY);
   public static final String COMBINE_GLOBALLY_TRANSFORM_URN =
       getUrn(StandardPTransforms.Composites.COMBINE_GLOBALLY);
+  public static final String COMBINE_GROUPED_VALUES_TRANSFORM_URN =
+      getUrn(CombineComponents.COMBINE_GROUPED_VALUES);
+  public static final String COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN =
+      getUrn(CombineComponents.COMBINE_PER_KEY_PRECOMBINE);
+  public static final String COMBINE_PER_KEY_MERGE_ACCUMULATORS_TRANSFORM_URN =
+      getUrn(CombineComponents.COMBINE_PER_KEY_MERGE_ACCUMULATORS);
+  public static final String COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN =
+      getUrn(CombineComponents.COMBINE_PER_KEY_EXTRACT_OUTPUTS);
   public static final String RESHUFFLE_URN = getUrn(StandardPTransforms.Composites.RESHUFFLE);
   public static final String WRITE_FILES_TRANSFORM_URN =
       getUrn(StandardPTransforms.Composites.WRITE_FILES);
+
+  // SplittableParDoComponents
+  public static final String SPLITTABLE_PAIR_WITH_RESTRICTION_URN =
+      getUrn(SplittableParDoComponents.PAIR_WITH_RESTRICTION);
+  public static final String SPLITTABLE_SPLIT_RESTRICTION_URN =
+      getUrn(SplittableParDoComponents.SPLIT_RESTRICTION);
   public static final String SPLITTABLE_PROCESS_KEYED_URN =
       getUrn(SplittableParDoComponents.PROCESS_KEYED_ELEMENTS);
   public static final String SPLITTABLE_PROCESS_ELEMENTS_URN =
       getUrn(SplittableParDoComponents.PROCESS_ELEMENTS);
+  public static final String SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN =
+      getUrn(SplittableParDoComponents.SPLIT_AND_SIZE_RESTRICTIONS);
+  public static final String SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN =
+      getUrn(SplittableParDoComponents.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS);
 
   public static final String ITERABLE_SIDE_INPUT =
       getUrn(RunnerApi.StandardSideInputTypes.Enum.ITERABLE);
@@ -104,6 +130,7 @@ public class PTransformTranslation {
         .add(new RawPTransformTranslator())
         .add(new KnownTransformPayloadTranslator())
         .add(ParDoTranslator.create())
+        .add(ExternalTranslator.create())
         .build();
   }
 
@@ -123,7 +150,7 @@ public class PTransformTranslation {
     TransformTranslator<?> transformTranslator =
         Iterables.find(
             KNOWN_TRANSLATORS,
-            (translator) -> translator.canTranslate(appliedPTransform.getTransform()),
+            translator -> translator.canTranslate(appliedPTransform.getTransform()),
             DefaultUnknownTransformTranslator.INSTANCE);
     return transformTranslator.translate(appliedPTransform, subtransforms, components);
   }
@@ -151,7 +178,7 @@ public class PTransformTranslation {
     TransformTranslator<?> transformTranslator =
         Iterables.find(
             KNOWN_TRANSLATORS,
-            (translator) -> translator.canTranslate(transform),
+            translator -> translator.canTranslate(transform),
             DefaultUnknownTransformTranslator.INSTANCE);
     return ((TransformTranslator) transformTranslator).getUrn(transform);
   }

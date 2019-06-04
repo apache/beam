@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.stream;
 
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.ClientCallStreamObserver;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.ClientResponseObserver;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.ClientCallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.ClientResponseObserver;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
 
 /**
  * A {@link ClientResponseObserver} which delegates all {@link StreamObserver} calls.

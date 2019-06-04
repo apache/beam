@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.io.mqtt;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
@@ -28,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
@@ -44,6 +44,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.fusesource.mqtt.client.BlockingConnection;
 import org.fusesource.mqtt.client.MQTT;
 import org.fusesource.mqtt.client.Message;
@@ -120,10 +121,8 @@ public class MqttIO {
   @AutoValue
   public abstract static class ConnectionConfiguration implements Serializable {
 
-    @Nullable
     abstract String getServerUri();
 
-    @Nullable
     abstract String getTopic();
 
     @Nullable
@@ -176,23 +175,40 @@ public class MqttIO {
      * @param topic The MQTT getTopic pattern.
      * @param clientId A client ID prefix, used to construct an unique client ID.
      * @return A connection configuration to the MQTT broker.
+     * @deprecated This constructor will be removed in a future version of Beam, please use
+     *     #create(String, String)} and {@link #withClientId(String)} instead.
      */
+    @Deprecated
     public static ConnectionConfiguration create(String serverUri, String topic, String clientId) {
-      checkArgument(serverUri != null, "serverUri can not be null");
-      checkArgument(topic != null, "topic can not be null");
       checkArgument(clientId != null, "clientId can not be null");
-      return new AutoValue_MqttIO_ConnectionConfiguration.Builder()
-          .setServerUri(serverUri)
-          .setTopic(topic)
-          .setClientId(clientId)
-          .build();
+      return create(serverUri, topic).withClientId(clientId);
+    }
+
+    /** Set up the MQTT broker URI. */
+    public ConnectionConfiguration withServerUri(String serverUri) {
+      checkArgument(serverUri != null, "serverUri can not be null");
+      return builder().setServerUri(serverUri).build();
+    }
+
+    /** Set up the MQTT getTopic pattern. */
+    public ConnectionConfiguration withTopic(String topic) {
+      checkArgument(topic != null, "topic can not be null");
+      return builder().setTopic(topic).build();
+    }
+
+    /** Set up the client ID prefix, which is used to construct an unique client ID. */
+    public ConnectionConfiguration withClientId(String clientId) {
+      checkArgument(clientId != null, "clientId can not be null");
+      return builder().setClientId(clientId).build();
     }
 
     public ConnectionConfiguration withUsername(String username) {
+      checkArgument(username != null, "username can not be null");
       return builder().setUsername(username).build();
     }
 
     public ConnectionConfiguration withPassword(String password) {
+      checkArgument(password != null, "password can not be null");
       return builder().setPassword(password).build();
     }
 
@@ -305,11 +321,15 @@ public class MqttIO {
   @VisibleForTesting
   static class MqttCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
 
-    private String clientId;
-    private Instant oldestMessageTimestamp = Instant.now();
-    private transient List<Message> messages = new ArrayList<>();
+    @VisibleForTesting String clientId;
+    @VisibleForTesting Instant oldestMessageTimestamp = Instant.now();
+    @VisibleForTesting transient List<Message> messages = new ArrayList<>();
 
     public MqttCheckpointMark() {}
+
+    public MqttCheckpointMark(String id) {
+      clientId = id;
+    }
 
     public void add(Message message, Instant timestamp) {
       if (timestamp.isBefore(oldestMessageTimestamp)) {
@@ -335,7 +355,25 @@ public class MqttIO {
     // set an empty list to messages when deserialize
     private void readObject(java.io.ObjectInputStream stream)
         throws IOException, ClassNotFoundException {
+      stream.defaultReadObject();
       messages = new ArrayList<>();
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (other instanceof MqttCheckpointMark) {
+        MqttCheckpointMark that = (MqttCheckpointMark) other;
+        return Objects.equals(this.clientId, that.clientId)
+            && Objects.equals(this.oldestMessageTimestamp, that.oldestMessageTimestamp)
+            && Objects.deepEquals(this.messages, that.messages);
+      } else {
+        return false;
+      }
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(clientId, oldestMessageTimestamp, messages);
     }
   }
 

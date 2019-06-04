@@ -232,6 +232,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * Returns the input element to be processed.
      *
      * <p>The element will not be changed -- it is safe to cache, etc. without copying.
+     * Implementation of {@link DoFn.ProcessElement} method should not mutate the element.
      */
     public abstract InputT element();
 
@@ -463,6 +464,32 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   }
 
   /**
+   * Annotation for the method to use for performing actions on window expiration. For example,
+   * users can use this annotation to write a method that extracts a value saved in a state before
+   * it gets garbage collected on window expiration.
+   *
+   * <p>The method annotated with {@code @OnWindowExpiration} may have parameters according to the
+   * same logic as {@link OnTimer}. See the following code for an example:
+   *
+   * <pre><code>{@literal new DoFn<KV<Key, Foo>, Baz>()} {
+   *
+   *   {@literal @ProcessElement}
+   *    public void processElement(ProcessContext c) {
+   *    }
+   *
+   *   {@literal @OnWindowExpiration}
+   *    public void onWindowExpiration() {
+   *      ...
+   *    }
+   * }</code></pre>
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  @Experimental(Kind.STATE)
+  public @interface OnWindowExpiration {}
+
+  /**
    * Annotation for the method to use to prepare an instance for processing bundles of elements.
    *
    * <p>This is a good place to initialize transient in-memory resources, such as network
@@ -491,10 +518,16 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * method annotated with this must satisfy the following constraints:
    *
    * <ul>
-   *   <li>It must have exactly zero or one arguments.
-   *   <li>If it has any arguments, its only argument must be a {@link DoFn.StartBundleContext}.
+   *   <li>If one of the parameters is of type {@link DoFn.StartBundleContext}, then it will be
+   *       passed a context object for the current execution.
+   *   <li>If one of the parameters is of type {@link BundleFinalizer}, then it will be passed a
+   *       mechanism to register a callback that will be invoked after the runner successfully
+   *       commits the output of this bundle. See <a
+   *       href="https://s.apache.org/beam-finalizing-bundles">Apache Beam Portability API: How to
+   *       Finalize Bundles</a> for further details.
    * </ul>
    */
+  // TODO: Add support for bundle finalization parameter.
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
@@ -507,7 +540,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <p>The signature of this method must satisfy the following constraints:
    *
    * <ul>
-   *   <li>If one of its arguments is a subtype of {@link RestrictionTracker}, then it is a <a
+   *   <li>If one of its arguments is a {@link RestrictionTracker}, then it is a <a
    *       href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn} subject to the
    *       separate requirements described below. Items below are assuming this is not a splittable
    *       {@link DoFn}.
@@ -529,14 +562,19 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *       output receiver for outputting elements to the default output.
    *   <li>If one of the parameters is of type {@link MultiOutputReceiver}, then it will be passed
    *       an output receiver for outputting to multiple tagged outputs.
+   *   <li>If one of the parameters is of type {@link BundleFinalizer}, then it will be passed a
+   *       mechanism to register a callback that will be invoked after the runner successfully
+   *       commits the output of this bundle. See <a
+   *       href="https://s.apache.org/beam-finalizing-bundles">Apache Beam Portability API: How to
+   *       Finalize Bundles</a> for further details.
    *   <li>It must return {@code void}.
    * </ul>
    *
    * <h2>Splittable DoFn's</h2>
    *
    * <p>A {@link DoFn} is <i>splittable</i> if its {@link ProcessElement} method has a parameter
-   * whose type is a subtype of {@link RestrictionTracker}. This is an advanced feature and an
-   * overwhelming majority of users will never need to write a splittable {@link DoFn}.
+   * whose type is of {@link RestrictionTracker}. This is an advanced feature and an overwhelming
+   * majority of users will never need to write a splittable {@link DoFn}.
    *
    * <p>Not all runners support Splittable DoFn. See the <a
    * href="https://beam.apache.org/documentation/runners/capability-matrix/">capability matrix</a>.
@@ -549,12 +587,10 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <ul>
    *   <li>It <i>must</i> define a {@link GetInitialRestriction} method.
    *   <li>It <i>may</i> define a {@link SplitRestriction} method.
-   *   <li>It <i>may</i> define a {@link NewTracker} method returning the same type as the type of
-   *       the {@link RestrictionTracker} argument of {@link ProcessElement}, which in turn must be
-   *       a subtype of {@code RestrictionTracker<R>} where {@code R} is the restriction type
-   *       returned by {@link GetInitialRestriction}. This method is optional in case the
-   *       restriction type returned by {@link GetInitialRestriction} implements {@link
-   *       HasDefaultTracker}.
+   *   <li>It <i>may</i> define a {@link NewTracker} method returning a subtype of {@code
+   *       RestrictionTracker<R>} where {@code R} is the restriction type returned by {@link
+   *       GetInitialRestriction}. This method is optional in case the restriction type returned by
+   *       {@link GetInitialRestriction} implements {@link HasDefaultTracker}.
    *   <li>It <i>may</i> define a {@link GetRestrictionCoder} method.
    *   <li>The type of restrictions used by all of these methods must be the same.
    *   <li>Its {@link ProcessElement} method <i>may</i> return a {@link ProcessContinuation} to
@@ -591,9 +627,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <b><i>Experimental - no backwards compatibility guarantees. The exact name or usage of this
    * feature may change.</i></b>
    *
-   * <p>Annotation that may be added to a {@link ProcessElement} or {@link OnTimer} method to
-   * indicate that the runner must ensure that the observable contents of the input {@link
-   * PCollection} or mutable state must be stable upon retries.
+   * <p>Annotation that may be added to a {@link ProcessElement}, {@link OnTimer}, or {@link
+   * OnWindowExpiration} method to indicate that the runner must ensure that the observable contents
+   * of the input {@link PCollection} or mutable state must be stable upon retries.
    *
    * <p>This is important for sinks, which must ensure exactly-once semantics when writing to a
    * storage medium outside of your pipeline. A general pattern for a basic sink is to write a
@@ -615,9 +651,18 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * with this must satisfy the following constraints:
    *
    * <ul>
-   *   <li>It must have exactly zero or one arguments.
-   *   <li>If it has any arguments, its only argument must be a {@link DoFn.FinishBundleContext}.
+   *   <li>If one of the parameters is of type {@link DoFn.FinishBundleContext}, then it will be
+   *       passed a context object for the current execution.
+   *   <li>If one of the parameters is of type {@link BundleFinalizer}, then it will be passed a
+   *       mechanism to register a callback that will be invoked after the runner successfully
+   *       commits the output of this bundle. See <a
+   *       href="https://s.apache.org/beam-finalizing-bundles">Apache Beam Portability API: How to
+   *       Finalize Bundles</a> for further details.
    * </ul>
+   *
+   * <p>Note that {@link FinishBundle @FinishBundle} is invoked before the runner commits the output
+   * while {@link BundleFinalizer.Callback bundle finalizer callbacks} are invoked after the runner
+   * has committed the output of a successful bundle.
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
@@ -670,9 +715,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
    *
    * <p>Signature: {@code RestrictionT getInitialRestriction(InputT element);}
-   *
-   * <p>TODO: Make the InputT parameter optional.
    */
+  // TODO: Make the InputT parameter optional.
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
@@ -706,10 +750,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *
    * <p>Optional: if this method is omitted, the restriction will not be split (equivalent to
    * defining the method and returning {@code Collections.singletonList(restriction)}).
-   *
-   * <p>TODO: Introduce a parameter for controlling granularity of splitting, e.g. numParts. TODO:
-   * Make the InputT parameter optional.
    */
+  // TODO: Make the InputT parameter optional.
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
@@ -814,4 +856,56 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    */
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {}
+
+  /**
+   * A parameter that is accessible during {@link StartBundle @StartBundle}, {@link
+   * ProcessElement @ProcessElement} and {@link FinishBundle @FinishBundle} that allows the caller
+   * to register a callback that will be invoked after the bundle has been successfully completed
+   * and the runner has commit the output.
+   *
+   * <p>A common usage would be to perform any acknowledgements required by an external system such
+   * as acking messages from a message queue since this callback is only invoked after the output of
+   * the bundle has been durably persisted by the runner.
+   *
+   * <p>Note that a runner may make the output of the bundle available immediately to downstream
+   * consumers without waiting for finalization to succeed. For pipelines that are sensitive to
+   * duplicate messages, they must perform output deduplication in the pipeline.
+   */
+  // TODO: Add support for a deduplication PTransform.
+  @Experimental(Kind.SPLITTABLE_DO_FN)
+  public interface BundleFinalizer {
+    /**
+     * The provided function will be called after the runner successfully commits the output of a
+     * successful bundle. Throwing during finalization represents that bundle finalization may have
+     * failed and the runner may choose to attempt finalization again. The provided {@code
+     * callbackExpiry} controls how long the finalization is valid for before it is garbage
+     * collected and no longer able to be invoked.
+     *
+     * <p>Note that finalization is best effort and it is expected that the external system will
+     * self recover state if finalization never happens or consistently fails. For example, a queue
+     * based system that requires message acknowledgement would replay messages if that
+     * acknowledgement was never received within the provided time bound.
+     *
+     * <p>See <a href="https://s.apache.org/beam-finalizing-bundles">Apache Beam Portability API:
+     * How to Finalize Bundles</a> for further details.
+     *
+     * @param callbackExpiry When the finalization callback expires. If the runner cannot commit
+     *     results and execute the callback within this duration, the callback will not be invoked.
+     * @param callback The finalization callback method for the runner to invoke after processing
+     *     results have been successfully committed.
+     */
+    void afterBundleCommit(Instant callbackExpiry, Callback callback);
+
+    /**
+     * An instance of a function that will be invoked after bundle finalization.
+     *
+     * <p>Note that this function should maintain all state necessary outside of a DoFn's context to
+     * be able to perform bundle finalization and should not rely on mutable state stored within a
+     * DoFn instance.
+     */
+    @FunctionalInterface
+    interface Callback {
+      void onBundleSuccess() throws Exception;
+    }
+  }
 }

@@ -20,6 +20,7 @@ from __future__ import absolute_import
 
 import logging
 import math
+import sys
 import unittest
 from builtins import range
 
@@ -41,7 +42,7 @@ from . import observable
 class CustomCoder(coders.Coder):
 
   def encode(self, x):
-    return str(x+1)
+    return str(x+1).encode('utf-8')
 
   def decode(self, encoded):
     return int(encoded) - 1
@@ -56,6 +57,9 @@ class CodersTest(unittest.TestCase):
   def setUpClass(cls):
     cls.seen = set()
     cls.seen_nested = set()
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
 
   @classmethod
   def tearDownClass(cls):
@@ -64,8 +68,10 @@ class CodersTest(unittest.TestCase):
                    if isinstance(c, type) and issubclass(c, coders.Coder) and
                    'Base' not in c.__name__)
     standard -= set([coders.Coder,
+                     coders.DeterministicProtoCoder,
                      coders.FastCoder,
                      coders.ProtoCoder,
+                     coders.RunnerAPICoderHolder,
                      coders.ToStringCoder])
     assert not standard - cls.seen, standard - cls.seen
     assert not standard - cls.seen_nested, standard - cls.seen_nested
@@ -82,18 +88,21 @@ class CodersTest(unittest.TestCase):
         cls.seen_nested.add(type(c))
         cls._observe_nested(c)
 
-  def check_coder(self, coder, *values):
+  def check_coder(self, coder, *values, **kwargs):
+    context = kwargs.pop('context', pipeline_context.PipelineContext())
+    test_size_estimation = kwargs.pop('test_size_estimation', True)
+    assert not kwargs
     self._observe(coder)
     for v in values:
       self.assertEqual(v, coder.decode(coder.encode(v)))
-      self.assertEqual(coder.estimate_size(v),
-                       len(coder.encode(v)))
-      self.assertEqual(coder.estimate_size(v),
-                       coder.get_impl().estimate_size(v))
-      self.assertEqual(coder.get_impl().get_estimated_size_and_observables(v),
-                       (coder.get_impl().estimate_size(v), []))
-    copy1 = dill.loads(dill.dumps(coder))
-    context = pipeline_context.PipelineContext()
+      if test_size_estimation:
+        self.assertEqual(coder.estimate_size(v),
+                         len(coder.encode(v)))
+        self.assertEqual(coder.estimate_size(v),
+                         coder.get_impl().estimate_size(v))
+        self.assertEqual(coder.get_impl().get_estimated_size_and_observables(v),
+                         (coder.get_impl().estimate_size(v), []))
+      copy1 = dill.loads(dill.dumps(coder))
     copy2 = coders.Coder.from_runner_api(coder.to_runner_api(context), context)
     for v in values:
       self.assertEqual(v, copy1.decode(copy2.encode(v)))
@@ -139,6 +148,10 @@ class CodersTest(unittest.TestCase):
     self.check_coder(coder, len)
     self.check_coder(coders.TupleCoder((coder,)), ('a',), (1,))
 
+  def test_fast_primitives_coder_large_int(self):
+    coder = coders.FastPrimitivesCoder()
+    self.check_coder(coder, 10 ** 100)
+
   def test_bytes_coder(self):
     self.check_coder(coders.BytesCoder(), b'a', b'\0', b'z' * 1000)
 
@@ -182,16 +195,25 @@ class CodersTest(unittest.TestCase):
 
   def test_timestamp_coder(self):
     self.check_coder(coders.TimestampCoder(),
-                     *[timestamp.Timestamp(micros=x) for x in range(-100, 100)])
+                     *[timestamp.Timestamp(micros=x) for x in (-1000, 0, 1000)])
     self.check_coder(coders.TimestampCoder(),
-                     timestamp.Timestamp(micros=-1234567890),
-                     timestamp.Timestamp(micros=1234567890))
+                     timestamp.Timestamp(micros=-1234567000),
+                     timestamp.Timestamp(micros=1234567000))
     self.check_coder(coders.TimestampCoder(),
-                     timestamp.Timestamp(micros=-1234567890123456789),
-                     timestamp.Timestamp(micros=1234567890123456789))
+                     timestamp.Timestamp(micros=-1234567890123456000),
+                     timestamp.Timestamp(micros=1234567890123456000))
     self.check_coder(
         coders.TupleCoder((coders.TimestampCoder(), coders.BytesCoder())),
         (timestamp.Timestamp.of(27), b'abc'))
+
+  def test_timer_coder(self):
+    self.check_coder(coders._TimerCoder(coders.BytesCoder()),
+                     *[{'timestamp': timestamp.Timestamp(micros=x),
+                        'payload': b'xyz'}
+                       for x in (-3000, 0, 3000)])
+    self.check_coder(
+        coders.TupleCoder((coders._TimerCoder(coders.VarIntCoder()),)),
+        ({'timestamp': timestamp.Timestamp.of(37000), 'payload': 389},))
 
   def test_tuple_coder(self):
     kv_coder = coders.TupleCoder((coders.VarIntCoder(), coders.BytesCoder()))
@@ -272,7 +294,7 @@ class CodersTest(unittest.TestCase):
         yield i
 
     iterable_coder = coders.IterableCoder(coders.VarIntCoder())
-    self.assertItemsEqual(list(iter_generator(count)),
+    self.assertCountEqual(list(iter_generator(count)),
                           iterable_coder.decode(
                               iterable_coder.encode(iter_generator(count))))
 
@@ -374,8 +396,8 @@ class CodersTest(unittest.TestCase):
     self.assertEqual({'@type': 'kind:global_window'},
                      coder.as_cloud_object())
     # Test binary representation
-    self.assertEqual('', coder.encode(value))
-    self.assertEqual(value, coder.decode(''))
+    self.assertEqual(b'', coder.encode(value))
+    self.assertEqual(value, coder.decode(b''))
     # Test unnested
     self.check_coder(coder, value)
     # Test nested
@@ -427,6 +449,37 @@ class CodersTest(unittest.TestCase):
     self.assertEqual(
         coder.get_impl().get_estimated_size_and_observables(value)[1],
         [(observ, elem_coder.get_impl())])
+
+  def test_state_backed_iterable_coder(self):
+    # pylint: disable=global-variable-undefined
+    # required for pickling by reference
+    global state
+    state = {}
+
+    def iterable_state_write(values, element_coder_impl):
+      token = b'state_token_%d' % len(state)
+      state[token] = [element_coder_impl.encode(e) for e in values]
+      return token
+
+    def iterable_state_read(token, element_coder_impl):
+      return [element_coder_impl.decode(s) for s in state[token]]
+
+    coder = coders.StateBackedIterableCoder(
+        coders.VarIntCoder(),
+        read_state=iterable_state_read,
+        write_state=iterable_state_write,
+        write_state_threshold=1)
+    context = pipeline_context.PipelineContext(
+        iterable_state_read=iterable_state_read,
+        iterable_state_write=iterable_state_write)
+    self.check_coder(
+        coder, [1, 2, 3], context=context, test_size_estimation=False)
+    # Ensure that state was actually used.
+    self.assertNotEqual(state, {})
+    self.check_coder(coders.TupleCoder((coder, coder)),
+                     ([1], [2, 3]),
+                     context=context,
+                     test_size_estimation=False)
 
 
 if __name__ == '__main__':

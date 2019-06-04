@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.control;
 
 import static org.hamcrest.Matchers.contains;
@@ -27,7 +26,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.ImmutableList;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -36,6 +34,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -47,8 +46,10 @@ import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -84,7 +85,7 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
 
     factory =
         SingleEnvironmentInstanceJobBundleFactory.create(
-            environmentFactory, dataServer, stateServer);
+            environmentFactory, dataServer, stateServer, IdGenerators.incrementingLongs());
   }
 
   @After
@@ -102,9 +103,7 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
     p.replaceAll(Collections.singletonList(JavaReadViaImpulse.boundedOverride()));
 
     ExecutableStage stage =
-        GreedyPipelineFuser.fuse(PipelineTranslation.toProto(p))
-            .getFusedStages()
-            .stream()
+        GreedyPipelineFuser.fuse(PipelineTranslation.toProto(p)).getFusedStages().stream()
             .findFirst()
             .get();
     RemoteEnvironment remoteEnv = mock(RemoteEnvironment.class);
@@ -123,19 +122,17 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
     p.replaceAll(Collections.singletonList(JavaReadViaImpulse.boundedOverride()));
 
     ExecutableStage firstEnvStage =
-        GreedyPipelineFuser.fuse(PipelineTranslation.toProto(p))
-            .getFusedStages()
-            .stream()
+        GreedyPipelineFuser.fuse(PipelineTranslation.toProto(p)).getFusedStages().stream()
             .findFirst()
             .get();
     ExecutableStagePayload basePayload =
         ExecutableStagePayload.parseFrom(firstEnvStage.toPTransform("foo").getSpec().getPayload());
 
-    Environment secondEnv = Environment.newBuilder().setUrl("second_env").build();
+    Environment secondEnv = Environments.createDockerEnvironment("second_env");
     ExecutableStage secondEnvStage =
         ExecutableStage.fromPayload(basePayload.toBuilder().setEnvironment(secondEnv).build());
 
-    Environment thirdEnv = Environment.newBuilder().setUrl("third_env").build();
+    Environment thirdEnv = Environments.createDockerEnvironment("third_env");
     ExecutableStage thirdEnvStage =
         ExecutableStage.fromPayload(basePayload.toBuilder().setEnvironment(thirdEnv).build());
 

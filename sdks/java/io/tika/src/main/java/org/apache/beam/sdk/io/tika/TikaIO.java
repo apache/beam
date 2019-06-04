@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.tika;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.io.InputStream;
@@ -222,7 +222,7 @@ public class TikaIO {
       }
       Metadata metadata = getInputMetadata();
       if (metadata != null) {
-        //TODO: use metadata.toString() only without a trim() once Apache Tika 1.17 gets released
+        // TODO: use metadata.toString() only without a trim() once Apache Tika 1.17 gets released
         builder.add(
             DisplayData.item("inputMetadata", metadata.toString().trim())
                 .withLabel("Input Metadata"));

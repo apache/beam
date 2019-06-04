@@ -16,227 +16,237 @@
  * limitations under the License.
  */
 
-// Define common lifecycle tasks and artifact types
-apply plugin: "base"
+import org.apache.tools.ant.taskdefs.condition.Os
 
-// For some reason base doesn't define a test task  so we define it below and make
-// check depend on it. This makes the Python project similar to the task layout like
-// Java projects, see https://docs.gradle.org/4.2.1/userguide/img/javaPluginTasks.png
-task test {}
-check.dependsOn test
+plugins { id 'org.apache.beam.module' }
+applyPythonNature()
+enablePythonPerformanceTest()
 
-def envdir = "${project.buildDir}/gradleenv"
-def tox_opts = "-c tox.ini --recreate"
 
-task setupVirtualenv {
-  doLast {
-    exec {
-      commandLine 'virtualenv', "${envdir}"
-    }
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && pip install --upgrade tox==3.0.0 grpcio-tools==1.3.5"
-    }
-  }
-  // Gradle will delete outputs whenever it thinks they are stale. Putting a
-  // specific binary here could make gradle delete it while pip will believe
-  // the package is fully installed.
-  outputs.dirs(envdir)
-}
-
-configurations { distConfig }
-
-task sdist(dependsOn: 'setupVirtualenv') {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && python setup.py sdist --formats zip,gztar --dist-dir ${project.buildDir}"
-    }
-    def collection = fileTree("${project.buildDir}"){ include '**/*.tar.gz' exclude '**/apache-beam.tar.gz'}
-    println "sdist archive name: ${collection.singleFile}"
-    // we need a fixed name for the artifact
-    copy { from collection.singleFile; into "${project.buildDir}"; rename { 'apache-beam.tar.gz' } }
-  }
-}
-
-artifacts {
-  distConfig file: file("${project.buildDir}/apache-beam.tar.gz"), builtBy: sdist
-}
-
-task cleanPython(dependsOn: 'setupVirtualenv') {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && python setup.py clean"
-    }
-  }
-}
-clean.dependsOn cleanPython
+/*************************************************************************************************/
+// Basic build and Python environment setup/cleanup
 
 task buildPython(dependsOn: 'setupVirtualenv') {
   doLast {
     println 'Building Python Dependencies'
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && python setup.py build --build-base ${project.buildDir}"
+      args '-c', ". ${project.ext.envdir}/bin/activate && python setup.py build --build-base ${project.buildDir}"
     }
   }
 }
 build.dependsOn buildPython
 
+
+/*************************************************************************************************/
+// Unit tests for Python 2
+// See Python 3 tests in test-suites/tox
+
 task lint {}
 check.dependsOn lint
 
-task lintPy27(dependsOn: 'setupVirtualenv') {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27-lint"
-    }
-  }
-}
+toxTask "lintPy27", "py27-lint"
 lint.dependsOn lintPy27
 
-task lintPy27_3(dependsOn: 'setupVirtualenv') {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27-lint3"
-    }
-  }
-}
+toxTask "lintPy27_3", "py27-lint3"
 lint.dependsOn lintPy27_3
 
-task lintPy3(dependsOn: 'setupVirtualenv') {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py3-lint"
-    }
-  }
-}
-lint.dependsOn lintPy3
+toxTask "testPy2Gcp", "py27-gcp"
+test.dependsOn testPy2Gcp
 
-task testGcp(dependsOn: 'setupVirtualenv') {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27-gcp"
-    }
-  }
-}
-test.dependsOn testGcp
+toxTask "testPython2", "py27"
+test.dependsOn testPython2
 
-task testPython(dependsOn: 'setupVirtualenv') {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27"
-    }
-  }
-}
-test.dependsOn testPython
-
-task testCython(dependsOn: 'setupVirtualenv') {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27-cython"
-    }
-  }
-}
-test.dependsOn testCython
-// Ensure that testCython runs exclusively to other tests. This line is not
+toxTask "testPy2Cython", "py27-cython"
+test.dependsOn testPy2Cython
+// Ensure that testPy2Cython runs exclusively to other tests. This line is not
 // actually required, since gradle doesn't do parallel execution within a
 // project.
-testCython.mustRunAfter testPython, testGcp
+testPy2Cython.mustRunAfter testPython2, testPy2Gcp
 
-task docs(dependsOn: 'setupVirtualenv') {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e docs"
-    }
-  }
-}
+toxTask "docs", "docs"
 assemble.dependsOn docs
 
-task cover(dependsOn: 'setupVirtualenv') {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e cover"
-    }
-  }
-}
+toxTask "cover", "cover"
 
-task preCommit() {
+task preCommitPy2() {
   dependsOn "docs"
-  dependsOn "testCython"
-  dependsOn "testPython"
-  dependsOn "testGcp"
+  dependsOn "testPy2Cython"
+  dependsOn "testPython2"
+  dependsOn "testPy2Gcp"
   dependsOn "lint"
 }
 
-task installGcpTest(dependsOn: 'setupVirtualenv') {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && pip install -e .[gcp,test]"
-    }
-  }
+task portablePreCommit() {
+  dependsOn ':runners:flink:1.5:job-server-container:docker'
+  dependsOn ':sdks:python:container:docker'
+  dependsOn portableWordCountTask('portableWordCountBatch', false)
+  dependsOn portableWordCountTask('portableWordCountStreaming', true)
 }
 
-task localWordCount(dependsOn: 'installGcpTest') {
+
+/*************************************************************************************************/
+// E2E integration testing and validates runner testing
+
+// Basic test options for ITs running on Jenkins.
+def basicTestOpts = [
+        "--nocapture",  // print stdout instantly
+        "--processes=8",  // run tests in parallel
+        "--process-timeout=4500", // timeout of whole command execution
+]
+
+task directRunnerIT(dependsOn: 'installGcpTest') {
+  // Run IT tests with TestDirectRunner in batch.
   doLast {
+    def tests = [
+        "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
+        "apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest",
+        "apache_beam.io.gcp.big_query_query_to_table_it_test:BigQueryQueryToTableIT",
+        "apache_beam.io.gcp.bigquery_io_read_it_test",
+        "apache_beam.io.gcp.datastore.v1new.datastore_write_it_test",
+    ]
+    def batchTestOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
+    def argMap = ["runner": "TestDirectRunner",
+                  "test_opts": batchTestOpts]
+    def batchCmdArgs = project.mapToArgString(argMap)
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount --output /tmp/py-wordcount-direct"
-      // TODO: Check that the output file is generated and runs.
+      args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $batchCmdArgs"
+    }
+  }
+
+  // Run IT tests with TestDirectRunner in streaming.
+  doLast {
+    def tests = [
+        "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
+        "apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest",
+    ]
+    def streamingTestOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
+    def argMap = ["runner": "TestDirectRunner",
+                  "streaming": "true",
+                  "test_opts": streamingTestOpts]
+    def streamingCmdArgs = project.mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $streamingCmdArgs"
     }
   }
 }
 
 // Before running this, you need to:
 //
-// 1. build the SDK container:
+// 1. Build the SDK container:
 //
 //    ./gradlew -p sdks/python/container docker
 //
-// 2. start a local JobService, for example, the Portable Flink runner
+// 2. Either a) or b)
+//  a) If you want the Job Server to run in a Docker container:
+//
+//    ./gradlew :runners:flink:1.5:job-server-container:docker
+//
+//  b) Otherwise, start a local JobService, for example, the Portable Flink runner
 //    (in a separate shell since it continues to run):
 //
-//    ./gradlew :beam-runners-flink_2.11-job-server:runShadow
+//    ./gradlew :runners:flink:1.5:job-server:runShadow
 //
 // Then you can run this example:
 //
-//    ./gradlew :beam-sdks-python:portableWordCount
+//  Docker (2a):
 //
-task portableWordCount(dependsOn: 'installGcpTest') {
-  doLast {
-    exec {
-      executable 'sh'
+//    ./gradlew :sdks:python:portableWordCount
+//
+//  Local JobService (2b):
+//
+//    ./gradlew :sdks:python:portableWordCount -PjobEndpoint=localhost:8099
+//
+task portableWordCount {
+  dependsOn portableWordCountTask('portableWordCountExample', project.hasProperty("streaming"))
+}
+
+def portableWordCountTask(name, streaming) {
+  tasks.create(name) {
+    dependsOn = ['installGcpTest']
+    mustRunAfter = [':runners:flink:1.5:job-server-container:docker', ':sdks:python:container:docker']
+    doLast {
       // TODO: Figure out GCS credentials and use real GCS input and output.
-      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount --input /etc/profile --output /tmp/py-wordcount-direct --experiments=beam_fn_api --runner=PortableRunner --job_endpoint=localhost:8099 --sdk_location=container"
-      // TODO: Check that the output file is generated and runs.
+      def options = [
+              "--input=/etc/profile",
+              "--output=/tmp/py-wordcount-direct",
+              "--runner=PortableRunner",
+              "--experiments=worker_threads=100",
+              "--parallelism=2",
+              "--shutdown_sources_on_final_watermark",
+      ]
+      if (streaming)
+        options += ["--streaming"]
+      else
+        // workaround for local file output in docker container
+        options += ["--environment_cache_millis=10000"]
+      if (project.hasProperty("jobEndpoint"))
+        options += ["--job_endpoint=${project.property('jobEndpoint')}"]
+      if (project.hasProperty("environmentType")) {
+        options += ["--environment_type=${project.property('environmentType')}"]
+      }
+      if (project.hasProperty("environmentConfig")) {
+        options += ["--environment_config=${project.property('environmentConfig')}"]
+      }
+      exec {
+        executable 'sh'
+        args '-c', ". ${project.ext.envdir}/bin/activate && python -m apache_beam.examples.wordcount ${options.join(' ')}"
+        // TODO: Check that the output file is generated and runs.
+      }
     }
   }
 }
 
-task postCommitVRTests(dependsOn: 'installGcpTest') {
+// Run PostCommit integration tests on default runner (TestDataflowRunner)
+task postCommitIT(dependsOn: ['installGcpTest', 'sdist']) {
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+
+  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+
   doLast {
+    def testOpts = basicTestOpts + ["--attr=IT"]
+    def cmdArgs = project.mapToArgString(["test_opts": testOpts,
+                                          "worker_jar": dataflowWorkerJar])
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh IT"
+      args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"
     }
   }
 }
 
-task validatesRunnerTests(dependsOn: 'installGcpTest') {
+task validatesRunnerBatchTests(dependsOn: ['installGcpTest', 'sdist']) {
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+
+  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+
   doLast {
+    def testOpts = basicTestOpts + ["--attr=ValidatesRunner"]
+    def cmdArgs = project.mapToArgString(["test_opts": testOpts,
+                                          "worker_jar": dataflowWorkerJar])
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh ValidatesRunner"
+      args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
+task validatesRunnerStreamingTests(dependsOn: ['installGcpTest', 'sdist']) {
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+
+  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+
+  doLast {
+    // TODO(BEAM-3544,BEAM-5025): Disable tests with 'sickbay-streaming' tag.
+    def testOpts = basicTestOpts + ["--attr=ValidatesRunner,!sickbay-streaming"]
+    def argMap = ["test_opts": testOpts,
+                  "streaming": "true",
+                  "worker_jar": dataflowWorkerJar]
+    def cmdArgs = project.mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"
     }
   }
 }
@@ -245,16 +255,119 @@ task hdfsIntegrationTest(dependsOn: 'installGcpTest') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh"
+      args '-c', ". ${project.ext.envdir}/bin/activate && ./apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh"
     }
   }
 }
 
+task sparkValidatesRunner() {
+  dependsOn 'createProcessWorker'
+  dependsOn 'setupVirtualenv'
+  dependsOn ':beam-runners-spark-job-server:shadowJar'
+  doLast {
+    def environment_config = "'{\"command\": \"${project(":beam-sdks-python:").buildDir.absolutePath}/sdk_worker.sh\"}'"
+    def argMap = [
+            "environment_type"    : "PROCESS",
+            "spark_job_server_jar": project(":beam-runners-spark-job-server:").shadowJar.archivePath,
+            "environment_config": environment_config,
+    ]
+    def argString = project.mapToArgString(argMap)
+
+    // Optionally specify test function names separated by space e.g.:
+    // ./gradlew :beam-sdks-python:sparkValidatesRunner -Ptests="test_external_transforms test_read"
+    // Otherwise run all test functions under SparkRunnerTest
+    def tests = project.hasProperty('tests') ?
+            project.property('tests').split().collect{ "SparkRunnerTest.$it" }.join(' ') : ''
+
+    exec {
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.runners.portability.spark_runner_test $tests $argString"
+    }
+  }
+}
+
+class CompatibilityMatrixConfig {
+  // Execute batch or streaming pipelines.
+  boolean streaming = false
+  // Execute on Docker or Process based environment.
+  SDK_WORKER_TYPE workerType = SDK_WORKER_TYPE.DOCKER
+
+  enum SDK_WORKER_TYPE {
+    DOCKER, PROCESS, LOOPBACK
+  }
+
+  // Whether to pre-optimize the pipeline with the Python optimizer.
+  boolean preOptimize = false
+}
+
+def flinkCompatibilityMatrix = {
+  def config = it ? it as CompatibilityMatrixConfig : new CompatibilityMatrixConfig()
+  def workerType = config.workerType.name()
+  def streaming = config.streaming
+  def environment_config = config.workerType == CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS ? "--environment_config='{\"command\": \"${project(":sdks:python").buildDir.absolutePath}/sdk_worker.sh\"}'" : ""
+  def name = "flinkCompatibilityMatrix${streaming ? 'Streaming' : 'Batch'}${config.preOptimize ? 'PreOptimize' : ''}${workerType}"
+  def extra_experiments = []
+  if (config.preOptimize)
+    extra_experiments.add('pre_optimize=all')
+  tasks.create(name: name) {
+    dependsOn 'setupVirtualenv'
+    dependsOn ':runners:flink:1.5:job-server:shadowJar'
+    dependsOn ':sdks:java:container:docker'
+    if (workerType.toLowerCase() == 'docker')
+      dependsOn ':sdks:python:container:docker'
+    else if (workerType.toLowerCase() == 'process')
+      dependsOn 'createProcessWorker'
+    doLast {
+      exec {
+        executable 'sh'
+        args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.runners.portability.flink_runner_test --flink_job_server_jar=${project(":runners:flink:1.5:job-server:").shadowJar.archivePath} --environment_type=${workerType} ${environment_config} ${streaming ? '--streaming' : ''} ${extra_experiments ? '--extra_experiments=' + extra_experiments.join(',') : ''}"
+      }
+    }
+  }
+}
+
+task flinkCompatibilityMatrixDocker() {
+  dependsOn flinkCompatibilityMatrix(streaming: false)
+  dependsOn flinkCompatibilityMatrix(streaming: true)
+}
+
+task flinkCompatibilityMatrixProcess() {
+  dependsOn flinkCompatibilityMatrix(streaming: false, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS)
+  dependsOn flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS)
+}
+
+task flinkCompatibilityMatrixLoopback() {
+  dependsOn flinkCompatibilityMatrix(streaming: false, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.LOOPBACK)
+  dependsOn flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.LOOPBACK)
+  dependsOn flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.LOOPBACK, preOptimize: true)
+}
+
+task flinkValidatesRunner() {
+  dependsOn 'flinkCompatibilityMatrixLoopback'
+}
+
 task postCommit() {
-  dependsOn "preCommit"
-  dependsOn "localWordCount"
+  dependsOn "crossLanguageTests"
+  dependsOn "directRunnerIT"
   dependsOn "hdfsIntegrationTest"
-  dependsOn "postCommitVRTests"
+  dependsOn "postCommitIT"
+}
+
+
+/*************************************************************************************************/
+// Other build and analysis tasks
+
+// Snapshot of dependency requirements defined in setup.py.
+// Results will be stored in files under Gradle build directory.
+task depSnapshot(dependsOn: 'installGcpTest') {
+  doLast {
+    println 'Snapshoting full dependencies requirements with versions info to requirements.txt.'
+    exec {
+      // Remove useless item "pkg-resources" from file which is introduced by a bug in Ubuntu.
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && pip freeze --local --all | grep -v \"pkg-resources\" > ${project.buildDir}/requirements.txt"
+    }
+  }
 }
 
 task dependencyUpdates(dependsOn: ':dependencyUpdates') {
@@ -264,4 +377,87 @@ task dependencyUpdates(dependsOn: ':dependencyUpdates') {
       args '-c', "./scripts/run_dependency_check.sh"
     }
   }
+}
+
+task buildSnapshot() {
+  dependsOn 'sdist'
+  dependsOn 'depSnapshot'
+}
+
+project.task('createProcessWorker') {
+  dependsOn ':sdks:python:container:build'
+  dependsOn 'setupVirtualenv'
+  def sdkWorkerFile = file("${project.buildDir}/sdk_worker.sh")
+  def osType = 'linux'
+  if (Os.isFamily(Os.FAMILY_MAC))
+    osType = 'darwin'
+  def workerScript = "${project(":sdks:python:container:").buildDir.absolutePath}/target/launcher/${osType}_amd64/boot"
+  def sdkWorkerFileCode = "sh -c \"pip=`which pip` . ${project.ext.envdir}/bin/activate && ${workerScript} \$* \""
+  outputs.file sdkWorkerFile
+  doLast {
+    sdkWorkerFile.write sdkWorkerFileCode
+    exec {
+      commandLine('sh', '-c', ". ${project.ext.envdir}/bin/activate && cd ${project.projectDir} && python setup.py install ")
+    }
+    exec {
+      commandLine('chmod', '+x', sdkWorkerFile)
+    }
+  }
+}
+
+project.task('crossLanguagePythonJavaFlink') {
+  dependsOn 'setupVirtualenv'
+  dependsOn ':runners:flink:1.5:job-server-container:docker'
+  dependsOn ':sdks:python:container:docker'
+  dependsOn ':sdks:java:container:docker'
+  dependsOn ':runners:core-construction-java:buildTestExpansionServiceJar'
+
+  doLast {
+    def testServiceExpansionJar = project(":runners:core-construction-java:").buildTestExpansionServiceJar.archivePath
+    def options = [
+            "--runner=PortableRunner",
+            "--experiments=worker_threads=100",
+            "--parallelism=2",
+            "--shutdown_sources_on_final_watermark",
+            "--environment_cache_millis=10000",
+            "--expansion_service_port=8096",
+            "--expansion_service_jar=${testServiceExpansionJar}",
+    ]
+    exec {
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.transforms.external_test ${options.join(' ')}"
+    }
+  }
+}
+
+project.task('crossLanguagePortableWordCount') {
+  dependsOn 'setupVirtualenv'
+  dependsOn ':runners:flink:1.5:job-server-container:docker'
+  dependsOn ':sdks:python:container:docker'
+  dependsOn ':sdks:java:container:docker'
+  dependsOn ':runners:core-construction-java:buildTestExpansionServiceJar'
+
+  doLast {
+    def testServiceExpansionJar = project(":runners:core-construction-java:").buildTestExpansionServiceJar.archivePath
+    def options = [
+            "--input=/etc/profile",
+            "--output=/tmp/py-wordcount-portable",
+            "--runner=PortableRunner",
+            "--experiments=worker_threads=100",
+            "--parallelism=2",
+            "--shutdown_sources_on_final_watermark",
+            "--environment_cache_millis=10000",
+            "--expansion_service_jar=${testServiceExpansionJar}",
+    ]
+    exec {
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.examples.wordcount_xlang ${options.join(' ')}"
+      // TODO: Check that the output file is generated and runs.
+    }
+  }
+}
+
+project.task('crossLanguageTests') {
+  dependsOn "crossLanguagePythonJavaFlink"
+  dependsOn "crossLanguagePortableWordCount"
 }

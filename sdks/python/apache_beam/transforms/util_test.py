@@ -17,9 +17,15 @@
 
 """Unit tests for the transform.util classes."""
 
+from __future__ import absolute_import
+from __future__ import division
+
 import logging
+import random
 import time
 import unittest
+from builtins import object
+from builtins import range
 
 import apache_beam as beam
 from apache_beam.coders import coders
@@ -120,6 +126,83 @@ class BatchElementsTest(unittest.TestCase):
       with batch_estimator.record_time(actual_sizes[-1]):
         clock.sleep(batch_duration(actual_sizes[-1]))
     self.assertEqual(expected_sizes, actual_sizes)
+
+  def test_variance(self):
+    clock = FakeClock()
+    variance = 0.25
+    batch_estimator = util._BatchSizeEstimator(
+        target_batch_overhead=.05, target_batch_duration_secs=None,
+        variance=variance, clock=clock)
+    batch_duration = lambda batch_size: 1 + .7 * batch_size
+    expected_target = 27
+    actual_sizes = []
+    for _ in range(util._BatchSizeEstimator._MAX_DATA_POINTS - 1):
+      actual_sizes.append(batch_estimator.next_batch_size())
+      with batch_estimator.record_time(actual_sizes[-1]):
+        clock.sleep(batch_duration(actual_sizes[-1]))
+    # Check that we're testing a good range of values.
+    stable_set = set(actual_sizes[-20:])
+    self.assertGreater(len(stable_set), 3)
+    self.assertGreater(
+        min(stable_set), expected_target - expected_target * variance)
+    self.assertLess(
+        max(stable_set), expected_target + expected_target * variance)
+
+  def _run_regression_test(self, linear_regression_fn, test_outliers):
+    xs = [random.random() for _ in range(10)]
+    ys = [2*x + 1 for x in xs]
+    a, b = linear_regression_fn(xs, ys)
+    self.assertAlmostEqual(a, 1)
+    self.assertAlmostEqual(b, 2)
+
+    xs = [1 + random.random() for _ in range(100)]
+    ys = [7*x + 5 + 0.01 * random.random() for x in xs]
+    a, b = linear_regression_fn(xs, ys)
+    self.assertAlmostEqual(a, 5, delta=0.02)
+    self.assertAlmostEqual(b, 7, delta=0.02)
+
+    # Test repeated xs
+    xs = [1 + random.random()] * 100
+    ys = [7 * x + 5 + 0.01 * random.random() for x in xs]
+    a, b = linear_regression_fn(xs, ys)
+    self.assertAlmostEqual(a, 0, delta=0.02)
+    self.assertAlmostEqual(
+        b, sum(ys)/(len(ys) * xs[0]), delta=0.02)
+
+    if test_outliers:
+      xs = [1 + random.random() for _ in range(100)]
+      ys = [2*x + 1 for x in xs]
+      a, b = linear_regression_fn(xs, ys)
+      self.assertAlmostEqual(a, 1)
+      self.assertAlmostEqual(b, 2)
+
+      # An outlier or two doesn't affect the result.
+      for _ in range(2):
+        xs += [10]
+        ys += [30]
+        a, b = linear_regression_fn(xs, ys)
+        self.assertAlmostEqual(a, 1)
+        self.assertAlmostEqual(b, 2)
+
+      # But enough of them, and they're no longer outliers.
+      xs += [10] * 10
+      ys += [30] * 10
+      a, b = linear_regression_fn(xs, ys)
+      self.assertLess(a, 0.5)
+      self.assertGreater(b, 2.5)
+
+  def test_no_numpy_regression(self):
+    self._run_regression_test(
+        util._BatchSizeEstimator.linear_regression_no_numpy, False)
+
+  def test_numpy_regression(self):
+    try:
+      # pylint: disable=wrong-import-order, wrong-import-position
+      import numpy as _
+    except ImportError:
+      self.skipTest('numpy not available')
+    self._run_regression_test(
+        util._BatchSizeEstimator.linear_regression_numpy, True)
 
 
 class IdentityWindowTest(unittest.TestCase):
@@ -231,11 +314,11 @@ class ReshuffleTest(unittest.TestCase):
   def test_reshuffle_windows_unchanged(self):
     pipeline = TestPipeline()
     data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
-    expected_data = [TestWindowedValue(v, t, [w]) for (v, t, w) in
-                     [((1, [2, 1]), 4.0, IntervalWindow(1.0, 4.0)),
-                      ((2, [2, 1]), 4.0, IntervalWindow(1.0, 4.0)),
-                      ((3, [1]), 3.0, IntervalWindow(1.0, 3.0)),
-                      ((1, [4]), 6.0, IntervalWindow(4.0, 6.0))]]
+    expected_data = [TestWindowedValue(v, t, [w]) for (v, t, w) in [
+        ((1, contains_in_any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
+        ((2, contains_in_any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
+        ((3, [1]), 3.0, IntervalWindow(1.0, 3.0)),
+        ((1, [4]), 6.0, IntervalWindow(4.0, 6.0))]]
     before_reshuffle = (pipeline
                         | 'start' >> beam.Create(data)
                         | 'add_timestamp' >> beam.Map(
@@ -329,6 +412,57 @@ class ReshuffleTest(unittest.TestCase):
     assert_that(after_reshuffle, equal_to(expected_data),
                 label='after reshuffle')
     pipeline.run()
+
+
+class WithKeysTest(unittest.TestCase):
+
+  def setUp(self):
+    self.l = [1, 2, 3]
+
+  def test_constant_k(self):
+    with TestPipeline() as p:
+      pc = p | beam.Create(self.l)
+      with_keys = pc | util.WithKeys('k')
+    assert_that(with_keys, equal_to([('k', 1), ('k', 2), ('k', 3)], ))
+
+  def test_callable_k(self):
+    with TestPipeline() as p:
+      pc = p | beam.Create(self.l)
+      with_keys = pc | util.WithKeys(lambda x: x*x)
+    assert_that(with_keys, equal_to([(1, 1), (4, 2), (9, 3)]))
+
+
+class ToStringTest(unittest.TestCase):
+
+  def test_tostring_elements(self):
+
+    with TestPipeline() as p:
+      result = (p | beam.Create([1, 1, 2, 3]) | util.ToString.Element())
+      assert_that(result, equal_to(["1", "1", "2", "3"]))
+
+  def test_tostring_iterables(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create([("one", "two", "three"),
+                                 ("four", "five", "six")])
+                | util.ToString.Iterables())
+      assert_that(result, equal_to(["one,two,three", "four,five,six"]))
+
+  def test_tostring_iterables_with_delimeter(self):
+    with TestPipeline() as p:
+      data = [("one", "two", "three"), ("four", "five", "six")]
+      result = (p | beam.Create(data) | util.ToString.Iterables("\t"))
+      assert_that(result, equal_to(["one\ttwo\tthree", "four\tfive\tsix"]))
+
+  def test_tostring_kvs(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create([("one", 1), ("two", 2)]) | util.ToString.Kvs())
+      assert_that(result, equal_to(["one,1", "two,2"]))
+
+  def test_tostring_kvs_delimeter(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create([("one", 1), ("two", 2)]) |
+                util.ToString.Kvs("\t"))
+      assert_that(result, equal_to(["one\t1", "two\t2"]))
 
 
 if __name__ == '__main__':

@@ -1,0 +1,68 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Protocol Buffers describing the Expansion API, an api for expanding
+ * transforms in a remote SDK.
+ */
+
+syntax = "proto3";
+
+package org.apache.beam.model.expansion.v1;
+
+option go_package = "jobmanagement_v1";
+option java_package = "org.apache.beam.model.expansion.v1";
+option java_outer_classname = "ExpansionApi";
+
+import "beam_runner_api.proto";
+
+message ExpansionRequest {
+  // Set of components needed to interpret the transform, or which
+  // may be useful for its expansion.  This includes the input
+  // PCollections (if any) to the to-be-expanded transform, along
+  // with their coders and windowing strategies.
+  org.apache.beam.model.pipeline.v1.Components components = 1;
+
+  // The actual PTransform to be expaneded according to its spec.
+  // Its input should be set, but its subtransforms and outputs
+  // should not be.
+  org.apache.beam.model.pipeline.v1.PTransform transform = 2;
+
+  // A namespace (prefix) to use for the id of any newly created
+  // components.
+  string namespace = 3;
+}
+
+message ExpansionResponse {
+  // Set of components needed to execute the expanded transform,
+  // including the (original) inputs, outputs, and subtransforms.
+  org.apache.beam.model.pipeline.v1.Components components = 1;
+
+  // The expanded transform itself, with references to its outputs
+  // and subtransforms.
+  org.apache.beam.model.pipeline.v1.PTransform transform = 2;
+
+  // (Optional) An string representation of any error encountered while
+  // attempting to expand this transform.
+  string error = 10;
+}
+
+// Job Service for constructing pipelines
+service ExpansionService {
+  rpc Expand (ExpansionRequest) returns (ExpansionResponse);
+}

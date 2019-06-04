@@ -23,8 +23,6 @@ import static org.apache.beam.sdk.extensions.protobuf.ProtobufUtil.verifyDetermi
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
 import com.google.protobuf.Any;
 import com.google.protobuf.Descriptors.GenericDescriptor;
 import com.google.protobuf.Duration;
@@ -38,6 +36,8 @@ import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.MessageB;
 import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.MessageC;
 import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.MessageWithMap;
 import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.ReferencesMessageWithMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

@@ -15,9 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.translation;
 
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
+import org.apache.beam.runners.core.construction.graph.PipelineNode;
+import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.samza.runtime.OpAdapter;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.runtime.WindowAssignOp;
@@ -25,6 +28,7 @@ import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.samza.operators.MessageStream;
 
 /**
@@ -46,5 +50,31 @@ class WindowAssignTranslator<T> implements TransformTranslator<Window.Assign<T>>
         inputStream.flatMap(OpAdapter.adapt(new WindowAssignOp<>(windowFn)));
 
     ctx.registerMessageStream(output, outputStream);
+  }
+
+  @Override
+  public void translatePortable(
+      PipelineNode.PTransformNode transform,
+      QueryablePipeline pipeline,
+      PortableTranslationContext ctx) {
+    final RunnerApi.WindowIntoPayload payload;
+    try {
+      payload =
+          RunnerApi.WindowIntoPayload.parseFrom(transform.getTransform().getSpec().getPayload());
+    } catch (InvalidProtocolBufferException e) {
+      throw new IllegalArgumentException(
+          String.format("failed to parse WindowIntoPayload: %s", transform.getId()), e);
+    }
+
+    @SuppressWarnings("unchecked")
+    final WindowFn<T, ?> windowFn =
+        (WindowFn<T, ?>) WindowingStrategyTranslation.windowFnFromProto(payload.getWindowFn());
+
+    final MessageStream<OpMessage<T>> inputStream = ctx.getOneInputMessageStream(transform);
+
+    final MessageStream<OpMessage<T>> outputStream =
+        inputStream.flatMap(OpAdapter.adapt(new WindowAssignOp<>(windowFn)));
+
+    ctx.registerMessageStream(ctx.getOutputId(transform), outputStream);
   }
 }

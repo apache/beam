@@ -23,7 +23,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.base.Charsets;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -31,21 +30,33 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Serializable;
 import java.io.Writer;
+import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.FileTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.zip.GZIPOutputStream;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
+import org.apache.beam.sdk.transforms.Contextful;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Requirements;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -71,24 +82,30 @@ public class FileIOTest implements Serializable {
     Path secondPath = tmpFolder.newFile("second").toPath();
     int firstSize = 37;
     int secondSize = 42;
+    long firstModified = 1541097000L;
+    long secondModified = 1541098000L;
     Files.write(firstPath, new byte[firstSize]);
     Files.write(secondPath, new byte[secondSize]);
+    Files.setLastModifiedTime(firstPath, FileTime.fromMillis(firstModified));
+    Files.setLastModifiedTime(secondPath, FileTime.fromMillis(secondModified));
+    MatchResult.Metadata firstMetadata = metadata(firstPath, firstSize, firstModified);
+    MatchResult.Metadata secondMetadata = metadata(secondPath, secondSize, secondModified);
 
     PAssert.that(
             p.apply(
                 "Match existing",
                 FileIO.match().filepattern(tmpFolder.getRoot().getAbsolutePath() + "/*")))
-        .containsInAnyOrder(metadata(firstPath, firstSize), metadata(secondPath, secondSize));
+        .containsInAnyOrder(firstMetadata, secondMetadata);
     PAssert.that(
             p.apply(
                 "Match existing with provider",
                 FileIO.match()
                     .filepattern(p.newProvider(tmpFolder.getRoot().getAbsolutePath() + "/*"))))
-        .containsInAnyOrder(metadata(firstPath, firstSize), metadata(secondPath, secondSize));
+        .containsInAnyOrder(firstMetadata, secondMetadata);
     PAssert.that(
             p.apply("Create existing", Create.of(tmpFolder.getRoot().getAbsolutePath() + "/*"))
                 .apply("MatchAll existing", FileIO.matchAll()))
-        .containsInAnyOrder(metadata(firstPath, firstSize), metadata(secondPath, secondSize));
+        .containsInAnyOrder(firstMetadata, secondMetadata);
 
     PAssert.that(
             p.apply(
@@ -184,19 +201,27 @@ public class FileIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({NeedsRunner.class, UsesUnboundedSplittableParDo.class})
   public void testMatchWatchForNewFiles() throws IOException, InterruptedException {
-    final Path basePath = tmpFolder.getRoot().toPath().resolve("watch");
-    basePath.toFile().mkdir();
+    // Write some files to a "source" directory.
+    final Path sourcePath = tmpFolder.getRoot().toPath().resolve("source");
+    sourcePath.toFile().mkdir();
+    Files.write(sourcePath.resolve("first"), new byte[42]);
+    Files.write(sourcePath.resolve("second"), new byte[37]);
+    Files.write(sourcePath.resolve("third"), new byte[99]);
+
+    // Create a "watch" directory that the pipeline will copy files into.
+    final Path watchPath = tmpFolder.getRoot().toPath().resolve("watch");
+    watchPath.toFile().mkdir();
     PCollection<MatchResult.Metadata> matchMetadata =
         p.apply(
             FileIO.match()
-                .filepattern(basePath.resolve("*").toString())
+                .filepattern(watchPath.resolve("*").toString())
                 .continuously(
                     Duration.millis(100),
                     Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
     PCollection<MatchResult.Metadata> matchAllMetadata =
-        p.apply(Create.of(basePath.resolve("*").toString()))
+        p.apply(Create.of(watchPath.resolve("*").toString()))
             .apply(
                 FileIO.matchAll()
                     .continuously(
@@ -205,27 +230,35 @@ public class FileIOTest implements Serializable {
     assertEquals(PCollection.IsBounded.UNBOUNDED, matchMetadata.isBounded());
     assertEquals(PCollection.IsBounded.UNBOUNDED, matchAllMetadata.isBounded());
 
+    // Copy the files to the "watch" directory, preserving the lastModifiedTime;
+    // the COPY_ATTRIBUTES option ensures that we will at a minimum copy lastModifiedTime.
+    CopyOption[] copyOptions = {StandardCopyOption.COPY_ATTRIBUTES};
     Thread writer =
         new Thread(
             () -> {
               try {
                 Thread.sleep(1000);
-                Files.write(basePath.resolve("first"), new byte[42]);
+                Files.copy(sourcePath.resolve("first"), watchPath.resolve("first"), copyOptions);
                 Thread.sleep(300);
-                Files.write(basePath.resolve("second"), new byte[37]);
+                Files.copy(sourcePath.resolve("second"), watchPath.resolve("second"), copyOptions);
                 Thread.sleep(300);
-                Files.write(basePath.resolve("third"), new byte[99]);
+                Files.copy(sourcePath.resolve("third"), watchPath.resolve("third"), copyOptions);
               } catch (IOException | InterruptedException e) {
                 throw new RuntimeException(e);
               }
             });
     writer.start();
 
+    // We fetch lastModifiedTime from the files in the "source" directory to avoid a race condition
+    // with the writer thread.
     List<MatchResult.Metadata> expected =
         Arrays.asList(
-            metadata(basePath.resolve("first"), 42),
-            metadata(basePath.resolve("second"), 37),
-            metadata(basePath.resolve("third"), 99));
+            metadata(
+                watchPath.resolve("first"), 42, lastModifiedMillis(sourcePath.resolve("first"))),
+            metadata(
+                watchPath.resolve("second"), 37, lastModifiedMillis(sourcePath.resolve("second"))),
+            metadata(
+                watchPath.resolve("third"), 99, lastModifiedMillis(sourcePath.resolve("third"))));
     PAssert.that(matchMetadata).containsInAnyOrder(expected);
     PAssert.that(matchAllMetadata).containsInAnyOrder(expected);
     p.run();
@@ -300,12 +333,17 @@ public class FileIOTest implements Serializable {
     p.run();
   }
 
-  private static MatchResult.Metadata metadata(Path path, int size) {
+  private static MatchResult.Metadata metadata(Path path, int size, long lastModifiedMillis) {
     return MatchResult.Metadata.builder()
         .setResourceId(FileSystems.matchNewResource(path.toString(), false /* isDirectory */))
         .setIsReadSeekEfficient(true)
         .setSizeBytes(size)
+        .setLastModifiedMillis(lastModifiedMillis)
         .build();
+  }
+
+  private static long lastModifiedMillis(Path path) throws IOException {
+    return Files.getLastModifiedTime(path).toMillis();
   }
 
   private static FileIO.Write.FileNaming resolveFileNaming(FileIO.Write<?, ?> write)
@@ -378,5 +416,38 @@ public class FileIOTest implements Serializable {
                 0,
                 0,
                 Compression.UNCOMPRESSED));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFileIoDynamicNaming() throws IOException {
+    // Test for BEAM-6407.
+
+    String outputFileName = tmpFolder.newFile().getAbsolutePath();
+    PCollectionView<String> outputFileNameView =
+        p.apply("outputFileName", Create.of(outputFileName)).apply(View.asSingleton());
+
+    Contextful.Fn<String, FileIO.Write.FileNaming> fileNaming =
+        (element, c) ->
+            (window, pane, numShards, shardIndex, compression) ->
+                c.sideInput(outputFileNameView) + "-" + shardIndex;
+
+    p.apply(Create.of(""))
+        .apply(
+            "WriteDynamicFilename",
+            FileIO.<String, String>writeDynamic()
+                .by(SerializableFunctions.constant(""))
+                .withDestinationCoder(StringUtf8Coder.of())
+                .via(TextIO.sink())
+                .withTempDirectory(tmpFolder.newFolder().getAbsolutePath())
+                .withNaming(
+                    Contextful.of(
+                        fileNaming, Requirements.requiresSideInputs(outputFileNameView))));
+
+    // We need to run the TestPipeline with the default options.
+    p.run(PipelineOptionsFactory.create()).waitUntilFinish();
+    assertTrue(
+        "Output file shard 0 exists after pipeline completes",
+        new File(outputFileName + "-0").exists());
   }
 }

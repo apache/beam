@@ -1,0 +1,109 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+archivesBaseName = 'beam-sdks-java-load-tests'
+applyJavaNature(exportJavadoc: false)
+
+description = "Apache Beam :: SDKs :: Java :: Load Tests"
+
+
+def mainClassProperty = "loadTest.mainClass"
+def mainClass = project.findProperty(mainClassProperty)
+
+// When running via Gradle, this property can be used to pass commandline arguments
+// to the nexmark launch
+def loadTestArgsProperty = "loadTest.args"
+
+// When running via Gradle, this property sets the runner dependency
+def runnerProperty = "runner"
+def runnerDependency = (project.hasProperty(runnerProperty)
+        ? project.getProperty(runnerProperty)
+        : ":runners:direct-java")
+
+def shouldProvideSpark = ":runners:spark".equals(runnerDependency)
+def isDataflowRunner = ":runners:google-cloud-dataflow-java".equals(runnerDependency)
+
+if (isDataflowRunner) {
+  /*
+   * We need to rely on manually specifying these evaluationDependsOn to ensure that
+   * the following projects are evaluated before we evaluate this project. This is because
+   * we are attempting to reference a property from the project directly.
+   */
+  evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
+}
+
+configurations {
+  // A configuration for running the Load testlauncher directly from Gradle, which
+  // uses Gradle to put the appropriate dependencies on the Classpath rather than
+  // bundling them into a fat jar
+  gradleRun
+}
+
+dependencies {
+  shadow library.java.kafka_clients
+
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":runners:direct-java", configuration: "shadow")
+  shadow project(path: ":sdks:java:io:synthetic", configuration: "shadow")
+  shadow project(path: ":sdks:java:testing:test-utils", configuration: "shadow")
+  shadow project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
+  shadow project(path: ":sdks:java:io:kafka", configuration: "shadow")
+  shadow project(path: ":sdks:java:io:kinesis", configuration: "shadow")
+
+  gradleRun project(path: project.path, configuration: "shadow")
+  gradleRun project(path: runnerDependency, configuration: "shadow")
+
+  // The Spark runner requires the user to provide a Spark dependency. For self-contained
+  // runs with the Spark runner, we can provide such a dependency. This is deliberately phrased
+  // to not hardcode any runner other than :runners:direct-java
+  if (shouldProvideSpark) {
+    gradleRun library.java.spark_streaming
+    gradleRun library.java.spark_core, {
+      exclude group:"org.slf4j", module:"jul-to-slf4j"
+    }
+  }
+}
+
+if (shouldProvideSpark) {
+  configurations.gradleRun {
+    // Using Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
+    exclude group: "org.slf4j", module: "slf4j-jdk14"
+  }
+}
+
+task run(type: JavaExec) {
+  def loadTestArgs = project.findProperty(loadTestArgsProperty) ?: ""
+
+  if (isDataflowRunner) {
+    dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+    // Provide job with a customizable worker jar.
+    // With legacy worker jar, containerImage is set to empty (i.e. to use the internal build).
+    // More context and discussions can be found in PR#6694.
+    loadTestArgs = loadTestArgs +
+            " --dataflowWorkerJar=${dataflowWorkerJar} " +
+            " --workerHarnessContainerImage="
+  }
+
+  main = mainClass
+  classpath = configurations.gradleRun
+  args loadTestArgs.split()
+}
+

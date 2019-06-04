@@ -19,9 +19,8 @@ package artifact
 import (
 	"bufio"
 	"context"
-	"crypto/md5"
-	"encoding/base64"
-	"fmt"
+	"crypto/sha256"
+	"encoding/hex"
 	"io"
 	"math/rand"
 	"os"
@@ -30,6 +29,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/errorx"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
@@ -50,7 +50,7 @@ func Materialize(ctx context.Context, endpoint string, rt string, dest string) (
 
 	m, err := client.GetManifest(ctx, &pb.GetManifestRequest{RetrievalToken: rt})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get manifest: %v", err)
+		return nil, errors.Wrap(err, "failed to get manifest")
 	}
 	md := m.GetManifest().GetArtifact()
 	return md, MultiRetrieve(ctx, client, 10, md, rt, dest)
@@ -92,7 +92,7 @@ func MultiRetrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient
 					}
 					failures = append(failures, err.Error())
 					if len(failures) > attempts {
-						permErr.TrySetError(fmt.Errorf("failed to retrieve %v in %v attempts: %v", a.Name, attempts, strings.Join(failures, "; ")))
+						permErr.TrySetError(errors.Errorf("failed to retrieve %v in %v attempts: %v", a.Name, attempts, strings.Join(failures, "; ")))
 						break // give up
 					}
 					time.Sleep(time.Duration(rand.Intn(5)+1) * time.Second)
@@ -114,13 +114,13 @@ func Retrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, a *
 
 	_, err := os.Stat(filename)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to stat %v: %v", filename, err)
+		return errors.Wrapf(err, "failed to stat %v", filename)
 	}
 	if err == nil {
 		// File already exists. Validate or delete.
 
-		hash, err := computeMD5(filename)
-		if err == nil && a.Md5 == hash {
+		hash, err := computeSHA256(filename)
+		if err == nil && a.Sha256 == hash {
 			// NOTE(herohde) 10/5/2017: We ignore permissions here, because
 			// they may differ from the requested permissions due to umask
 			// settings on unix systems (which we in turn want to respect).
@@ -130,7 +130,7 @@ func Retrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, a *
 		}
 
 		if err2 := os.Remove(filename); err2 != nil {
-			return fmt.Errorf("failed to both validate %v and delete: %v (remove: %v)", filename, err, err2)
+			return errors.Errorf("failed to both validate %v and delete: %v (remove: %v)", filename, err, err2)
 		} // else: successfully deleted bad file.
 	} // else: file does not exist.
 
@@ -141,7 +141,7 @@ func Retrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, a *
 }
 
 // retrieve retrieves the given artifact and stores it as the given filename.
-// It validates that the given MD5 matches the content and fails otherwise.
+// It validates that the given SHA256 matches the content and fails otherwise.
 // It expects the file to not exist, but does not clean up on failure and
 // may leave a corrupt file.
 func retrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, a *pb.ArtifactMetadata, rt string, filename string) error {
@@ -156,27 +156,28 @@ func retrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, a *
 	}
 	w := bufio.NewWriter(fd)
 
-	hash, err := retrieveChunks(stream, w)
+	sha256Hash, err := retrieveChunks(stream, w)
 	if err != nil {
 		fd.Close() // drop any buffered content
-		return fmt.Errorf("failed to retrieve chunk for %v: %v", filename, err)
+		return errors.Wrapf(err, "failed to retrieve chunk for %v", filename)
 	}
 	if err := w.Flush(); err != nil {
 		fd.Close()
-		return fmt.Errorf("failed to flush chunks for %v: %v", filename, err)
+		return errors.Wrapf(err, "failed to flush chunks for %v", filename)
 	}
 	if err := fd.Close(); err != nil {
 		return err
 	}
 
-	if hash != a.Md5 {
-		return fmt.Errorf("bad MD5 for %v: %v, want %v", filename, hash, a.Md5)
+	// Artifact Sha256 hash is an optional field in metadata so we should only validate when its present.
+	if a.Sha256 != "" && sha256Hash != a.Sha256 {
+		return errors.Errorf("bad SHA256 for %v: %v, want %v", filename, sha256Hash, a.Sha256)
 	}
 	return nil
 }
 
 func retrieveChunks(stream pb.ArtifactRetrievalService_GetArtifactClient, w io.Writer) (string, error) {
-	md5W := md5.New()
+	sha256W := sha256.New()
 	for {
 		chunk, err := stream.Recv()
 		if err == io.EOF {
@@ -186,29 +187,29 @@ func retrieveChunks(stream pb.ArtifactRetrievalService_GetArtifactClient, w io.W
 			return "", err
 		}
 
-		if _, err := md5W.Write(chunk.Data); err != nil {
+		if _, err := sha256W.Write(chunk.Data); err != nil {
 			panic(err) // cannot fail
 		}
 		if _, err := w.Write(chunk.Data); err != nil {
-			return "", fmt.Errorf("chunk write failed: %v", err)
+			return "", errors.Wrapf(err, "chunk write failed")
 		}
 	}
-	return base64.StdEncoding.EncodeToString(md5W.Sum(nil)), nil
+	return hex.EncodeToString(sha256W.Sum(nil)), nil
 }
 
-func computeMD5(filename string) (string, error) {
+func computeSHA256(filename string) (string, error) {
 	fd, err := os.Open(filename)
 	if err != nil {
 		return "", err
 	}
 	defer fd.Close()
 
-	md5W := md5.New()
+	sha256W := sha256.New()
 	data := make([]byte, 1<<20)
 	for {
 		n, err := fd.Read(data)
 		if n > 0 {
-			if _, err := md5W.Write(data[:n]); err != nil {
+			if _, err := sha256W.Write(data[:n]); err != nil {
 				panic(err) // cannot fail
 			}
 		}
@@ -219,7 +220,7 @@ func computeMD5(filename string) (string, error) {
 			return "", err
 		}
 	}
-	return base64.StdEncoding.EncodeToString(md5W.Sum(nil)), nil
+	return hex.EncodeToString(sha256W.Sum(nil)), nil
 }
 
 func slice2queue(list []*pb.ArtifactMetadata) chan *pb.ArtifactMetadata {

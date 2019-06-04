@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.io;
 
-import com.google.common.base.Function;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import java.io.Serializable;
 import org.apache.avro.Schema;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
 
 /** Helpers for working with Avro. */
 class AvroUtils {

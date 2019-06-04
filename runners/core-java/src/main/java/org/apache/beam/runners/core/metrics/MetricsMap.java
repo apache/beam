@@ -15,18 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /**
  * A map from {@code K} to {@code T} that supports getting or creating values associated with a key
@@ -76,5 +76,20 @@ public class MetricsMap<K, T> implements Serializable {
   /** Return an iterable over the values in the current {@link MetricsMap}. */
   public Iterable<T> values() {
     return Iterables.unmodifiableIterable(metrics.values());
+  }
+
+  @Override
+  public boolean equals(Object object) {
+    if (object instanceof MetricsMap) {
+      MetricsMap<?, ?> metricsMap = (MetricsMap<?, ?>) object;
+      return Objects.equals(metrics, metricsMap.metrics);
+    }
+
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return metrics.hashCode();
   }
 }

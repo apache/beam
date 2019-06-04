@@ -48,14 +48,14 @@ def unpack_Any(any_msg, msg_class):
   return msg
 
 
-def parse_Bytes(bytes, msg_class):
+def parse_Bytes(serialized_bytes, msg_class):
   """Parses the String of bytes into msg_class.
 
   Returns the input bytes if msg_class is None."""
-  if msg_class is None:
-    return bytes
+  if msg_class is None or msg_class is bytes:
+    return serialized_bytes
   msg = msg_class()
-  msg.ParseFromString(bytes)
+  msg.ParseFromString(serialized_bytes)
   return msg
 
 

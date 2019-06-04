@@ -15,33 +15,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.extensions.sql.TestUtils;
-import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.hamcrest.core.StringContains;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 /** Bounded + Bounded Test for {@code BeamJoinRel}. */
 public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
-  public static final MockedBoundedTable ORDER_DETAILS1 =
-      MockedBoundedTable.of(
+  public static final TestBoundedTable ORDER_DETAILS1 =
+      TestBoundedTable.of(
               Schema.FieldType.INT32, "order_id",
               Schema.FieldType.INT32, "site_id",
               Schema.FieldType.INT32, "price")
           .addRows(1, 2, 3, 2, 3, 3, 3, 4, 5);
 
-  public static final MockedBoundedTable ORDER_DETAILS2 =
-      MockedBoundedTable.of(
+  public static final TestBoundedTable ORDER_DETAILS2 =
+      TestBoundedTable.of(
               Schema.FieldType.INT32, "order_id",
               Schema.FieldType.INT32, "site_id",
               Schema.FieldType.INT32, "price")
@@ -66,12 +68,14 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
     PAssert.that(rows)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    Schema.FieldType.INT32, "order_id",
-                    Schema.FieldType.INT32, "site_id",
-                    Schema.FieldType.INT32, "price",
-                    Schema.FieldType.INT32, "order_id0",
-                    Schema.FieldType.INT32, "site_id0",
-                    Schema.FieldType.INT32, "price0")
+                    Schema.builder()
+                        .addField("order_id", Schema.FieldType.INT32)
+                        .addField("site_id", Schema.FieldType.INT32)
+                        .addField("price", Schema.FieldType.INT32)
+                        .addField("order_id0", Schema.FieldType.INT32)
+                        .addField("site_id0", Schema.FieldType.INT32)
+                        .addField("price0", Schema.FieldType.INT32)
+                        .build())
                 .addRows(2, 3, 3, 1, 2, 3)
                 .getRows());
     pipeline.run();
@@ -91,13 +95,69 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
     PAssert.that(rows)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    Schema.FieldType.INT32, "order_id",
-                    Schema.FieldType.INT32, "site_id",
-                    Schema.FieldType.INT32, "price",
-                    Schema.FieldType.INT32, "order_id0",
-                    Schema.FieldType.INT32, "site_id0",
-                    Schema.FieldType.INT32, "price0")
+                    Schema.builder()
+                        .addField("order_id", Schema.FieldType.INT32)
+                        .addField("site_id", Schema.FieldType.INT32)
+                        .addField("price", Schema.FieldType.INT32)
+                        .addNullableField("order_id0", Schema.FieldType.INT32)
+                        .addNullableField("site_id0", Schema.FieldType.INT32)
+                        .addNullableField("price0", Schema.FieldType.INT32)
+                        .build())
                 .addRows(1, 2, 3, null, null, null, 2, 3, 3, 1, 2, 3, 3, 4, 5, null, null, null)
+                .getRows());
+    pipeline.run();
+  }
+
+  @Test
+  public void testLeftOuterJoinWithEmptyTuplesOnRightSide() throws Exception {
+    String sql =
+        "SELECT *  "
+            + "FROM ORDER_DETAILS1 o1"
+            + " LEFT OUTER JOIN (SELECT * FROM ORDER_DETAILS2 WHERE FALSE) o2"
+            + " on "
+            + " o1.order_id=o2.site_id AND o2.price=o1.site_id";
+
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
+    pipeline.enableAbandonedNodeEnforcement(false);
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    Schema.builder()
+                        .addField("order_id", Schema.FieldType.INT32)
+                        .addField("site_id", Schema.FieldType.INT32)
+                        .addField("price", Schema.FieldType.INT32)
+                        .addNullableField("order_id0", Schema.FieldType.INT32)
+                        .addNullableField("site_id0", Schema.FieldType.INT32)
+                        .addNullableField("price0", Schema.FieldType.INT32)
+                        .build())
+                .addRows(
+                    1, 2, 3, null, null, null, 2, 3, 3, null, null, null, 3, 4, 5, null, null, null)
+                .getRows());
+    pipeline.run();
+  }
+
+  @Test
+  public void testInnerJoinWithEmptyTuplesOnRightSide() throws Exception {
+    String sql =
+        "SELECT *  "
+            + "FROM ORDER_DETAILS1 o1"
+            + " INNER JOIN (SELECT * FROM ORDER_DETAILS2 WHERE FALSE) o2"
+            + " on "
+            + " o1.order_id=o2.site_id AND o2.price=o1.site_id";
+
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
+    pipeline.enableAbandonedNodeEnforcement(false);
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    Schema.builder()
+                        .addField("order_id", Schema.FieldType.INT32)
+                        .addField("site_id", Schema.FieldType.INT32)
+                        .addField("price", Schema.FieldType.INT32)
+                        .addNullableField("order_id0", Schema.FieldType.INT32)
+                        .addNullableField("site_id0", Schema.FieldType.INT32)
+                        .addNullableField("price0", Schema.FieldType.INT32)
+                        .build())
                 .getRows());
     pipeline.run();
   }
@@ -115,12 +175,14 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
     PAssert.that(rows)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    Schema.FieldType.INT32, "order_id",
-                    Schema.FieldType.INT32, "site_id",
-                    Schema.FieldType.INT32, "price",
-                    Schema.FieldType.INT32, "order_id0",
-                    Schema.FieldType.INT32, "site_id0",
-                    Schema.FieldType.INT32, "price0")
+                    Schema.builder()
+                        .addNullableField("order_id", Schema.FieldType.INT32)
+                        .addNullableField("site_id", Schema.FieldType.INT32)
+                        .addNullableField("price", Schema.FieldType.INT32)
+                        .addField("order_id0", Schema.FieldType.INT32)
+                        .addField("site_id0", Schema.FieldType.INT32)
+                        .addField("price0", Schema.FieldType.INT32)
+                        .build())
                 .addRows(2, 3, 3, 1, 2, 3, null, null, null, 2, 3, 3, null, null, null, 3, 4, 5)
                 .getRows());
     pipeline.run();
@@ -139,12 +201,14 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
     PAssert.that(rows)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    Schema.FieldType.INT32, "order_id",
-                    Schema.FieldType.INT32, "site_id",
-                    Schema.FieldType.INT32, "price",
-                    Schema.FieldType.INT32, "order_id0",
-                    Schema.FieldType.INT32, "site_id0",
-                    Schema.FieldType.INT32, "price0")
+                    Schema.builder()
+                        .addNullableField("order_id", Schema.FieldType.INT32)
+                        .addNullableField("site_id", Schema.FieldType.INT32)
+                        .addNullableField("price", Schema.FieldType.INT32)
+                        .addNullableField("order_id0", Schema.FieldType.INT32)
+                        .addNullableField("site_id0", Schema.FieldType.INT32)
+                        .addNullableField("price0", Schema.FieldType.INT32)
+                        .build())
                 .addRows(
                     2, 3, 3, 1, 2, 3, 1, 2, 3, null, null, null, 3, 4, 5, null, null, null, null,
                     null, null, 2, 3, 3, null, null, null, 3, 4, 5)
@@ -162,6 +226,68 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
             + " o1.order_id>o2.site_id";
 
     pipeline.enableAbandonedNodeEnforcement(false);
+    compilePipeline(sql, pipeline);
+    pipeline.run();
+  }
+
+  @Test
+  public void testException_join_condition1() throws Exception {
+    String sql =
+        "SELECT *  "
+            + "FROM ORDER_DETAILS1 o1"
+            + " JOIN ORDER_DETAILS2 o2"
+            + " on "
+            + " o1.order_id = o2.site_id OR o1.price = o2.site_id";
+
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage(StringContains.containsString("Operator OR"));
+    compilePipeline(sql, pipeline);
+    pipeline.run();
+  }
+
+  @Test
+  public void testException_join_condition2() throws Exception {
+    String sql =
+        "SELECT *  "
+            + "FROM ORDER_DETAILS1 o1"
+            + " JOIN ORDER_DETAILS2 o2"
+            + " on "
+            + " o1.order_id = o2.site_id AND o1.price > o2.site_id";
+
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage(StringContains.containsString("Non equi-join"));
+    compilePipeline(sql, pipeline);
+    pipeline.run();
+  }
+
+  @Test
+  public void testException_join_condition3() throws Exception {
+    String sql =
+        "SELECT *  "
+            + "FROM ORDER_DETAILS1 o1"
+            + " JOIN ORDER_DETAILS2 o2"
+            + " on "
+            + " o1.order_id + o2.site_id = 2";
+
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage(StringContains.containsString("column reference"));
+    thrown.expectMessage(StringContains.containsString("struct field access"));
+    compilePipeline(sql, pipeline);
+    pipeline.run();
+  }
+
+  @Test
+  public void testException_join_condition4() throws Exception {
+    String sql =
+        "SELECT *  "
+            + "FROM ORDER_DETAILS1 o1"
+            + " JOIN ORDER_DETAILS2 o2"
+            + " on "
+            + " o1.order_id + o2.site_id = 2 AND o1.price > o2.site_id";
+
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage(StringContains.containsString("column reference"));
+    thrown.expectMessage(StringContains.containsString("struct field access"));
     compilePipeline(sql, pipeline);
     pipeline.run();
   }

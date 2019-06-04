@@ -19,6 +19,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import sys
 import unittest
 from builtins import map
 from builtins import range
@@ -28,45 +29,51 @@ from mock import MagicMock
 from mock import call
 from mock import patch
 
-from apache_beam.io.gcp.datastore.v1 import fake_datastore
-from apache_beam.io.gcp.datastore.v1 import helper
-from apache_beam.io.gcp.datastore.v1 import query_splitter
-from apache_beam.io.gcp.datastore.v1.datastoreio import ReadFromDatastore
-from apache_beam.io.gcp.datastore.v1.datastoreio import WriteToDatastore
-from apache_beam.io.gcp.datastore.v1.datastoreio import _Mutate
-
 
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from google.cloud.proto.datastore.v1 import datastore_pb2
+  from apache_beam.io.gcp.datastore.v1 import fake_datastore
+  from apache_beam.io.gcp.datastore.v1 import helper
   from google.cloud.proto.datastore.v1 import query_pb2
+  from apache_beam.io.gcp.datastore.v1 import query_splitter
+  from apache_beam.io.gcp.datastore.v1 import util
+  from apache_beam.io.gcp.datastore.v1.datastoreio import ReadFromDatastore
+  from apache_beam.io.gcp.datastore.v1.datastoreio import WriteToDatastore
+  from apache_beam.io.gcp.datastore.v1.datastoreio import _Mutate
   from google.protobuf import timestamp_pb2
   from googledatastore import helper as datastore_helper
-except ImportError:
+except (ImportError, TypeError):
   datastore_pb2 = None
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
-@unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
 class DatastoreioTest(unittest.TestCase):
   _PROJECT = 'project'
   _KIND = 'kind'
   _NAMESPACE = 'namespace'
 
+  @unittest.skipIf(sys.version_info[0] == 3,
+                   'v1/datastoreio does not support Python 3 TODO: BEAM-4543')
+  @unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
   def setUp(self):
     self._mock_datastore = MagicMock()
     self._query = query_pb2.Query()
     self._query.kind.add().name = self._KIND
+    self._WRITE_BATCH_INITIAL_SIZE = util.WRITE_BATCH_INITIAL_SIZE
+
+  def get_timestamp(self):
+    return timestamp_pb2.Timestamp(seconds=1234)
 
   def test_get_estimated_size_bytes_without_namespace(self):
     entity_bytes = 100
-    timestamp = timestamp_pb2.Timestamp(seconds=1234)
+    timestamp = self.get_timestamp()
     self.check_estimated_size_bytes(entity_bytes, timestamp)
 
   def test_get_estimated_size_bytes_with_namespace(self):
     entity_bytes = 100
-    timestamp = timestamp_pb2.Timestamp(seconds=1234)
+    timestamp = self.get_timestamp()
     self.check_estimated_size_bytes(entity_bytes, timestamp, self._NAMESPACE)
 
   def test_SplitQueryFn_with_num_splits(self):
@@ -161,22 +168,27 @@ class DatastoreioTest(unittest.TestCase):
                            len(self._mock_datastore.run_query.call_args_list))
           self.verify_unique_keys(returned_split_queries)
 
-  def test_DatastoreWriteFn_with_emtpy_batch(self):
+  def test_DatastoreWriteFn_with_empty_batch(self):
     self.check_DatastoreWriteFn(0)
 
   def test_DatastoreWriteFn_with_one_batch(self):
-    num_entities_to_write = _Mutate._WRITE_BATCH_INITIAL_SIZE * 1 - 50
+    num_entities_to_write = self._WRITE_BATCH_INITIAL_SIZE * 1 - 50
     self.check_DatastoreWriteFn(num_entities_to_write)
 
   def test_DatastoreWriteFn_with_multiple_batches(self):
-    num_entities_to_write = _Mutate._WRITE_BATCH_INITIAL_SIZE * 3 + 50
+    num_entities_to_write = self._WRITE_BATCH_INITIAL_SIZE * 3 + 50
     self.check_DatastoreWriteFn(num_entities_to_write)
 
   def test_DatastoreWriteFn_with_batch_size_exact_multiple(self):
-    num_entities_to_write = _Mutate._WRITE_BATCH_INITIAL_SIZE * 2
+    num_entities_to_write = self._WRITE_BATCH_INITIAL_SIZE * 2
     self.check_DatastoreWriteFn(num_entities_to_write)
 
-  def check_DatastoreWriteFn(self, num_entities):
+  def test_DatastoreWriteFn_with_dynamic_batch_sizes(self):
+    num_entities_to_write = self._WRITE_BATCH_INITIAL_SIZE * 3 + 50
+    self.check_DatastoreWriteFn(num_entities_to_write,
+                                use_fixed_batch_size=False)
+
+  def check_DatastoreWriteFn(self, num_entities, use_fixed_batch_size=True):
     """A helper function to test DatastoreWriteFn."""
 
     with patch.object(helper, 'get_datastore',
@@ -191,8 +203,11 @@ class DatastoreioTest(unittest.TestCase):
       self._mock_datastore.commit.side_effect = (
           fake_datastore.create_commit(actual_mutations))
 
+      fixed_batch_size = None
+      if use_fixed_batch_size:
+        fixed_batch_size = self._WRITE_BATCH_INITIAL_SIZE
       datastore_write_fn = _Mutate.DatastoreWriteFn(
-          self._PROJECT, fixed_batch_size=_Mutate._WRITE_BATCH_INITIAL_SIZE)
+          self._PROJECT, fixed_batch_size=fixed_batch_size)
 
       datastore_write_fn.start_bundle()
       for mutation in expected_mutations:
@@ -200,9 +215,12 @@ class DatastoreioTest(unittest.TestCase):
       datastore_write_fn.finish_bundle()
 
       self.assertEqual(actual_mutations, expected_mutations)
-      self.assertEqual(
-          (num_entities - 1) // _Mutate._WRITE_BATCH_INITIAL_SIZE + 1,
-          self._mock_datastore.commit.call_count)
+      if use_fixed_batch_size:
+        self.assertEqual(
+            (num_entities - 1) // self._WRITE_BATCH_INITIAL_SIZE + 1,
+            self._mock_datastore.commit.call_count)
+      else:
+        self._mock_datastore.commit.assert_called()
 
   def test_DatastoreWriteLargeEntities(self):
     """100*100kB entities gets split over two Commit RPCs."""
@@ -211,7 +229,7 @@ class DatastoreioTest(unittest.TestCase):
       entities = [e.entity for e in fake_datastore.create_entities(100)]
 
       datastore_write_fn = _Mutate.DatastoreWriteFn(
-          self._PROJECT, fixed_batch_size=_Mutate._WRITE_BATCH_INITIAL_SIZE)
+          self._PROJECT, fixed_batch_size=self._WRITE_BATCH_INITIAL_SIZE)
       datastore_write_fn.start_bundle()
       for entity in entities:
         datastore_helper.add_properties(
@@ -270,42 +288,6 @@ class DatastoreioTest(unittest.TestCase):
       q.CopyFrom(query)
       split_queries.append(q)
     return split_queries
-
-
-@unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
-class DynamicWriteBatcherTest(unittest.TestCase):
-
-  def setUp(self):
-    self._batcher = _Mutate._DynamicBatchSizer()
-
-  # If possible, keep these test cases aligned with the Java test cases in
-  # DatastoreV1Test.java
-  def test_no_data(self):
-    self.assertEquals(_Mutate._WRITE_BATCH_INITIAL_SIZE,
-                      self._batcher.get_batch_size(0))
-
-  def test_fast_queries(self):
-    self._batcher.report_latency(0, 1000, 200)
-    self._batcher.report_latency(0, 1000, 200)
-    self.assertEquals(_Mutate._WRITE_BATCH_MAX_SIZE,
-                      self._batcher.get_batch_size(0))
-
-  def test_slow_queries(self):
-    self._batcher.report_latency(0, 10000, 200)
-    self._batcher.report_latency(0, 10000, 200)
-    self.assertEquals(100, self._batcher.get_batch_size(0))
-
-  def test_size_not_below_minimum(self):
-    self._batcher.report_latency(0, 30000, 50)
-    self._batcher.report_latency(0, 30000, 50)
-    self.assertEquals(_Mutate._WRITE_BATCH_MIN_SIZE,
-                      self._batcher.get_batch_size(0))
-
-  def test_sliding_window(self):
-    self._batcher.report_latency(0, 30000, 50)
-    self._batcher.report_latency(50000, 5000, 200)
-    self._batcher.report_latency(100000, 5000, 200)
-    self.assertEquals(200, self._batcher.get_batch_size(150000))
 
 
 if __name__ == '__main__':

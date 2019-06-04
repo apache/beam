@@ -21,8 +21,10 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
+	v1 "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
@@ -32,11 +34,14 @@ import (
 // TODO(lostluck): 2018/05/28 Extract these from their enum descriptors in the pipeline_v1 proto
 const (
 	URNImpulse       = "beam:transform:impulse:v1"
-	URNParDo         = "urn:beam:transform:pardo:v1"
+	URNParDo         = "beam:transform:pardo:v1"
 	URNFlatten       = "beam:transform:flatten:v1"
 	URNGBK           = "beam:transform:group_by_key:v1"
 	URNCombinePerKey = "beam:transform:combine_per_key:v1"
 	URNWindow        = "beam:transform:window:v1"
+
+	// URNIterableSideInput = "beam:side_input:iterable:v1"
+	URNMultimapSideInput = "beam:side_input:multimap:v1"
 
 	URNGlobalWindowsWindowFn  = "beam:windowfn:global_windows:v0.1"
 	URNFixedWindowsWindowFn   = "beam:windowfn:fixed_windows:v0.1"
@@ -48,38 +53,36 @@ const (
 	// URNJavaDoFn is the legacy constant for marking a DoFn.
 	// TODO: remove URNJavaDoFN when the Dataflow runner
 	// uses the model pipeline and no longer falls back to Java.
-	URNJavaDoFn = "urn:beam:dofn:javasdk:0.1"
+	URNJavaDoFn = "beam:dofn:javasdk:0.1"
 	URNDoFn     = "beam:go:transform:dofn:v1"
+
+	URNIterableSideInputKey = "beam:go:transform:iterablesideinputkey:v1"
 )
 
 // TODO(herohde) 11/6/2017: move some of the configuration into the graph during construction.
 
 // Options for marshalling a graph into a model pipeline.
 type Options struct {
-	// ContainerImageURL is the default environment container image.
-	ContainerImageURL string
+	// Environment used to run the user code.
+	Environment pb.Environment
 }
 
 // Marshal converts a graph to a model pipeline.
 func Marshal(edges []*graph.MultiEdge, opt *Options) (*pb.Pipeline, error) {
 	tree := NewScopeTree(edges)
-	EnsureUniqueNames(tree)
 
 	m := newMarshaller(opt)
-
-	var roots []string
 	for _, edge := range tree.Edges {
-		roots = append(roots, m.addMultiEdge("", edge))
+		m.addMultiEdge(edge)
 	}
 	for _, t := range tree.Children {
-		roots = append(roots, m.addScopeTree("", t))
+		m.addScopeTree(t)
 	}
 
 	p := &pb.Pipeline{
-		Components:       m.build(),
-		RootTransformIds: roots,
+		Components: m.build(),
 	}
-	return p, nil
+	return pipelinex.Normalize(p)
 }
 
 type marshaller struct {
@@ -117,38 +120,23 @@ func (m *marshaller) build() *pb.Components {
 	}
 }
 
-func (m *marshaller) addScopeTree(trunk string, s *ScopeTree) string {
+func (m *marshaller) addScopeTree(s *ScopeTree) string {
 	id := scopeID(s.Scope.Scope)
 	if _, exists := m.transforms[id]; exists {
 		return id
 	}
 
-	uniqueName := fmt.Sprintf("%v/%v", trunk, s.Scope.Name)
-
 	var subtransforms []string
 	for _, edge := range s.Edges {
-		subtransforms = append(subtransforms, m.addMultiEdge(uniqueName, edge))
+		subtransforms = append(subtransforms, m.addMultiEdge(edge)...)
 	}
 	for _, tree := range s.Children {
-		subtransforms = append(subtransforms, m.addScopeTree(uniqueName, tree))
-	}
-
-	// Compute the input/output for this scope:
-	//    inputs  := U(subinputs)\U(suboutputs)
-	//    outputs := U(suboutputs)\U(subinputs)
-	// where U is set union and \ is set subtraction.
-
-	in := make(map[string]bool)
-	out := make(map[string]bool)
-	for _, sid := range subtransforms {
-		inout(m.transforms[sid], in, out)
+		subtransforms = append(subtransforms, m.addScopeTree(tree))
 	}
 
 	transform := &pb.PTransform{
-		UniqueName:    uniqueName,
+		UniqueName:    s.Scope.Name,
 		Subtransforms: subtransforms,
-		Inputs:        diff(in, out),
-		Outputs:       diff(out, in),
 	}
 
 	m.updateIfCombineComposite(s, transform)
@@ -171,9 +159,6 @@ func (m *marshaller) updateIfCombineComposite(s *ScopeTree, transform *pb.PTrans
 	}
 
 	edge := s.Edges[1].Edge
-	if !tryAddingCoder(edge.AccumCoder) {
-		return
-	}
 	acID := m.coders.Add(edge.AccumCoder)
 	payload := &pb.CombinePayload{
 		CombineFn: &pb.SdkFunctionSpec{
@@ -188,50 +173,14 @@ func (m *marshaller) updateIfCombineComposite(s *ScopeTree, transform *pb.PTrans
 	transform.Spec = &pb.FunctionSpec{Urn: URNCombinePerKey, Payload: protox.MustEncode(payload)}
 }
 
-// If the accumulator type is unencodable (eg. contains raw interface{})
-// Try encoding the AccumCoder. If the marshaller doesn't panic, it's
-// encodable.
-func tryAddingCoder(c *coder.Coder) (ok bool) {
-	defer func() {
-		if p := recover(); p != nil {
-			ok = false
-			fmt.Printf("Unable to encode combiner for lifting: %v", p)
-		}
-	}()
-	// Try in a new Marshaller to not corrupt state.
-	NewCoderMarshaller().Add(c)
-	return true
-}
-
-// diff computes A\B and returns its keys as an identity map.
-func diff(a, b map[string]bool) map[string]string {
-	ret := make(map[string]string)
-	for key := range a {
-		if !b[key] {
-			ret[key] = key
-		}
-	}
-	return ret
-}
-
-// inout adds the input and output pcollection ids to the accumulators.
-func inout(transform *pb.PTransform, in, out map[string]bool) {
-	for _, col := range transform.GetInputs() {
-		in[col] = true
-	}
-	for _, col := range transform.GetOutputs() {
-		out[col] = true
-	}
-}
-
-func (m *marshaller) addMultiEdge(trunk string, edge NamedEdge) string {
-	id := StableMultiEdgeID(edge.Edge)
+func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
+	id := edgeID(edge.Edge)
 	if _, exists := m.transforms[id]; exists {
-		return id
+		return []string{id}
 	}
 
 	if edge.Edge.Op == graph.CoGBK && len(edge.Edge.Input) > 1 {
-		return m.expandCoGBK(edge)
+		return []string{m.expandCoGBK(edge)}
 	}
 
 	inputs := make(map[string]string)
@@ -245,46 +194,167 @@ func (m *marshaller) addMultiEdge(trunk string, edge NamedEdge) string {
 		outputs[fmt.Sprintf("i%v", i)] = nodeID(out.To)
 	}
 
+	// allPIds tracks additional PTransformIDs generated for the pipeline
+	var allPIds []string
+	var spec *pb.FunctionSpec
+	switch edge.Edge.Op {
+	case graph.Impulse:
+		// TODO(herohde) 7/18/2018: Encode data?
+		spec = &pb.FunctionSpec{Urn: URNImpulse}
+
+	case graph.ParDo:
+		si := make(map[string]*pb.SideInput)
+		for i, in := range edge.Edge.Input {
+			switch in.Kind {
+			case graph.Main:
+				// ignore: not a side input
+
+			case graph.Singleton, graph.Slice, graph.Iter, graph.ReIter:
+				// The only supported form of side input is MultiMap, but we
+				// want just iteration. So we must manually add a fixed key,
+				// "", even if the input is already KV.
+
+				out := fmt.Sprintf("%v_keyed%v_%v", nodeID(in.From), edgeID(edge.Edge), i)
+				m.makeNode(out, m.coders.Add(makeBytesKeyedCoder(in.From.Coder)), in.From)
+
+				payload := &pb.ParDoPayload{
+					DoFn: &pb.SdkFunctionSpec{
+						Spec: &pb.FunctionSpec{
+							Urn: URNIterableSideInputKey,
+							Payload: []byte(protox.MustEncodeBase64(&v1.TransformPayload{
+								Urn: URNIterableSideInputKey,
+							})),
+						},
+						EnvironmentId: m.addDefaultEnv(),
+					},
+				}
+
+				keyedID := fmt.Sprintf("%v_keyed%v", edgeID(edge.Edge), i)
+				keyed := &pb.PTransform{
+					UniqueName: keyedID,
+					Spec: &pb.FunctionSpec{
+						Urn:     URNParDo,
+						Payload: protox.MustEncode(payload),
+					},
+					Inputs:  map[string]string{"i0": nodeID(in.From)},
+					Outputs: map[string]string{"i0": out},
+				}
+				m.transforms[keyedID] = keyed
+				allPIds = append(allPIds, keyedID)
+
+				// Fixup input map
+				inputs[fmt.Sprintf("i%v", i)] = out
+
+				si[fmt.Sprintf("i%v", i)] = &pb.SideInput{
+					AccessPattern: &pb.FunctionSpec{
+						Urn: URNMultimapSideInput,
+					},
+					ViewFn: &pb.SdkFunctionSpec{
+						Spec: &pb.FunctionSpec{
+							Urn: "foo",
+						},
+						EnvironmentId: m.addDefaultEnv(),
+					},
+					WindowMappingFn: &pb.SdkFunctionSpec{
+						Spec: &pb.FunctionSpec{
+							Urn: "bar",
+						},
+						EnvironmentId: m.addDefaultEnv(),
+					},
+				}
+
+			case graph.Map, graph.MultiMap:
+				panic("NYI")
+
+			default:
+				panic(fmt.Sprintf("unexpected input kind: %v", edge))
+			}
+		}
+
+		payload := &pb.ParDoPayload{
+			DoFn: &pb.SdkFunctionSpec{
+				Spec: &pb.FunctionSpec{
+					Urn:     URNJavaDoFn,
+					Payload: []byte(mustEncodeMultiEdgeBase64(edge.Edge)),
+				},
+				EnvironmentId: m.addDefaultEnv(),
+			},
+			SideInputs: si,
+		}
+		spec = &pb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
+
+	case graph.Combine:
+		payload := &pb.ParDoPayload{
+			DoFn: &pb.SdkFunctionSpec{
+				Spec: &pb.FunctionSpec{
+					Urn:     URNJavaDoFn,
+					Payload: []byte(mustEncodeMultiEdgeBase64(edge.Edge)),
+				},
+				EnvironmentId: m.addDefaultEnv(),
+			},
+		}
+		spec = &pb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
+
+	case graph.Flatten:
+		spec = &pb.FunctionSpec{Urn: URNFlatten}
+
+	case graph.CoGBK:
+		spec = &pb.FunctionSpec{Urn: URNGBK}
+
+	case graph.WindowInto:
+		payload := &pb.WindowIntoPayload{
+			WindowFn: &pb.SdkFunctionSpec{
+				Spec: makeWindowFn(edge.Edge.WindowFn),
+			},
+		}
+		spec = &pb.FunctionSpec{Urn: URNWindow, Payload: protox.MustEncode(payload)}
+
+	case graph.External:
+		spec = &pb.FunctionSpec{Urn: edge.Edge.Payload.URN, Payload: edge.Edge.Payload.Data}
+
+	default:
+		panic(fmt.Sprintf("Unexpected opcode: %v", edge.Edge.Op))
+	}
+
 	transform := &pb.PTransform{
-		UniqueName: fmt.Sprintf("%v/%v", trunk, edge.Name),
-		Spec:       m.makePayload(edge.Edge),
+		UniqueName: edge.Name,
+		Spec:       spec,
 		Inputs:     inputs,
 		Outputs:    outputs,
 	}
-
 	m.transforms[id] = transform
-	return id
+	allPIds = append(allPIds, id)
+	return allPIds
 }
 
 func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 	// TODO(BEAM-490): replace once CoGBK is a primitive. For now, we have to translate
 	// CoGBK with multiple PCollections as described in cogbk.go.
 
-	// TODO(herohde) 1/26/2018: we should make the expanded GBK a composite if we care
-	// about correctly computing input/output in the enclosing Scope.
-
-	id := StableMultiEdgeID(edge.Edge)
+	id := edgeID(edge.Edge)
 	kvCoderID := m.coders.Add(MakeKVUnionCoder(edge.Edge))
 	gbkCoderID := m.coders.Add(MakeGBKUnionCoder(edge.Edge))
+
+	var subtransforms []string
 
 	inputs := make(map[string]string)
 	for i, in := range edge.Edge.Input {
 		m.addNode(in.From)
 
-		out := fmt.Sprintf("%v_inject%v", nodeID(in.From), i)
+		out := fmt.Sprintf("%v_%v_inject%v", nodeID(in.From), id, i)
 		m.makeNode(out, kvCoderID, in.From)
 
 		// Inject(i)
 
-		injectID := StableCoGBKInjectID(id, i)
+		injectID := fmt.Sprintf("%v_inject%v", id, i)
 		payload := &pb.ParDoPayload{
 			DoFn: &pb.SdkFunctionSpec{
 				Spec: &pb.FunctionSpec{
 					Urn: URNInject,
-					Payload: protox.MustEncode(&v1.TransformPayload{
+					Payload: []byte(protox.MustEncodeBase64(&v1.TransformPayload{
 						Urn:    URNInject,
 						Inject: &v1.InjectPayload{N: (int32)(i)},
-					}),
+					})),
 				},
 				EnvironmentId: m.addDefaultEnv(),
 			},
@@ -299,6 +369,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 			Outputs: map[string]string{"i0": out},
 		}
 		m.transforms[injectID] = inject
+		subtransforms = append(subtransforms, injectID)
 
 		inputs[fmt.Sprintf("i%v", i)] = out
 	}
@@ -310,7 +381,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 	out := fmt.Sprintf("%v_flatten", nodeID(outNode))
 	m.makeNode(out, kvCoderID, outNode)
 
-	flattenID := StableCoGBKFlattenID(id)
+	flattenID := fmt.Sprintf("%v_flatten", id)
 	flatten := &pb.PTransform{
 		UniqueName: flattenID,
 		Spec:       &pb.FunctionSpec{Urn: URNFlatten},
@@ -318,75 +389,59 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 		Outputs:    map[string]string{"i0": out},
 	}
 	m.transforms[flattenID] = flatten
+	subtransforms = append(subtransforms, flattenID)
 
 	// CoGBK
 
 	gbkOut := fmt.Sprintf("%v_out", nodeID(outNode))
 	m.makeNode(gbkOut, gbkCoderID, outNode)
 
-	gbkID := StableCoGBKGBKID(id)
+	gbkID := fmt.Sprintf("%v_gbk", id)
 	gbk := &pb.PTransform{
-		UniqueName: edge.Name,
-		Spec:       m.makePayload(edge.Edge),
+		UniqueName: gbkID,
+		Spec:       &pb.FunctionSpec{Urn: URNGBK},
 		Inputs:     map[string]string{"i0": out},
 		Outputs:    map[string]string{"i0": gbkOut},
 	}
 	m.transforms[gbkID] = gbk
+	subtransforms = append(subtransforms, gbkID)
 
 	// Expand
 
 	m.addNode(outNode)
 
-	expand := &pb.PTransform{
-		UniqueName: id,
-		Spec: &pb.FunctionSpec{
-			Urn:     URNExpand,
-			Payload: protox.MustEncode(&v1.TransformPayload{Urn: URNExpand}),
+	expandID := fmt.Sprintf("%v_expand", id)
+	payload := &pb.ParDoPayload{
+		DoFn: &pb.SdkFunctionSpec{
+			Spec: &pb.FunctionSpec{
+				Urn: URNExpand,
+				Payload: []byte(protox.MustEncodeBase64(&v1.TransformPayload{
+					Urn: URNExpand,
+				})),
+			},
+			EnvironmentId: m.addDefaultEnv(),
 		},
-		Inputs:  map[string]string{"i0": out},
+	}
+	expand := &pb.PTransform{
+		UniqueName: expandID,
+		Spec: &pb.FunctionSpec{
+			Urn:     URNParDo,
+			Payload: protox.MustEncode(payload),
+		},
+		Inputs:  map[string]string{"i0": gbkOut},
 		Outputs: map[string]string{"i0": nodeID(outNode)},
 	}
 	m.transforms[id] = expand
-	return id
-}
+	subtransforms = append(subtransforms, id)
 
-func (m *marshaller) makePayload(edge *graph.MultiEdge) *pb.FunctionSpec {
-	switch edge.Op {
-	case graph.Impulse:
-		return &pb.FunctionSpec{Urn: URNImpulse}
+	// Add composite for visualization
 
-	case graph.ParDo, graph.Combine:
-		payload := &pb.ParDoPayload{
-			DoFn: &pb.SdkFunctionSpec{
-				Spec: &pb.FunctionSpec{
-					Urn:     URNJavaDoFn,
-					Payload: []byte(mustEncodeMultiEdgeBase64(edge)),
-				},
-				EnvironmentId: m.addDefaultEnv(),
-			},
-		}
-		return &pb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
-
-	case graph.Flatten:
-		return &pb.FunctionSpec{Urn: URNFlatten}
-
-	case graph.CoGBK:
-		return &pb.FunctionSpec{Urn: URNGBK}
-
-	case graph.WindowInto:
-		payload := &pb.WindowIntoPayload{
-			WindowFn: &pb.SdkFunctionSpec{
-				Spec: makeWindowFn(edge.WindowFn),
-			},
-		}
-		return &pb.FunctionSpec{Urn: URNWindow, Payload: protox.MustEncode(payload)}
-
-	case graph.External:
-		return &pb.FunctionSpec{Urn: edge.Payload.URN, Payload: edge.Payload.Data}
-
-	default:
-		panic(fmt.Sprintf("Unexpected opcode: %v", edge.Op))
+	cogbkID := fmt.Sprintf("%v_cogbk", id)
+	m.transforms[cogbkID] = &pb.PTransform{
+		UniqueName:    edge.Name,
+		Subtransforms: subtransforms,
 	}
+	return cogbkID
 }
 
 func (m *marshaller) addNode(n *graph.Node) string {
@@ -412,21 +467,20 @@ func (m *marshaller) makeNode(id, cid string, n *graph.Node) string {
 func boolToBounded(bounded bool) pb.IsBounded_Enum {
 	if bounded {
 		return pb.IsBounded_BOUNDED
-	} else {
-		return pb.IsBounded_UNBOUNDED
 	}
+	return pb.IsBounded_UNBOUNDED
 }
 
 func (m *marshaller) addDefaultEnv() string {
 	const id = "go"
 	if _, exists := m.environments[id]; !exists {
-		m.environments[id] = &pb.Environment{Url: m.opt.ContainerImageURL}
+		m.environments[id] = &m.opt.Environment
 	}
 	return id
 }
 
 func (m *marshaller) addWindowingStrategy(w *window.WindowingStrategy) string {
-	ws := MarshalWindowingStrategy(m.coders, w)
+	ws := marshalWindowingStrategy(m.coders, w)
 	return m.internWindowingStrategy(ws)
 }
 
@@ -442,12 +496,9 @@ func (m *marshaller) internWindowingStrategy(w *pb.WindowingStrategy) string {
 	return id
 }
 
-// TODO(herohde) 4/14/2018: make below function private or refactor,
-// once Dataflow doesn't need it anymore.
-
-// MarshalWindowingStrategy marshals the given windowing strategy in
+// marshalWindowingStrategy marshals the given windowing strategy in
 // the given coder context.
-func MarshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) *pb.WindowingStrategy {
+func marshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) *pb.WindowingStrategy {
 	ws := &pb.WindowingStrategy{
 		WindowFn: &pb.SdkFunctionSpec{
 			Spec: makeWindowFn(w.Fn),
@@ -521,12 +572,22 @@ func makeWindowCoder(w *window.Fn) *coder.WindowCoder {
 func mustEncodeMultiEdgeBase64(edge *graph.MultiEdge) string {
 	ref, err := EncodeMultiEdge(edge)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to serialize %v: %v", edge, err))
+		panic(errors.Wrapf(err, "Failed to serialize %v", edge))
 	}
 	return protox.MustEncodeBase64(&v1.TransformPayload{
 		Urn:  URNDoFn,
 		Edge: ref,
 	})
+}
+
+// makeBytesKeyedCoder returns KV<[]byte,A,> for any coder,
+// even if the coder is already a KV coder.
+func makeBytesKeyedCoder(c *coder.Coder) *coder.Coder {
+	return coder.NewKV([]*coder.Coder{coder.NewBytes(), c})
+}
+
+func edgeID(edge *graph.MultiEdge) string {
+	return fmt.Sprintf("e%v", edge.ID())
 }
 
 func nodeID(n *graph.Node) string {
@@ -535,25 +596,4 @@ func nodeID(n *graph.Node) string {
 
 func scopeID(s *graph.Scope) string {
 	return fmt.Sprintf("s%v", s.ID())
-}
-
-// TODO(herohde) 4/17/2018: StableXXXID returns deterministic transform ids
-// for reference in the Dataflow runner. A better solution is to translate
-// the proto pipeline to the Dataflow representation (or for Dataflow to
-// support proto pipelines directly).
-
-func StableMultiEdgeID(edge *graph.MultiEdge) string {
-	return fmt.Sprintf("e%v", edge.ID())
-}
-
-func StableCoGBKInjectID(id string, i int) string {
-	return fmt.Sprintf("%v_inject%v", id, i)
-}
-
-func StableCoGBKFlattenID(id string) string {
-	return fmt.Sprintf("%v_flatten", id)
-}
-
-func StableCoGBKGBKID(id string) string {
-	return fmt.Sprintf("%v_gbk", id)
 }

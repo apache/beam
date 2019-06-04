@@ -1,9 +1,10 @@
 _site
+.doctrees
 .sass-cache
 .jekyll-metadata
 vendor/
 .bundle/
-.testcontent/
+content/
 
 # Ignore IntelliJ files.
 .idea/

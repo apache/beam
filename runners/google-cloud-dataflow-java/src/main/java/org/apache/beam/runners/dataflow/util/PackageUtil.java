@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.fasterxml.jackson.core.Base64Variants;
 import com.google.api.client.util.BackOff;
@@ -26,13 +26,6 @@ import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
-import com.google.common.hash.Funnels;
-import com.google.common.hash.Hasher;
-import com.google.common.hash.Hashing;
-import com.google.common.io.ByteSource;
-import com.google.common.io.CountingOutputStream;
-import com.google.common.io.Files;
-import com.google.common.util.concurrent.MoreExecutors;
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -55,15 +48,24 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsCreateOptions;
+import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
-import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.util.ZipFiles;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Funnels;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hasher;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteSource;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CountingOutputStream;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
+import org.joda.time.Seconds;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -316,6 +318,7 @@ class PackageUtil implements Closeable {
         "Uploading {} files from PipelineOptions.filesToStage to staging location to "
             + "prepare for execution.",
         classpathElements.size());
+    Instant start = Instant.now();
 
     if (classpathElements.size() > SANE_CLASSPATH_SIZE) {
       LOG.warn(
@@ -386,10 +389,12 @@ class PackageUtil implements Closeable {
         }
       } while (!finished);
       List<DataflowPackage> stagedPackages = MoreFutures.get(stagingFutures);
+      Instant done = Instant.now();
       LOG.info(
-          "Staging files complete: {} files cached, {} files newly uploaded",
+          "Staging files complete: {} files cached, {} files newly uploaded in {} seconds",
           numCached.get(),
-          numUploaded.get());
+          numUploaded.get(),
+          Seconds.secondsBetween(start, done).getSeconds());
       return stagedPackages;
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();

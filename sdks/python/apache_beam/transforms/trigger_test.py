@@ -17,17 +17,24 @@
 
 """Unit tests for the triggering classes."""
 
+from __future__ import absolute_import
+
 import collections
 import os.path
 import pickle
 import unittest
+from builtins import range
+from builtins import zip
 
 import yaml
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.direct.clock import TestClock
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import trigger
@@ -37,6 +44,7 @@ from apache_beam.transforms.trigger import AfterAll
 from apache_beam.transforms.trigger import AfterAny
 from apache_beam.transforms.trigger import AfterCount
 from apache_beam.transforms.trigger import AfterEach
+from apache_beam.transforms.trigger import AfterProcessingTime
 from apache_beam.transforms.trigger import AfterWatermark
 from apache_beam.transforms.trigger import DefaultTrigger
 from apache_beam.transforms.trigger import GeneralTriggerDriver
@@ -382,7 +390,7 @@ class TriggerTest(unittest.TestCase):
       pickle.dumps(unpicklable)
     for unwindowed in driver.process_elements(None, unpicklable, None):
       self.assertEqual(pickle.loads(pickle.dumps(unwindowed)).value,
-                       range(10))
+                       list(range(10)))
 
 
 class RunnerApiTest(unittest.TestCase):
@@ -404,6 +412,19 @@ class RunnerApiTest(unittest.TestCase):
 
 class TriggerPipelineTest(unittest.TestCase):
 
+  def setUp(self):
+    # Use state on the TestCase class, since other references would be pickled
+    # into a closure and not have the desired side effects.
+    TriggerPipelineTest.all_records = []
+
+  def record_dofn(self):
+    class RecordDoFn(beam.DoFn):
+
+      def process(self, element):
+        TriggerPipelineTest.all_records.append(element)
+
+    return RecordDoFn()
+
   def test_after_count(self):
     with TestPipeline() as p:
       def construct_timestamped(k_t):
@@ -421,12 +442,48 @@ class TriggerPipelineTest(unittest.TestCase):
                 | beam.GroupByKey()
                 | beam.Map(format_result))
       assert_that(result, equal_to(
-          {
-              'A-5': {1, 2, 3, 4, 5},
-              # A-10, A-11 never emitted due to AfterCount(3) never firing.
-              'B-4': {6, 7, 8, 9},
-              'B-3': {10, 15, 16},
-          }.iteritems()))
+          list(
+              {
+                  'A-5': {1, 2, 3, 4, 5},
+                  # A-10, A-11 never emitted due to AfterCount(3) never firing.
+                  'B-4': {6, 7, 8, 9},
+                  'B-3': {10, 15, 16},
+              }.items()
+          )))
+
+  def test_multiple_accumulating_firings(self):
+    # PCollection will contain elements from 1 to 10.
+    elements = [i for i in range(1, 11)]
+
+    ts = TestStream().advance_watermark_to(0)
+    for i in elements:
+      ts.add_elements([('key', str(i))])
+      if i % 5 == 0:
+        ts.advance_watermark_to(i)
+        ts.advance_processing_time(5)
+
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    with TestPipeline(options=options) as p:
+      _ = (p
+           | ts
+           | beam.WindowInto(
+               FixedWindows(10),
+               accumulation_mode=trigger.AccumulationMode.ACCUMULATING,
+               trigger=AfterWatermark(
+                   early=AfterAll(
+                       AfterCount(1), AfterProcessingTime(5))
+               ))
+           | beam.GroupByKey()
+           | beam.FlatMap(lambda x: x[1])
+           | beam.ParDo(self.record_dofn()))
+
+    # The trigger should fire twice. Once after 5 seconds, and once after 10.
+    # The firings should accumulate the output.
+    first_firing = [str(i) for i in elements if i <= 5]
+    second_firing = [str(i) for i in elements]
+    self.assertListEqual(first_firing + second_firing,
+                         TriggerPipelineTest.all_records)
 
 
 class TranscriptTest(unittest.TestCase):
@@ -556,11 +613,11 @@ class TranscriptTest(unittest.TestCase):
 
     for line in spec['transcript']:
 
-      action, params = line.items()[0]
+      action, params = list(line.items())[0]
 
       if action != 'expect':
         # Fail if we have output that was not expected in the transcript.
-        self.assertEquals(
+        self.assertEqual(
             [], output, msg='Unexpected output: %s before %s' % (output, line))
 
       if action == 'input':
@@ -597,7 +654,7 @@ class TranscriptTest(unittest.TestCase):
         self.fail('Unknown action: ' + action)
 
     # Fail if we have output that was not expected in the transcript.
-    self.assertEquals([], output, msg='Unexpected output: %s' % output)
+    self.assertEqual([], output, msg='Unexpected output: %s' % output)
 
 
 TRANSCRIPT_TEST_FILE = os.path.join(

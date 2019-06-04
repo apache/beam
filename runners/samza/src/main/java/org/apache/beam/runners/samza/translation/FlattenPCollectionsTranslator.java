@@ -15,14 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.translation;
+
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.runners.core.construction.graph.PipelineNode;
+import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.samza.runtime.Op;
 import org.apache.beam.runners.samza.runtime.OpAdapter;
 import org.apache.beam.runners.samza.runtime.OpMessage;
@@ -31,6 +34,7 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.samza.operators.MessageStream;
 
 /**
@@ -39,6 +43,11 @@ import org.apache.samza.operators.MessageStream;
 class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PCollections<T>> {
   @Override
   public void translate(
+      Flatten.PCollections<T> transform, TransformHierarchy.Node node, TranslationContext ctx) {
+    doTranslate(transform, node, ctx);
+  }
+
+  private static <T> void doTranslate(
       Flatten.PCollections<T> transform, TransformHierarchy.Node node, TranslationContext ctx) {
     final PCollection<T> output = ctx.getOutput(transform);
 
@@ -58,7 +67,8 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
       inputStreams.add(ctx.getMessageStream(input));
     }
 
-    if (inputStreams.size() == 0) {
+    if (inputStreams.isEmpty()) {
+      // for some of the validateRunner tests only
       final MessageStream<OpMessage<T>> noOpStream =
           ctx.getDummyStream()
               .flatMap(OpAdapter.adapt((Op<String, T, Void>) (inputElement, emitter) -> {}));
@@ -66,22 +76,47 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
       return;
     }
 
-    if (inputStreams.size() == 1) {
-      ctx.registerMessageStream(output, inputStreams.get(0));
-      return;
-    }
+    ctx.registerMessageStream(output, mergeInputStreams(inputStreams));
+  }
 
+  @Override
+  public void translatePortable(
+      PipelineNode.PTransformNode transform,
+      QueryablePipeline pipeline,
+      PortableTranslationContext ctx) {
+    doTranslatePortable(transform, pipeline, ctx);
+  }
+
+  private static <T> void doTranslatePortable(
+      PipelineNode.PTransformNode transform,
+      QueryablePipeline pipeline,
+      PortableTranslationContext ctx) {
+    final List<MessageStream<OpMessage<T>>> inputStreams = ctx.getAllInputMessageStreams(transform);
+    final String outputId = ctx.getOutputId(transform);
+
+    // For portable api there should be at least the impulse as a dummy input
+    // We will know once validateRunner tests are available for portable runners
+    checkState(
+        !inputStreams.isEmpty(), "no input streams defined for Flatten: %s", transform.getId());
+
+    ctx.registerMessageStream(outputId, mergeInputStreams(inputStreams));
+  }
+
+  // Merge multiple input streams into one, as this is what "flatten" is meant to do
+  private static <T> MessageStream<OpMessage<T>> mergeInputStreams(
+      List<MessageStream<OpMessage<T>>> inputStreams) {
+    if (inputStreams.size() == 1) {
+      return Iterables.getOnlyElement(inputStreams);
+    }
     final Set<MessageStream<OpMessage<T>>> streamsToMerge = new HashSet<>();
     inputStreams.forEach(
         stream -> {
-          boolean inserted = streamsToMerge.add(stream);
-          if (!inserted) {
+          if (!streamsToMerge.add(stream)) {
             // Merge same streams. Make a copy of the current stream.
             streamsToMerge.add(stream.map(m -> m));
           }
         });
 
-    final MessageStream<OpMessage<T>> outputStream = MessageStream.mergeAll(streamsToMerge);
-    ctx.registerMessageStream(output, outputStream);
+    return MessageStream.mergeAll(streamsToMerge);
   }
 }

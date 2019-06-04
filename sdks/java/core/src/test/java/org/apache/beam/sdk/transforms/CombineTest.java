@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.testing.CombineFnTester.testCombineFn;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
@@ -30,10 +30,6 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -57,9 +53,11 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesSideInputs;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineTest.SharedTestBase.TestCombineFn.Accumulator;
@@ -82,6 +80,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -630,6 +632,10 @@ public class CombineTest implements Serializable {
         }
         return sum;
       }
+
+      public int add(int a, int b) {
+        return a + b;
+      }
     }
   }
 
@@ -645,7 +651,11 @@ public class CombineTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class BasicTests extends SharedTestBase {
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({
+      ValidatesRunner.class,
+      UsesSideInputs.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     @SuppressWarnings({"rawtypes", "unchecked"})
     public void testSimpleCombine() {
       runTestSimpleCombine(
@@ -655,13 +665,17 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({
+      ValidatesRunner.class,
+      UsesSideInputs.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     public void testSimpleCombineEmpty() {
       runTestSimpleCombine(EMPTY_TABLE, 0, Collections.emptyList());
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testBasicCombine() {
       runTestBasicCombine(
           Arrays.asList(KV.of("a", 1), KV.of("a", 1), KV.of("a", 4), KV.of("b", 1), KV.of("b", 13)),
@@ -672,7 +686,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testBasicCombineEmpty() {
       runTestBasicCombine(EMPTY_TABLE, ImmutableSet.of(), Collections.emptyList());
     }
@@ -692,7 +706,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
     public void testHotKeyCombining() {
       PCollection<KV<String, Integer>> input =
           copy(
@@ -897,6 +911,20 @@ public class CombineTest implements Serializable {
       pipeline.run();
     }
 
+    /** Tests creation of a per-key binary {@link Combine} via a Java 8 lambda. */
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testBinaryCombinePerKeyLambda() {
+
+      PCollection<KV<String, Integer>> output =
+          pipeline
+              .apply(Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 3), KV.of("c", 4)))
+              .apply(Combine.perKey((a, b) -> a + b));
+
+      PAssert.that(output).containsInAnyOrder(KV.of("a", 4), KV.of("b", 2), KV.of("c", 4));
+      pipeline.run();
+    }
+
     /** Tests creation of a per-key {@link Combine} via a Java 8 method reference. */
     @Test
     @Category(ValidatesRunner.class)
@@ -906,6 +934,20 @@ public class CombineTest implements Serializable {
           pipeline
               .apply(Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 3), KV.of("c", 4)))
               .apply(Combine.perKey(new Summer()::sum));
+
+      PAssert.that(output).containsInAnyOrder(KV.of("a", 4), KV.of("b", 2), KV.of("c", 4));
+      pipeline.run();
+    }
+
+    /** Tests creation of a per-key binary {@link Combine} via a Java 8 method reference. */
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testBinaryCombinePerKeyInstanceMethodReference() {
+
+      PCollection<KV<String, Integer>> output =
+          pipeline
+              .apply(Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 3), KV.of("c", 4)))
+              .apply(Combine.perKey(new Summer()::add));
 
       PAssert.that(output).containsInAnyOrder(KV.of("a", 4), KV.of("b", 2), KV.of("c", 4));
       pipeline.run();
@@ -949,7 +991,7 @@ public class CombineTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class CombineWithContextTests extends SharedTestBase {
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     @SuppressWarnings({"rawtypes", "unchecked"})
     public void testSimpleCombineWithContext() {
       runTestSimpleCombineWithContext(
@@ -960,9 +1002,33 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testSimpleCombineWithContextEmpty() {
       runTestSimpleCombineWithContext(EMPTY_TABLE, 0, Collections.emptyList(), new String[] {});
+    }
+
+    @Test
+    public void testWithDefaultsPreservesSideInputs() {
+      final PCollectionView<Integer> view =
+          pipeline.apply(Create.of(1)).apply(Sum.integersGlobally().asSingletonView());
+
+      Combine.Globally<Integer, String> combine =
+          Combine.globally(new TestCombineFnWithContext(view))
+              .withSideInputs(view)
+              .withoutDefaults();
+
+      assertEquals(Collections.singletonList(view), combine.getSideInputs());
+    }
+
+    @Test
+    public void testWithFanoutPreservesSideInputs() {
+      final PCollectionView<Integer> view =
+          pipeline.apply(Create.of(1)).apply(Sum.integersGlobally().asSingletonView());
+
+      Combine.Globally<Integer, String> combine =
+          Combine.globally(new TestCombineFnWithContext(view)).withSideInputs(view).withFanout(1);
+
+      assertEquals(Collections.singletonList(view), combine.getSideInputs());
     }
   }
 
@@ -970,7 +1036,7 @@ public class CombineTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class WindowingTests extends SharedTestBase implements Serializable {
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
     public void testFixedWindowsCombine() {
       PCollection<KV<String, Integer>> input =
           pipeline
@@ -997,7 +1063,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testFixedWindowsCombineWithContext() {
       PCollection<KV<String, Integer>> perKeyInput =
           pipeline
@@ -1039,7 +1105,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testSlidingWindowsCombine() {
       PCollection<String> input =
           pipeline
@@ -1098,7 +1164,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testSlidingWindowsCombineWithContext() {
       // [a: 1, 1], [a: 4; b: 1], [b: 13]
       PCollection<KV<String, Integer>> perKeyInput =
@@ -1149,7 +1215,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testGlobalCombineWithDefaultsAndTriggers() {
       PCollection<Integer> input = pipeline.apply(Create.of(1, 1));
 
@@ -1202,7 +1268,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testSessionsCombineWithContext() {
       PCollection<KV<String, Integer>> perKeyInput =
           pipeline.apply(
@@ -1253,7 +1319,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
     public void testWindowedCombineEmpty() {
       PCollection<Double> mean =
           pipeline
@@ -1267,7 +1333,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testCombineGloballyAsSingletonView() {
       final PCollectionView<Integer> view =
           pipeline
@@ -1293,7 +1359,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testWindowedCombineGloballyAsSingletonView() {
       FixedWindows windowFn = FixedWindows.of(Duration.standardMinutes(1));
       final PCollectionView<Integer> view =
@@ -1337,7 +1403,7 @@ public class CombineTest implements Serializable {
 
     /** Tests creation of a global {@link Combine} via Java 8 lambda. */
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testCombineGloballyLambda() {
 
       PCollection<Integer> output =
@@ -1359,7 +1425,7 @@ public class CombineTest implements Serializable {
 
     /** Tests creation of a global {@link Combine} via a Java 8 method reference. */
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testCombineGloballyInstanceMethodReference() {
 
       PCollection<Integer> output =
@@ -1374,7 +1440,11 @@ public class CombineTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class AccumulationTests extends SharedTestBase {
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({
+      ValidatesRunner.class,
+      UsesSideInputs.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     public void testAccumulatingCombine() {
       runTestAccumulatingCombine(
           Arrays.asList(KV.of("a", 1), KV.of("a", 1), KV.of("a", 4), KV.of("b", 1), KV.of("b", 13)),
@@ -1383,7 +1453,11 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({
+      ValidatesRunner.class,
+      UsesSideInputs.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     public void testAccumulatingCombineEmpty() {
       runTestAccumulatingCombine(EMPTY_TABLE, 0.0, Collections.emptyList());
     }

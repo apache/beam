@@ -128,7 +128,7 @@ public class SnippetsTest implements Serializable {
 
     // Make sure that both 'expectedResults' and 'actualFormattedResults' match with the
     // 'formattedResults'. 'expectedResults' will have to be formatted before comparing
-    List<String> expectedFormattedResultsList = new ArrayList<String>(expectedResults.size());
+    List<String> expectedFormattedResultsList = new ArrayList<>(expectedResults.size());
     for (KV<String, CoGbkResult> e : expectedResults) {
       String name = e.getKey();
       Iterable<String> emailsIter = e.getValue().getAll(emailsTag);

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
 import com.alibaba.fastjson.JSONArray;
@@ -57,8 +56,7 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
     for (Object topic : topicsArr) {
       topics.add(topic.toString());
     }
-    BeamKafkaCSVTable txtTable = new BeamKafkaCSVTable(schema, bootstrapServers, topics);
-    return txtTable;
+    return new BeamKafkaCSVTable(schema, bootstrapServers, topics);
   }
 
   @Override

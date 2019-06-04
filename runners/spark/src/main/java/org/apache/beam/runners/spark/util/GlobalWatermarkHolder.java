@@ -15,16 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.util;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.collect.Maps;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
@@ -34,6 +28,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.apache.spark.SparkEnv;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.storage.BlockId;
@@ -99,7 +98,6 @@ public class GlobalWatermarkHolder {
   /**
    * Returns the {@link Broadcast} containing the {@link SparkWatermarks} mapped to their sources.
    */
-  @SuppressWarnings("unchecked")
   public static Map<Integer, SparkWatermarks> get(Long cacheInterval) {
     if (canBypassRemoteWatermarkFetching()) {
       /*
@@ -143,7 +141,7 @@ public class GlobalWatermarkHolder {
    * Advances the watermarks to the next-in-line watermarks. SparkWatermarks are monotonically
    * increasing.
    */
-  public static void advance(final String batchId) {
+  private static void advance(final String batchId) {
     synchronized (GlobalWatermarkHolder.class) {
       final BlockManager blockManager = SparkEnv.get().blockManager();
       final Map<Integer, SparkWatermarks> newWatermarks = computeNewWatermarks(blockManager);
@@ -286,7 +284,6 @@ public class GlobalWatermarkHolder {
 
   private static class WatermarksLoader extends CacheLoader<String, Map<Integer, SparkWatermarks>> {
 
-    @SuppressWarnings("unchecked")
     @Override
     public Map<Integer, SparkWatermarks> load(@Nonnull String key) throws Exception {
       final BlockManager blockManager = SparkEnv.get().blockManager();

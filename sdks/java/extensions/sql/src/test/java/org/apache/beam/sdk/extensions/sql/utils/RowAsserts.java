@@ -15,15 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.utils;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import com.google.common.collect.Iterables;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /** Contain helpers to assert {@link Row}s. */
 public class RowAsserts {
@@ -38,6 +37,16 @@ public class RowAsserts {
     };
   }
 
+  /** Asserts result contains single row with an long field. */
+  public static SerializableFunction<Iterable<Row>, Void> matchesScalar(long expected) {
+    return records -> {
+      Row row = Iterables.getOnlyElement(records);
+      assertNotNull(row);
+      assertEquals(expected, (long) row.getInt64(0));
+      return null;
+    };
+  }
+
   /** Asserts result contains single row with a double field. */
   public static SerializableFunction<Iterable<Row>, Void> matchesScalar(
       double expected, double delta) {
@@ -46,6 +55,17 @@ public class RowAsserts {
       Row row = Iterables.getOnlyElement(input);
       assertNotNull(row);
       assertEquals(expected, row.getDouble(0), delta);
+      return null;
+    };
+  }
+
+  public static SerializableFunction<Iterable<Row>, Void> matchesScalar(
+      float expected, float delta) {
+
+    return input -> {
+      Row row = Iterables.getOnlyElement(input);
+      assertNotNull(row);
+      assertEquals(expected, row.getFloat(0), delta);
       return null;
     };
   }

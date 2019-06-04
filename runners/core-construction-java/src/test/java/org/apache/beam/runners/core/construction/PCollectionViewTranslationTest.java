@@ -15,12 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.junit.Assert.assertEquals;
 
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.sdk.transforms.Materialization;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -34,7 +32,7 @@ public class PCollectionViewTranslationTest {
   @Test
   public void testViewFnTranslation() throws Exception {
     SdkComponents sdkComponents = SdkComponents.create();
-    sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
     assertEquals(
         new TestViewFn(),
         PCollectionViewTranslation.viewFnFromProto(
@@ -44,7 +42,7 @@ public class PCollectionViewTranslationTest {
   @Test
   public void testWindowMappingFnTranslation() throws Exception {
     SdkComponents sdkComponents = SdkComponents.create();
-    sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
     assertEquals(
         new GlobalWindows().getDefaultWindowMappingFn(),
         PCollectionViewTranslation.windowMappingFnFromProto(

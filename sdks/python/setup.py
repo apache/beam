@@ -17,10 +17,12 @@
 
 """Apache Beam SDK for Python setup file."""
 
+from __future__ import absolute_import
 from __future__ import print_function
 
 import os
 import platform
+import sys
 import warnings
 from distutils.version import StrictVersion
 
@@ -38,7 +40,13 @@ from setuptools.command.test import test
 
 def get_version():
   global_names = {}
-  exec(open(os.path.normpath('./apache_beam/version.py')).read(), global_names)  # pylint: disable=exec-used
+  exec(  # pylint: disable=exec-used
+      open(os.path.join(
+          os.path.dirname(os.path.abspath(__file__)),
+          'apache_beam/version.py')
+          ).read(),
+      global_names
+  )
   return global_names['__version__']
 
 
@@ -93,51 +101,55 @@ else:
   except ImportError:
     cythonize = lambda *args, **kwargs: []
 
-
 REQUIRED_PACKAGES = [
-    'avro>=1.8.1,<2.0.0',
+    'avro>=1.8.1,<2.0.0; python_version < "3.0"',
+    'avro-python3>=1.8.1,<2.0.0; python_version >= "3.0"',
     'crcmod>=1.7,<2.0',
-    'dill>=0.2.6,<=0.2.8.2',
+    'dill>=0.2.9,<0.2.10',
+    'fastavro>=0.21.4,<0.22',
+    'future>=0.16.0,<1.0.0',
+    'futures>=3.2.0,<4.0.0; python_version < "3.0"',
     'grpcio>=1.8,<2',
     'hdfs>=2.1.0,<3.0.0',
-    'httplib2>=0.8,<=0.11.3',
+    'httplib2>=0.8,<=0.12.0',
     'mock>=1.0.1,<3.0.0',
-    'oauth2client>=2.0.1,<5',
+    'oauth2client>=2.0.1,<4',
     # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.
     'protobuf>=3.5.0.post1,<4',
+    # [BEAM-6287] pyarrow is not supported on Windows for Python 2
+    ('pyarrow>=0.11.1,<0.14.0; python_version >= "3.0" or '
+     'platform_system != "Windows"'),
     'pydot>=1.2.0,<1.3',
-    'pytz>=2018.3,<=2018.4',
+    'pytz>=2018.3',
+    # [BEAM-5628] Beam VCF IO is not supported in Python 3.
+    'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
     'pyyaml>=3.12,<4.0.0',
-    'pyvcf>=0.6.8,<0.7.0',
-    'six>=1.9,<1.12',
-    'typing>=3.6.0,<3.7.0',
-    'futures>=3.1.1,<4.0.0',
-    'future>=0.16.0,<1.0.0',
+    'typing>=3.6.0,<3.7.0; python_version < "3.5.0"',
+    'mmh3>=2.5.1,<2.5.2',
     ]
-
-REQUIRED_PACKAGES_LINUX_ONLY = [
-    'fastavro==0.19.7',
-]
-
-# TODO(BEAM-4749): fastavro fails to install in MacOS.
-if 'Linux' in platform.system():
-  REQUIRED_PACKAGES.extend(REQUIRED_PACKAGES_LINUX_ONLY)
 
 REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
     'numpy>=1.14.3,<2',
+    'pandas>=0.23.4,<0.24',
+    'parameterized>=0.6.0,<0.7.0',
     'pyhamcrest>=1.9,<2.0',
+    'tenacity>=5.0.2,<6.0',
     ]
 
 GCP_REQUIREMENTS = [
-    # oauth2client >=4 only works with google-apitools>=0.5.18.
-    'google-apitools>=0.5.18,<=0.5.20',
-    'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4',
-    'googledatastore==7.0.1',
-    'google-cloud-pubsub==0.26.0',
-    'proto-google-cloud-pubsub-v1==0.15.4',
+    'cachetools>=3.1.0,<4',
+    'google-apitools>=0.5.28,<0.5.29',
+    # [BEAM-4543] googledatastore is not supported in Python 3.
+    'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4; python_version < "3.0"',
+    # [BEAM-4543] googledatastore is not supported in Python 3.
+    'googledatastore>=7.0.1,<7.1; python_version < "3.0"',
+    'google-cloud-datastore>=1.7.1,<1.8.0',
+    'google-cloud-pubsub>=0.39.0,<0.40.0',
     # GCP packages required by tests
-    'google-cloud-bigquery==0.25.0',
+    'google-cloud-bigquery>=1.6.0,<1.7.0',
+    'google-cloud-core>=0.28.1,<0.30.0',
+    'google-cloud-bigtable>=0.31.1,<0.33.0',
 ]
 
 
@@ -158,9 +170,12 @@ def generate_protos_first(original_cmd):
     return original_cmd
 
 
-python_requires = '>=2.7'
-if os.environ.get('BEAM_EXPERIMENTAL_PY3') is None:
-  python_requires += ',<3.0'
+python_requires = '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*'
+
+if sys.version_info[0] == 3:
+  warnings.warn(
+      'Python 3 support for the Apache Beam SDK is not yet fully supported. '
+      'You may encounter buggy behavior or missing features.')
 
 setuptools.setup(
     name=PACKAGE_NAME,
@@ -173,7 +188,8 @@ setuptools.setup(
     author_email=PACKAGE_EMAIL,
     packages=setuptools.find_packages(),
     package_data={'apache_beam': [
-        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'testing/data/*.yaml']},
+        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'testing/data/*.yaml',
+        'portability/api/*.yaml']},
     ext_modules=cythonize([
         'apache_beam/**/*.pyx',
         'apache_beam/coders/coder_impl.py',
@@ -202,6 +218,7 @@ setuptools.setup(
         'License :: OSI Approved :: Apache Software License',
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.5',
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],

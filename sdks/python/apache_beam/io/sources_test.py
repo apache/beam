@@ -20,6 +20,7 @@ from __future__ import absolute_import
 
 import logging
 import os
+import sys
 import tempfile
 import unittest
 
@@ -52,7 +53,7 @@ class LineSource(iobase.BoundedSource):
       for line in f:
         if not range_tracker.try_claim(current):
           return
-        yield line.rstrip('\n')
+        yield line.rstrip(b'\n')
         current += len(line)
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
@@ -83,25 +84,31 @@ class LineSource(iobase.BoundedSource):
 
 class SourcesTest(unittest.TestCase):
 
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
+
   def _create_temp_file(self, contents):
     with tempfile.NamedTemporaryFile(delete=False) as f:
       f.write(contents)
       return f.name
 
   def test_read_from_source(self):
-    file_name = self._create_temp_file('aaaa\nbbbb\ncccc\ndddd')
+    file_name = self._create_temp_file(b'aaaa\nbbbb\ncccc\ndddd')
 
     source = LineSource(file_name)
     range_tracker = source.get_range_tracker(None, None)
     result = [line for line in source.read(range_tracker)]
 
-    self.assertItemsEqual(['aaaa', 'bbbb', 'cccc', 'dddd'], result)
+    self.assertCountEqual([b'aaaa', b'bbbb', b'cccc', b'dddd'], result)
 
   def test_run_direct(self):
-    file_name = self._create_temp_file('aaaa\nbbbb\ncccc\ndddd')
+    file_name = self._create_temp_file(b'aaaa\nbbbb\ncccc\ndddd')
     pipeline = TestPipeline()
     pcoll = pipeline | beam.io.Read(LineSource(file_name))
-    assert_that(pcoll, equal_to(['aaaa', 'bbbb', 'cccc', 'dddd']))
+    assert_that(pcoll, equal_to([b'aaaa', b'bbbb', b'cccc', b'dddd']))
 
     pipeline.run()
 

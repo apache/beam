@@ -17,9 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -56,6 +56,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /**
  * A {@link PTransformOverrideFactory} that provides overrides for applications of a {@link ParDo}
@@ -65,13 +66,15 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 @VisibleForTesting
 public class ParDoMultiOverrideFactory<InputT, OutputT>
     implements PTransformOverrideFactory<
-        PCollection<? extends InputT>, PCollectionTuple,
+        PCollection<? extends InputT>,
+        PCollectionTuple,
         PTransform<PCollection<? extends InputT>, PCollectionTuple>> {
   @Override
   public PTransformReplacement<PCollection<? extends InputT>, PCollectionTuple>
       getReplacementTransform(
           AppliedPTransform<
-                  PCollection<? extends InputT>, PCollectionTuple,
+                  PCollection<? extends InputT>,
+                  PCollectionTuple,
                   PTransform<PCollection<? extends InputT>, PCollectionTuple>>
               application) {
 
@@ -87,7 +90,8 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
   @SuppressWarnings("unchecked")
   private PTransform<PCollection<? extends InputT>, PCollectionTuple> getReplacementForApplication(
       AppliedPTransform<
-              PCollection<? extends InputT>, PCollectionTuple,
+              PCollection<? extends InputT>,
+              PCollectionTuple,
               PTransform<PCollection<? extends InputT>, PCollectionTuple>>
           application)
       throws IOException {
@@ -104,7 +108,8 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
           fn,
           ParDoTranslation.getMainOutputTag(application),
           ParDoTranslation.getAdditionalOutputTags(application),
-          ParDoTranslation.getSideInputs(application));
+          ParDoTranslation.getSideInputs(application),
+          ParDoTranslation.getSchemaInformation(application));
     } else {
       return application.getTransform();
     }
@@ -122,16 +127,19 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
     private final TupleTagList additionalOutputTags;
     private final TupleTag<OutputT> mainOutputTag;
     private final List<PCollectionView<?>> sideInputs;
+    private final DoFnSchemaInformation doFnSchemaInformation;
 
     public GbkThenStatefulParDo(
         DoFn<KV<K, InputT>, OutputT> doFn,
         TupleTag<OutputT> mainOutputTag,
         TupleTagList additionalOutputTags,
-        List<PCollectionView<?>> sideInputs) {
+        List<PCollectionView<?>> sideInputs,
+        DoFnSchemaInformation doFnSchemaInformation) {
       this.doFn = doFn;
       this.additionalOutputTags = additionalOutputTags;
       this.mainOutputTag = mainOutputTag;
       this.sideInputs = sideInputs;
+      this.doFnSchemaInformation = doFnSchemaInformation;
     }
 
     @Override
@@ -188,20 +196,17 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
               // according to what ParDo already does.
               .setWindowingStrategyInternal(inputWindowingStrategy);
 
-      PCollectionTuple outputs =
-          adjustedInput
-              // Explode the resulting iterable into elements that are exactly the ones from
-              // the input
-              .apply(
-              "Stateful ParDo",
-              new StatefulParDo<>(doFn, mainOutputTag, additionalOutputTags, sideInputs));
-
-      return outputs;
+      return adjustedInput
+          // Explode the resulting iterable into elements that are exactly the ones from
+          // the input
+          .apply(
+          "Stateful ParDo",
+          new StatefulParDo<>(
+              doFn, mainOutputTag, additionalOutputTags, sideInputs, doFnSchemaInformation));
     }
   }
 
-  static final String DIRECT_STATEFUL_PAR_DO_URN =
-      "urn:beam:directrunner:transforms:stateful_pardo:v1";
+  static final String DIRECT_STATEFUL_PAR_DO_URN = "beam:directrunner:transforms:stateful_pardo:v1";
 
   static class StatefulParDo<K, InputT, OutputT>
       extends PTransform<PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple> {
@@ -209,16 +214,19 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
     private final TupleTagList additionalOutputTags;
     private final TupleTag<OutputT> mainOutputTag;
     private final List<PCollectionView<?>> sideInputs;
+    private final DoFnSchemaInformation doFnSchemaInformation;
 
     public StatefulParDo(
         DoFn<KV<K, InputT>, OutputT> doFn,
         TupleTag<OutputT> mainOutputTag,
         TupleTagList additionalOutputTags,
-        List<PCollectionView<?>> sideInputs) {
+        List<PCollectionView<?>> sideInputs,
+        DoFnSchemaInformation doFnSchemaInformation) {
       this.doFn = doFn;
       this.mainOutputTag = mainOutputTag;
       this.additionalOutputTags = additionalOutputTags;
       this.sideInputs = sideInputs;
+      this.doFnSchemaInformation = doFnSchemaInformation;
     }
 
     public DoFn<KV<K, InputT>, OutputT> getDoFn() {
@@ -237,6 +245,10 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
       return additionalOutputTags;
     }
 
+    public DoFnSchemaInformation getSchemaInformation() {
+      return doFnSchemaInformation;
+    }
+
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
       return PCollectionViews.toAdditionalInputs(sideInputs);
@@ -245,16 +257,13 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
     @Override
     public PCollectionTuple expand(PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>> input) {
 
-      PCollectionTuple outputs =
-          PCollectionTuple.ofPrimitiveOutputsInternal(
-              input.getPipeline(),
-              TupleTagList.of(getMainOutputTag()).and(getAdditionalOutputTags().getAll()),
-              // TODO
-              Collections.emptyMap(),
-              input.getWindowingStrategy(),
-              input.isBounded());
-
-      return outputs;
+      return PCollectionTuple.ofPrimitiveOutputsInternal(
+          input.getPipeline(),
+          TupleTagList.of(getMainOutputTag()).and(getAdditionalOutputTags().getAll()),
+          // TODO
+          Collections.emptyMap(),
+          input.getWindowingStrategy(),
+          input.isBounded());
     }
   }
 

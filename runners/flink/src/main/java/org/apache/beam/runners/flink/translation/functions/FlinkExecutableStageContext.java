@@ -19,28 +19,27 @@ package org.apache.beam.runners.flink.translation.functions;
 
 import java.io.Serializable;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.translation.functions.FlinkDefaultExecutableStageContext.MultiInstanceFactory;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
-import org.apache.flink.api.common.functions.RuntimeContext;
 
 /** The Flink context required in order to execute {@link ExecutableStage stages}. */
-public interface FlinkExecutableStageContext {
+public interface FlinkExecutableStageContext extends AutoCloseable {
 
   /**
    * Creates {@link FlinkExecutableStageContext} instances. Serializable so that factories can be
    * defined at translation time and distributed to TaskManagers.
    */
   interface Factory extends Serializable {
+
+    /** Get or create {@link FlinkExecutableStageContext} for given {@link JobInfo}. */
     FlinkExecutableStageContext get(JobInfo jobInfo);
   }
 
-  static Factory batchFactory() {
-    return BatchFlinkExecutableStageContext.BatchFactory.INSTANCE;
+  static Factory factory(FlinkPipelineOptions options) {
+    return MultiInstanceFactory.MULTI_INSTANCE;
   }
 
-  <InputT> StageBundleFactory<InputT> getStageBundleFactory(ExecutableStage executableStage);
-
-  StateRequestHandler getStateRequestHandler(
-      ExecutableStage executableStage, RuntimeContext runtimeContext);
+  StageBundleFactory getStageBundleFactory(ExecutableStage executableStage);
 }

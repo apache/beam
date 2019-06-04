@@ -22,6 +22,8 @@ limitations under the License.
 
 This Quickstart will walk you through executing your first Beam pipeline to run [WordCount]({{ site.baseurl }}/get-started/wordcount-example), written using Beam's [Go SDK]({{ site.baseurl }}/documentation/sdks/go), on a [runner]({{ site.baseurl }}/documentation#runners) of your choice.
 
+If you're interested in contributing to the Apache Beam Go codebase, see the [Contribution Guide]({{ site.baseurl }}/contribute).
+
 * TOC
 {:toc}
 
@@ -30,7 +32,7 @@ This Quickstart will walk you through executing your first Beam pipeline to run 
 The Beam SDK for Go requires `go` version 1.10 or newer. It can be downloaded [here](https://golang.org/). Check that you have version 1.10 by running:
 
 ```
-$ go --version
+$ go version
 ```
 
 ## Get the SDK and the examples
@@ -61,12 +63,20 @@ $ wordcount --input <PATH_TO_INPUT_FILE> --output counts
 {:.runner-dataflow}
 ```
 $ go install github.com/apache/beam/sdks/go/examples/wordcount
+# As part of the initial setup, for non linux users - install package unix before run
+$ go get -u golang.org/x/sys/unix
 $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --output gs://<your-gcs-bucket>/counts \
             --runner dataflow \
             --project your-gcp-project \
             --temp_location gs://<your-gcs-bucket>/tmp/ \
+            --staging_location gs://<your-gcs-bucket>/binaries/ \
             --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
+```
+
+{:.runner-nemo}
+```
+This runner is not yet available for the Go SDK.
 ```
 
 ## Next Steps
@@ -74,7 +84,8 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 * Learn more about the [Beam SDK for Go]({{ site.baseurl }}/documentation/sdks/go/)
   and look through the [godoc](https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam).
 * Walk through these WordCount examples in the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
-* Dive in to some of our favorite [articles and presentations]({{ site.baseurl }}/documentation/resources).
+* Take a self-paced tour through our [Learning Resources]({{ site.baseurl }}/documentation/resources/learning-resources).
+* Dive in to some of our favorite [Videos and Podcasts]({{ site.baseurl }}/documentation/resources/videos-and-podcasts).
 * Join the Beam [users@]({{ site.baseurl }}/community/contact-us) mailing list.
 
 Please don't hesitate to [reach out]({{ site.baseurl }}/community/contact-us) if you encounter any issues!

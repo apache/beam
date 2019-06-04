@@ -15,14 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.cache.RemovalListener;
-import com.google.common.cache.RemovalNotification;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -32,6 +26,11 @@ import org.apache.beam.sdk.transforms.DoFn.Setup;
 import org.apache.beam.sdk.transforms.DoFn.Teardown;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.RemovalListener;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.RemovalNotification;
 
 /**
  * Manages {@link DoFn} setup, teardown, and serialization.
@@ -102,7 +101,7 @@ class DoFnLifecycleManager {
           (DoFn<?, ?>)
               SerializableUtils.deserializeFromByteArray(
                   original, "DoFn Copy in thread " + key.getName());
-      DoFnInvokers.invokerFor(fn).invokeSetup();
+      DoFnInvokers.tryInvokeSetupFor(fn);
       return fn;
     }
   }

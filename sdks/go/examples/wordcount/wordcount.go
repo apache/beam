@@ -151,7 +151,7 @@ func CountWords(s beam.Scope, lines beam.PCollection) beam.PCollection {
 func main() {
 	// If beamx or Go flags are used, flags must be parsed first.
 	flag.Parse()
-	// beam.Init() is an initialization hook that must called on startup. On
+	// beam.Init() is an initialization hook that must be called on startup. On
 	// distributed runners, it is used to intercept control.
 	beam.Init()
 

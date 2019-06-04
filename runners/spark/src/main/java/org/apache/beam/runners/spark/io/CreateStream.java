@@ -17,9 +17,8 @@
  */
 package org.apache.beam.runners.spark.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.Lists;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collections;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -85,8 +85,9 @@ import org.joda.time.Instant;
  *
  * @param <T> The type of the element in this stream.
  */
-//TODO: write a proper Builder enforcing all those rules mentioned.
+// TODO: write a proper Builder enforcing all those rules mentioned.
 public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
+  public static final String TRANSFORM_URN = "beam:transform:spark:createstream:v1";
 
   private final Duration batchDuration;
   private final Queue<Iterable<TimestampedValue<T>>> batches = new ArrayDeque<>();
@@ -95,7 +96,7 @@ public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
   private Instant initialSystemTime;
   private final boolean forceWatermarkSync;
 
-  private Instant lowWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE; //for test purposes.
+  private Instant lowWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE; // for test purposes.
 
   private CreateStream(
       Duration batchDuration,

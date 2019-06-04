@@ -18,7 +18,6 @@
 package org.apache.beam.runners.flink.streaming;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.common.base.Joiner;
 import java.io.File;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -33,12 +32,16 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.flink.streaming.util.StreamingProgramTestBase;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 /** Session window test. */
-public class TopWikipediaSessionsTest extends StreamingProgramTestBase implements Serializable {
+public class TopWikipediaSessionsTest extends AbstractTestBase implements Serializable {
 
   protected String resultDir;
   protected String resultPath;
@@ -55,8 +58,8 @@ public class TopWikipediaSessionsTest extends StreamingProgramTestBase implement
         "user: user3 value:2"
       };
 
-  @Override
-  protected void preSubmit() throws Exception {
+  @Before
+  public void preSubmit() throws Exception {
     // Beam Write will add shard suffix to fileName, see ShardNameTemplate.
     // So tempFile need have a parent to compare.
     File resultParent = createAndRegisterTempFile("result");
@@ -64,13 +67,13 @@ public class TopWikipediaSessionsTest extends StreamingProgramTestBase implement
     resultPath = new File(resultParent, "file.txt").getAbsolutePath();
   }
 
-  @Override
-  protected void postSubmit() throws Exception {
+  @After
+  public void postSubmit() throws Exception {
     compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultDir);
   }
 
-  @Override
-  protected void testProgram() throws Exception {
+  @Test
+  public void testProgram() throws Exception {
 
     Pipeline p = FlinkTestPipeline.createForStreaming();
 

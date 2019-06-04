@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.util;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Arrays;
 import org.apache.beam.sdk.transforms.Combine;
@@ -69,25 +68,21 @@ public class MovingFunction {
     numSamples = new int[n];
     Arrays.fill(numSamples, 0);
     currentMsSinceEpoch = -1;
-    currentIndex = -1;
+    currentIndex = 0;
   }
 
   /** Flush stale values. */
   private void flush(long nowMsSinceEpoch) {
     checkArgument(nowMsSinceEpoch >= 0, "Only positive timestamps supported");
-    if (currentIndex < 0) {
-      currentMsSinceEpoch = nowMsSinceEpoch - (nowMsSinceEpoch % sampleUpdateMs);
-      currentIndex = 0;
-    }
     checkArgument(nowMsSinceEpoch >= currentMsSinceEpoch, "Attempting to move backwards");
     int newBuckets =
         Math.min((int) ((nowMsSinceEpoch - currentMsSinceEpoch) / sampleUpdateMs), buckets.length);
+    currentMsSinceEpoch = nowMsSinceEpoch - (nowMsSinceEpoch % sampleUpdateMs);
     while (newBuckets > 0) {
       currentIndex = (currentIndex + 1) % buckets.length;
       buckets[currentIndex] = function.identity();
       numSamples[currentIndex] = 0;
       newBuckets--;
-      currentMsSinceEpoch += sampleUpdateMs;
     }
   }
 

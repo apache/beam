@@ -23,7 +23,6 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.util.UserCodeException;
 
 /** Test Flink runner. */
@@ -32,21 +31,22 @@ public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
   private FlinkRunner delegate;
 
   private TestFlinkRunner(FlinkPipelineOptions options) {
-    // We use [auto] for testing since this will make it pick up the Testing ExecutionEnvironment
-    options.setFlinkMaster("[auto]");
+    options.setRunner(TestFlinkRunner.class);
     options.setShutdownSourcesOnFinalWatermark(true);
+    if (options.getParallelism() == -1) {
+      // Limit parallelism to avoid too much memory consumption during local execution
+      options.setParallelism(1);
+    }
     this.delegate = FlinkRunner.fromOptions(options);
   }
 
   public static TestFlinkRunner fromOptions(PipelineOptions options) {
-    FlinkPipelineOptions flinkOptions =
-        PipelineOptionsValidator.validate(FlinkPipelineOptions.class, options);
+    FlinkPipelineOptions flinkOptions = options.as(FlinkPipelineOptions.class);
     return new TestFlinkRunner(flinkOptions);
   }
 
   public static TestFlinkRunner create(boolean streaming) {
     FlinkPipelineOptions flinkOptions = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
-    flinkOptions.setRunner(TestFlinkRunner.class);
     flinkOptions.setStreaming(streaming);
     return TestFlinkRunner.fromOptions(flinkOptions);
   }
@@ -62,7 +62,7 @@ public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
       Throwable current = t;
       for (; current.getCause() != null; current = current.getCause()) {
         if (current instanceof UserCodeException) {
-          innermostUserCodeException = ((UserCodeException) current);
+          innermostUserCodeException = (UserCodeException) current;
         }
       }
       if (innermostUserCodeException != null) {

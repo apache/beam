@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(exportJavadoc: false)
 
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples"
 ext.summary = """A Maven Archetype to create a project containing all the
@@ -36,6 +36,7 @@ processResources {
     'pubsub.version': dependencies.create(project.library.java.google_api_services_pubsub).getVersion(),
     'slf4j.version': dependencies.create(project.library.java.slf4j_api).getVersion(),
     'spark.version': dependencies.create(project.library.java.spark_core).getVersion(),
+    'nemo.version': dependencies.create(project.library.java.nemo_compiler_frontend_beam).getVersion(),
     'hadoop.version': dependencies.create(project.library.java.hadoop_client).getVersion(),
     'mockito.version': dependencies.create(project.library.java.mockito_core).getVersion(),
     'maven-compiler-plugin.version': dependencies.create(project.library.maven.maven_compiler_plugin).getVersion(),
@@ -51,12 +52,13 @@ processResources {
  * the following projects are evaluated before we evaluate this project. This is because
  * we are attempting to reference the "sourceSets.{main|test}.allSource" directly.
  */
-evaluationDependsOn(':beam-examples-java')
+evaluationDependsOn(':examples:java')
 
 task generateSources(type: Exec) {
   inputs.file './generate-sources.sh'
-  inputs.dir project(':beam-examples-java').sourceSets.main.allSource
-  inputs.dir project(':beam-examples-java').sourceSets.test.allSource
+  inputs.files project(':examples:java').sourceSets.main.allSource
+  inputs.files project(':examples:java').sourceSets.test.allSource
+  outputs.dir('src/main/resources/archetype-resources/src')  
   commandLine './generate-sources.sh'
 }
 
@@ -67,5 +69,5 @@ sourceSets {
 }
 
 dependencies {
-  shadow project(path: ":beam-examples-java", configuration: "shadow")
+  shadow project(path: ":examples:java", configuration: "shadow")
 }

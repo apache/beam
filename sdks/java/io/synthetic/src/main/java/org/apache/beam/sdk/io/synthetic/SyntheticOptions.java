@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.synthetic;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -28,13 +27,13 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Random;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashFunction;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 import org.apache.commons.math3.distribution.ConstantRealDistribution;
 import org.apache.commons.math3.distribution.ExponentialDistribution;
 import org.apache.commons.math3.distribution.IntegerDistribution;
@@ -45,7 +44,7 @@ import org.apache.commons.math3.distribution.ZipfDistribution;
 
 /**
  * This {@link SyntheticOptions} class provides common parameterizable synthetic options that are
- * used by {@link SyntheticBoundedIO}.
+ * used by {@link SyntheticBoundedSource} and {@link SyntheticUnboundedSource}.
  */
 public class SyntheticOptions implements Serializable {
   private static final long serialVersionUID = 0;
@@ -60,9 +59,6 @@ public class SyntheticOptions implements Serializable {
     CPU,
     MIXED,
   }
-
-  /** Mapper for (de)serializing JSON. */
-  private static final ObjectMapper MAPPER = new ObjectMapper();
 
   /**
    * Wrapper over a distribution. Unfortunately commons-math does not provide a common interface
@@ -154,13 +150,13 @@ public class SyntheticOptions implements Serializable {
   @JsonProperty public double largeKeySizeBytes = 1000;
 
   /** The seed is used for generating a hash function implementing the 128-bit murmur3 algorithm. */
-  @JsonIgnore public int seed;
+  @JsonIgnore public int seed = 1;
 
   /**
    * The hash function is used to generate seeds that are fed into the random number generators and
    * the sleep time distributions.
    */
-  @JsonIgnore public transient HashFunction hashFunction;
+  @JsonIgnore private transient HashFunction hashFunction;
 
   /**
    * SyntheticOptions supports several delay distributions including uniform, normal, exponential,
@@ -194,7 +190,7 @@ public class SyntheticOptions implements Serializable {
    * unbounded source uses RateLimiter to control QPS.
    */
   @JsonDeserialize(using = SamplerDeserializer.class)
-  private final Sampler delayDistribution = fromRealDistribution(new ConstantRealDistribution(0));
+  Sampler delayDistribution = fromRealDistribution(new ConstantRealDistribution(0));
 
   /**
    * When 'delayDistribution' is configured, this indicates how the delay enforced ("SLEEP", "CPU",
@@ -217,7 +213,15 @@ public class SyntheticOptions implements Serializable {
   @JsonDeserialize
   public void setSeed(int seed) {
     this.seed = seed;
-    this.hashFunction = Hashing.murmur3_128(seed);
+  }
+
+  public HashFunction hashFunction() {
+    // due to field's transiency initialize when null.
+    if (hashFunction == null) {
+      this.hashFunction = Hashing.murmur3_128(seed);
+    }
+
+    return hashFunction;
   }
 
   static class SamplerDeserializer extends JsonDeserializer<Sampler> {
@@ -298,7 +302,6 @@ public class SyntheticOptions implements Serializable {
         hotKeyFraction >= 0,
         "hotKeyFraction should be a non-negative number, but found %s",
         hotKeyFraction);
-    checkArgument(hashFunction != null, "hashFunction hasn't been initialized.");
     if (hotKeyFraction > 0) {
       int intBytes = Integer.SIZE / 8;
       checkArgument(
@@ -314,7 +317,7 @@ public class SyntheticOptions implements Serializable {
   @Override
   public String toString() {
     try {
-      return MAPPER.writeValueAsString(this);
+      return new ObjectMapper().writeValueAsString(this);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -341,7 +344,7 @@ public class SyntheticOptions implements Serializable {
       // Generate hot key.
       // An integer is randomly selected from the range [0, numHotKeys-1] with equal probability.
       int randInt = random.nextInt((int) numHotKeys);
-      ByteBuffer.wrap(key).putInt(hashFunction.hashInt(randInt).asInt());
+      ByteBuffer.wrap(key).putInt(hashFunction().hashInt(randInt).asInt());
     } else {
       // Note that the random generated key might be a hot key.
       // But the probability of being a hot key is very small.
@@ -351,5 +354,13 @@ public class SyntheticOptions implements Serializable {
     byte[] val = new byte[(int) valueSizeBytes];
     random.nextBytes(val);
     return KV.of(key, val);
+  }
+
+  public static <T extends SyntheticOptions> T fromJsonString(String json, Class<T> type)
+      throws IOException {
+    ObjectMapper mapper = new ObjectMapper();
+    T result = mapper.readValue(json, type);
+    result.validate();
+    return result;
   }
 }

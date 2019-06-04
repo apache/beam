@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 /** A coder for PubsubMessage treating the raw bytes being decoded as the message's payload. */
 public class PubsubMessagePayloadOnlyCoder extends CustomCoder<PubsubMessage> {

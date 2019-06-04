@@ -15,22 +15,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_PER_KEY_MERGE_ACCUMULATORS_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.CREATE_VIEW_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.FLATTEN_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.IMPULSE_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.MAP_WINDOWS_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.READ_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.TEST_STREAM_TRANSFORM_URN;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
-import com.google.common.graph.MutableNetwork;
-import com.google.common.graph.Network;
-import com.google.common.graph.NetworkBuilder;
+import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -44,10 +56,18 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.core.construction.NativeTransforms;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.NetworkBuilder;
 
 /**
  * A {@link Pipeline} which has additional methods to relate nodes in the graph relative to each
@@ -109,19 +129,60 @@ public class QueryablePipeline {
   @VisibleForTesting
   static Collection<String> getPrimitiveTransformIds(RunnerApi.Components components) {
     Collection<String> ids = new LinkedHashSet<>();
+
     for (Map.Entry<String, PTransform> transformEntry : components.getTransformsMap().entrySet()) {
       PTransform transform = transformEntry.getValue();
       boolean isPrimitive = isPrimitiveTransform(transform);
       if (isPrimitive) {
-        ids.add(transformEntry.getKey());
+        // Sometimes "primitive" transforms have sub-transforms (and even deeper-nested
+        // descendents), due to runners
+        // either rewriting them in terms of runner-specific transforms, or SDKs constructing them
+        // in terms of other
+        // underlying transforms (see https://issues.apache.org/jira/browse/BEAM-5441).
+        // We consider any "leaf" descendents of these "primitive" transforms to be the true
+        // "primitives" that we
+        // preserve here; in the common case, this is just the "primitive" itself, which has no
+        // descendents).
+        Deque<String> transforms = new ArrayDeque<>();
+        transforms.push(transformEntry.getKey());
+        while (!transforms.isEmpty()) {
+          String id = transforms.pop();
+          PTransform next = components.getTransformsMap().get(id);
+          List<String> subtransforms = next.getSubtransformsList();
+          if (subtransforms.isEmpty()) {
+            ids.add(id);
+          } else {
+            transforms.addAll(subtransforms);
+          }
+        }
       }
     }
     return ids;
   }
 
-  /** Returns true if the provided transform is a primitive. A primitive has no subtransforms. */
+  private static final Set<String> PRIMITIVE_URNS =
+      ImmutableSet.of(
+          PAR_DO_TRANSFORM_URN,
+          FLATTEN_TRANSFORM_URN,
+          GROUP_BY_KEY_TRANSFORM_URN,
+          IMPULSE_TRANSFORM_URN,
+          ASSIGN_WINDOWS_TRANSFORM_URN,
+          TEST_STREAM_TRANSFORM_URN,
+          MAP_WINDOWS_TRANSFORM_URN,
+          READ_TRANSFORM_URN,
+          CREATE_VIEW_TRANSFORM_URN,
+          COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN,
+          COMBINE_PER_KEY_MERGE_ACCUMULATORS_TRANSFORM_URN,
+          COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN,
+          SPLITTABLE_PROCESS_KEYED_URN,
+          SPLITTABLE_PROCESS_ELEMENTS_URN,
+          SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN,
+          SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN);
+
+  /** Returns true if the provided transform is a primitive. */
   private static boolean isPrimitiveTransform(PTransform transform) {
-    return transform.getSubtransformsCount() == 0;
+    String urn = PTransformTranslation.urnForTransformOrNull(transform);
+    return PRIMITIVE_URNS.contains(urn) || NativeTransforms.isNative(transform);
   }
 
   private MutableNetwork<PipelineNode, PipelineEdge> buildNetwork(
@@ -141,9 +202,10 @@ public class QueryablePipeline {
         network.addEdge(transformNode, producedNode, new PerElementEdge());
         checkArgument(
             network.inDegree(producedNode) == 1,
-            "A %s should have exactly one producing %s, %s has %s",
+            "A %s should have exactly one producing %s, but found %s:\nPCollection:\n%s\nProducers:\n%s",
             PCollectionNode.class.getSimpleName(),
             PTransformNode.class.getSimpleName(),
+            network.predecessors(producedNode).size(),
             producedNode,
             network.predecessors(producedNode));
         unproducedCollections.remove(producedNode);
@@ -175,9 +237,7 @@ public class QueryablePipeline {
   }
 
   public Collection<PTransformNode> getTransforms() {
-    return pipelineNetwork
-        .nodes()
-        .stream()
+    return pipelineNetwork.nodes().stream()
         .filter(PTransformNode.class::isInstance)
         .map(PTransformNode.class::cast)
         .collect(Collectors.toList());
@@ -198,9 +258,7 @@ public class QueryablePipeline {
    * have no input {@link PCollection}.
    */
   public Set<PTransformNode> getRootTransforms() {
-    return pipelineNetwork
-        .nodes()
-        .stream()
+    return pipelineNetwork.nodes().stream()
         .filter(pipelineNode -> pipelineNetwork.inEdges(pipelineNode).isEmpty())
         .map(pipelineNode -> (PTransformNode) pipelineNode)
         .collect(Collectors.toSet());
@@ -222,14 +280,10 @@ public class QueryablePipeline {
    * does consume the {@link PCollectionNode} on a per-element basis.
    */
   public Set<PTransformNode> getPerElementConsumers(PCollectionNode pCollection) {
-    return pipelineNetwork
-        .successors(pCollection)
-        .stream()
+    return pipelineNetwork.successors(pCollection).stream()
         .filter(
             consumer ->
-                pipelineNetwork
-                    .edgesConnecting(pCollection, consumer)
-                    .stream()
+                pipelineNetwork.edgesConnecting(pCollection, consumer).stream()
                     .anyMatch(PipelineEdge::isPerElement))
         .map(pipelineNode -> (PTransformNode) pipelineNode)
         .collect(Collectors.toSet());
@@ -240,14 +294,10 @@ public class QueryablePipeline {
    * the collection as a singleton.
    */
   public Set<PTransformNode> getSingletonConsumers(PCollectionNode pCollection) {
-    return pipelineNetwork
-        .successors(pCollection)
-        .stream()
+    return pipelineNetwork.successors(pCollection).stream()
         .filter(
             consumer ->
-                pipelineNetwork
-                    .edgesConnecting(pCollection, consumer)
-                    .stream()
+                pipelineNetwork.edgesConnecting(pCollection, consumer).stream()
                     .anyMatch(edge -> !edge.isPerElement()))
         .map(pipelineNode -> (PTransformNode) pipelineNode)
         .collect(Collectors.toSet());
@@ -258,18 +308,14 @@ public class QueryablePipeline {
    * per-element basis.
    */
   public Set<PCollectionNode> getPerElementInputPCollections(PTransformNode ptransform) {
-    return pipelineNetwork
-        .inEdges(ptransform)
-        .stream()
+    return pipelineNetwork.inEdges(ptransform).stream()
         .filter(PipelineEdge::isPerElement)
         .map(edge -> (PCollectionNode) pipelineNetwork.incidentNodes(edge).source())
         .collect(Collectors.toSet());
   }
 
   public Set<PCollectionNode> getOutputPCollections(PTransformNode ptransform) {
-    return pipelineNetwork
-        .successors(ptransform)
-        .stream()
+    return pipelineNetwork.successors(ptransform).stream()
         .map(pipelineNode -> (PCollectionNode) pipelineNode)
         .collect(Collectors.toSet());
   }
@@ -283,8 +329,7 @@ public class QueryablePipeline {
    * as side inputs.
    */
   public Collection<SideInputReference> getSideInputs(PTransformNode transform) {
-    return getLocalSideInputNames(transform.getTransform())
-        .stream()
+    return getLocalSideInputNames(transform.getTransform()).stream()
         .map(
             localName -> {
               String transformId = transform.getId();
@@ -300,8 +345,7 @@ public class QueryablePipeline {
   }
 
   public Collection<UserStateReference> getUserStates(PTransformNode transform) {
-    return getLocalUserStateNames(transform.getTransform())
-        .stream()
+    return getLocalUserStateNames(transform.getTransform()).stream()
         .map(
             localName -> {
               String transformId = transform.getId();
@@ -314,7 +358,10 @@ public class QueryablePipeline {
                           Iterables.getOnlyElement(
                               Sets.difference(
                                   transform.getTransform().getInputsMap().keySet(),
-                                  getLocalSideInputNames(transformProto))));
+                                  ImmutableSet.builder()
+                                      .addAll(getLocalSideInputNames(transformProto))
+                                      .addAll(getLocalTimerNames(transformProto))
+                                      .build())));
               PCollection collection = components.getPcollectionsOrThrow(collectionId);
               return UserStateReference.of(
                   PipelineNode.pTransform(transformId, transformProto),
@@ -324,8 +371,20 @@ public class QueryablePipeline {
         .collect(Collectors.toSet());
   }
 
+  public Collection<TimerReference> getTimers(PTransformNode transform) {
+    return getLocalTimerNames(transform.getTransform()).stream()
+        .map(
+            localName -> {
+              String transformId = transform.getId();
+              PTransform transformProto = components.getTransformsOrThrow(transformId);
+              return TimerReference.of(
+                  PipelineNode.pTransform(transformId, transformProto), localName);
+            })
+        .collect(Collectors.toSet());
+  }
+
   private Set<String> getLocalSideInputNames(PTransform transform) {
-    if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
+    if (PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
       try {
         return ParDoPayload.parseFrom(transform.getSpec().getPayload()).getSideInputsMap().keySet();
       } catch (InvalidProtocolBufferException e) {
@@ -337,9 +396,21 @@ public class QueryablePipeline {
   }
 
   private Set<String> getLocalUserStateNames(PTransform transform) {
-    if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
+    if (PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
       try {
         return ParDoPayload.parseFrom(transform.getSpec().getPayload()).getStateSpecsMap().keySet();
+      } catch (InvalidProtocolBufferException e) {
+        throw new RuntimeException(e);
+      }
+    } else {
+      return Collections.emptySet();
+    }
+  }
+
+  private Set<String> getLocalTimerNames(PTransform transform) {
+    if (PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
+      try {
+        return ParDoPayload.parseFrom(transform.getSpec().getPayload()).getTimerSpecsMap().keySet();
       } catch (InvalidProtocolBufferException e) {
         throw new RuntimeException(e);
       }

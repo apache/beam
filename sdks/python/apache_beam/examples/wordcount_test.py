@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -31,17 +32,18 @@ from apache_beam.testing.util import open_shards
 
 class WordCountTest(unittest.TestCase):
 
-  SAMPLE_TEXT = 'a b c a b a\n\n aa bb cc aa bb aa'
+  SAMPLE_TEXT = (
+      u'a b c a b a\nacento gráfico\nJuly 30, 2018\n\n aa bb cc aa bb aa')
 
   def create_temp_file(self, contents):
     with tempfile.NamedTemporaryFile(delete=False) as f:
-      f.write(contents)
+      f.write(contents.encode('utf-8'))
       return f.name
 
   def test_basics(self):
     temp_path = self.create_temp_file(self.SAMPLE_TEXT)
     expected_words = collections.defaultdict(int)
-    for word in re.findall(r'\w+', self.SAMPLE_TEXT):
+    for word in re.findall(r'[\w\']+', self.SAMPLE_TEXT, re.UNICODE):
       expected_words[word] += 1
     wordcount.run([
         '--input=%s*' % temp_path,
@@ -50,7 +52,7 @@ class WordCountTest(unittest.TestCase):
     results = []
     with open_shards(temp_path + '.result-*-of-*') as result_file:
       for line in result_file:
-        match = re.search(r'([a-z]+): ([0-9]+)', line)
+        match = re.search(r'(\S+): ([0-9]+)', line)
         if match is not None:
           results.append((match.group(1), int(match.group(2))))
     self.assertEqual(sorted(results), sorted(expected_words.items()))

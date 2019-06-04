@@ -17,15 +17,14 @@ package harness
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"sync"
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
-	"google.golang.org/grpc"
 )
 
 const (
@@ -33,38 +32,72 @@ const (
 	bufElements = 20       // Number of chunks buffered per reader.
 )
 
-// This is a reduced version of the full gRPC interface to help with testing.
-// TODO(wcn): need a compile-time assertion to make sure this stays synced with what's
-// in pb.BeamFnData_DataClient
-type dataClient interface {
-	Send(*pb.Elements) error
-	Recv() (*pb.Elements, error)
+// ScopedDataManager scopes the global gRPC data manager to a single instruction.
+// The indirection makes it easier to control access.
+type ScopedDataManager struct {
+	mgr    *DataChannelManager
+	instID string
+
+	// TODO(herohde) 7/20/2018: capture and force close open reads/writes. However,
+	// we would need the underlying Close to be idempotent or a separate method.
+	closed bool
+	mu     sync.Mutex
 }
 
-// DataManager manages data channels to the FnHarness. A fixed number of channels
-// are generally used, each managing multiple logical byte streams.
-type DataManager struct {
+// NewScopedDataManager returns a ScopedDataManager for the given instruction.
+func NewScopedDataManager(mgr *DataChannelManager, instID string) *ScopedDataManager {
+	return &ScopedDataManager{mgr: mgr, instID: instID}
+}
+
+func (s *ScopedDataManager) OpenRead(ctx context.Context, id exec.StreamID) (io.ReadCloser, error) {
+	ch, err := s.open(ctx, id.Port)
+	if err != nil {
+		return nil, err
+	}
+	return ch.OpenRead(ctx, id.Target, s.instID), nil
+}
+
+func (s *ScopedDataManager) OpenWrite(ctx context.Context, id exec.StreamID) (io.WriteCloser, error) {
+	ch, err := s.open(ctx, id.Port)
+	if err != nil {
+		return nil, err
+	}
+	return ch.OpenWrite(ctx, id.Target, s.instID), nil
+}
+
+func (s *ScopedDataManager) open(ctx context.Context, port exec.Port) (*DataChannel, error) {
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		return nil, errors.Errorf("instruction %v no longer processing", s.instID)
+	}
+	local := s.mgr
+	s.mu.Unlock()
+
+	return local.Open(ctx, port) // don't hold lock over potentially slow operation
+}
+
+func (s *ScopedDataManager) Close() error {
+	s.mu.Lock()
+	s.closed = true
+	s.mgr = nil
+	s.mu.Unlock()
+	return nil
+}
+
+// DataChannelManager manages data channels over the Data API. A fixed number of channels
+// are generally used, each managing multiple logical byte streams. Thread-safe.
+type DataChannelManager struct {
 	ports map[string]*DataChannel
 	mu    sync.Mutex // guards the ports map
 }
 
-func (m *DataManager) OpenRead(ctx context.Context, id exec.StreamID) (io.ReadCloser, error) {
-	ch, err := m.open(ctx, id.Port)
-	if err != nil {
-		return nil, err
+// Open opens a R/W DataChannel over the given port.
+func (m *DataChannelManager) Open(ctx context.Context, port exec.Port) (*DataChannel, error) {
+	if port.URL == "" {
+		panic("empty port")
 	}
-	return ch.OpenRead(ctx, id)
-}
 
-func (m *DataManager) OpenWrite(ctx context.Context, id exec.StreamID) (io.WriteCloser, error) {
-	ch, err := m.open(ctx, id.Port)
-	if err != nil {
-		return nil, err
-	}
-	return ch.OpenWrite(ctx, id)
-}
-
-func (m *DataManager) open(ctx context.Context, port exec.Port) (*DataChannel, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -75,7 +108,7 @@ func (m *DataManager) open(ctx context.Context, port exec.Port) (*DataChannel, e
 		return con, nil
 	}
 
-	ch, err := NewDataChannel(ctx, port)
+	ch, err := newDataChannel(ctx, port)
 	if err != nil {
 		return nil, err
 	}
@@ -83,64 +116,78 @@ func (m *DataManager) open(ctx context.Context, port exec.Port) (*DataChannel, e
 	return ch, nil
 }
 
-// DataChannel manages a single grpc connection to the FnHarness.
-type DataChannel struct {
-	cc     *grpc.ClientConn
-	client dataClient
-	port   exec.Port
+// clientID identifies a client of a connected channel.
+type clientID struct {
+	target exec.Target
+	instID string
+}
 
-	writers map[string]*dataWriter
-	readers map[string]*dataReader
+// This is a reduced version of the full gRPC interface to help with testing.
+// TODO(wcn): need a compile-time assertion to make sure this stays synced with what's
+// in pb.BeamFnData_DataClient
+type dataClient interface {
+	Send(*pb.Elements) error
+	Recv() (*pb.Elements, error)
+}
+
+// DataChannel manages a single multiplexed gRPC connection over the Data API. Data is
+// pushed over the channel, so data for a reader may arrive before the reader connects.
+// Thread-safe.
+type DataChannel struct {
+	id     string
+	client dataClient
+
+	writers map[clientID]*dataWriter
+	readers map[clientID]*dataReader
 	// TODO: early/late closed, bad instructions, finer locks, reconnect?
 
 	mu sync.Mutex // guards both the readers and writers maps.
 }
 
-func NewDataChannel(ctx context.Context, port exec.Port) (*DataChannel, error) {
+func newDataChannel(ctx context.Context, port exec.Port) (*DataChannel, error) {
 	cc, err := dial(ctx, port.URL, 15*time.Second)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect: %v", err)
+		return nil, errors.Wrap(err, "failed to connect")
 	}
 	client, err := pb.NewBeamFnDataClient(cc).Data(ctx)
 	if err != nil {
 		cc.Close()
-		return nil, fmt.Errorf("failed to connect to data service: %v", err)
+		return nil, errors.Wrap(err, "failed to connect to data service")
 	}
-	return makeDataChannel(ctx, cc, client, port)
+	return makeDataChannel(ctx, port.URL, client), nil
 }
 
-func makeDataChannel(ctx context.Context, cc *grpc.ClientConn, client dataClient, port exec.Port) (*DataChannel, error) {
+func makeDataChannel(ctx context.Context, id string, client dataClient) *DataChannel {
 	ret := &DataChannel{
-		cc:      cc,
+		id:      id,
 		client:  client,
-		port:    port,
-		writers: make(map[string]*dataWriter),
-		readers: make(map[string]*dataReader),
+		writers: make(map[clientID]*dataWriter),
+		readers: make(map[clientID]*dataReader),
 	}
 	go ret.read(ctx)
 
-	return ret, nil
+	return ret
 }
 
-func (c *DataChannel) OpenRead(ctx context.Context, id exec.StreamID) (io.ReadCloser, error) {
-	return c.makeReader(ctx, id), nil
+func (c *DataChannel) OpenRead(ctx context.Context, target exec.Target, instID string) io.ReadCloser {
+	return c.makeReader(ctx, clientID{target: target, instID: instID})
 }
 
-func (c *DataChannel) OpenWrite(ctx context.Context, id exec.StreamID) (io.WriteCloser, error) {
-	return c.makeWriter(ctx, id), nil
+func (c *DataChannel) OpenWrite(ctx context.Context, target exec.Target, instID string) io.WriteCloser {
+	return c.makeWriter(ctx, clientID{target: target, instID: instID})
 }
 
 func (c *DataChannel) read(ctx context.Context) {
-	cache := make(map[string]*dataReader)
+	cache := make(map[clientID]*dataReader)
 	for {
 		msg, err := c.client.Recv()
 		if err != nil {
 			if err == io.EOF {
 				// TODO(herohde) 10/12/2017: can this happen before shutdown? Reconnect?
-				log.Warnf(ctx, "DataChannel %v closed", c.port)
+				log.Warnf(ctx, "DataChannel %v closed", c.id)
 				return
 			}
-			panic(fmt.Errorf("channel %v bad: %v", c.port, err))
+			panic(errors.Wrapf(err, "channel %v bad", c.id))
 		}
 
 		recordStreamReceive(msg)
@@ -150,17 +197,16 @@ func (c *DataChannel) read(ctx context.Context) {
 		// to reduce lock contention.
 
 		for _, elm := range msg.GetData() {
-			id := exec.StreamID{Port: c.port, Target: exec.Target{ID: elm.GetTarget().PrimitiveTransformReference, Name: elm.GetTarget().GetName()}, InstID: elm.GetInstructionReference()}
-			sid := id.String()
+			id := clientID{target: exec.Target{ID: elm.GetTarget().PrimitiveTransformReference, Name: elm.GetTarget().GetName()}, instID: elm.GetInstructionReference()}
 
 			// log.Printf("Chan read (%v): %v\n", sid, elm.GetData())
 
 			var r *dataReader
-			if local, ok := cache[sid]; ok {
+			if local, ok := cache[id]; ok {
 				r = local
 			} else {
 				r = c.makeReader(ctx, id)
-				cache[sid] = r
+				cache[id] = r
 			}
 
 			if r.completed {
@@ -178,14 +224,14 @@ func (c *DataChannel) read(ctx context.Context) {
 				// for it again. We have to be careful not to remove the real
 				// one, because readers may be initialized after we've seen
 				// the full stream.
-				delete(cache, sid)
+				delete(cache, id)
 				continue
 			}
 
 			// This send is deliberately blocking, if we exceed the buffering for
 			// a reader. We can't buffer the entire main input, if some user code
 			// is slow (or gets stuck). If the local side closes, the reader
-			// will be marked as completed and further remote data will be ingored.
+			// will be marked as completed and further remote data will be ignored.
 			select {
 			case r.buf <- elm.GetData():
 			case <-r.done:
@@ -195,42 +241,40 @@ func (c *DataChannel) read(ctx context.Context) {
 	}
 }
 
-func (c *DataChannel) makeReader(ctx context.Context, id exec.StreamID) *dataReader {
+func (c *DataChannel) makeReader(ctx context.Context, id clientID) *dataReader {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	sid := id.String()
-	if r, ok := c.readers[sid]; ok {
+	if r, ok := c.readers[id]; ok {
 		return r
 	}
 
-	r := &dataReader{id: sid, buf: make(chan []byte, bufElements), done: make(chan bool, 1), channel: c}
-	c.readers[sid] = r
+	r := &dataReader{id: id, buf: make(chan []byte, bufElements), done: make(chan bool, 1), channel: c}
+	c.readers[id] = r
 	return r
 }
 
-func (c *DataChannel) removeReader(id string) {
+func (c *DataChannel) removeReader(id clientID) {
 	c.mu.Lock()
 	delete(c.readers, id)
 	c.mu.Unlock()
 }
 
-func (c *DataChannel) makeWriter(ctx context.Context, id exec.StreamID) *dataWriter {
+func (c *DataChannel) makeWriter(ctx context.Context, id clientID) *dataWriter {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	sid := id.String()
-	if w, ok := c.writers[sid]; ok {
+	if w, ok := c.writers[id]; ok {
 		return w
 	}
 
 	w := &dataWriter{ch: c, id: id}
-	c.writers[sid] = w
+	c.writers[id] = w
 	return w
 }
 
 type dataReader struct {
-	id        string
+	id        clientID
 	buf       chan []byte
 	done      chan bool
 	cur       []byte
@@ -264,10 +308,13 @@ func (r *dataReader) Read(buf []byte) (int, error) {
 	return n, nil
 }
 
+// TODO(herohde) 7/20/2018: we should probably either not be tracking writers or
+// make dataWriter threadsafe. Either case is likely a corruption generator.
+
 type dataWriter struct {
 	buf []byte
 
-	id exec.StreamID
+	id clientID
 	ch *DataChannel
 }
 
@@ -281,12 +328,12 @@ func (w *dataWriter) Close() error {
 	// Now acquire the locks since we're sending.
 	w.ch.mu.Lock()
 	defer w.ch.mu.Unlock()
-	delete(w.ch.writers, w.id.String())
-	target := &pb.Target{PrimitiveTransformReference: w.id.Target.ID, Name: w.id.Target.Name}
+	delete(w.ch.writers, w.id)
+	target := &pb.Target{PrimitiveTransformReference: w.id.target.ID, Name: w.id.target.Name}
 	msg := &pb.Elements{
 		Data: []*pb.Elements_Data{
 			{
-				InstructionReference: w.id.InstID,
+				InstructionReference: w.id.instID,
 				Target:               target,
 				// Empty data == sentinel
 			},
@@ -307,11 +354,11 @@ func (w *dataWriter) Flush() error {
 		return nil
 	}
 
-	target := &pb.Target{PrimitiveTransformReference: w.id.Target.ID, Name: w.id.Target.Name}
+	target := &pb.Target{PrimitiveTransformReference: w.id.target.ID, Name: w.id.target.Name}
 	msg := &pb.Elements{
 		Data: []*pb.Elements_Data{
 			{
-				InstructionReference: w.id.InstID,
+				InstructionReference: w.id.instID,
 				Target:               target,
 				Data:                 w.buf,
 			},
@@ -323,14 +370,11 @@ func (w *dataWriter) Flush() error {
 }
 
 func (w *dataWriter) Write(p []byte) (n int, err error) {
-	if len(p) > chunkSize {
-		panic(fmt.Sprintf("Incoming message too big for transport: %d > %d", len(p), chunkSize))
-	}
-
 	if len(w.buf)+len(p) > chunkSize {
+		l := len(w.buf)
 		// We can't fit this message into the buffer. We need to flush the buffer
 		if err := w.Flush(); err != nil {
-			return 0, err
+			return 0, errors.Wrapf(err, "datamgr.go: error flushing buffer of length %d", l)
 		}
 	}
 
