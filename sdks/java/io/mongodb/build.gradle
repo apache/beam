@@ -25,18 +25,18 @@ description = "Apache Beam :: SDKs :: Java :: IO :: MongoDB"
 ext.summary = "IO to read and write on MongoDB."
 
 dependencies {
-  shadow library.java.vendored_guava_20_0
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow library.java.slf4j_api
-  shadow library.java.joda_time
-  shadow "org.mongodb:mongo-java-driver:3.9.1"
+  compile library.java.vendored_guava_20_0
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile "org.mongodb:mongo-java-driver:3.9.1"
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  testCompile project(path: ":sdks:java:io:common", configuration: "shadowTest")
-  shadowTest project(path: ":sdks:java:testing:test-utils", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
   testCompile "de.flapdoodle.embed:de.flapdoodle.embed.mongo:2.2.0"
   testCompile "de.flapdoodle.embed:de.flapdoodle.embed.process:2.1.2"
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(path: ":runners:direct-java")
+  testRuntimeOnly project(":runners:direct-java")
 }

@@ -69,5 +69,5 @@ sourceSets {
 }
 
 dependencies {
-  shadow project(path: ":examples:java", configuration: "shadow")
+  compile project(":examples:java")
 }

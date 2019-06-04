@@ -29,12 +29,23 @@ applyJavaNature(
   enableStrictDependencies: true,
   shadowClosure: DEFAULT_SHADOW_CLOSURE << {
     dependencies {
+      include(dependency(library.java.guava))
       include(dependency(library.java.protobuf_java))
       include(dependency(library.java.protobuf_java_util))
       include(dependency("org.apache.calcite:.*"))
       include(dependency("org.apache.calcite.avatica:.*"))
       include(dependency("org.codehaus.janino:.*"))
     }
+    // guava uses the com.google.common and com.google.thirdparty package namespaces
+    relocate("com.google.common", project.getJavaRelocatedPath("com.google.common")) {
+      // com.google.common is too generic, need to exclude guava-testlib
+      exclude "com.google.common.collect.testing.**"
+      exclude "com.google.common.escape.testing.**"
+      exclude "com.google.common.testing.**"
+      exclude "com.google.common.util.concurrent.testing.**"
+    }
+    relocate "com.google.thirdparty", project.getJavaRelocatedPath("com.google.thirdparty")
+
     relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
     relocate "org.apache.calcite", getJavaRelocatedPath("org.apache.calcite")
 
@@ -72,7 +83,7 @@ dependencies {
   compile "org.apache.calcite:calcite-linq4j:$calcite_version"
   compile "org.apache.calcite.avatica:avatica-core:$avatica_version"
   shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(path: ":sdks:java:extensions:join-library", configuration: "shadow")
+  shadow project(":sdks:java:extensions:join-library")
   shadow library.java.slf4j_api
   shadow library.java.commons_codec
   shadow library.java.commons_csv
@@ -83,8 +94,8 @@ dependencies {
   shadow "com.alibaba:fastjson:1.2.49"
   shadow "com.jayway.jsonpath:json-path:2.4.0"
   shadow project(path: ":runners:direct-java", configuration: "shadow")
-  provided project(path: ":sdks:java:io:kafka", configuration: "shadow")
-  provided project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
+  provided project(":sdks:java:io:kafka")
+  provided project(":sdks:java:io:google-cloud-platform")
   provided library.java.kafka_clients
   shadowTest library.java.junit
   shadowTest library.java.hamcrest_core
