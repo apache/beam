@@ -23,6 +23,7 @@ import logging
 import random
 import time
 import unittest
+import warnings
 
 from nose.plugins.attrib import attr
 
@@ -43,6 +44,9 @@ except ImportError:
 
 
 class BigQueryReadIntegrationTests(unittest.TestCase):
+  # Enable nose tests running in parallel
+  _multiprocess_can_split_ = True
+
   BIG_QUERY_DATASET_ID = 'python_read_table_'
 
   def setUp(self):
@@ -54,11 +58,15 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
     self.dataset_id = '%s%s%d' % (self.BIG_QUERY_DATASET_ID,
                                   str(int(time.time())),
                                   random.randint(0, 10000))
+    warnings.warn(
+        'Creating bigquery dataset %s.%s' % (self.project, self.dataset_id))
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     logging.info("Created dataset %s in project %s",
                  self.dataset_id, self.project)
 
   def tearDown(self):
+    warnings.warn(
+        'Deleting bigquery dataset %s.%s' % (self.project, self.dataset_id))
     request = bigquery.BigqueryDatasetsDeleteRequest(
         projectId=self.project, datasetId=self.dataset_id,
         deleteContents=True)

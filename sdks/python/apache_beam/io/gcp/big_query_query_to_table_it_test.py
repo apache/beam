@@ -26,6 +26,7 @@ import logging
 import random
 import time
 import unittest
+import warnings
 
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
@@ -70,6 +71,9 @@ DIALECT_OUTPUT_EXPECTED = [(u'apple',), (u'orange',)]
 
 
 class BigQueryQueryToTableIT(unittest.TestCase):
+  # Enable nose tests running in parallel
+  _multiprocess_can_split_ = True
+
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.runner_name = type(self.test_pipeline.runner).__name__
@@ -78,10 +82,14 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     self.bigquery_client = BigQueryWrapper()
     self.dataset_id = '%s%s%d' % (BIG_QUERY_DATASET_ID, str(int(time.time())),
                                   random.randint(0, 10000))
+    warnings.warn(
+        'Creating bigquery dataset %s.%s' % (self.project, self.dataset_id))
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     self.output_table = "%s.output_table" % (self.dataset_id)
 
   def tearDown(self):
+    warnings.warn(
+        'Deleting bigquery dataset %s.%s' % (self.project, self.dataset_id))
     request = bigquery.BigqueryDatasetsDeleteRequest(
         projectId=self.project, datasetId=self.dataset_id,
         deleteContents=True)

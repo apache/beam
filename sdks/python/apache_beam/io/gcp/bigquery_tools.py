@@ -35,6 +35,7 @@ import re
 import sys
 import time
 import uuid
+import warnings
 from builtins import object
 
 from future.utils import iteritems
@@ -454,6 +455,8 @@ class BigQueryWrapper(object):
     try:
       dataset = self.client.datasets.Get(bigquery.BigqueryDatasetsGetRequest(
           projectId=project_id, datasetId=dataset_id))
+      warnings.warn(
+          'Get bigquery dataset %s.%s' % (project_id, dataset_id))
       return dataset
     except HttpError as exn:
       if exn.status_code == 404:
@@ -464,6 +467,8 @@ class BigQueryWrapper(object):
           dataset.location = location
         request = bigquery.BigqueryDatasetsInsertRequest(
             projectId=project_id, dataset=dataset)
+        warnings.warn(
+            'Created bigquery dataset %s.%s' % (project_id, dataset_id))
         response = self.client.datasets.Insert(request)
         # The response is a bigquery.Dataset instance.
         return response
