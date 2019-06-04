@@ -71,7 +71,6 @@ dependencies {
   provided library.java.junit
   shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
   shadowTest project(path: ":runners:core-java", configuration: "shadowTest")
-  shadowTest library.java.guava_testlib
   shadowTest library.java.slf4j_jdk14
   shadowTest library.java.mockito_core
   shadowTest library.java.stax2_api
