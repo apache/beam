@@ -101,7 +101,7 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
   }
 
   /** Extract bucket and shard id for grouping, and key bytes for sorting. */
-  static final class ExtractKeys<K, V> extends DoFn<V, KV<BucketShardId, KV<byte[], V>>> {
+  static class ExtractKeys<K, V> extends DoFn<V, KV<BucketShardId, KV<byte[], V>>> {
     private final BucketMetadata<K, V> bucketMetadata;
     private transient int shardId;
 
@@ -132,7 +132,7 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
   }
 
   /** The result of a {@link SortedBucketSink} transform. */
-  public static final class WriteResult implements POutput {
+  public static class WriteResult implements POutput {
     private final Pipeline pipeline;
     private final PCollection<ResourceId> writtenMetadata;
     private final PCollection<KV<BucketShardId, ResourceId>> writtenFiles;
@@ -168,7 +168,7 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
    * operation that manages the process of writing to {@link SortedBucketSink}.
    */
   // TODO: Retry policy, etc...
-  static final class WriteOperation<V>
+  static class WriteOperation<V>
       extends PTransform<PCollection<KV<BucketShardId, Iterable<KV<byte[], V>>>>, WriteResult> {
     private final SMBFilenamePolicy filenamePolicy;
     private final BucketMetadata<?, V> bucketMetadata;
@@ -272,7 +272,7 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
   }
 
   /** Moves temporary files to final destinations. */
-  static final class FinalizeTempFiles<V> extends PTransform<PCollectionTuple, WriteResult> {
+  static class FinalizeTempFiles<V> extends PTransform<PCollectionTuple, WriteResult> {
     private final FileAssignment fileAssignment;
     private final BucketMetadata bucketMetadata;
     private final Supplier<Writer<V>> writerSupplier;
