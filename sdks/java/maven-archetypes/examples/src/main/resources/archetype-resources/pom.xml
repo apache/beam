@@ -249,7 +249,10 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-flink_2.11</artifactId>
+          <!-- Please see the Flink Runner page for an up-to-date list
+               of supported Flink versions and their artifact names:
+               https://beam.apache.org/documentation/runners/flink/ -->
+          <artifactId>beam-runners-flink-1.8</artifactId>
           <version>${beam.version}</version>
           <scope>runtime</scope>
         </dependency>
