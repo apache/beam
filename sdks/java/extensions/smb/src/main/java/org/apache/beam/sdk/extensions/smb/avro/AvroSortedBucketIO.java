@@ -21,6 +21,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.smb.SortedBucketIO;
 import org.apache.beam.sdk.extensions.smb.SortedBucketIO.ReadBuilder.JoinSource;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink;
@@ -54,11 +55,12 @@ public class AvroSortedBucketIO {
   }
 
   // Joins
-  public static <KeyT> JoinSource<KeyT, GenericRecord> avroSource(
-      TupleTag<GenericRecord> tupleTag, Schema schema, ResourceId filenamePrefix) {
+  @SuppressWarnings("unchecked")
+  public static <KeyT, ValueT extends GenericRecord> JoinSource<KeyT, ValueT> avroSource(
+      TupleTag<ValueT> tupleTag, Schema schema, ResourceId filenamePrefix) {
     return new JoinSource<>(
         new BucketedInput<>(tupleTag, filenamePrefix, ".avro", AvroFileOperations.of(schema)),
-        AvroCoder.of(schema));
+        (Coder<ValueT>) AvroCoder.of(schema));
   }
 
   public static <KeyT, ValueT extends SpecificRecordBase> JoinSource<KeyT, ValueT> avroSource(

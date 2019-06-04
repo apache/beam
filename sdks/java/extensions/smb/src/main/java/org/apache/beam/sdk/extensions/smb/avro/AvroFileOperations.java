@@ -55,7 +55,7 @@ public class AvroFileOperations<ValueT> extends FileOperations<ValueT> {
     this.codec = new SerializableAvroCodecFactory(codec);
   }
 
-  public static AvroFileOperations<GenericRecord> of(Schema schema) {
+  public static <V extends GenericRecord> AvroFileOperations<V> of(Schema schema) {
     return new AvroFileOperations<>(null, schema, DEFAULT_CODEC);
   }
 
