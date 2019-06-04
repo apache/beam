@@ -49,6 +49,7 @@ class LoadTest(unittest.TestCase):
   def setUp(self):
     self.pipeline = TestPipeline()
     self.input_options = json.loads(self.pipeline.get_option('input_options'))
+    self.project_id = self.pipeline.get_option('project')
 
     self.publish_to_big_query = self.pipeline.get_option('publish_to_big_query')
     self.metrics_namespace = self.pipeline.get_option('metrics_table')
