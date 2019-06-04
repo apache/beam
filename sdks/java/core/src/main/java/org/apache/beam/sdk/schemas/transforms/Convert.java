@@ -27,6 +27,7 @@ import org.apache.beam.sdk.schemas.utils.ConvertHelpers;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -126,27 +127,41 @@ public class Convert {
           ConvertHelpers.getConvertedSchemaInformation(
               input.getSchema(), outputTypeDescriptor, registry);
       boolean unbox = converted.unboxedType != null;
-      PCollection<OutputT> output =
-          input.apply(
-              ParDo.of(
-                  new DoFn<InputT, OutputT>() {
-                    @ProcessElement
-                    public void processElement(@Element Row row, OutputReceiver<OutputT> o) {
-                      // Read the row, potentially unboxing if necessary.
-                      Object input = unbox ? row.getValue(0) : row;
-                      // The output has a schema, so we need to convert to the appropriate type.
-                      o.output(converted.outputSchemaCoder.getFromRowFunction().apply((Row) input));
-                    }
-                  }));
+      PCollection<OutputT> output;
       if (converted.outputSchemaCoder != null) {
+        output =
+            input.apply(
+                ParDo.of(
+                    new DoFn<InputT, OutputT>() {
+                      @ProcessElement
+                      public void processElement(@Element Row row, OutputReceiver<OutputT> o) {
+                        // Read the row, potentially unboxing if necessary.
+                        Object input = unbox ? row.getValue(0) : row;
+                        // The output has a schema, so we need to convert to the appropriate type.
+                        o.output(
+                            converted.outputSchemaCoder.getFromRowFunction().apply((Row) input));
+                      }
+                    }));
         output =
             output.setSchema(
                 converted.outputSchemaCoder.getSchema(),
                 converted.outputSchemaCoder.getToRowFunction(),
                 converted.outputSchemaCoder.getFromRowFunction());
       } else {
-        // TODO: Support full unboxing and boxing in Create.
-        throw new RuntimeException("Unboxing is not yet supported in the Create transform");
+        SerializableFunction<?, OutputT> convertPrimitive =
+            ConvertHelpers.getConvertPrimitive(converted.unboxedType, outputTypeDescriptor);
+        output =
+            input.apply(
+                ParDo.of(
+                    new DoFn<InputT, OutputT>() {
+                      @ProcessElement
+                      public void processElement(@Element Row row, OutputReceiver<OutputT> o) {
+                        o.output(convertPrimitive.apply(row.getValue(0)));
+                      }
+                    }));
+
+        output.setTypeDescriptor(outputTypeDescriptor);
+        // TODO: Support boxing in Convert (e.g. Long -> Row with Schema { Long }).
       }
       return output;
     }
