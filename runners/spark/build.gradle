@@ -54,18 +54,18 @@ test {
 }
 
 dependencies {
-  shadow project(path: ":model:pipeline", configuration: "shadow")
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
-  shadow project(path: ":runners:core-java", configuration: "shadow")
-  shadow project(path: ":runners:java-fn-execution", configuration: "shadow")
-  shadow library.java.guava
-  shadow library.java.jackson_annotations
-  shadow library.java.slf4j_api
-  shadow library.java.joda_time
-  shadow library.java.args4j
-  shadow "io.dropwizard.metrics:metrics-core:3.1.2"
-  shadow library.java.jackson_module_scala
+  compile project(path: ":model:pipeline", configuration: "shadow")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":runners:core-construction-java")
+  compile project(":runners:core-java")
+  compile project(":runners:java-fn-execution")
+  compile library.java.guava
+  compile library.java.jackson_annotations
+  compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile library.java.args4j
+  compile "io.dropwizard.metrics:metrics-core:3.1.2"
+  compile library.java.jackson_module_scala
   provided library.java.spark_core
   provided library.java.spark_streaming
   provided library.java.spark_network_common
@@ -79,22 +79,22 @@ dependencies {
   provided "org.apache.zookeeper:zookeeper:3.4.11"
   provided "org.scala-lang:scala-library:2.11.8"
   provided "com.esotericsoftware.kryo:kryo:2.21"
-  shadowTest project(path: ":sdks:java:io:kafka", configuration: "shadow")
-  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(":sdks:java:io:kafka")
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
-  shadowTest project(path: ":runners:core-java", configuration: "shadowTest")
-  shadowTest project(":sdks:java:harness")
-  shadowTest library.java.avro
-  shadowTest library.java.kafka_clients
-  shadowTest library.java.junit
-  shadowTest library.java.mockito_core
-  shadowTest library.java.jackson_dataformat_yaml
-  shadowTest "org.apache.kafka:kafka_2.11:0.11.0.1"
+  testCompile project(path: ":runners:core-java", configuration: "testRuntime")
+  testCompile project(":sdks:java:harness")
+  testCompile library.java.avro
+  testCompile library.java.kafka_clients
+  testCompile library.java.junit
+  testCompile library.java.mockito_core
+  testCompile library.java.jackson_dataformat_yaml
+  testCompile "org.apache.kafka:kafka_2.11:0.11.0.1"
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
-  validatesRunner project(path: ":sdks:java:io:hadoop-format", configuration: "shadowTest")
-  validatesRunner project(path: ":examples:java", configuration: "shadowTest")
-  validatesRunner project(path: project.path, configuration: "shadowTest")
-  validatesRunner project(path: project.path, configuration: "shadow")
+  validatesRunner project(path: ":sdks:java:io:hadoop-format", configuration: "testRuntime")
+  validatesRunner project(path: ":examples:java", configuration: "testRuntime")
+  validatesRunner project(path: project.path, configuration: "testRuntime")
+  validatesRunner project(project.path)
   validatesRunner project(path: project.path, configuration: "provided")
 }
 

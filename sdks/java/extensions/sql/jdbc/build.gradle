@@ -36,7 +36,7 @@ dependencies {
   compile "sqlline:sqlline:1.4.0"
   compile library.java.slf4j_jdk14
   compile library.java.guava
-  testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library

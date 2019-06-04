@@ -115,8 +115,11 @@ class BeamModulePlugin implements Plugin<Project> {
     List<String> shadowJarValidationExcludes = ["org/apache/beam/**"]
 
     /**
-     * The shadowJar / shadowTestJar tasks execute the following closure to configure themselves.
-     * Users can compose their closure with the default closure via:
+     * If unset, no shading is performed. The jar and test jar archives are used during publishing.
+     * Otherwise the shadowJar and shadowTestJar artifacts are used during publishing.
+     *
+     * The shadowJar / shadowTestJar tasks execute the specified closure to configure themselves.
+     * Users can compose their closure with a suggested default closure via:
      * DEFAULT_SHADOW_CLOSURE << {
      *   dependencies {
      *     include(...)
@@ -364,8 +367,8 @@ class BeamModulePlugin implements Plugin<Project> {
     //
     // Example usage:
     // configuration {
-    //   shadow library.java.avro
-    //   shadowTest library.java.junit
+    //   compile library.java.avro
+    //   testCompile library.java.junit
     // }
 
     // These versions are defined here because they represent
@@ -400,7 +403,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
-    //   shadow library.java.slf4j_api
+    //   compile library.java.slf4j_api
     // }
     project.ext.library = [
       java : [
@@ -558,17 +561,8 @@ class BeamModulePlugin implements Plugin<Project> {
     // https://github.com/johnrengelman/shadow/blob/98191096a94674245c7b3e63975df9e14f67074e/src/main/groovy/com/github/jengelman/gradle/plugins/shadow/internal/DefaultDependencyFilter.groovy#L123
     project.ext.DEFAULT_SHADOW_CLOSURE = {
       dependencies {
-        include(dependency(project.library.java.guava))
+        include(dependency("not.a.real:dependency"))
       }
-      // guava uses the com.google.common and com.google.thirdparty package namespaces
-      relocate("com.google.common", project.getJavaRelocatedPath("com.google.common")) {
-        // com.google.common is too generic, need to exclude guava-testlib
-        exclude "com.google.common.collect.testing.**"
-        exclude "com.google.common.escape.testing.**"
-        exclude "com.google.common.testing.**"
-        exclude "com.google.common.util.concurrent.testing.**"
-      }
-      relocate "com.google.thirdparty", project.getJavaRelocatedPath("com.google.thirdparty")
     }
 
     project.ext.repositories = {
@@ -628,15 +622,19 @@ class BeamModulePlugin implements Plugin<Project> {
     //  * propdeps-idea
     //  * checkstyle
     //  * spotbugs
-    //  * shadow
+    //  * shadow (conditional on shadowClosure being specified)
     //  * com.diffplug.gradle.spotless (code style plugin)
     //
     // Dependency Management for Java Projects
     // ---------------------------------------
     //
-    // By default, the shadow plugin is enabled to perform shading of commonly found dependencies.
-    // Because of this it is important that dependencies are added to the correct configuration.
-    // Dependencies should fall into one of these four configurations:
+    // By default, the shadow plugin is not enabled. It is only enabled by specifying a shadowClosure
+    // as an argument. If no shadowClosure has been specified, dependencies should fall into the
+    // configurations as described within the Gradle documentation (https://docs.gradle.org/current/userguide/java_plugin.html#sec:java_plugin_and_dependency_management)
+    //
+    // When the shadowClosure argument is specified, the shadow plugin is enabled to perform shading
+    // of commonly found dependencies. Because of this it is important that dependencies are added
+    // to the correct configuration. Dependencies should fall into one of these four configurations:
     //  * compile     - Required during compilation or runtime of the main source set.
     //                  This configuration represents all dependencies that much also be shaded away
     //                  otherwise the generated Maven pom will be missing this dependency.
@@ -648,22 +646,20 @@ class BeamModulePlugin implements Plugin<Project> {
     //                  TODO: Figure out whether this should be a test scope dependency
     //                  of the generated Maven pom.
     //
-    // When creating a cross-project dependency between two Java projects, one should only rely on the shaded configurations.
-    // This allows for compilation/test execution to occur against the final artifact that will be provided to users.
-    // This is by done by referencing the "shadow" or "shadowTest" configuration as so:
+    // When creating a cross-project dependency between two Java projects, one should only rely on
+    // the shaded configurations if the project has a shadowClosure being specified. This allows
+    // for compilation/test execution to occur against the final artifact that will be provided to
+    // users. This is by done by referencing the "shadow" or "shadowTest" configuration as so:
     //   dependencies {
     //     shadow project(path: "other:java:project1", configuration: "shadow")
     //     shadowTest project(path: "other:java:project2", configuration: "shadowTest")
     //   }
-    // This will ensure the correct set of transitive dependencies from those projects are correctly added to the
-    // main and test source set runtimes.
+    // This will ensure the correct set of transitive dependencies from those projects are correctly
+    // added to the main and test source set runtimes.
 
     project.ext.applyJavaNature = {
       // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
       JavaNatureConfiguration configuration = it ? it as JavaNatureConfiguration : new JavaNatureConfiguration()
-      if (!configuration.shadowClosure) {
-        configuration.shadowClosure = project.DEFAULT_SHADOW_CLOSURE
-      }
 
       project.apply plugin: "java"
 
@@ -720,12 +716,14 @@ class BeamModulePlugin implements Plugin<Project> {
         maxHeapSize = '2g'
       }
 
-      // Ensure that tests are packaged and part of the artifact set.
-      project.task('packageTests', type: Jar) {
-        classifier = 'tests-unshaded'
-        from project.sourceSets.test.output
+      if (configuration.shadowClosure) {
+        // Ensure that tests are packaged and part of the artifact set.
+        project.task('packageTests', type: Jar) {
+          classifier = 'tests-unshaded'
+          from project.sourceSets.test.output
+        }
+        project.artifacts.archives project.packageTests
       }
-      project.artifacts.archives project.packageTests
 
       // Configures annotation processing for commonly used annotation processors
       // across all Java projects.
@@ -864,97 +862,118 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.configurations.errorprone { resolutionStrategy.force 'com.google.errorprone:error_prone_core:2.3.1' }
 
-      // Enables a plugin which can perform shading of classes. See the general comments
-      // above about dependency management for Java projects and how the shadow plugin
-      // is expected to be used for the different Gradle configurations.
-      //
-      // TODO: Enforce all relocations are always performed to:
-      // getJavaRelocatedPath(package_suffix) where package_suffix is something like "com.google.commmon"
-      project.apply plugin: 'com.github.johnrengelman.shadow'
+      if (configuration.shadowClosure) {
+        // Enables a plugin which can perform shading of classes. See the general comments
+        // above about dependency management for Java projects and how the shadow plugin
+        // is expected to be used for the different Gradle configurations.
+        //
+        // TODO: Enforce all relocations are always performed to:
+        // getJavaRelocatedPath(package_suffix) where package_suffix is something like "com.google.commmon"
+        project.apply plugin: 'com.github.johnrengelman.shadow'
 
-      // Create a new configuration 'shadowTest' like 'shadow' for the test scope
-      project.configurations {
-        shadow { description = "Dependencies for shaded source set 'main'" }
-        compile.extendsFrom shadow
-        shadowTest {
-          description = "Dependencies for shaded source set 'test'"
-          extendsFrom shadow
+        // Create a new configuration 'shadowTest' like 'shadow' for the test scope
+        project.configurations {
+          shadow { description = "Dependencies for shaded source set 'main'" }
+          compile.extendsFrom shadow
+          shadowTest {
+            description = "Dependencies for shaded source set 'test'"
+            extendsFrom shadow
+          }
+          testCompile.extendsFrom shadowTest
         }
-        testCompile.extendsFrom shadowTest
       }
 
       project.jar {
         classifier = "unshaded"
         zip64 true
-      }
-
-      // Always configure the shadowJar classifier and merge service files.
-      project.shadowJar({
-        classifier = null
-        mergeServiceFiles()
-        zip64 true
         into("META-INF/") {
           from "${project.rootProject.projectDir}/LICENSE"
           from "${project.rootProject.projectDir}/NOTICE"
         }
-      } << configuration.shadowClosure)
-
-      // Always configure the shadowTestJar classifier and merge service files.
-      project.task('shadowTestJar', type: ShadowJar, {
-        group = "Shadow"
-        description = "Create a combined JAR of project and test dependencies"
-        classifier = "tests"
-        from project.sourceSets.test.output
-        configurations = [
-          project.configurations.testRuntime
-        ]
-        zip64 true
-        exclude "META-INF/INDEX.LIST"
-        exclude "META-INF/*.SF"
-        exclude "META-INF/*.DSA"
-        exclude "META-INF/*.RSA"
-      } << configuration.shadowClosure)
-
-      // Ensure that shaded jar and test-jar are part of the their own configuration artifact sets
-      project.artifacts.shadow project.shadowJar
-      project.artifacts.shadowTest project.shadowTestJar
-
-      if (configuration.testShadowJar) {
-        // Use a configuration and dependency set which represents the execution classpath using shaded artifacts for tests.
-        project.configurations { shadowTestRuntimeClasspath }
-
-        project.dependencies {
-          shadowTestRuntimeClasspath it.project(path: project.path, configuration: "shadowTest")
-          shadowTestRuntimeClasspath it.project(path: project.path, configuration: "provided")
-        }
-
-        project.test { classpath = project.configurations.shadowTestRuntimeClasspath }
       }
 
-      if (configuration.validateShadowJar) {
-        project.task('validateShadedJarDoesntLeakNonProjectClasses', dependsOn: 'shadowJar') {
-          ext.outFile = project.file("${project.reportsDir}/${name}.out")
-          inputs.files project.configurations.shadow.artifacts.files
-          outputs.files outFile
-          doLast {
-            project.configurations.shadow.artifacts.files.each {
-              FileTree exposedClasses = project.zipTree(it).matching {
-                include "**/*.class"
-                // BEAM-5919: Exclude paths for Java 9 multi-release jars.
-                exclude "META-INF/versions/*/module-info.class"
-                configuration.shadowJarValidationExcludes.each {
-                  exclude "$it"
-                  exclude "META-INF/versions/*/$it"
+      // Always configure the shadowJar classifier and merge service files.
+      if (configuration.shadowClosure) {
+        project.shadowJar({
+          classifier = null
+          mergeServiceFiles()
+          zip64 true
+          into("META-INF/") {
+            from "${project.rootProject.projectDir}/LICENSE"
+            from "${project.rootProject.projectDir}/NOTICE"
+          }
+        } << configuration.shadowClosure)
+
+        // Always configure the shadowTestJar classifier and merge service files.
+        project.task('shadowTestJar', type: ShadowJar, {
+          group = "Shadow"
+          description = "Create a combined JAR of project and test dependencies"
+          classifier = "tests"
+          from project.sourceSets.test.output
+          configurations = [
+            project.configurations.testRuntime
+          ]
+          zip64 true
+          exclude "META-INF/INDEX.LIST"
+          exclude "META-INF/*.SF"
+          exclude "META-INF/*.DSA"
+          exclude "META-INF/*.RSA"
+        } << configuration.shadowClosure)
+
+        // Ensure that shaded jar and test-jar are part of the their own configuration artifact sets
+        project.artifacts.shadow project.shadowJar
+        project.artifacts.shadowTest project.shadowTestJar
+
+        if (configuration.testShadowJar) {
+          // Use a configuration and dependency set which represents the execution classpath using shaded artifacts for tests.
+          project.configurations { shadowTestRuntimeClasspath }
+
+          project.dependencies {
+            shadowTestRuntimeClasspath it.project(path: project.path, configuration: "shadowTest")
+            shadowTestRuntimeClasspath it.project(path: project.path, configuration: "provided")
+          }
+
+          project.test { classpath = project.configurations.shadowTestRuntimeClasspath }
+        }
+
+        if (configuration.validateShadowJar) {
+          project.task('validateShadedJarDoesntLeakNonProjectClasses', dependsOn: 'shadowJar') {
+            ext.outFile = project.file("${project.reportsDir}/${name}.out")
+            inputs.files project.configurations.shadow.artifacts.files
+            outputs.files outFile
+            doLast {
+              project.configurations.shadow.artifacts.files.each {
+                FileTree exposedClasses = project.zipTree(it).matching {
+                  include "**/*.class"
+                  // BEAM-5919: Exclude paths for Java 9 multi-release jars.
+                  exclude "META-INF/versions/*/module-info.class"
+                  configuration.shadowJarValidationExcludes.each {
+                    exclude "$it"
+                    exclude "META-INF/versions/*/$it"
+                  }
                 }
-              }
-              outFile.text = exposedClasses.files
-              if (exposedClasses.files) {
-                throw new GradleException("$it exposed classes outside of ${configuration.shadowJarValidationExcludes}: ${exposedClasses.files}")
+                outFile.text = exposedClasses.files
+                if (exposedClasses.files) {
+                  throw new GradleException("$it exposed classes outside of ${configuration.shadowJarValidationExcludes}: ${exposedClasses.files}")
+                }
               }
             }
           }
+          project.tasks.check.dependsOn project.tasks.validateShadedJarDoesntLeakNonProjectClasses
         }
-        project.tasks.check.dependsOn project.tasks.validateShadedJarDoesntLeakNonProjectClasses
+      } else {
+        project.task("testJar", type: Jar, {
+          group = "Jar"
+          description = "Create a JAR of test classes"
+          classifier = "tests"
+          from project.sourceSets.test.output
+          zip64 true
+          exclude "META-INF/INDEX.LIST"
+          exclude "META-INF/*.SF"
+          exclude "META-INF/*.DSA"
+          exclude "META-INF/*.RSA"
+        })
+        project.artifacts.testRuntime project.testJar
       }
 
       project.ext.includeInJavaBom = configuration.publish
@@ -977,9 +996,9 @@ class BeamModulePlugin implements Plugin<Project> {
           }
         }
 
-        // Have the shaded include both the generate pom.xml and its properties file
+        // Have the main artifact jar include both the generate pom.xml and its properties file
         // emulating the behavior of the maven-archiver plugin.
-        project.shadowJar {
+        project.(configuration.shadowClosure ? 'shadowJar' : 'jar') {
           def pomFile = "${project.buildDir}/publications/mavenJava/pom-default.xml"
 
           // Validate that the artifacts exist before copying them into the jar.
@@ -1003,8 +1022,13 @@ class BeamModulePlugin implements Plugin<Project> {
         }
 
         // Only build artifacts for archives if we are publishing
-        project.artifacts.archives project.shadowJar
-        project.artifacts.archives project.shadowTestJar
+        if (configuration.shadowClosure) {
+          project.artifacts.archives project.shadowJar
+          project.artifacts.archives project.shadowTestJar
+        } else {
+          project.artifacts.archives project.jar
+          project.artifacts.archives project.testJar
+        }
 
         project.task('sourcesJar', type: Jar) {
           from project.sourceSets.main.allSource
@@ -1029,8 +1053,13 @@ class BeamModulePlugin implements Plugin<Project> {
 
           publications {
             mavenJava(MavenPublication) {
-              artifact project.shadowJar
-              artifact project.shadowTestJar
+              if (configuration.shadowClosure) {
+                artifact project.shadowJar
+                artifact project.shadowTestJar
+              } else {
+                artifact project.jar
+                artifact project.testJar
+              }
               artifact project.sourcesJar
               artifact project.testSourcesJar
               artifact project.javadocJar
@@ -1135,7 +1164,8 @@ class BeamModulePlugin implements Plugin<Project> {
 
                 // TODO: Should we use the runtime scope instead of the compile scope
                 // which forces all our consumers to declare what they consume?
-                generateDependenciesFromConfiguration(configuration: 'shadow', scope: 'compile')
+                generateDependenciesFromConfiguration(
+                        configuration: (configuration.shadowJar ? 'shadow' : 'compile'), scope: 'compile')
                 generateDependenciesFromConfiguration(configuration: 'provided', scope: 'provided')
 
                 // NB: This must come after asNode() logic, as it seems asNode()
@@ -1254,7 +1284,7 @@ class BeamModulePlugin implements Plugin<Project> {
         /* include dependencies required by runners */
         //if (runner?.contains('dataflow')) {
         if (runner?.equalsIgnoreCase('dataflow')) {
-          testCompile it.project(path: ":runners:google-cloud-dataflow-java", configuration: 'shadowTest')
+          testCompile it.project(path: ":runners:google-cloud-dataflow-java", configuration: 'testCompile')
           shadow it.project(path: ":runners:google-cloud-dataflow-java:worker:legacy-worker", configuration: 'shadow')
         }
 
@@ -1263,11 +1293,11 @@ class BeamModulePlugin implements Plugin<Project> {
         }
 
         if (runner?.equalsIgnoreCase('flink')) {
-          testCompile it.project(path: ":runners:flink:1.5", configuration: 'shadowTest')
+          testCompile it.project(path: ":runners:flink:1.5", configuration: 'testCompile')
         }
 
         if (runner?.equalsIgnoreCase('spark')) {
-          testCompile it.project(path: ":runners:spark", configuration: 'shadowTest')
+          testCompile it.project(path: ":runners:spark", configuration: 'testCompile')
           testCompile project.library.java.spark_core
           testCompile project.library.java.spark_streaming
 
@@ -1279,13 +1309,13 @@ class BeamModulePlugin implements Plugin<Project> {
 
         /* include dependencies required by filesystems */
         if (filesystem?.equalsIgnoreCase('hdfs')) {
-          testCompile it.project(path: ":sdks:java:io:hadoop-file-system", configuration: 'shadowTest')
-          shadowTest project.library.java.hadoop_client
+          testCompile it.project(path: ":sdks:java:io:hadoop-file-system", configuration: 'testCompile')
+          testRuntime project.library.java.hadoop_client
         }
 
         /* include dependencies required by AWS S3 */
         if (filesystem?.equalsIgnoreCase('s3')) {
-          testCompile it.project(path: ":sdks:java:io:amazon-web-services", configuration: 'shadowTest')
+          testCompile it.project(path: ":sdks:java:io:amazon-web-services", configuration: 'testCompile')
         }
       }
 

@@ -38,28 +38,28 @@ configurations {
 }
 
 dependencies {
-    shadow project(path: ":sdks:java:core", configuration: "shadow")
-    shadow project(path: ":runners:core-java", configuration: "shadow")
-    shadow "com.hazelcast.jet:hazelcast-jet:$jet_version"
+    compile project(path: ":sdks:java:core", configuration: "shadow")
+    compile project(":runners:core-java")
+    compile "com.hazelcast.jet:hazelcast-jet:$jet_version"
 
-    shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
-    shadowTest project(path: ":runners:core-java", configuration: "shadowTest")
-    shadowTest project(path: ":runners:core-construction-java", configuration: "shadowTest")
-    shadowTest library.java.hamcrest_core
-    shadowTest library.java.junit
-    shadowTest "com.hazelcast.jet:hazelcast-jet-core:$jet_version:tests"
-    shadowTest "com.hazelcast:hazelcast:$hazelcast_version:tests"
-    shadowTest "com.hazelcast:hazelcast-client:$hazelcast_version:tests"
+    testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+    testCompile project(path: ":runners:core-java", configuration: "testRuntime")
+    testCompile project(path: ":runners:core-construction-java", configuration: "testRuntime")
+    testCompile library.java.hamcrest_core
+    testCompile library.java.junit
+    testCompile "com.hazelcast.jet:hazelcast-jet-core:$jet_version:tests"
+    testCompile "com.hazelcast:hazelcast:$hazelcast_version:tests"
+    testCompile "com.hazelcast:hazelcast-client:$hazelcast_version:tests"
 
     needsRunner project(path: ":sdks:java:core", configuration: "shadowTest")
-    needsRunner project(path: ":runners:core-java", configuration: "shadowTest")
-    needsRunner project(path: ":runners:core-construction-java", configuration: "shadowTest")
-    needsRunner project(path: project.path, configuration: "shadowTest")
+    needsRunner project(path: ":runners:core-java", configuration: "testRuntime")
+    needsRunner project(path: ":runners:core-construction-java", configuration: "testRuntime")
+    needsRunner project(path: project.path, configuration: "testRuntime")
 
     validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
-    validatesRunner project(path: ":runners:core-java", configuration: "shadowTest")
-    validatesRunner project(path: ":runners:core-construction-java", configuration: "shadowTest")
-    validatesRunner project(path: project.path, configuration: "shadowTest")
+    validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
+    validatesRunner project(path: ":runners:core-construction-java", configuration: "testRuntime")
+    validatesRunner project(path: project.path, configuration: "testRuntime")
 }
 
 task validatesRunnerBatch(type: Test) {

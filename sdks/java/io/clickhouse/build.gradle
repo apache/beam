@@ -50,14 +50,14 @@ def testcontainers_version = "1.10.5"
 
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow library.java.joda_time
-  shadow "ru.yandex.clickhouse:clickhouse-jdbc:$clickhouse_jdbc_version"
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.joda_time
+  compile "ru.yandex.clickhouse:clickhouse-jdbc:$clickhouse_jdbc_version"
   testCompile library.java.slf4j_api
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile "org.testcontainers:clickhouse:$testcontainers_version"
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(path: ":runners:direct-java")
+  testRuntimeOnly project(":runners:direct-java")
 }

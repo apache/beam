@@ -41,10 +41,10 @@ test {
 evaluationDependsOn(":sdks:java:io:common")
 
 dependencies {
-  shadow library.java.vendored_guava_20_0
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(path: ":sdks:java:io:hadoop-common", configuration: "shadow")
-  shadow library.java.slf4j_api
+  compile library.java.vendored_guava_20_0
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":sdks:java:io:hadoop-common")
+  compile library.java.slf4j_api
   // Hive bundles without repackaging Jackson which is why we redeclare it here so that it appears
   // on the compile/test/runtime classpath before Hive.
   provided library.java.jackson_annotations
@@ -68,6 +68,6 @@ dependencies {
   testCompile "org.apache.hive:hive-exec:$hive_version"
   testCompile "org.apache.hive:hive-common:$hive_version"
   testCompile "org.apache.hive:hive-cli:$hive_version"
-  testRuntimeOnly project(path: ":runners:direct-java")
+  testRuntimeOnly project(":runners:direct-java")
 }
 
