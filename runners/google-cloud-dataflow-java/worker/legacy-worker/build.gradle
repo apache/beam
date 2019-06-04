@@ -214,7 +214,6 @@ dependencies {
     // as well and placed within the testCompile configuration. Otherwise we can place it within
     // the shadowTest configuration.
     testCompile project(path: ":runners:core-java", configuration: "shadowTest")
-    shadowTest library.java.guava_testlib
     shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadowTest")
     shadowTest project(path: ":runners:direct-java", configuration: "shadow")
     shadowTest project(path: ":sdks:java:harness", configuration: "shadowTest")
