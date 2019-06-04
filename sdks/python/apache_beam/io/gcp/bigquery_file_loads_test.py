@@ -40,7 +40,9 @@ from apache_beam.io.gcp import bigquery
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
+from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -466,9 +468,103 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                max_file_size=20,
                max_files_per_bundle=-1))
 
+  @unittest.skip('TODO(BEAM-6611) - BQ file loads in streaming')
+  @attr('IT')
+  def test_multiple_destinations_transform_streaming(self):
+    if isinstance(self.test_pipeline.runner, TestDataflowRunner):
+      self.skipTest("TestStream is not supported on TestDataflowRunner")
+    output_table_1 = '%s%s' % (self.output_table, 1)
+    output_table_2 = '%s%s' % (self.output_table, 2)
+    output_table_3 = '%s%s' % (self.output_table, 3)
+    output_table_4 = '%s%s' % (self.output_table, 4)
+    schema1 = bigquery.WriteToBigQuery.get_dict_table_schema(
+        bigquery_tools.parse_table_schema_from_json(self.BIG_QUERY_SCHEMA))
+    schema2 = bigquery.WriteToBigQuery.get_dict_table_schema(
+        bigquery_tools.parse_table_schema_from_json(self.BIG_QUERY_SCHEMA_2))
+
+    schema_kv_pairs = [(output_table_1, schema1),
+                       (output_table_2, schema2),
+                       (output_table_3, schema1),
+                       (output_table_4, schema2)]
+    pipeline_verifiers = [
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT name, language FROM %s" % output_table_1,
+            data=[(d['name'], d['language'])
+                  for d in _ELEMENTS
+                  if 'language' in d]),
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT name, foundation FROM %s" % output_table_2,
+            data=[(d['name'], d['foundation'])
+                  for d in _ELEMENTS
+                  if 'foundation' in d]),
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT name, language FROM %s" % output_table_3,
+            data=[(d['name'], d['language'])
+                  for d in _ELEMENTS
+                  if 'language' in d]),
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT name, foundation FROM %s" % output_table_4,
+            data=[(d['name'], d['foundation'])
+                  for d in _ELEMENTS
+                  if 'foundation' in d])]
+
+    args = self.test_pipeline.get_full_options_as_args(
+        on_success_matcher=all_of(*pipeline_verifiers),
+        experiments='use_beam_bq_sink', streaming=True)
+
+    with beam.Pipeline(argv=args) as p:
+      _SIZE = len(_ELEMENTS)
+      input = p | (TestStream()
+                   .advance_watermark_to(0)
+                   .add_elements(_ELEMENTS[:_SIZE//2])
+                   .advance_watermark_to(100)
+                   .add_elements(_ELEMENTS[_SIZE//2:])
+                   .advance_watermark_to_infinity())
+
+      schema_map_pcv = beam.pvalue.AsDict(
+          p | "MakeSchemas" >> beam.Create(schema_kv_pairs))
+
+      table_record_pcv = beam.pvalue.AsDict(
+          p | "MakeTables" >> beam.Create([('table1', output_table_1),
+                                           ('table2', output_table_2)]))
+
+      # Get all input in same machine
+      input = (input
+               | beam.Map(lambda x: (None, x))
+               | beam.GroupByKey()
+               | beam.FlatMap(lambda elm: elm[1]))
+
+      _ = (input |
+           "WriteWithMultipleDestsFreely" >> bigquery.WriteToBigQuery(
+               table=lambda x, tables: (tables['table1']
+                                        if 'language' in x
+                                        else tables['table2']),
+               table_side_inputs=(table_record_pcv,),
+               schema=lambda dest, schema_map: schema_map.get(dest, None),
+               schema_side_inputs=(schema_map_pcv,),
+               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
+               method=bigquery.WriteToBigQuery.Method.FILE_LOADS))
+
+      _ = (input |
+           "WriteWithMultipleDests" >> bigquery.WriteToBigQuery(
+               table=lambda x: (output_table_3
+                                if 'language' in x
+                                else output_table_4),
+               schema=lambda dest, schema_map: schema_map.get(dest, None),
+               schema_side_inputs=(schema_map_pcv,),
+               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
+               method=bigquery.WriteToBigQuery.Method.FILE_LOADS,
+               max_file_size=20,
+               max_files_per_bundle=-1))
+
   @attr('IT')
   def test_one_job_fails_all_jobs_fail(self):
-
     # If one of the import jobs fails, then other jobs must not be performed.
     # This is to avoid reinsertion of some records when a pipeline fails and
     # is rerun.
@@ -512,6 +608,64 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                  create_disposition=(
                      beam.io.BigQueryDisposition.CREATE_IF_NEEDED),
                  write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND))
+
+    hamcrest_assert(p, all_of(*pipeline_verifiers))
+
+  @unittest.skip('TODO(BEAM-6611) - BQ file loads in streaming')
+  @attr('IT')
+  def test_one_job_fails_all_jobs_fail_streaming(self):
+    if isinstance(self.test_pipeline.runner, TestDataflowRunner):
+      self.skipTest("TestStream is not supported on TestDataflowRunner")
+    # If one of the import jobs fails, then other jobs must not be performed.
+    # This is to avoid reinsertion of some records when a pipeline fails and
+    # is rerun.
+    output_table_1 = '%s%s' % (self.output_table, 1)
+    output_table_2 = '%s%s' % (self.output_table, 2)
+
+    self.bigquery_client.get_or_create_table(
+        self.project, self.dataset_id, output_table_1.split('.')[1],
+        bigquery_tools.parse_table_schema_from_json(self.BIG_QUERY_SCHEMA),
+        None, None)
+    self.bigquery_client.get_or_create_table(
+        self.project, self.dataset_id, output_table_2.split('.')[1],
+        bigquery_tools.parse_table_schema_from_json(self.BIG_QUERY_SCHEMA_2),
+        None, None)
+
+    pipeline_verifiers = [
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT name, language FROM %s" % output_table_1,
+            data=[]),
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT name, foundation FROM %s" % output_table_2,
+            data=[])]
+
+    args = self.test_pipeline.get_full_options_as_args(
+        experiments='use_beam_bq_sink', streaming=True)
+
+    with self.assertRaises(Exception):
+      with beam.Pipeline(argv=args) as p:
+        _SIZE = len(_ELEMENTS)
+        input = p | (TestStream()
+                     .advance_watermark_to(0)
+                     .add_elements(_ELEMENTS[:_SIZE//2])
+                     .advance_watermark_to(100)
+                     .add_elements(_ELEMENTS[_SIZE//2:])
+                     .advance_watermark_to_infinity())
+        input2 = p | "Broken record" >> beam.Create(['language_broken_record'])
+
+        input = (input, input2) | beam.Flatten()
+
+        _ = (input |
+             "WriteWithMultipleDests" >> bigquery.WriteToBigQuery(
+                 table=lambda x: (output_table_1
+                                  if 'language' in x
+                                  else output_table_2),
+                 create_disposition=(
+                     beam.io.BigQueryDisposition.CREATE_IF_NEEDED),
+                 write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+                 method=bigquery.WriteToBigQuery.Method.FILE_LOADS))
 
     hamcrest_assert(p, all_of(*pipeline_verifiers))
 
