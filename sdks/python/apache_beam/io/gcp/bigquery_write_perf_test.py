@@ -33,6 +33,9 @@ python setup.py nosetests \
     --staging_location=gs://...
     --temp_location=gs://...
     --sdk_location=.../dist/apache-beam-x.x.x.dev0.tar.gz
+    --publish_to_big_query=true
+    --metrics_dataset=gs://...
+    --metrics_table=...
     --output_dataset=...
     --output_table=...
     --input_options='{
@@ -53,12 +56,16 @@ import os
 import unittest
 
 from apache_beam import Map
+from apache_beam import ParDo
 from apache_beam.io import BigQueryDisposition
 from apache_beam.io import Read
 from apache_beam.io import WriteToBigQuery
 from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
 from apache_beam.io.gcp.tests import utils
 from apache_beam.testing.load_tests.load_test import LoadTest
+from apache_beam.testing.load_tests.load_test_metrics_utils import CountMessages
+from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureBytes
+from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.synthetic_pipeline import SyntheticSource
 
 load_test_enabled = False
@@ -91,12 +98,20 @@ class BigQueryWritePerfTest(LoadTest):
       # of the part
       return {'data': base64.b64encode(record[1])}
 
+    def extractor(record):
+      # The same issue as above
+      yield record[1]
+
     # pylint: disable=expression-not-assigned
     (self.pipeline
-     | 'ProduceRows' >> Read(SyntheticSource(self.parseTestPipelineOptions()))
+     | 'Produce rows' >> Read(SyntheticSource(self.parseTestPipelineOptions()))
+     | 'Measure bytes' >> ParDo(MeasureBytes(self.metrics_namespace, extractor))
+     | 'Count messages' >> ParDo(CountMessages(self.metrics_namespace))
      | 'Format' >> Map(format_record)
-     | 'WriteToBigQuery' >> WriteToBigQuery(
-         self.output_dataset + '.' + self.output_table,
+     | 'Measure time: Start' >> ParDo(MeasureTime(self.metrics_namespace))
+     | 'Measure time: End' >> ParDo(MeasureTime(self.metrics_namespace))
+     | 'Write to BigQuery' >> WriteToBigQuery(
+         dataset=self.output_dataset, table=self.output_table,
          schema=SCHEMA,
          create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
          write_disposition=BigQueryDisposition.WRITE_TRUNCATE))
