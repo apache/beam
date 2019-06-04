@@ -36,6 +36,7 @@ import org.apache.beam.sdk.extensions.smb.json.JsonBucketMetadata;
 import org.apache.beam.sdk.extensions.smb.json.JsonSortedBucketIO;
 import org.apache.beam.sdk.io.LocalResources;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -44,6 +45,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 /** E2E test for heterogeneously-typed SMB join. */
@@ -80,6 +82,7 @@ public class MixedSourcesEndToEndTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testE2E() throws Exception {
     final AvroBucketMetadata<ByteBuffer, GenericRecord> avroMetadata =
         new AvroBucketMetadata<>(4, 3, ByteBuffer.class, HashType.MURMUR3_32, "name");

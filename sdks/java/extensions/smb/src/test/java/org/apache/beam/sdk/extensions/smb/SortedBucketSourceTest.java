@@ -37,6 +37,7 @@ import org.apache.beam.sdk.extensions.smb.FileOperations.Writer;
 import org.apache.beam.sdk.extensions.smb.SMBCoGbkResult.ToFinalResult;
 import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy.FileAssignment;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
@@ -49,6 +50,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 /** Unit tests for {@link SortedBucketSource}. */
@@ -67,6 +69,7 @@ public class SortedBucketSourceTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testUniformBucketsOneShard() throws Exception {
     test(
         ImmutableMap.of(
@@ -78,6 +81,7 @@ public class SortedBucketSourceTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testUniformBucketsMultiShard() throws Exception {
     test(
         ImmutableMap.of(
@@ -93,6 +97,7 @@ public class SortedBucketSourceTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testUniformBucketsMixedShard() throws Exception {
     test(
         ImmutableMap.of(
@@ -106,6 +111,7 @@ public class SortedBucketSourceTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testMixedBucketsOneShard() throws Exception {
     test(
         ImmutableMap.of(
@@ -119,6 +125,7 @@ public class SortedBucketSourceTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testMixedBucketsMultiShard() throws Exception {
     Map<BucketShardId, List<String>> lhs = new HashMap<>();
     lhs.put(BucketShardId.of(0, 0), Lists.newArrayList("a1", "a2", "b1", "b2"));
@@ -140,6 +147,7 @@ public class SortedBucketSourceTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testMixedBucketsMixedShard() throws Exception {
     test(
         ImmutableMap.of(

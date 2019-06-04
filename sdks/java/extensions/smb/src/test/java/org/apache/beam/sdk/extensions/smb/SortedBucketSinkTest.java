@@ -34,6 +34,7 @@ import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink.WriteResult;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -49,6 +50,7 @@ import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 /** Unit tests for {@link SortedBucketSink}. */
@@ -69,6 +71,7 @@ public class SortedBucketSinkTest {
           .toArray(String[]::new);
 
   @Test
+  @Category(NeedsRunner.class)
   public void testOneBucketOneShard() throws Exception {
     test(
         1,
@@ -82,6 +85,7 @@ public class SortedBucketSinkTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testMultiBucketOneShard() throws Exception {
     test(
         2,
@@ -103,6 +107,7 @@ public class SortedBucketSinkTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testOneBucketMultiShard() throws Exception {
     test(
         1,
@@ -124,6 +129,7 @@ public class SortedBucketSinkTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testMultiBucketMultiShard() throws Exception {
     test(
         2,
