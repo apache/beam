@@ -442,19 +442,20 @@ public class BigQueryIOReadTest implements Serializable {
 
     // test
     BigQueryIO.TypedRead<TableRow> read =
-        BigQueryIO.readTableRows()
+        BigQueryIO.readTableRowsWithSchema()
             .from("non-executing-project:schema_dataset.schema_table")
             .withTestServices(fakeBqServices)
             .withoutValidation();
 
     PCollection<TableRow> bqRows = p.apply(read);
-    PCollection<Row> output = bqRows.apply(Select.fieldNames("name", "number"));
 
     Schema expectedSchema =
         Schema.of(
-            Schema.Field.of("name", Schema.FieldType.STRING),
-            Schema.Field.of("number", Schema.FieldType.INT64));
+            Schema.Field.of("name", Schema.FieldType.STRING).withNullable(true),
+            Schema.Field.of("number", Schema.FieldType.INT64).withNullable(true));
+    assertEquals(expectedSchema, bqRows.getSchema());
 
+    PCollection<Row> output = bqRows.apply(Select.fieldNames("name", "number"));
     PAssert.that(output)
         .containsInAnyOrder(
             ImmutableList.of(

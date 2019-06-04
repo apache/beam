@@ -404,6 +404,11 @@ public class BigQueryIO {
    * domain-specific type, due to the overhead of converting the rows to {@link TableRow}.
    */
   public static TypedRead<TableRow> readTableRows() {
+    return read(new TableRowParser()).withCoder(TableRowJsonCoder.of());
+  }
+
+  /** Like {@link #readTableRows()} but with {@link Schema} support. */
+  public static TypedRead<TableRow> readTableRowsWithSchema() {
     return read(new TableRowParser())
         .withCoder(TableRowJsonCoder.of())
         .withToBeamRowFn(BigQueryUtils.tableRowToBeamRow())
