@@ -54,26 +54,29 @@ public class SchemaUtilTest {
         ImmutableList.of(
             JdbcFieldInfo.of("int_array_col", Types.ARRAY, JDBCType.INTEGER.getName(), false),
             JdbcFieldInfo.of("bigint_col", Types.BIGINT),
-            JdbcFieldInfo.of("binary_col", Types.BINARY),
+            JdbcFieldInfo.of("binary_col", Types.BINARY, 255),
             JdbcFieldInfo.of("bit_col", Types.BIT),
             JdbcFieldInfo.of("boolean_col", Types.BOOLEAN),
-            JdbcFieldInfo.of("char_col", Types.CHAR),
+            JdbcFieldInfo.of("char_col", Types.CHAR, 255),
             JdbcFieldInfo.of("date_col", Types.DATE),
             JdbcFieldInfo.of("decimal_col", Types.DECIMAL),
             JdbcFieldInfo.of("double_col", Types.DOUBLE),
             JdbcFieldInfo.of("float_col", Types.FLOAT),
             JdbcFieldInfo.of("integer_col", Types.INTEGER),
-            JdbcFieldInfo.of("longvarchar_col", Types.LONGVARCHAR),
-            JdbcFieldInfo.of("longvarbinary_col", Types.LONGVARBINARY),
-            JdbcFieldInfo.of("numeric_col", Types.NUMERIC),
+            JdbcFieldInfo.of("longnvarchar_col", Types.LONGNVARCHAR, 1024),
+            JdbcFieldInfo.of("longvarchar_col", Types.LONGVARCHAR, 1024),
+            JdbcFieldInfo.of("longvarbinary_col", Types.LONGVARBINARY, 1024),
+            JdbcFieldInfo.of("nchar_col", Types.NCHAR, 255),
+            JdbcFieldInfo.of("numeric_col", Types.NUMERIC, 12, 4),
+            JdbcFieldInfo.of("nvarchar_col", Types.NVARCHAR, 255),
             JdbcFieldInfo.of("real_col", Types.REAL),
             JdbcFieldInfo.of("smallint_col", Types.SMALLINT),
             JdbcFieldInfo.of("time_col", Types.TIME),
             JdbcFieldInfo.of("timestamp_col", Types.TIMESTAMP),
             JdbcFieldInfo.of("timestamptz_col", Types.TIMESTAMP_WITH_TIMEZONE),
             JdbcFieldInfo.of("tinyint_col", Types.TINYINT),
-            JdbcFieldInfo.of("varbinary_col", Types.VARBINARY),
-            JdbcFieldInfo.of("varchar_col", Types.VARCHAR));
+            JdbcFieldInfo.of("varbinary_col", Types.VARBINARY, 255),
+            JdbcFieldInfo.of("varchar_col", Types.VARCHAR, 255));
 
     when(mockResultSetMetaData.getColumnCount()).thenReturn(fieldInfo.size());
     for (int i = 0; i < fieldInfo.size(); i++) {
@@ -81,6 +84,8 @@ public class SchemaUtilTest {
       when(mockResultSetMetaData.getColumnLabel(eq(i + 1))).thenReturn(f.columnLabel);
       when(mockResultSetMetaData.getColumnType(eq(i + 1))).thenReturn(f.columnType);
       when(mockResultSetMetaData.getColumnTypeName(eq(i + 1))).thenReturn(f.columnTypeName);
+      when(mockResultSetMetaData.getPrecision(eq(i + 1))).thenReturn(f.precision);
+      when(mockResultSetMetaData.getScale(eq(i + 1))).thenReturn(f.scale);
       when(mockResultSetMetaData.isNullable(eq(i + 1)))
           .thenReturn(
               f.nullable ? ResultSetMetaData.columnNullable : ResultSetMetaData.columnNoNulls);
@@ -90,26 +95,32 @@ public class SchemaUtilTest {
         Schema.builder()
             .addArrayField("int_array_col", Schema.FieldType.INT32)
             .addField("bigint_col", Schema.FieldType.INT64)
-            .addField("binary_col", Schema.FieldType.BYTES)
-            .addField("bit_col", Schema.FieldType.BOOLEAN)
+            .addField("binary_col", LogicalTypes.fixedLengthBytes(JDBCType.BINARY, 255))
+            .addField("bit_col", LogicalTypes.JDBC_BIT_TYPE)
             .addField("boolean_col", Schema.FieldType.BOOLEAN)
-            .addField("char_col", Schema.FieldType.STRING)
-            .addField("date_col", SchemaUtil.SQL_DATE_LOGICAL_TYPE)
+            .addField("char_col", LogicalTypes.fixedLengthString(JDBCType.CHAR, 255))
+            .addField("date_col", LogicalTypes.JDBC_DATE_TYPE)
             .addField("decimal_col", Schema.FieldType.DECIMAL)
             .addField("double_col", Schema.FieldType.DOUBLE)
-            .addField("float_col", Schema.FieldType.FLOAT)
+            .addField("float_col", LogicalTypes.JDBC_FLOAT_TYPE)
             .addField("integer_col", Schema.FieldType.INT32)
-            .addField("longvarchar_col", Schema.FieldType.STRING)
-            .addField("longvarbinary_col", Schema.FieldType.BYTES)
-            .addField("numeric_col", Schema.FieldType.DECIMAL)
+            .addField(
+                "longnvarchar_col", LogicalTypes.variableLengthString(JDBCType.LONGNVARCHAR, 1024))
+            .addField(
+                "longvarchar_col", LogicalTypes.variableLengthString(JDBCType.LONGVARCHAR, 1024))
+            .addField(
+                "longvarbinary_col", LogicalTypes.variableLengthBytes(JDBCType.LONGVARBINARY, 1024))
+            .addField("nchar_col", LogicalTypes.fixedLengthString(JDBCType.NCHAR, 255))
+            .addField("numeric_col", LogicalTypes.numeric(12, 4))
+            .addField("nvarchar_col", LogicalTypes.variableLengthString(JDBCType.NVARCHAR, 255))
             .addField("real_col", Schema.FieldType.FLOAT)
             .addField("smallint_col", Schema.FieldType.INT16)
-            .addField("time_col", SchemaUtil.SQL_TIME_LOGICAL_TYPE)
+            .addField("time_col", LogicalTypes.JDBC_TIME_TYPE)
             .addField("timestamp_col", Schema.FieldType.DATETIME)
-            .addField("timestamptz_col", SchemaUtil.SQL_TIMESTAMP_WITH_LOCAL_TZ_LOGICAL_TYPE)
+            .addField("timestamptz_col", LogicalTypes.JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE)
             .addField("tinyint_col", Schema.FieldType.BYTE)
-            .addField("varbinary_col", Schema.FieldType.BYTES)
-            .addField("varchar_col", Schema.FieldType.STRING)
+            .addField("varbinary_col", LogicalTypes.variableLengthBytes(JDBCType.VARBINARY, 255))
+            .addField("varchar_col", LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255))
             .build();
 
     Schema haveBeamSchema = SchemaUtil.toBeamSchema(mockResultSetMetaData);
@@ -221,9 +232,9 @@ public class SchemaUtilTest {
 
     Schema wantSchema =
         Schema.builder()
-            .addField("date_col", SchemaUtil.SQL_DATE_LOGICAL_TYPE)
-            .addField("time_col", SchemaUtil.SQL_TIME_LOGICAL_TYPE)
-            .addField("timestamptz_col", SchemaUtil.SQL_TIMESTAMP_WITH_LOCAL_TZ_LOGICAL_TYPE)
+            .addField("date_col", LogicalTypes.JDBC_DATE_TYPE)
+            .addField("time_col", LogicalTypes.JDBC_TIME_TYPE)
+            .addField("timestamptz_col", LogicalTypes.JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE)
             .addField("timestamp_col", Schema.FieldType.DATETIME)
             .build();
 
@@ -250,26 +261,43 @@ public class SchemaUtilTest {
     private final int columnType;
     private final String columnTypeName;
     private final boolean nullable;
+    private final int precision;
+    private final int scale;
 
     private JdbcFieldInfo(
-        String columnLabel, int columnType, String columnTypeName, boolean nullable) {
+        String columnLabel,
+        int columnType,
+        String columnTypeName,
+        boolean nullable,
+        int precision,
+        int scale) {
       this.columnLabel = columnLabel;
       this.columnType = columnType;
       this.columnTypeName = columnTypeName;
       this.nullable = nullable;
+      this.precision = precision;
+      this.scale = scale;
     }
 
     private static JdbcFieldInfo of(
         String columnLabel, int columnType, String columnTypeName, boolean nullable) {
-      return new JdbcFieldInfo(columnLabel, columnType, columnTypeName, nullable);
+      return new JdbcFieldInfo(columnLabel, columnType, columnTypeName, nullable, 0, 0);
     }
 
     private static JdbcFieldInfo of(String columnLabel, int columnType, boolean nullable) {
-      return new JdbcFieldInfo(columnLabel, columnType, null, nullable);
+      return new JdbcFieldInfo(columnLabel, columnType, null, nullable, 0, 0);
     }
 
     private static JdbcFieldInfo of(String columnLabel, int columnType) {
-      return new JdbcFieldInfo(columnLabel, columnType, null, false);
+      return new JdbcFieldInfo(columnLabel, columnType, null, false, 0, 0);
+    }
+
+    private static JdbcFieldInfo of(String columnLabel, int columnType, int precision) {
+      return new JdbcFieldInfo(columnLabel, columnType, null, false, precision, 0);
+    }
+
+    private static JdbcFieldInfo of(String columnLabel, int columnType, int precision, int scale) {
+      return new JdbcFieldInfo(columnLabel, columnType, null, false, precision, scale);
     }
   }
 }

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.PrintWriter;
@@ -24,6 +25,7 @@ import java.io.Serializable;
 import java.io.StringWriter;
 import java.net.InetAddress;
 import java.sql.Connection;
+import java.sql.JDBCType;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -289,12 +291,15 @@ public class JdbcIOTest implements Serializable {
                     preparedStatement ->
                         preparedStatement.setString(1, TestRow.getNameForSeed(1))));
 
-    PCollection<Row> output = rows.apply(Select.fieldNames("NAME", "ID"));
     Schema expectedSchema =
         Schema.of(
-            Schema.Field.of("NAME", Schema.FieldType.STRING),
-            Schema.Field.of("ID", Schema.FieldType.INT32));
+            Schema.Field.of("NAME", LogicalTypes.variableLengthString(JDBCType.VARCHAR, 500))
+                .withNullable(true),
+            Schema.Field.of("ID", Schema.FieldType.INT32).withNullable(true));
 
+    assertEquals(expectedSchema, rows.getSchema());
+
+    PCollection<Row> output = rows.apply(Select.fieldNames("NAME", "ID"));
     PAssert.that(output)
         .containsInAnyOrder(
             ImmutableList.of(Row.withSchema(expectedSchema).addValues("Testval1", 1).build()));

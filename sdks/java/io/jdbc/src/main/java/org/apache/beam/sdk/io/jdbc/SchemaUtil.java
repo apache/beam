@@ -17,6 +17,18 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static java.sql.JDBCType.BINARY;
+import static java.sql.JDBCType.CHAR;
+import static java.sql.JDBCType.LONGNVARCHAR;
+import static java.sql.JDBCType.LONGVARBINARY;
+import static java.sql.JDBCType.LONGVARCHAR;
+import static java.sql.JDBCType.NCHAR;
+import static java.sql.JDBCType.NUMERIC;
+import static java.sql.JDBCType.NVARCHAR;
+import static java.sql.JDBCType.VARBINARY;
+import static java.sql.JDBCType.VARCHAR;
+import static java.sql.JDBCType.valueOf;
+
 import java.io.Serializable;
 import java.sql.Array;
 import java.sql.Date;
@@ -26,7 +38,6 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
@@ -34,40 +45,17 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.apache.beam.sdk.schemas.LogicalTypes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
 import org.joda.time.chrono.ISOChronology;
 
 /** Provides utility functions for working with Beam {@link Schema} types. */
 class SchemaUtil {
-  private static final String SQL_DATE = "SqlDateType";
-  private static final String SQL_TIME = "SqlTimeType";
-  private static final String SQL_TIMESTAMP_WITH_LOCAL_TZ = "SqlTimestampWithLocalTzType";
-
-  @VisibleForTesting
-  static final Schema.FieldType SQL_DATE_LOGICAL_TYPE =
-      Schema.FieldType.logicalType(
-          new LogicalTypes.PassThroughLogicalType<Instant>(
-              SQL_DATE, "", Schema.FieldType.DATETIME) {});
-
-  @VisibleForTesting
-  static final Schema.FieldType SQL_TIME_LOGICAL_TYPE =
-      Schema.FieldType.logicalType(
-          new LogicalTypes.PassThroughLogicalType<Instant>(
-              SQL_TIME, "", Schema.FieldType.DATETIME) {});
-
-  @VisibleForTesting
-  static final Schema.FieldType SQL_TIMESTAMP_WITH_LOCAL_TZ_LOGICAL_TYPE =
-      Schema.FieldType.logicalType(
-          new LogicalTypes.PassThroughLogicalType<Instant>(
-              SQL_TIMESTAMP_WITH_LOCAL_TZ, "", Schema.FieldType.DATETIME) {});
-
   /**
    * Interface implemented by functions that extract values of different types from a JDBC
    * ResultSet.
@@ -99,33 +87,6 @@ class SchemaUtil {
   private static final ResultSetFieldExtractor TIME_EXTRACTOR = createTimeExtractor();
   private static final ResultSetFieldExtractor TIMESTAMP_EXTRACTOR = createTimestampExtractor();
 
-  /*
-   * Mapping of primitive JDBC types to Beam schema types.
-   * TODO: Add support for BLOB and CLOB types
-   */
-  private static final EnumMap<JDBCType, Schema.FieldType> JDBC_TO_BEAM_MAPPING =
-      new EnumMap<>(
-          ImmutableMap.<JDBCType, Schema.FieldType>builder()
-              .put(JDBCType.BIGINT, Schema.FieldType.INT64)
-              .put(JDBCType.BINARY, Schema.FieldType.BYTES)
-              .put(JDBCType.BIT, Schema.FieldType.BOOLEAN)
-              .put(JDBCType.BOOLEAN, Schema.FieldType.BOOLEAN)
-              .put(JDBCType.CHAR, Schema.FieldType.STRING)
-              .put(JDBCType.DECIMAL, Schema.FieldType.DECIMAL)
-              .put(JDBCType.DOUBLE, Schema.FieldType.DOUBLE)
-              .put(JDBCType.FLOAT, Schema.FieldType.FLOAT)
-              .put(JDBCType.INTEGER, Schema.FieldType.INT32)
-              .put(JDBCType.LONGVARBINARY, Schema.FieldType.BYTES)
-              .put(JDBCType.LONGVARCHAR, Schema.FieldType.STRING)
-              .put(JDBCType.NUMERIC, Schema.FieldType.DECIMAL)
-              .put(JDBCType.REAL, Schema.FieldType.FLOAT)
-              .put(JDBCType.SMALLINT, Schema.FieldType.INT16)
-              .put(JDBCType.TIMESTAMP, Schema.FieldType.DATETIME)
-              .put(JDBCType.TINYINT, Schema.FieldType.BYTE)
-              .put(JDBCType.VARBINARY, Schema.FieldType.BYTES)
-              .put(JDBCType.VARCHAR, Schema.FieldType.STRING)
-              .build());
-
   /**
    * Interface implemented by functions that create Beam {@link
    * org.apache.beam.sdk.schemas.Schema.Field} corresponding to JDBC field metadata.
@@ -135,40 +96,74 @@ class SchemaUtil {
     Schema.Field create(int index, ResultSetMetaData md) throws SQLException;
   }
 
-  /**
-   * Infers the Beam {@link Schema} from {@link ResultSetMetaData}.
-   *
-   * <p>Only a subset of JDBC types are supported.
-   */
+  private static BeamFieldConverter jdbcTypeToBeamFieldConverter(JDBCType jdbcType) {
+    switch (jdbcType) {
+      case ARRAY:
+        return beamArrayField();
+      case BIGINT:
+        return beamFieldOfType(Schema.FieldType.INT64);
+      case BINARY:
+        return beamLogicalField(BINARY.getName(), LogicalTypes.FixedLengthBytes::of);
+      case BIT:
+        return beamFieldOfType(LogicalTypes.JDBC_BIT_TYPE);
+      case BOOLEAN:
+        return beamFieldOfType(Schema.FieldType.BOOLEAN);
+      case CHAR:
+        return beamLogicalField(CHAR.getName(), LogicalTypes.FixedLengthString::of);
+      case DATE:
+        return beamFieldOfType(LogicalTypes.JDBC_DATE_TYPE);
+      case DECIMAL:
+        return beamFieldOfType(Schema.FieldType.DECIMAL);
+      case DOUBLE:
+        return beamFieldOfType(Schema.FieldType.DOUBLE);
+      case FLOAT:
+        return beamFieldOfType(LogicalTypes.JDBC_FLOAT_TYPE);
+      case INTEGER:
+        return beamFieldOfType(Schema.FieldType.INT32);
+      case LONGNVARCHAR:
+        return beamLogicalField(LONGNVARCHAR.getName(), LogicalTypes.VariableLengthString::of);
+      case LONGVARBINARY:
+        return beamLogicalField(LONGVARBINARY.getName(), LogicalTypes.VariableLengthBytes::of);
+      case LONGVARCHAR:
+        return beamLogicalField(LONGVARCHAR.getName(), LogicalTypes.VariableLengthString::of);
+      case NCHAR:
+        return beamLogicalField(NCHAR.getName(), LogicalTypes.FixedLengthString::of);
+      case NUMERIC:
+        return beamLogicalNumericField(NUMERIC.getName());
+      case NVARCHAR:
+        return beamLogicalField(NVARCHAR.getName(), LogicalTypes.VariableLengthString::of);
+      case REAL:
+        return beamFieldOfType(Schema.FieldType.FLOAT);
+      case SMALLINT:
+        return beamFieldOfType(Schema.FieldType.INT16);
+      case TIME:
+        return beamFieldOfType(LogicalTypes.JDBC_TIME_TYPE);
+      case TIMESTAMP:
+        return beamFieldOfType(Schema.FieldType.DATETIME);
+      case TIMESTAMP_WITH_TIMEZONE:
+        return beamFieldOfType(LogicalTypes.JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE);
+      case TINYINT:
+        return beamFieldOfType(Schema.FieldType.BYTE);
+      case VARBINARY:
+        return beamLogicalField(VARBINARY.getName(), LogicalTypes.VariableLengthBytes::of);
+      case VARCHAR:
+        return beamLogicalField(VARCHAR.getName(), LogicalTypes.VariableLengthString::of);
+      default:
+        throw new UnsupportedOperationException(
+            "Converting " + jdbcType + " to Beam schema type is not supported");
+    }
+  }
+
+  /** Infers the Beam {@link Schema} from {@link ResultSetMetaData}. */
   static Schema toBeamSchema(ResultSetMetaData md) throws SQLException {
     Schema.Builder schemaBuilder = Schema.builder();
-    for (int i = 1; i <= md.getColumnCount(); i++) {
-      JDBCType jdbcType = JDBCType.valueOf(md.getColumnType(i));
-      Schema.Field field;
-      switch (jdbcType) {
-        case ARRAY:
-          field = beamArrayField().create(i, md);
-          break;
-        case DATE:
-          field = beamFieldOfType(SQL_DATE_LOGICAL_TYPE).create(i, md);
-          break;
-        case TIME:
-          field = beamFieldOfType(SQL_TIME_LOGICAL_TYPE).create(i, md);
-          break;
-        case TIMESTAMP_WITH_TIMEZONE:
-          field = beamFieldOfType(SQL_TIMESTAMP_WITH_LOCAL_TZ_LOGICAL_TYPE).create(i, md);
-          break;
-        default:
-          if (!JDBC_TO_BEAM_MAPPING.containsKey(jdbcType)) {
-            throw new UnsupportedOperationException(
-                "Representing fields of type [" + jdbcType + "] in Beam schemas is not supported");
-          }
-          field = beamFieldOfType(JDBC_TO_BEAM_MAPPING.get(jdbcType)).create(i, md);
-          break;
-      }
 
-      schemaBuilder.addField(field);
+    for (int i = 1; i <= md.getColumnCount(); i++) {
+      JDBCType jdbcType = valueOf(md.getColumnType(i));
+      BeamFieldConverter fieldConverter = jdbcTypeToBeamFieldConverter(jdbcType);
+      schemaBuilder.addField(fieldConverter.create(i, md));
     }
+
     return schemaBuilder.build();
   }
 
@@ -181,17 +176,38 @@ class SchemaUtil {
     };
   }
 
-  /** Converts a JDBC array field to corresponding Beam schema array field. */
+  /** Converts logical types with arguments such as VARCHAR(25). */
+  private static <InputT, BaseT> BeamFieldConverter beamLogicalField(
+      String identifier,
+      BiFunction<String, Integer, Schema.LogicalType<InputT, BaseT>> constructor) {
+    return (index, md) -> {
+      int size = md.getPrecision(index);
+      Schema.FieldType fieldType =
+          Schema.FieldType.logicalType(constructor.apply(identifier, size));
+      return beamFieldOfType(fieldType).create(index, md);
+    };
+  }
+
+  /** Converts numeric fields with specified precision and scale. */
+  private static BeamFieldConverter beamLogicalNumericField(String identifier) {
+    return (index, md) -> {
+      int precision = md.getPrecision(index);
+      int scale = md.getScale(index);
+      Schema.FieldType fieldType =
+          Schema.FieldType.logicalType(
+              LogicalTypes.FixedPrecisionNumeric.of(identifier, precision, scale));
+      return beamFieldOfType(fieldType).create(index, md);
+    };
+  }
+
+  /** Converts array fields. */
   private static BeamFieldConverter beamArrayField() {
     return (index, md) -> {
-      JDBCType elementJdbcType = JDBCType.valueOf(md.getColumnTypeName(index));
-      if (!JDBC_TO_BEAM_MAPPING.containsKey(elementJdbcType)) {
-        throw new UnsupportedOperationException(
-            "Arrays of type " + elementJdbcType.toString() + " are not supported");
-      }
+      JDBCType elementJdbcType = valueOf(md.getColumnTypeName(index));
+      BeamFieldConverter elementFieldConverter = jdbcTypeToBeamFieldConverter(elementJdbcType);
 
       String label = md.getColumnLabel(index);
-      Schema.FieldType elementBeamType = JDBC_TO_BEAM_MAPPING.get(elementJdbcType);
+      Schema.FieldType elementBeamType = elementFieldConverter.create(index, md).getType();
       return Schema.Field.of(label, Schema.FieldType.array(elementBeamType))
           .withNullable(md.isNullable(index) == ResultSetMetaData.columnNullable);
     };
@@ -237,17 +253,20 @@ class SchemaUtil {
   }
 
   /** Creates a {@link ResultSetFieldExtractor} for logical types. */
-  private static ResultSetFieldExtractor createLogicalTypeExtractor(Schema.LogicalType fieldType) {
+  private static <InputT, BaseT> ResultSetFieldExtractor createLogicalTypeExtractor(
+      final Schema.LogicalType<InputT, BaseT> fieldType) {
     String logicalTypeName = fieldType.getIdentifier();
-    switch (logicalTypeName) {
-      case SQL_DATE:
+    JDBCType underlyingType = JDBCType.valueOf(logicalTypeName);
+    switch (underlyingType) {
+      case DATE:
         return DATE_EXTRACTOR;
-      case SQL_TIME:
+      case TIME:
         return TIME_EXTRACTOR;
-      case SQL_TIMESTAMP_WITH_LOCAL_TZ:
+      case TIMESTAMP_WITH_TIMEZONE:
         return TIMESTAMP_EXTRACTOR;
       default:
-        throw new UnsupportedOperationException("Unknown logical type " + logicalTypeName);
+        ResultSetFieldExtractor extractor = createFieldExtractor(fieldType.getBaseType());
+        return (rs, index) -> fieldType.toInputType((BaseT) extractor.extract(rs, index));
     }
   }
 
