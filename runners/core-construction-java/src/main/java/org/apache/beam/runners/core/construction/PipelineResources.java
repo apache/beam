@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.util.ZipFiles;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Funnels;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hasher;
@@ -82,12 +83,14 @@ public class PipelineResources {
       List<String> resourcesToStage, String tmpJarLocation) {
     return resourcesToStage.stream()
         .map(File::new)
-        .filter(File::exists)
         .map(
-            file ->
-                file.isDirectory()
-                    ? packageDirectoriesToStage(file, tmpJarLocation)
-                    : file.getAbsolutePath())
+            file -> {
+              Preconditions.checkState(
+                  file.exists(), "To-be-staged file does not exist: '%s'", file);
+              return file.isDirectory()
+                  ? packageDirectoriesToStage(file, tmpJarLocation)
+                  : file.getAbsolutePath();
+            })
         .collect(Collectors.toList());
   }
 
