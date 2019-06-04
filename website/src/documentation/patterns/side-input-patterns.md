@@ -20,7 +20,7 @@ limitations under the License.
 
 # Side input patterns
 
-The samples on this page show you common Beam side input patterns. A side input is an additional input that your `DoFn` can access each time it processes an element in the input `PCollection`. For more information, see the [programming guide section on side inputs](https://beam.apache.org/documentation/programming-guide/#side-inputs).
+The samples on this page show you common Beam side input patterns. A side input is an additional input that your `DoFn` can access each time it processes an element in the input `PCollection`. For more information, see the [programming guide section on side inputs]({{ site.baseurl }}/documentation/programming-guide/#side-inputs).
 
 ## Using global window side inputs in non-global windows
 

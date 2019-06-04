@@ -20,7 +20,7 @@ limitations under the License.
 
 # File processing patterns
 
-This page describes common file processing tasks. For more information on file-based I/O, see [Pipeline I/O](https://beam.apache.org/documentation/programming-guide/#pipeline-io) and [File-based input and output data](https://beam.apache.org/documentation/programming-guide/#file-based-data).
+This page describes common file processing tasks. For more information on file-based I/O, see [Pipeline I/O]({{ site.baseurl }}/documentation/programming-guide/#pipeline-io) and [File-based input and output data]({{ site.baseurl }}/documentation/programming-guide/#file-based-data).
 
 <nav class="language-switcher">
   <strong>Adapt for:</strong>
@@ -40,7 +40,7 @@ This section shows you how to process files as they arrive in your file system o
 You can use `FileIO` or `TextIO` to continuously read the source for new files.
 
 {:.language-java}
-Use the [`FileIO`](https://beam.apache.org/releases/javadoc/2.9.0/org/apache/beam/sdk/io/FileIO.html) class to continuously watch a single file pattern. The following example matches a file pattern repeatedly every 30 seconds, continuously returns new matched files as an unbounded `PCollection<Metadata>`, and stops if no new files appear for one hour:
+Use the [`FileIO`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/FileIO.html) class to continuously watch a single file pattern. The following example matches a file pattern repeatedly every 30 seconds, continuously returns new matched files as an unbounded `PCollection<Metadata>`, and stops if no new files appear for one hour:
 
 ```java
 {% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:FileProcessPatternProcessNewFilesSnip1
@@ -48,7 +48,7 @@ Use the [`FileIO`](https://beam.apache.org/releases/javadoc/2.9.0/org/apache/bea
 ```
 
 {:.language-java}
-The [`TextIO`](https://beam.apache.org/releases/javadoc/2.9.0/org/apache/beam/sdk/io/TextIO.html) class `watchForNewFiles` property streams new file matches.
+The [`TextIO`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/TextIO.html) class `watchForNewFiles` property streams new file matches.
 
 ```java
 {% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:FileProcessPatternProcessNewFilesSnip2
@@ -88,13 +88,13 @@ To access filenames:
 
 {:.language-java}
 1. Create a `ReadableFile` instance with `FileIO`. `FileIO` returns a `PCollection<ReadableFile>` object. The `ReadableFile` class contains the filename.
-1. Call the `readFullyAsUTF9String()` method to read the file into memory and return the filename as a `String` object. If memory is limited, you can use utility classes like [`FileSystems`](https://beam.apache.org/releases/javadoc/2.9.0/org/apache/beam/sdk/io/FileSystems.html) to work directly with the file.
+1. Call the `readFullyAsUTF9String()` method to read the file into memory and return the filename as a `String` object. If memory is limited, you can use utility classes like [`FileSystems`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/FileSystems.html) to work directly with the file.
 
 {:.language-py}
 To read filenames in a pipeline job:
 
 {:.language-py}
-1. Collect the list of file URIs. You can use the [`FileSystems`](https://beam.apache.org/releases/pydoc/2.9.0/apache_beam.io.filesystems.html?highlight=filesystems#module-apache_beam.io.filesystems) module to get a list of files that match a glob pattern.
+1. Collect the list of file URIs. You can use the [`FileSystems`](https://beam.apache.org/releases/pydoc/current/apache_beam.io.filesystems.html?highlight=filesystems#module-apache_beam.io.filesystems) module to get a list of files that match a glob pattern.
 1. Pass the file URIs to a `PCollection`.
 
 ```java
