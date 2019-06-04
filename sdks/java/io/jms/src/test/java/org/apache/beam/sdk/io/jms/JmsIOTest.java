@@ -18,11 +18,7 @@
 package org.apache.beam.sdk.io.jms;
 
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import java.io.IOException;
 import java.lang.reflect.Proxy;
@@ -48,6 +44,7 @@ import org.apache.activemq.security.AuthenticationUser;
 import org.apache.activemq.security.SimpleAuthenticationPlugin;
 import org.apache.activemq.store.memory.MemoryPersistenceAdapter;
 import org.apache.activemq.util.Callback;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -331,6 +328,13 @@ public class JmsIOTest {
     reader.getCheckpointMark().finalizeCheckpoint();
 
     assertEquals(0, count(QUEUE));
+  }
+
+  @Test
+  public void testJmsCheckpointMarkAvroEncoding() {
+    AvroCoder<JmsCheckpointMark> avroCoder = AvroCoder.of(JmsCheckpointMark.class);
+
+    assertNotNull(avroCoder);
   }
 
   @Test
