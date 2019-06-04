@@ -1474,7 +1474,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
   @unittest.skipIf(sys.version_info >= (3, 6, 0) and
                    os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.6.')
+                   'This test still needs to be fixed on Python 3.6.'
+                   'See BEAM-6877')
   def test_combine_properly_pipeline_type_checks_using_decorator(self):
     @with_output_types(int)
     @with_input_types(ints=typehints.Iterable[int])
@@ -1637,7 +1638,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
   @unittest.skipIf(sys.version_info >= (3, 6, 0) and
                    os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.6.')
+                   'This test still needs to be fixed on Python 3.6.'
+                   'See BEAM-6877')
   def test_mean_globally_pipeline_checking_satisfied(self):
     d = (self.p
          | 'C' >> beam.Create(range(5)).with_output_types(int)
@@ -1668,7 +1670,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
   @unittest.skipIf(sys.version_info >= (3, 6, 0) and
                    os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.6.')
+                   'This test still needs to be fixed on Python 3.6.'
+                   'See BEAM-6877')
   def test_mean_globally_runtime_checking_satisfied(self):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
 
@@ -1779,7 +1782,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
   @unittest.skipIf(sys.version_info >= (3, 6, 0) and
                    os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.6.')
+                   'This test still needs to be fixed on Python 3.6.'
+                   'See BEAM-6877')
   def test_count_globally_pipeline_type_checking_satisfied(self):
     d = (self.p
          | 'P' >> beam.Create(range(5)).with_output_types(int)
@@ -1791,7 +1795,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
   @unittest.skipIf(sys.version_info >= (3, 6, 0) and
                    os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.6.')
+                   'This test still needs to be fixed on Python 3.6.'
+                   'See BEAM-6877')
   def test_count_globally_runtime_type_checking_satisfied(self):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
 
@@ -1883,6 +1888,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     assert_that(d, equal_to([[10, 9, 8]]))
     self.p.run()
 
+  @unittest.skipIf(sys.version_info >= (3, 7, 0) and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.7. '
+                   'See BEAM-6986')
   def test_top_of_runtime_checking_satisfied(self):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
 
@@ -2082,7 +2091,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
   @unittest.skipIf(sys.version_info >= (3, 6, 0) and
                    os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.6.')
+                   'This test still needs to be fixed on Python 3.6.'
+                   'See BEAM-6877')
   def test_pardo_type_inference(self):
     self.assertEqual(int,
                      beam.Filter(lambda x: False).infer_output_type(int))
@@ -2096,7 +2106,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
   @unittest.skipIf(sys.version_info >= (3, 6, 0) and
                    os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.6.')
+                   'This test still needs to be fixed on Python 3.6.'
+                   'See BEAM-6877')
   def test_pipeline_inference(self):
     created = self.p | beam.Create(['a', 'b', 'c'])
     mapped = created | 'pair with 1' >> beam.Map(lambda x: (x, 1))
@@ -2108,7 +2119,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
   @unittest.skipIf(sys.version_info >= (3, 6, 0) and
                    os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.6.')
+                   'This test still needs to be fixed on Python 3.6.'
+                   'See BEAM-6877')
   def test_inferred_bad_kv_type(self):
     with self.assertRaises(typehints.TypeCheckError) as e:
       _ = (self.p

@@ -41,6 +41,7 @@ Granularity of changes:
 * It is OK to keep separate commits for different logical pieces of the code, if they make reviewing and revisiting code easier
 * Making commits isolated is a good practice, authors should be able to relatively easily split the PR upon reviewer's request
 * Generally, every commit should compile and pass tests.
+* Avoid keeping in history formatting messages such as checkstyle or spotless fixes.  Squash such commits with previous one.
 
 ## Always get to LGTM ("Looks good to me!")
 

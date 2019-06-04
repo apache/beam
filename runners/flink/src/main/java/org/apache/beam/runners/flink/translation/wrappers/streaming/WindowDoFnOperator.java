@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.beam.runners.core.TimerInternals.TimerData;
 
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -123,7 +124,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
   }
 
   @Override
-  public void fireTimer(InternalTimer<?, TimerData> timer) {
+  protected void fireTimer(InternalTimer<ByteBuffer, TimerData> timer) {
     timerInternals.cleanupPendingTimer(timer.getNamespace());
     doFnRunner.processElement(
         WindowedValue.valueInGlobalWindow(

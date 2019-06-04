@@ -61,7 +61,7 @@ class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee> implem
 
   /**
    * Returns InputSPlit list of {@link ConfigurableEmployeeInputSplit}. Throws exception if {@link
-   * #setConf()} is not called.
+   * #setConf(Configuration)} is not called.
    */
   @Override
   public List<InputSplit> getSplits(JobContext context) throws IOException {

@@ -22,26 +22,26 @@ description = "Apache Beam :: Runners :: Java Fn Execution"
 
 dependencies {
   shadow library.java.vendored_guava_20_0
-  compile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  provided project(path: ":beam-sdks-java-harness")
-  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
-  shadow project(path: ":beam-model-fn-execution", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
-  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  shadow project(path: ":beam-vendor-sdks-java-extensions-protobuf", configuration: "shadow")
+  compile project(path: ":runners:core-construction-java", configuration: "shadow")
+  provided project(path: ":sdks:java:harness")
+  shadow project(path: ":model:pipeline", configuration: "shadow")
+  shadow project(path: ":model:fn-execution", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":sdks:java:fn-execution", configuration: "shadow")
+  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
+  shadow project(path: ":vendor:sdks-java-extensions-protobuf", configuration: "shadow")
   shadow library.java.vendored_grpc_1_13_1
   shadow library.java.slf4j_api
   shadow library.java.args4j
-  testCompile project(":beam-sdks-java-harness")
-  testCompile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  testCompile project(path: ":beam-runners-core-java", configuration: "shadowTest")
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  testCompile project(":sdks:java:harness")
+  testCompile project(path: ":runners:core-construction-java", configuration: "shadow")
+  testCompile project(path: ":runners:core-java", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
-  testCompile library.java.slf4j_simple
+  testRuntimeOnly library.java.slf4j_simple
 }
 
 test {

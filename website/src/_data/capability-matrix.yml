@@ -34,6 +34,8 @@ columns:
     name: Apache Samza
   - class: nemo
     name: Apache Nemo
+  - class: jet
+    name: Hazelcast Jet
 
 categories:
   - description: What is being computed?
@@ -89,6 +91,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: jet
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
       - name: GroupByKey
         values:
           - class: model
@@ -132,6 +138,10 @@ categories:
             l2: fully supported
             l3: "Uses Samza's partitionBy for key grouping and Beam's logic for window aggregation and triggering."
           - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: jet
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -181,6 +191,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: jet
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
       - name: Combine
         values:
           - class: model
@@ -224,6 +238,10 @@ categories:
             l2: fully supported
             l3: Use combiner for efficient pre-aggregation.
           - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: 'Batch mode uses pre-aggregation'
+          - class: jet
             l1: 'Yes'
             l2: fully supported
             l3: 'Batch mode uses pre-aggregation'
@@ -273,6 +291,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: jet
+            l1: 'Partially'
+            l2: supported via inlining
+            l3: ''
       - name: Side Inputs
         values:
           - class: model
@@ -319,6 +341,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: jet
+            l1: 'Partially'
+            l2: with restrictions
+            l3: Supported only when the side input source is bounded and windowing uses global window
       - name: Source API
         values:
           - class: model
@@ -362,6 +388,10 @@ categories:
             l2: fully supported
             l3: ''
           - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: jet
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -411,6 +441,10 @@ categories:
             l1: 'No'
             l2: not implemented
             l3: ''
+          - class: jet
+            l1: 'No'
+            l2: not implemented
+            l3: ''
       - name: Metrics
         values:
           - class: model
@@ -457,6 +491,10 @@ categories:
             l1: 'No'
             l2: not implemented
             l3: ''
+          - class: jet
+            l1: 'Partially'
+            l2: All metrics types supported, both in batching and streaming mode.
+            l3: Doesn't differentiate between committed and attempted values.
       - name: Stateful Processing
         values:
           - class: model
@@ -502,6 +540,10 @@ categories:
           - class: nemo
             l1: 'No'
             l2: not implemented
+            l3: ''
+          - class: jet
+            l1: 'Partially'
+            l2: non-merging windows
             l3: ''
   - description: Where in event time?
     anchor: where
@@ -556,6 +598,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: jet
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Fixed windows
         values:
           - class: model
@@ -599,6 +645,10 @@ categories:
             l2: supported
             l3: ''
           - class: nemo
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: jet
             l1: 'Yes'
             l2: supported
             l3: ''
@@ -648,6 +698,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: jet
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Session windows
         values:
           - class: model
@@ -691,6 +745,10 @@ categories:
             l2: supported
             l3: ''
           - class: nemo
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: jet
             l1: 'Yes'
             l2: supported
             l3: ''
@@ -740,6 +798,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: jet
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Custom merging windows
         values:
           - class: model
@@ -786,6 +848,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: jet
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Timestamp control
         values:
           - class: model
@@ -829,6 +895,10 @@ categories:
             l2: supported
             l3: ''
           - class: nemo
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: jet
             l1: 'Yes'
             l2: supported
             l3: ''
@@ -887,6 +957,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: jet
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Event-time triggers
         values:
@@ -931,6 +1005,10 @@ categories:
             l2: fully supported
             l3: ''
           - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: jet
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -981,6 +1059,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: jet
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Count triggers
         values:
@@ -1025,6 +1107,10 @@ categories:
             l2: fully supported
             l3: ''
           - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: jet
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -1076,6 +1162,10 @@ categories:
             l1: 'No'
             l2: pending model support
             l3: ''
+          - class: jet
+            l1: 'No'
+            l2: pending model support
+            l3: ''
 
       - name: Composite triggers
         values:
@@ -1120,6 +1210,10 @@ categories:
             l2: fully supported
             l3: ''
           - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: jet
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -1170,6 +1264,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: jet
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Timers
         values:
@@ -1210,12 +1308,16 @@ categories:
             l2: non-merging windows
             l3: ''
           - class: samza
-            l1: 'No'
-            l2: ''
-            l3: ''
+            l1: 'Partially'
+            l2: non-merging windows
+            l3: The Samza Runner supports timers in non-merging windows.
           - class: nemo
             l1: 'No'
             l2: not implemented
+            l3: ''
+          - class: jet
+            l1: 'Partially'
+            l2: non-merging windows
             l3: ''
 
   - description: How do refinements relate?
@@ -1272,6 +1374,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: jet
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Accumulating
         values:
@@ -1316,6 +1422,10 @@ categories:
             l2: fully supported
             l3: ''
           - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: jet
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -1364,6 +1474,10 @@ categories:
             l2: pending model support
             l3: ''
           - class: nemo
+            l1: 'No'
+            l2: pending model support
+            l3: ''
+          - class: jet
             l1: 'No'
             l2: pending model support
             l3: ''

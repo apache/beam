@@ -40,7 +40,6 @@ from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import GaugeCell
-from apache_beam.metrics.monitoring_infos import user_metric_urn
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker import statesampler
 
@@ -49,7 +48,7 @@ class MetricKey(object):
   """Key used to identify instance of metric cell.
 
   Metrics are internally keyed by the name of the step they're associated with,
-  the name and namespace (if it is a user defined metric) of the the metric,
+  the name and namespace (if it is a user defined metric) of the metric,
   and any extra label metadata added by the runner specific metric collection
   service.
   """
@@ -237,22 +236,22 @@ class MetricsContainer(object):
     """Returns a list of MonitoringInfos for the metrics in this container."""
     all_user_metrics = []
     for k, v in self.counters.items():
-      all_user_metrics.append(monitoring_infos.int64_counter(
-          user_metric_urn(k.namespace, k.name),
+      all_user_metrics.append(monitoring_infos.int64_user_counter(
+          k.namespace, k.name,
           v.to_runner_api_monitoring_info(),
           ptransform=transform_id
       ))
 
     for k, v in self.distributions.items():
-      all_user_metrics.append(monitoring_infos.int64_distribution(
-          user_metric_urn(k.namespace, k.name),
+      all_user_metrics.append(monitoring_infos.int64_user_distribution(
+          k.namespace, k.name,
           v.get_cumulative().to_runner_api_monitoring_info(),
           ptransform=transform_id
       ))
 
     for k, v in self.gauges.items():
-      all_user_metrics.append(monitoring_infos.int64_gauge(
-          user_metric_urn(k.namespace, k.name),
+      all_user_metrics.append(monitoring_infos.int64_user_gauge(
+          k.namespace, k.name,
           v.get_cumulative().to_runner_api_monitoring_info(),
           ptransform=transform_id
       ))

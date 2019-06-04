@@ -178,7 +178,6 @@ public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstra
     // sort accumulators, no need to explode since inputs were exploded.
     Iterable<WindowedValue<KV<K, AccumT>>> sortedAccumulators = sortByWindows(accumulators);
 
-    @SuppressWarnings("unchecked")
     TimestampCombiner timestampCombiner = windowingStrategy.getTimestampCombiner();
 
     // --- accumulators iterator, by window order.

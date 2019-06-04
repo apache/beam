@@ -17,36 +17,49 @@
  */
 
 plugins { id 'org.apache.beam.module' }
+
 // Do not relocate guava to avoid issues with Cassandra's version.
-applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
-  dependencies {
-    exclude(dependency(project.library.java.guava))
-  }
-})
+applyJavaNature(
+    shadowClosure: {
+      dependencies {
+        // is default, but when omitted the default action is to include all runtime deps
+        include(dependency(project.library.java.guava))
+
+        // hack: now exclude the only thing that was included
+        exclude(dependency(project.library.java.guava))
+
+      }
+    },
+    shadowJarValidationExcludes: [
+        "org/apache/beam/**",
+        "com/google/common/**",
+        "com/google/thirdparty/**"
+    ]
+)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Cassandra"
 ext.summary = "IO to read and write with Apache Cassandra database"
 
-def cassandra_embedded_version = "3.5.0.1"
-
-configurations.testRuntimeClasspath {
-  exclude group: "org.slf4j", module: "slf4j-jdk14"
-}
+// compatible with all Cassandra versions up to 3.11.3
+def achilles_version = "6.0.2"
 
 dependencies {
   shadow library.java.vendored_guava_20_0
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.cassandra_driver_core
   shadow library.java.cassandra_driver_mapping
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:io:common", configuration: "shadowTest")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  testCompile library.java.slf4j_jdk14
   testCompile library.java.mockito_core
-  testCompile group: 'org.cassandraunit', name: 'cassandra-unit', version: "$cassandra_embedded_version"
+
+  // for embedded cassandra
+  testCompile group: 'info.archinnov', name: 'achilles-junit', version: "$achilles_version"
+  testCompile library.java.jackson_jaxb_annotations
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(path: ":runners:direct-java")
 }

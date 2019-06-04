@@ -22,6 +22,7 @@ from __future__ import print_function
 
 import json
 import logging
+import math
 import os.path
 import sys
 import unittest
@@ -30,14 +31,15 @@ from builtins import map
 import yaml
 
 from apache_beam.coders import coder_impl
-from apache_beam.coders import coders
+from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.runners import pipeline_context
 from apache_beam.transforms import window
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import Timestamp
 
-STANDARD_CODERS_YAML = os.path.join(
-    os.path.dirname(__file__), '..', 'testing', 'data', 'standard_coders.yaml')
+STANDARD_CODERS_YAML = os.path.normpath(os.path.join(
+    os.path.dirname(__file__), '../portability/api/standard_coders.yaml'))
 
 
 def _load_test_cases(test_yaml):
@@ -53,22 +55,20 @@ def _load_test_cases(test_yaml):
     yield [name, spec]
 
 
-class StandardCodersTest(unittest.TestCase):
+def parse_float(s):
+  x = float(s)
+  if math.isnan(x):
+    # In Windows, float('NaN') has opposite sign from other platforms.
+    # For the purpose of this test, we just need consistency.
+    x = abs(x)
+  return x
 
-  _urn_to_coder_class = {
-      'beam:coder:bytes:v1': coders.BytesCoder,
-      'beam:coder:varint:v1': coders.VarIntCoder,
-      'beam:coder:kv:v1': lambda k, v: coders.TupleCoder((k, v)),
-      'beam:coder:interval_window:v1': coders.IntervalWindowCoder,
-      'beam:coder:iterable:v1': lambda t: coders.IterableCoder(t),
-      'beam:coder:global_window:v1': coders.GlobalWindowCoder,
-      'beam:coder:windowed_value:v1':
-          lambda v, w: coders.WindowedValueCoder(v, w),
-      'beam:coder:timer:v1': coders._TimerCoder,
-  }
+
+class StandardCodersTest(unittest.TestCase):
 
   _urn_to_json_value_parser = {
       'beam:coder:bytes:v1': lambda x: x.encode('utf-8'),
+      'beam:coder:string_utf8:v1': lambda x: x,
       'beam:coder:varint:v1': lambda x: x,
       'beam:coder:kv:v1':
           lambda x, key_parser, value_parser: (key_parser(x['key']),
@@ -86,7 +86,8 @@ class StandardCodersTest(unittest.TestCase):
       'beam:coder:timer:v1':
           lambda x, payload_parser: dict(
               payload=payload_parser(x['payload']),
-              timestamp=Timestamp(micros=x['timestamp'])),
+              timestamp=Timestamp(micros=x['timestamp'] * 1000)),
+      'beam:coder:double:v1': parse_float,
   }
 
   def test_standard_coders(self):
@@ -95,6 +96,15 @@ class StandardCodersTest(unittest.TestCase):
       self._run_standard_coder(name, spec)
 
   def _run_standard_coder(self, name, spec):
+    def assert_equal(actual, expected):
+      """Handle nan values which self.assertEqual fails on."""
+      if (isinstance(actual, float)
+          and isinstance(expected, float)
+          and math.isnan(actual)
+          and math.isnan(expected)):
+        return
+      self.assertEqual(actual, expected)
+
     coder = self.parse_coder(spec['coder'])
     parse_value = self.json_value_parser(spec['coder'])
     nested_list = [spec['nested']] if 'nested' in spec else [True, False]
@@ -108,16 +118,23 @@ class StandardCodersTest(unittest.TestCase):
             self.to_fix[spec['index'], expected_encoded] = actual_encoded
           else:
             self.assertEqual(expected_encoded, actual_encoded)
-            self.assertEqual(decode_nested(coder, expected_encoded, nested),
-                             value)
+            decoded = decode_nested(coder, expected_encoded, nested)
+            assert_equal(decoded, value)
         else:
           # Only verify decoding for a non-deterministic coder
           self.assertEqual(decode_nested(coder, expected_encoded, nested),
                            value)
 
   def parse_coder(self, spec):
-    return self._urn_to_coder_class[spec['urn']](
-        *[self.parse_coder(c) for c in spec.get('components', ())])
+    context = pipeline_context.PipelineContext()
+    coder_id = str(hash(str(spec)))
+    component_ids = [context.coders.get_id(self.parse_coder(c))
+                     for c in spec.get('components', ())]
+    context.coders.put_proto(coder_id, beam_runner_api_pb2.Coder(
+        spec=beam_runner_api_pb2.FunctionSpec(
+            urn=spec['urn'], payload=spec.get('payload')),
+        component_coder_ids=component_ids))
+    return context.coders.get_by_id(coder_id)
 
   def json_value_parser(self, coder_spec):
     component_parsers = [

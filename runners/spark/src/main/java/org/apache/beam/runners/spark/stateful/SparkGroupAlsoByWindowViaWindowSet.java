@@ -108,7 +108,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       this.serTimers = timers;
     }
 
-    public Table<String, String, byte[]> getState() {
+    Table<String, String, byte[]> getState() {
       return state;
     }
 
@@ -532,7 +532,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
   }
 
   private static <K, InputT> PairDStreamFunctions<ByteArray, byte[]> buildPairDStream(
-      final JavaDStream<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>> inputDStream,
+      final JavaDStream<KV<K, Iterable<WindowedValue<InputT>>>> inputDStream,
       final Coder<K> keyCoder,
       final Coder<WindowedValue<InputT>> wvCoder) {
 
@@ -553,10 +553,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
         inputDStream
             .transformToPair(
                 (rdd, time) ->
-                    rdd.mapPartitions(
-                            TranslationUtils.functionToFlatMapFunction(WindowedValue::getValue),
-                            true)
-                        .mapPartitionsToPair(TranslationUtils.toPairFlatMapFunction(), true)
+                    rdd.mapPartitionsToPair(TranslationUtils.toPairFlatMapFunction(), true)
                         .mapValues(
                             // add the batch timestamp for visibility (e.g., debugging)
                             values -> KV.of(time.milliseconds(), values))
@@ -579,7 +576,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
 
   public static <K, InputT, W extends BoundedWindow>
       JavaDStream<WindowedValue<KV<K, Iterable<InputT>>>> groupAlsoByWindow(
-          final JavaDStream<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>> inputDStream,
+          final JavaDStream<KV<K, Iterable<WindowedValue<InputT>>>> inputDStream,
           final Coder<K> keyCoder,
           final Coder<WindowedValue<InputT>> wvCoder,
           final WindowingStrategy<?, W> windowingStrategy,

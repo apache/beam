@@ -36,6 +36,7 @@ from apache_beam.io import iobase
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
 from apache_beam.runners.dataflow.internal.names import PropertyNames
@@ -197,6 +198,9 @@ class Operation(object):
     self.setup_done = False
 
   def setup(self):
+    """Set up operation.
+
+    This must be called before any other methods of the operation."""
     with self.scoped_start_state:
       self.debug_logging_enabled = logging.getLogger().isEnabledFor(
           logging.DEBUG)
@@ -223,6 +227,12 @@ class Operation(object):
     """Process element in operation."""
     pass
 
+  def finalize_bundle(self):
+    pass
+
+  def needs_finalization(self):
+    return False
+
   def try_split(self, fraction_of_remainder):
     return None
 
@@ -231,6 +241,12 @@ class Operation(object):
 
   def finish(self):
     """Finish operation."""
+    pass
+
+  def teardown(self):
+    """Tear down operation.
+
+    No other methods of this operation should be called after this."""
     pass
 
   def reset(self):
@@ -266,23 +282,45 @@ class Operation(object):
     """Returns the list of MonitoringInfos collected by this operation."""
     all_monitoring_infos = self.execution_time_monitoring_infos(transform_id)
     all_monitoring_infos.update(
-        self.element_count_monitoring_infos(transform_id))
+        self.pcollection_count_monitoring_infos(transform_id))
     all_monitoring_infos.update(self.user_monitoring_infos(transform_id))
     return all_monitoring_infos
 
-  def element_count_monitoring_infos(self, transform_id):
+  def pcollection_count_monitoring_infos(self, transform_id):
     """Returns the element count MonitoringInfo collected by this operation."""
     if len(self.receivers) == 1:
       # If there is exactly one output, we can unambiguously
       # fix its name later, which we do.
       # TODO(robertwb): Plumb the actual name here.
-      mi = monitoring_infos.int64_counter(
+      elem_count_mi = monitoring_infos.int64_counter(
           monitoring_infos.ELEMENT_COUNT_URN,
           self.receivers[0].opcounter.element_counter.value(),
           ptransform=transform_id,
           tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
       )
-      return {monitoring_infos.to_key(mi) : mi}
+
+      (unused_mean, sum, count, min, max) = (
+          self.receivers[0].opcounter.mean_byte_counter.value())
+      metric = metrics_pb2.Metric(
+          distribution_data=metrics_pb2.DistributionData(
+              int_distribution_data=metrics_pb2.IntDistributionData(
+                  count=count,
+                  sum=sum,
+                  min=min,
+                  max=max
+              )
+          )
+      )
+      sampled_byte_count = monitoring_infos.int64_distribution(
+          monitoring_infos.SAMPLED_BYTE_SIZE_URN,
+          metric,
+          ptransform=transform_id,
+          tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
+      )
+      return {
+          monitoring_infos.to_key(elem_count_mi) : elem_count_mi,
+          monitoring_infos.to_key(sampled_byte_count) : sampled_byte_count
+      }
     return {}
 
   def user_monitoring_infos(self, transform_id):
@@ -540,6 +578,7 @@ class DoOperation(Operation):
           state=state,
           user_state_context=self.user_state_context,
           operation_name=self.name_context.metrics_name())
+      self.dofn_runner.setup()
 
       self.dofn_receiver = (self.dofn_runner
                             if isinstance(self.dofn_runner, Receiver)
@@ -557,6 +596,12 @@ class DoOperation(Operation):
         self.execution_context.delayed_applications.append(
             (self, delayed_application))
 
+  def finalize_bundle(self):
+    self.dofn_receiver.finalize()
+
+  def needs_finalization(self):
+    return self.dofn_receiver.bundle_finalizer_param.has_callbacks()
+
   def process_timer(self, tag, windowed_timer):
     key, timer_data = windowed_timer.value
     timer_spec = self.timer_specs[tag]
@@ -569,12 +614,17 @@ class DoOperation(Operation):
       if self.user_state_context:
         self.user_state_context.commit()
 
+  def teardown(self):
+    with self.scoped_finish_state:
+      self.dofn_runner.teardown()
+
   def reset(self):
     super(DoOperation, self).reset()
     for side_input_map in self.side_input_maps:
       side_input_map.reset()
     if self.user_state_context:
       self.user_state_context.reset()
+    self.dofn_receiver.bundle_finalizer_param.reset()
 
   def progress_metrics(self):
     metrics = super(DoOperation, self).progress_metrics()
@@ -596,13 +646,32 @@ class DoOperation(Operation):
             tag=str(tag)
         )
         infos[monitoring_infos.to_key(mi)] = mi
+        (unused_mean, sum, count, min, max) = (
+            receiver.opcounter.mean_byte_counter.value())
+        metric = metrics_pb2.Metric(
+            distribution_data=metrics_pb2.DistributionData(
+                int_distribution_data=metrics_pb2.IntDistributionData(
+                    count=count,
+                    sum=sum,
+                    min=min,
+                    max=max
+                )
+            )
+        )
+        sampled_byte_count = monitoring_infos.int64_distribution(
+            monitoring_infos.SAMPLED_BYTE_SIZE_URN,
+            metric,
+            ptransform=transform_id,
+            tag=str(tag)
+        )
+        infos[monitoring_infos.to_key(sampled_byte_count)] = sampled_byte_count
     return infos
 
 
-class SdfProcessElements(DoOperation):
+class SdfProcessSizedElements(DoOperation):
 
   def __init__(self, *args, **kwargs):
-    super(SdfProcessElements, self).__init__(*args, **kwargs)
+    super(SdfProcessSizedElements, self).__init__(*args, **kwargs)
     self.lock = threading.RLock()
     self.element_start_output_bytes = None
 
@@ -615,7 +684,7 @@ class SdfProcessElements(DoOperation):
             receiver.opcounter.restart_sampling()
         # Actually processing the element can be expensive; do it without
         # the lock.
-        delayed_application = self.dofn_runner.process_with_restriction(o)
+        delayed_application = self.dofn_runner.process_with_sized_restriction(o)
         if delayed_application:
           self.execution_context.delayed_applications.append(
               (self, delayed_application))
@@ -632,12 +701,14 @@ class SdfProcessElements(DoOperation):
   def current_element_progress(self):
     with self.lock:
       if self.element_start_output_bytes is not None:
-        return self.dofn_runner.current_element_progress().with_completed(
-            self._total_output_bytes() - self.element_start_output_bytes)
+        progress = self.dofn_runner.current_element_progress()
+        if progress is not None:
+          return progress.with_completed(
+              self._total_output_bytes() - self.element_start_output_bytes)
 
   def progress_metrics(self):
     with self.lock:
-      metrics = super(SdfProcessElements, self).progress_metrics()
+      metrics = super(SdfProcessSizedElements, self).progress_metrics()
       current_element_progress = self.current_element_progress()
     if current_element_progress:
       metrics.active_elements.measured.input_element_counts[
@@ -651,7 +722,8 @@ class SdfProcessElements(DoOperation):
     for receiver in self.tagged_receivers.values():
       elements = receiver.opcounter.element_counter.value()
       if elements > 0:
-        total += elements * receiver.opcounter.mean_byte_counter.value()
+        mean = (receiver.opcounter.mean_byte_counter.value())[0]
+        total += elements * mean
     return total
 
 

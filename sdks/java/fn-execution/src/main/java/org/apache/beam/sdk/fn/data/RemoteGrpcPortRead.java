@@ -32,7 +32,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
  */
 @AutoValue
 public abstract class RemoteGrpcPortRead {
-  public static final String URN = "urn:org.apache.beam:source:runner:0.1";
+  public static final String URN = "beam:source:runner:0.1";
   private static final String LOCAL_OUTPUT_ID = "local_output";
 
   public static RemoteGrpcPortRead readFromPort(RemoteGrpcPort port, String outputPCollectionId) {

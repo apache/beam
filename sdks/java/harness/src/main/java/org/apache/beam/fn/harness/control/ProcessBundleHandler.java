@@ -83,8 +83,8 @@ import org.slf4j.LoggerFactory;
 public class ProcessBundleHandler {
 
   // TODO: What should the initial set of URNs be?
-  private static final String DATA_INPUT_URN = "urn:org.apache.beam:source:runner:0.1";
-  public static final String JAVA_SOURCE_URN = "urn:org.apache.beam:source:java:0.1";
+  private static final String DATA_INPUT_URN = "beam:source:runner:0.1";
+  public static final String JAVA_SOURCE_URN = "beam:source:java:0.1";
 
   private static final Logger LOG = LoggerFactory.getLogger(ProcessBundleHandler.class);
   private static final Map<String, PTransformRunnerFactory> REGISTERED_RUNNER_FACTORIES;

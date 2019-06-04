@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.testing;
 
+import static org.hamcrest.Matchers.in;
+import static org.hamcrest.core.Is.is;
+
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
@@ -450,7 +453,7 @@ public class SerializableMatchers implements Serializable {
   /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#isIn(Collection)}. */
   public static <T extends Serializable> SerializableMatcher<T> isIn(
       final Collection<T> collection) {
-    return fromSupplier(() -> Matchers.isIn(collection));
+    return fromSupplier(() -> is(in(collection)));
   }
 
   /**
@@ -463,12 +466,12 @@ public class SerializableMatchers implements Serializable {
     @SuppressWarnings("unchecked")
     T[] items = (T[]) collection.toArray();
     final SerializableSupplier<T[]> itemsSupplier = new SerializableArrayViaCoder<>(coder, items);
-    return fromSupplier(() -> Matchers.isIn(itemsSupplier.get()));
+    return fromSupplier(() -> is(in(itemsSupplier.get())));
   }
 
   /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#isIn(Object[])}. */
   public static <T extends Serializable> SerializableMatcher<T> isIn(final T[] items) {
-    return fromSupplier(() -> Matchers.isIn(items));
+    return fromSupplier(() -> is(in(items)));
   }
 
   /**
@@ -479,7 +482,7 @@ public class SerializableMatchers implements Serializable {
    */
   public static <T> SerializableMatcher<T> isIn(Coder<T> coder, T[] items) {
     final SerializableSupplier<T[]> itemsSupplier = new SerializableArrayViaCoder<>(coder, items);
-    return fromSupplier(() -> Matchers.isIn(itemsSupplier.get()));
+    return fromSupplier(() -> is(in(itemsSupplier.get())));
   }
 
   /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#isOneOf}. */

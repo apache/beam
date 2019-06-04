@@ -39,6 +39,8 @@ import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.schemas.utils.ConvertHelpers;
+import org.apache.beam.sdk.schemas.utils.SelectHelpers;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.transforms.DoFn.WindowedContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -59,7 +61,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -435,7 +436,7 @@ public class ParDo {
     }
   }
 
-  private static void validateFieldAccessParameter(
+  private static FieldAccessDescriptor getFieldAccessDescriptorFromParameter(
       @Nullable String fieldAccessString,
       Schema inputSchema,
       Map<String, FieldAccessDeclaration> fieldAccessDeclarations,
@@ -448,25 +449,25 @@ public class ParDo {
     // here as well to catch these errors.
     FieldAccessDescriptor fieldAccessDescriptor = null;
     if (fieldAccessString == null) {
-      // This is the case where no FieldId is defined, just an @Element Row row. Default to all
-      // fields accessed.
+      // This is the case where no FieldId is defined. Default to all fields accessed.
       fieldAccessDescriptor = FieldAccessDescriptor.withAllFields();
     } else {
-      // In this case, we expect to have a FieldAccessDescriptor defined in the class.
+      // If there is a FieldAccessDescriptor in the class with this id, use that.
       FieldAccessDeclaration fieldAccessDeclaration =
           fieldAccessDeclarations.get(fieldAccessString);
-      checkArgument(
-          fieldAccessDeclaration != null,
-          "No FieldAccessDeclaration  defined with id",
-          fieldAccessString);
-      checkArgument(fieldAccessDeclaration.field().getType().equals(FieldAccessDescriptor.class));
-      try {
-        fieldAccessDescriptor = (FieldAccessDescriptor) fieldAccessDeclaration.field().get(fn);
-      } catch (IllegalAccessException e) {
-        throw new RuntimeException(e);
+      if (fieldAccessDeclaration != null) {
+        checkArgument(fieldAccessDeclaration.field().getType().equals(FieldAccessDescriptor.class));
+        try {
+          fieldAccessDescriptor = (FieldAccessDescriptor) fieldAccessDeclaration.field().get(fn);
+        } catch (IllegalAccessException e) {
+          throw new RuntimeException(e);
+        }
+      } else {
+        // Otherwise, interpret the string as a field-name expression.
+        fieldAccessDescriptor = FieldAccessDescriptor.withFieldNames(fieldAccessString);
       }
     }
-    fieldAccessDescriptor.resolve(inputSchema);
+    return fieldAccessDescriptor.resolve(inputSchema);
   }
 
   /**
@@ -571,64 +572,44 @@ public class ParDo {
       DoFn<?, ?> fn, PCollection<?> input) {
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
     DoFnSignature.ProcessElementMethod processElementMethod = signature.processElement();
-    SchemaElementParameter elementParameter = processElementMethod.getSchemaElementParameter();
-    boolean validateInputSchema = elementParameter != null;
-    TypeDescriptor<?> elementT = null;
-    if (validateInputSchema) {
-      elementT = (TypeDescriptor<?>) elementParameter.elementT();
-    }
-
-    DoFnSchemaInformation doFnSchemaInformation = DoFnSchemaInformation.create();
-    if (validateInputSchema) {
-      // Element type doesn't match input type, so we need to covnert.
+    if (!processElementMethod.getSchemaElementParameters().isEmpty()) {
       if (!input.hasSchema()) {
         throw new IllegalArgumentException("Type of @Element must match the DoFn type" + input);
       }
+    }
 
-      validateFieldAccessParameter(
-          elementParameter.fieldAccessString(),
-          input.getSchema(),
-          signature.fieldAccessDeclarations(),
-          fn);
-
-      boolean toRow = elementT.equals(TypeDescriptor.of(Row.class));
-      if (toRow) {
+    SchemaRegistry schemaRegistry = input.getPipeline().getSchemaRegistry();
+    DoFnSchemaInformation doFnSchemaInformation = DoFnSchemaInformation.create();
+    for (SchemaElementParameter parameter : processElementMethod.getSchemaElementParameters()) {
+      TypeDescriptor<?> elementT = parameter.elementT();
+      FieldAccessDescriptor accessDescriptor =
+          getFieldAccessDescriptorFromParameter(
+              parameter.fieldAccessString(),
+              input.getSchema(),
+              signature.fieldAccessDeclarations(),
+              fn);
+      Schema selectedSchema = SelectHelpers.getOutputSchema(input.getSchema(), accessDescriptor);
+      ConvertHelpers.ConvertedSchemaInformation converted =
+          ConvertHelpers.getConvertedSchemaInformation(selectedSchema, elementT, schemaRegistry);
+      if (converted.outputSchemaCoder != null) {
         doFnSchemaInformation =
-            doFnSchemaInformation.withElementParameterSchema(
-                SchemaCoder.of(
-                    input.getSchema(),
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+            doFnSchemaInformation.withSelectFromSchemaParameter(
+                (SchemaCoder<?>) input.getCoder(),
+                accessDescriptor,
+                selectedSchema,
+                converted.outputSchemaCoder,
+                converted.unboxedType != null);
       } else {
-        // For now we assume the parameter is not of type Row (TODO: change this)
-        SchemaRegistry schemaRegistry = input.getPipeline().getSchemaRegistry();
-        try {
-          Schema schema = schemaRegistry.getSchema(elementT);
-          SerializableFunction toRowFunction = schemaRegistry.getToRowFunction(elementT);
-          SerializableFunction fromRowFunction = schemaRegistry.getFromRowFunction(elementT);
-          doFnSchemaInformation =
-              doFnSchemaInformation.withElementParameterSchema(
-                  SchemaCoder.of(schema, toRowFunction, fromRowFunction));
-
-          // assert matches input schema.
-          // TODO: Properly handle nullable.
-          if (!doFnSchemaInformation
-              .getElementParameterSchema()
-              .getSchema()
-              .assignableToIgnoreNullable(input.getSchema())) {
-            throw new IllegalArgumentException(
-                "Input to DoFn has schema: "
-                    + input.getSchema()
-                    + " However @ElementParameter of type "
-                    + elementT
-                    + " has incompatible schema "
-                    + doFnSchemaInformation.getElementParameterSchema().getSchema());
-          }
-        } catch (NoSuchSchemaException e) {
-          throw new RuntimeException("No schema registered for " + elementT);
-        }
+        // If the selected schema is a Row containing a single primitive type (which is the output
+        // of Select when selecting a primitive), attempt to unbox it and match against the
+        // parameter.
+        checkArgument(converted.unboxedType != null);
+        doFnSchemaInformation =
+            doFnSchemaInformation.withUnboxPrimitiveParameter(
+                (SchemaCoder<?>) input.getCoder(), accessDescriptor, selectedSchema, elementT);
       }
     }
+
     return doFnSchemaInformation;
   }
 

@@ -27,6 +27,8 @@ import static org.mockito.Mockito.when;
 import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
 import java.io.IOException;
 import java.util.Collections;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -45,6 +47,7 @@ public class ShardRecordsIteratorTest {
   private static final String THIRD_ITERATOR = "THIRD_ITERATOR";
   private static final String STREAM_NAME = "STREAM_NAME";
   private static final String SHARD_ID = "SHARD_ID";
+  private static final Instant NOW = Instant.now();
 
   @Mock private SimplifiedKinesisClient kinesisClient;
   @Mock private ShardCheckpoint firstCheckpoint, aCheckpoint, bCheckpoint, cCheckpoint, dCheckpoint;
@@ -88,7 +91,10 @@ public class ShardRecordsIteratorTest {
     when(recordFilter.apply(anyListOf(KinesisRecord.class), any(ShardCheckpoint.class)))
         .thenAnswer(new IdentityAnswer());
 
-    iterator = new ShardRecordsIterator(firstCheckpoint, kinesisClient, recordFilter);
+    WatermarkPolicyFactory watermarkPolicyFactory = WatermarkPolicyFactory.withArrivalTimePolicy();
+    iterator =
+        new ShardRecordsIterator(
+            firstCheckpoint, kinesisClient, watermarkPolicyFactory, recordFilter);
   }
 
   @Test
@@ -110,6 +116,11 @@ public class ShardRecordsIteratorTest {
     when(secondResult.getRecords()).thenReturn(singletonList(d));
     when(thirdResult.getRecords()).thenReturn(Collections.emptyList());
 
+    when(a.getApproximateArrivalTimestamp()).thenReturn(NOW);
+    when(b.getApproximateArrivalTimestamp()).thenReturn(NOW.plus(Duration.standardSeconds(1)));
+    when(c.getApproximateArrivalTimestamp()).thenReturn(NOW.plus(Duration.standardSeconds(2)));
+    when(d.getApproximateArrivalTimestamp()).thenReturn(NOW.plus(Duration.standardSeconds(3)));
+
     iterator.ackRecord(a);
     assertThat(iterator.getCheckpoint()).isEqualTo(aCheckpoint);
     iterator.ackRecord(b);
@@ -125,6 +136,9 @@ public class ShardRecordsIteratorTest {
       throws IOException, TransientKinesisException, KinesisShardClosedException {
     when(firstResult.getRecords()).thenReturn(singletonList(a));
     when(secondResult.getRecords()).thenReturn(singletonList(b));
+
+    when(a.getApproximateArrivalTimestamp()).thenReturn(NOW);
+    when(b.getApproximateArrivalTimestamp()).thenReturn(NOW.plus(Duration.standardSeconds(1)));
 
     when(kinesisClient.getRecords(SECOND_ITERATOR, STREAM_NAME, SHARD_ID))
         .thenThrow(ExpiredIteratorException.class);

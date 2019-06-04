@@ -38,17 +38,17 @@ ext {
 }
 
 for (p in rootProject.subprojects) {
-  if (!p.name.equals(project.name)) {
-    evaluationDependsOn(':' + p.name)
+  if (!p.path.equals(project.path)) {
+    evaluationDependsOn(p.path)
   }
 }
 
 def bomModuleNames = new ArrayList<>()
 for (p in rootProject.subprojects) {
-  def subproject = project(':' + p.name)
+  def subproject = p // project(':' + p.name)
   if (subproject.ext.properties.containsKey('includeInJavaBom') &&
       subproject.ext.properties.includeInJavaBom) {
-    bomModuleNames.add(subproject.name)
+    bomModuleNames.add(subproject.archivesBaseName)
   }
 }
 
@@ -105,6 +105,8 @@ afterEvaluate {
   publishing {
     publications {
       mavenJava(MavenPublication) {
+        groupId = project.mavenGroupId
+        artifactId = archivesBaseName
         version = project.version
       }
     }

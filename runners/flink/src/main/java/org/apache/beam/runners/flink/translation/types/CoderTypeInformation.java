@@ -27,7 +27,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
- * Flink {@link org.apache.flink.api.common.typeinfo.TypeInformation} for Dataflow {@link
+ * Flink {@link org.apache.flink.api.common.typeinfo.TypeInformation} for Beam {@link
  * org.apache.beam.sdk.coders.Coder}s.
  */
 public class CoderTypeInformation<T> extends TypeInformation<T> implements AtomicType<T> {
@@ -61,8 +61,7 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
   @Override
   @SuppressWarnings("unchecked")
   public Class<T> getTypeClass() {
-    // We don't have the Class, so we have to pass null here. What a shame...
-    return (Class<T>) Object.class;
+    return (Class<T>) coder.getEncodedTypeDescriptor().getRawType();
   }
 
   @Override

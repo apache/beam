@@ -89,7 +89,7 @@ public interface DoFnInvoker<InputT, OutputT> {
 
   /** Invoke the {@link DoFn.NewTracker} method on the bound {@link DoFn}. */
   @SuppressWarnings("TypeParameterUnusedInFormals")
-  <RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>> TrackerT invokeNewTracker(
+  <RestrictionT, PositionT> RestrictionTracker<RestrictionT, PositionT> invokeNewTracker(
       RestrictionT restriction);
 
   /** Get the bound {@link DoFn}. */
@@ -132,16 +132,19 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a {@link DoFn.OnTimerContext} to use with the given {@link DoFn}. */
     DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn);
 
-    /** Provide a link to the input element. */
+    /** Provide a reference to the input element. */
     InputT element(DoFn<InputT, OutputT> doFn);
 
-    /** Provide a link to the input element. */
-    Object schemaElement(DoFn<InputT, OutputT> doFn);
+    /**
+     * Provide a reference to the selected schema field corresponding to the input argument
+     * specified by index.
+     */
+    Object schemaElement(int index);
 
-    /** Provide a link to the input element timestamp. */
+    /** Provide a reference to the input element timestamp. */
     Instant timestamp(DoFn<InputT, OutputT> doFn);
 
-    /** Provide a link to the time domain for a timer firing. */
+    /** Provide a reference to the time domain for a timer firing. */
     TimeDomain timeDomain(DoFn<InputT, OutputT> doFn);
 
     /** Provide a {@link OutputReceiver} for outputting to the default output. */
@@ -188,7 +191,7 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public InputT schemaElement(DoFn<InputT, OutputT> doFn) {
+    public InputT schemaElement(int index) {
       throw new UnsupportedOperationException(
           String.format(
               "Should never call non-overridden methods of %s",

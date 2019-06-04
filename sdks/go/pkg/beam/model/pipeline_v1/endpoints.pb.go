@@ -3,11 +3,9 @@
 
 package pipeline_v1
 
-import (
-	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
-	math "math"
-)
+import proto "github.com/golang/protobuf/proto"
+import fmt "fmt"
+import math "math"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -39,17 +37,16 @@ func (m *ApiServiceDescriptor) Reset()         { *m = ApiServiceDescriptor{} }
 func (m *ApiServiceDescriptor) String() string { return proto.CompactTextString(m) }
 func (*ApiServiceDescriptor) ProtoMessage()    {}
 func (*ApiServiceDescriptor) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6445e0c85107719d, []int{0}
+	return fileDescriptor_endpoints_b802d3b215e621ad, []int{0}
 }
-
 func (m *ApiServiceDescriptor) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ApiServiceDescriptor.Unmarshal(m, b)
 }
 func (m *ApiServiceDescriptor) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ApiServiceDescriptor.Marshal(b, m, deterministic)
 }
-func (m *ApiServiceDescriptor) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ApiServiceDescriptor.Merge(m, src)
+func (dst *ApiServiceDescriptor) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ApiServiceDescriptor.Merge(dst, src)
 }
 func (m *ApiServiceDescriptor) XXX_Size() int {
 	return xxx_messageInfo_ApiServiceDescriptor.Size(m)
@@ -159,17 +156,16 @@ func (m *OAuth2ClientCredentialsGrant) Reset()         { *m = OAuth2ClientCreden
 func (m *OAuth2ClientCredentialsGrant) String() string { return proto.CompactTextString(m) }
 func (*OAuth2ClientCredentialsGrant) ProtoMessage()    {}
 func (*OAuth2ClientCredentialsGrant) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6445e0c85107719d, []int{1}
+	return fileDescriptor_endpoints_b802d3b215e621ad, []int{1}
 }
-
 func (m *OAuth2ClientCredentialsGrant) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_OAuth2ClientCredentialsGrant.Unmarshal(m, b)
 }
 func (m *OAuth2ClientCredentialsGrant) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_OAuth2ClientCredentialsGrant.Marshal(b, m, deterministic)
 }
-func (m *OAuth2ClientCredentialsGrant) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_OAuth2ClientCredentialsGrant.Merge(m, src)
+func (dst *OAuth2ClientCredentialsGrant) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_OAuth2ClientCredentialsGrant.Merge(dst, src)
 }
 func (m *OAuth2ClientCredentialsGrant) XXX_Size() int {
 	return xxx_messageInfo_OAuth2ClientCredentialsGrant.Size(m)
@@ -192,9 +188,9 @@ func init() {
 	proto.RegisterType((*OAuth2ClientCredentialsGrant)(nil), "org.apache.beam.model.pipeline.v1.OAuth2ClientCredentialsGrant")
 }
 
-func init() { proto.RegisterFile("endpoints.proto", fileDescriptor_6445e0c85107719d) }
+func init() { proto.RegisterFile("endpoints.proto", fileDescriptor_endpoints_b802d3b215e621ad) }
 
-var fileDescriptor_6445e0c85107719d = []byte{
+var fileDescriptor_endpoints_b802d3b215e621ad = []byte{
 	// 235 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x90, 0xb1, 0x4a, 0x03, 0x41,
 	0x10, 0x86, 0x5d, 0x03, 0x42, 0x36, 0xa0, 0xe1, 0xb0, 0x48, 0x11, 0x30, 0xa6, 0x4a, 0xb5, 0x98,

@@ -86,7 +86,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
       ExecutionStateTracker executionStateTracker) {
     super(operations, counters, executionStateTracker);
     this.progressTracker = createProgressTracker();
-    LOG.info("Creating BeamFnMapTaskExecutor");
+    LOG.debug("Creating BeamFnMapTaskExecutor");
   }
 
   /**
@@ -402,7 +402,8 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     private void updateMetrics(List<MonitoringInfo> monitoringInfos) {
       final MonitoringInfoToCounterUpdateTransformer monitoringInfoToCounterUpdateTransformer =
           new FnApiMonitoringInfoToCounterUpdateTransformer(
-              bundleProcessOperation.getPtransformIdToUserStepContext());
+              this.bundleProcessOperation.getPtransformIdToUserStepContext(),
+              this.bundleProcessOperation.getPCollectionIdToNameContext());
 
       counterUpdates =
           monitoringInfos.stream()
@@ -480,7 +481,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
     @Override
     public void start() {
-      LOG.info("Starting BeamFnMapTaskExecutor, launching progress thread");
+      LOG.debug("Starting BeamFnMapTaskExecutor, launching progress thread");
       progressErrors = 0;
       nextProgressFuture =
           scheduler.scheduleAtFixedRate(
@@ -492,7 +493,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
     @Override
     public void stop() {
-      LOG.info("Stopping BeamFnMapTaskExecutor, grabbing final metric updates");
+      LOG.debug("Stopping BeamFnMapTaskExecutor, grabbing final metric updates");
       nextProgressFuture.cancel(true);
       try {
         nextProgressFuture.get();

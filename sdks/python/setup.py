@@ -111,13 +111,13 @@ REQUIRED_PACKAGES = [
     'futures>=3.2.0,<4.0.0; python_version < "3.0"',
     'grpcio>=1.8,<2',
     'hdfs>=2.1.0,<3.0.0',
-    'httplib2>=0.8,<=0.11.3',
+    'httplib2>=0.8,<=0.12.0',
     'mock>=1.0.1,<3.0.0',
     'oauth2client>=2.0.1,<4',
     # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.
     'protobuf>=3.5.0.post1,<4',
     # [BEAM-6287] pyarrow is not supported on Windows for Python 2
-    ('pyarrow>=0.11.1,<0.12.0; python_version >= "3.0" or '
+    ('pyarrow>=0.11.1,<0.14.0; python_version >= "3.0" or '
      'platform_system != "Windows"'),
     'pydot>=1.2.0,<1.3',
     'pytz>=2018.3',
@@ -125,6 +125,7 @@ REQUIRED_PACKAGES = [
     'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
     'pyyaml>=3.12,<4.0.0',
     'typing>=3.6.0,<3.7.0; python_version < "3.5.0"',
+    'mmh3>=2.5.1,<2.5.2',
     ]
 
 REQUIRED_TEST_PACKAGES = [
@@ -137,16 +138,18 @@ REQUIRED_TEST_PACKAGES = [
     ]
 
 GCP_REQUIREMENTS = [
-    # google-apitools 0.5.23 and above has important Python 3 supports.
-    'google-apitools>=0.5.26,<0.5.27',
-    'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4',
-    # [BEAM-4543] Datastore IO is not supported in Python 3.
+    'cachetools>=3.1.0,<4',
+    'google-apitools>=0.5.28,<0.5.29',
+    # [BEAM-4543] googledatastore is not supported in Python 3.
+    'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4; python_version < "3.0"',
+    # [BEAM-4543] googledatastore is not supported in Python 3.
     'googledatastore>=7.0.1,<7.1; python_version < "3.0"',
-    'google-cloud-pubsub==0.39.0',
+    'google-cloud-datastore>=1.7.1,<1.8.0',
+    'google-cloud-pubsub>=0.39.0,<0.40.0',
     # GCP packages required by tests
     'google-cloud-bigquery>=1.6.0,<1.7.0',
-    'google-cloud-core==0.28.1',
-    'google-cloud-bigtable==0.31.1',
+    'google-cloud-core>=0.28.1,<0.30.0',
+    'google-cloud-bigtable>=0.31.1,<0.33.0',
 ]
 
 
@@ -185,7 +188,8 @@ setuptools.setup(
     author_email=PACKAGE_EMAIL,
     packages=setuptools.find_packages(),
     package_data={'apache_beam': [
-        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'testing/data/*.yaml']},
+        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'testing/data/*.yaml',
+        'portability/api/*.yaml']},
     ext_modules=cythonize([
         'apache_beam/**/*.pyx',
         'apache_beam/coders/coder_impl.py',

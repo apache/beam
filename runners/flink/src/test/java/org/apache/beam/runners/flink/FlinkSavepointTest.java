@@ -20,7 +20,10 @@ package org.apache.beam.runners.flink;
 import static org.junit.Assert.assertNotNull;
 
 import java.io.Serializable;
+import java.lang.reflect.Method;
+import java.net.URI;
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -182,13 +185,7 @@ public class FlinkSavepointTest implements Serializable {
         .getOptions()
         .as(PortablePipelineOptions.class)
         .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
-    pipeline
-        .getOptions()
-        .as(FlinkPipelineOptions.class)
-        .setFlinkMaster(
-            flinkCluster.getRestAddress().getHost()
-                + ":"
-                + flinkCluster.getRestAddress().getPort());
+    pipeline.getOptions().as(FlinkPipelineOptions.class).setFlinkMaster(getFlinkMaster());
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
 
@@ -211,6 +208,22 @@ public class FlinkSavepointTest implements Serializable {
     } finally {
       executorService.shutdown();
     }
+  }
+
+  private String getFlinkMaster() throws Exception {
+    final URI uri;
+    Method getRestAddress = flinkCluster.getClass().getMethod("getRestAddress");
+    if (getRestAddress.getReturnType().equals(URI.class)) {
+      // Flink 1.5 way
+      uri = (URI) getRestAddress.invoke(flinkCluster);
+    } else if (getRestAddress.getReturnType().equals(CompletableFuture.class)) {
+      @SuppressWarnings("unchecked")
+      CompletableFuture<URI> future = (CompletableFuture<URI>) getRestAddress.invoke(flinkCluster);
+      uri = future.get();
+    } else {
+      throw new RuntimeException("Could not determine Rest address for this Flink version.");
+    }
+    return uri.getHost() + ":" + uri.getPort();
   }
 
   private JobID waitForJobToBeReady() throws InterruptedException, ExecutionException {

@@ -26,7 +26,7 @@ class LoadTestsBuilder {
 
     options.put('runner', runner.option)
 
-    String datasetKey = 'bigQueryDatasetName'
+    String datasetKey = 'bigQueryDataset'
     String datasetValue = options.get(datasetKey)
 
     if (datasetValue) {
@@ -62,7 +62,7 @@ class LoadTestsBuilder {
     }.join(' ')
   }
 
-  private String setContextualDatasetName(String baseName, TriggeringContext triggeringContext) {
+  private static String setContextualDatasetName(String baseName, TriggeringContext triggeringContext) {
     if (triggeringContext == TriggeringContext.PR) {
       return baseName + '_PRs'
     } else {

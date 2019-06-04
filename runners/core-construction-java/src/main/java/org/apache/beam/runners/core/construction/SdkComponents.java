@@ -54,9 +54,11 @@ public class SdkComponents {
 
   private final Set<String> reservedIds = new HashSet<>();
 
+  private String defaultEnvironmentId;
+
   /** Create a new {@link SdkComponents} with no components. */
   public static SdkComponents create() {
-    return new SdkComponents("");
+    return new SdkComponents(RunnerApi.Components.getDefaultInstance(), "");
   }
 
   /**
@@ -85,17 +87,14 @@ public class SdkComponents {
   }
 
   public static SdkComponents create(PipelineOptions options) {
-    SdkComponents sdkComponents = new SdkComponents("");
+    SdkComponents sdkComponents = new SdkComponents(RunnerApi.Components.getDefaultInstance(), "");
     PortablePipelineOptions portablePipelineOptions = options.as(PortablePipelineOptions.class);
-    sdkComponents.registerEnvironment(
-        Environments.createOrGetDefaultEnvironment(
-            portablePipelineOptions.getDefaultEnvironmentType(),
-            portablePipelineOptions.getDefaultEnvironmentConfig()));
+    sdkComponents.defaultEnvironmentId =
+        sdkComponents.registerEnvironment(
+            Environments.createOrGetDefaultEnvironment(
+                portablePipelineOptions.getDefaultEnvironmentType(),
+                portablePipelineOptions.getDefaultEnvironmentConfig()));
     return sdkComponents;
-  }
-
-  private SdkComponents(String newIdPrefix) {
-    this.newIdPrefix = newIdPrefix;
   }
 
   private SdkComponents(RunnerApi.Components components, String newIdPrefix) {
@@ -105,6 +104,11 @@ public class SdkComponents {
       return;
     }
 
+    mergeFrom(components);
+  }
+
+  /** Merge Components proto into this SdkComponents instance. */
+  public void mergeFrom(RunnerApi.Components components) {
     reservedIds.addAll(components.getTransformsMap().keySet());
     reservedIds.addAll(components.getPcollectionsMap().keySet());
     reservedIds.addAll(components.getWindowingStrategiesMap().keySet());
@@ -270,7 +274,11 @@ public class SdkComponents {
 
   public String getOnlyEnvironmentId() {
     // TODO Support multiple environments. The environment should be decided by the translation.
-    return Iterables.getOnlyElement(componentsBuilder.getEnvironmentsMap().keySet());
+    if (defaultEnvironmentId != null) {
+      return defaultEnvironmentId;
+    } else {
+      return Iterables.getOnlyElement(componentsBuilder.getEnvironmentsMap().keySet());
+    }
   }
 
   private String uniqify(String baseName, Set<String> existing) {

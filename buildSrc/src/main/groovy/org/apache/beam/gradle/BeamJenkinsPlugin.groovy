@@ -32,7 +32,7 @@ import org.gradle.api.Project
  * <pre>
  * apply plugin: org.apache.beam.gradle.BeamJenkinsPlugin
  *
- * tasks.withType(FindBugs) {
+ * tasks.withType(SpotBugs) {
  *   reports {
  *     html.enabled = !jenkins.isCIBuild
  *     xml.enabled = jenkins.isCIBuild

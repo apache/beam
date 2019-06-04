@@ -38,10 +38,10 @@ SERIALIZED_SOURCE_KEY = 'serialized_source'
 
 # Update this version to the next version whenever there is a change that will
 # require changes to legacy Dataflow worker execution environment.
-BEAM_CONTAINER_VERSION = 'beam-master-20190226'
+BEAM_CONTAINER_VERSION = 'beam-master-20190509'
 # Update this version to the next version whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
-BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20190213'
+BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20190509'
 
 # TODO(BEAM-5939): Remove these shared names once Dataflow worker is updated.
 PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
@@ -109,6 +109,7 @@ class PropertyNames(object):
   PUBSUB_SUBSCRIPTION = 'pubsub_subscription'
   PUBSUB_TIMESTAMP_ATTRIBUTE = 'pubsub_timestamp_label'
   PUBSUB_TOPIC = 'pubsub_topic'
+  RESTRICTION_ENCODING = 'restriction_encoding'
   SERIALIZED_FN = 'serialized_fn'
   SHARD_NAME_TEMPLATE = 'shard_template'
   SOURCE_STEP_INPUT = 'custom_source_step_input'

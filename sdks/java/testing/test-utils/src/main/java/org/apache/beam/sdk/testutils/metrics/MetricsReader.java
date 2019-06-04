@@ -17,8 +17,12 @@
  */
 package org.apache.beam.sdk.testutils.metrics;
 
+import java.util.Collection;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.DistributionResult;
@@ -26,6 +30,7 @@ import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
@@ -46,14 +51,18 @@ public class MetricsReader {
   private final long now;
 
   @VisibleForTesting
-  MetricsReader(PipelineResult result, String namespace, long now) {
+  MetricsReader(PipelineResult result, String defaultNamespace, long now) {
     this.result = result;
-    this.namespace = namespace;
+    this.namespace = defaultNamespace;
     this.now = now;
   }
 
   public MetricsReader(PipelineResult result, String namespace) {
     this(result, namespace, System.currentTimeMillis());
+  }
+
+  public MetricsReader withNamespace(String namespace) {
+    return new MetricsReader(result, namespace, now);
   }
 
   /**
@@ -88,6 +97,11 @@ public class MetricsReader {
   public long getStartTimeMetric(String name) {
     Iterable<MetricResult<DistributionResult>> timeDistributions = getDistributions(name);
     return getLowestMin(timeDistributions);
+  }
+
+  public Collection<NamedTestResult> readAll(
+      Set<Function<MetricsReader, NamedTestResult>> suppliers) {
+    return suppliers.stream().map(supp -> supp.apply(this)).collect(Collectors.toSet());
   }
 
   private Long getLowestMin(Iterable<MetricResult<DistributionResult>> distributions) {

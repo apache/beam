@@ -17,9 +17,9 @@ package exec
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // CaptureNode is a test Node that captures all elements for verification. It also
@@ -37,7 +37,7 @@ func (n *CaptureNode) ID() UnitID {
 
 func (n *CaptureNode) Up(ctx context.Context) error {
 	if n.status != Initializing {
-		return fmt.Errorf("invalid status for %v: %v, want Initializing", n.UID, n.status)
+		return errors.Errorf("invalid status for %v: %v, want Initializing", n.UID, n.status)
 	}
 	n.status = Up
 	return nil
@@ -45,7 +45,7 @@ func (n *CaptureNode) Up(ctx context.Context) error {
 
 func (n *CaptureNode) StartBundle(ctx context.Context, id string, data DataContext) error {
 	if n.status != Up {
-		return fmt.Errorf("invalid status for %v: %v, want Up", n.UID, n.status)
+		return errors.Errorf("invalid status for %v: %v, want Up", n.UID, n.status)
 	}
 	n.status = Active
 	return nil
@@ -53,7 +53,7 @@ func (n *CaptureNode) StartBundle(ctx context.Context, id string, data DataConte
 
 func (n *CaptureNode) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	if n.status != Active {
-		return fmt.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
+		return errors.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
 	}
 
 	n.Elements = append(n.Elements, *elm)
@@ -62,7 +62,7 @@ func (n *CaptureNode) ProcessElement(ctx context.Context, elm *FullValue, values
 
 func (n *CaptureNode) FinishBundle(ctx context.Context) error {
 	if n.status != Active {
-		return fmt.Errorf("invalid status for %v: %v, want Active", n.UID, n.status)
+		return errors.Errorf("invalid status for %v: %v, want Active", n.UID, n.status)
 	}
 	n.status = Up
 	return nil
@@ -70,7 +70,7 @@ func (n *CaptureNode) FinishBundle(ctx context.Context) error {
 
 func (n *CaptureNode) Down(ctx context.Context) error {
 	if n.status != Up {
-		return fmt.Errorf("invalid status for %v: %v, want Up", n.UID, n.status)
+		return errors.Errorf("invalid status for %v: %v, want Up", n.UID, n.status)
 	}
 	n.status = Down
 	return nil

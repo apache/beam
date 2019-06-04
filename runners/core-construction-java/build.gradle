@@ -33,9 +33,9 @@ test {
 }
 
 dependencies {
-  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
-  shadow project(path: ":beam-model-job-management", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":model:pipeline", configuration: "shadow")
+  shadow project(path: ":model:job-management", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow library.java.vendored_grpc_1_13_1
   shadow library.java.vendored_guava_20_0
   shadow library.java.jackson_core
@@ -48,7 +48,8 @@ dependencies {
   shadowTest library.java.mockito_core
   shadowTest library.java.jackson_annotations
   shadowTest library.java.jackson_dataformat_yaml
-  shadowTest project(path: ":beam-model-fn-execution", configuration: "shadow")
+  shadowTest project(path: ":model:fn-execution", configuration: "shadow")
+  testRuntimeOnly library.java.slf4j_jdk14
 }
 
 task runExpansionService (type: JavaExec) {

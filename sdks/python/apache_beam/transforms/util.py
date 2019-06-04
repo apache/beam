@@ -61,7 +61,9 @@ __all__ = [
     'KvSwap',
     'RemoveDuplicates',
     'Reshuffle',
+    'ToString',
     'Values',
+    'WithKeys'
     ]
 
 K = typehints.TypeVariable('K')
@@ -653,3 +655,72 @@ class Reshuffle(PTransform):
   @PTransform.register_urn(common_urns.composites.RESHUFFLE.urn, None)
   def from_runner_api_parameter(unused_parameter, unused_context):
     return Reshuffle()
+
+
+@ptransform_fn
+def WithKeys(pcoll, k):
+  """PTransform that takes a PCollection, and either a constant key or a
+  callable, and returns a PCollection of (K, V), where each of the values in
+  the input PCollection has been paired with either the constant key or a key
+  computed from the value.
+  """
+  if callable(k):
+    return pcoll | Map(lambda v: (k(v), v))
+  return pcoll | Map(lambda v: (k, v))
+
+
+class ToString(object):
+  """
+  PTransform for converting a PCollection element, KV or PCollection Iterable
+  to string.
+  """
+
+  class Kvs(PTransform):
+    """
+    Transforms each element of the PCollection to a string on the key followed
+    by the specific delimiter and the value.
+    """
+
+    def __init__(self, delimiter=None, **kwargs):
+      self.delimiter = delimiter or ","
+
+    def expand(self, pcoll):
+      input_type = typehints.KV[typehints.Any, typehints.Any]
+      output_type = str
+      return (pcoll | ('%s:KeyVaueToString' % self.label >> (Map(
+          lambda x: "{}{}{}".format(x[0], self.delimiter, x[1])))
+                       .with_input_types(input_type)
+                       .with_output_types(output_type)))
+
+  class Element(PTransform):
+    """
+    Transforms each element of the PCollection to a string.
+    """
+
+    def __init__(self, delimiter=None, **kwargs):
+      self.delimiter = delimiter or ","
+
+    def expand(self, pcoll):
+      input_type = T
+      output_type = str
+      return (pcoll | ('%s:ElementToString' % self.label >> (Map(
+          lambda x: str(x)))
+                       .with_input_types(input_type)
+                       .with_output_types(output_type)))
+
+  class Iterables(PTransform):
+    """
+    Transforms each item in the iterable of the input of PCollection to a
+    string. There is no trailing delimiter.
+    """
+
+    def __init__(self, delimiter=None, **kwargs):
+      self.delimiter = delimiter or ","
+
+    def expand(self, pcoll):
+      input_type = typehints.Iterable[typehints.Any]
+      output_type = str
+      return (pcoll | ('%s:IterablesToString' % self.label >> (
+          Map(lambda x: self.delimiter.join(str(_x) for _x in x)))
+                       .with_input_types(input_type)
+                       .with_output_types(output_type)))

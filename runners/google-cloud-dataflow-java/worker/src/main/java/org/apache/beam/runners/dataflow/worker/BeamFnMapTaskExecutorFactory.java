@@ -427,6 +427,19 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
               entry.getKey(), executionContext.getStepContext(operationContext));
         }
 
+        ImmutableMap.Builder<String, NameContext> pcollectionIdToNameContext =
+            ImmutableMap.builder();
+        for (Map.Entry<String, NameContext> entry :
+            input.getPCollectionToPartialNameContextMap().entrySet()) {
+          pcollectionIdToNameContext.put(
+              entry.getKey(),
+              NameContext.create(
+                  stageName,
+                  entry.getValue().originalName(),
+                  entry.getValue().systemName(),
+                  entry.getValue().userName()));
+        }
+
         ImmutableMap<String, DataflowOperationContext> ptransformIdToOperationContexts =
             ptransformIdToOperationContextBuilder.build();
 
@@ -448,6 +461,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
                 ptransformIdToStepContext.build(),
                 ptransformIdToSideInputReaders,
                 ptransformIdToSideInputIdToPCollectionView,
+                pcollectionIdToNameContext.build(),
                 // TODO: Set NameContext properly for these operations.
                 executionContext.createOperationContext(
                     NameContext.create(stageName, stageName, stageName, stageName))));

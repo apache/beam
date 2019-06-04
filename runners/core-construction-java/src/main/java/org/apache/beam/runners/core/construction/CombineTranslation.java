@@ -50,7 +50,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
  */
 public class CombineTranslation {
 
-  public static final String JAVA_SERIALIZED_COMBINE_FN_URN = "urn:beam:combinefn:javasdk:v1";
+  public static final String JAVA_SERIALIZED_COMBINE_FN_URN = "beam:combinefn:javasdk:v1";
 
   /** A {@link TransformPayloadTranslator} for {@link Combine.PerKey}. */
   public static class CombinePayloadTranslator

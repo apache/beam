@@ -30,6 +30,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 var genFnType = reflect.TypeOf((*func(string, reflect.Type, []byte) reflectx.Func)(nil)).Elem()
@@ -43,14 +44,16 @@ func EncodeMultiEdge(edge *graph.MultiEdge) (*v1.MultiEdge, error) {
 	if edge.DoFn != nil {
 		ref, err := encodeFn((*graph.Fn)(edge.DoFn))
 		if err != nil {
-			return nil, fmt.Errorf("encode: bad userfn: %v", err)
+			wrapped := errors.Wrap(err, "bad userfn")
+			return nil, errors.WithContextf(wrapped, "encoding userfn %v", edge)
 		}
 		ret.Fn = ref
 	}
 	if edge.CombineFn != nil {
 		ref, err := encodeFn((*graph.Fn)(edge.CombineFn))
 		if err != nil {
-			return nil, fmt.Errorf("encode: bad combinefn: %v", err)
+			wrapped := errors.Wrap(err, "bad combinefn")
+			return nil, errors.WithContextf(wrapped, "encoding userfn %v", edge)
 		}
 		ret.Fn = ref
 	}
@@ -62,14 +65,16 @@ func EncodeMultiEdge(edge *graph.MultiEdge) (*v1.MultiEdge, error) {
 		kind := encodeInputKind(in.Kind)
 		t, err := encodeFullType(in.Type)
 		if err != nil {
-			return nil, fmt.Errorf("encode: bad input type: %v", err)
+			wrapped := errors.Wrap(err, "bad input type")
+			return nil, errors.WithContextf(wrapped, "encoding userfn %v", edge)
 		}
 		ret.Inbound = append(ret.Inbound, &v1.MultiEdge_Inbound{Kind: kind, Type: t})
 	}
 	for _, out := range edge.Output {
 		t, err := encodeFullType(out.Type)
 		if err != nil {
-			return nil, fmt.Errorf("encode: bad output type: %v", err)
+			wrapped := errors.Wrap(err, "bad output type")
+			return nil, errors.WithContextf(wrapped, "encoding userfn %v", edge)
 		}
 		ret.Outbound = append(ret.Outbound, &v1.MultiEdge_Outbound{Type: t})
 	}
@@ -91,7 +96,8 @@ func DecodeMultiEdge(edge *v1.MultiEdge) (graph.Opcode, *graph.Fn, *window.Fn, [
 		var err error
 		u, err = decodeFn(edge.Fn)
 		if err != nil {
-			return "", nil, nil, nil, nil, fmt.Errorf("decode: bad userfn: %v", err)
+			wrapped := errors.Wrap(err, "bad function")
+			return "", nil, nil, nil, nil, errors.WithContextf(wrapped, "decoding userfn %v", edge)
 		}
 	}
 	if edge.WindowFn != nil {
@@ -100,18 +106,21 @@ func DecodeMultiEdge(edge *v1.MultiEdge) (graph.Opcode, *graph.Fn, *window.Fn, [
 	for _, in := range edge.Inbound {
 		kind, err := decodeInputKind(in.Kind)
 		if err != nil {
-			return "", nil, nil, nil, nil, fmt.Errorf("decode: bad input kind: %v", err)
+			wrapped := errors.Wrap(err, "bad input kind")
+			return "", nil, nil, nil, nil, errors.WithContextf(wrapped, "decoding userfn %v", edge)
 		}
 		t, err := decodeFullType(in.Type)
 		if err != nil {
-			return "", nil, nil, nil, nil, fmt.Errorf("decode: bad input type: %v", err)
+			wrapped := errors.Wrap(err, "bad input type")
+			return "", nil, nil, nil, nil, errors.WithContextf(wrapped, "decoding userfn %v", edge)
 		}
 		inbound = append(inbound, &graph.Inbound{Kind: kind, Type: t})
 	}
 	for _, out := range edge.Outbound {
 		t, err := decodeFullType(out.Type)
 		if err != nil {
-			return "", nil, nil, nil, nil, fmt.Errorf("decode: bad output type: %v", err)
+			wrapped := errors.Wrap(err, "bad output type")
+			return "", nil, nil, nil, nil, errors.WithContextf(wrapped, "decoding userfn %v", edge)
 		}
 		outbound = append(outbound, &graph.Outbound{Type: t})
 	}
@@ -122,15 +131,17 @@ func DecodeMultiEdge(edge *v1.MultiEdge) (graph.Opcode, *graph.Fn, *window.Fn, [
 func encodeCustomCoder(c *coder.CustomCoder) (*v1.CustomCoder, error) {
 	t, err := encodeType(c.Type)
 	if err != nil {
-		return nil, fmt.Errorf("bad underlying type: %v", err)
+		return nil, errors.WithContextf(err, "encoding custom coder %v for type %v", c, c.Type)
 	}
 	enc, err := encodeUserFn(c.Enc)
 	if err != nil {
-		return nil, fmt.Errorf("bad enc: %v", err)
+		wrapped := errors.Wrap(err, "bad encoding function")
+		return nil, errors.WithContextf(wrapped, "encoding custom coder %v", c)
 	}
 	dec, err := encodeUserFn(c.Dec)
 	if err != nil {
-		return nil, fmt.Errorf("bad dec: %v", err)
+		wrapped := errors.Wrap(err, "bad decoding function")
+		return nil, errors.WithContextf(wrapped, "encoding custom coder %v", c)
 	}
 
 	ret := &v1.CustomCoder{
@@ -145,20 +156,22 @@ func encodeCustomCoder(c *coder.CustomCoder) (*v1.CustomCoder, error) {
 func decodeCustomCoder(c *v1.CustomCoder) (*coder.CustomCoder, error) {
 	t, err := decodeType(c.Type)
 	if err != nil {
-		return nil, fmt.Errorf("decodeCustomCoder bad type: %v", err)
+		return nil, errors.WithContextf(err, "decoding custom coder %v for type %v", c, c.Type)
 	}
 	enc, err := decodeUserFn(c.Enc)
 	if err != nil {
-		return nil, fmt.Errorf("decodeCustomCoder bad encoder: %v", err)
+		wrapped := errors.Wrap(err, "bad encoding function")
+		return nil, errors.WithContextf(wrapped, "decoding custom coder %v", c)
 	}
 	dec, err := decodeUserFn(c.Dec)
 	if err != nil {
-		return nil, fmt.Errorf("decodeCustomCoder bad decoder: %v", err)
+		wrapped := errors.Wrap(err, "bad decoding function")
+		return nil, errors.WithContextf(wrapped, "decoding custom coder %v", c)
 	}
 
 	ret, err := coder.NewCustomCoder(c.Name, t, enc, dec)
 	if err != nil {
-		return nil, fmt.Errorf("decodeCustomCoder: %v", err)
+		return nil, errors.WithContextf(err, "decoding custom coder %v", c)
 	}
 	return ret, nil
 }
@@ -195,7 +208,8 @@ func encodeFn(u *graph.Fn) (*v1.Fn, error) {
 		gen := reflectx.FunctionName(u.DynFn.Gen)
 		t, err := encodeType(u.DynFn.T)
 		if err != nil {
-			return nil, fmt.Errorf("bad function type: %v", err)
+			wrapped := errors.Wrap(err, "bad function type")
+			return nil, errors.WithContextf(wrapped, "encoding dynamic DoFn %v", u)
 		}
 		return &v1.Fn{Dynfn: &v1.DynFn{
 			Name: u.DynFn.Name,
@@ -207,7 +221,8 @@ func encodeFn(u *graph.Fn) (*v1.Fn, error) {
 	case u.Fn != nil:
 		fn, err := encodeUserFn(u.Fn)
 		if err != nil {
-			return nil, fmt.Errorf("bad userfn: %v", err)
+			wrapped := errors.Wrap(err, "bad userfn")
+			return nil, errors.WithContextf(wrapped, "encoding DoFn %v", u)
 		}
 		return &v1.Fn{Fn: fn}, nil
 
@@ -215,24 +230,28 @@ func encodeFn(u *graph.Fn) (*v1.Fn, error) {
 		t := reflect.TypeOf(u.Recv)
 		k, ok := runtime.TypeKey(reflectx.SkipPtr(t))
 		if !ok {
-			return nil, fmt.Errorf("bad recv: %v", u.Recv)
+			err := errors.Errorf("failed to create TypeKey for receiver type %T", u.Recv)
+			return nil, errors.WithContextf(err, "encoding structural DoFn %v", u)
 		}
 		if _, ok := runtime.LookupType(k); !ok {
-			return nil, fmt.Errorf("recv type must be registered: %v", t)
+			err := errors.Errorf("receiver type %v must be registered", t)
+			return nil, errors.WithContextf(err, "encoding structural DoFn %v", u)
 		}
 		typ, err := encodeType(t)
 		if err != nil {
-			panic(fmt.Sprintf("bad recv type: %v", u.Recv))
+			wrapped := errors.Wrapf(err, "failed to encode receiver type %T", u.Recv)
+			panic(errors.WithContextf(wrapped, "encoding structural DoFn %v", u))
 		}
 
 		data, err := json.Marshal(u.Recv)
 		if err != nil {
-			return nil, fmt.Errorf("bad userfn: %v", err)
+			wrapped := errors.Wrapf(err, "failed to marshal receiver %v", u.Recv)
+			return nil, errors.WithContextf(wrapped, "encoding structural DoFn %v", u)
 		}
 		return &v1.Fn{Type: typ, Opt: string(data)}, nil
 
 	default:
-		panic("empty Fn")
+		panic(fmt.Sprintf("Failed to encode DoFn %v, missing fn", u))
 	}
 }
 
@@ -240,12 +259,14 @@ func decodeFn(u *v1.Fn) (*graph.Fn, error) {
 	if u.Dynfn != nil {
 		gen, err := runtime.ResolveFunction(u.Dynfn.Gen, genFnType)
 		if err != nil {
-			return nil, fmt.Errorf("bad symbol %v: %v", u.Dynfn.Gen, err)
+			wrapped := errors.Wrapf(err, "bad symbol %v", u.Dynfn.Gen)
+			return nil, errors.WithContextf(wrapped, "decoding dynamic DoFn %v", u)
 		}
 
 		t, err := decodeType(u.Dynfn.Type)
 		if err != nil {
-			return nil, fmt.Errorf("bad type: %v", err)
+			wrapped := errors.Wrap(err, "bad type")
+			return nil, errors.WithContextf(wrapped, "failed to decode dynamic DoFn %v", u)
 		}
 		return graph.NewFn(&graph.DynFn{
 			Name: u.Dynfn.Name,
@@ -257,22 +278,26 @@ func decodeFn(u *v1.Fn) (*graph.Fn, error) {
 	if u.Fn != nil {
 		fn, err := decodeUserFn(u.Fn)
 		if err != nil {
-			return nil, fmt.Errorf("bad userfn: %v", err)
+			wrapped := errors.Wrap(err, "failed to decode userfn")
+			return nil, errors.WithContextf(wrapped, "decoding DoFn %v", u)
 		}
 		fx, err := funcx.New(reflectx.MakeFunc(fn))
 		if err != nil {
-			return nil, fmt.Errorf("bad userfn: %v", err)
+			wrapped := errors.Wrap(err, "failed to construct userfn")
+			return nil, errors.WithContextf(wrapped, "decoding DoFn %v", u)
 		}
 		return &graph.Fn{Fn: fx}, nil
 	}
 
 	t, err := decodeType(u.Type)
 	if err != nil {
-		return nil, fmt.Errorf("bad type: %v", err)
+		wrapped := errors.Wrap(err, "bad type")
+		return nil, errors.WithContextf(wrapped, "decoding structural DoFn %v", u)
 	}
 	fn, err := reflectx.UnmarshalJSON(t, u.Opt)
 	if err != nil {
-		return nil, fmt.Errorf("bad struct encoding: %v", err)
+		wrapped := errors.Wrap(err, "bad struct encoding")
+		return nil, errors.WithContextf(wrapped, "decoding structural DoFn %v", u)
 	}
 	return graph.NewFn(fn)
 }
@@ -286,7 +311,8 @@ func encodeUserFn(u *funcx.Fn) (*v1.UserFn, error) {
 	symbol := u.Fn.Name()
 	t, err := encodeType(u.Fn.Type())
 	if err != nil {
-		return nil, fmt.Errorf("encodeUserFn: bad function type: %v", err)
+		wrapped := errors.Wrap(err, "bad function type")
+		return nil, errors.WithContextf(wrapped, "encoding userfn %v", u)
 	}
 	return &v1.UserFn{Name: symbol, Type: t}, nil
 }
@@ -319,7 +345,8 @@ func encodeFullType(t typex.FullType) (*v1.FullType, error) {
 
 	prim, err := encodeType(t.Type())
 	if err != nil {
-		return nil, fmt.Errorf("bad type: %v", err)
+		wrapped := errors.Wrap(err, "bad type")
+		return nil, errors.WithContextf(wrapped, "encoding full type %v", t)
 	}
 	return &v1.FullType{Type: prim, Components: components}, nil
 }
@@ -336,7 +363,8 @@ func decodeFullType(t *v1.FullType) (typex.FullType, error) {
 
 	prim, err := decodeType(t.Type)
 	if err != nil {
-		return nil, fmt.Errorf("bad type: %v", err)
+		wrapped := errors.Wrap(err, "bad type")
+		return nil, errors.WithContextf(wrapped, "decoding full type %v", t)
 	}
 	return typex.New(prim, components...), nil
 }
@@ -388,7 +416,8 @@ func encodeType(t reflect.Type) (*v1.Type, error) {
 	case reflect.Slice:
 		elm, err := encodeType(t.Elem())
 		if err != nil {
-			return nil, fmt.Errorf("bad element: %v", err)
+			wrapped := errors.Wrap(err, "bad element type")
+			return nil, errors.WithContextf(wrapped, "encoding slice %v", t)
 		}
 		return &v1.Type{Kind: v1.Type_SLICE, Element: elm}, nil
 
@@ -399,7 +428,8 @@ func encodeType(t reflect.Type) (*v1.Type, error) {
 
 			fType, err := encodeType(f.Type)
 			if err != nil {
-				return nil, fmt.Errorf("bad field type: %v", err)
+				wrapped := errors.Wrap(err, "bad field type")
+				return nil, errors.WithContextf(wrapped, "encoding struct %v", t)
 			}
 
 			field := &v1.Type_StructField{
@@ -420,7 +450,8 @@ func encodeType(t reflect.Type) (*v1.Type, error) {
 		for i := 0; i < t.NumIn(); i++ {
 			param, err := encodeType(t.In(i))
 			if err != nil {
-				return nil, fmt.Errorf("bad parameter type: %v", err)
+				wrapped := errors.Wrap(err, "bad parameter type")
+				return nil, errors.WithContextf(wrapped, "encoding function %v", t)
 			}
 			in = append(in, param)
 		}
@@ -428,7 +459,8 @@ func encodeType(t reflect.Type) (*v1.Type, error) {
 		for i := 0; i < t.NumOut(); i++ {
 			ret, err := encodeType(t.Out(i))
 			if err != nil {
-				return nil, fmt.Errorf("bad return type: %v", err)
+				wrapped := errors.Wrap(err, "bad return type")
+				return nil, errors.WithContextf(wrapped, "encoding function %v", t)
 			}
 			out = append(out, ret)
 		}
@@ -437,7 +469,8 @@ func encodeType(t reflect.Type) (*v1.Type, error) {
 	case reflect.Chan:
 		elm, err := encodeType(t.Elem())
 		if err != nil {
-			return nil, fmt.Errorf("bad element: %v", err)
+			wrapped := errors.Wrap(err, "bad element type")
+			return nil, errors.WithContextf(wrapped, "encoding channel %v", t)
 		}
 		dir := encodeChanDir(t.ChanDir())
 		return &v1.Type{Kind: v1.Type_CHAN, Element: elm, ChanDir: dir}, nil
@@ -445,12 +478,13 @@ func encodeType(t reflect.Type) (*v1.Type, error) {
 	case reflect.Ptr:
 		elm, err := encodeType(t.Elem())
 		if err != nil {
-			return nil, fmt.Errorf("bad element: %v", err)
+			wrapped := errors.Wrap(err, "bad base type")
+			return nil, errors.WithContextf(wrapped, "encoding pointer %v", t)
 		}
 		return &v1.Type{Kind: v1.Type_PTR, Element: elm}, nil
 
 	default:
-		return nil, fmt.Errorf("unencodable type: %v", t)
+		return nil, errors.Errorf("unencodable type %v", t)
 	}
 }
 
@@ -496,7 +530,8 @@ func tryEncodeSpecial(t reflect.Type) (v1.Type_Special, bool) {
 
 func decodeType(t *v1.Type) (reflect.Type, error) {
 	if t == nil {
-		return nil, fmt.Errorf("empty type")
+		err := errors.New("empty type")
+		return nil, errors.WithContextf(err, "decoding type %v", t)
 	}
 
 	switch t.Kind {
@@ -532,7 +567,8 @@ func decodeType(t *v1.Type) (reflect.Type, error) {
 	case v1.Type_SLICE:
 		elm, err := decodeType(t.GetElement())
 		if err != nil {
-			return nil, fmt.Errorf("bad element: %v", err)
+			wrapped := errors.Wrap(err, "bad element")
+			return nil, errors.WithContextf(wrapped, "failed to decode type %v, bad element", t)
 		}
 		return reflect.SliceOf(elm), nil
 
@@ -541,7 +577,8 @@ func decodeType(t *v1.Type) (reflect.Type, error) {
 		for _, f := range t.Fields {
 			fType, err := decodeType(f.Type)
 			if err != nil {
-				return nil, fmt.Errorf("bad field type: %v", err)
+				wrapped := errors.Wrap(err, "bad field type")
+				return nil, errors.WithContextf(wrapped, "failed to decode type %v, bad field type", t)
 			}
 
 			field := reflect.StructField{
@@ -560,48 +597,56 @@ func decodeType(t *v1.Type) (reflect.Type, error) {
 	case v1.Type_FUNC:
 		in, err := decodeTypes(t.GetParameterTypes())
 		if err != nil {
-			return nil, fmt.Errorf("bad parameter type: %v", err)
+			wrapped := errors.Wrap(err, "bad parameter type")
+			return nil, errors.WithContextf(wrapped, "decoding type %v", t)
 		}
 		out, err := decodeTypes(t.GetReturnTypes())
 		if err != nil {
-			return nil, fmt.Errorf("bad return type: %v", err)
+			wrapped := errors.Wrap(err, "bad return type")
+			return nil, errors.WithContextf(wrapped, "decoding type %v", t)
 		}
 		return reflect.FuncOf(in, out, t.GetIsVariadic()), nil
 
 	case v1.Type_CHAN:
 		elm, err := decodeType(t.GetElement())
 		if err != nil {
-			return nil, fmt.Errorf("bad element: %v", err)
+			wrapped := errors.Wrap(err, "bad element")
+			return nil, errors.WithContextf(wrapped, "decoding type %v", t)
 		}
 		dir, err := decodeChanDir(t.GetChanDir())
 		if err != nil {
-			return nil, fmt.Errorf("bad ChanDir: %v", err)
+			wrapped := errors.Wrap(err, "bad channel direction")
+			return nil, errors.WithContextf(wrapped, "decoding type %v", t)
 		}
 		return reflect.ChanOf(dir, elm), nil
 
 	case v1.Type_PTR:
 		elm, err := decodeType(t.GetElement())
 		if err != nil {
-			return nil, fmt.Errorf("bad element: %v", err)
+			wrapped := errors.Wrap(err, "bad element")
+			return nil, errors.WithContextf(wrapped, "decoding type %v", t)
 		}
 		return reflect.PtrTo(elm), nil
 
 	case v1.Type_SPECIAL:
 		ret, err := decodeSpecial(t.Special)
 		if err != nil {
-			return nil, fmt.Errorf("bad element: %v", err)
+			wrapped := errors.Wrap(err, "bad element")
+			return nil, errors.WithContextf(wrapped, "decoding type %v", t)
 		}
 		return ret, nil
 
 	case v1.Type_EXTERNAL:
 		ret, ok := runtime.LookupType(t.ExternalKey)
 		if !ok {
-			return nil, fmt.Errorf("external key not found: %v", t.ExternalKey)
+			err := errors.Errorf("external key not found %v", t.ExternalKey)
+			return nil, errors.WithContextf(err, "decoding type %v", t)
 		}
 		return ret, nil
 
 	default:
-		return nil, fmt.Errorf("unexpected type kind: %v", t.Kind)
+		err := errors.Errorf("unexpected type kind %v", t.Kind)
+		return nil, errors.WithContextf(err, "failed to decode type %v", t)
 	}
 }
 
@@ -641,7 +686,7 @@ func decodeSpecial(s v1.Type_Special) (reflect.Type, error) {
 		return typex.ZType, nil
 
 	default:
-		return nil, fmt.Errorf("unknown special type: %v", s)
+		return nil, errors.Errorf("failed to decode special type, unknown type %v", s)
 	}
 }
 
@@ -682,7 +727,7 @@ func encodeChanDir(dir reflect.ChanDir) v1.Type_ChanDir {
 	case reflect.BothDir:
 		return v1.Type_BOTH
 	default:
-		panic(fmt.Sprintf("unexpected reflect.ChanDir: %v", dir))
+		panic(fmt.Sprintf("Failed to encode channel direction, invalid value: %v", dir))
 	}
 }
 
@@ -695,7 +740,8 @@ func decodeChanDir(dir v1.Type_ChanDir) (reflect.ChanDir, error) {
 	case v1.Type_BOTH:
 		return reflect.BothDir, nil
 	default:
-		return reflect.BothDir, fmt.Errorf("invalid chan dir: %v", dir)
+		err := errors.Errorf("invalid value: %v", dir)
+		return reflect.BothDir, errors.WithContext(err, "decoding channel direction")
 	}
 }
 
@@ -716,7 +762,7 @@ func encodeInputKind(k graph.InputKind) v1.MultiEdge_Inbound_InputKind {
 	case graph.ReIter:
 		return v1.MultiEdge_Inbound_REITER
 	default:
-		panic(fmt.Sprintf("unexpected input: %v", k))
+		panic(fmt.Sprintf("Failed to encode input kind, invalid value: %v", k))
 	}
 }
 
@@ -737,6 +783,7 @@ func decodeInputKind(k v1.MultiEdge_Inbound_InputKind) (graph.InputKind, error) 
 	case v1.MultiEdge_Inbound_REITER:
 		return graph.ReIter, nil
 	default:
-		return graph.Main, fmt.Errorf("invalid input kind: %v", k)
+		err := errors.Errorf("invalid value: %v", k)
+		return graph.Main, errors.WithContext(err, "decoding input kind")
 	}
 }

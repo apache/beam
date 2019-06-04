@@ -263,15 +263,28 @@ class FnApiRunner(runner.PipelineRunner):
   def run_pipeline(self, pipeline, options):
     MetricsEnvironment.set_metrics_supported(False)
     RuntimeValueProvider.set_runtime_options({})
+
+    # Setup "beam_fn_api" experiment options if lacked.
+    experiments = (options.view_as(pipeline_options.DebugOptions).experiments
+                   or [])
+    if not 'beam_fn_api' in experiments:
+      experiments.append('beam_fn_api')
+    options.view_as(pipeline_options.DebugOptions).experiments = experiments
+
     # This is sometimes needed if type checking is disabled
     # to enforce that the inputs (and outputs) of GroupByKey operations
     # are known to be KVs.
     from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
+    # TODO: Move group_by_key_input_visitor() to a non-dataflow specific file.
     pipeline.visit(DataflowRunner.group_by_key_input_visitor())
     self._bundle_repeat = self._bundle_repeat or options.view_as(
         pipeline_options.DirectOptions).direct_runner_bundle_repeat
     self._profiler_factory = profiler.Profile.factory_from_options(
         options.view_as(pipeline_options.ProfilingOptions))
+
+    if 'use_sdf_bounded_source' in experiments:
+      pipeline.replace_all(DataflowRunner._SDF_PTRANSFORM_OVERRIDES)
+
     self._latest_run_result = self.run_via_runner_api(pipeline.to_runner_api(
         default_environment=self._default_environment))
     return self._latest_run_result
@@ -362,13 +375,22 @@ class FnApiRunner(runner.PipelineRunner):
     return RunnerResult(
         runner.PipelineState.DONE, monitoring_infos_by_stage, metrics_by_stage)
 
-  def run_stage(
-      self,
-      worker_handler_factory,
-      pipeline_components,
-      stage,
-      pcoll_buffers,
-      safe_coders):
+  def run_stage(self,
+                worker_handler_factory,
+                pipeline_components,
+                stage,
+                pcoll_buffers,
+                safe_coders):
+    """Run an individual stage.
+
+    Args:
+      worker_handler_factory: A ``callable`` that takes in an environment, and
+        returns a ``WorkerHandler`` class.
+      pipeline_components: TODO
+      stage: TODO
+      pcoll_buffers: TODO
+      safe_coders: TODO
+    """
 
     def iterable_state_write(values, element_coder_impl):
       token = unique_name(None, 'iter').encode('ascii')
@@ -837,7 +859,7 @@ class EmbeddedWorkerHandler(WorkerHandler):
     pass
 
   def stop_worker(self):
-    pass
+    self.worker.stop()
 
   def done(self):
     pass
@@ -1124,7 +1146,7 @@ class WorkerHandlerManager(object):
       try:
         controller.close()
       except Exception:
-        logging.info("Error closing controller %s" % controller, exc_info=True)
+        logging.error("Error closing controller %s" % controller, exc_info=True)
     self._cached_handlers = {}
 
 
@@ -1298,6 +1320,15 @@ class BundleManager(object):
     if result.error:
       raise RuntimeError(result.error)
 
+    if result.process_bundle.requires_finalization:
+      finalize_request = beam_fn_api_pb2.InstructionRequest(
+          finalize_bundle=
+          beam_fn_api_pb2.FinalizeBundleRequest(
+              instruction_reference=process_bundle_id
+          ))
+      self._controller.control_handler.push(
+          finalize_request)
+
     return result, split_results
 
 
@@ -1435,7 +1466,7 @@ class RunnerResult(runner.PipelineResult):
     return self._state
 
   def metrics(self):
-    """Returns a queryable oject including user metrics only."""
+    """Returns a queryable object including user metrics only."""
     if self._metrics is None:
       self._metrics = FnApiMetrics(
           self._monitoring_infos_by_stage, user_metrics_only=True)

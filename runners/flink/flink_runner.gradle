@@ -26,6 +26,7 @@
 import groovy.json.JsonOutput
 
 apply plugin: 'org.apache.beam.module'
+archivesBaseName = project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName
 applyJavaNature()
 
 description = "Apache Beam :: Runners :: Flink $flink_version"
@@ -35,8 +36,8 @@ description = "Apache Beam :: Runners :: Flink $flink_version"
  * the following projects are evaluated before we evaluate this project. This is because
  * we are attempting to reference the "sourceSets.test.output" directly.
  */
-evaluationDependsOn(":beam-sdks-java-core")
-evaluationDependsOn(":beam-runners-core-java")
+evaluationDependsOn(":sdks:java:core")
+evaluationDependsOn(":runners:core-java")
 
 /*
  * We have to explicitly set all directories here to make sure each
@@ -70,11 +71,15 @@ test {
   }
   // TODO Running tests of all Flink versions in parallel can be too harsh on Jenkins memory
   // Run them serially for now, to avoid "Exit code 137", i.e. Jenkins host killing the Gradle test process
-  if (project.name == "beam-runners-flink-1.6") {
-    mustRunAfter(":beam-runners-flink_2.11:test")
-  } else if (project.name == "beam-runners-flink-1.7") {
-    mustRunAfter(":beam-runners-flink_2.11:test")
-    mustRunAfter(":beam-runners-flink-1.6:test")
+  if (project.path == ":runners:flink:1.6") {
+    mustRunAfter(":runners:flink:1.5:test")
+  } else if (project.path == ":runners:flink:1.7") {
+    mustRunAfter(":runners:flink:1.5:test")
+    mustRunAfter(":runners:flink:1.6:test")
+  } else if (project.path == ":runners:flink:1.8") {
+    mustRunAfter(":runners:flink:1.5:test")
+    mustRunAfter(":runners:flink:1.6:test")
+    mustRunAfter(":runners:flink:1.7:test")
   }
 }
 
@@ -84,10 +89,11 @@ configurations {
 
 dependencies {
   shadow library.java.vendored_guava_20_0
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-runners-core-java", configuration: "shadow")
-  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  shadow project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":runners:core-java", configuration: "shadow")
+  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
+  shadow project(path: ":runners:java-fn-execution", configuration: "shadow")
+  shadow project(path: ":sdks:java:build-tools", configuration: "shadow")
   shadow library.java.vendored_grpc_1_13_1
   shadow library.java.jackson_annotations
   shadow library.java.slf4j_api
@@ -100,24 +106,24 @@ dependencies {
   shadow "org.apache.flink:flink-java:$flink_version"
   shadow "org.apache.flink:flink-runtime_2.11:$flink_version"
   shadow "org.apache.flink:flink-streaming-java_2.11:$flink_version"
-  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
   // FlinkStateInternalsTest extends abstract StateInternalsTest
-  shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
+  shadowTest project(path: ":runners:core-java", configuration: "shadowTest")
   shadowTest library.java.commons_lang3
   shadowTest library.java.hamcrest_core
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
   shadowTest library.java.google_api_services_bigquery
-  shadowTest library.java.slf4j_simple
-  shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  shadowTest project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest "org.apache.flink:flink-core:$flink_version:tests"
   shadowTest "org.apache.flink:flink-runtime_2.11:$flink_version:tests"
   shadowTest "org.apache.flink:flink-streaming-java_2.11:$flink_version:tests"
   shadowTest "org.apache.flink:flink-test-utils_2.11:$flink_version"
-  shadowTest project(":beam-sdks-java-harness")
-  validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
+  shadowTest project(":sdks:java:harness")
+  testRuntimeOnly library.java.slf4j_simple
+  validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesRunner project(path: ":runners:core-java", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
 }
 
@@ -135,12 +141,11 @@ def createValidatesRunnerTask(Map m) {
     def pipelineOptions = JsonOutput.toJson(
         ["--runner=TestFlinkRunner",
          "--streaming=${config.streaming}",
-         // TODO This should be changed to > 1
-         "--parallelism=1",
+         "--parallelism=2",
         ])
     systemProperty "beamTestPipelineOptions", pipelineOptions
     classpath = configurations.validatesRunner
-    testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
+    testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs, project(":runners:core-java").sourceSets.test.output.classesDirs)
     // maxParallelForks decreased from 4 in order to avoid OOM errors
     maxParallelForks 2
     useJUnit {
@@ -150,10 +155,11 @@ def createValidatesRunnerTask(Map m) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
       if (config.streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
       } else {
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       }
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     }
   }
 }
@@ -168,5 +174,5 @@ task validatesRunner {
   dependsOn validatesRunnerStreaming
 }
 
-// Generates :beam-runners-flink_2.11:runQuickstartJavaFlinkLocal
+// Generates :runners:flink:1.5:runQuickstartJavaFlinkLocal
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')

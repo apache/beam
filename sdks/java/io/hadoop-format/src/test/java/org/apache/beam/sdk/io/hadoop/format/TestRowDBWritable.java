@@ -35,7 +35,7 @@ import org.apache.hadoop.mapreduce.lib.db.DBWritable;
  * org.apache.hadoop.mapreduce.lib.db.DBInputFormat}.
  */
 @DefaultCoder(AvroCoder.class)
-public class TestRowDBWritable extends TestRow implements DBWritable, Writable {
+class TestRowDBWritable extends TestRow implements DBWritable, Writable {
 
   private Integer id;
   private String name;
@@ -81,7 +81,8 @@ public class TestRowDBWritable extends TestRow implements DBWritable, Writable {
     name = in.readUTF();
   }
 
-  static class PrepareStatementFromTestRow implements JdbcIO.PreparedStatementSetter<TestRow> {
+  private static class PrepareStatementFromTestRow
+      implements JdbcIO.PreparedStatementSetter<TestRow> {
     @Override
     public void setParameters(TestRow element, PreparedStatement statement) throws SQLException {
       statement.setLong(1, element.id());

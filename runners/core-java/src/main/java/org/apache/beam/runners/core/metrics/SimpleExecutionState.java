@@ -90,7 +90,7 @@ public class SimpleExecutionState extends ExecutionState {
   public String getLullMessage(Thread trackedThread, Duration millis) {
     // TODO(ajamato): Share getLullMessage code with DataflowExecutionState.
     String userStepName =
-        this.labelsMetadata.getOrDefault(SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL, null);
+        this.labelsMetadata.getOrDefault(MonitoringInfoConstants.Labels.PTRANSFORM, null);
     StringBuilder message = new StringBuilder();
     message.append("Processing stuck");
     if (userStepName != null) {

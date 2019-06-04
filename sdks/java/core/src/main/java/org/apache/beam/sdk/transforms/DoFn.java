@@ -232,6 +232,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * Returns the input element to be processed.
      *
      * <p>The element will not be changed -- it is safe to cache, etc. without copying.
+     * Implementation of {@link DoFn.ProcessElement} method should not mutate the element.
      */
     public abstract InputT element();
 
@@ -539,7 +540,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <p>The signature of this method must satisfy the following constraints:
    *
    * <ul>
-   *   <li>If one of its arguments is a subtype of {@link RestrictionTracker}, then it is a <a
+   *   <li>If one of its arguments is a {@link RestrictionTracker}, then it is a <a
    *       href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn} subject to the
    *       separate requirements described below. Items below are assuming this is not a splittable
    *       {@link DoFn}.
@@ -572,8 +573,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <h2>Splittable DoFn's</h2>
    *
    * <p>A {@link DoFn} is <i>splittable</i> if its {@link ProcessElement} method has a parameter
-   * whose type is a subtype of {@link RestrictionTracker}. This is an advanced feature and an
-   * overwhelming majority of users will never need to write a splittable {@link DoFn}.
+   * whose type is of {@link RestrictionTracker}. This is an advanced feature and an overwhelming
+   * majority of users will never need to write a splittable {@link DoFn}.
    *
    * <p>Not all runners support Splittable DoFn. See the <a
    * href="https://beam.apache.org/documentation/runners/capability-matrix/">capability matrix</a>.
@@ -586,12 +587,10 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <ul>
    *   <li>It <i>must</i> define a {@link GetInitialRestriction} method.
    *   <li>It <i>may</i> define a {@link SplitRestriction} method.
-   *   <li>It <i>may</i> define a {@link NewTracker} method returning the same type as the type of
-   *       the {@link RestrictionTracker} argument of {@link ProcessElement}, which in turn must be
-   *       a subtype of {@code RestrictionTracker<R>} where {@code R} is the restriction type
-   *       returned by {@link GetInitialRestriction}. This method is optional in case the
-   *       restriction type returned by {@link GetInitialRestriction} implements {@link
-   *       HasDefaultTracker}.
+   *   <li>It <i>may</i> define a {@link NewTracker} method returning a subtype of {@code
+   *       RestrictionTracker<R>} where {@code R} is the restriction type returned by {@link
+   *       GetInitialRestriction}. This method is optional in case the restriction type returned by
+   *       {@link GetInitialRestriction} implements {@link HasDefaultTracker}.
    *   <li>It <i>may</i> define a {@link GetRestrictionCoder} method.
    *   <li>The type of restrictions used by all of these methods must be the same.
    *   <li>Its {@link ProcessElement} method <i>may</i> return a {@link ProcessContinuation} to

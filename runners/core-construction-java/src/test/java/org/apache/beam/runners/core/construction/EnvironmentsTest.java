@@ -63,7 +63,6 @@ public class EnvironmentsTest implements Serializable {
         Environments.createOrGetDefaultEnvironment(Environments.ENVIRONMENT_DOCKER, "java"),
         is(
             Environment.newBuilder()
-                .setUrl("java")
                 .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER))
                 .setPayload(
                     DockerPayload.newBuilder().setContainerImage("java").build().toByteString())

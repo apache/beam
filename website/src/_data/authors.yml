@@ -11,6 +11,10 @@
 # limitations under the License.
 # Welcome to Jekyll!
 
+aizhamal:
+    name: Aizhamal Nurmamat kyzy
+    email: aizhamal@google.com
+    twitter: iamaijamal
 aljoscha:
     name: Aljoscha Krettek
     email: aljoscha@apache.org
@@ -36,6 +40,14 @@ fjp:
     name: Frances Perry
     email: frances@apache.org
     twitter: francesjperry
+harshithdwivedi:
+    name: Harshit Dwivedi
+    email: harshithdwivedi@gmail.com
+    twitter: harshithdwivedi
+henryken:
+    name: Henry Suryawirawan
+    email: henry.ken@gmail.com
+    twitter: henry_ken
 iemejia:
     name: Ismaël Mejía
     email: iemejia@apache.org

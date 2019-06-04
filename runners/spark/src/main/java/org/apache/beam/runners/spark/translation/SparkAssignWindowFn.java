@@ -31,7 +31,7 @@ import org.joda.time.Instant;
 public class SparkAssignWindowFn<T, W extends BoundedWindow>
     implements Function<WindowedValue<T>, WindowedValue<T>> {
 
-  private WindowFn<? super T, W> fn;
+  private final WindowFn<? super T, W> fn;
 
   public SparkAssignWindowFn(WindowFn<? super T, W> fn) {
     this.fn = fn;

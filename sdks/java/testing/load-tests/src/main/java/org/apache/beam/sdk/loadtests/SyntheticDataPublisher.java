@@ -55,7 +55,7 @@ import org.apache.kafka.common.serialization.StringSerializer;
  * <p>To run it manually, use the following command:
  *
  * <pre>
- *  ./gradlew :beam-sdks-java-load-tests:run -PloadTest.args='
+ *  ./gradlew :sdks:java:testing:load-tests:run -PloadTest.args='
  *    --pubSubTopic=TOPIC_NAME
  *    --kafkaBootstrapServerAddress=SERVER_ADDRESS
  *    --kafkaTopic=KAFKA_TOPIC_NAME

@@ -49,7 +49,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.samza.task.TaskContext;
+import org.apache.samza.context.Context;
 import org.joda.time.Instant;
 
 /** A factory for Samza runner translator to create underlying DoFnRunner used in {@link DoFnOp}. */
@@ -61,7 +61,8 @@ public class SamzaDoFnRunners {
       DoFn<InT, FnOutT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       String stepName,
-      TaskContext taskContext,
+      String stateId,
+      Context context,
       TupleTag<FnOutT> mainOutputTag,
       SideInputHandler sideInputHandler,
       SamzaTimerInternalsFactory<?> timerInternalsFactory,
@@ -76,11 +77,11 @@ public class SamzaDoFnRunners {
     final StateInternals stateInternals;
     final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
     final SamzaStoreStateInternals.Factory<?> stateInternalsFactory =
-        DoFnOp.createStateInternalFactory(
-            keyCoder, taskContext, pipelineOptions, signature, mainOutputTag);
+        SamzaStoreStateInternals.createStateInternalFactory(
+            stateId, keyCoder, context.getTaskContext(), pipelineOptions, signature);
 
     final SamzaExecutionContext executionContext =
-        (SamzaExecutionContext) taskContext.getUserContext();
+        (SamzaExecutionContext) context.getApplicationContainerContext();
     if (signature.usesState()) {
       keyedInternals = new KeyedInternals(stateInternalsFactory, timerInternalsFactory);
       stateInternals = keyedInternals.stateInternals();
@@ -163,10 +164,10 @@ public class SamzaDoFnRunners {
       StageBundleFactory stageBundleFactory,
       TupleTag<FnOutT> mainOutputTag,
       Map<String, TupleTag<?>> idToTupleTagMap,
-      TaskContext taskContext,
+      Context context,
       String stepName) {
     final SamzaExecutionContext executionContext =
-        (SamzaExecutionContext) taskContext.getUserContext();
+        (SamzaExecutionContext) context.getApplicationContainerContext();
     final DoFnRunner<InT, FnOutT> sdkHarnessDoFnRunner =
         new SdkHarnessDoFnRunner<>(
             outputManager, stageBundleFactory, mainOutputTag, idToTupleTagMap);

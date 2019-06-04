@@ -46,7 +46,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
@@ -949,17 +948,12 @@ public class PipelineOptionsFactory {
       Class<? extends PipelineOptions> klass)
       throws IntrospectionException {
 
-    // TODO(BEAM-308): Make this an error in users pipelines for the next major version
-    // of Apache Beam.
-    if (!Modifier.isPublic(iface.getModifiers())) {
-      LOG.warn(
-          "Using non-public interface {} may fail during runtime. The JVM requires that "
-              + "all non-public interfaces to be in the same package; otherwise, it would not be "
-              + "possible for the PipelineOptions proxy class to implement all of the interfaces, "
-              + "regardless of what package it is defined in. This will become an error in"
-              + "a future version of Apache Beam.",
-          iface.getName());
-    }
+    checkArgument(
+        Modifier.isPublic(iface.getModifiers()),
+        "Please mark non-public interface %s as public. The JVM requires that "
+            + "all non-public interfaces to be in the same package which will prevent the "
+            + "PipelineOptions proxy class to implement all of the interfaces.",
+        iface.getName());
 
     // Verify that there are no methods with the same name with two different return types.
     validateReturnType(iface);
@@ -1789,15 +1783,11 @@ public class PipelineOptionsFactory {
 
     private Cache() {
       final ClassLoader loader = ReflectHelpers.findClassLoader();
-
-      Set<PipelineRunnerRegistrar> pipelineRunnerRegistrars =
-          Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
-      pipelineRunnerRegistrars.addAll(
-          Lists.newArrayList(ServiceLoader.load(PipelineRunnerRegistrar.class, loader)));
       // Store the list of all available pipeline runners.
       ImmutableMap.Builder<String, Class<? extends PipelineRunner<?>>> builder =
           ImmutableMap.builder();
-      for (PipelineRunnerRegistrar registrar : pipelineRunnerRegistrars) {
+      for (PipelineRunnerRegistrar registrar :
+          ReflectHelpers.loadServicesOrdered(PipelineRunnerRegistrar.class, loader)) {
         for (Class<? extends PipelineRunner<?>> klass : registrar.getPipelineRunners()) {
           String runnerName = klass.getSimpleName().toLowerCase();
           builder.put(runnerName, klass);
@@ -1812,12 +1802,8 @@ public class PipelineOptionsFactory {
 
     /** Load and register the list of all classes that extend PipelineOptions. */
     private void initializeRegistry(final ClassLoader loader) {
-      register(PipelineOptions.class);
-      Set<PipelineOptionsRegistrar> pipelineOptionsRegistrars =
-          Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
-      pipelineOptionsRegistrars.addAll(
-          Lists.newArrayList(ServiceLoader.load(PipelineOptionsRegistrar.class, loader)));
-      for (PipelineOptionsRegistrar registrar : pipelineOptionsRegistrars) {
+      for (PipelineOptionsRegistrar registrar :
+          ReflectHelpers.loadServicesOrdered(PipelineOptionsRegistrar.class, loader)) {
         for (Class<? extends PipelineOptions> klass : registrar.getPipelineOptions()) {
           register(klass);
         }

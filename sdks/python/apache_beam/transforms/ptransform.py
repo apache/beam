@@ -601,9 +601,18 @@ class PTransform(WithTypeHints, HasDisplayData):
     if proto is None or not proto.urn:
       return None
     parameter_type, constructor = cls._known_urns[proto.urn]
-    return constructor(
-        proto_utils.parse_Bytes(proto.payload, parameter_type),
-        context)
+
+    try:
+      return constructor(
+          proto_utils.parse_Bytes(proto.payload, parameter_type),
+          context)
+    except Exception:
+      if context.allow_proto_holders:
+        # For external transforms we cannot build a Python ParDo object so
+        # we build a holder transform instead.
+        from apache_beam.transforms.core import RunnerAPIPTransformHolder
+        return RunnerAPIPTransformHolder(proto)
+      raise
 
   def to_runner_api_parameter(self, unused_context):
     # The payload here is just to ease debugging.

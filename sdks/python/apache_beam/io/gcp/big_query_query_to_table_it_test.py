@@ -20,6 +20,7 @@ Integration test for Google Cloud BigQuery.
 
 from __future__ import absolute_import
 
+import base64
 import datetime
 import logging
 import random
@@ -33,6 +34,7 @@ from apache_beam.io.gcp import big_query_query_to_table_pipeline
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryMatcher
+from apache_beam.runners.direct.test_direct_runner import TestDirectRunner
 from apache_beam.testing import test_utils
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -48,12 +50,13 @@ NEW_TYPES_INPUT_TABLE = 'python_new_types_table'
 NEW_TYPES_OUTPUT_SCHEMA = (
     '{"fields": [{"name": "bytes","type": "BYTES"},'
     '{"name": "date","type": "DATE"},{"name": "time","type": "TIME"}]}')
-NEW_TYPES_OUTPUT_VERIFY_QUERY = ('SELECT date FROM `%s`;')
-# There are problems with query time and bytes with current version of bigquery.
+NEW_TYPES_OUTPUT_VERIFY_QUERY = ('SELECT bytes, date, time FROM `%s`;')
 NEW_TYPES_OUTPUT_EXPECTED = [
-    (datetime.date(2000, 1, 1),),
-    (datetime.date(2011, 1, 1),),
-    (datetime.date(3000, 12, 31),)]
+    (b'xyw', datetime.date(2011, 1, 1), datetime.time(23, 59, 59, 999999),),
+    (b'abc', datetime.date(2000, 1, 1), datetime.time(0, 0),),
+    (b'\xe4\xbd\xa0\xe5\xa5\xbd', datetime.date(3000, 12, 31),
+     datetime.time(23, 59, 59, 990000),),
+    (b'\xab\xac\xad', datetime.date(2000, 1, 1), datetime.time(0, 0),)]
 LEGACY_QUERY = (
     'SELECT * FROM (SELECT "apple" as fruit), (SELECT "orange" as fruit),')
 STANDARD_QUERY = (
@@ -64,8 +67,6 @@ NEW_TYPES_QUERY = (
 DIALECT_OUTPUT_SCHEMA = ('{"fields": [{"name": "fruit","type": "STRING"}]}')
 DIALECT_OUTPUT_VERIFY_QUERY = ('SELECT fruit from `%s`;')
 DIALECT_OUTPUT_EXPECTED = [(u'apple',), (u'orange',)]
-KMS_KEY = 'projects/apache-beam-testing/locations/global/keyRings/beam-it/' \
-          'cryptoKeys/test'
 
 
 class BigQueryQueryToTableIT(unittest.TestCase):
@@ -113,10 +114,17 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         projectId=self.project, datasetId=self.dataset_id, table=table)
     self.bigquery_client.client.tables.Insert(request)
     table_data = [
-        {'bytes':b'xyw=', 'date':'2011-01-01', 'time':'23:59:59.999999'},
-        {'bytes':b'abc=', 'date':'2000-01-01', 'time':'00:00:00'},
-        {'bytes':b'dec=', 'date':'3000-12-31', 'time':'23:59:59.990000'}
+        {'bytes':b'xyw', 'date':'2011-01-01', 'time':'23:59:59.999999'},
+        {'bytes':b'abc', 'date':'2000-01-01', 'time':'00:00:00'},
+        {'bytes':b'\xe4\xbd\xa0\xe5\xa5\xbd', 'date':'3000-12-31',
+         'time':'23:59:59.990000'},
+        {'bytes':b'\xab\xac\xad', 'date':'2000-01-01', 'time':'00:00:00'}
     ]
+    # the API Tools bigquery client expects byte values to be base-64 encoded
+    # TODO BEAM-4850: upgrade to google-cloud-bigquery which does not require
+    # handling the encoding in beam
+    for row in table_data:
+      row['bytes'] = base64.b64encode(row['bytes']).decode('utf-8')
     self.bigquery_client.insert_rows(
         self.project, self.dataset_id, NEW_TYPES_INPUT_TABLE, table_data)
 
@@ -129,10 +137,8 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         query=verify_query,
         checksum=expected_checksum)]
 
-    gs_location = 'gs://temp-storage-for-upload-tests/%s' % self.output_table
     extra_opts = {'query': LEGACY_QUERY,
                   'output': self.output_table,
-                  'bq_temp_location': gs_location,
                   'output_schema': DIALECT_OUTPUT_SCHEMA,
                   'use_standard_sql': False,
                   'on_success_matcher': all_of(*pipeline_verifiers)}
@@ -147,40 +153,44 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         project=self.project,
         query=verify_query,
         checksum=expected_checksum)]
-    gs_location = 'gs://temp-storage-for-upload-tests/%s' % self.output_table
+
     extra_opts = {'query': STANDARD_QUERY,
                   'output': self.output_table,
-                  'bq_temp_location': gs_location,
                   'output_schema': DIALECT_OUTPUT_SCHEMA,
                   'use_standard_sql': True,
                   'on_success_matcher': all_of(*pipeline_verifiers)}
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
 
-  # TODO(BEAM-6660): Enable this test when ready.
-  @unittest.skip('This test requires BQ Dataflow native source support for ' +
-                 'KMS, which is not available yet.')
   @attr('IT')
-  def test_big_query_standard_sql_kms_key(self):
+  def test_big_query_standard_sql_kms_key_native(self):
+    if isinstance(self.test_pipeline.runner, TestDirectRunner):
+      self.skipTest("This test doesn't work on DirectRunner.")
     verify_query = DIALECT_OUTPUT_VERIFY_QUERY % self.output_table
     expected_checksum = test_utils.compute_hash(DIALECT_OUTPUT_EXPECTED)
     pipeline_verifiers = [PipelineStateMatcher(), BigqueryMatcher(
         project=self.project,
         query=verify_query,
         checksum=expected_checksum)]
+    kms_key = self.test_pipeline.get_option('kms_key_name')
+    self.assertTrue(kms_key)
     extra_opts = {'query': STANDARD_QUERY,
                   'output': self.output_table,
                   'output_schema': DIALECT_OUTPUT_SCHEMA,
                   'use_standard_sql': True,
                   'on_success_matcher': all_of(*pipeline_verifiers),
-                  'kms_key': KMS_KEY
+                  'kms_key': kms_key,
+                  'native': True,
                  }
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
 
     table = self.bigquery_client.get_table(
         self.project, self.dataset_id, 'output_table')
-    self.assertEqual(KMS_KEY, table.encryptionConfiguration.kmsKeyName)
+    self.assertIsNotNone(
+        table.encryptionConfiguration,
+        'No encryption configuration found: %s' % table)
+    self.assertEqual(kms_key, table.encryptionConfiguration.kmsKeyName)
 
   @attr('IT')
   def test_big_query_new_types(self):
@@ -191,11 +201,9 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         query=verify_query,
         checksum=expected_checksum)]
     self._setup_new_types_env()
-    gs_location = 'gs://temp-storage-for-upload-tests/%s' % self.output_table
     extra_opts = {
         'query': NEW_TYPES_QUERY % (self.dataset_id, NEW_TYPES_INPUT_TABLE),
         'output': self.output_table,
-        'bq_temp_location': gs_location,
         'output_schema': NEW_TYPES_OUTPUT_SCHEMA,
         'use_standard_sql': False,
         'on_success_matcher': all_of(*pipeline_verifiers)}

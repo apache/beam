@@ -21,6 +21,8 @@
 from __future__ import absolute_import
 
 import logging
+import os
+import sys
 import unittest
 from builtins import object
 
@@ -109,6 +111,10 @@ class TestPubsubMessage(unittest.TestCase):
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestReadFromPubSubOverride(unittest.TestCase):
 
+  @unittest.skipIf(sys.version_info >= (3, 6, 0) and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6.'
+                   'See BEAM-6877')
   def test_expand_with_topic(self):
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
@@ -133,6 +139,10 @@ class TestReadFromPubSubOverride(unittest.TestCase):
     self.assertEqual('a_topic', source.topic_name)
     self.assertEqual('a_label', source.id_label)
 
+  @unittest.skipIf(sys.version_info >= (3, 6, 0) and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6.'
+                   'See BEAM-6877')
   def test_expand_with_subscription(self):
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
@@ -169,6 +179,10 @@ class TestReadFromPubSubOverride(unittest.TestCase):
       ReadFromPubSub('a_topic', 'a_subscription', 'a_label',
                      with_attributes=False, timestamp_attribute=None)
 
+  @unittest.skipIf(sys.version_info >= (3, 6, 0) and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6.'
+                   'See BEAM-6877')
   def test_expand_with_other_options(self):
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
@@ -359,6 +373,9 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
 
+    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls([
+        mock.call()])
+
   def test_read_strings_success(self, mock_pubsub):
     data = u'🤷 ¯\\_(ツ)_/¯'
     data_encoded = data.encode('utf-8')
@@ -380,6 +397,9 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
 
+    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls([
+        mock.call()])
+
   def test_read_data_success(self, mock_pubsub):
     data_encoded = u'🤷 ¯\\_(ツ)_/¯'.encode('utf-8')
     ack_id = 'ack_id'
@@ -397,6 +417,9 @@ class TestReadFromPubSub(unittest.TestCase):
     p.run()
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
+
+    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls([
+        mock.call()])
 
   def test_read_messages_timestamp_attribute_milli_success(self, mock_pubsub):
     data = b'data'
@@ -428,6 +451,9 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
 
+    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls([
+        mock.call()])
+
   def test_read_messages_timestamp_attribute_rfc3339_success(self, mock_pubsub):
     data = b'data'
     attributes = {'time': '2018-03-12T13:37:01.234567Z'}
@@ -457,6 +483,9 @@ class TestReadFromPubSub(unittest.TestCase):
     p.run()
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
+
+    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls([
+        mock.call()])
 
   def test_read_messages_timestamp_attribute_missing(self, mock_pubsub):
     data = b'data'
@@ -489,6 +518,9 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
 
+    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls([
+        mock.call()])
+
   def test_read_messages_timestamp_attribute_fail_parse(self, mock_pubsub):
     data = b'data'
     attributes = {'time': '1337 unparseable'}
@@ -511,6 +543,9 @@ class TestReadFromPubSub(unittest.TestCase):
     with self.assertRaisesRegexp(ValueError, r'parse'):
       p.run()
     mock_pubsub.return_value.acknowledge.assert_not_called()
+
+    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls([
+        mock.call()])
 
   def test_read_message_id_label_unsupported(self, unused_mock_pubsub):
     # id_label is unsupported in DirectRunner.

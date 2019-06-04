@@ -134,6 +134,11 @@ public enum Compression {
    *
    * <p>The {@code .zst} extension is specified in <a href=https://tools.ietf.org/html/rfc8478>RFC
    * 8478</a>.
+   *
+   * <p>The Beam Java SDK does not pull in the Zstd library by default, so it is the user's
+   * responsibility to declare an explicit dependency on {@code zstd-jni}. Attempts to read or write
+   * .zst files without {@code zstd-jni} loaded will result in {@code NoClassDefFoundError} at
+   * runtime.
    */
   ZSTD(".zst", ".zst", ".zstd") {
     @Override

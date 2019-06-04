@@ -17,7 +17,6 @@ package hooks
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
@@ -25,13 +24,20 @@ import (
 
 type contextKey string
 
+const (
+	initKey   = contextKey("init_key")
+	reqKey    = contextKey("req_key")
+	initValue = "initValue"
+	reqValue  = "reqValue"
+)
+
 func initializeHooks() {
 	activeHooks["test"] = Hook{
 		Init: func(ctx context.Context) (context.Context, error) {
-			return context.WithValue(ctx, contextKey("init_key"), "value"), nil
+			return context.WithValue(ctx, initKey, initValue), nil
 		},
 		Req: func(ctx context.Context, req *fnpb.InstructionRequest) (context.Context, error) {
-			return context.WithValue(ctx, contextKey("req_key"), "value"), nil
+			return context.WithValue(ctx, reqKey, reqValue), nil
 		},
 	}
 }
@@ -41,12 +47,12 @@ func TestInitContextPropagation(t *testing.T) {
 	ctx := context.Background()
 	var err error
 
-	expected := `context.Background.WithValue("init_key", "value")`
+	expected := initValue
 	ctx, err = RunInitHooks(ctx)
 	if err != nil {
 		t.Errorf("got %v error, wanted no error", err)
 	}
-	actual := ctx.(fmt.Stringer).String()
+	actual := ctx.Value(initKey)
 	if actual != expected {
 		t.Errorf("Got %s, wanted %s", actual, expected)
 	}
@@ -56,9 +62,9 @@ func TestRequestContextPropagation(t *testing.T) {
 	initializeHooks()
 	ctx := context.Background()
 
-	expected := `context.Background.WithValue("req_key", "value")`
+	expected := reqValue
 	ctx = RunRequestHooks(ctx, nil)
-	actual := ctx.(fmt.Stringer).String()
+	actual := ctx.Value(reqKey)
 	if actual != expected {
 		t.Errorf("Got %s, wanted %s", actual, expected)
 	}

@@ -16,13 +16,13 @@
 package runtime
 
 import (
-	"fmt"
 	"os"
 	"reflect"
 	"sync"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/symtab"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 var (
@@ -105,5 +105,5 @@ func ResolveFunction(name string, t reflect.Type) (interface{}, error) {
 type failResolver bool
 
 func (p failResolver) Sym2Addr(name string) (uintptr, error) {
-	return 0, fmt.Errorf("%v not found. Use runtime.RegisterFunction in unit tests", name)
+	return 0, errors.Errorf("%v not found. Use runtime.RegisterFunction in unit tests", name)
 }

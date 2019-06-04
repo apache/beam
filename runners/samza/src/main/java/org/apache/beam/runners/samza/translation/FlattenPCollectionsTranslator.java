@@ -44,6 +44,11 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
   @Override
   public void translate(
       Flatten.PCollections<T> transform, TransformHierarchy.Node node, TranslationContext ctx) {
+    doTranslate(transform, node, ctx);
+  }
+
+  private static <T> void doTranslate(
+      Flatten.PCollections<T> transform, TransformHierarchy.Node node, TranslationContext ctx) {
     final PCollection<T> output = ctx.getOutput(transform);
 
     final List<MessageStream<OpMessage<T>>> inputStreams = new ArrayList<>();
@@ -79,6 +84,13 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
       PipelineNode.PTransformNode transform,
       QueryablePipeline pipeline,
       PortableTranslationContext ctx) {
+    doTranslatePortable(transform, pipeline, ctx);
+  }
+
+  private static <T> void doTranslatePortable(
+      PipelineNode.PTransformNode transform,
+      QueryablePipeline pipeline,
+      PortableTranslationContext ctx) {
     final List<MessageStream<OpMessage<T>>> inputStreams = ctx.getAllInputMessageStreams(transform);
     final String outputId = ctx.getOutputId(transform);
 
@@ -91,7 +103,7 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
   }
 
   // Merge multiple input streams into one, as this is what "flatten" is meant to do
-  private MessageStream<OpMessage<T>> mergeInputStreams(
+  private static <T> MessageStream<OpMessage<T>> mergeInputStreams(
       List<MessageStream<OpMessage<T>>> inputStreams) {
     if (inputStreams.size() == 1) {
       return Iterables.getOnlyElement(inputStreams);

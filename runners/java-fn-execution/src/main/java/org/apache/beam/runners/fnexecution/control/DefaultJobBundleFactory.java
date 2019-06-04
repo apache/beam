@@ -18,14 +18,19 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import com.google.auto.value.AutoValue;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
+import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
@@ -35,7 +40,11 @@ import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactRetrie
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
+import org.apache.beam.runners.fnexecution.environment.DockerEnvironmentFactory;
+import org.apache.beam.runners.fnexecution.environment.EmbeddedEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
+import org.apache.beam.runners.fnexecution.environment.ExternalEnvironmentFactory;
+import org.apache.beam.runners.fnexecution.environment.ProcessEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
@@ -49,6 +58,8 @@ import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.function.ThrowingFunction;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
@@ -77,6 +88,23 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
   private final ExecutorService executor;
   private final MapControlClientPool clientPool;
   private final IdGenerator stageIdGenerator;
+  private final int environmentExpirationMillis;
+
+  public static DefaultJobBundleFactory create(JobInfo jobInfo) {
+    Map<String, EnvironmentFactory.Provider> environmentFactoryProviderMap =
+        ImmutableMap.of(
+            BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER),
+            new DockerEnvironmentFactory.Provider(
+                PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())),
+            BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS),
+            new ProcessEnvironmentFactory.Provider(),
+            BeamUrns.getUrn(StandardEnvironments.Environments.EXTERNAL),
+            new ExternalEnvironmentFactory.Provider(),
+            Environments.ENVIRONMENT_EMBEDDED, // Non Public urn for testing.
+            new EmbeddedEnvironmentFactory.Provider(
+                PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())));
+    return new DefaultJobBundleFactory(jobInfo, environmentFactoryProviderMap);
+  }
 
   public static DefaultJobBundleFactory create(
       JobInfo jobInfo, Map<String, EnvironmentFactory.Provider> environmentFactoryProviderMap) {
@@ -90,89 +118,72 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     this.executor = Executors.newCachedThreadPool();
     this.clientPool = MapControlClientPool.create();
     this.stageIdGenerator = stageIdGenerator;
+    this.environmentExpirationMillis = getEnvironmentExpirationMillis(jobInfo);
     this.environmentCache =
         createEnvironmentCache(serverFactory -> createServerInfo(jobInfo, serverFactory));
   }
 
   @VisibleForTesting
   DefaultJobBundleFactory(
+      JobInfo jobInfo,
       Map<String, EnvironmentFactory.Provider> environmentFactoryMap,
       IdGenerator stageIdGenerator,
-      GrpcFnServer<FnApiControlClientPoolService> controlServer,
-      GrpcFnServer<GrpcLoggingService> loggingServer,
-      GrpcFnServer<ArtifactRetrievalService> retrievalServer,
-      GrpcFnServer<StaticGrpcProvisionService> provisioningServer,
-      GrpcFnServer<GrpcDataService> dataServer,
-      GrpcFnServer<GrpcStateService> stateServer) {
+      ServerInfo serverInfo) {
     this.environmentFactoryProviderMap = environmentFactoryMap;
     this.executor = Executors.newCachedThreadPool();
     this.clientPool = MapControlClientPool.create();
     this.stageIdGenerator = stageIdGenerator;
-    ServerInfo serverInfo =
-        new AutoValue_DefaultJobBundleFactory_ServerInfo.Builder()
-            .setControlServer(controlServer)
-            .setLoggingServer(loggingServer)
-            .setRetrievalServer(retrievalServer)
-            .setProvisioningServer(provisioningServer)
-            .setDataServer(dataServer)
-            .setStateServer(stateServer)
-            .build();
+    this.environmentExpirationMillis = getEnvironmentExpirationMillis(jobInfo);
     this.environmentCache = createEnvironmentCache(serverFactory -> serverInfo);
+  }
+
+  private static int getEnvironmentExpirationMillis(JobInfo jobInfo) {
+    PipelineOptions pipelineOptions =
+        PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions());
+    return pipelineOptions.as(PortablePipelineOptions.class).getEnvironmentExpirationMillis();
   }
 
   private LoadingCache<Environment, WrappedSdkHarnessClient> createEnvironmentCache(
       ThrowingFunction<ServerFactory, ServerInfo> serverInfoCreator) {
-    return CacheBuilder.newBuilder()
-        .removalListener(
-            (RemovalNotification<Environment, WrappedSdkHarnessClient> notification) -> {
-              LOG.debug("Cleaning up for environment {}", notification.getKey().getUrn());
-              try {
-                notification.getValue().close();
-              } catch (Exception e) {
-                LOG.warn(
-                    String.format("Error cleaning up environment %s", notification.getKey()), e);
-              }
-            })
-        .build(
-            new CacheLoader<Environment, WrappedSdkHarnessClient>() {
-              @Override
-              public WrappedSdkHarnessClient load(Environment environment) throws Exception {
-                EnvironmentFactory.Provider environmentFactoryProvider =
-                    environmentFactoryProviderMap.get(environment.getUrn());
-                ServerFactory serverFactory = environmentFactoryProvider.getServerFactory();
-                ServerInfo serverInfo = serverInfoCreator.apply(serverFactory);
+    CacheBuilder builder =
+        CacheBuilder.newBuilder()
+            .removalListener(
+                (RemovalNotification<Environment, WrappedSdkHarnessClient> notification) -> {
+                  int refCount = notification.getValue().unref();
+                  LOG.debug(
+                      "Removed environment {} with {} remaining bundle references.",
+                      notification.getKey(),
+                      refCount);
+                });
 
-                EnvironmentFactory environmentFactory =
-                    environmentFactoryProvider.createEnvironmentFactory(
-                        serverInfo.getControlServer(),
-                        serverInfo.getLoggingServer(),
-                        serverInfo.getRetrievalServer(),
-                        serverInfo.getProvisioningServer(),
-                        clientPool,
-                        stageIdGenerator);
-                return WrappedSdkHarnessClient.wrapping(
-                    environmentFactory.createEnvironment(environment), serverInfo);
-              }
-            });
+    if (environmentExpirationMillis > 0) {
+      builder = builder.expireAfterWrite(environmentExpirationMillis, TimeUnit.MILLISECONDS);
+    }
+    return builder.build(
+        new CacheLoader<Environment, WrappedSdkHarnessClient>() {
+          @Override
+          public WrappedSdkHarnessClient load(Environment environment) throws Exception {
+            EnvironmentFactory.Provider environmentFactoryProvider =
+                environmentFactoryProviderMap.get(environment.getUrn());
+            ServerFactory serverFactory = environmentFactoryProvider.getServerFactory();
+            ServerInfo serverInfo = serverInfoCreator.apply(serverFactory);
+            EnvironmentFactory environmentFactory =
+                environmentFactoryProvider.createEnvironmentFactory(
+                    serverInfo.getControlServer(),
+                    serverInfo.getLoggingServer(),
+                    serverInfo.getRetrievalServer(),
+                    serverInfo.getProvisioningServer(),
+                    clientPool,
+                    stageIdGenerator);
+            return WrappedSdkHarnessClient.wrapping(
+                environmentFactory.createEnvironment(environment), serverInfo);
+          }
+        });
   }
 
   @Override
   public StageBundleFactory forStage(ExecutableStage executableStage) {
-    WrappedSdkHarnessClient wrappedClient =
-        environmentCache.getUnchecked(executableStage.getEnvironment());
-    ExecutableProcessBundleDescriptor processBundleDescriptor;
-    try {
-      processBundleDescriptor =
-          ProcessBundleDescriptors.fromExecutableStage(
-              stageIdGenerator.getId(),
-              executableStage,
-              wrappedClient.getServerInfo().getDataServer().getApiServiceDescriptor(),
-              wrappedClient.getServerInfo().getStateServer().getApiServiceDescriptor());
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    return SimpleStageBundleFactory.create(
-        wrappedClient, processBundleDescriptor, wrappedClient.getServerInfo().getStateServer());
+    return new SimpleStageBundleFactory(executableStage);
   }
 
   @Override
@@ -185,37 +196,42 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     executor.shutdown();
   }
 
-  /** A simple stage bundle factory for remotely processing bundles. */
-  protected static class SimpleStageBundleFactory implements StageBundleFactory {
+  /**
+   * A {@link StageBundleFactory} for remotely processing bundles that supports environment
+   * expiration.
+   */
+  private class SimpleStageBundleFactory implements StageBundleFactory {
 
-    private final BundleProcessor processor;
-    private final ExecutableProcessBundleDescriptor processBundleDescriptor;
+    private final ExecutableStage executableStage;
+    private BundleProcessor processor;
+    private ExecutableProcessBundleDescriptor processBundleDescriptor;
+    private WrappedSdkHarnessClient wrappedClient;
 
-    // Store the wrapped client in order to keep a live reference into the cache.
-    @SuppressFBWarnings private WrappedSdkHarnessClient wrappedClient;
+    private SimpleStageBundleFactory(ExecutableStage executableStage) {
+      this.executableStage = executableStage;
+      prepare(environmentCache.getUnchecked(executableStage.getEnvironment()));
+    }
 
-    static SimpleStageBundleFactory create(
-        WrappedSdkHarnessClient wrappedClient,
-        ExecutableProcessBundleDescriptor processBundleDescriptor,
-        GrpcFnServer<GrpcStateService> stateServer) {
-      @SuppressWarnings("unchecked")
-      BundleProcessor processor =
+    private void prepare(WrappedSdkHarnessClient wrappedClient) {
+      try {
+        this.wrappedClient = wrappedClient;
+        this.processBundleDescriptor =
+            ProcessBundleDescriptors.fromExecutableStage(
+                stageIdGenerator.getId(),
+                executableStage,
+                wrappedClient.getServerInfo().getDataServer().getApiServiceDescriptor(),
+                wrappedClient.getServerInfo().getStateServer().getApiServiceDescriptor());
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to create ProcessBundleDescriptor.", e);
+      }
+
+      this.processor =
           wrappedClient
               .getClient()
               .getProcessor(
                   processBundleDescriptor.getProcessBundleDescriptor(),
                   processBundleDescriptor.getRemoteInputDestinations(),
-                  stateServer.getService());
-      return new SimpleStageBundleFactory(processBundleDescriptor, processor, wrappedClient);
-    }
-
-    SimpleStageBundleFactory(
-        ExecutableProcessBundleDescriptor processBundleDescriptor,
-        BundleProcessor processor,
-        WrappedSdkHarnessClient wrappedClient) {
-      this.processBundleDescriptor = processBundleDescriptor;
-      this.processor = processor;
-      this.wrappedClient = wrappedClient;
+                  wrappedClient.getServerInfo().getStateServer().getService());
     }
 
     @Override
@@ -243,7 +259,39 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
             outputReceiverFactory.create(bundleOutputPCollection);
         outputReceivers.put(target, RemoteOutputReceiver.of(coder, outputReceiver));
       }
-      return processor.newBundle(outputReceivers.build(), stateRequestHandler, progressHandler);
+
+      if (environmentExpirationMillis == 0) {
+        return processor.newBundle(outputReceivers.build(), stateRequestHandler, progressHandler);
+      }
+
+      final WrappedSdkHarnessClient client =
+          environmentCache.getUnchecked(executableStage.getEnvironment());
+      client.ref();
+
+      if (client != wrappedClient) {
+        // reset after environment expired
+        prepare(client);
+      }
+
+      final RemoteBundle bundle =
+          processor.newBundle(outputReceivers.build(), stateRequestHandler, progressHandler);
+      return new RemoteBundle() {
+        @Override
+        public String getId() {
+          return bundle.getId();
+        }
+
+        @Override
+        public Map<String, FnDataReceiver<WindowedValue<?>>> getInputReceivers() {
+          return bundle.getInputReceivers();
+        }
+
+        @Override
+        public void close() throws Exception {
+          bundle.close();
+          client.unref();
+        }
+      };
     }
 
     @Override
@@ -268,6 +316,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     private final RemoteEnvironment environment;
     private final SdkHarnessClient client;
     private final ServerInfo serverInfo;
+    private final AtomicInteger bundleRefCount = new AtomicInteger();
 
     static WrappedSdkHarnessClient wrapping(RemoteEnvironment environment, ServerInfo serverInfo) {
       SdkHarnessClient client =
@@ -281,6 +330,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       this.environment = environment;
       this.client = client;
       this.serverInfo = serverInfo;
+      ref();
     }
 
     SdkHarnessClient getClient() {
@@ -303,6 +353,24 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
           AutoCloseable retrievalServer = serverInfo.getRetrievalServer();
           AutoCloseable provisioningServer = serverInfo.getProvisioningServer()) {}
       // TODO: Wait for executor shutdown?
+    }
+
+    private int ref() {
+      return bundleRefCount.incrementAndGet();
+    }
+
+    private int unref() {
+      int count = bundleRefCount.decrementAndGet();
+      if (count == 0) {
+        // Close environment after it was removed from cache and all bundles finished.
+        LOG.info("Closing environment {}", environment.getEnvironment());
+        try {
+          close();
+        } catch (Exception e) {
+          LOG.warn("Error cleaning up environment {}", environment.getEnvironment(), e);
+        }
+      }
+      return count;
     }
   }
 

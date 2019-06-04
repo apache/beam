@@ -27,6 +27,7 @@ needed right now use a @retry.no_retries decorator.
 
 from __future__ import absolute_import
 
+import functools
 import logging
 import random
 import sys
@@ -185,6 +186,7 @@ def with_exponential_backoff(
 
   def real_decorator(fun):
     """The real decorator whose purpose is to return the wrapped function."""
+    @functools.wraps(fun)
     def wrapper(*args, **kwargs):
       retry_intervals = iter(
           FuzzedExponentialIntervals(

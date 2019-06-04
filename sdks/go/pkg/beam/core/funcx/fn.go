@@ -16,12 +16,12 @@
 package funcx
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // Note that we can't tell the difference between K, V and V, S before binding.
@@ -220,7 +220,7 @@ func (u *Fn) Returns(mask ReturnKind) []int {
 }
 
 func (u *Fn) String() string {
-	return fmt.Sprintf("%+v", *u)
+	return fmt.Sprintf("{Fn:{Name:%v Kind:%v} Param:%+v Ret:%+v}", u.Fn.Name(), u.Fn.Type(), u.Param, u.Ret)
 }
 
 // New returns a Fn from a user function, if valid. Closures and dynamically
@@ -250,7 +250,7 @@ func New(fn reflectx.Func) (*Fn, error) {
 		case IsReIter(t):
 			kind = FnReIter
 		default:
-			return nil, fmt.Errorf("bad parameter type for %s: %v", fn.Name(), t)
+			return nil, errors.Errorf("bad parameter type for %s: %v", fn.Name(), t)
 		}
 
 		param = append(param, FnParam{Kind: kind, T: t})
@@ -269,7 +269,7 @@ func New(fn reflectx.Func) (*Fn, error) {
 		case typex.IsContainer(t), typex.IsConcrete(t), typex.IsUniversal(t):
 			kind = RetValue
 		default:
-			return nil, fmt.Errorf("bad return type for %s: %v", fn.Name(), t)
+			return nil, errors.Errorf("bad return type for %s: %v", fn.Name(), t)
 		}
 
 		ret = append(ret, ReturnParam{Kind: kind, T: t})
@@ -314,14 +314,14 @@ func validateOrder(u *Fn) error {
 	// Validate the parameter ordering.
 	for i, p := range u.Param {
 		if paramState, err = nextParamState(paramState, p.Kind); err != nil {
-			return fmt.Errorf("%s at parameter %d for %s", err.Error(), i, u.Fn.Name())
+			return errors.WithContextf(err, "validating parameter %d for %s", i, u.Fn.Name())
 		}
 	}
 	// Validate the return value ordering.
 	retState := rsStart
 	for i, r := range u.Ret {
 		if retState, err = nextRetState(retState, r.Kind); err != nil {
-			return fmt.Errorf("%s for return value %d for %s", err.Error(), i, u.Fn.Name())
+			return errors.WithContextf(err, "validating return value %d for %s", i, u.Fn.Name())
 		}
 	}
 	return nil

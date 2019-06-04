@@ -39,6 +39,8 @@ There are lots of opportunities to contribute:
 }}/community/contact-us/)
  - improve the documentation
  - contribute [bug reports](https://issues.apache.org/jira/projects/BEAM/issues)
+ - contribute by testing releases
+ - contribute by reviewing [changes](https://github.com/apache/beam/pulls)
  - write new examples
  - improve your favorite language SDK (Java, Python, Go, etc)
  - improve specific runners (Apache Apex, Apache Flink, Apache Spark, Google
@@ -56,7 +58,7 @@ Most importantly, if you have an idea of how to contribute, then do it!
 
 ## Contributing code
 
-Below is a tutorial for contributing code to Beam, covering our tools and typical process in
+Below is a tutorial for contributing [code to Beam](https://github.com/apache/beam), covering our tools and typical process in
 detail.
 
 ### Prerequisites

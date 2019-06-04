@@ -28,6 +28,7 @@ apply plugin: 'org.apache.beam.module'
 apply plugin: 'application'
 // we need to set mainClassName before applying shadow plugin
 mainClassName = "org.apache.beam.runners.flink.FlinkJobServerDriver"
+archivesBaseName = project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName
 
 applyJavaNature(
   validateShadowJar: false,
@@ -38,7 +39,7 @@ applyJavaNature(
 )
 
 // Resolve the Flink project name (and version) the job-server is based on
-def flinkRunnerProject = ":${project.name.replace("-job-server", "")}"
+def flinkRunnerProject = "${project.path.replace(":job-server", "")}"
 
 description = project(flinkRunnerProject).description + " :: Job Server"
 
@@ -76,14 +77,17 @@ configurations.all {
 
 dependencies {
   compile project(path: flinkRunnerProject, configuration: "shadow")
-  compile group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
+  runtime group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
   validatesPortableRunner project(path: flinkRunnerProject, configuration: "shadowTest")
-  validatesPortableRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  validatesPortableRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
-  validatesPortableRunner project(path: ":beam-runners-reference-java", configuration: "shadowTest")
-  compile project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
-  compile library.java.slf4j_simple
+  validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":runners:core-java", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":runners:reference:java", configuration: "shadowTest")
+  runtime project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
+  runtime library.java.slf4j_simple
 //  TODO: Enable AWS and HDFS file system.
+  // For resolving external transform requests
+  runtime project(path: ":sdks:java:io:kafka", configuration: "shadow")
+  runtime library.java.kafka_clients
 }
 
 // NOTE: runShadow must be used in order to run the job server. The standard run
@@ -96,7 +100,7 @@ runShadow {
   if (project.hasProperty('artifactsDir'))
     args += ["--artifacts-dir=${project.property('artifactsDir')}"]
   if (project.hasProperty('cleanArtifactsPerJob'))
-    args += ["--clean-artifacts-per-job"]
+    args += ["--clean-artifacts-per-job=${project.property('cleanArtifactsPerJob')}"]
   if (project.hasProperty('flinkMasterUrl'))
     args += ["--flink-master-url=${project.property('flinkMasterUrl')}"]
   if (project.hasProperty('flinkConfDir'))
@@ -120,7 +124,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
   createPortableValidatesRunnerTask(
     name: "validatesPortableRunner${name}",
     jobServerDriver: "org.apache.beam.runners.flink.FlinkJobServerDriver",
-    jobServerConfig: "--clean-artifacts-per-job,--job-host=localhost,--job-port=0,--artifact-port=0",
+    jobServerConfig: "--job-host=localhost,--job-port=0,--artifact-port=0,--expansion-port=0",
     testClasspathConfiguration: configurations.validatesPortableRunner,
     numParallelTests: 1,
     pipelineOpts: pipelineOptions,
@@ -132,6 +136,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesCounterMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
       excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
       excludeCategories 'org.apache.beam.sdk.testing.UsesDistributionMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
@@ -139,7 +144,11 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
       excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+      if (streaming) {
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
+      } else {
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+      }
       //SplitableDoFnTests
       excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
@@ -155,3 +164,24 @@ task validatesPortableRunner() {
   dependsOn validatesPortableRunnerBatch
   dependsOn validatesPortableRunnerStreaming
 }
+
+project.ext.validatesCrossLanguageTransforms =
+  createPortableValidatesRunnerTask(
+    name: "validatesCrossLanguageTransforms",
+    jobServerDriver: "org.apache.beam.runners.flink.FlinkJobServerDriver",
+    jobServerConfig: "--clean-artifacts-per-job,--job-host=localhost,--job-port=0,--artifact-port=0,--expansion-port=0",
+    testClasspathConfiguration: configurations.validatesPortableRunner,
+    numParallelTests: 1,
+    pipelineOpts: [
+      // Limit resource consumption via parallelism
+      "--parallelism=2",
+      "--shutdownSourcesOnFinalWatermark",
+    ],
+    testCategories: {
+      // Only include cross-language transform tests. Avoid to retest everything on Docker environment.
+      includeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
+    },
+  )
+project.evaluationDependsOn ':sdks:python'
+validatesCrossLanguageTransforms.dependsOn ':sdks:python:setupVirtualenv'
+validatesCrossLanguageTransforms.systemProperty "pythonTestExpansionCommand", ". ${project(':sdks:python').envdir}/bin/activate && pip install -e ${project(':sdks:python').projectDir}[test] && python -m apache_beam.runners.portability.expansion_service_test"

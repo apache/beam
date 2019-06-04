@@ -419,9 +419,7 @@ public class ProcessBundleDescriptors {
     components.putCoders(
         id,
         RunnerApi.Coder.newBuilder()
-            .setSpec(
-                RunnerApi.SdkFunctionSpec.newBuilder()
-                    .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(ModelCoders.KV_CODER_URN)))
+            .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(ModelCoders.KV_CODER_URN))
             .addComponentCoderIds(keyCoderId)
             .addComponentCoderIds(valueCoderId)
             .build());

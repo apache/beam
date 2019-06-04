@@ -45,6 +45,7 @@ from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import DoFn
@@ -72,6 +73,25 @@ def default_encoder(obj):
     return str(obj)
   raise TypeError(
       "Object of type '%s' is not JSON serializable" % type(obj).__name__)
+
+
+def get_hashable_destination(destination):
+  """Parses a table reference into a (project, dataset, table) tuple.
+
+  Args:
+    destination: Either a TableReference object from the bigquery API.
+      The object has the following attributes: projectId, datasetId, and
+      tableId. Or a string representing the destination containing
+      'PROJECT:DATASET.TABLE'.
+  Returns:
+    A string representing the destination containing
+    'PROJECT:DATASET.TABLE'.
+  """
+  if isinstance(destination, bigquery.TableReference):
+    return '%s:%s.%s' % (
+        destination.projectId, destination.datasetId, destination.tableId)
+  else:
+    return destination
 
 
 def parse_table_schema_from_json(schema_string):
@@ -141,6 +161,8 @@ def parse_table_reference(table, dataset=None, project=None):
   if isinstance(table, bigquery.TableReference):
     return table
   elif callable(table):
+    return table
+  elif isinstance(table, value_provider.ValueProvider):
     return table
 
   table_reference = bigquery.TableReference()
@@ -302,7 +324,10 @@ class BigQueryWrapper(object):
                        source_uris,
                        schema=None,
                        write_disposition=None,
-                       create_disposition=None):
+                       create_disposition=None,
+                       additional_load_parameters=None):
+    additional_load_parameters = additional_load_parameters or {}
+    job_schema = None if schema == 'SCHEMA_AUTODETECT' else schema
     reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
     request = bigquery.BigqueryJobsInsertRequest(
         projectId=project_id,
@@ -311,11 +336,12 @@ class BigQueryWrapper(object):
                 load=bigquery.JobConfigurationLoad(
                     sourceUris=source_uris,
                     destinationTable=table_reference,
-                    schema=schema,
+                    schema=job_schema,
                     writeDisposition=write_disposition,
                     createDisposition=create_disposition,
                     sourceFormat='NEWLINE_DELIMITED_JSON',
-                    autodetect=schema is None,
+                    autodetect=schema == 'SCHEMA_AUTODETECT',
+                    **additional_load_parameters
                 )
             ),
             jobReference=reference,
@@ -344,16 +370,16 @@ class BigQueryWrapper(object):
             jobReference=reference))
 
     response = self.client.jobs.Insert(request)
-    return response.jobReference.jobId
+    return response.jobReference.jobId, response.jobReference.location
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _get_query_results(self, project_id, job_id,
-                         page_token=None, max_results=10000):
+                         page_token=None, max_results=10000, location=None):
     request = bigquery.BigqueryJobsGetQueryResultsRequest(
         jobId=job_id, pageToken=page_token, projectId=project_id,
-        maxResults=max_results)
+        maxResults=max_results, location=location)
     response = self.client.jobs.GetQueryResults(request)
     return response
 
@@ -387,7 +413,9 @@ class BigQueryWrapper(object):
 
     Args:
       client: bigquery.BigqueryV2 instance
-      project_id, dataset_id, table_id: table lookup parameters
+      project_id: table lookup parameter
+      dataset_id: table lookup parameter
+      table_id: table lookup parameter
 
     Returns:
       bigquery.Table instance
@@ -399,11 +427,18 @@ class BigQueryWrapper(object):
     response = self.client.tables.Get(request)
     return response
 
-  def _create_table(self, project_id, dataset_id, table_id, schema):
+  def _create_table(self,
+                    project_id,
+                    dataset_id,
+                    table_id,
+                    schema,
+                    additional_parameters=None):
+    additional_parameters = additional_parameters or {}
     table = bigquery.Table(
         tableReference=bigquery.TableReference(
             projectId=project_id, datasetId=dataset_id, tableId=table_id),
-        schema=schema)
+        schema=schema,
+        **additional_parameters)
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=project_id, datasetId=dataset_id, table=table)
     response = self.client.tables.Insert(request)
@@ -544,7 +579,8 @@ class BigQueryWrapper(object):
                        job_id,
                        schema=None,
                        write_disposition=None,
-                       create_disposition=None):
+                       create_disposition=None,
+                       additional_load_parameters=None):
     """Starts a job to load data into BigQuery.
 
     Returns:
@@ -554,14 +590,15 @@ class BigQueryWrapper(object):
         destination.projectId, job_id, destination, files,
         schema=schema,
         create_disposition=create_disposition,
-        write_disposition=write_disposition)
+        write_disposition=write_disposition,
+        additional_load_parameters=additional_load_parameters)
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def get_or_create_table(
       self, project_id, dataset_id, table_id, schema,
-      create_disposition, write_disposition):
+      create_disposition, write_disposition, additional_create_parameters=None):
     """Gets or creates a table based on create and write dispositions.
 
     The function mimics the behavior of BigQuery import jobs when using the
@@ -579,7 +616,7 @@ class BigQueryWrapper(object):
       A bigquery.Table instance if table was found or created.
 
     Raises:
-      RuntimeError: For various mismatches between the state of the table and
+      `RuntimeError`: For various mismatches between the state of the table and
         the create/write dispositions passed in. For example if the table is not
         empty and WRITE_EMPTY was specified then an error will be raised since
         the table was expected to be empty.
@@ -622,11 +659,14 @@ class BigQueryWrapper(object):
     if found_table and write_disposition != BigQueryDisposition.WRITE_TRUNCATE:
       return found_table
     else:
-      created_table = self._create_table(project_id=project_id,
-                                         dataset_id=dataset_id,
-                                         table_id=table_id,
-                                         schema=schema or found_table.schema)
-      logging.info('Created table %s.%s.%s with schema %s. Result: %s.',
+      created_table = self._create_table(
+          project_id=project_id,
+          dataset_id=dataset_id,
+          table_id=table_id,
+          schema=schema or found_table.schema,
+          additional_parameters=additional_create_parameters)
+      logging.info('Created table %s.%s.%s with schema %s. '
+                   'Result: %s.',
                    project_id, dataset_id, table_id,
                    schema or found_table.schema,
                    created_table)
@@ -646,16 +686,18 @@ class BigQueryWrapper(object):
 
   def run_query(self, project_id, query, use_legacy_sql, flatten_results,
                 dry_run=False):
-    job_id = self._start_query_job(project_id, query, use_legacy_sql,
-                                   flatten_results, job_id=uuid.uuid4().hex,
-                                   dry_run=dry_run)
+    job_id, location = self._start_query_job(project_id, query,
+                                             use_legacy_sql, flatten_results,
+                                             job_id=uuid.uuid4().hex,
+                                             dry_run=dry_run)
     if dry_run:
       # If this was a dry run then the fact that we get here means the
       # query has no errors. The start_query_job would raise an error otherwise.
       return
     page_token = None
     while True:
-      response = self._get_query_results(project_id, job_id, page_token)
+      response = self._get_query_results(project_id, job_id,
+                                         page_token, location=location)
       if not response.jobComplete:
         # The jobComplete field can be False if the query request times out
         # (default is 10 seconds). Note that this is a timeout for the query
@@ -883,6 +925,12 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
       if self.schema is None:
         self.schema = schema
       for row in rows:
+        # return base64 encoded bytes as byte type on python 3
+        # which matches the behavior of Beam Java SDK
+        for i in range(len(row.f)):
+          if self.schema.fields[i].type == 'BYTES':
+            row.f[i].v.string_value = row.f[i].v.string_value.encode('utf-8')
+
         if self.row_as_dict:
           yield self.client.convert_row_to_dict(row, schema)
         else:
@@ -956,6 +1004,12 @@ class RowAsDictJsonCoder(coders.Coder):
     # This code will catch this error to emit an error that explains
     # to the programmer that they have used NAN/INF values.
     try:
+      # on python 3 base64-encoded bytes are decoded to strings
+      # before being send to bq
+      if sys.version_info[0] > 2:
+        for field, value in iteritems(table_row):
+          if type(value) == bytes:
+            table_row[field] = value.decode('utf-8')
       return json.dumps(
           table_row, allow_nan=False, default=default_encoder).encode('utf-8')
     except ValueError as e:
@@ -995,10 +1049,24 @@ class AppendDestinationsFn(DoFn):
   """
 
   def __init__(self, destination):
-    if callable(destination):
-      self.destination = destination
-    else:
-      self.destination = lambda x: destination
+    self.destination = AppendDestinationsFn._get_table_fn(destination)
 
-  def process(self, element):
-    yield (self.destination(element), element)
+  @staticmethod
+  def _value_provider_or_static_val(elm):
+    if isinstance(elm, value_provider.ValueProvider):
+      return elm
+    else:
+      # The type argument is a NoOp, because we assume the argument already has
+      # the proper formatting.
+      return value_provider.StaticValueProvider(lambda x: x, value=elm)
+
+  @staticmethod
+  def _get_table_fn(destination):
+    if callable(destination):
+      return destination
+    else:
+      return lambda x: AppendDestinationsFn._value_provider_or_static_val(
+          destination).get()
+
+  def process(self, element, *side_inputs):
+    yield (self.destination(element, *side_inputs), element)

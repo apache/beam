@@ -84,6 +84,7 @@ public class TFRecordIO {
         .setFilenameSuffix(null)
         .setNumShards(0)
         .setCompression(Compression.UNCOMPRESSED)
+        .setNoSpilling(false)
         .build();
   }
 
@@ -231,6 +232,9 @@ public class TFRecordIO {
     /** Option to indicate the output sink's compression type. Default is NONE. */
     abstract Compression getCompression();
 
+    /** Whether to skip the spilling of data caused by having maxNumWritersPerBundle. */
+    abstract boolean getNoSpilling();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -244,6 +248,8 @@ public class TFRecordIO {
       abstract Builder setNumShards(int numShards);
 
       abstract Builder setCompression(Compression compression);
+
+      abstract Builder setNoSpilling(boolean noSpilling);
 
       abstract Write build();
     }
@@ -340,6 +346,11 @@ public class TFRecordIO {
       return toBuilder().setCompression(compression).build();
     }
 
+    /** See {@link WriteFiles#withNoSpilling()}. */
+    public Write withNoSpilling() {
+      return toBuilder().setNoSpilling(true).build();
+    }
+
     @Override
     public PDone expand(PCollection<byte[]> input) {
       checkState(
@@ -351,6 +362,9 @@ public class TFRecordIO {
                   getOutputPrefix(), getShardTemplate(), getFilenameSuffix(), getCompression()));
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
+      }
+      if (getNoSpilling()) {
+        write = write.withNoSpilling();
       }
       input.apply("Write", write);
       return PDone.in(input.getPipeline());

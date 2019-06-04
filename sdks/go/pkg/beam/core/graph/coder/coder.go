@@ -26,6 +26,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // CustomCoder contains possibly untyped encode/decode user functions that are
@@ -106,7 +107,7 @@ type ElementDecoder interface {
 func validateEncoder(t reflect.Type, encode interface{}) error {
 	// Check if it uses the real type in question.
 	if err := funcx.Satisfy(encode, funcx.Replace(encodeSig, typex.TType, t)); err != nil {
-		return fmt.Errorf("validateEncoder: incorrect signature: %v", err)
+		return errors.WithContext(err, "validateEncoder: validating signature")
 	}
 	// TODO(lostluck): 2019.02.03 - Determine if there are encode allocation bottlenecks.
 	return nil
@@ -115,7 +116,7 @@ func validateEncoder(t reflect.Type, encode interface{}) error {
 func validateDecoder(t reflect.Type, decode interface{}) error {
 	// Check if it uses the real type in question.
 	if err := funcx.Satisfy(decode, funcx.Replace(decodeSig, typex.TType, t)); err != nil {
-		return fmt.Errorf("validateDecoder: incorrect signature: %v", err)
+		return errors.WithContext(err, "validateDecoder: validating signature")
 	}
 	// TODO(lostluck): 2019.02.03 - Expand cases to avoid []byte -> interface{} conversion
 	// in exec, & a beam Decoder interface.
@@ -126,19 +127,19 @@ func validateDecoder(t reflect.Type, decode interface{}) error {
 // particular encoding strategy.
 func NewCustomCoder(id string, t reflect.Type, encode, decode interface{}) (*CustomCoder, error) {
 	if err := validateEncoder(t, encode); err != nil {
-		return nil, fmt.Errorf("NewCustomCoder: %v", err)
+		return nil, errors.WithContext(err, "NewCustomCoder")
 	}
 	enc, err := funcx.New(reflectx.MakeFunc(encode))
 	if err != nil {
-		return nil, fmt.Errorf("bad encode: %v", err)
+		return nil, errors.Wrap(err, "bad encode")
 	}
 	if err := validateDecoder(t, decode); err != nil {
-		return nil, fmt.Errorf("NewCustomCoder: %v", err)
+		return nil, errors.WithContext(err, "NewCustomCoder")
 	}
 
 	dec, err := funcx.New(reflectx.MakeFunc(decode))
 	if err != nil {
-		return nil, fmt.Errorf("bad decode: %v", err)
+		return nil, errors.Wrap(err, "bad decode")
 	}
 
 	c := &CustomCoder{
@@ -244,9 +245,9 @@ func NewBytes() *Coder {
 	return &Coder{Kind: Bytes, T: typex.New(reflectx.ByteSlice)}
 }
 
-// NewVarInt returns a new int32 coder using the built-in scheme.
+// NewVarInt returns a new int64 coder using the built-in scheme.
 func NewVarInt() *Coder {
-	return &Coder{Kind: VarInt, T: typex.New(reflectx.Int32)}
+	return &Coder{Kind: VarInt, T: typex.New(reflectx.Int64)}
 }
 
 // IsW returns true iff the coder is for a WindowedValue.
