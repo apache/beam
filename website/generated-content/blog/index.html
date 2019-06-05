@@ -153,6 +153,50 @@ limitations under the License.
 <p>This is the blog for the Apache Beam project. This blog contains news and updates
 for the project.</p>
 
+<h3 id="adding-new-data-sources-to-beam-sql-cli"><a class="post-link" href="/blog/2019/06/04/adding-data-sources-to-sql.html">Adding new Data Sources to Beam SQL CLI</a></h3>
+<p><i>Jun 4, 2019 •
+ Pablo Estrada [<a href="https://twitter.com/polecitoem">@polecitoem</a>]
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>A new, exciting feature that came to Apache Beam is the ability to use
+SQL in your pipelines. This is done using Beam’s
+<a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/SqlTransform.html"><code class="highlighter-rouge">SqlTransform</code></a>
+in Java pipelines.</p>
+
+<p>Beam also has a fancy new SQL command line that you can use to query your
+data interactively, be it Batch or Streaming. If you haven’t tried it, check out
+<a href="http://bit.ly/ExploreBeamSQL">http://bit.ly/ExploreBeamSQL</a>.</p>
+
+<p>A nice feature of the SQL CLI is that you can use <code class="highlighter-rouge">CREATE EXTERNAL TABLE</code>
+commands to <em>add</em> data sources to be accessed in the CLI. Currently, the CLI
+supports creating tables from BigQuery, PubSub, Kafka, and text files. In this
+post, we explore how to add new data sources, so that you will be able to
+consume data from other Beam sources.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2019/06/04/adding-data-sources-to-sql.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
 <h3 id="apache-beam-katas"><a class="post-link" href="/blog/2019/05/30/beam-kata-release.html">Apache Beam Katas</a></h3>
 <p><i>May 30, 2019 •
  Henry Suryawirawan [<a href="https://twitter.com/henry_ken">@henry_ken</a>]
