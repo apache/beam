@@ -317,8 +317,8 @@ public final class TransformTranslator {
         JavaRDD<WindowedValue<KV<K, OutputT>>> outRdd =
             accumulatePerKey
                 .flatMapValues(sparkCombineFn::extractOutput)
-                .map(TranslationUtils.fromPairFunction())
-                .map(TranslationUtils.toKVByWindowInValue());
+                .map(new TranslationUtils.FromPairFunction())
+                .map(new TranslationUtils.ToKVByWindowInValueFunction<>());
 
         context.putDataset(transform, new BoundedDataset<>(outRdd));
       }

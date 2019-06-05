@@ -109,8 +109,7 @@ def portableValidatesRunnerTask(String name) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-      // TODO re-enable when state is supported
-      excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
+      // TODO(BEAM-7221)
       excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
       //SplitableDoFnTests
       excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
