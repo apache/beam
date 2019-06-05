@@ -28,7 +28,7 @@ dependencies {
   compile library.java.vendored_guava_20_0
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile "org.apache.commons:commons-dbcp2:2.6.0"
-  testCompile project(path: ":sdks:java:core", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
   testCompile library.java.junit
