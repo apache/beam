@@ -485,6 +485,15 @@ class GoogleCloudOptions(PipelineOptions):
                         default=None,
                         choices=['COST_OPTIMIZED', 'SPEED_OPTIMIZED'],
                         help='Set the Flexible Resource Scheduling mode')
+    parser.add_argument('--interactive',
+                        default=False,
+                        action='store_true',
+                        help='Start an interactive Cloud DataFlow session.')
+    parser.add_argument('--timeout',
+                        default=120,
+                        type=int,
+                        help='Number of seconds of inactivity after which the '
+                        'interactive session will time out.')
 
   def validate(self, validator):
     errors = []
