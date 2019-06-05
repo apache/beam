@@ -31,11 +31,11 @@ Beam also has a fancy new SQL command line that you can use to query your
 data interactively, be it Batch or Streaming. If you haven't tried it, check out
 [http://bit.ly/ExploreBeamSQL](http://bit.ly/ExploreBeamSQL).
 
-A nice feature of the SQL CLI is that you can use `CREATE TABLE` commands to
-*add* data sources to be accessed in the CLI. Currently, the CLI supports
-creating tables from BigQuery, PubSub, Kafka, and text files. In this post, we
-explore how to add new data sources, so that you will be able to consume data
-from other Beam sources.
+A nice feature of the SQL CLI is that you can use `CREATE EXTERNAL TABLE`
+commands to *add* data sources to be accessed in the CLI. Currently, the CLI
+supports creating tables from BigQuery, PubSub, Kafka, and text files. In this
+post, we explore how to add new data sources, so that you will be able to
+consume data from other Beam sources.
 
 <!--more-->
 
@@ -49,7 +49,7 @@ in SQL like this:
 CREATE EXTERNAL TABLE                      -- all tables in Beam are external, they are not persisted
   sequenceTable                              -- table alias that will be used in queries
   (
-         sequence INT,                     -- sequence number
+         sequence BIGINT,                  -- sequence number
          event_timestamp TIMESTAMP         -- timestamp of the generated event
   )
 TYPE sequence                              -- type identifies the table provider
@@ -154,7 +154,7 @@ can now perform selections on the table:
 
 ```
 0: BeamSQL> CREATE EXTERNAL TABLE input_seq (
-. . . . . >   sequence INT COMMENT 'this is the primary key',
+. . . . . >   sequence BIGINT COMMENT 'this is the primary key',
 . . . . . >   event_time TIMESTAMP COMMENT 'this is the element timestamp'
 . . . . . > )
 . . . . . > TYPE 'sequence';

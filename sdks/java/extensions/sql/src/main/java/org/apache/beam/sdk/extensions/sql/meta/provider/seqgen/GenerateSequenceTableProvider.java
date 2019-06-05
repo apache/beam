@@ -30,7 +30,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
  *
  * <pre>{@code
  * CREATE EXTERNAL TABLE MY_SEQUENCE(
- *   sequence INT COMMENT 'this is the primary key',
+ *   sequence BIGINT COMMENT 'this is the primary key',
  *   event_time TIMESTAMP COMMENT 'this is the element timestamp'
  * )
  * TYPE 'sequence';
