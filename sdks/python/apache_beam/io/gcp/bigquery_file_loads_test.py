@@ -548,7 +548,8 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                schema_side_inputs=(schema_map_pcv,),
                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
                write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
-               method=bigquery.WriteToBigQuery.Method.FILE_LOADS))
+               method=bigquery.WriteToBigQuery.Method.FILE_LOADS,
+               triggering_frequency=100))
 
       _ = (input |
            "WriteWithMultipleDests" >> bigquery.WriteToBigQuery(
@@ -560,6 +561,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
                write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
                method=bigquery.WriteToBigQuery.Method.FILE_LOADS,
+               triggering_frequency=100,
                max_file_size=20,
                max_files_per_bundle=-1))
 
@@ -665,7 +667,8 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                  create_disposition=(
                      beam.io.BigQueryDisposition.CREATE_IF_NEEDED),
                  write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
-                 method=bigquery.WriteToBigQuery.Method.FILE_LOADS))
+                 method=bigquery.WriteToBigQuery.Method.FILE_LOADS,
+                 triggering_frequency=100))
 
     hamcrest_assert(p, all_of(*pipeline_verifiers))
 
