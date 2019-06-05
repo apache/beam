@@ -25,6 +25,9 @@ import io
 import tempfile
 from builtins import object
 
+from hamcrest.core import assert_that as hamcrest_assert
+from hamcrest.library.collection import contains_inanyorder
+
 from apache_beam import pvalue
 from apache_beam.transforms import window
 from apache_beam.transforms.core import Create
@@ -41,6 +44,7 @@ __all__ = [
     'equal_to',
     'is_empty',
     'is_not_empty',
+    'matches_all',
     # open_shards is internal and has no backwards compatibility guarantees.
     'open_shards',
     'TestWindowedValue',
@@ -140,6 +144,21 @@ def equal_to(expected):
             'Failed assert: %r == %r' % (expected, actual))
 
   return _equal
+
+
+def matches_all(expected):
+  """Matcher used by assert_that to check a set of matchers.
+
+  Args:
+    expected: A list of elements or hamcrest matchers to be used to match
+      the elements of a single PCollection.
+  """
+  def _matches(actual):
+    expected_list = list(expected)
+
+    hamcrest_assert(actual, contains_inanyorder(*expected_list))
+
+  return _matches
 
 
 def is_empty():
