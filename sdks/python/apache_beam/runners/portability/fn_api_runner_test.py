@@ -21,6 +21,7 @@ import collections
 import logging
 import os
 import random
+import sys
 import tempfile
 import threading
 import time
@@ -217,6 +218,9 @@ class FnApiRunnerTest(unittest.TestCase):
           main | beam.Map(lambda a, b: (a, b), beam.pvalue.AsDict(side)),
           equal_to([(None, {'a': [1]})]))
 
+  @unittest.skipIf(sys.version_info >= (3, 6, 0) and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6.')
   def test_multimap_side_input(self):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create(['a', 'b'])
@@ -562,6 +566,76 @@ class FnApiRunnerTest(unittest.TestCase):
     self.assertEqual(dist.committed.mean, 2.0)
     self.assertEqual(gaug.committed.value, 3)
 
+  def test_element_count_metrics(self):
+    class GenerateTwoOutputs(beam.DoFn):
+      def process(self, element):
+        yield str(element) + '1'
+        yield beam.pvalue.TaggedOutput('SecondOutput', str(element) + '2')
+        yield beam.pvalue.TaggedOutput('SecondOutput', str(element) + '2')
+        yield beam.pvalue.TaggedOutput('ThirdOutput', str(element) + '3')
+
+    class PrintElements(beam.DoFn):
+      def process(self, element):
+        logging.debug(element)
+        yield element
+
+    p = self.create_pipeline()
+    if not isinstance(p.runner, fn_api_runner.FnApiRunner):
+      # This test is inherited by others that may not support the same
+      # internal way of accessing progress metrics.
+      self.skipTest('Metrics not supported.')
+
+    pcoll = p | beam.Create(['a1', 'a2'])
+
+    # pylint: disable=expression-not-assigned
+    pardo = ('StepThatDoesTwoOutputs' >> beam.ParDo(
+        GenerateTwoOutputs()).with_outputs('SecondOutput',
+                                           'ThirdOutput',
+                                           main='FirstAndMainOutput'))
+
+    # Actually feed pcollection to pardo
+    second_output, third_output, first_output = (pcoll | pardo)
+
+    # consume some of elements
+    merged = ((first_output, second_output, third_output) | beam.Flatten())
+    merged | ('PrintingStep') >> beam.ParDo(PrintElements())
+    second_output | ('PrintingStep2') >> beam.ParDo(PrintElements())
+
+    res = p.run()
+    res.wait_until_finish()
+
+    result_metrics = res.monitoring_metrics()
+
+    def assert_contains_metric(src, urn, pcollection, value):
+      for item in src:
+        if item.urn == urn:
+          if item.labels['PCOLLECTION'] == pcollection:
+            self.assertEqual(item.metric.counter_data.int64_value, value,
+                             str(("Metric has incorrect value", value, item)))
+            return
+      self.fail(str(("Metric not found", urn, pcollection, src)))
+
+    counters = result_metrics.monitoring_infos()
+    self.assertFalse([x for x in counters if
+                      x.urn == monitoring_infos.ELEMENT_COUNT_URN
+                      and
+                      monitoring_infos.PCOLLECTION_LABEL not in x.labels])
+
+    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                           'Impulse', 1)
+    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                           'ref_PCollection_PCollection_1', 2)
+
+    # Skipping other pcollections due to non-deterministic naming for multiple
+    # outputs.
+
+    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                           'ref_PCollection_PCollection_5', 8)
+    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                           'ref_PCollection_PCollection_6', 8)
+    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                           'ref_PCollection_PCollection_7', 2)
+
   def test_non_user_metrics(self):
     p = self.create_pipeline()
     if not isinstance(p.runner, fn_api_runner.FnApiRunner):
@@ -587,7 +661,6 @@ class FnApiRunnerTest(unittest.TestCase):
       self.assertEqual(
           1, found, "Did not find exactly 1 metric for %s." % metric_key)
     urns = [
-        monitoring_infos.ELEMENT_COUNT_URN,
         monitoring_infos.START_BUNDLE_MSECS_URN,
         monitoring_infos.PROCESS_BUNDLE_MSECS_URN,
         monitoring_infos.FINISH_BUNDLE_MSECS_URN,
@@ -613,6 +686,7 @@ class FnApiRunnerTest(unittest.TestCase):
       # This test is inherited by others that may not support the same
       # internal way of accessing progress metrics.
       self.skipTest('Progress metrics not supported.')
+      return
 
     _ = (p
          | beam.Create([0, 0, 0, 5e-3 * DEFAULT_SAMPLING_PERIOD_MS])
@@ -624,6 +698,7 @@ class FnApiRunnerTest(unittest.TestCase):
              beam.pvalue.TaggedOutput('once', x),
              beam.pvalue.TaggedOutput('twice', x),
              beam.pvalue.TaggedOutput('twice', x)]))
+
     res = p.run()
     res.wait_until_finish()
 
@@ -675,21 +750,27 @@ class FnApiRunnerTest(unittest.TestCase):
       # Test the new MonitoringInfo monitoring format.
       self.assertEqual(2, len(res._monitoring_infos_by_stage))
       pregbk_mis, postgbk_mis = list(res._monitoring_infos_by_stage.values())
+
       if not has_mi_for_ptransform(pregbk_mis, 'Create/Read'):
         # The monitoring infos above are actually unordered. Swap.
         pregbk_mis, postgbk_mis = postgbk_mis, pregbk_mis
 
       def assert_has_monitoring_info(
           monitoring_infos, urn, labels, value=None, ge_value=None):
+        def contains_labels(monitoring_info, labels):
+          return len([x for x in labels.items() if
+                      x[0] in monitoring_info.labels and monitoring_info.labels[
+                          x[0]] == x[1]]) == len(labels)
+
         # TODO(ajamato): Consider adding a matcher framework
         found = 0
-        for m in monitoring_infos:
-          if m.labels == labels and m.urn == urn:
+        for mi in monitoring_infos:
+          if contains_labels(mi, labels) and mi.urn == urn:
             if (ge_value is not None and
-                m.metric.counter_data.int64_value >= ge_value):
+                mi.metric.counter_data.int64_value >= ge_value):
               found = found + 1
             elif (value is not None and
-                  m.metric.counter_data.int64_value == value):
+                  mi.metric.counter_data.int64_value == value):
               found = found + 1
         ge_value_str = {'ge_value' : ge_value} if ge_value else ''
         value_str = {'value' : value} if value else ''
@@ -698,10 +779,10 @@ class FnApiRunnerTest(unittest.TestCase):
             (found, (urn, labels, value_str, ge_value_str),))
 
       # pregbk monitoring infos
-      labels = {'PTRANSFORM' : 'Create/Read', 'TAG' : 'out'}
+      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_1'}
       assert_has_monitoring_info(
           pregbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=4)
-      labels = {'PTRANSFORM' : 'Map(sleep)', 'TAG' : 'None'}
+      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_2'}
       assert_has_monitoring_info(
           pregbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=4)
       labels = {'PTRANSFORM' : 'Map(sleep)'}
@@ -710,18 +791,12 @@ class FnApiRunnerTest(unittest.TestCase):
           labels, ge_value=4 * DEFAULT_SAMPLING_PERIOD_MS)
 
       # postgbk monitoring infos
-      labels = {'PTRANSFORM' : 'GroupByKey/Read', 'TAG' : 'None'}
+      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_6'}
       assert_has_monitoring_info(
           postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=1)
-      labels = {'PTRANSFORM' : 'm_out', 'TAG' : 'None'}
+      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_7'}
       assert_has_monitoring_info(
           postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=5)
-      labels = {'PTRANSFORM' : 'm_out', 'TAG' : 'once'}
-      assert_has_monitoring_info(
-          postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=1)
-      labels = {'PTRANSFORM' : 'm_out', 'TAG' : 'twice'}
-      assert_has_monitoring_info(
-          postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=2)
     except:
       print(res._monitoring_infos_by_stage)
       raise

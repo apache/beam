@@ -27,7 +27,7 @@ def runScriptsDir = "${project.rootDir}/sdks/python/scripts"
 // Basic test options for ITs running on Jenkins.
 def basicTestOpts = [
     "--nocapture",  // print stdout instantly
-    "--processes=4",  // run tests in parallel
+    "--processes=8",  // run tests in parallel
     "--process-timeout=4500", // timeout of whole command execution
 ]
 
@@ -36,6 +36,17 @@ task postCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
     def tests = [
         "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
         "apache_beam.examples.cookbook.bigquery_tornadoes_it_test:BigqueryTornadoesIT.test_bigquery_tornadoes_it",
+        "apache_beam.examples.streaming_wordcount_it_test:StreamingWordCountIT.test_streaming_wordcount_it",
+        "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_fnapi_it",
+        "apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest.test_copy",
+        "apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest.test_copy_batch",
+        "apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest.test_copy_batch_kms",
+        "apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest.test_copy_batch_rewrite_token",
+        "apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest.test_copy_kms",
+        "apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest.test_copy_rewrite_token",
+        "apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest.test_streaming_data_only",
+        "apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest.test_streaming_with_attributes",
+        "apache_beam.io.parquetio_it_test:TestParquetIT.test_parquetio_it",
     ]
     def testOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
     def cmdArgs = project.mapToArgString([

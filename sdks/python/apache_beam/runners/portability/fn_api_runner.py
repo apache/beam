@@ -817,9 +817,11 @@ class EmbeddedWorkerHandler(WorkerHandler):
     super(EmbeddedWorkerHandler, self).__init__(
         self, data_plane.InMemoryDataChannel(), state, provision_info)
     self.worker = sdk_worker.SdkWorker(
-        FnApiRunner.SingletonStateHandlerFactory(self.state),
-        data_plane.InMemoryDataChannelFactory(
-            self.data_plane_handler.inverse()), {})
+        sdk_worker.BundleProcessorCache(
+            FnApiRunner.SingletonStateHandlerFactory(self.state),
+            data_plane.InMemoryDataChannelFactory(
+                self.data_plane_handler.inverse()),
+            {}))
     self._uid_counter = 0
 
   def push(self, request):
@@ -1375,6 +1377,7 @@ class FnApiMetrics(metrics.metric.MetricResults):
     self._gauges = {}
     self._user_metrics_only = user_metrics_only
     self._init_metrics_from_monitoring_infos(step_monitoring_infos)
+    self._monitoring_infos = step_monitoring_infos
 
   def _init_metrics_from_monitoring_infos(self, step_monitoring_infos):
     for smi in step_monitoring_infos.values():
@@ -1414,6 +1417,10 @@ class FnApiMetrics(metrics.metric.MetricResults):
     return {self.COUNTERS: counters,
             self.DISTRIBUTIONS: distributions,
             self.GAUGES: gauges}
+
+  def monitoring_infos(self):
+    return [item for sublist in self._monitoring_infos.values() for item in
+            sublist]
 
 
 class RunnerResult(runner.PipelineResult):

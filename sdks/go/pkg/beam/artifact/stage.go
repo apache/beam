@@ -131,7 +131,7 @@ func Stage(ctx context.Context, client pb.ArtifactStagingServiceClient, key, fil
 	md := &pb.ArtifactMetadata{
 		Name:        key,
 		Permissions: uint32(stat.Mode()),
-		Sha256:         hash,
+		Sha256:      hash,
 	}
 	pmd := &pb.PutArtifactMetadata{
 		Metadata:            md,

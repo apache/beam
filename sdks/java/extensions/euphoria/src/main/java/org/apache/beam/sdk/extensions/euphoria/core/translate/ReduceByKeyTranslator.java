@@ -86,8 +86,8 @@ public class ReduceByKeyTranslator<InputT, KeyT, ValueT, OutputT>
               "combine",
               Combine.perKey(asCombiner(reducer, accumulators, operator.getName().orElse(null))));
       @SuppressWarnings("unchecked")
-      final PCollection<KV<KeyT, OutputT>> casted = (PCollection) combined;
-      return casted.setTypeDescriptor(
+      final PCollection<KV<KeyT, OutputT>> cast = (PCollection) combined;
+      return cast.setTypeDescriptor(
           operator
               .getOutputType()
               .orElseThrow(

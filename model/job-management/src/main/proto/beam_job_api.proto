@@ -32,6 +32,7 @@ option java_outer_classname = "JobApi";
 import "beam_runner_api.proto";
 import "endpoints.proto";
 import "google/protobuf/struct.proto";
+import "metrics.proto";
 
 // Job Service for running RunnerAPI pipelines
 service JobService {
@@ -53,6 +54,9 @@ service JobService {
 
   // Subscribe to a stream of state changes and messages from the job
   rpc GetMessageStream (JobMessagesRequest) returns (stream JobMessagesResponse);
+
+  // Fetch metrics for a given job
+  rpc GetJobMetrics (GetJobMetricsRequest) returns (GetJobMetricsResponse);
 
   // Get the supported pipeline options of the runner
   rpc DescribePipelineOptions (DescribePipelineOptionsRequest) returns (DescribePipelineOptionsResponse);
@@ -176,6 +180,21 @@ message JobState {
     STARTING = 9;
     CANCELLING = 10;
   }
+}
+
+
+message GetJobMetricsRequest {
+  string job_id = 1; // (required)
+}
+
+message GetJobMetricsResponse {
+  MetricResults metrics = 1;
+}
+
+// All metrics for a given job.  Runners may support one or the other or both.
+message MetricResults {
+  repeated org.apache.beam.model.pipeline.v1.MonitoringInfo attempted = 1;
+  repeated org.apache.beam.model.pipeline.v1.MonitoringInfo committed = 2;
 }
 
 

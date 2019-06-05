@@ -319,16 +319,25 @@ public class Nodes {
   public abstract static class ExecutableStageNode extends Node {
     public static ExecutableStageNode create(
         ExecutableStage executableStage,
-        Map<String, NameContext> ptransformIdToPartialNameContextMap) {
+        Map<String, NameContext> ptransformIdToPartialNameContextMap,
+        Map<String, Iterable<SideInputInfo>> ptransformIdToSideInputInfoMap,
+        Map<String, Iterable<PCollectionView<?>>> pTransformIdToPCollectionViewMap) {
       checkNotNull(executableStage);
       checkNotNull(ptransformIdToPartialNameContextMap);
       return new AutoValue_Nodes_ExecutableStageNode(
-          executableStage, ptransformIdToPartialNameContextMap);
+          executableStage,
+          ptransformIdToPartialNameContextMap,
+          ptransformIdToSideInputInfoMap,
+          pTransformIdToPCollectionViewMap);
     }
 
     public abstract ExecutableStage getExecutableStage();
 
     public abstract Map<String, NameContext> getPTransformIdToPartialNameContextMap();
+
+    public abstract Map<String, Iterable<SideInputInfo>> getPTransformIdToSideInputInfoMap();
+
+    public abstract Map<String, Iterable<PCollectionView<?>>> getPTransformIdToPCollectionViewMap();
 
     @Override
     public String toString() {

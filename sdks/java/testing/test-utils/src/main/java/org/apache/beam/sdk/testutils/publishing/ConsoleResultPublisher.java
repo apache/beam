@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.loadtests;
+package org.apache.beam.sdk.testutils.publishing;
 
 import static java.lang.String.format;
 
@@ -23,9 +23,9 @@ import java.util.List;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 
 /** Writes load test metrics results to console. */
-class ConsoleResultPublisher {
+public class ConsoleResultPublisher {
 
-  static void publish(List<NamedTestResult> results, String testId, String timestamp) {
+  public static void publish(List<NamedTestResult> results, String testId, String timestamp) {
     final String textTemplate = "%24s  %24s";
 
     System.out.println(

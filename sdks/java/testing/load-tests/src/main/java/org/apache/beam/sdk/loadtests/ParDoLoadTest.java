@@ -19,10 +19,10 @@ package org.apache.beam.sdk.loadtests;
 
 import java.io.IOException;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
-import org.apache.beam.sdk.loadtests.metrics.ByteMonitor;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
+import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;

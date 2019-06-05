@@ -110,9 +110,9 @@ public class AssignEventTime<InputT> extends Operator<InputT>
     @Override
     public <T> UsingBuilder<T> of(PCollection<T> input) {
       @SuppressWarnings("unchecked")
-      final Builder<T> casted = (Builder<T>) this;
-      casted.input = input;
-      return casted;
+      final Builder<T> cast = (Builder<T>) this;
+      cast.input = input;
+      return cast;
     }
 
     @Override

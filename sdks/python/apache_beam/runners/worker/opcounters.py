@@ -293,6 +293,9 @@ class OperationCounters(object):
     # is marked as inline in Cython and thus can't be exposed to Python code.
     return self._should_sample()
 
+  def restart_sampling(self):
+    self._sample_counter = 0
+
   def __str__(self):
     return '<%s [%s]>' % (self.__class__.__name__,
                           ', '.join([str(x) for x in self.__iter__()]))

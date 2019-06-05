@@ -47,6 +47,7 @@ from builtins import hex
 from builtins import object
 from builtins import zip
 from functools import reduce
+from functools import wraps
 
 from google.protobuf import message
 
@@ -858,7 +859,7 @@ def ptransform_fn(fn):
   (first argument if no label was specified and second argument otherwise).
   """
   # TODO(robertwb): Consider removing staticmethod to allow for self parameter.
-
+  @wraps(fn)
   def callable_ptransform_factory(*args, **kwargs):
     return _PTransformFnPTransform(fn, *args, **kwargs)
   return callable_ptransform_factory

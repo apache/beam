@@ -143,9 +143,9 @@ public class Union<InputT> extends Operator<InputT> {
     @Override
     public <T> Builders.Output<T> of(List<PCollection<T>> pCollections) {
       @SuppressWarnings("unchecked")
-      final Builder<T> casted = (Builder) this;
-      casted.pCollections = pCollections;
-      return casted;
+      final Builder<T> cast = (Builder) this;
+      cast.pCollections = pCollections;
+      return cast;
     }
 
     @Override

@@ -266,9 +266,9 @@ Distinct.named("unique-integers-only")
 // suppose keyValueInput: [KV(1, 100L), KV(3, 100_000L), KV(42, 10L), KV(1, 0L), KV(3, 0L)]
 Distinct.named("unique-keys-only")
   .of(keyValueInput)
-  .mapped(KV::getKey)
+  .projected(KV::getKey)
   .output();
-// Output will contain:  1, 3, 42
+// Output will contain kvs with keys:  1, 3, 42 with some arbitrary values associated with given keys
 ```
 
 ### `Join`

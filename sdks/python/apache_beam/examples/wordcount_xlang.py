@@ -31,8 +31,10 @@ from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import StandardOptions
 
-EXPANSION_SERVICE_PORT = '8097'
+# avoid possible conflict with job-server embedded expansion service at 8097
+EXPANSION_SERVICE_PORT = '8096'
 EXPANSION_SERVICE_ADDR = 'localhost:%s' % EXPANSION_SERVICE_PORT
 
 
@@ -60,14 +62,7 @@ class WordExtractingDoFn(beam.DoFn):
     return words
 
 
-def run(pipeline_args, input_file, output_file):
-
-  # We use the save_main_session option because one or more DoFn's in this
-  # workflow rely on global context (e.g., a module imported at module level).
-  pipeline_options = PipelineOptions(pipeline_args)
-  pipeline_options.view_as(SetupOptions).save_main_session = True
-  p = beam.Pipeline(options=pipeline_options)
-
+def run(p, input_file, output_file):
   # Read the text file[pattern] into a PCollection.
   lines = p | 'read' >> ReadFromText(input_file)
 
@@ -92,12 +87,7 @@ def run(pipeline_args, input_file, output_file):
   result.wait_until_finish()
 
 
-def wait_for_ready():
-  with grpc.insecure_channel(EXPANSION_SERVICE_ADDR) as channel:
-    grpc.channel_ready_future(channel).result()
-
-
-if __name__ == '__main__':
+def main():
   logging.getLogger().setLevel(logging.INFO)
 
   parser = argparse.ArgumentParser()
@@ -115,13 +105,32 @@ if __name__ == '__main__':
                       help='Jar file for expansion service')
 
   known_args, pipeline_args = parser.parse_known_args()
+
+  pipeline_options = PipelineOptions(pipeline_args)
+  assert (
+      pipeline_options.view_as(StandardOptions).runner.lower()
+      == "portablerunner"), "Only PortableRunner is supported."
+
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
+  pipeline_options.view_as(SetupOptions).save_main_session = True
+
+  p = beam.Pipeline(options=pipeline_options)
+  p.runner.init_dockerized_job_server()
+
   try:
     server = subprocess.Popen([
         'java', '-jar', known_args.expansion_service_jar,
         EXPANSION_SERVICE_PORT])
-    wait_for_ready()
 
-    run(pipeline_args, known_args.input, known_args.output)
+    with grpc.insecure_channel(EXPANSION_SERVICE_ADDR) as channel:
+      grpc.channel_ready_future(channel).result()
+
+    run(p, known_args.input, known_args.output)
 
   finally:
     server.kill()
+
+
+if __name__ == '__main__':
+  main()

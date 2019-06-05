@@ -35,8 +35,10 @@ import (
 
 // writeSizeLimit is the maximum number of rows allowed by BQ in a write.
 const writeRowLimit = 10000
+
 // writeSizeLimit is the maximum number of bytes allowed in BQ write.
 const writeSizeLimit = 10485760
+
 // Estimate for overall message overhead.for a write message in bytes.
 const writeOverheadBytes = 1024
 
@@ -206,10 +208,10 @@ func getInsertSize(v interface{}, schema bigquery.Schema) (int, error) {
 	}
 	req := bq.TableDataInsertAllRequestRows{
 		InsertId: id,
-		Json: m,
+		Json:     m,
 	}
 	data, err := req.MarshalJSON()
-	if (err != nil) {
+	if err != nil {
 		return 0, err
 	}
 	// Add 1 for comma separator between elements.
@@ -251,7 +253,7 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 		if err != nil {
 			return fmt.Errorf("biquery write error: %v", err)
 		}
-		if len(data) + 1 > writeRowLimit || size + current > writeSizeLimit {
+		if len(data)+1 > writeRowLimit || size+current > writeSizeLimit {
 			// Write rows in batches to comply with BQ limits.
 			if err := put(ctx, table, f.Type.T, data); err != nil {
 				return fmt.Errorf("bigquery write error [len=%d, size=%d]: %v", len(data), size, err)

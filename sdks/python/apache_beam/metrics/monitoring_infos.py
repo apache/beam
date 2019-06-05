@@ -55,6 +55,11 @@ COUNTER_TYPES = set([SUM_INT64_TYPE])
 DISTRIBUTION_TYPES = set([DISTRIBUTION_INT64_TYPE])
 GAUGE_TYPES = set([LATEST_INT64_TYPE])
 
+# TODO(migryz) extract values from beam_fn_api.proto::MonitoringInfoLabels
+PCOLLECTION_LABEL = 'PCOLLECTION'
+PTRANSFORM_LABEL = 'PTRANSFORM'
+TAG_LABEL = 'TAG'
+
 
 def to_timestamp_proto(timestamp_secs):
   """Converts seconds since epoch to a google.protobuf.Timestamp.
@@ -103,9 +108,9 @@ def create_labels(ptransform='', tag=''):
   """
   labels = {}
   if tag:
-    labels['TAG'] = tag
+    labels[TAG_LABEL] = tag
   if ptransform:
-    labels['PTRANSFORM'] = ptransform
+    labels[PTRANSFORM_LABEL] = ptransform
   return labels
 
 

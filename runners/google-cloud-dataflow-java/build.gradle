@@ -39,7 +39,7 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '7',
     'dataflow.fnapi_environment_major_version' : '7',
-    'dataflow.container_version' : 'beam-master-20190110'
+    'dataflow.container_version' : 'beam-master-20190308'
   ]
 }
 
@@ -264,8 +264,6 @@ task validatesRunnerFnApiWorkerExecutableStageTest(type: Test) {
     maxParallelForks Integer.MAX_VALUE
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
-    // TODO(BEAM-6232): ViewTest tests sideinputs, which is not supported bu current bundle execution.
-    exclude '**/ViewTest.class'
     useJUnit {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
         commonExcludeCategories.each {
@@ -274,8 +272,6 @@ task validatesRunnerFnApiWorkerExecutableStageTest(type: Test) {
         fnApiWorkerExcludeCategories.each {
             excludeCategories it
         }
-        // TODO(BEAM-6232): Support sideinput.
-        excludeCategories 'org.apache.beam.sdk.testing.UsesSideInputs'
         // TODO(BEAM-6233): Support timer and state.
         excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
     }
@@ -342,6 +338,7 @@ task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
 
     include '**/*IT.class'
     exclude '**/BigQueryIOReadIT.class'
+    exclude '**/BigQueryIOStorageReadIT.class'
     exclude '**/BigQueryIOStorageReadTableRowIT.class'
     exclude '**/PubsubReadIT.class'
     exclude '**/SpannerReadIT.class'

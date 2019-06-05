@@ -149,7 +149,6 @@ esac
 done
 
 set -o errexit
-set -o verbose
 
 
 ###########################################################################
@@ -169,11 +168,11 @@ if [[ -z $PIPELINE_OPTS ]]; then
   fi
 
   # Create a tarball if not exists
-  if [[ $(find ${SDK_LOCATION}) ]]; then
+  if [[ $(find ${SDK_LOCATION} 2> /dev/null) ]]; then
     SDK_LOCATION=$(find ${SDK_LOCATION})
   else
     python setup.py -q sdist
-    SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
+    SDK_LOCATION=$(ls dist/apache-beam-*.tar.gz | tail -n1)
   fi
 
   # Install test dependencies for ValidatesRunner tests.

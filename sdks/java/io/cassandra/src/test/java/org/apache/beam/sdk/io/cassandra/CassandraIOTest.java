@@ -101,7 +101,7 @@ public class CassandraIOTest implements Serializable {
   public static void startCassandra() throws Exception {
     System.setProperty("cassandra.jmx.local.port", JMX_PORT);
     startupTime = System.currentTimeMillis();
-    EmbeddedCassandraServerHelper.startEmbeddedCassandra();
+    EmbeddedCassandraServerHelper.startEmbeddedCassandra(STARTUP_TIMEOUT);
     cluster = EmbeddedCassandraServerHelper.getCluster();
     session = EmbeddedCassandraServerHelper.getSession();
 
@@ -126,9 +126,15 @@ public class CassandraIOTest implements Serializable {
 
   @AfterClass
   public static void stopCassandra() {
-    EmbeddedCassandraServerHelper.cleanEmbeddedCassandra();
-    session.close();
-    cluster.close();
+    if (cluster != null && session != null) {
+      EmbeddedCassandraServerHelper.cleanEmbeddedCassandra();
+      session.close();
+      cluster.close();
+    } else {
+      if (cluster != null) {
+        cluster.close();
+      }
+    }
   }
 
   @Before

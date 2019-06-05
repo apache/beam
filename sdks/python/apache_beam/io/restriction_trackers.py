@@ -22,6 +22,7 @@ from __future__ import division
 import threading
 from builtins import object
 
+from apache_beam.io.iobase import RestrictionProgress
 from apache_beam.io.iobase import RestrictionTracker
 from apache_beam.io.range_trackers import OffsetRangeTracker
 
@@ -101,6 +102,19 @@ class OffsetRestrictionTracker(RestrictionTracker):
 
   def current_watermark(self):
     return self._current_watermark
+
+  def current_progress(self):
+    with self._lock:
+      if self._current_position is None:
+        fraction = 0.0
+      elif self._range.stop == self._range.start:
+        # If self._current_position is not None, we must be done.
+        fraction = 1.0
+      else:
+        fraction = (
+            float(self._current_position - self._range.start)
+            / (self._range.stop - self._range.start))
+    return RestrictionProgress(fraction=fraction)
 
   def start_position(self):
     with self._lock:

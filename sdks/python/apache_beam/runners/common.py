@@ -647,6 +647,11 @@ class PerWindowInvoker(DoFnInvoker):
             (self.current_windowed_value.with_value((element, residual)),
              restriction_tracker.current_watermark()))
 
+  def current_element_progress(self):
+    restriction_tracker = self.restriction_tracker
+    if restriction_tracker:
+      return restriction_tracker.current_progress()
+
 
 class DoFnRunner(Receiver):
   """For internal use only; no backwards-compatibility guarantees.
@@ -737,6 +742,9 @@ class DoFnRunner(Receiver):
 
   def try_split(self, fraction):
     return self.do_fn_invoker.try_split(fraction)
+
+  def current_element_progress(self):
+    return self.do_fn_invoker.current_element_progress()
 
   def process_user_timer(self, timer_spec, key, window, timestamp):
     try:

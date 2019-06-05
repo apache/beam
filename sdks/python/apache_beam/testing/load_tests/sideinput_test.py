@@ -201,36 +201,35 @@ class SideInputTest(unittest.TestCase):
             list.append({key: element[1]+value})
       yield list
 
-    with self.pipeline as p:
-      main_input = (p
-                    | "Read pcoll 1" >> beam.io.Read(
-                        synthetic_pipeline.SyntheticSource(
-                            self._parseTestPipelineOptions()))
-                    | 'Measure time: Start pcoll 1' >> beam.ParDo(
-                        MeasureTime(self.metrics_namespace))
-                   )
+    main_input = (self.pipeline
+                  | "Read pcoll 1" >> beam.io.Read(
+                      synthetic_pipeline.SyntheticSource(
+                          self._parseTestPipelineOptions()))
+                  | 'Measure time: Start pcoll 1' >> beam.ParDo(
+                      MeasureTime(self.metrics_namespace))
+                 )
 
-      side_input = (p
-                    | "Read pcoll 2" >> beam.io.Read(
-                        synthetic_pipeline.SyntheticSource(
-                            self._getSideInput()))
-                    | 'Measure time: Start pcoll 2' >> beam.ParDo(
-                        MeasureTime(self.metrics_namespace))
-                   )
-      # pylint: disable=expression-not-assigned
-      (main_input
-       | "Merge" >> beam.ParDo(
-           join_fn,
-           AsIter(side_input),
-           self.iterations)
-       | 'Measure time' >> beam.ParDo(MeasureTime(self.metrics_namespace))
-      )
+    side_input = (self.pipeline
+                  | "Read pcoll 2" >> beam.io.Read(
+                      synthetic_pipeline.SyntheticSource(
+                          self._getSideInput()))
+                  | 'Measure time: Start pcoll 2' >> beam.ParDo(
+                      MeasureTime(self.metrics_namespace))
+                 )
+    # pylint: disable=expression-not-assigned
+    (main_input
+     | "Merge" >> beam.ParDo(
+         join_fn,
+         AsIter(side_input),
+         self.iterations)
+     | 'Measure time' >> beam.ParDo(MeasureTime(self.metrics_namespace))
+    )
 
-      result = p.run()
-      result.wait_until_finish()
+    result = self.pipeline.run()
+    result.wait_until_finish()
 
-      if self.metrics_monitor is not None:
-        self.metrics_monitor.send_metrics(result)
+    if self.metrics_monitor is not None:
+      self.metrics_monitor.send_metrics(result)
 
   if __name__ == '__main__':
     logging.getLogger().setLevel(logging.DEBUG)

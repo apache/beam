@@ -176,9 +176,9 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
     @Override
     public <InputLocalT> UsingBuilder<InputLocalT> of(PCollection<InputLocalT> input) {
       @SuppressWarnings("unchecked")
-      Builder<InputLocalT, ?> casted = (Builder) this;
-      casted.input = requireNonNull(input);
-      return casted;
+      Builder<InputLocalT, ?> cast = (Builder) this;
+      cast.input = requireNonNull(input);
+      return cast;
     }
 
     @Override
@@ -191,10 +191,10 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
     public <OutputLocalT> EventTimeBuilder<InputT, OutputLocalT> using(
         UnaryFunctor<InputT, OutputLocalT> functor, TypeDescriptor<OutputLocalT> outputType) {
       @SuppressWarnings("unchecked")
-      Builder<InputT, OutputLocalT> casted = (Builder) this;
-      casted.functor = requireNonNull(functor);
-      casted.outputType = outputType;
-      return casted;
+      Builder<InputT, OutputLocalT> cast = (Builder) this;
+      cast.functor = requireNonNull(functor);
+      cast.outputType = outputType;
+      return cast;
     }
 
     @Override

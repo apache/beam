@@ -21,20 +21,17 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
+import org.apache.beam.runners.core.construction.graph.PipelineTrimmer;
 import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,13 +79,7 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
     LOG.info("Translating pipeline to Flink program.");
 
     // Don't let the fuser fuse any subcomponents of native transforms.
-    // TODO(BEAM-6327): Remove the need for this.
-    RunnerApi.Pipeline trimmedPipeline =
-        makeKnownUrnsPrimitives(
-            pipeline,
-            Sets.difference(
-                translator.knownUrns(),
-                ImmutableSet.of(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)));
+    Pipeline trimmedPipeline = PipelineTrimmer.trim(pipeline, translator.knownUrns());
 
     // Fused pipeline proto.
     // TODO: Consider supporting partially-fused graphs.
@@ -111,33 +102,6 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
     final JobExecutionResult result = executor.execute(pipelineOptions.getJobName());
 
     return FlinkRunner.createPipelineResult(result, pipelineOptions);
-  }
-
-  private RunnerApi.Pipeline makeKnownUrnsPrimitives(
-      RunnerApi.Pipeline pipeline, Set<String> knownUrns) {
-    RunnerApi.Pipeline.Builder trimmedPipeline = pipeline.toBuilder();
-    for (String ptransformId : pipeline.getComponents().getTransformsMap().keySet()) {
-      if (knownUrns.contains(
-          pipeline.getComponents().getTransformsOrThrow(ptransformId).getSpec().getUrn())) {
-        LOG.debug("Removing descendants of known PTransform {}" + ptransformId);
-        removeDescendants(trimmedPipeline, ptransformId);
-      }
-    }
-    return trimmedPipeline.build();
-  }
-
-  private void removeDescendants(RunnerApi.Pipeline.Builder pipeline, String parentId) {
-    RunnerApi.PTransform parentProto =
-        pipeline.getComponents().getTransformsOrDefault(parentId, null);
-    if (parentProto != null) {
-      for (String childId : parentProto.getSubtransformsList()) {
-        removeDescendants(pipeline, childId);
-        pipeline.getComponentsBuilder().removeTransforms(childId);
-      }
-      pipeline
-          .getComponentsBuilder()
-          .putTransforms(parentId, parentProto.toBuilder().clearSubtransforms().build());
-    }
   }
 
   /** Indicates whether the given pipeline has any unbounded PCollections. */

@@ -191,38 +191,37 @@ class ParDoTest(unittest.TestCase):
     else:
       num_runs = int(self.iterations)
 
-    with self.pipeline as p:
-      pc = (p
-            | 'Read synthetic' >> beam.io.Read(
-                synthetic_pipeline.SyntheticSource(
-                    self.parseTestPipelineOptions()
-                ))
-            | 'Measure time: Start' >> beam.ParDo(
-                MeasureTime(self.metrics_namespace))
+    pc = (self.pipeline
+          | 'Read synthetic' >> beam.io.Read(
+              synthetic_pipeline.SyntheticSource(
+                  self.parseTestPipelineOptions()
+              ))
+          | 'Measure time: Start' >> beam.ParDo(
+              MeasureTime(self.metrics_namespace))
+         )
+
+    for i in range(num_runs):
+      is_returning = (i == (num_runs-1))
+      pc = (pc
+            | 'Step: %d' % i >> beam.ParDo(
+                _GetElement(), self.metrics_namespace, is_returning)
            )
 
-      for i in range(num_runs):
-        is_returning = (i == (num_runs-1))
-        pc = (pc
-              | 'Step: %d' % i >> beam.ParDo(
-                  _GetElement(), self.metrics_namespace, is_returning)
-             )
+    if self.output is not None:
+      pc = (pc
+            | "Write" >> beam.io.WriteToText(self.output)
+           )
 
-      if self.output is not None:
-        pc = (pc
-              | "Write" >> beam.io.WriteToText(self.output)
-             )
+    # pylint: disable=expression-not-assigned
+    (pc
+     | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
+    )
 
-      # pylint: disable=expression-not-assigned
-      (pc
-       | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
-      )
+    result = self.pipeline.run()
+    result.wait_until_finish()
 
-      result = p.run()
-      result.wait_until_finish()
-
-      if self.metrics_monitor is not None:
-        self.metrics_monitor.send_metrics(result)
+    if self.metrics_monitor is not None:
+      self.metrics_monitor.send_metrics(result)
 
 
 if __name__ == '__main__':

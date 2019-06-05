@@ -65,12 +65,18 @@ class _TestCaseWithTempDirCleanUp(unittest.TestCase):
     self._tempdirs.append(result)
     return result
 
-  def _create_temp_file(self, name='', suffix=''):
+  def _create_temp_file(self, name='', suffix='', dir=None, content=None):
     if not name:
       name = tempfile.template
+    if not dir:
+      dir = self._new_tempdir()
     file_name = tempfile.NamedTemporaryFile(
         delete=False, prefix=name,
-        dir=self._new_tempdir(), suffix=suffix).name
+        dir=dir, suffix=suffix).name
+
+    if content:
+      with open(file_name, 'w') as f:
+        f.write(content)
     return file_name
 
 

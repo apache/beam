@@ -348,7 +348,7 @@ public class DataflowRunnerTest implements Serializable {
       assertThat(
           Throwables.getStackTraceAsString(e),
           both(containsString("gs://does/not/exist"))
-              .and(containsString("does not exist or is not writeable")));
+              .and(containsString("Unable to verify that GCS bucket gs://does exists")));
     }
   }
 
@@ -1337,10 +1337,19 @@ public class DataflowRunnerTest implements Serializable {
     options.setWorkerHarnessContainerImage("gcr.io/IMAGE/foo");
     options.setExperiments(null);
     options.setStreaming(false);
+    System.setProperty("java.specification.version", "1.8");
     assertThat(getContainerImageForJob(options), equalTo("gcr.io/beam-java-batch/foo"));
+    // batch, legacy, jdk11
+    options.setStreaming(false);
+    System.setProperty("java.specification.version", "11");
+    assertThat(getContainerImageForJob(options), equalTo("gcr.io/beam-java11-batch/foo"));
     // streaming, legacy
+    System.setProperty("java.specification.version", "1.8");
     options.setStreaming(true);
     assertThat(getContainerImageForJob(options), equalTo("gcr.io/beam-java-streaming/foo"));
+    // streaming, legacy, jdk11
+    System.setProperty("java.specification.version", "11");
+    assertThat(getContainerImageForJob(options), equalTo("gcr.io/beam-java11-streaming/foo"));
     // streaming, fnapi
     options.setExperiments(ImmutableList.of("experiment1", "beam_fn_api"));
     assertThat(getContainerImageForJob(options), equalTo("gcr.io/java/foo"));
