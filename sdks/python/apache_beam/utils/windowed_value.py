@@ -46,7 +46,13 @@ class PaneInfoTiming(object):
 
 
 class PaneInfo(object):
-  """Describes the trigger firing information for a given WindowedValue."""
+  """Describes the trigger firing information for a given WindowedValue.
+
+  "Panes" represent individual firings on a single window. ``PaneInfo``s are
+  passed downstream after trigger firings. They contain information about
+  whether it's an early/on time/late firing, if it's the last or first firing
+  from a window, and the index of the firing.
+  """
 
   def __init__(self, is_first, is_last, timing, index, nonspeculative_index):
     self._is_first = is_first

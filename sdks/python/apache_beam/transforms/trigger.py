@@ -297,6 +297,7 @@ class AfterProcessingTime(TriggerFn):
   """
 
   def __init__(self, delay=0):
+    """Initialize a processing time trigger with a delay in seconds."""
     self.delay = delay
 
   def __repr__(self):

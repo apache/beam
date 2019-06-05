@@ -361,12 +361,22 @@ class FixedWindows(NonMergingWindowFn):
 
   Attributes:
     size: Size of the window as seconds.
-    offset: Offset of this window as seconds since Unix epoch. Windows start at
-      t=N * size + offset where t=0 is the epoch. The offset must be a value
-      in range [0, size). If it is not it will be normalized to this range.
+    offset: Offset of this window as seconds. Windows start at
+      t=N * size + offset where t=0 is the UNIX epoch. The offset must be a
+      value in range [0, size). If it is not it will be normalized to this
+      range.
   """
 
   def __init__(self, size, offset=0):
+    """Initialize a ``FixedWindows`` function for a given size and offset.
+
+    Args:
+      size (int): Size of the window in seconds.
+      offset(int): Offset of this window as seconds. Windows start at
+        t=N * size + offset where t=0 is the UNIX epoch. The offset must be a
+        value in range [0, size). If it is not it will be normalized to this
+        range.
+    """
     if size <= 0:
       raise ValueError('The size parameter must be strictly positive.')
     self.size = Duration.of(size)
