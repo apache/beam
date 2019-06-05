@@ -39,6 +39,7 @@ class Repositories {
       mavenCentral()
       mavenLocal()
       jcenter()
+      maven { url "https://bbc1.sics.se/archiva/repository/Hops/"  }
 
       // Spring only for resolving pentaho dependency.
       maven {

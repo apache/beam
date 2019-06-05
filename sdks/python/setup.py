@@ -50,14 +50,14 @@ def get_version():
   return global_names['__version__']
 
 
-PACKAGE_NAME = 'apache-beam'
+PACKAGE_NAME = 'hops-apache-beam'
 PACKAGE_VERSION = get_version()
 PACKAGE_DESCRIPTION = 'Apache Beam SDK for Python'
 PACKAGE_URL = 'https://beam.apache.org'
 PACKAGE_DOWNLOAD_URL = 'https://pypi.python.org/pypi/apache-beam'
-PACKAGE_AUTHOR = 'Apache Software Foundation'
-PACKAGE_EMAIL = 'dev@beam.apache.org'
-PACKAGE_KEYWORDS = 'apache beam'
+PACKAGE_AUTHOR = 'Apache Software Foundation, Logical Clocks AB'
+PACKAGE_EMAIL = 'dev@beam.apache.org, theo@logicalclocks.com'
+PACKAGE_KEYWORDS = 'apache beam hopsworks hops'
 PACKAGE_LONG_DESCRIPTION = '''
 Apache Beam is a unified programming model for both batch and streaming
 data processing, enabling efficient execution across diverse distributed

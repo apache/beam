@@ -27,6 +27,9 @@ import re
 from builtins import zip
 
 import hdfs
+from hdfs import Client
+import socket
+import requests as rq
 
 from apache_beam.io import filesystemio
 from apache_beam.io.filesystem import BeamIOError
@@ -37,9 +40,10 @@ from apache_beam.io.filesystem import FileSystem
 from apache_beam.options.pipeline_options import HadoopFileSystemOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 
+
 __all__ = ['HadoopFileSystem']
 
-_HDFS_PREFIX = 'hdfs:/'
+_HDFS_PREFIX = 'hdfs://'
 _URL_RE = re.compile(r'^' + _HDFS_PREFIX + r'(/.*)')
 _COPY_BUFFER_SIZE = 2 ** 16
 _DEFAULT_BUFFER_SIZE = 20 * 1024 * 1024
@@ -54,6 +58,56 @@ _FILE_STATUS_PATH_SUFFIX = 'pathSuffix'
 _FILE_STATUS_TYPE = 'type'
 _FILE_STATUS_TYPE_DIRECTORY = 'DIRECTORY'
 _FILE_STATUS_TYPE_FILE = 'FILE'
+
+from hops import hdfs as hopsfs
+
+class TLSClient(Client):
+
+  """A new client subclass for handling HTTPS connections.
+
+  :param url: URL to namenode.
+  :param cert: Local certificate and private key. See `requests` documentation for details
+    on how to use this.
+  :param verify: Path to CA truststore.
+  :param \*\*kwargs: Keyword arguments passed to the default `Client` constructor.
+
+  """
+
+  def __init__(self, url, user=None, cert=None, verify=None, **kwargs):
+    rq.packages.urllib3.disable_warnings()
+    session = kwargs.setdefault('session', rq.Session())
+    if ',' in cert:
+      session.cert = [path.strip() for path in cert.split(',')]
+    else:
+      session.cert = cert
+    session.verify = verify
+    session.params['user.name'] = user
+    super(TLSClient, self).__init__(url, **kwargs)
+
+
+def get_tls_webhdfs_client():
+  """
+  Creates a webhdfs client for TLS enabled clusters.
+
+  Returns:
+      TLSClient (based on the hdfs library) instantiated for this cluster.
+      see https://hdfscli.readthedocs.io/en/latest/api.html#module-hdfs.client
+  """
+  import os
+  cwd = os.getcwd()
+  from hops import tls as hopstls
+  hdfs_host = hopsfs.get_fs().host
+  hdfs_port = '50470'
+  hdfs_user = hopsfs.project_user()
+  hostname = socket.gethostbyaddr(hdfs_host)[0]
+  hopstls.get_ca_chain_location()
+  hopstls.get_client_certificate_location()
+  hopstls.get_client_key_location()
+  return TLSClient('https://%s:%s' % (hostname, str(hdfs_port)),
+                   user=hdfs_user,
+                   verify=cwd+"/ca_chain.pem",
+                   cert=(cwd+"/client.pem",
+                         cwd+"/client_key.pem"))
 
 
 class HdfsDownloader(filesystemio.Downloader):
@@ -107,8 +161,10 @@ class HadoopFileSystem(FileSystem):
     super(HadoopFileSystem, self).__init__(pipeline_options)
     logging.getLogger('hdfs.client').setLevel(logging.WARN)
     if pipeline_options is None:
-      raise ValueError('pipeline_options is not set')
-    if isinstance(pipeline_options, PipelineOptions):
+      hdfs_host = hopsfs.get().host
+      hdfs_port = hopsfs.get().port
+      hdfs_user = hopsfs.project_user()
+    elif isinstance(pipeline_options, PipelineOptions):
       hdfs_options = pipeline_options.view_as(HadoopFileSystemOptions)
       hdfs_host = hdfs_options.hdfs_host
       hdfs_port = hdfs_options.hdfs_port
@@ -124,8 +180,11 @@ class HadoopFileSystem(FileSystem):
       raise ValueError('hdfs_port is not set')
     if hdfs_user is None:
       raise ValueError('hdfs_user is not set')
-    self._hdfs_client = hdfs.InsecureClient(
+    if not hopsfs.is_tls_enabled():
+      self._hdfs_client = hdfs.InsecureClient(
         'http://%s:%s' % (hdfs_host, str(hdfs_port)), user=hdfs_user)
+    else:
+      self._hdfs_client = get_tls_webhdfs_client()
 
   @classmethod
   def scheme(cls):

@@ -106,6 +106,11 @@ dependencies {
   shadow "org.apache.flink:flink-runtime_2.11:$flink_version"
   shadow "org.apache.flink:flink-streaming-java_2.11:$flink_version"
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  shadow project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: "shadow")
+  shadow "org.apache.beam:beam-sdks-java-io-hadoop-file-system:2.13.0"
+  shadow "io.hops:hadoop-common:2.8.2.8"
+  shadow "io.hops:hadoop-hdfs:2.8.2.8"
+  shadow "io.hops:hadoop-client:2.8.2.8"
   // FlinkStateInternalsTest extends abstract StateInternalsTest
   shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
   shadowTest library.java.commons_lang3

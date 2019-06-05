@@ -33,7 +33,7 @@ public interface FlinkPipelineOptions
     extends PipelineOptions, ApplicationNameOptions, StreamingOptions {
 
   String AUTO = "[auto]";
-  String PIPELINED = "PIPELINED";
+  String PIPELINED = "BATCH_FORCED";
 
   /**
    * List of local files to make available to workers.

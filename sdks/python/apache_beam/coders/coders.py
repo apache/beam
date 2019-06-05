@@ -26,7 +26,8 @@ import sys
 from builtins import object
 
 import google.protobuf.wrappers_pb2
-from future.moves import pickle
+#from future.moves import pickle
+from pyspark import cloudpickle as pickle
 from past.builtins import unicode
 
 from apache_beam.coders import coder_impl
@@ -592,9 +593,9 @@ class PickleCoder(_PickleCoderBase):
 
   def _create_impl(self):
     dumps = pickle.dumps
-    HIGHEST_PROTOCOL = pickle.HIGHEST_PROTOCOL
+    #HIGHEST_PROTOCOL = pickle.HIGHEST_PROTOCOL
     return coder_impl.CallbackCoderImpl(
-        lambda x: dumps(x, HIGHEST_PROTOCOL), pickle.loads)
+        lambda x: dumps(x), pickle.loads)
 
   def as_deterministic_coder(self, step_label, error_message=None):
     return DeterministicFastPrimitivesCoder(self, step_label)
