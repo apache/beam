@@ -64,7 +64,8 @@ class StreamingWordCountIT(unittest.TestCase):
         self.input_topic.name)
     self.output_sub = self.sub_client.create_subscription(
         self.sub_client.subscription_path(self.project, OUTPUT_SUB + self.uuid),
-        self.output_topic.name)
+        self.output_topic.name,
+        ack_deadline_seconds=60)
 
   def _inject_numbers(self, topic, num_messages):
     """Inject numbers as test data to PubSub."""
