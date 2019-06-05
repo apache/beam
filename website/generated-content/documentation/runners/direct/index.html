@@ -237,11 +237,11 @@ limitations under the License.
 <p>Here are some resources with information about how to test your pipelines.</p>
 <ul>
   <!-- Java specific links -->
-  <li class="language-java"><a href="/blog/2016/10/20/test-stream.html">Testing Unbounded Pipelines in Apache Beam</a> talks about the use of Java classes <a href="https://beam.apache.org/releases/javadoc/2.12.0/index.html?org/apache/beam/sdk/testing/PAssert.html">PAssert</a> and <a href="https://beam.apache.org/releases/javadoc/2.12.0/index.html?org/apache/beam/sdk/testing/TestStream.html">TestStream</a> to test your pipelines.</li>
-  <li class="language-java">The <a href="/get-started/wordcount-example/#testing-your-pipeline-with-asserts">Apache Beam WordCount Walkthrough</a> contains an example of logging and testing a pipeline with <a href="https://beam.apache.org/releases/javadoc/2.12.0/index.html?org/apache/beam/sdk/testing/PAssert.html">PAssert</a>.</li>
+  <li class="language-java"><a href="/blog/2016/10/20/test-stream.html">Testing Unbounded Pipelines in Apache Beam</a> talks about the use of Java classes <a href="https://beam.apache.org/releases/javadoc/2.13.0/index.html?org/apache/beam/sdk/testing/PAssert.html">PAssert</a> and <a href="https://beam.apache.org/releases/javadoc/2.13.0/index.html?org/apache/beam/sdk/testing/TestStream.html">TestStream</a> to test your pipelines.</li>
+  <li class="language-java">The <a href="/get-started/wordcount-example/#testing-your-pipeline-with-asserts">Apache Beam WordCount Walkthrough</a> contains an example of logging and testing a pipeline with <a href="https://beam.apache.org/releases/javadoc/2.13.0/index.html?org/apache/beam/sdk/testing/PAssert.html">PAssert</a>.</li>
 
   <!-- Python specific links -->
-  <li class="language-py">The <a href="/get-started/wordcount-example/#testing-your-pipeline-with-asserts">Apache Beam WordCount Walkthrough</a> contains an example of logging and testing a pipeline with <a href="https://beam.apache.org/releases/pydoc/2.12.0/apache_beam.testing.util.html#apache_beam.testing.util.assert_that">assert_that</a>.</li>
+  <li class="language-py">The <a href="/get-started/wordcount-example/#testing-your-pipeline-with-asserts">Apache Beam WordCount Walkthrough</a> contains an example of logging and testing a pipeline with <a href="https://beam.apache.org/releases/pydoc/2.13.0/apache_beam.testing.util.html#apache_beam.testing.util.assert_that">assert_that</a>.</li>
 </ul>
 
 <h2 id="direct-runner-prerequisites-and-setup">Direct Runner prerequisites and setup</h2>
@@ -252,7 +252,7 @@ limitations under the License.
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
    <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
    <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">beam</span><span class="o">-</span><span class="n">runners</span><span class="o">-</span><span class="n">direct</span><span class="o">-</span><span class="n">java</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
-   <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="mf">2.12</span><span class="o">.</span><span class="mi">0</span><span class="o">&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
+   <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="mf">2.13</span><span class="o">.</span><span class="mi">0</span><span class="o">&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
    <span class="o">&lt;</span><span class="n">scope</span><span class="o">&gt;</span><span class="n">runtime</span><span class="o">&lt;/</span><span class="n">scope</span><span class="o">&gt;</span>
 <span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
 </code></pre>
@@ -265,15 +265,15 @@ limitations under the License.
 <p>When executing your pipeline from the command-line, set <code class="highlighter-rouge">runner</code> to <code class="highlighter-rouge">direct</code> or <code class="highlighter-rouge">DirectRunner</code>. The default values for the other pipeline options are generally sufficient.</p>
 
 <p>See the reference documentation for the
-<span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.12.0/index.html?org/apache/beam/runners/direct/DirectOptions.html"><code class="highlighter-rouge">DirectOptions</code></a></span>
-<span class="language-py"><a href="https://beam.apache.org/releases/pydoc/2.12.0/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.DirectOptions"><code class="highlighter-rouge">DirectOptions</code></a></span>
+<span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.13.0/index.html?org/apache/beam/runners/direct/DirectOptions.html"><code class="highlighter-rouge">DirectOptions</code></a></span>
+<span class="language-py"><a href="https://beam.apache.org/releases/pydoc/2.13.0/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.DirectOptions"><code class="highlighter-rouge">DirectOptions</code></a></span>
 interface for defaults and additional pipeline configuration options.</p>
 
 <h2 id="additional-information-and-caveats">Additional information and caveats</h2>
 
 <h3 id="memory-considerations">Memory considerations</h3>
 
-<p>Local execution is limited by the memory available in your local environment. It is highly recommended that you run your pipeline with data sets small enough to fit in local memory. You can create a small in-memory data set using a <span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.12.0/index.html?org/apache/beam/sdk/transforms/Create.html"><code class="highlighter-rouge">Create</code></a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py"><code class="highlighter-rouge">Create</code></a></span> transform, or you can use a <span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.12.0/index.html?org/apache/beam/sdk/io/Read.html"><code class="highlighter-rouge">Read</code></a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/iobase.py"><code class="highlighter-rouge">Read</code></a></span> transform to work with small local or remote files.</p>
+<p>Local execution is limited by the memory available in your local environment. It is highly recommended that you run your pipeline with data sets small enough to fit in local memory. You can create a small in-memory data set using a <span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.13.0/index.html?org/apache/beam/sdk/transforms/Create.html"><code class="highlighter-rouge">Create</code></a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py"><code class="highlighter-rouge">Create</code></a></span> transform, or you can use a <span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.13.0/index.html?org/apache/beam/sdk/io/Read.html"><code class="highlighter-rouge">Read</code></a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/iobase.py"><code class="highlighter-rouge">Read</code></a></span> transform to work with small local or remote files.</p>
 
 <h3 id="streaming-execution">Streaming execution</h3>
 
