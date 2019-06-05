@@ -91,7 +91,8 @@ dependencies {
   testCompile library.java.jackson_dataformat_yaml
   testCompile "org.apache.kafka:kafka_2.11:0.11.0.1"
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
-  validatesRunner project(path: ":sdks:java:io:hadoop-format", configuration: "testRuntime")
+  validatesRunner project(":sdks:java:io:hadoop-format")
+  validatesRunner project(":sdks:java:io:hadoop-format").sourceSets.test.output
   validatesRunner project(path: ":examples:java", configuration: "testRuntime")
   validatesRunner project(path: project.path, configuration: "testRuntime")
   validatesRunner project(project.path)
