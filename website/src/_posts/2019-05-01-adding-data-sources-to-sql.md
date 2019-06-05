@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Adding new Data Sources to Beam SQL CLI"
-date:   2019-05-01 00:00:01 -0800
+date:   2019-06-04 00:00:01 -0800
 excerpt_separator: <!--more-->
 categories: blog
 authors:
