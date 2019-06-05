@@ -123,6 +123,16 @@ def main(unused_argv):
 
   logging.info('semi_persistent_directory: %s', semi_persistent_directory)
 
+  if 'WORKER_ID' in os.environ:
+    _worker_id = os.environ['WORKER_ID']
+  else:
+    _worker_id = None
+
+  if 'WORKER_COUNT' in os.environ:
+    worker_count = int(os.environ['WORKER_COUNT'])
+  else:
+    worker_count = _get_worker_count(sdk_pipeline_options)
+
   try:
     _load_main_session(semi_persistent_directory)
   except Exception:  # pylint: disable=broad-except
@@ -140,7 +150,8 @@ def main(unused_argv):
     assert not service_descriptor.oauth2_client_credentials_grant.url
     SdkHarness(
         control_address=service_descriptor.url,
-        worker_count=_get_worker_count(sdk_pipeline_options),
+        worker_count=worker_count,
+        worker_id=_worker_id,
         profiler_factory=profiler.Profile.factory_from_options(
             sdk_pipeline_options.view_as(pipeline_options.ProfilingOptions))
     ).run()
@@ -195,7 +206,6 @@ def _get_worker_count(pipeline_options):
                    experiment).group('worker_threads'))
 
   return 12
-
 
 def _load_main_session(semi_persistent_directory):
   """Loads a pickled main session from the path specified."""

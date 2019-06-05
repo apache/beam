@@ -70,7 +70,7 @@ class SdkHarness(object):
     self._control_channel = grpc.intercept_channel(
         self._control_channel, WorkerIdInterceptor(self._worker_id))
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory(
-        credentials)
+        credentials,self._worker_id)
     self._state_handler_factory = GrpcStateHandlerFactory(credentials)
     self._profiler_factory = profiler_factory
     self._fns = {}
@@ -326,6 +326,7 @@ class BundleProcessorCache(object):
     for cached_bundle_processors in self.cached_bundle_processors.values():
       while len(cached_bundle_processors) > 0:
         cached_bundle_processors.pop().shutdown()
+
 
 
 class SdkWorker(object):

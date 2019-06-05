@@ -305,6 +305,69 @@ class GrpcServerDataChannel(
     for elements in self._write_outputs():
       yield elements
 
+class GrpcServerRoundRobinDataChannel(GrpcServerDataChannel):
+  """A DataChannel wrapping the server side of a BeamFnData connection,
+  implementing data multiplexing."""
+
+  def __init__(self):
+    super(GrpcServerDataChannel, self).__init__()
+    self._to_send_per_worker = collections.defaultdict(queue.Queue)
+
+  def close(self):
+    for worker, q in self._to_send_per_worker.items():
+      q.put(self._WRITES_FINISHED)
+    self._closed = True
+
+  def output_stream(self, instruction_id, target):
+    from apache_beam.runners.portability import fn_api_runner
+
+    def add_to_send_queue(data):
+      if data:
+        worker_id = fn_api_runner.BeamFnControlServicer.task_worker_mapping[instruction_id]
+        self._to_send_per_worker[worker_id].put(
+            beam_fn_api_pb2.Elements.Data(
+                instruction_reference=instruction_id,
+                target=target,
+                data=data))
+
+    def close_callback(data):
+      add_to_send_queue(data)
+      # End of stream marker.
+      worker_id = fn_api_runner.BeamFnControlServicer.task_worker_mapping[instruction_id]
+      self._to_send_per_worker[worker_id].put(
+          beam_fn_api_pb2.Elements.Data(
+              instruction_reference=instruction_id,
+              target=target,
+              data=b''))
+    return ClosableOutputStream(
+        close_callback, flush_callback=add_to_send_queue)
+
+  def _write_outputs(self, worker_id):
+    done = False
+    while not done:
+      data = [self._to_send_per_worker[worker_id].get()]
+      try:
+        # Coalesce up to 100 other items.
+        for _ in range(100):
+          data.append(self._to_send.get_nowait())
+      except queue.Empty:
+        pass
+      if data[-1] is self._WRITES_FINISHED:
+        done = True
+        data.pop()
+      if data:
+        yield beam_fn_api_pb2.Elements(data=data)
+
+
+  def Data(self, elements_iterator, context):
+    self._start_reader(elements_iterator)
+
+    metadata =  dict((k, v) for k, v in context.invocation_metadata())
+    worker_id = metadata.get('worker_id')
+
+    for elements in self._write_outputs(worker_id):
+      yield elements
+
 
 class DataChannelFactory(with_metaclass(abc.ABCMeta, object)):
   """An abstract factory for creating ``DataChannel``."""
@@ -326,13 +389,15 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
   Caches the created channels by ``data descriptor url``.
   """
 
-  def __init__(self, credentials=None):
+  def __init__(self, credentials=None, worker_id=None):
     self._data_channel_cache = {}
     self._lock = threading.Lock()
+    self._worker_id = worker_id
     self._credentials = None
     if credentials is not None:
       logging.info('Using secure channel creds.')
       self._credentials = credentials
+
 
   def create_data_channel(self, remote_grpc_port):
     url = remote_grpc_port.api_service_descriptor.url
@@ -354,7 +419,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
                 url, self._credentials, options=channel_options)
           # Add workerId to the grpc channel
           grpc_channel = grpc.intercept_channel(grpc_channel,
-                                                WorkerIdInterceptor())
+                                                WorkerIdInterceptor(self._worker_id))
           self._data_channel_cache[url] = GrpcClientDataChannel(
               beam_fn_api_pb2_grpc.BeamFnDataStub(grpc_channel))
 
