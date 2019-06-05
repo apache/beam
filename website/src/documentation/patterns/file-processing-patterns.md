@@ -32,7 +32,7 @@ This page describes common file processing tasks. For more information on file-b
 
 ## Processing files as they arrive
 
-This section shows you how to process files as they arrive in your file system or object store (like Cloud Storage). You can continuously read files or trigger stream and processing pipelines when a file arrives.
+This section shows you how to process files as they arrive in your file system or object store (like Google Cloud Storage). You can continuously read files or trigger stream and processing pipelines when a file arrives.
 
 ### Continuous read mode
 
@@ -67,11 +67,11 @@ The continuous-read option is not available for Python.
 
 ### Stream processing triggered from external source
 
-A streaming pipeline can process data from an unbounded source. For example, to trigger stream processing with Cloud Pub/Sub:
+A streaming pipeline can process data from an unbounded source. For example, to trigger stream processing with Google Cloud Pub/Sub:
 
 1. Use an external process to detect when new files arrive.
-1. Send a Cloud Pub/Sub message with a URI to the file.
-1. Access the URI from a `DoFn` that follows the Cloud Pub/Sub source.
+1. Send a Google Cloud Pub/Sub message with a URI to the file.
+1. Access the URI from a `DoFn` that follows the Google Cloud Pub/Sub source.
 1. Process the file.
 
 ### Batch processing triggered from external source
