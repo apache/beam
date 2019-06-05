@@ -884,7 +884,6 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       project.jar {
-        classifier = "unshaded"
         zip64 true
         into("META-INF/") {
           from "${project.rootProject.projectDir}/LICENSE"
@@ -894,6 +893,9 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Always configure the shadowJar classifier and merge service files.
       if (configuration.shadowClosure) {
+        // Only set the classifer on the unshaded classes if we are shading.
+        project.jar { classifier = "unshaded" }
+
         project.shadowJar({
           classifier = null
           mergeServiceFiles()
@@ -1165,7 +1167,7 @@ class BeamModulePlugin implements Plugin<Project> {
                 // TODO: Should we use the runtime scope instead of the compile scope
                 // which forces all our consumers to declare what they consume?
                 generateDependenciesFromConfiguration(
-                        configuration: (configuration.shadowJar ? 'shadow' : 'compile'), scope: 'compile')
+                        configuration: (configuration.shadowClosure ? 'shadow' : 'compile'), scope: 'compile')
                 generateDependenciesFromConfiguration(configuration: 'provided', scope: 'provided')
 
                 // NB: This must come after asNode() logic, as it seems asNode()
