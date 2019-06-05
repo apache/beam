@@ -1690,6 +1690,7 @@ class BeamModulePlugin implements Plugin<Project> {
               ])
               )
       def copiedSrcRoot = "${project.buildDir}/srcs"
+      def tarball = "apache-beam.tar.gz"
 
       project.configurations { distConfig }
 
@@ -1707,15 +1708,16 @@ class BeamModulePlugin implements Plugin<Project> {
             args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedSrcRoot}/sdks/python && python setup.py -q sdist --formats zip,gztar --dist-dir ${project.buildDir}"
           }
           def collection = project.fileTree("${project.buildDir}"){ include '**/*.tar.gz' exclude '**/apache-beam.tar.gz', 'srcs/**'}
-          println "sdist archive name: ${collection.singleFile}"
 
           // we need a fixed name for the artifact
-          project.copy { from collection.singleFile; into "${project.buildDir}"; rename { 'apache-beam.tar.gz' } }
+          project.copy { from collection.singleFile; into "${project.buildDir}"; rename { tarball } }
         }
+        inputs.files pythonSdkDeps
+        outputs.file "${project.buildDir}/${tarball}"
       }
 
       project.artifacts {
-        distConfig file: project.file("${project.buildDir}/apache-beam.tar.gz"), builtBy: project.sdist
+        distConfig file: project.file("${project.buildDir}/${tarball}"), builtBy: project.sdist
       }
 
       project.task('installGcpTest', dependsOn: 'setupVirtualenv') {
