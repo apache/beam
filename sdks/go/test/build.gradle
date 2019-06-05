@@ -62,3 +62,19 @@ task flinkValidatesRunner {
     }
   }
 }
+
+task sparkValidatesRunner {
+  dependsOn ":sdks:go:test:build"
+  dependsOn ":runners:spark:job-server:shadowJar"
+  doLast {
+    def options = [
+            "--runner spark",
+            "--parallel 1", // prevent memory overuse
+            "--spark_job_server_jar ${project(":runners:spark:job-server").shadowJar.archivePath}",
+    ]
+    exec {
+      executable "sh"
+      args "-c", "./run_integration_tests.sh ${options.join(' ')}"
+    }
+  }
+}
