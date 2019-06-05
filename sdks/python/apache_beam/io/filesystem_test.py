@@ -479,6 +479,7 @@ atomized in instants hammered around the
     timeout = 30
     read_size = (64<<10) # set much smaller than the line size
     byte_table = tuple(int2byte(i) for i in range(32, 96))
+
     def generate_random_line():
       byte_list = list(b
                        for i in range(4096)
@@ -486,6 +487,7 @@ atomized in instants hammered around the
                       )
       byte_list.append(b'\n')
       return b''.join(byte_list)
+
     def create_test_file(compression_type, lines):
       filenames = list()
       file_name = self._create_temp_file()
@@ -504,17 +506,19 @@ atomized in instants hammered around the
           with open(name, 'rb') as i:
             o.write(i.read())
       return file_name
+
     # I remember some time ago when a job ran with a real concatenated
     # gzip file, I got into an endless loop in the beam filesystem module.
     # That's why I put this handler in to trap an endless loop. However,
     # this unit test doesn't encounter an endless loop, it encounters a
     # different error, in the Beam 2.11 and earlier implementation.
     # So it's not strictly necessary to have this handler in this unit test.
+
     def alarm_handler(signum, frame):
       self.fail('Timed out reading compressed file.')
       raise IOError('Exiting due to likley infinite loop logic in code.')
-    old_handler = signal.signal(signal.SIGALRM, alarm_handler)
 
+    old_handler = signal.signal(signal.SIGALRM, alarm_handler)
     try:
       test_lines = tuple(generate_random_line() for i in range(num_test_lines))
       for compression_type in [CompressionTypes.BZIP2, CompressionTypes.GZIP]:
