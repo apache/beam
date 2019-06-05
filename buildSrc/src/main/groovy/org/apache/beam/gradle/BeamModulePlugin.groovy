@@ -87,6 +87,9 @@ class BeamModulePlugin implements Plugin<Project> {
     /** Controls whether the dependency analysis plugin is enabled. */
     boolean enableStrictDependencies = false
 
+    /** Override the default "beam-" + `dash separated path` archivesBaseName. */
+    String archivesBaseName = null;
+
     /**
      * List of additional lint warnings to disable.
      * In addition, defaultLintSuppressions defined below
@@ -142,6 +145,9 @@ class BeamModulePlugin implements Plugin<Project> {
      * By default we exclude any class underneath the org.apache.beam namespace.
      */
     List<String> shadowJarValidationExcludes = ["org/apache/beam/**"]
+
+    /** Override the default "beam-" + `dash separated path` archivesBaseName. */
+    String archivesBaseName = null;
   }
 
   // A class defining the set of configurable properties for createJavaExamplesArchetypeValidationTask
@@ -299,8 +305,8 @@ class BeamModulePlugin implements Plugin<Project> {
     return project.hasProperty('isRelease')
   }
 
-  def archivesBaseName(Project p) {
-    'beam' + p.path.replace(':', '-')
+  def defaultArchivesBaseName(Project p) {
+    return 'beam' + p.path.replace(':', '-')
   }
 
   void apply(Project project) {
@@ -317,8 +323,10 @@ class BeamModulePlugin implements Plugin<Project> {
       project.version += '-SNAPSHOT'
     }
 
+    // Default to dash-separated directories for artifact base name,
+    // which will also be the default artifactId for maven publications
     project.apply plugin: 'base'
-    project.archivesBaseName = archivesBaseName(project)
+    project.archivesBaseName = defaultArchivesBaseName(project)
 
     project.apply plugin: 'org.apache.beam.jenkins'
 
@@ -663,6 +671,10 @@ class BeamModulePlugin implements Plugin<Project> {
       JavaNatureConfiguration configuration = it ? it as JavaNatureConfiguration : new JavaNatureConfiguration()
       if (!configuration.shadowClosure) {
         configuration.shadowClosure = project.DEFAULT_SHADOW_CLOSURE
+      }
+
+      if (configuration.archivesBaseName) {
+        project.archivesBaseName = configuration.archivesBaseName
       }
 
       project.apply plugin: "java"
@@ -1485,9 +1497,14 @@ class BeamModulePlugin implements Plugin<Project> {
     project.ext.applyPortabilityNature = {
       PortabilityNatureConfiguration configuration = it ? it as PortabilityNatureConfiguration : new PortabilityNatureConfiguration()
 
+      if (configuration.archivesBaseName) {
+        project.archivesBaseName = configuration.archivesBaseName
+      }
+
       project.ext.applyJavaNature(
               exportJavadoc: false,
               enableSpotbugs: false,
+              archivesBaseName: configuration.archivesBaseName,
               shadowJarValidationExcludes: it.shadowJarValidationExcludes,
               shadowClosure: GrpcVendoring.shadowClosure() << {
                 // We perform all the code relocations but don't include

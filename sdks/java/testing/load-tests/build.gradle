@@ -17,8 +17,10 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-archivesBaseName = 'beam-sdks-java-load-tests'
-applyJavaNature(exportJavadoc: false)
+applyJavaNature(
+    archivesBaseName: 'beam-sdks-java-load-tests',
+    exportJavadoc: false
+)
 
 description = "Apache Beam :: SDKs :: Java :: Load Tests"
 

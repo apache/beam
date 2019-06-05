@@ -25,8 +25,6 @@
 
 plugins { id 'org.apache.beam.module' }
 
-archivesBaseName = 'beam-runners-google-cloud-dataflow-java-legacy-worker'
-
 // Set a specific version of 'com.google.apis:google-api-services-dataflow'
 // by adding -Pdataflow.version=<version> in Gradle command. Otherwise,
 // 'google_clients_version' defined in BeamModulePlugin will be used as default.
@@ -81,6 +79,7 @@ def excluded_dependencies = [
 ]
 
 applyJavaNature(
+        archivesBaseName: 'beam-runners-google-cloud-dataflow-java-legacy-worker',
         publish: false,
         exportJavadoc: false,
         enableSpotbugs: false /* TODO(BEAM-5658): enable spotbugs */,
