@@ -638,6 +638,9 @@ class BundleProcessor(object):
                       last_primary_element=primary_end,
                       first_residual_element=residual_start)])
 
+    if not split_response.channel_splits:
+      raise ValueError('Unable to find an effective split.')
+
     return split_response
 
   def delayed_bundle_application(self, op, deferred_remainder):
