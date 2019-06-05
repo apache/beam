@@ -24,7 +24,7 @@ limitations under the License.
 
 A new, exciting feature that came to Apache Beam is the ability to use
 SQL in your pipelines. This is done using Beam's
-[`SqlTransform`](https://beam.apache.org/releases/javadoc/latest/org/apache/beam/sdk/extensions/sql/SqlTransform.html)
+[`SqlTransform`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/SqlTransform.html)
 in Java pipelines.
 
 Beam also has a fancy new SQL command line that you can use to query your
@@ -39,11 +39,39 @@ from other Beam sources.
 
 <!--more-->
 
+The table provider we will be implementing in this post will be generating a
+continuous unbounded stream of integers. It will be based on the
+[`GenerateSequence` PTransform](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/GenerateSequence.html)
+from the Beam SDK. In the end will be able to define and use the sequence generator
+in SQL like this:
+
+```
+CREATE EXTERNAL TABLE                      -- all tables in Beam are external, they are not persisted
+  sequenceTable                              -- table alias that will be used in queries
+  (
+         sequence INT,                     -- sequence number
+         event_timestamp TIMESTAMP         -- timestamp of the generated event
+  )
+TYPE sequence                              -- type identifies the table provider
+TBLPROPERTIES '{ elementsPerSecond : 12 }' -- optional rate at which events are generated
+```
+
+And we'll be able to use it in queries like so:
+
+```
+SELECT sequence FROM sequenceTable;
+```
+
+Let's dive in!
+
+### Implementing a `TableProvider`
+
 Beam's `SqlTransform` works by relying on `TableProvider`s, which it uses when
-one uses a `CREATE TABLE` statement. If you are looking to add a new data source
-to the Beam SQL CLI, then you will want to add a `TableProvider` to do it. In
-this post, I will show what steps are necessary to create a new table provider
-for the [`GenerateSequence` transform](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/GenerateSequence.html) available in the Java SDK.
+one uses a `CREATE EXTERNAL TABLE` statement. If you are looking to add a new
+data source to the Beam SQL CLI, then you will want to add a `TableProvider` to
+do it. In this post, I will show what steps are necessary to create a new table
+provider for the
+[`GenerateSequence` transform](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/GenerateSequence.html) available in the Java SDK.
 
 The `TableProvider` classes are under
 [`sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/meta/provider/`](https://github.com/apache/beam/tree/master/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/meta/provider). If you look in there, you can find providers, and their implementations, for all available data sources. So, you just need to add the one you want, along with an implementation of `BaseBeamTable`.
@@ -120,13 +148,14 @@ class GenerateSequenceTable extends BaseBeamTable implements Serializable {
 ## The real fun
 
 Now that we have implemented the two basic classes (a `BaseBeamTable`, and a
-`TableProvider`), we can start playing with them. After building the SQL CLI, we
+`TableProvider`), we can start playing with them. After building the
+[SQL CLI](https://beam.apache.org/documentation/dsls/sql/shell/), we
 can now perform selections on the table:
 
 ```
-0: BeamSQL> CREATE EXTERNAL TABLE MY_SEQUENCE(
-. . . . . >   SEQUENCE INT COMMENT 'this is the primary key',
-. . . . . >   EVENT_TIME TIMESTAMP COMMENT 'this is the element timestamp'
+0: BeamSQL> CREATE EXTERNAL TABLE input_seq (
+. . . . . >   sequence INT COMMENT 'this is the primary key',
+. . . . . >   event_time TIMESTAMP COMMENT 'this is the element timestamp'
 . . . . . > )
 . . . . . > TYPE 'sequence';
 No rows affected (0.005 seconds)
@@ -153,21 +182,20 @@ us make sure that we're providing the timestamp for each row properly:
 
 ```
 0: BeamSQL> SELECT
-. . . . . >   COUNT(sequence),
-. . . . . >   TUMBLE_START(event_time, INTERVAL '2' SECOND)
+. . . . . >   COUNT(sequence) as elements,
+. . . . . >   TUMBLE_START(event_time, INTERVAL '2' SECOND) as window_start
 . . . . . > FROM input_seq
 . . . . . > GROUP BY TUMBLE(event_time, INTERVAL '2' SECOND) LIMIT 5;
-+---------------------+--------+
-|       EXPR$0        | EXPR$1 |
-+---------------------+--------+
-| 2                   | 2019-05-21 00:38:18 |
-| 10                  | 2019-05-21 00:38:20 |
-| 10                  | 2019-05-21 00:38:22 |
-| 10                  | 2019-05-21 00:38:24 |
-| 10                  | 2019-05-21 00:38:26 |
-+---------------------+--------+
-5 rows selected (9.138 seconds)
-
++---------------------+--------------+
+|      elements       | window_start |
++---------------------+--------------+
+| 6                   | 2019-06-05 00:39:24 |
+| 10                  | 2019-06-05 00:39:26 |
+| 10                  | 2019-06-05 00:39:28 |
+| 10                  | 2019-06-05 00:39:30 |
+| 10                  | 2019-06-05 00:39:32 |
++---------------------+--------------+
+5 rows selected (10.142 seconds)
 ```
 
 And voilà! We can start playing with some interesting streaming queries to our
