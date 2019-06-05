@@ -64,10 +64,12 @@ class DataflowV1b3(base_api.BaseApiClient):
     self.projects_locations_jobs_messages = self.ProjectsLocationsJobsMessagesService(self)
     self.projects_locations_jobs_workItems = self.ProjectsLocationsJobsWorkItemsService(self)
     self.projects_locations_jobs = self.ProjectsLocationsJobsService(self)
+    self.projects_locations_segments = self.ProjectsLocationsSegmentsService(self)
     self.projects_locations_snapshots = self.ProjectsLocationsSnapshotsService(self)
     self.projects_locations_sql = self.ProjectsLocationsSqlService(self)
     self.projects_locations_templates = self.ProjectsLocationsTemplatesService(self)
     self.projects_locations = self.ProjectsLocationsService(self)
+    self.projects_segments = self.ProjectsSegmentsService(self)
     self.projects_snapshots = self.ProjectsSnapshotsService(self)
     self.projects_templates = self.ProjectsTemplatesService(self)
     self.projects = self.ProjectsService(self)
@@ -824,6 +826,43 @@ of jobs that are running in `us-central1`.
         supports_download=False,
     )
 
+  class ProjectsLocationsSegmentsService(base_api.BaseApiService):
+    """Service class for the projects_locations_segments resource."""
+
+    _NAME = u'projects_locations_segments'
+
+    def __init__(self, client):
+      super(DataflowV1b3.ProjectsLocationsSegmentsService, self).__init__(client)
+      self._upload_configs = {
+          }
+
+    def Create(self, request, global_params=None):
+      r"""Creates a Cloud Dataflow job which inherits resources from an existing job.
+Upon completion, resources are relinquished to the originating job.
+
+      Args:
+        request: (DataflowProjectsLocationsSegmentsCreateRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (Job) The response message.
+      """
+      config = self.GetMethodConfig('Create')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
+    Create.method_config = lambda: base_api.ApiMethodInfo(
+        http_method=u'POST',
+        method_id=u'dataflow.projects.locations.segments.create',
+        ordered_params=[u'projectId', u'location'],
+        path_params=[u'location', u'projectId'],
+        query_params=[u'replaceJobId', u'view'],
+        relative_path=u'v1b3/projects/{projectId}/locations/{location}/segments',
+        request_field=u'job',
+        request_type_name=u'DataflowProjectsLocationsSegmentsCreateRequest',
+        response_type_name=u'Job',
+        supports_download=False,
+    )
+
   class ProjectsLocationsSnapshotsService(base_api.BaseApiService):
     """Service class for the projects_locations_snapshots resource."""
 
@@ -1072,6 +1111,43 @@ analyzes properly as well.
         request_field=u'sendWorkerMessagesRequest',
         request_type_name=u'DataflowProjectsLocationsWorkerMessagesRequest',
         response_type_name=u'SendWorkerMessagesResponse',
+        supports_download=False,
+    )
+
+  class ProjectsSegmentsService(base_api.BaseApiService):
+    """Service class for the projects_segments resource."""
+
+    _NAME = u'projects_segments'
+
+    def __init__(self, client):
+      super(DataflowV1b3.ProjectsSegmentsService, self).__init__(client)
+      self._upload_configs = {
+          }
+
+    def Create(self, request, global_params=None):
+      r"""Creates a Cloud Dataflow job which inherits resources from an existing job.
+Upon completion, resources are relinquished to the originating job.
+
+      Args:
+        request: (DataflowProjectsSegmentsCreateRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (Job) The response message.
+      """
+      config = self.GetMethodConfig('Create')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
+    Create.method_config = lambda: base_api.ApiMethodInfo(
+        http_method=u'POST',
+        method_id=u'dataflow.projects.segments.create',
+        ordered_params=[u'projectId'],
+        path_params=[u'projectId'],
+        query_params=[u'location', u'replaceJobId', u'view'],
+        relative_path=u'v1b3/projects/{projectId}/segments',
+        request_field=u'job',
+        request_type_name=u'DataflowProjectsSegmentsCreateRequest',
+        response_type_name=u'Job',
         supports_download=False,
     )
 

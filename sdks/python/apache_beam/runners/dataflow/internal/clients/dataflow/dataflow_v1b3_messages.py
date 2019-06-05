@@ -1266,6 +1266,43 @@ class DataflowProjectsLocationsJobsWorkItemsReportStatusRequest(_messages.Messag
   reportWorkItemStatusRequest = _messages.MessageField('ReportWorkItemStatusRequest', 4)
 
 
+class DataflowProjectsLocationsSegmentsCreateRequest(_messages.Message):
+  r"""A DataflowProjectsLocationsSegmentsCreateRequest object.
+
+  Enums:
+    ViewValueValuesEnum: The level of information requested in response.
+
+  Fields:
+    job: A Job resource to be passed as the request body.
+    location: The [regional endpoint]
+      (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints)
+      that contains this job.
+    projectId: The ID of the Cloud Platform project that the job belongs to.
+    replaceJobId: Deprecated. This field is now in the Job message.
+    view: The level of information requested in response.
+  """
+
+  class ViewValueValuesEnum(_messages.Enum):
+    r"""The level of information requested in response.
+
+    Values:
+      JOB_VIEW_UNKNOWN: <no description>
+      JOB_VIEW_SUMMARY: <no description>
+      JOB_VIEW_ALL: <no description>
+      JOB_VIEW_DESCRIPTION: <no description>
+    """
+    JOB_VIEW_UNKNOWN = 0
+    JOB_VIEW_SUMMARY = 1
+    JOB_VIEW_ALL = 2
+    JOB_VIEW_DESCRIPTION = 3
+
+  job = _messages.MessageField('Job', 1)
+  location = _messages.StringField(2, required=True)
+  projectId = _messages.StringField(3, required=True)
+  replaceJobId = _messages.StringField(4)
+  view = _messages.EnumField('ViewValueValuesEnum', 5)
+
+
 class DataflowProjectsLocationsSnapshotsDeleteRequest(_messages.Message):
   r"""A DataflowProjectsLocationsSnapshotsDeleteRequest object.
 
@@ -1419,6 +1456,43 @@ class DataflowProjectsLocationsWorkerMessagesRequest(_messages.Message):
   location = _messages.StringField(1, required=True)
   projectId = _messages.StringField(2, required=True)
   sendWorkerMessagesRequest = _messages.MessageField('SendWorkerMessagesRequest', 3)
+
+
+class DataflowProjectsSegmentsCreateRequest(_messages.Message):
+  r"""A DataflowProjectsSegmentsCreateRequest object.
+
+  Enums:
+    ViewValueValuesEnum: The level of information requested in response.
+
+  Fields:
+    job: A Job resource to be passed as the request body.
+    location: The [regional endpoint]
+      (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints)
+      that contains this job.
+    projectId: The ID of the Cloud Platform project that the job belongs to.
+    replaceJobId: Deprecated. This field is now in the Job message.
+    view: The level of information requested in response.
+  """
+
+  class ViewValueValuesEnum(_messages.Enum):
+    r"""The level of information requested in response.
+
+    Values:
+      JOB_VIEW_UNKNOWN: <no description>
+      JOB_VIEW_SUMMARY: <no description>
+      JOB_VIEW_ALL: <no description>
+      JOB_VIEW_DESCRIPTION: <no description>
+    """
+    JOB_VIEW_UNKNOWN = 0
+    JOB_VIEW_SUMMARY = 1
+    JOB_VIEW_ALL = 2
+    JOB_VIEW_DESCRIPTION = 3
+
+  job = _messages.MessageField('Job', 1)
+  location = _messages.StringField(2)
+  projectId = _messages.StringField(3, required=True)
+  replaceJobId = _messages.StringField(4)
+  view = _messages.EnumField('ViewValueValuesEnum', 5)
 
 
 class DataflowProjectsSnapshotsGetRequest(_messages.Message):
