@@ -1107,6 +1107,18 @@ class RestrictionTracker(object):
   * https://s.apache.org/splittable-do-fn-python-sdk
   """
 
+  def try_claim(self, position):
+    """Attempts to claim a block of work in the current restriction+position.
+
+    If this method returns ``True``, the ``DoFn`` must execute the work for this
+    position. If it returns ``False``, the method must return without performing
+    any additional work, nor emitting any output.
+
+    Returns:
+      Whether or not the current position may be processed by a DoFn.
+    """
+    raise NotImplementedError
+
   def current_restriction(self):
     """Returns the current restriction.
 
