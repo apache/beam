@@ -70,6 +70,9 @@ class VendorJavaPlugin implements Plugin<Project> {
     project.ext.vendorJava = {
       VendorJavaPluginConfig config = it ? it as VendorJavaPluginConfig : new VendorJavaPluginConfig()
 
+      project.apply plugin: 'base'
+      project.archivesBaseName = config.artifactId
+
       if (!isRelease(project)) {
         config.version += '-SNAPSHOT'
       }
