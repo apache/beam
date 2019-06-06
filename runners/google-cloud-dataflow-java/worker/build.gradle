@@ -18,8 +18,6 @@
 
 plugins { id 'org.apache.beam.module' }
 
-archivesBaseName = 'beam-runners-google-cloud-dataflow-java-fn-api-worker'
-
 // Set a specific version of 'com.google.apis:google-api-services-dataflow'
 // by adding -Pdataflow.version=<version> in Gradle command. Otherwise,
 // 'google_clients_version' defined in BeamModulePlugin will be used as default.
@@ -29,6 +27,7 @@ def DATAFLOW_VERSION = "dataflow.version"
 def google_api_services_dataflow = project.hasProperty(DATAFLOW_VERSION) ? "com.google.apis:google-api-services-dataflow:" + getProperty(DATAFLOW_VERSION) : library.java.google_api_services_dataflow
 
 applyJavaNature(
+  archivesBaseName: 'beam-runners-google-cloud-dataflow-java-fn-api-worker',
   publish: false,
   exportJavadoc: false,
   enableSpotbugs: true,
