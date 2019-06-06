@@ -1225,7 +1225,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1012" />
+                                            <option name="offset" value="1011" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="def process(self, element):&#10;        if element &lt;= 100:&#10;            yield element&#10;        else:&#10;            yield pvalue.TaggedOutput(num_above_100_tag, element)" />
@@ -1242,7 +1242,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1265" />
+                                            <option name="offset" value="1264" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="beam.ParDo(ProcessNumbersDoFn())&#10;        .with_outputs(num_above_100_tag, main=num_below_100_tag))" />
