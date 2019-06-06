@@ -34,6 +34,7 @@ import grpc
 from future.utils import raise_
 from future.utils import with_metaclass
 
+import apache_beam.runners.portability as portability
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
@@ -310,8 +311,10 @@ class GrpcServerRoundRobinDataChannel(GrpcServerDataChannel):
   implementing data multiplexing."""
 
   def __init__(self):
+    #from apache_beam.runners.portability import fn_api_runner
     super(GrpcServerDataChannel, self).__init__()
     self._to_send_per_worker = collections.defaultdict(queue.Queue)
+    self._task_worker_mapping = portability.fn_api_runner.BeamFnControlServicer.task_worker_mapping
 
   def close(self):
     for worker, q in self._to_send_per_worker.items():
@@ -319,11 +322,9 @@ class GrpcServerRoundRobinDataChannel(GrpcServerDataChannel):
     self._closed = True
 
   def output_stream(self, instruction_id, target):
-    from apache_beam.runners.portability import fn_api_runner
-
     def add_to_send_queue(data):
       if data:
-        worker_id = fn_api_runner.BeamFnControlServicer.task_worker_mapping[instruction_id]
+        worker_id = self._task_worker_mapping[instruction_id]
         self._to_send_per_worker[worker_id].put(
             beam_fn_api_pb2.Elements.Data(
                 instruction_reference=instruction_id,
@@ -333,7 +334,7 @@ class GrpcServerRoundRobinDataChannel(GrpcServerDataChannel):
     def close_callback(data):
       add_to_send_queue(data)
       # End of stream marker.
-      worker_id = fn_api_runner.BeamFnControlServicer.task_worker_mapping[instruction_id]
+      worker_id = self._task_worker_mapping[instruction_id]
       self._to_send_per_worker[worker_id].put(
           beam_fn_api_pb2.Elements.Data(
               instruction_reference=instruction_id,
@@ -362,7 +363,7 @@ class GrpcServerRoundRobinDataChannel(GrpcServerDataChannel):
   def Data(self, elements_iterator, context):
     self._start_reader(elements_iterator)
 
-    metadata =  dict((k, v) for k, v in context.invocation_metadata())
+    metadata = dict((k, v) for k, v in context.invocation_metadata())
     worker_id = metadata.get('worker_id')
 
     for elements in self._write_outputs(worker_id):
@@ -397,7 +398,6 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
     if credentials is not None:
       logging.info('Using secure channel creds.')
       self._credentials = credentials
-
 
   def create_data_channel(self, remote_grpc_port):
     url = remote_grpc_port.api_service_descriptor.url

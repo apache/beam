@@ -328,7 +328,6 @@ class BundleProcessorCache(object):
         cached_bundle_processors.pop().shutdown()
 
 
-
 class SdkWorker(object):
 
   def __init__(self, bundle_processor_cache, profiler_factory=None):

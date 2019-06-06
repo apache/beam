@@ -105,11 +105,21 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
 
     self._send = collections.defaultdict(int)
     self._received = collections.defaultdict(int)
+    self._worker_load = collections.defaultdict(int)
 
   def _get_available_worker(self):
-    #TODO: Implement with round robin algo
-    import random
-    return 'worker_%s' % random.randint(0,EmbeddedGrpcWorkerHandler.num_workers - 1)
+    candidate = None
+    min_load = -1
+    for worker, load in self._worker_load.items():
+      # if found a worker without any task, return it.
+      if load == 0:
+        return worker
+
+      if min_load == -1 or load < min_load:
+        min_load = load
+        candidate = worker
+    
+    return candidate
 
   def _dispatch(self, item):
     if item is self._DONE_MARKER:
@@ -120,14 +130,17 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
     request_type = item.WhichOneof('request')
     if request_type == 'register':
       # send to all workers
-      for worker, q in self.queue_per_worker.items():
+      for worker_id, q in self.queue_per_worker.items():
         q.put(item)
+        self._worker_load[worker_id] += 1
     elif request_type == 'process_bundle':
       worker_id = self._get_available_worker()
+      self._worker_load[worker_id] += 1
       self.queue_per_worker[worker_id].put(item)
       self.task_worker_mapping[item.instruction_id] = worker_id
     else:
       worker_id = self.task_worker_mapping[item.instruction_reference]
+      self._worker_load[worker_id] += 1
       self.queue_per_worker[worker_id].put(item)
 
   def Control(self, iterator, context):
@@ -137,7 +150,7 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
       else:
         self._state = self.STARTED_STATE
    
-    metadata =  dict((k, v) for k, v in context.invocation_metadata())
+    metadata = dict((k, v) for k, v in context.invocation_metadata())
     worker_id = metadata.get('worker_id')
 
     self._inputs[worker_id] = iterator
@@ -159,6 +172,7 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
   def _read(self, worker_id):
     for data in self._inputs[worker_id]:
       self._received[data.instruction_id] += 1
+      self._worker_load[worker_id] -= 1
       if data.instruction_id in self._futures_by_id:
         self._futures_by_id.pop(data.instruction_id).set(data)
 
@@ -183,11 +197,11 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
           t.join()
       self._state = self.DONE_STATE
 
-      logging.info('Runner: Task requests sent by runner: %s',
+      logging.debug('Runner: Task requests sent by runner: %s',
                    [(task, count) for task, count in self._send.items()])
-      logging.info('Runner: Task responses received by runner: %s',
+      logging.debug('Runner: Task responses received by runner: %s',
                    [(task, count) for task, count in self._received.items()])
-      logging.info('Runner: Task multiplexing info: %s',
+      logging.debug('Runner: Task multiplexing info: %s',
                    [(task, worker) for task, worker
                     in self.task_worker_mapping.items()])
 
@@ -1086,11 +1100,9 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
 
 @WorkerHandler.register_environment(python_urns.EMBEDDED_PYTHON_GRPC, bytes)
 class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
-  num_workers = 1
-
   def __init__(self, num_workers_payload, state, provision_info):
     super(EmbeddedGrpcWorkerHandler, self).__init__(state, provision_info)
-    EmbeddedGrpcWorkerHandler.num_workers = int(num_workers_payload) \
+    self._num_workers = int(num_workers_payload) \
       if num_workers_payload else 1
     self._worker_list = []
 
@@ -1098,7 +1110,7 @@ class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
     _work_commend_line = b'%s -m apache_beam.runners.worker.sdk_worker_main' \
                          % sys.executable.encode('ascii')
 
-    for i in range(self.num_workers):
+    for i in range(self._num_workers):
       worker_id = 'worker_%s' % i
       sdk_harness = local_job_service.SubprocessSdkWorker(
           _work_commend_line,
