@@ -622,18 +622,19 @@ class FnApiRunner(runner.PipelineRunner):
 
   @staticmethod
   def _extract_endpoints(stage,
-      pipeline_components,
-      data_api_service_descriptor,
-      pcoll_buffers):
+                         pipeline_components,
+                         data_api_service_descriptor,
+                         pcoll_buffers):
     """Returns maps of transform names to PCollection identifiers.
-
 
     Also mutates IO stages to point to the data ApiServiceDescriptor.
 
     Args:
-      stage (fn_api_runner_transforms.Stage):
-      pipeline_components (beam_runner_api_pb2.Components):
-      data_api_service_descriptor ()
+      stage (fn_api_runner_transforms.Stage): The stage to extract endpoints
+        for.
+      pipeline_components (beam_runner_api_pb2.Components): Components of the
+        pipeline to include coders, transforms, PCollections, etc.
+      data_api_service_descriptor: A GRPC endpoint descriptor for data plane.
       pcoll_buffers (dict): A dictionary containing buffers for PCollection
         elements.
     Returns:
@@ -656,12 +657,12 @@ class FnApiRunner(runner.PipelineRunner):
           else:
             data_input[target] = pcoll_buffers[pcoll_id]
           coder_id = pipeline_components.pcollections[
-            only_element(transform.outputs.values())].coder_id
+              only_element(transform.outputs.values())].coder_id
         elif transform.spec.urn == bundle_processor.DATA_OUTPUT_URN:
           target = transform.unique_name, only_element(transform.inputs)
           data_output[target] = pcoll_id
           coder_id = pipeline_components.pcollections[
-            only_element(transform.inputs.values())].coder_id
+              only_element(transform.inputs.values())].coder_id
         else:
           raise NotImplementedError
         data_spec = beam_fn_api_pb2.RemoteGrpcPort(coder_id=coder_id)

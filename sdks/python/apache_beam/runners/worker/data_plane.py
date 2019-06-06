@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Implementation of ``DataChannel``s for communicating across the data plane."""
+"""Implementation of ``DataChannel``s to communicate across the data plane."""
 
 from __future__ import absolute_import
 from __future__ import division
