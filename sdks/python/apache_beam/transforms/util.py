@@ -87,16 +87,17 @@ class CoGroupByKey(PTransform):
                     'tag2': ... ,
                     ... })
 
-  For example, given:
+  For example, given::
 
       {'tag1': pc1, 'tag2': pc2, 333: pc3}
 
-  where:
+  where::
+
       pc1 = [(k1, v1)]
       pc2 = []
       pc3 = [(k1, v31), (k1, v32), (k2, v33)]
 
-  The output PCollection would be:
+  The output PCollection would be::
 
       [(k1, {'tag1': [v1], 'tag2': [], 333: [v31, v32]}),
        (k2, {'tag1': [], 'tag2': [], 333: [v33]})]
