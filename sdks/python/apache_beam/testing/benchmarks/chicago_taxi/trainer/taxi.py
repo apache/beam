@@ -27,7 +27,6 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 # Categorical features are assumed to each have a maximum value in the dataset.
 MAX_CATEGORICAL_FEATURE_VALUES = [24, 31, 12]
 
-# TODO(b/114589822): Infer these and other properties from the schema.
 CATEGORICAL_FEATURE_KEYS = [
     'trip_start_hour', 'trip_start_day', 'trip_start_month',
     'pickup_census_tract', 'dropoff_census_tract', 'pickup_community_area',
@@ -81,65 +80,65 @@ CSV_COLUMN_NAMES = [
 
 
 def transformed_name(key):
-    return key + '_xf'
+  return key + '_xf'
 
 
 def transformed_names(keys):
-    return [transformed_name(key) for key in keys]
+  return [transformed_name(key) for key in keys]
 
 
 # Tf.Transform considers these features as "raw"
 def get_raw_feature_spec(schema):
-    return schema_utils.schema_as_feature_spec(schema).feature_spec
+  return schema_utils.schema_as_feature_spec(schema).feature_spec
 
 
 def make_proto_coder(schema):
-    raw_feature_spec = get_raw_feature_spec(schema)
-    raw_schema = dataset_schema.from_feature_spec(raw_feature_spec)
-    return tft_coders.ExampleProtoCoder(raw_schema)
+  raw_feature_spec = get_raw_feature_spec(schema)
+  raw_schema = dataset_schema.from_feature_spec(raw_feature_spec)
+  return tft_coders.ExampleProtoCoder(raw_schema)
 
 
 def make_csv_coder(schema):
-    """Return a coder for tf.transform to read csv files."""
-    raw_feature_spec = get_raw_feature_spec(schema)
-    parsing_schema = dataset_schema.from_feature_spec(raw_feature_spec)
-    return tft_coders.CsvCoder(CSV_COLUMN_NAMES, parsing_schema)
+  """Return a coder for tf.transform to read csv files."""
+  raw_feature_spec = get_raw_feature_spec(schema)
+  parsing_schema = dataset_schema.from_feature_spec(raw_feature_spec)
+  return tft_coders.CsvCoder(CSV_COLUMN_NAMES, parsing_schema)
 
 
 def clean_raw_data_dict(input_dict, raw_feature_spec):
-    """Clean raw data dict."""
-    output_dict = {}
+  """Clean raw data dict."""
+  output_dict = {}
 
-    for key in raw_feature_spec:
-        if key not in input_dict or not input_dict[key]:
-            output_dict[key] = []
-        else:
-            output_dict[key] = [input_dict[key]]
-    return output_dict
+  for key in raw_feature_spec:
+    if key not in input_dict or not input_dict[key]:
+      output_dict[key] = []
+    else:
+      output_dict[key] = [input_dict[key]]
+  return output_dict
 
 
 def make_sql(table_name, max_rows=None, for_eval=False):
-    """Creates the sql command for pulling data from BigQuery.
+  """Creates the sql command for pulling data from BigQuery.
 
-    Args:
-      table_name: BigQuery table name
-      max_rows: if set, limits the number of rows pulled from BigQuery
-      for_eval: True if this is for evaluation, false otherwise
+  Args:
+    table_name: BigQuery table name
+    max_rows: if set, limits the number of rows pulled from BigQuery
+    for_eval: True if this is for evaluation, false otherwise
 
-    Returns:
-      sql command as string
-    """
-    if for_eval:
-        # 1/3 of the dataset used for eval
-        where_clause = 'WHERE MOD(FARM_FINGERPRINT(unique_key), 3) = 0'
-    else:
-        # 2/3 of the dataset used for training
-        where_clause = 'WHERE MOD(FARM_FINGERPRINT(unique_key), 3) > 0'
+  Returns:
+    sql command as string
+  """
+  if for_eval:
+    # 1/3 of the dataset used for eval
+    where_clause = 'WHERE MOD(FARM_FINGERPRINT(unique_key), 3) = 0'
+  else:
+    # 2/3 of the dataset used for training
+    where_clause = 'WHERE MOD(FARM_FINGERPRINT(unique_key), 3) > 0'
 
-    limit_clause = ''
-    if max_rows:
-        limit_clause = 'LIMIT {max_rows}'.format(max_rows=max_rows)
-    return """
+  limit_clause = ''
+  if max_rows:
+    limit_clause = 'LIMIT {max_rows}'.format(max_rows=max_rows)
+  return """
   SELECT
       CAST(pickup_community_area AS string) AS pickup_community_area,
       CAST(dropoff_community_area AS string) AS dropoff_community_area,
@@ -163,19 +162,19 @@ def make_sql(table_name, max_rows=None, for_eval=False):
   {where_clause}
   {limit_clause}
 """.format(
-        table_name=table_name, where_clause=where_clause, limit_clause=limit_clause)
+    table_name=table_name, where_clause=where_clause, limit_clause=limit_clause)
 
 
 def read_schema(path):
-    """Reads a schema from the provided location.
+  """Reads a schema from the provided location.
 
-    Args:
-      path: The location of the file holding a serialized Schema proto.
+  Args:
+    path: The location of the file holding a serialized Schema proto.
 
-    Returns:
-      An instance of Schema or None if the input argument is None
-    """
-    result = schema_pb2.Schema()
-    contents = file_io.read_file_to_string(path)
-    text_format.Parse(contents, result)
-    return result
+  Returns:
+    An instance of Schema or None if the input argument is None
+  """
+  result = schema_pb2.Schema()
+  contents = file_io.read_file_to_string(path)
+  text_format.Parse(contents, result)
+  return result
