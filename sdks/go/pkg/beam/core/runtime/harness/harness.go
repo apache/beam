@@ -256,7 +256,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		}
 
 		// Get the desired splits for the root FnAPI read operation.
-		ds := msg.GetDesiredSplits()["0"]
+		ds := msg.GetDesiredSplits()[plan.SourcePTransformID()]
 		if ds == nil {
 			return fail(id, "failed to split: desired splits for root was empty.")
 		}
