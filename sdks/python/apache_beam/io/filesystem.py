@@ -400,8 +400,7 @@ class CompressedFile(object):
 
 
 class FileMetadata(object):
-  """Metadata about a file path that is the output of FileSystem.match
-  """
+  """Metadata about a file path that is the output of FileSystem.match."""
   def __init__(self, path, size_in_bytes):
     assert isinstance(path, (str, unicode)) and path, "Path should be a string"
     assert isinstance(size_in_bytes, (int, long)) and size_in_bytes >= 0, \
@@ -430,7 +429,7 @@ class FileMetadata(object):
 
 class MatchResult(object):
   """Result from the ``FileSystem`` match operation which contains the list
-   of matched FileMetadata.
+   of matched ``FileMetadata``.
   """
   def __init__(self, pattern, metadata_list):
     self.metadata_list = metadata_list

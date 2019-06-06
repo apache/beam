@@ -177,20 +177,27 @@ class Environment(object):
             key='major', value=to_json_value(environment_version))])
     # TODO: Use enumerated type instead of strings for job types.
     if job_type.startswith('FNAPI_'):
+      self.debug_options.experiments = self.debug_options.experiments or []
+      debug_options_experiments = self.debug_options.experiments
       runner_harness_override = (
           get_runner_harness_container_image())
-      self.debug_options.experiments = self.debug_options.experiments or []
       if runner_harness_override:
-        self.debug_options.experiments.append(
+        debug_options_experiments.append(
             'runner_harness_container_image=' + runner_harness_override)
-      # Add use_multiple_sdk_containers flag if its not already present. Do not
+      # Add use_multiple_sdk_containers flag if it's not already present. Do not
       # add the flag if 'no_use_multiple_sdk_containers' is present.
       # TODO: Cleanup use_multiple_sdk_containers once we deprecate Python SDK
       # till version 2.4.
-      debug_options_experiments = self.debug_options.experiments
       if ('use_multiple_sdk_containers' not in debug_options_experiments and
           'no_use_multiple_sdk_containers' not in debug_options_experiments):
-        self.debug_options.experiments.append('use_multiple_sdk_containers')
+        debug_options_experiments.append('use_multiple_sdk_containers')
+      # Add enable_health_checker flag if it's not already present. Do not
+      # add the flag if 'disable_health_checker' is present.
+      # TODO[BEAM-7466]: Cleanup enable_health_checker once Python SDK 2.13
+      # becomes unsupported.
+      if ('enable_health_checker' not in debug_options_experiments and
+          'disable_health_checker' not in debug_options_experiments):
+        debug_options_experiments.append('enable_health_checker')
     # FlexRS
     if self.google_cloud_options.flexrs_goal == 'COST_OPTIMIZED':
       self.proto.flexResourceSchedulingGoal = (
@@ -875,6 +882,13 @@ def _use_unified_worker(pipeline_options):
   return _use_fnapi(pipeline_options) and (
       debug_options.experiments and
       'use_unified_worker' in debug_options.experiments)
+
+
+def _use_sdf_bounded_source(pipeline_options):
+  debug_options = pipeline_options.view_as(DebugOptions)
+  return _use_fnapi(pipeline_options) and (
+      debug_options.experiments and
+      'use_sdf_bounded_source' in debug_options.experiments)
 
 
 def get_default_container_image_for_current_sdk(job_type):

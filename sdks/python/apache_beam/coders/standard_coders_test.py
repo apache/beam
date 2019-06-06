@@ -22,6 +22,7 @@ from __future__ import print_function
 
 import json
 import logging
+import math
 import os.path
 import sys
 import unittest
@@ -54,6 +55,15 @@ def _load_test_cases(test_yaml):
     yield [name, spec]
 
 
+def parse_float(s):
+  x = float(s)
+  if math.isnan(x):
+    # In Windows, float('NaN') has opposite sign from other platforms.
+    # For the purpose of this test, we just need consistency.
+    x = abs(x)
+  return x
+
+
 class StandardCodersTest(unittest.TestCase):
 
   _urn_to_json_value_parser = {
@@ -77,7 +87,7 @@ class StandardCodersTest(unittest.TestCase):
           lambda x, payload_parser: dict(
               payload=payload_parser(x['payload']),
               timestamp=Timestamp(micros=x['timestamp'] * 1000)),
-      'beam:coder:double:v1': lambda x: float(x),
+      'beam:coder:double:v1': parse_float,
   }
 
   def test_standard_coders(self):
@@ -88,7 +98,6 @@ class StandardCodersTest(unittest.TestCase):
   def _run_standard_coder(self, name, spec):
     def assert_equal(actual, expected):
       """Handle nan values which self.assertEqual fails on."""
-      import math
       if (isinstance(actual, float)
           and isinstance(expected, float)
           and math.isnan(actual)

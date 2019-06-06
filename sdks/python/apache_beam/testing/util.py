@@ -25,6 +25,9 @@ import io
 import tempfile
 from builtins import object
 
+from hamcrest.core import assert_that as hamcrest_assert
+from hamcrest.library.collection import contains_inanyorder
+
 from apache_beam import pvalue
 from apache_beam.transforms import window
 from apache_beam.transforms.core import Create
@@ -40,6 +43,8 @@ __all__ = [
     'assert_that',
     'equal_to',
     'is_empty',
+    'is_not_empty',
+    'matches_all',
     # open_shards is internal and has no backwards compatibility guarantees.
     'open_shards',
     'TestWindowedValue',
@@ -141,6 +146,21 @@ def equal_to(expected):
   return _equal
 
 
+def matches_all(expected):
+  """Matcher used by assert_that to check a set of matchers.
+
+  Args:
+    expected: A list of elements or hamcrest matchers to be used to match
+      the elements of a single PCollection.
+  """
+  def _matches(actual):
+    expected_list = list(expected)
+
+    hamcrest_assert(actual, contains_inanyorder(*expected_list))
+
+  return _matches
+
+
 def is_empty():
   def _empty(actual):
     actual = list(actual)
@@ -148,6 +168,19 @@ def is_empty():
       raise BeamAssertException(
           'Failed assert: [] == %r' % actual)
   return _empty
+
+
+def is_not_empty():
+  """
+  This is test method which makes sure that the pcol is not empty and it has
+  some data in it.
+  :return:
+  """
+  def _not_empty(actual):
+    actual = list(actual)
+    if not actual:
+      raise BeamAssertException('Failed assert: pcol is empty')
+  return _not_empty
 
 
 def assert_that(actual, matcher, label='assert_that',

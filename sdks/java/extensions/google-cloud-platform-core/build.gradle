@@ -53,7 +53,6 @@ dependencies {
   provided library.java.junit
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.hamcrest_library
-  testCompile library.java.guava_testlib
   testCompile library.java.mockito_core
   testRuntimeOnly library.java.slf4j_jdk14
 }
