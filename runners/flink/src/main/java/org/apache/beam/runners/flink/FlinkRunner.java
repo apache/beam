@@ -76,8 +76,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     }
 
     if (flinkOptions.getFilesToStage() == null) {
-      flinkOptions.setFilesToStage(
-          detectClassPathResourcesToStage(FlinkRunner.class.getClassLoader()));
+      flinkOptions.setFilesToStage(detectClassPathResourcesToStage());
       LOG.info(
           "PipelineOptions.filesToStage was not specified. "
               + "Defaulting to files from the classpath: will stage {} files. "

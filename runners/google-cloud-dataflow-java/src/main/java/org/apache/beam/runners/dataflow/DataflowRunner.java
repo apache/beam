@@ -266,8 +266,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     if (dataflowOptions.getFilesToStage() == null) {
-      dataflowOptions.setFilesToStage(
-          detectClassPathResourcesToStage(DataflowRunner.class.getClassLoader()));
+      dataflowOptions.setFilesToStage(detectClassPathResourcesToStage());
       if (dataflowOptions.getFilesToStage().isEmpty()) {
         throw new IllegalArgumentException("No files to stage has been found.");
       } else {

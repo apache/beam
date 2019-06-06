@@ -23,56 +23,43 @@ import static org.junit.Assert.assertThrows;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.junit.AfterClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mockito;
 
 /** Tests for PipelineResources. */
 @RunWith(JUnit4.class)
 public class PipelineResourcesTest {
 
+  private static final String classPath = System.getProperty("java.class.path");
+
   @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
+
+  @AfterClass
+  public static void cleanup() {
+    System.setProperty("java.class.path", classPath);
+  }
 
   @Test
   public void detectClassPathResourceWithFileResources() throws Exception {
     File file = tmpFolder.newFile("file");
     File file2 = tmpFolder.newFile("file2");
-    URLClassLoader classLoader =
-        new URLClassLoader(new URL[] {file.toURI().toURL(), file2.toURI().toURL()});
+    System.setProperty(
+        "java.class.path",
+        String.join(File.pathSeparator, file.getAbsolutePath(), file2.getAbsolutePath()));
 
     assertEquals(
         ImmutableList.of(file.getAbsolutePath(), file2.getAbsolutePath()),
-        PipelineResources.detectClassPathResourcesToStage(classLoader));
-  }
-
-  @Test
-  public void detectClassPathResourcesWithUnsupportedClassLoader() {
-    ClassLoader mockClassLoader = Mockito.mock(ClassLoader.class);
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Unable to use ClassLoader to detect classpath elements.");
-
-    PipelineResources.detectClassPathResourcesToStage(mockClassLoader);
-  }
-
-  @Test
-  public void detectClassPathResourceWithNonFileResources() throws Exception {
-    String url = "http://www.google.com/all-the-secrets.jar";
-    URLClassLoader classLoader = new URLClassLoader(new URL[] {new URL(url)});
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Unable to convert url (" + url + ") to file.");
-
-    PipelineResources.detectClassPathResourcesToStage(classLoader);
+        PipelineResources.detectClassPathResourcesToStage());
   }
 
   @Test
