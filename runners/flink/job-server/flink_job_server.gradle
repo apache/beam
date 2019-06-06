@@ -28,9 +28,9 @@ apply plugin: 'org.apache.beam.module'
 apply plugin: 'application'
 // we need to set mainClassName before applying shadow plugin
 mainClassName = "org.apache.beam.runners.flink.FlinkJobServerDriver"
-archivesBaseName = project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName
 
 applyJavaNature(
+  archivesBaseName: project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName,
   validateShadowJar: false,
   exportJavadoc: false,
   shadowClosure: {
