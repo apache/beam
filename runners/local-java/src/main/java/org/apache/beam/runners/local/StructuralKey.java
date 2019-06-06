@@ -91,5 +91,10 @@ public abstract class StructuralKey<K> {
     public int hashCode() {
       return structuralValue.hashCode();
     }
+
+    @Override
+    public String toString() {
+      return "CoderStructuralKey{(coder=" + coder + ", structuralValue=" + structuralValue + ")";
+    }
   }
 }

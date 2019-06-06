@@ -164,7 +164,7 @@ class QuiescenceDriver implements ExecutionDriver {
                     transformTimers.getKey(),
                     (PCollection)
                         Iterables.getOnlyElement(
-                            transformTimers.getExecutable().getInputs().values()))
+                            transformTimers.getExecutable().getMainInputs().values()))
                 .add(WindowedValue.valueInGlobalWindow(work))
                 .commit(evaluationContext.now());
         outstandingWork.incrementAndGet();

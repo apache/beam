@@ -31,6 +31,7 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -38,6 +39,7 @@ import java.util.Map;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.direct.WatermarkManager.AppliedPTransformInputWatermark;
+import org.apache.beam.runners.direct.WatermarkManager.AppliedPTransformTimerWatermark;
 import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate.TimerUpdateBuilder;
@@ -1244,19 +1246,44 @@ public class WatermarkManagerTest implements Serializable {
 
     manager.updateWatermarks(
         null,
+        TimerUpdate.builder(key).withCompletedTimers(Arrays.asList(earliestTimer)).build(),
+        graph.getProducer(filtered),
+        null,
+        Collections.emptyList(),
+        new Instant(1000L));
+
+    manager.updateWatermarks(
+        null,
         TimerUpdate.empty(),
         graph.getProducer(createdInts),
         null,
         Collections.emptyList(),
         new Instant(50_000L));
+
     manager.refreshAll();
     Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> secondFiredTimers =
         manager.extractFiredTimers();
     assertThat(secondFiredTimers, not(emptyIterable()));
     FiredTimers<AppliedPTransform<?, ?, ?>> secondFired =
         Iterables.getOnlyElement(secondFiredTimers);
-    // Contains, in order, middleTimer and then lastTimer
-    assertThat(secondFired.getTimers(), contains(middleTimer, lastTimer));
+    assertThat(secondFired.getTimers().size(), equalTo(1));
+    assertThat(secondFired.getTimers(), contains(middleTimer));
+
+    manager.updateWatermarks(
+        null,
+        TimerUpdate.builder(key).withCompletedTimers(Arrays.asList(middleTimer)).build(),
+        graph.getProducer(filtered),
+        null,
+        Collections.emptyList(),
+        new Instant(5000L));
+
+    manager.refreshAll();
+    Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> thirdFiredTimers =
+        manager.extractFiredTimers();
+    assertThat(thirdFiredTimers, not(emptyIterable()));
+    FiredTimers<AppliedPTransform<?, ?, ?>> thirdFired = Iterables.getOnlyElement(thirdFiredTimers);
+    assertThat(thirdFired.getTimers().size(), equalTo(1));
+    assertThat(thirdFired.getTimers(), contains(lastTimer));
   }
 
   @Test
@@ -1496,13 +1523,15 @@ public class WatermarkManagerTest implements Serializable {
   public void inputWatermarkDuplicates() {
     Watermark mockWatermark = Mockito.mock(Watermark.class);
 
-    AppliedPTransformInputWatermark underTest =
-        new AppliedPTransformInputWatermark("underTest", ImmutableList.of(mockWatermark));
+    AppliedPTransformInputWatermark underTestInput =
+        new AppliedPTransformInputWatermark("underTest.in", ImmutableList.of(mockWatermark));
+    AppliedPTransformTimerWatermark underTestTimer =
+        new AppliedPTransformTimerWatermark("underTest.timer", underTestInput);
 
     // Refresh
     when(mockWatermark.get()).thenReturn(new Instant(0));
-    underTest.refresh();
-    assertEquals(new Instant(0), underTest.get());
+    underTestInput.refresh();
+    assertEquals(new Instant(0), underTestInput.get());
 
     // Apply a timer update
     StructuralKey<String> key = StructuralKey.of("key", StringUtf8Coder.of());
@@ -1510,30 +1539,59 @@ public class WatermarkManagerTest implements Serializable {
         TimerData.of("a", StateNamespaces.global(), new Instant(100), TimeDomain.EVENT_TIME);
     TimerData timer2 =
         TimerData.of("a", StateNamespaces.global(), new Instant(200), TimeDomain.EVENT_TIME);
-    underTest.updateTimers(TimerUpdate.builder(key).setTimer(timer1).setTimer(timer2).build());
+    TimerData timer3 =
+        TimerData.of("b", StateNamespaces.global(), new Instant(100), TimeDomain.EVENT_TIME);
 
-    // Only the last timer update should be observable
-    assertEquals(timer2.getTimestamp(), underTest.getEarliestTimerTimestamp());
+    // zero on input
+    assertEquals(new Instant(0), underTestInput.get());
+
+    underTestInput.refresh();
+    underTestTimer.refresh();
+
+    // input propagates to timer
+    assertEquals(new Instant(0), underTestTimer.get());
+    assertEquals(new Instant(0), underTestInput.get());
+
+    underTestTimer.updateTimers(
+        TimerUpdate.builder(key).setTimer(timer1).setTimer(timer2).setTimer(timer3).build());
+
+    underTestTimer.refresh();
+
+    assertEquals(new Instant(0), underTestTimer.get());
+    assertEquals(new Instant(0), underTestInput.get());
 
     // Advance the input watermark
     when(mockWatermark.get()).thenReturn(new Instant(1000));
-    underTest.refresh();
-    assertEquals(new Instant(1000), underTest.get()); // input watermark is not held by timers
+    underTestInput.refresh();
+    underTestTimer.refresh();
+    assertEquals(new Instant(1000), underTestInput.get()); // input watermark is not held by timers
+    assertEquals(timer3.getTimestamp(), underTestTimer.get()); // but timer watermark is
 
     // Examine the fired event time timers
-    Map<StructuralKey<?>, List<TimerData>> fired = underTest.extractFiredEventTimeTimers();
+    Map<StructuralKey<?>, List<TimerData>> fired = underTestTimer.extractFiredEventTimeTimers();
     List<TimerData> timers = fired.get(key);
     assertNotNull(timers);
-    assertThat(timers, contains(timer2));
+    assertThat(timers, equalTo(Arrays.asList(timer3)));
+
+    when(mockWatermark.get()).thenReturn(BoundedWindow.TIMESTAMP_MAX_VALUE);
+    underTestInput.refresh();
+    underTestTimer.refresh();
 
     // Update based on timer firings
-    underTest.updateTimers(TimerUpdate.builder(key).withCompletedTimers(timers).build());
+    underTestTimer.updateTimers(TimerUpdate.builder(key).withCompletedTimers(timers).build());
 
     // Now we should be able to advance
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE, underTest.getEarliestTimerTimestamp());
+    assertEquals(timer2.getTimestamp(), underTestTimer.get());
+    fired = underTestTimer.extractFiredEventTimeTimers();
+    timers = fired.get(key);
+    assertNotNull(timers);
+    assertThat(timers, equalTo(Arrays.asList(timer2)));
+    underTestTimer.updateTimers(TimerUpdate.builder(key).withCompletedTimers(timers).build());
+
+    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE, underTestTimer.get());
 
     // Nothing left to fire
-    fired = underTest.extractFiredEventTimeTimers();
+    fired = underTestTimer.extractFiredEventTimeTimers();
     assertThat(fired.entrySet(), empty());
   }
 
