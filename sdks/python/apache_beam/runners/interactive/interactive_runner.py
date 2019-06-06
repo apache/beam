@@ -44,19 +44,24 @@ class InteractiveRunner(runners.PipelineRunner):
   Allows interactively building and running Beam Python pipelines.
   """
 
-  def __init__(self, underlying_runner=None, cache_dir=None,
+  def __init__(self,
+               underlying_runner=None,
+               cache_dir=None,
+               cache_format='text',
                render_option=None):
     """Constructor of InteractiveRunner.
 
     Args:
       underlying_runner: (runner.PipelineRunner)
       cache_dir: (str) the directory where PCollection caches are kept
+      cache_format: (str) the file format that should be used for saving
+          PCollection caches. Available options are 'text' and 'tfrecord'.
       render_option: (str) this parameter decides how the pipeline graph is
           rendered. See display.pipeline_graph_renderer for available options.
     """
     self._underlying_runner = (underlying_runner
                                or direct_runner.DirectRunner())
-    self._cache_manager = cache.FileBasedCacheManager(cache_dir)
+    self._cache_manager = cache.FileBasedCacheManager(cache_dir, cache_format)
     self._renderer = pipeline_graph_renderer.get_renderer(render_option)
     self._in_session = False
 

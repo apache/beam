@@ -465,6 +465,75 @@ class ToStringTest(unittest.TestCase):
       assert_that(result, equal_to(["one\t1", "two\t2"]))
 
 
+class ReifyTest(unittest.TestCase):
+
+  def test_timestamp(self):
+    l = [TimestampedValue('a', 100),
+         TimestampedValue('b', 200),
+         TimestampedValue('c', 300)]
+    expected = [TestWindowedValue('a', 100, [GlobalWindow()]),
+                TestWindowedValue('b', 200, [GlobalWindow()]),
+                TestWindowedValue('c', 300, [GlobalWindow()])]
+    with TestPipeline() as p:
+      # Map(lambda x: x) PTransform is added after Create here, because when
+      # a PCollection of TimestampedValues is created with Create PTransform,
+      # the timestamps are not assigned to it. Adding a Map forces the
+      # PCollection to go through a DoFn so that the PCollection consists of
+      # the elements with timestamps assigned to them instead of a PCollection
+      # of TimestampedValue(element, timestamp).
+      pc = p | beam.Create(l) | beam.Map(lambda x: x)
+      reified_pc = pc | util.Reify.Timestamp()
+      assert_that(reified_pc, equal_to(expected), reify_windows=True)
+
+  @unittest.skip('BEAM-7499')
+  def test_window(self):
+    l = [GlobalWindows.windowed_value('a', 100),
+         GlobalWindows.windowed_value('b', 200),
+         GlobalWindows.windowed_value('c', 300)]
+    expected = [TestWindowedValue(('a', 100, GlobalWindow()), 100,
+                                  [GlobalWindow()]),
+                TestWindowedValue(('b', 200, GlobalWindow()), 200,
+                                  [GlobalWindow()]),
+                TestWindowedValue(('c', 300, GlobalWindow()), 300,
+                                  [GlobalWindow()])]
+    with TestPipeline() as p:
+      pc = p | beam.Create(l)
+      reified_pc = pc | util.Reify.Window()
+      assert_that(reified_pc, equal_to(expected), reify_windows=True)
+
+  def test_timestamp_in_value(self):
+    l = [TimestampedValue(('a', 1), 100),
+         TimestampedValue(('b', 2), 200),
+         TimestampedValue(('c', 3), 300)]
+    expected = [TestWindowedValue(('a', TimestampedValue(1, 100)), 100,
+                                  [GlobalWindow()]),
+                TestWindowedValue(('b', TimestampedValue(2, 200)), 200,
+                                  [GlobalWindow()]),
+                TestWindowedValue(('c', TimestampedValue(3, 300)), 300,
+                                  [GlobalWindow()])]
+    with TestPipeline() as p:
+      pc = p | beam.Create(l) | beam.Map(lambda x: x)
+      reified_pc = pc | util.Reify.TimestampInValue()
+      assert_that(reified_pc, equal_to(expected), reify_windows=True)
+
+  def test_window_in_value(self):
+    l = [GlobalWindows.windowed_value(('a', 1), 100),
+         GlobalWindows.windowed_value(('b', 2), 200),
+         GlobalWindows.windowed_value(('c', 3), 300)]
+    expected = [TestWindowedValue(('a', (1, 100, GlobalWindow())), 100,
+                                  [GlobalWindow()]),
+                TestWindowedValue(('b', (2, 200, GlobalWindow())), 200,
+                                  [GlobalWindow()]),
+                TestWindowedValue(('c', (3, 300, GlobalWindow())), 300,
+                                  [GlobalWindow()])]
+    with TestPipeline() as p:
+      # Map(lambda x: x) hack is used for the same reason here.
+      # Also, this makes the typehint on Reify.WindowInValue work.
+      pc = p | beam.Create(l) | beam.Map(lambda x: x)
+      reified_pc = pc | util.Reify.WindowInValue()
+      assert_that(reified_pc, equal_to(expected), reify_windows=True)
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

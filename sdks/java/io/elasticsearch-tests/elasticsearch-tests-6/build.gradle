@@ -17,8 +17,9 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-archivesBaseName = 'beam-sdks-java-io-elasticsearch-tests-6'
-applyJavaNature()
+applyJavaNature(
+    archivesBaseName: 'beam-sdks-java-io-elasticsearch-tests-6'
+)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 

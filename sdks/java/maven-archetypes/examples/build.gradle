@@ -44,6 +44,7 @@ processResources {
     'maven-jar-plugin.version': dependencies.create(project.library.maven.maven_jar_plugin).getVersion(),
     'maven-shade-plugin.version': dependencies.create(project.library.maven.maven_shade_plugin).getVersion(),
     'maven-surefire-plugin.version': dependencies.create(project.library.maven.maven_surefire_plugin).getVersion(),
+    'flink.artifact.name': 'beam-runners-flink-'.concat(project(":runners:flink:1.8").getName()),
   ]
 }
 

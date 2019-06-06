@@ -17,8 +17,10 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-archivesBaseName = 'beam-sdks-java-test-utils'
-applyJavaNature(exportJavadoc: false)
+applyJavaNature(
+    exportJavadoc: false,
+    archivesBaseName: 'beam-sdks-java-test-utils'
+)
 
 description = "Apache Beam :: SDKs :: Java :: Test Utils"
 

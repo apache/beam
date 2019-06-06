@@ -26,8 +26,9 @@
 import groovy.json.JsonOutput
 
 apply plugin: 'org.apache.beam.module'
-archivesBaseName = project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName
-applyJavaNature()
+applyJavaNature(
+    archivesBaseName: project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName
+)
 
 description = "Apache Beam :: Runners :: Flink $flink_version"
 
