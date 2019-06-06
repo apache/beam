@@ -1104,7 +1104,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
                     if (it instanceof ProjectDependency) {
                       dependencyNode.appendNode('groupId', it.getDependencyProject().mavenGroupId)
-                      dependencyNode.appendNode('artifactId', archivesBaseName(it.getDependencyProject()))
+                      dependencyNode.appendNode('artifactId', it.getDependencyProject().archivesBaseName)
                       dependencyNode.appendNode('version', it.version)
                       dependencyNode.appendNode('scope', param.scope)
                     } else {
