@@ -24,9 +24,9 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: Protobuf"
 ext.summary = "Add support to Apache Beam for Google Protobuf."
 
 dependencies {
-  shadow library.java.vendored_guava_20_0
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow library.java.protobuf_java
+  compile library.java.vendored_guava_20_0
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.protobuf_java
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library

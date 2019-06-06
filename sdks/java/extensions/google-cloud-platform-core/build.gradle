@@ -34,21 +34,21 @@ test {
 }
 
 dependencies {
-  shadow library.java.vendored_guava_20_0
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow library.java.google_http_client_jackson2
-  shadow library.java.google_auth_library_oauth2_http
-  shadow library.java.google_api_client
-  shadow library.java.bigdataoss_gcsio
-  shadow library.java.bigdataoss_util
-  shadow library.java.google_api_services_cloudresourcemanager
-  shadow library.java.google_api_services_storage
-  shadow library.java.google_auth_library_credentials
-  shadow library.java.google_http_client
-  shadow library.java.slf4j_api
-  shadow library.java.joda_time
-  shadow library.java.jackson_annotations
-  shadow library.java.jackson_databind
+  compile library.java.vendored_guava_20_0
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.google_http_client_jackson2
+  compile library.java.google_auth_library_oauth2_http
+  compile library.java.google_api_client
+  compile library.java.bigdataoss_gcsio
+  compile library.java.bigdataoss_util
+  compile library.java.google_api_services_cloudresourcemanager
+  compile library.java.google_api_services_storage
+  compile library.java.google_auth_library_credentials
+  compile library.java.google_http_client
+  compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile library.java.jackson_annotations
+  compile library.java.jackson_databind
   provided library.java.hamcrest_core
   provided library.java.junit
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")

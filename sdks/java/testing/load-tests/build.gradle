@@ -58,18 +58,18 @@ configurations {
 }
 
 dependencies {
-  shadow library.java.kafka_clients
+  compile library.java.kafka_clients
 
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(path: ":runners:direct-java", configuration: "shadow")
-  shadow project(path: ":sdks:java:io:synthetic", configuration: "shadow")
-  shadow project(path: ":sdks:java:testing:test-utils", configuration: "shadow")
-  shadow project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
-  shadow project(path: ":sdks:java:io:kafka", configuration: "shadow")
-  shadow project(path: ":sdks:java:io:kinesis", configuration: "shadow")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(path: ":runners:direct-java", configuration: "shadow")
+  compile project(":sdks:java:io:synthetic")
+  compile project(":sdks:java:testing:test-utils")
+  compile project(":sdks:java:io:google-cloud-platform")
+  compile project(":sdks:java:io:kafka")
+  compile project(":sdks:java:io:kinesis")
 
-  gradleRun project(path: project.path, configuration: "shadow")
-  gradleRun project(path: runnerDependency, configuration: "shadow")
+  gradleRun project(project.path)
+  gradleRun project(runnerDependency)
 
   // The Spark runner requires the user to provide a Spark dependency. For self-contained
   // runs with the Spark runner, we can provide such a dependency. This is deliberately phrased

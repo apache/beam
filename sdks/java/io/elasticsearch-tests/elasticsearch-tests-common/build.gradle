@@ -35,8 +35,8 @@ dependencies {
   testCompile "org.apache.httpcomponents:httpclient:4.5.6"
 
   testCompile project(path: ":sdks:java:core", configuration: "shadow")
-  testCompile project(path: ":sdks:java:io:elasticsearch", configuration: "shadow")
-  testCompile project(path: ":sdks:java:io:common", configuration: "shadowTest")
+  testCompile project(":sdks:java:io:elasticsearch")
+  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile library.java.slf4j_api
   testCompile "net.java.dev.jna:jna:$jna_version"
   testCompile "org.apache.logging.log4j:log4j-api:$log4j_version"
@@ -47,5 +47,5 @@ dependencies {
   testCompile library.java.junit
   testCompile "org.elasticsearch.client:elasticsearch-rest-client:6.4.0"
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(path: ":runners:direct-java")
+  testRuntimeOnly project(":runners:direct-java")
 }
