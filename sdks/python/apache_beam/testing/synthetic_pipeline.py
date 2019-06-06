@@ -105,9 +105,7 @@ def initial_splitting_zipf(start_position, stop_position,
 
 class SyntheticStep(beam.DoFn):
   """A DoFn of which behavior can be controlled through prespecified parameters.
-
   """
-
   def __init__(self, per_element_delay_sec=0, per_bundle_delay_sec=0,
                output_records_per_input_record=1, output_filter_ratio=0):
     if per_element_delay_sec and per_element_delay_sec < 1e-3:
@@ -145,7 +143,7 @@ class SyntheticStep(beam.DoFn):
 
 
 class NonLiquidShardingOffsetRangeTracker(OffsetRestrictionTracker):
-  """ A OffsetRangeTracker that doesn't allow splitting. """
+  """An OffsetRangeTracker that doesn't allow splitting. """
 
   def try_split(self, split_offset):
     pass  # Don't split.
@@ -157,7 +155,7 @@ class NonLiquidShardingOffsetRangeTracker(OffsetRestrictionTracker):
 class SyntheticSDFStepRestrictionProvider(RestrictionProvider):
   """A `RestrictionProvider` for SyntheticSDFStep.
 
-  An initial_restriction and split that operate on num_records and ignore
+  An initial_restriction and split that operate on num_records and ignores
   source description (element). Splits into initial_splitting_num_bundles.
   Returns size_estimate_override as restriction size, if set. Otherwise uses
   element size.
@@ -213,7 +211,7 @@ def getSyntheticSDFStep(per_element_delay_sec=0,
                         initial_splitting_uneven_chunks=False,
                         disable_liquid_sharding=False,
                         size_estimate_override=None,):
-  """ A function which returns a SyntheticSDFStep with given parameters. """
+  """A function which returns a SyntheticSDFStep with given parameters. """
 
   class SyntheticSDFStep(beam.DoFn):
     """A SplittableDoFn of which behavior can be controlled through prespecified
@@ -667,7 +665,7 @@ def parse_args(args):
            '(4) A float "output_filter_ratio" in the range [0, 1] . '
            '    Defaults to 0.'
            '(5) A bool "splittable" that defaults to false.'
-           '(6) A integer "initial_splitting_num_bundles". Defaults to 8.')
+           '(6) An integer "initial_splitting_num_bundles". Defaults to 8.')
 
   parser.add_argument(
       '--input',
