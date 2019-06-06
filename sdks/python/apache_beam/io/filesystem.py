@@ -207,34 +207,25 @@ class CompressedFile(object):
                                  ) < num_bytes:
       # Continue reading from the underlying file object until enough bytes are
       # available, or EOF is reached.
-      buf = self._file.read(self._read_size)
+      if not self._decompressor.unused_data:
+        buf = self._file.read(self._read_size)
+      else:
+        # Any uncompressed data at the end of the stream of a gzip or bzip2
+        # file that is not corrupted points to a concatenated compressed
+        # file. We read concatenated files by recursively creating decompressor
+        # objects for the unused compressed data.
+        buf = self._decompressor.unused_data
+        self._initialize_decompressor()
       if buf:
         decompressed = self._decompressor.decompress(buf)
         del buf  # Free up some possibly large and no-longer-needed memory.
         self._read_buffer.write(decompressed)
       else:
         # EOF of current stream reached.
-        #
-        # Any uncompressed data at the end of the stream of a gzip or bzip2
-        # file that is not corrupted points to a concatenated compressed
-        # file. We read concatenated files by recursively creating decompressor
-        # objects for the unused compressed data.
         if (self._compression_type == CompressionTypes.BZIP2 or
             self._compression_type == CompressionTypes.DEFLATE or
             self._compression_type == CompressionTypes.GZIP):
-          if self._decompressor.unused_data != b'':
-            buf = self._decompressor.unused_data
-
-            if self._compression_type == CompressionTypes.BZIP2:
-              self._decompressor = bz2.BZ2Decompressor()
-            elif self._compression_type == CompressionTypes.DEFLATE:
-              self._decompressor = zlib.decompressobj()
-            else:
-              self._decompressor = zlib.decompressobj(self._gzip_mask)
-
-            decompressed = self._decompressor.decompress(buf)
-            self._read_buffer.write(decompressed)
-            continue
+          pass
         else:
           # Deflate, Gzip and bzip2 formats do not require flushing
           # remaining data in the decompressor into the read buffer when
