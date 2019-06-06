@@ -91,6 +91,7 @@ class CoGroupByKey(PTransform):
       {'tag1': pc1, 'tag2': pc2, 333: pc3}
 
   where::
+
       pc1 = [(k1, v1)]
       pc2 = []
       pc3 = [(k1, v31), (k1, v32), (k2, v33)]
