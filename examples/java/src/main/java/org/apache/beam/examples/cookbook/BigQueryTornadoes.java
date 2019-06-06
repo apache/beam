@@ -134,7 +134,7 @@ public class BigQueryTornadoes {
    * <p>Inherits standard configuration options.
    */
   public interface Options extends PipelineOptions {
-    @Description("Table to read from, specified as " + "<project_id>:<dataset_id>.<table_id>")
+    @Description("Table to read from, specified as <project_id>:<dataset_id>.<table_id>")
     @Default.String(WEATHER_SAMPLES_TABLE)
     String getInput();
 
@@ -166,25 +166,29 @@ public class BigQueryTornadoes {
 
     PCollection<TableRow> rowsFromBigQuery;
 
-    if (options.getReadMethod() == Method.DIRECT_READ) {
-      // Build the read options proto for the read operation.
-      TableReadOptions tableReadOptions =
-          TableReadOptions.newBuilder()
-              .addAllSelectedFields(Lists.newArrayList("month", "tornado"))
-              .build();
+    switch (options.getReadMethod()) {
+      case DIRECT_READ:
+        // Build the read options proto for the read operation.
+        TableReadOptions tableReadOptions =
+            TableReadOptions.newBuilder()
+                .addAllSelectedFields(Lists.newArrayList("month", "tornado"))
+                .build();
 
-      rowsFromBigQuery =
-          p.apply(
-              BigQueryIO.readTableRows()
-                  .from(options.getInput())
-                  .withMethod(Method.DIRECT_READ)
-                  .withReadOptions(tableReadOptions));
-    } else {
-      rowsFromBigQuery =
-          p.apply(
-              BigQueryIO.readTableRows()
-                  .from(options.getInput())
-                  .withMethod(options.getReadMethod()));
+        rowsFromBigQuery =
+            p.apply(
+                BigQueryIO.readTableRows()
+                    .from(options.getInput())
+                    .withMethod(Method.DIRECT_READ)
+                    .withReadOptions(tableReadOptions));
+        break;
+
+      default:
+        rowsFromBigQuery =
+            p.apply(
+                BigQueryIO.readTableRows()
+                    .from(options.getInput())
+                    .withMethod(options.getReadMethod()));
+        break;
     }
 
     rowsFromBigQuery
