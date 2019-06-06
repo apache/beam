@@ -89,43 +89,43 @@ configurations {
 }
 
 dependencies {
-  shadow library.java.vendored_guava_20_0
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(path: ":runners:core-java", configuration: "shadow")
-  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
-  shadow project(path: ":runners:java-fn-execution", configuration: "shadow")
-  shadow project(path: ":sdks:java:build-tools", configuration: "shadow")
-  shadow library.java.vendored_grpc_1_13_1
-  shadow library.java.jackson_annotations
-  shadow library.java.slf4j_api
-  shadow library.java.joda_time
-  shadow library.java.commons_compress
-  shadow library.java.args4j
-  shadow "org.apache.flink:flink-clients_2.11:$flink_version"
-  shadow "org.apache.flink:flink-core:$flink_version"
-  shadow "org.apache.flink:flink-metrics-core:$flink_version"
-  shadow "org.apache.flink:flink-java:$flink_version"
-  shadow "org.apache.flink:flink-runtime_2.11:$flink_version"
-  shadow "org.apache.flink:flink-streaming-java_2.11:$flink_version"
-  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
+  compile library.java.vendored_guava_20_0
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":runners:core-java")
+  compile project(":runners:core-construction-java")
+  compile project(":runners:java-fn-execution")
+  compile project(":sdks:java:build-tools")
+  compile library.java.vendored_grpc_1_13_1
+  compile library.java.jackson_annotations
+  compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile library.java.commons_compress
+  compile library.java.args4j
+  compile "org.apache.flink:flink-clients_2.11:$flink_version"
+  compile "org.apache.flink:flink-core:$flink_version"
+  compile "org.apache.flink:flink-metrics-core:$flink_version"
+  compile "org.apache.flink:flink-java:$flink_version"
+  compile "org.apache.flink:flink-runtime_2.11:$flink_version"
+  compile "org.apache.flink:flink-streaming-java_2.11:$flink_version"
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   // FlinkStateInternalsTest extends abstract StateInternalsTest
-  shadowTest project(path: ":runners:core-java", configuration: "shadowTest")
-  shadowTest library.java.commons_lang3
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.junit
-  shadowTest library.java.mockito_core
-  shadowTest library.java.google_api_services_bigquery
-  shadowTest project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
-  shadowTest library.java.jackson_dataformat_yaml
-  shadowTest "org.apache.flink:flink-core:$flink_version:tests"
-  shadowTest "org.apache.flink:flink-runtime_2.11:$flink_version:tests"
-  shadowTest "org.apache.flink:flink-streaming-java_2.11:$flink_version:tests"
-  shadowTest "org.apache.flink:flink-test-utils_2.11:$flink_version"
-  shadowTest project(":sdks:java:harness")
+  testCompile project(path: ":runners:core-java", configuration: "testRuntime")
+  testCompile library.java.commons_lang3
+  testCompile library.java.hamcrest_core
+  testCompile library.java.junit
+  testCompile library.java.mockito_core
+  testCompile library.java.google_api_services_bigquery
+  testCompile project(":sdks:java:io:google-cloud-platform")
+  testCompile library.java.jackson_dataformat_yaml
+  testCompile "org.apache.flink:flink-core:$flink_version:tests"
+  testCompile "org.apache.flink:flink-runtime_2.11:$flink_version:tests"
+  testCompile "org.apache.flink:flink-streaming-java_2.11:$flink_version:tests"
+  testCompile "org.apache.flink:flink-test-utils_2.11:$flink_version"
+  testCompile project(":sdks:java:harness")
   testRuntimeOnly library.java.slf4j_simple
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
-  validatesRunner project(path: ":runners:core-java", configuration: "shadowTest")
-  validatesRunner project(path: project.path, configuration: "shadow")
+  validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
+  validatesRunner project(project.path)
 }
 
 class ValidatesRunnerConfig {

@@ -76,17 +76,17 @@ configurations.all {
 }
 
 dependencies {
-  compile project(path: flinkRunnerProject, configuration: "shadow")
+  compile project(flinkRunnerProject)
   runtime group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
-  validatesPortableRunner project(path: flinkRunnerProject, configuration: "shadowTest")
+  validatesPortableRunner project(path: flinkRunnerProject, configuration: "testRuntime")
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
-  validatesPortableRunner project(path: ":runners:core-java", configuration: "shadowTest")
-  validatesPortableRunner project(path: ":runners:reference:java", configuration: "shadowTest")
-  runtime project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
+  validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntime")
+  validatesPortableRunner project(path: ":runners:reference:java", configuration: "testRuntime")
+  runtime project(":sdks:java:extensions:google-cloud-platform-core")
   runtime library.java.slf4j_simple
 //  TODO: Enable AWS and HDFS file system.
   // For resolving external transform requests
-  runtime project(path: ":sdks:java:io:kafka", configuration: "shadow")
+  runtime project(":sdks:java:io:kafka")
   runtime library.java.kafka_clients
 }
 

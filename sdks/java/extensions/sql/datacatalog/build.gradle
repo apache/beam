@@ -20,13 +20,11 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 
-applyJavaNature(
-  testShadowJar: true
-)
+applyJavaNature()
 
 dependencies {
-  shadow library.java.grpc_google_cloud_datacatalog_v1beta1
-  shadow library.java.proto_google_cloud_datacatalog_v1beta1
+  compile library.java.grpc_google_cloud_datacatalog_v1beta1
+  compile library.java.proto_google_cloud_datacatalog_v1beta1
   provided project(path: ":sdks:java:extensions:sql", configuration: "shadow")
 
   // For Data Catalog GRPC client
@@ -36,10 +34,10 @@ dependencies {
   provided library.java.netty_tcnative_boringssl_static
 
   // Dependencies for the example
-  provided project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
+  provided project(":sdks:java:io:google-cloud-platform")
   provided library.java.vendored_guava_20_0
   provided library.java.slf4j_api
-  shadowTestRuntimeClasspath library.java.slf4j_simple
+  testRuntimeOnly library.java.slf4j_simple
 }
 
 task runDataCatalogExample(type: JavaExec) {
