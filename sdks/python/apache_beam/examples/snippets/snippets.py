@@ -765,8 +765,8 @@ class CountingSource(iobase.BoundedSource):
       stop_position = self._count
 
     bundle_start = start_position
-    while bundle_start < self._count:
-      bundle_stop = max(self._count, bundle_start + desired_bundle_size)
+    while bundle_start < self.stop_position:
+      bundle_stop = max(self.stop_position, bundle_start + desired_bundle_size)
       yield iobase.SourceBundle(weight=(bundle_stop - bundle_start),
                                 source=self,
                                 start_position=bundle_start,
