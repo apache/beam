@@ -54,10 +54,14 @@ public class ConvertHelpers {
   public static class ConvertedSchemaInformation<T> implements Serializable {
     // If the output type is a composite type, this is the schema coder.
     @Nullable public final SchemaCoder<T> outputSchemaCoder;
+    // If the input schema has a single field and the output type's schema matches that field, this
+    // is the output type.
     @Nullable public final FieldType unboxedType;
 
     public ConvertedSchemaInformation(
         @Nullable SchemaCoder<T> outputSchemaCoder, @Nullable FieldType unboxedType) {
+      assert outputSchemaCoder != null || unboxedType != null;
+
       this.outputSchemaCoder = outputSchemaCoder;
       this.unboxedType = unboxedType;
     }

@@ -19,6 +19,7 @@ package org.apache.beam.fn.harness;
 
 import java.util.EnumMap;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.control.AddHarnessIdInterceptor;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
@@ -166,6 +167,7 @@ public class FnHarness {
       OutboundObserverFactory outboundObserverFactory)
       throws Exception {
     IdGenerator idGenerator = IdGenerators.decrementingLongs();
+    ExecutorService executorService = options.as(GcsOptions.class).getExecutorService();
     // The logging client variable is not used per se, but during its lifetime (until close()) it
     // intercepts logging and sends it to the logging service.
     try (BeamFnLoggingClient logging =
@@ -203,9 +205,10 @@ public class FnHarness {
       JvmInitializers.runBeforeProcessing(options);
 
       LOG.info("Entering instruction processing loop");
-      control.processInstructionRequests(options.as(GcsOptions.class).getExecutorService());
+      control.processInstructionRequests(executorService);
     } finally {
       System.out.println("Shutting SDK harness down.");
+      executorService.shutdown();
     }
   }
 }

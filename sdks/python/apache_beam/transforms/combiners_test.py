@@ -77,7 +77,7 @@ class CombineTest(unittest.TestCase):
     assert_that(result_bot, equal_to([[0, 1, 1, 1]]), label='assert:bot')
 
     # Again for per-key combines.
-    pcoll = pipeline | 'start-perkye' >> Create(
+    pcoll = pipeline | 'start-perkey' >> Create(
         [('a', x) for x in [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]])
     result_key_top = pcoll | 'top-perkey' >> combine.Top.LargestPerKey(5)
     result_key_bot = pcoll | 'bot-perkey' >> combine.Top.SmallestPerKey(4)

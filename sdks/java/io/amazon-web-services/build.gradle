@@ -42,7 +42,6 @@ dependencies {
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:io:common", configuration: "shadowTest")
   testCompile "io.findify:s3mock_2.12:0.2.4"
-  shadowTest library.java.guava_testlib
   shadowTest library.java.hamcrest_core
   shadowTest library.java.hamcrest_library
   shadowTest library.java.mockito_core

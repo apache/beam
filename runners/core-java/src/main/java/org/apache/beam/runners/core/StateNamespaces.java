@@ -89,8 +89,6 @@ public class StateNamespaces {
   /** {@link StateNamespace} that is scoped to a specific window. */
   public static class WindowNamespace<W extends BoundedWindow> implements StateNamespace {
 
-    private static final String WINDOW_FORMAT = "/%s/";
-
     private Coder<W> windowCoder;
     private W window;
 
@@ -106,7 +104,8 @@ public class StateNamespaces {
     @Override
     public String stringKey() {
       try {
-        return String.format(WINDOW_FORMAT, CoderUtils.encodeToBase64(windowCoder, window));
+        // equivalent to String.format("/%s/", ...)
+        return "/" + CoderUtils.encodeToBase64(windowCoder, window) + "/";
       } catch (CoderException e) {
         throw new RuntimeException("Unable to generate string key from window " + window, e);
       }
@@ -155,8 +154,6 @@ public class StateNamespaces {
   /** {@link StateNamespace} that is scoped to a particular window and trigger index. */
   public static class WindowAndTriggerNamespace<W extends BoundedWindow> implements StateNamespace {
 
-    private static final String WINDOW_AND_TRIGGER_FORMAT = "/%s/%s/";
-
     private static final int TRIGGER_RADIX = 36;
     private Coder<W> windowCoder;
     private W window;
@@ -179,12 +176,15 @@ public class StateNamespaces {
     @Override
     public String stringKey() {
       try {
-        return String.format(
-            WINDOW_AND_TRIGGER_FORMAT,
-            CoderUtils.encodeToBase64(windowCoder, window),
+        // equivalent to String.format("/%s/%s/", ...)
+        return "/"
+            + CoderUtils.encodeToBase64(windowCoder, window)
+            +
             // Use base 36 so that can address 36 triggers in a single byte and still be human
             // readable.
-            Integer.toString(triggerIndex, TRIGGER_RADIX).toUpperCase());
+            "/"
+            + Integer.toString(triggerIndex, TRIGGER_RADIX).toUpperCase()
+            + "/";
       } catch (CoderException e) {
         throw new RuntimeException("Unable to generate string key from window " + window, e);
       }

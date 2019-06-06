@@ -47,6 +47,7 @@
     <hadoop.version>@hadoop.version@</hadoop.version>
     <maven-surefire-plugin.version>@maven-surefire-plugin.version@</maven-surefire-plugin.version>
     <nemo.version>@nemo.version@</nemo.version>
+    <flink.artifact.name>@flink.artifact.name@</flink.artifact.name>
   </properties>
 
   <repositories>
@@ -249,7 +250,10 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-flink_2.11</artifactId>
+          <!-- Please see the Flink Runner page for an up-to-date list
+               of supported Flink versions and their artifact names:
+               https://beam.apache.org/documentation/runners/flink/ -->
+          <artifactId>${flink.artifact.name}</artifactId>
           <version>${beam.version}</version>
           <scope>runtime</scope>
         </dependency>
