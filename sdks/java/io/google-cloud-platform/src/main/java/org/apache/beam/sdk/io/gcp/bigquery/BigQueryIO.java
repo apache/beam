@@ -411,8 +411,8 @@ public class BigQueryIO {
   public static TypedRead<TableRow> readTableRowsWithSchema() {
     return read(new TableRowParser())
         .withCoder(TableRowJsonCoder.of())
-        .withToBeamRowFn(BigQueryUtils.tableRowToBeamRow())
-        .withFromBeamRowFn(BigQueryUtils.tableRowFromBeamRow());
+        .withBeamRowConverters(
+            BigQueryUtils.tableRowToBeamRow(), BigQueryUtils.tableRowFromBeamRow());
   }
 
   /**
@@ -1250,27 +1250,14 @@ public class BigQueryIO {
     }
 
     /**
-     * Sets the {@link Row} conversion function.
+     * Sets the functions to convert elements to/from {@link Row} objects.
      *
-     * <p>Both {@link #withToBeamRowFn(ToBeamRowFunction)} and {@link
-     * #withFromBeamRowFn(FromBeamRowFunction)} must be set to enable automatic Beam {@link Schema}
-     * support.
+     * <p>Setting these conversion functions is necessary to enable {@link Schema} support.
      */
     @Experimental(Experimental.Kind.SCHEMAS)
-    public TypedRead<T> withToBeamRowFn(ToBeamRowFunction<T> toRowFn) {
-      return toBuilder().setToBeamRowFn(toRowFn).build();
-    }
-
-    /**
-     * Sets the function to convert to a {@link Row}.
-     *
-     * <p>Both {@link #withToBeamRowFn(ToBeamRowFunction)} and {@link
-     * #withFromBeamRowFn(FromBeamRowFunction)} must be set to enable automatic Beam {@link Schema}
-     * support.
-     */
-    @Experimental(Experimental.Kind.SCHEMAS)
-    public TypedRead<T> withFromBeamRowFn(FromBeamRowFunction<T> fromRowFn) {
-      return toBuilder().setFromBeamRowFn(fromRowFn).build();
+    public TypedRead<T> withBeamRowConverters(
+        ToBeamRowFunction<T> toRowFn, FromBeamRowFunction<T> fromRowFn) {
+      return toBuilder().setToBeamRowFn(toRowFn).setFromBeamRowFn(fromRowFn).build();
     }
 
     /** See {@link Read#from(String)}. */
