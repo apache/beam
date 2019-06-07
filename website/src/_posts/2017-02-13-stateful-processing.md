@@ -572,28 +572,24 @@ class ModelStatefulFn(beam.DoFn):
 
 Let's walk through it,
 
- - You have two state cells declared,
-   `@StateId("model")` / `StateParam(MODEL_STATE)` to hold the current
-   state of the model for a user and
-   `@StateId("previousPrediction")/StateParam(PREVIOUS_PREDICTION)` to hold
+ - You have two state cells declared, `@StateId("model")` to hold the current
+   state of the model for a user and `@StateId("previousPrediction")` to hold
    the prediction output previously.
  - Access to the two state cells by annotation in the `@ProcessElement` method
-   is as before, and in Python by using an argument placeholder.
- - You read the current model via `modelState.read()` / `model_state.read()`.
-   Because state is also per-key-and-window, this is a model just for the
-   UserId of the Event currently being processed.
+   is as before.
+ - You read the current model via `modelState.read()`.
+   per-key-and-window, this is a model just for the UserId of the Event 
+   currently being processed.
  - You derive a new prediction `model.prediction(event)` and compare it against
    the last one you output, accessed via
-   `previousPredicationState.read()` / `previous_pred_state.read()`.
+   `previousPredicationState.read()`.
  - You then update the model `model.update()` and write it via
-   `modelState.write(...)`, or via `model_state.clear()` and
-   `model_state.add(model)` in Python. It is perfectly fine to mutate the value
+   `modelState.write(...)`. It is perfectly fine to mutate the value
    you pulled out of state as long as you also remember to write the mutated
    value, in the same way you are encouraged to mutate `CombineFn` accumulators.
  - If the prediction has changed a significant amount since the last time you
-   output, you emit it via `context.output(...)` or `yield` in Python, and
-   save the prediction using `previousPredictionState.write(...)`, or
-   `previous_pred_state.clear()` and `previous_pred_state.add(...)` in Python.
+   output, you emit it via `context.output(...)` and
+   save the prediction using `previousPredictionState.write(...)`.
    Here the decision is relative to the prior prediction output, not the last
    one computed - realistically you might have some complex conditions here.
 
