@@ -64,7 +64,7 @@ class Infrastructure {
     }
   }
 
-  static void setupFlinkCluster(def context, String clusterNamePrefix, Integer workerCount, String imagesToPull, String jobServerImage) {
+  static void setupFlinkCluster(def context, String clusterNamePrefix, String imagesToPull, String jobServerImage, Integer workerCount, Integer slotsPerTaskmanager = 1) {
     String gcsBucket = 'gs://beam-flink-cluster'
     String clusterName = getClusterName(clusterNamePrefix)
     String artifactsDir="${gcsBucket}/${clusterName}"
@@ -76,6 +76,7 @@ class Infrastructure {
         env("GCS_BUCKET", gcsBucket)
         env("FLINK_DOWNLOAD_URL", 'https://archive.apache.org/dist/flink/flink-1.7.0/flink-1.7.0-bin-hadoop28-scala_2.11.tgz')
         env("FLINK_NUM_WORKERS", workerCount)
+        env("FLINK_TASKMANAGER_SLOTS", slotsPerTaskmanager)
         env("DETACHED_MODE", 'true')
 
         if(imagesToPull) {

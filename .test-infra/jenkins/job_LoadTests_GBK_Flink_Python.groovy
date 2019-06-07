@@ -59,7 +59,7 @@ def loadTest = { scope, triggeringContext ->
 
   infra.prepareSDKHarness(scope, testConfiguration.sdk, dockerRegistryRoot, 'latest')
   infra.prepareFlinkJobServer(scope, dockerRegistryRoot, 'latest')
-  infra.setupFlinkCluster(scope, jenkinsJobName, numWorkers, pythonHarnessImageTag, jobServerImageTag)
+  infra.setupFlinkCluster(scope, jenkinsJobName, pythonHarnessImageTag, jobServerImageTag, numWorkers)
 
   loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, testConfiguration.sdk, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
 
