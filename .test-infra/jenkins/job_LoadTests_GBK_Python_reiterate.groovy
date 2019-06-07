@@ -82,7 +82,7 @@ def batchLoadTestJob = { scope, triggeringContext ->
     }
 }
 
-CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_Dataflow_Batch', 'H 14 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_reiterate_Dataflow_Batch', 'H 14 * * *', this) {
     batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }
 
