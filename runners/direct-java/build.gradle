@@ -28,7 +28,7 @@ def dependOnProjects = [":runners:core-construction-java",
                         ":runners:java-fn-execution",
                         ":sdks:java:fn-execution"]
 
-applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+applyJavaNature(shadowClosure: {
   dependencies {
     dependOnProjects.each {
       include(project(path: it, configuration: "shadow"))

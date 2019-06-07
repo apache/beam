@@ -27,7 +27,7 @@ applyJavaNature(
   disableLintWarnings: ['dep-ann'],
   testShadowJar: true,
   enableStrictDependencies: true,
-  shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+  shadowClosure: {
     dependencies {
       include(dependency(library.java.guava))
       include(dependency(library.java.protobuf_java))

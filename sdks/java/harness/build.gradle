@@ -29,7 +29,7 @@ def dependOnProjects = [":sdks:java:fn-execution",
 applyJavaNature(
   validateShadowJar: false,
   testShadowJar: true,
-  shadowClosure: DEFAULT_SHADOW_CLOSURE <<
+  shadowClosure:
   // Create an uber jar without repackaging for the SDK harness
   // TODO: We have been releasing this in the past, consider not
   // releasing it since its typically bad practice to release 'all'
