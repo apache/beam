@@ -296,10 +296,11 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
       result = (p
                 | fileio.MatchFiles(FileSystems.join(dir, '*'))
                 | fileio.ReadMatches()
-                | beam.FlatMap(lambda f: f.read_utf8().strip().split('\n')))
+                | beam.FlatMap(lambda f: f.read_utf8().strip().split('\n'))
+                | beam.Map(json.loads))
 
       assert_that(result,
-                  equal_to([json.dumps(row) for row in self.SIMPLE_COLLECTION]))
+                  equal_to([row for row in self.SIMPLE_COLLECTION]))
 
   def test_write_to_different_file_types_some_spilling(self):
 
@@ -321,7 +322,8 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
       cncf_res = (p
                   | fileio.MatchFiles(FileSystems.join(dir, 'cncf*'))
                   | fileio.ReadMatches()
-                  | beam.FlatMap(lambda f: f.read_utf8().strip().split('\n')))
+                  | beam.FlatMap(lambda f: f.read_utf8().strip().split('\n'))
+                  | beam.Map(json.loads))
 
       apache_res = (p
                     | "MatchApache" >> fileio.MatchFiles(
@@ -331,7 +333,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
                         lambda rf: csv.reader(_get_file_reader(rf))))
 
       assert_that(cncf_res,
-                  equal_to([json.dumps(row)
+                  equal_to([row
                             for row in self.SIMPLE_COLLECTION
                             if row['foundation'] == 'cncf']),
                   label='verifyCNCF')
@@ -399,7 +401,8 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
       cncf_res = (p
                   | fileio.MatchFiles(FileSystems.join(dir, 'cncf*'))
                   | fileio.ReadMatches()
-                  | beam.FlatMap(lambda f: f.read_utf8().strip().split('\n')))
+                  | beam.FlatMap(lambda f: f.read_utf8().strip().split('\n'))
+                  | beam.Map(json.loads))
 
       apache_res = (p
                     | "MatchApache" >> fileio.MatchFiles(
@@ -409,7 +412,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
                         lambda rf: csv.reader(_get_file_reader(rf))))
 
       assert_that(cncf_res,
-                  equal_to([json.dumps(row)
+                  equal_to([row
                             for row in self.SIMPLE_COLLECTION
                             if row['foundation'] == 'cncf']),
                   label='verifyCNCF')
