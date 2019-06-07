@@ -52,6 +52,7 @@ from apache_beam.runners.worker import statesampler
 from apache_beam.testing.synthetic_pipeline import SyntheticSDFAsSource
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 
@@ -305,6 +306,36 @@ class FnApiRunnerTest(unittest.TestCase):
     with self.create_pipeline() as p:
       assert_that(p | beam.Create(inputs) | beam.ParDo(AddIndex()),
                   equal_to(expected))
+
+  @unittest.skip('TestStream not yet supported')
+  def test_teststream_pardo_timers(self):
+    timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
+
+    class TimerDoFn(beam.DoFn):
+      def process(self, element, timer=beam.DoFn.TimerParam(timer_spec)):
+        unused_key, ts = element
+        timer.set(ts)
+        timer.set(2 * ts)
+
+      @userstate.on_timer(timer_spec)
+      def process_timer(self):
+        yield 'fired'
+
+    ts = (TestStream()
+          .add_elements([('k1', 10)])  # Set timer for 20
+          .advance_watermark_to(100)
+          .add_elements([('k2', 100)])  # Set timer for 200
+          .advance_watermark_to(1000))
+
+    with self.create_pipeline() as p:
+      _ = (
+          p
+          | ts
+          | beam.ParDo(TimerDoFn())
+          | beam.Map(lambda x, ts=beam.DoFn.TimestampParam: (x, ts)))
+
+      #expected = [('fired', ts) for ts in (20, 200)]
+      #assert_that(actual, equal_to(expected))
 
   def test_pardo_timers(self):
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
