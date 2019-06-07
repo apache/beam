@@ -85,43 +85,43 @@ class SyntheticPipelineTest(unittest.TestCase):
     provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(
         5, 2, False, False, None)
 
-    self.assertEquals(
+    self.assertEqual(
         list(provider.split('ab', (2, 15))), [(2, 8), (8, 15)])
-    self.assertEquals(
+    self.assertEqual(
         list(provider.split('ab', (0, 8))), [(0, 4), (4, 8)])
-    self.assertEquals(
+    self.assertEqual(
         list(provider.split('ab', (0, 0))), [])
-    self.assertEquals(
+    self.assertEqual(
         list(provider.split('ab', (2, 3))), [(2, 3)])
 
     provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(
         10, 1, False, False, None)
-    self.assertEquals(list(provider.split('ab', (1, 10))), [(1, 10)])
-    self.assertEquals(provider.restriction_size('ab', (1, 10)), 9 * 2)
+    self.assertEqual(list(provider.split('ab', (1, 10))), [(1, 10)])
+    self.assertEqual(provider.restriction_size('ab', (1, 10)), 9 * 2)
 
     provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(
         10, 3, False, False, None)
-    self.assertEquals(list(provider.split('ab', (1, 10))),
-                      [(1, 4), (4, 7), (7, 10)])
-    self.assertEquals(provider.initial_restriction('a'), (0, 10))
+    self.assertEqual(list(provider.split('ab', (1, 10))),
+                     [(1, 4), (4, 7), (7, 10)])
+    self.assertEqual(provider.initial_restriction('a'), (0, 10))
 
     provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(
         10, 3, False, False, 45)
-    self.assertEquals(provider.restriction_size('ab', (1, 3)), 45)
+    self.assertEqual(provider.restriction_size('ab', (1, 3)), 45)
 
     tracker = provider.create_tracker((1, 6))
     tracker.try_claim(1)  # Claim to allow splitting.
-    self.assertEquals(tracker.try_split(.5), ((1, 3), (3, 6)))
+    self.assertEqual(tracker.try_split(.5), ((1, 3), (3, 6)))
 
   def verify_random_splits(self, provider, start, stop, bundles):
     ranges = list(provider.split('ab', (start, stop)))
 
     prior_stop = start
     for r in ranges:
-      self.assertEquals(r[0], prior_stop)
+      self.assertEqual(r[0], prior_stop)
       prior_stop = r[1]
-    self.assertEquals(prior_stop, stop)
-    self.assertEquals(len(ranges), bundles)
+    self.assertEqual(prior_stop, stop)
+    self.assertEqual(len(ranges), bundles)
 
   def testSyntheticStepSplitProviderUnevenChunks(self):
     bundles = 4
@@ -138,14 +138,14 @@ class SyntheticPipelineTest(unittest.TestCase):
         5, 5, True, False, None)
     tracker = provider.create_tracker((1, 6))
     tracker.try_claim(2)
-    self.assertEquals(tracker.try_split(.5), ((1, 4), (4, 6)))
+    self.assertEqual(tracker.try_split(.5), ((1, 4), (4, 6)))
 
     # Verify No Liquid Sharding
     provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(
         5, 5, True, True, None)
     tracker = provider.create_tracker((1, 6))
     tracker.try_claim(2)
-    self.assertEquals(tracker.try_split(3), None)
+    self.assertEqual(tracker.try_split(3), None)
 
   def testSyntheticSource(self):
     def assert_size(element, expected_size):
