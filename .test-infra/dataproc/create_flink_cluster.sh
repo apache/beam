@@ -28,6 +28,7 @@
 #    ARTIFACTS_DIR: Url to bucket where artifacts will be stored for staging (optional)
 #    FLINK_DOWNLOAD_URL: Url to Flink .tar archive to be installed on the cluster
 #    FLINK_NUM_WORKERS: Number of Flink workers
+#    FLINK_TASKMANAGER_SLOTS: Number of slots per Flink task manager
 #    DETACHED_MODE: Detached mode: should the SSH tunnel run in detached mode?
 #
 #    Example usage:
@@ -38,6 +39,7 @@
 #    ARTIFACTS_DIR=gs://<bucket-for-artifacts> \
 #    FLINK_DOWNLOAD_URL=http://archive.apache.org/dist/flink/flink-1.7.0/flink-1.7.0-bin-hadoop28-scala_2.12.tgz \
 #    FLINK_NUM_WORKERS=2 \
+#    FLINK_TASKMANAGER_SLOTS=1 \
 #    DETACHED_MODE=false \
 #    ./create_flink_cluster.sh
 #
@@ -57,6 +59,10 @@ DOCKER_INIT="$GCS_BUCKET/$INIT_ACTIONS_FOLDER_NAME/docker.sh"
 
 # Flink properties
 FLINK_LOCAL_PORT=8081
+
+# By default each taskmanager has one slot - use that value to avoid sharing SDK Harness by multiple tasks.
+FLINK_TASKMANAGER_SLOTS="${FLINK_TASKMANAGER_SLOTS:=1}"
+
 TASK_MANAGER_MEM=10240
 YARN_APPLICATION_MASTER=""
 
@@ -114,7 +120,8 @@ function start_tunnel() {
 
 function create_cluster() {
   local metadata="flink-snapshot-url=${FLINK_DOWNLOAD_URL},"
-  metadata+="flink-start-yarn-session=true"
+  metadata+="flink-start-yarn-session=true,"
+  metadata+="flink-taskmanager-slots=${FLINK_TASKMANAGER_SLOTS}"
 
   [[ -n "${HARNESS_IMAGES_TO_PULL:=}" ]] && metadata+=",beam-sdk-harness-images-to-pull=${HARNESS_IMAGES_TO_PULL}"
   [[ -n "${JOB_SERVER_IMAGE:=}" ]] && metadata+=",beam-job-server-image=${JOB_SERVER_IMAGE}"

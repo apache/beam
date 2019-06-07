@@ -56,6 +56,8 @@ readonly START_FLINK_YARN_SESSION_DEFAULT=true
 # Set this to install flink from a snapshot URL instead of apt
 readonly FLINK_SNAPSHOT_URL_METADATA_KEY='flink-snapshot-url'
 
+# Set this to define how many task slots are there per flink task manager
+readonly FLINK_TASKMANAGER_SLOTS_METADATA_KEY='flink-taskmanager-slots'
 
 
 function err() {
@@ -121,7 +123,17 @@ function configure_flink() {
     grep 'spark\.executor\.cores' /etc/spark/conf/spark-defaults.conf \
       | tail -n1 \
       | cut -d'=' -f2)
-  local flink_taskmanager_slots="$(($spark_executor_cores * 2))"
+
+  local slots="$(/usr/share/google/get_metadata_value \
+    "attributes/${START_FLINK_YARN_SESSION_METADATA_KEY}" \
+    || echo "${START_FLINK_YARN_SESSION_DEFAULT}")"
+
+  local flink_taskmanager_slots_default="$(($spark_executor_cores * 2))"
+
+  # if provided, use user defined number of slots.
+  local flink_taskmanager_slots="$(/usr/share/google/get_metadata_value \
+    "attributes/${FLINK_TASKMANAGER_SLOTS_METADATA_KEY}" \
+    || echo "${flink_taskmanager_slots_default}")"
 
   # Determine the default parallelism.
   local flink_parallelism=$(python -c \
