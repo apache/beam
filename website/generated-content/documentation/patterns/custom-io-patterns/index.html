@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sample</title>
+  <title>Custom I/O patterns</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/transforms/python/aggregation/sample/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/patterns/custom-io-patterns/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -125,7 +125,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/transforms/python/aggregation/sample.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/patterns/custom-io-patterns.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -359,8 +359,7 @@
 
 
 <ul class="nav">
-  <li><a href="#examples">Examples</a></li>
-  <li><a href="#related-transforms">Related transforms</a></li>
+  <li><a href="#choosing-between-built-in-and-custom-connectors">Choosing between built-in and custom connectors</a></li>
 </ul>
 
 
@@ -380,25 +379,31 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<h1 id="sample">Sample</h1>
-<table align="left">
-    <a target="_blank" class="button" href="https://beam.apache.org/releases/pydoc/2.12.0/apache_beam.transforms.combiners.html?#apache_beam.transforms.combiners.Sample">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
-     Pydoc
-    </a>
-</table>
-<p><br />
-Transforms for taking samples of the elements in a collection, or
-samples of the values associated with each key in a collection of 
-key-value pairs.</p>
 
-<h2 id="examples">Examples</h2>
-<p>See <a href="https://issues.apache.org/jira/browse/BEAM-7390">BEAM-7390</a> for updates.</p>
+<h1 id="custom-io-patterns">Custom I/O patterns</h1>
 
-<h2 id="related-transforms">Related transforms</h2>
+<p>This page describes common patterns in pipelines with <a href="/documentation/io/developing-io-overview/">custom I/O connectors</a>. Custom I/O connectors connect pipelines to databases that aren’t supported by Beam’s <a href="/documentation/io/built-in/">built-in I/O transforms</a>.</p>
+
+<nav class="language-switcher">
+  <strong>Adapt for:</strong>
+  <ul>
+    <li data-type="language-java" class="active">Java SDK</li>
+    <li data-type="language-py">Python SDK</li>
+  </ul>
+</nav>
+
+<h2 id="choosing-between-built-in-and-custom-connectors">Choosing between built-in and custom connectors</h2>
+
+<p><a href="/documentation/io/built-in/">Built-in I/O connectors</a> are tested and hardened, so use them whenever possible. Only use custom I/O connectors when:</p>
+
 <ul>
-  <li><a href="/documentation/transforms/python/aggregation/top">Top</a> finds the largest or smallest element.</li>
+  <li>No built-in options exist</li>
+  <li>Your pipeline pulls in a small subset of source data</li>
 </ul>
+
+<p>For instance, use a custom I/O connector to enrich pipeline elements with a small subset of source data. If you’re processing a sales order and adding information to each purchase, you can use a custom I/O connector to pull the small subset of data into your pipeline (instead of processing the entire source).</p>
+
+<p>Beam distributes work across many threads, so custom I/O connectors can increase your data source’s load average. You can reduce the load with the <span class="language-java"><a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.StartBundle.html">start</a></span><span class="language-py"><a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html?highlight=bundle#apache_beam.transforms.core.DoFn.start_bundle">start</a></span> and <span class="language-java"><a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.FinishBundle.html">finish</a></span><span class="language-py"><a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html?highlight=bundle#apache_beam.transforms.core.DoFn.finish_bundle">finish</a></span> bundle annotations.</p>
 
       </div>
     </div>

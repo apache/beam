@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sample</title>
+  <title>Overview</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/transforms/python/aggregation/sample/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/patterns/overview/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -125,7 +125,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/transforms/python/aggregation/sample.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/patterns/overview.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -359,8 +359,8 @@
 
 
 <ul class="nav">
-  <li><a href="#examples">Examples</a></li>
-  <li><a href="#related-transforms">Related transforms</a></li>
+  <li><a href="#contributing-a-pattern">Contributing a pattern</a></li>
+  <li><a href="#whats-next">What’s next</a></li>
 </ul>
 
 
@@ -380,24 +380,41 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<h1 id="sample">Sample</h1>
-<table align="left">
-    <a target="_blank" class="button" href="https://beam.apache.org/releases/pydoc/2.12.0/apache_beam.transforms.combiners.html?#apache_beam.transforms.combiners.Sample">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
-     Pydoc
-    </a>
-</table>
-<p><br />
-Transforms for taking samples of the elements in a collection, or
-samples of the values associated with each key in a collection of 
-key-value pairs.</p>
 
-<h2 id="examples">Examples</h2>
-<p>See <a href="https://issues.apache.org/jira/browse/BEAM-7390">BEAM-7390</a> for updates.</p>
+<h1 id="common-pipeline-patterns">Common pipeline patterns</h1>
 
-<h2 id="related-transforms">Related transforms</h2>
+<p>Pipeline patterns demonstrate common Beam use cases. Pipeline patterns are based on real-world Beam deployments. Each pattern has a description, examples, and a solution or psuedocode.</p>
+
+<p><strong>File processing patterns</strong> - Patterns for reading from and writing to files</p>
 <ul>
-  <li><a href="/documentation/transforms/python/aggregation/top">Top</a> finds the largest or smallest element.</li>
+  <li><a href="/documentation/patterns/file-processing-patterns/#processing-files-as-they-arrive">Processing files as they arrive</a></li>
+  <li><a href="/documentation/patterns/file-processing-patterns/#accessing-filenames">Accessing filenames</a></li>
+</ul>
+
+<p><strong>Side input patterns</strong> - Patterns for processing supplementary data</p>
+<ul>
+  <li><a href="/documentation/patterns/side-input-patterns/#using-global-window-side-inputs-in-non-global-windows">Using global window side inputs in non-global windows</a></li>
+</ul>
+
+<p><strong>Pipeline option patterns</strong> - Patterns for configuring pipelines</p>
+<ul>
+  <li><a href="/documentation/patterns/pipeline-option-patterns/#retroactively-logging-runtime-parameters">Retroactively logging runtime parameters</a></li>
+</ul>
+
+<p><strong>Custom I/O patterns</strong></p>
+<ul>
+  <li><a href="/documentation/patterns/custom-io-patterns/#choosing-between-built-in-and-custom-connectors">Choosing between built-in and custom connectors</a></li>
+</ul>
+
+<h2 id="contributing-a-pattern">Contributing a pattern</h2>
+
+<p>To contribute a new pipeline pattern, create an issue with the <a href="https://issues.apache.org/jira/browse/BEAM-7449?jql=labels%20%3D%20pipeline-patterns"><code class="highlighter-rouge">pipeline-patterns</code> label</a> and add details to the issue description. See <a href="/contribute/">Get started contributing</a> for more information.</p>
+
+<h2 id="whats-next">What’s next</h2>
+
+<ul>
+  <li>Try an <a href="/get-started/try-apache-beam/">end-to-end example</a></li>
+  <li>Execute your pipeline on a <a href="/documentation/runners/capability-matrix/">runner</a></li>
 </ul>
 
       </div>

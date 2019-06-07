@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sample</title>
+  <title>Side input patterns</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/transforms/python/aggregation/sample/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/patterns/side-input-patterns/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -125,7 +125,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/transforms/python/aggregation/sample.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/patterns/side-input-patterns.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -359,8 +359,7 @@
 
 
 <ul class="nav">
-  <li><a href="#examples">Examples</a></li>
-  <li><a href="#related-transforms">Related transforms</a></li>
+  <li><a href="#using-global-window-side-inputs-in-non-global-windows">Using global window side inputs in non-global windows</a></li>
 </ul>
 
 
@@ -380,25 +379,112 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<h1 id="sample">Sample</h1>
-<table align="left">
-    <a target="_blank" class="button" href="https://beam.apache.org/releases/pydoc/2.12.0/apache_beam.transforms.combiners.html?#apache_beam.transforms.combiners.Sample">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
-     Pydoc
-    </a>
-</table>
-<p><br />
-Transforms for taking samples of the elements in a collection, or
-samples of the values associated with each key in a collection of 
-key-value pairs.</p>
 
-<h2 id="examples">Examples</h2>
-<p>See <a href="https://issues.apache.org/jira/browse/BEAM-7390">BEAM-7390</a> for updates.</p>
+<h1 id="side-input-patterns">Side input patterns</h1>
 
-<h2 id="related-transforms">Related transforms</h2>
-<ul>
-  <li><a href="/documentation/transforms/python/aggregation/top">Top</a> finds the largest or smallest element.</li>
-</ul>
+<p>The samples on this page show you common Beam side input patterns. A side input is an additional input that your <code class="highlighter-rouge">DoFn</code> can access each time it processes an element in the input <code class="highlighter-rouge">PCollection</code>. For more information, see the <a href="/documentation/programming-guide/#side-inputs">programming guide section on side inputs</a>.</p>
+
+<h2 id="using-global-window-side-inputs-in-non-global-windows">Using global window side inputs in non-global windows</h2>
+
+<p>You can retrieve side inputs from global windows to use them in a pipeline job with non-global windows, like a <code class="highlighter-rouge">FixedWindow</code>.</p>
+
+<p>To use global window side inputs in pipelines with non-global windows:</p>
+
+<ol>
+  <li>
+    <p>Write a <code class="highlighter-rouge">DoFn</code> that periodically pulls data from a bounded source into a global window.</p>
+
+    <p>a. Use the <code class="highlighter-rouge">GenerateSequence</code> source transform to periodically emit a value.</p>
+
+    <p>b. Instantiate a data-driven trigger that activates on each element and pulls data from a bounded source.</p>
+
+    <p>c. Fire the trigger to pass the data into the global window.</p>
+  </li>
+  <li>
+    <p>Create the side input for downstream transforms. The side input should fit into memory.</p>
+  </li>
+</ol>
+
+<p>The global window side input triggers on processing time, so the main pipeline nondeterministically matches the side input to elements in event time.</p>
+
+<p>For instance, the following code sample uses a <code class="highlighter-rouge">Map</code> to create a <code class="highlighter-rouge">DoFn</code>. The <code class="highlighter-rouge">Map</code> becomes a <code class="highlighter-rouge">View.asSingleton</code> side input that’s rebuilt on each counter tick. The side input updates every 5 seconds in order to demonstrate the workflow. In a real-world scenario, the side input would typically update every few hours or once per day.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">sideInputPatterns</span><span class="o">()</span> <span class="o">{</span>
+  <span class="c1">// Using View.asSingleton, this pipeline uses a dummy external service as illustration.</span>
+  <span class="c1">// Run in debug mode to see the output</span>
+  <span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">();</span>
+
+  <span class="c1">// Create slowly updating sideinput</span>
+
+  <span class="n">PCollectionView</span><span class="o">&lt;</span><span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">map</span> <span class="o">=</span>
+      <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">GenerateSequence</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="mi">0</span><span class="o">).</span><span class="na">withRate</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">5L</span><span class="o">)))</span>
+          <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+              <span class="n">Window</span><span class="o">.&lt;</span><span class="n">Long</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span><span class="k">new</span> <span class="n">GlobalWindows</span><span class="o">())</span>
+                  <span class="o">.</span><span class="na">triggering</span><span class="o">(</span><span class="n">Repeatedly</span><span class="o">.</span><span class="na">forever</span><span class="o">(</span><span class="n">AfterProcessingTime</span><span class="o">.</span><span class="na">pastFirstElementInPane</span><span class="o">()))</span>
+                  <span class="o">.</span><span class="na">discardingFiredPanes</span><span class="o">())</span>
+          <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+              <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
+                  <span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">,</span> <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;()</span> <span class="o">{</span>
+
+                    <span class="nd">@ProcessElement</span>
+                    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span>
+                        <span class="nd">@Element</span> <span class="n">Long</span> <span class="n">input</span><span class="o">,</span> <span class="n">OutputReceiver</span><span class="o">&lt;</span><span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">o</span><span class="o">)</span> <span class="o">{</span>
+                      <span class="c1">// Do any external reads needed here...</span>
+                      <span class="c1">// We will make use of our dummy external service.</span>
+                      <span class="c1">// Every time this triggers, the complete map will be replaced with that</span>
+                      <span class="c1">// read from</span>
+                      <span class="c1">// the service.</span>
+                      <span class="n">o</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">DummyExternalService</span><span class="o">.</span><span class="na">readDummyData</span><span class="o">());</span>
+                    <span class="o">}</span>
+                  <span class="o">}))</span>
+          <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">View</span><span class="o">.</span><span class="na">asSingleton</span><span class="o">());</span>
+
+  <span class="c1">// ---- Consume slowly updating sideinput</span>
+
+  <span class="c1">// GenerateSequence is only used here to generate dummy data for this illustration.</span>
+  <span class="c1">// You would use your real source for example PubSubIO, KafkaIO etc...</span>
+  <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">GenerateSequence</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="mi">0</span><span class="o">).</span><span class="na">withRate</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">1L</span><span class="o">)))</span>
+      <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Window</span><span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">1</span><span class="o">))))</span>
+      <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Sum</span><span class="o">.</span><span class="na">longsGlobally</span><span class="o">().</span><span class="na">withoutDefaults</span><span class="o">())</span>
+      <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+          <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
+                  <span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">,</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;()</span> <span class="o">{</span>
+
+                    <span class="nd">@ProcessElement</span>
+                    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
+                      <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">keyMap</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="na">sideInput</span><span class="o">(</span><span class="n">map</span><span class="o">);</span>
+                      <span class="n">c</span><span class="o">.</span><span class="na">outputWithTimestamp</span><span class="o">(</span><span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="mi">1L</span><span class="o">,</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">()),</span> <span class="n">Instant</span><span class="o">.</span><span class="na">now</span><span class="o">());</span>
+
+                      <span class="n">LOG</span><span class="o">.</span><span class="na">debug</span><span class="o">(</span>
+                          <span class="s">"Value is {} key A is {} and key B is {}"</span><span class="o">,</span>
+                          <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">(),</span>
+                          <span class="n">keyMap</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="s">"Key_A"</span><span class="o">),</span>
+                          <span class="n">keyMap</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="s">"Key_B"</span><span class="o">));</span>
+                    <span class="o">}</span>
+                  <span class="o">})</span>
+              <span class="o">.</span><span class="na">withSideInputs</span><span class="o">(</span><span class="n">map</span><span class="o">));</span>
+<span class="o">}</span>
+
+<span class="cm">/** Dummy class representing a pretend external service. */</span>
+<span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">DummyExternalService</span> <span class="o">{</span>
+
+  <span class="kd">public</span> <span class="kd">static</span> <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="nf">readDummyData</span><span class="o">()</span> <span class="o">{</span>
+
+    <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">map</span> <span class="o">=</span> <span class="k">new</span> <span class="n">HashMap</span><span class="o">&lt;&gt;();</span>
+    <span class="n">Instant</span> <span class="n">now</span> <span class="o">=</span> <span class="n">Instant</span><span class="o">.</span><span class="na">now</span><span class="o">();</span>
+
+    <span class="n">DateTimeFormatter</span> <span class="n">dtf</span> <span class="o">=</span> <span class="n">DateTimeFormat</span><span class="o">.</span><span class="na">forPattern</span><span class="o">(</span><span class="s">"HH:MM:SS"</span><span class="o">);</span>
+
+    <span class="n">map</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"Key_A"</span><span class="o">,</span> <span class="n">now</span><span class="o">.</span><span class="na">minus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">30</span><span class="o">)).</span><span class="na">toString</span><span class="o">(</span><span class="n">dtf</span><span class="o">));</span>
+    <span class="n">map</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"Key_B"</span><span class="o">,</span> <span class="n">now</span><span class="o">.</span><span class="na">minus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">30</span><span class="o">)).</span><span class="na">toString</span><span class="o">());</span>
+
+    <span class="k">return</span> <span class="n">map</span><span class="o">;</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+
+
+</code></pre>
+</div>
 
       </div>
     </div>
