@@ -36,7 +36,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.ElementByteSizeObservable;
@@ -289,11 +288,6 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
             Iterables.filter(network.successors(input), OutputReceiverNode.class);
         Operation operation;
         if (outputReceiverNodes.iterator().hasNext()) {
-          Target target =
-              Target.newBuilder()
-                  .setPrimitiveTransformReference(input.getPrimitiveTransformId())
-                  .setName(input.getOutputId())
-                  .build();
           OutputReceiver[] outputReceivers =
               new OutputReceiver[] {
                 Iterables.getOnlyElement(outputReceiverNodes).getOutputReceiver()
@@ -302,22 +296,16 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
           operation =
               new RemoteGrpcPortReadOperation<>(
                   beamFnDataService,
-                  target,
+                  input.getPrimitiveTransformId(),
                   registerFnOperation::getProcessBundleInstructionId,
                   (Coder) coder,
                   outputReceivers,
                   context);
         } else {
-          Target target =
-              Target.newBuilder()
-                  .setPrimitiveTransformReference(input.getPrimitiveTransformId())
-                  .setName(input.getInputId())
-                  .build();
-
           operation =
               new RemoteGrpcPortWriteOperation<>(
                   beamFnDataService,
-                  target,
+                  input.getPrimitiveTransformId(),
                   registerFnOperation::getProcessBundleInstructionId,
                   (Coder) coder,
                   context);

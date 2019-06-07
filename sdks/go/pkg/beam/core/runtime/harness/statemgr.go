@@ -46,7 +46,7 @@ func NewScopedSideInputReader(mgr *StateChannelManager, instID string) *ScopedSi
 	return &ScopedSideInputReader{mgr: mgr, instID: instID}
 }
 
-func (s *ScopedSideInputReader) Open(ctx context.Context, id exec.StreamID, key, w []byte) (io.ReadCloser, error) {
+func (s *ScopedSideInputReader) Open(ctx context.Context, id exec.StreamID, sideInputID string, key, w []byte) (io.ReadCloser, error) {
 	ch, err := s.open(ctx, id.Port)
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func (s *ScopedSideInputReader) Open(ctx context.Context, id exec.StreamID, key,
 		s.mu.Unlock()
 		return nil, errors.Errorf("instruction %v no longer processing", s.instID)
 	}
-	ret := newSideInputReader(ch, id.Target, s.instID, key, w)
+	ret := newSideInputReader(ch, id, sideInputID, s.instID, key, w)
 	s.opened = append(s.opened, ret)
 	s.mu.Unlock()
 	return ret, nil
@@ -100,12 +100,12 @@ type sideInputReader struct {
 	mu     sync.Mutex
 }
 
-func newSideInputReader(ch *StateChannel, target exec.Target, instID string, k, w []byte) *sideInputReader {
+func newSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, instID string, k, w []byte) *sideInputReader {
 	key := &pb.StateKey{
 		Type: &pb.StateKey_MultimapSideInput_{
 			MultimapSideInput: &pb.StateKey_MultimapSideInput{
-				PtransformId: target.ID,
-				SideInputId:  target.Name,
+				PtransformId: id.PtransformID,
+				SideInputId:  sideInputID,
 				Window:       w,
 				Key:          k,
 			},

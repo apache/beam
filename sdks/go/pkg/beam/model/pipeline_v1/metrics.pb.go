@@ -62,7 +62,7 @@ func (x MonitoringInfoSpecs_Enum) String() string {
 	return proto.EnumName(MonitoringInfoSpecs_Enum_name, int32(x))
 }
 func (MonitoringInfoSpecs_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_75620c6fb81f66b2, []int{2, 0}
+	return fileDescriptor_metrics_f27e09e153e79ab4, []int{2, 0}
 }
 
 type MonitoringInfo_MonitoringInfoLabels int32
@@ -103,7 +103,7 @@ func (x MonitoringInfo_MonitoringInfoLabels) String() string {
 	return proto.EnumName(MonitoringInfo_MonitoringInfoLabels_name, int32(x))
 }
 func (MonitoringInfo_MonitoringInfoLabels) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_75620c6fb81f66b2, []int{4, 0}
+	return fileDescriptor_metrics_f27e09e153e79ab4, []int{4, 0}
 }
 
 type MonitoringInfoTypeUrns_Enum int32
@@ -129,7 +129,7 @@ func (x MonitoringInfoTypeUrns_Enum) String() string {
 	return proto.EnumName(MonitoringInfoTypeUrns_Enum_name, int32(x))
 }
 func (MonitoringInfoTypeUrns_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_75620c6fb81f66b2, []int{5, 0}
+	return fileDescriptor_metrics_f27e09e153e79ab4, []int{5, 0}
 }
 
 // A specification containing required set of fields and labels required
@@ -152,7 +152,7 @@ func (m *MonitoringInfoSpec) Reset()         { *m = MonitoringInfoSpec{} }
 func (m *MonitoringInfoSpec) String() string { return proto.CompactTextString(m) }
 func (*MonitoringInfoSpec) ProtoMessage()    {}
 func (*MonitoringInfoSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_75620c6fb81f66b2, []int{0}
+	return fileDescriptor_metrics_f27e09e153e79ab4, []int{0}
 }
 func (m *MonitoringInfoSpec) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MonitoringInfoSpec.Unmarshal(m, b)
@@ -213,7 +213,7 @@ func (m *Annotation) Reset()         { *m = Annotation{} }
 func (m *Annotation) String() string { return proto.CompactTextString(m) }
 func (*Annotation) ProtoMessage()    {}
 func (*Annotation) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_75620c6fb81f66b2, []int{1}
+	return fileDescriptor_metrics_f27e09e153e79ab4, []int{1}
 }
 func (m *Annotation) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Annotation.Unmarshal(m, b)
@@ -262,7 +262,7 @@ func (m *MonitoringInfoSpecs) Reset()         { *m = MonitoringInfoSpecs{} }
 func (m *MonitoringInfoSpecs) String() string { return proto.CompactTextString(m) }
 func (*MonitoringInfoSpecs) ProtoMessage()    {}
 func (*MonitoringInfoSpecs) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_75620c6fb81f66b2, []int{2}
+	return fileDescriptor_metrics_f27e09e153e79ab4, []int{2}
 }
 func (m *MonitoringInfoSpecs) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MonitoringInfoSpecs.Unmarshal(m, b)
@@ -296,7 +296,7 @@ func (m *MonitoringInfoLabelProps) Reset()         { *m = MonitoringInfoLabelPro
 func (m *MonitoringInfoLabelProps) String() string { return proto.CompactTextString(m) }
 func (*MonitoringInfoLabelProps) ProtoMessage()    {}
 func (*MonitoringInfoLabelProps) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_75620c6fb81f66b2, []int{3}
+	return fileDescriptor_metrics_f27e09e153e79ab4, []int{3}
 }
 func (m *MonitoringInfoLabelProps) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MonitoringInfoLabelProps.Unmarshal(m, b)
@@ -362,7 +362,7 @@ func (m *MonitoringInfo) Reset()         { *m = MonitoringInfo{} }
 func (m *MonitoringInfo) String() string { return proto.CompactTextString(m) }
 func (*MonitoringInfo) ProtoMessage()    {}
 func (*MonitoringInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_75620c6fb81f66b2, []int{4}
+	return fileDescriptor_metrics_f27e09e153e79ab4, []int{4}
 }
 func (m *MonitoringInfo) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MonitoringInfo.Unmarshal(m, b)
@@ -382,6 +382,27 @@ func (m *MonitoringInfo) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MonitoringInfo proto.InternalMessageInfo
 
+type isMonitoringInfo_Data interface {
+	isMonitoringInfo_Data()
+}
+
+type MonitoringInfo_MonitoringTableData struct {
+	MonitoringTableData *MonitoringTableData `protobuf:"bytes,3,opt,name=monitoring_table_data,json=monitoringTableData,proto3,oneof"`
+}
+type MonitoringInfo_Metric struct {
+	Metric *Metric `protobuf:"bytes,4,opt,name=metric,proto3,oneof"`
+}
+
+func (*MonitoringInfo_MonitoringTableData) isMonitoringInfo_Data() {}
+func (*MonitoringInfo_Metric) isMonitoringInfo_Data()              {}
+
+func (m *MonitoringInfo) GetData() isMonitoringInfo_Data {
+	if m != nil {
+		return m.Data
+	}
+	return nil
+}
+
 func (m *MonitoringInfo) GetUrn() string {
 	if m != nil {
 		return m.Urn
@@ -394,29 +415,6 @@ func (m *MonitoringInfo) GetType() string {
 		return m.Type
 	}
 	return ""
-}
-
-type isMonitoringInfo_Data interface {
-	isMonitoringInfo_Data()
-}
-
-type MonitoringInfo_MonitoringTableData struct {
-	MonitoringTableData *MonitoringTableData `protobuf:"bytes,3,opt,name=monitoring_table_data,json=monitoringTableData,proto3,oneof"`
-}
-
-type MonitoringInfo_Metric struct {
-	Metric *Metric `protobuf:"bytes,4,opt,name=metric,proto3,oneof"`
-}
-
-func (*MonitoringInfo_MonitoringTableData) isMonitoringInfo_Data() {}
-
-func (*MonitoringInfo_Metric) isMonitoringInfo_Data() {}
-
-func (m *MonitoringInfo) GetData() isMonitoringInfo_Data {
-	if m != nil {
-		return m.Data
-	}
-	return nil
 }
 
 func (m *MonitoringInfo) GetMonitoringTableData() *MonitoringTableData {
@@ -531,7 +529,7 @@ func (m *MonitoringInfoTypeUrns) Reset()         { *m = MonitoringInfoTypeUrns{}
 func (m *MonitoringInfoTypeUrns) String() string { return proto.CompactTextString(m) }
 func (*MonitoringInfoTypeUrns) ProtoMessage()    {}
 func (*MonitoringInfoTypeUrns) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_75620c6fb81f66b2, []int{5}
+	return fileDescriptor_metrics_f27e09e153e79ab4, []int{5}
 }
 func (m *MonitoringInfoTypeUrns) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MonitoringInfoTypeUrns.Unmarshal(m, b)
@@ -568,7 +566,7 @@ func (m *Metric) Reset()         { *m = Metric{} }
 func (m *Metric) String() string { return proto.CompactTextString(m) }
 func (*Metric) ProtoMessage()    {}
 func (*Metric) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_75620c6fb81f66b2, []int{6}
+	return fileDescriptor_metrics_f27e09e153e79ab4, []int{6}
 }
 func (m *Metric) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metric.Unmarshal(m, b)
@@ -595,20 +593,16 @@ type isMetric_Data interface {
 type Metric_CounterData struct {
 	CounterData *CounterData `protobuf:"bytes,1,opt,name=counter_data,json=counterData,proto3,oneof"`
 }
-
 type Metric_DistributionData struct {
 	DistributionData *DistributionData `protobuf:"bytes,2,opt,name=distribution_data,json=distributionData,proto3,oneof"`
 }
-
 type Metric_ExtremaData struct {
 	ExtremaData *ExtremaData `protobuf:"bytes,3,opt,name=extrema_data,json=extremaData,proto3,oneof"`
 }
 
-func (*Metric_CounterData) isMetric_Data() {}
-
+func (*Metric_CounterData) isMetric_Data()      {}
 func (*Metric_DistributionData) isMetric_Data() {}
-
-func (*Metric_ExtremaData) isMetric_Data() {}
+func (*Metric_ExtremaData) isMetric_Data()      {}
 
 func (m *Metric) GetData() isMetric_Data {
 	if m != nil {
@@ -749,7 +743,7 @@ func (m *CounterData) Reset()         { *m = CounterData{} }
 func (m *CounterData) String() string { return proto.CompactTextString(m) }
 func (*CounterData) ProtoMessage()    {}
 func (*CounterData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_75620c6fb81f66b2, []int{7}
+	return fileDescriptor_metrics_f27e09e153e79ab4, []int{7}
 }
 func (m *CounterData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CounterData.Unmarshal(m, b)
@@ -776,19 +770,15 @@ type isCounterData_Value interface {
 type CounterData_Int64Value struct {
 	Int64Value int64 `protobuf:"varint,1,opt,name=int64_value,json=int64Value,proto3,oneof"`
 }
-
 type CounterData_DoubleValue struct {
 	DoubleValue float64 `protobuf:"fixed64,2,opt,name=double_value,json=doubleValue,proto3,oneof"`
 }
-
 type CounterData_StringValue struct {
 	StringValue string `protobuf:"bytes,3,opt,name=string_value,json=stringValue,proto3,oneof"`
 }
 
-func (*CounterData_Int64Value) isCounterData_Value() {}
-
+func (*CounterData_Int64Value) isCounterData_Value()  {}
 func (*CounterData_DoubleValue) isCounterData_Value() {}
-
 func (*CounterData_StringValue) isCounterData_Value() {}
 
 func (m *CounterData) GetValue() isCounterData_Value {
@@ -914,7 +904,7 @@ func (m *ExtremaData) Reset()         { *m = ExtremaData{} }
 func (m *ExtremaData) String() string { return proto.CompactTextString(m) }
 func (*ExtremaData) ProtoMessage()    {}
 func (*ExtremaData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_75620c6fb81f66b2, []int{8}
+	return fileDescriptor_metrics_f27e09e153e79ab4, []int{8}
 }
 func (m *ExtremaData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ExtremaData.Unmarshal(m, b)
@@ -941,13 +931,11 @@ type isExtremaData_Extrema interface {
 type ExtremaData_IntExtremaData struct {
 	IntExtremaData *IntExtremaData `protobuf:"bytes,1,opt,name=int_extrema_data,json=intExtremaData,proto3,oneof"`
 }
-
 type ExtremaData_DoubleExtremaData struct {
 	DoubleExtremaData *DoubleExtremaData `protobuf:"bytes,2,opt,name=double_extrema_data,json=doubleExtremaData,proto3,oneof"`
 }
 
-func (*ExtremaData_IntExtremaData) isExtremaData_Extrema() {}
-
+func (*ExtremaData_IntExtremaData) isExtremaData_Extrema()    {}
 func (*ExtremaData_DoubleExtremaData) isExtremaData_Extrema() {}
 
 func (m *ExtremaData) GetExtrema() isExtremaData_Extrema {
@@ -1056,7 +1044,7 @@ func (m *IntExtremaData) Reset()         { *m = IntExtremaData{} }
 func (m *IntExtremaData) String() string { return proto.CompactTextString(m) }
 func (*IntExtremaData) ProtoMessage()    {}
 func (*IntExtremaData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_75620c6fb81f66b2, []int{9}
+	return fileDescriptor_metrics_f27e09e153e79ab4, []int{9}
 }
 func (m *IntExtremaData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_IntExtremaData.Unmarshal(m, b)
@@ -1094,7 +1082,7 @@ func (m *DoubleExtremaData) Reset()         { *m = DoubleExtremaData{} }
 func (m *DoubleExtremaData) String() string { return proto.CompactTextString(m) }
 func (*DoubleExtremaData) ProtoMessage()    {}
 func (*DoubleExtremaData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_75620c6fb81f66b2, []int{10}
+	return fileDescriptor_metrics_f27e09e153e79ab4, []int{10}
 }
 func (m *DoubleExtremaData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DoubleExtremaData.Unmarshal(m, b)
@@ -1139,7 +1127,7 @@ func (m *DistributionData) Reset()         { *m = DistributionData{} }
 func (m *DistributionData) String() string { return proto.CompactTextString(m) }
 func (*DistributionData) ProtoMessage()    {}
 func (*DistributionData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_75620c6fb81f66b2, []int{11}
+	return fileDescriptor_metrics_f27e09e153e79ab4, []int{11}
 }
 func (m *DistributionData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DistributionData.Unmarshal(m, b)
@@ -1166,13 +1154,11 @@ type isDistributionData_Distribution interface {
 type DistributionData_IntDistributionData struct {
 	IntDistributionData *IntDistributionData `protobuf:"bytes,1,opt,name=int_distribution_data,json=intDistributionData,proto3,oneof"`
 }
-
 type DistributionData_DoubleDistributionData struct {
 	DoubleDistributionData *DoubleDistributionData `protobuf:"bytes,2,opt,name=double_distribution_data,json=doubleDistributionData,proto3,oneof"`
 }
 
-func (*DistributionData_IntDistributionData) isDistributionData_Distribution() {}
-
+func (*DistributionData_IntDistributionData) isDistributionData_Distribution()    {}
 func (*DistributionData_DoubleDistributionData) isDistributionData_Distribution() {}
 
 func (m *DistributionData) GetDistribution() isDistributionData_Distribution {
@@ -1284,7 +1270,7 @@ func (m *IntDistributionData) Reset()         { *m = IntDistributionData{} }
 func (m *IntDistributionData) String() string { return proto.CompactTextString(m) }
 func (*IntDistributionData) ProtoMessage()    {}
 func (*IntDistributionData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_75620c6fb81f66b2, []int{12}
+	return fileDescriptor_metrics_f27e09e153e79ab4, []int{12}
 }
 func (m *IntDistributionData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_IntDistributionData.Unmarshal(m, b)
@@ -1346,7 +1332,7 @@ func (m *DoubleDistributionData) Reset()         { *m = DoubleDistributionData{}
 func (m *DoubleDistributionData) String() string { return proto.CompactTextString(m) }
 func (*DoubleDistributionData) ProtoMessage()    {}
 func (*DoubleDistributionData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_75620c6fb81f66b2, []int{13}
+	return fileDescriptor_metrics_f27e09e153e79ab4, []int{13}
 }
 func (m *DoubleDistributionData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DoubleDistributionData.Unmarshal(m, b)
@@ -1428,7 +1414,7 @@ func (m *MonitoringTableData) Reset()         { *m = MonitoringTableData{} }
 func (m *MonitoringTableData) String() string { return proto.CompactTextString(m) }
 func (*MonitoringTableData) ProtoMessage()    {}
 func (*MonitoringTableData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_75620c6fb81f66b2, []int{14}
+	return fileDescriptor_metrics_f27e09e153e79ab4, []int{14}
 }
 func (m *MonitoringTableData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MonitoringTableData.Unmarshal(m, b)
@@ -1480,7 +1466,7 @@ func (m *MonitoringTableData_MonitoringColumnValue) Reset() {
 func (m *MonitoringTableData_MonitoringColumnValue) String() string { return proto.CompactTextString(m) }
 func (*MonitoringTableData_MonitoringColumnValue) ProtoMessage()    {}
 func (*MonitoringTableData_MonitoringColumnValue) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_75620c6fb81f66b2, []int{14, 0}
+	return fileDescriptor_metrics_f27e09e153e79ab4, []int{14, 0}
 }
 func (m *MonitoringTableData_MonitoringColumnValue) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MonitoringTableData_MonitoringColumnValue.Unmarshal(m, b)
@@ -1507,28 +1493,22 @@ type isMonitoringTableData_MonitoringColumnValue_Value interface {
 type MonitoringTableData_MonitoringColumnValue_Int64Value struct {
 	Int64Value int64 `protobuf:"varint,1,opt,name=int64_value,json=int64Value,proto3,oneof"`
 }
-
 type MonitoringTableData_MonitoringColumnValue_DoubleValue struct {
 	DoubleValue float64 `protobuf:"fixed64,2,opt,name=double_value,json=doubleValue,proto3,oneof"`
 }
-
 type MonitoringTableData_MonitoringColumnValue_StringValue struct {
 	StringValue string `protobuf:"bytes,3,opt,name=string_value,json=stringValue,proto3,oneof"`
 }
-
 type MonitoringTableData_MonitoringColumnValue_Timestamp struct {
 	Timestamp *timestamp.Timestamp `protobuf:"bytes,4,opt,name=timestamp,proto3,oneof"`
 }
 
 func (*MonitoringTableData_MonitoringColumnValue_Int64Value) isMonitoringTableData_MonitoringColumnValue_Value() {
 }
-
 func (*MonitoringTableData_MonitoringColumnValue_DoubleValue) isMonitoringTableData_MonitoringColumnValue_Value() {
 }
-
 func (*MonitoringTableData_MonitoringColumnValue_StringValue) isMonitoringTableData_MonitoringColumnValue_Value() {
 }
-
 func (*MonitoringTableData_MonitoringColumnValue_Timestamp) isMonitoringTableData_MonitoringColumnValue_Value() {
 }
 
@@ -1676,7 +1656,7 @@ func (m *MonitoringTableData_MonitoringRow) Reset()         { *m = MonitoringTab
 func (m *MonitoringTableData_MonitoringRow) String() string { return proto.CompactTextString(m) }
 func (*MonitoringTableData_MonitoringRow) ProtoMessage()    {}
 func (*MonitoringTableData_MonitoringRow) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_75620c6fb81f66b2, []int{14, 1}
+	return fileDescriptor_metrics_f27e09e153e79ab4, []int{14, 1}
 }
 func (m *MonitoringTableData_MonitoringRow) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MonitoringTableData_MonitoringRow.Unmarshal(m, b)
@@ -1747,9 +1727,9 @@ func init() {
 	proto.RegisterExtension(E_MonitoringInfoSpec)
 }
 
-func init() { proto.RegisterFile("metrics.proto", fileDescriptor_metrics_75620c6fb81f66b2) }
+func init() { proto.RegisterFile("metrics.proto", fileDescriptor_metrics_f27e09e153e79ab4) }
 
-var fileDescriptor_metrics_75620c6fb81f66b2 = []byte{
+var fileDescriptor_metrics_f27e09e153e79ab4 = []byte{
 	// 1897 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x58, 0xdd, 0x6f, 0x23, 0x57,
 	0x15, 0xcf, 0xb5, 0x1d, 0xa7, 0x39, 0x4e, 0x82, 0x73, 0xb3, 0xbb, 0x75, 0x47, 0xac, 0xb8, 0xeb,

@@ -89,7 +89,7 @@ func (p *Plan) ID() string {
 
 // SourcePTransformID returns the ID of the data's origin PTransform.
 func (p *Plan) SourcePTransformID() string {
-	return p.source.SID.Target.ID
+	return p.source.SID.PtransformID
 }
 
 // Execute executes the plan with the given data context and bundle id. Units

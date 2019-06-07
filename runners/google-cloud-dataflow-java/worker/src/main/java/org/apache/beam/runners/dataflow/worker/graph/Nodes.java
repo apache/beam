@@ -261,25 +261,14 @@ public class Nodes {
   @AutoValue
   public abstract static class RemoteGrpcPortNode extends Node {
     public static RemoteGrpcPortNode create(
-        BeamFnApi.RemoteGrpcPort port,
-        String primitiveTransformId,
-        String functionSpecId,
-        String inputId,
-        String outputId) {
+        BeamFnApi.RemoteGrpcPort port, String primitiveTransformId) {
       checkNotNull(port);
-      return new AutoValue_Nodes_RemoteGrpcPortNode(
-          port, primitiveTransformId, functionSpecId, inputId, outputId);
+      return new AutoValue_Nodes_RemoteGrpcPortNode(port, primitiveTransformId);
     }
 
     public abstract BeamFnApi.RemoteGrpcPort getRemoteGrpcPort();
 
     public abstract String getPrimitiveTransformId();
-
-    public abstract String getFunctionSpecId();
-
-    public abstract String getInputId();
-
-    public abstract String getOutputId();
   }
 
   /** A node that stores {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterRequest}s. */

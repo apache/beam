@@ -24,7 +24,6 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
@@ -55,7 +54,7 @@ public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
   // Should only be set and cleared once per start/finish cycle in the start method and
   // finish method respectively.
   private String bundleId;
-  private final Target target;
+  private final String ptransformId;
   private CloseableFnDataReceiver<WindowedValue<T>> receiver;
   private final AtomicInteger elementsSent = new AtomicInteger();
 
@@ -72,16 +71,22 @@ public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
 
   public RemoteGrpcPortWriteOperation(
       FnDataService beamFnDataService,
-      Target target,
+      String ptransformId,
       IdGenerator bundleIdSupplier,
       Coder<WindowedValue<T>> coder,
       OperationContext context) {
-    this(beamFnDataService, target, bundleIdSupplier, coder, context, System::currentTimeMillis);
+    this(
+        beamFnDataService,
+        ptransformId,
+        bundleIdSupplier,
+        coder,
+        context,
+        System::currentTimeMillis);
   }
 
   public RemoteGrpcPortWriteOperation(
       FnDataService beamFnDataService,
-      Target target,
+      String ptransformId,
       IdGenerator bundleIdSupplier,
       Coder<WindowedValue<T>> coder,
       OperationContext context,
@@ -90,7 +95,7 @@ public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
     this.coder = coder;
     this.beamFnDataService = beamFnDataService;
     this.bundleIdSupplier = bundleIdSupplier;
-    this.target = target;
+    this.ptransformId = ptransformId;
     this.currentTimeMillis = currentTimeMillis;
   }
 
@@ -103,7 +108,7 @@ public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
       elementsFlushed = 0;
       super.start();
       bundleId = bundleIdSupplier.getId();
-      receiver = beamFnDataService.send(LogicalEndpoint.of(bundleId, target), coder);
+      receiver = beamFnDataService.send(LogicalEndpoint.of(bundleId, ptransformId), coder);
     }
   }
 
@@ -239,7 +244,7 @@ public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
-        .add("target", target)
+        .add("ptransformId", ptransformId)
         .add("coder", coder)
         .add("bundleId", bundleId)
         .toString();

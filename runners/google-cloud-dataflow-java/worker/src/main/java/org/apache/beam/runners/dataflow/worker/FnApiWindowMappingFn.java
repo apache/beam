@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
@@ -238,12 +237,7 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
       // Open the inbound consumer
       InboundDataClient waitForInboundTermination =
           beamFnDataService.receive(
-              LogicalEndpoint.of(
-                  processRequestInstructionId,
-                  BeamFnApi.Target.newBuilder()
-                      .setName("out")
-                      .setPrimitiveTransformReference("write")
-                      .build()),
+              LogicalEndpoint.of(processRequestInstructionId, "write"),
               inboundCoder,
               outputValue::add);
 
@@ -253,13 +247,7 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
       // Open the outbound consumer
       try (CloseableFnDataReceiver<WindowedValue<KV<byte[], BoundedWindow>>> outboundConsumer =
           beamFnDataService.send(
-              LogicalEndpoint.of(
-                  processRequestInstructionId,
-                  BeamFnApi.Target.newBuilder()
-                      .setName("in")
-                      .setPrimitiveTransformReference("read")
-                      .build()),
-              outboundCoder)) {
+              LogicalEndpoint.of(processRequestInstructionId, "read"), outboundCoder)) {
 
         outboundConsumer.accept(WindowedValue.valueInGlobalWindow(KV.of(EMPTY_ARRAY, mainWindow)));
       }
