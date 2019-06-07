@@ -83,7 +83,7 @@ ENCODED_IMPULSE_VALUE = beam.coders.WindowedValueCoder(
 
 
 class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
-  """TODO"""
+  """Implementation of BeamFnControlServicer for a single client."""
 
   UNSTARTED_STATE = 'unstarted'
   STARTED_STATE = 'started'
@@ -353,7 +353,7 @@ class FnApiRunner(runner.PipelineRunner):
         use_state_iterables=self._use_state_iterables)
 
   def run_stages(self, stage_context, stages):
-    """TODO
+    """Run all of the stages.
 
     Args:
       stage_context (fn_api_runner_transforms.TransformContext)
