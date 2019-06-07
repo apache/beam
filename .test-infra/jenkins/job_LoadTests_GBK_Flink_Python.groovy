@@ -32,7 +32,7 @@ String pythonHarnessImageTag = "${dockerRegistryRoot}/python:${dockerTag}"
 String flinkVersion = '1.7'
 String flinkDownloadUrl = 'https://archive.apache.org/dist/flink/flink-1.7.0/flink-1.7.0-bin-hadoop28-scala_2.11.tgz'
 
-int numWorkers = 3
+int parallelism = 5
 
 def testConfiguration =
         [
@@ -49,7 +49,7 @@ def testConfiguration =
                         input_options       : '\'{"num_records": 200000000,"key_size": 1,"value_size":9}\'',
                         iterations          : 1,
                         fanout              : 1,
-                        parallelism         : 5,
+                        parallelism         : parallelism,
                         job_endpoint: 'localhost:8099',
                         environment_config : pythonHarnessImageTag,
                         environment_type: 'DOCKER'
@@ -63,7 +63,7 @@ def loadTest = { scope, triggeringContext ->
 
   infra.prepareSDKHarness(scope, testConfiguration.sdk, dockerRegistryRoot, 'latest')
   infra.prepareFlinkJobServer(scope, flinkVersion, dockerRegistryRoot, 'latest')
-  infra.setupFlinkCluster(scope, jenkinsJobName, flinkDownloadUrl, pythonHarnessImageTag, jobServerImageTag, numWorkers)
+  infra.setupFlinkCluster(scope, jenkinsJobName, flinkDownloadUrl, pythonHarnessImageTag, jobServerImageTag, parallelism)
 
   loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, testConfiguration.sdk, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
 
