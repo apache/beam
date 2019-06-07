@@ -281,6 +281,88 @@ useful for people to learn more about Apache Beam, and eventually become Beam Ma
       </item>
     
       <item>
+        <title>Apache Beam 2.13.0</title>
+        <description>&lt;!--
+Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+
+&lt;p&gt;We are happy to present the new 2.13.0 release of Beam. This release includes both improvements and new functionality.
+See the &lt;a href=&quot;/get-started/downloads/#2130-2019-05-21&quot;&gt;download page&lt;/a&gt; for this release.&lt;!--more--&gt;
+For more information on changes in 2.13.0, check out the
+&lt;a href=&quot;https://jira.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12345166&quot;&gt;detailed release notes&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;highlights&quot;&gt;Highlights&lt;/h2&gt;
+
+&lt;h3 id=&quot;ios&quot;&gt;I/Os&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Support reading query results with the BigQuery storage API.&lt;/li&gt;
+  &lt;li&gt;Support KafkaIO to be configured externally for use with other SDKs.&lt;/li&gt;
+  &lt;li&gt;BigQuery IO now supports BYTES datatype on Python 3.&lt;/li&gt;
+  &lt;li&gt;Avro IO support enabled on Python 3.&lt;/li&gt;
+  &lt;li&gt;For Python 3 pipelines, the default Avro library used by Beam AvroIO and Dataflow workers was switched from avro-python3 to fastavro.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;new-features--improvements&quot;&gt;New Features / Improvements&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Flink 1.8 support added.&lt;/li&gt;
+  &lt;li&gt;Support to run word count on Portable Spark runner.&lt;/li&gt;
+  &lt;li&gt;ElementCount metrics in FnApi Dataflow Runner.&lt;/li&gt;
+  &lt;li&gt;Support to create BinaryCombineFn from lambdas.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;breaking-changes&quot;&gt;Breaking Changes&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;When writing BYTES Datatype into Bigquery with Beam Bigquery IO on Python DirectRunner, users need to base64-encode bytes values before passing them to Bigquery IO. Accordingly, when reading bytes data from BigQuery, the IO will also return base64-encoded bytes. This change only affects Bigquery IO on Python DirectRunner. New DirectRunner behavior is consistent with treatment of Bytes by Beam Java Bigquery IO, and Python Dataflow Runner.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;bugfixes&quot;&gt;Bugfixes&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Various bug fixes and performance improvements.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h2&gt;
+
+&lt;p&gt;According to git shortlog, the following people contributed to the 2.13.0 release. Thank you to all contributors!&lt;/p&gt;
+
+&lt;p&gt;Aaron Li, Ahmet Altay, Aizhamal Nurmamat kyzy, Alex Amato, Alexey Romanenko, 
+Andrew Pilloud, Ankur Goenka, Anton Kedin, apstndb, Boyuan Zhang, Brian Hulette, 
+Brian Quinlan, Chamikara Jayalath, Cyrus Maden, Daniel Chen, Daniel Oliveira, 
+David Cavazos, David Moravek, David Yan, EdgarLGB, Etienne Chauchot, frederik2, 
+Gleb Kanterov, Harshit Dwivedi, Harsh Vardhan, Heejong Lee, Hennadiy Leontyev, 
+Henri-Mayeul de Benque, Ismaël Mejía, Jae-woo Kim, Jamie Kirkpatrick, Jan Lukavský, 
+Jason Kuster, Jean-Baptiste Onofré, JohnZZGithub, Jozef Vilcek, Juta, Kenneth Jung, 
+Kenneth Knowles, Kyle Weaver, Łukasz Gajowy, Luke Cwik, Mark Liu, Mathieu Blanchard, 
+Maximilian Michels, Melissa Pashniak, Michael Luckey, Michal Walenia, Mike Kaplinskiy, 
+Mike Pedersen, Mikhail Gryzykhin, Mikhail-Ivanov, Niklas Hansson, pabloem, 
+Pablo Estrada, Pranay Nanda, Reuven Lax, Richard Moorhead, Robbe Sneyders, 
+Robert Bradshaw, Robert Burke, Roman van der Krogt, rosetn, Rui Wang, Ryan Yuan, 
+Sam Whittle, sudhan499, Sylwester Kardziejonek, Ted, Thomas Weise, Tim Robertson, 
+ttanay, tvalentyn, Udi Meiri, Valentyn Tymofieiev, Xinyu Liu, Yifan Zou, 
+yoshiki.obata, Yueyang Qiu&lt;/p&gt;
+</description>
+        <pubDate>Wed, 22 May 2019 01:00:01 -0700</pubDate>
+        <link>https://beam.apache.org/blog/2019/05/22/beam-2.13.0.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2019/05/22/beam-2.13.0.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
         <title>Beam community update!</title>
         <description>&lt;!--
 Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -920,77 +1002,6 @@ Xinyu Liu, Yueyang Qiu, Zhuo Peng&lt;/p&gt;
         <pubDate>Fri, 15 Feb 2019 00:00:01 -0800</pubDate>
         <link>https://beam.apache.org/blog/2019/02/15/beam-2.10.0.html</link>
         <guid isPermaLink="true">https://beam.apache.org/blog/2019/02/15/beam-2.10.0.html</guid>
-        
-        
-        <category>blog</category>
-        
-      </item>
-    
-      <item>
-        <title>Apache Beam 2.9.0</title>
-        <description>&lt;!--
-Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---&gt;
-
-&lt;p&gt;We are happy to present the new 2.9.0 release of Beam. This release includes both improvements and new functionality.
-See the &lt;a href=&quot;/get-started/downloads/#290-2018-12-13&quot;&gt;download page&lt;/a&gt; for this release.&lt;!--more--&gt;
-For more information on changes in 2.9.0, check out the
-&lt;a href=&quot;https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12344258&quot;&gt;detailed release notes&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h2 id=&quot;new-features--improvements&quot;&gt;New Features / Improvements&lt;/h2&gt;
-
-&lt;h3 id=&quot;dependency-upgrades&quot;&gt;Dependency Upgrades&lt;/h3&gt;
-&lt;ul&gt;
-  &lt;li&gt;Update google-api-client libraries to 1.27.0.&lt;/li&gt;
-  &lt;li&gt;Update byte-buddy to 1.9.3&lt;/li&gt;
-  &lt;li&gt;Update Flink Runner to 1.5.5&lt;/li&gt;
-  &lt;li&gt;Upgrade google-apitools to 0.5.24&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;portability&quot;&gt;Portability&lt;/h3&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Added support for user state and timers to Flink runner.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;ios&quot;&gt;I/Os&lt;/h3&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;I/O connector for RabbitMQ.&lt;/li&gt;
-  &lt;li&gt;Update SpannerIO to support unbounded writes.&lt;/li&gt;
-  &lt;li&gt;Add PFADD method to RedisIO.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;miscellaneous-fixes&quot;&gt;Miscellaneous Fixes&lt;/h3&gt;
-&lt;ul&gt;
-  &lt;li&gt;Dataflow runner was updated to &lt;strong&gt;not&lt;/strong&gt; use &lt;a href=&quot;https://github.com/google/conscrypt&quot;&gt;Conscrypt&lt;/a&gt; as the default security provider.&lt;/li&gt;
-  &lt;li&gt;Support set/delete of timers by ID in Flink runner.&lt;/li&gt;
-  &lt;li&gt;Improvements to stabilize integration tests.&lt;/li&gt;
-  &lt;li&gt;Updates Spark runner to show Beam metrics in web UI&lt;/li&gt;
-  &lt;li&gt;Vendor gRPC and Protobuf separately from beam-model-* Java packages&lt;/li&gt;
-  &lt;li&gt;Avoid reshuffle for zero and one element creates&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h2&gt;
-
-&lt;p&gt;According to git shortlog, the following people contributed
-to the 2.9.0 release. Thank you to all contributors!&lt;/p&gt;
-
-&lt;p&gt;Adam Horky, Ahmet Altay, Alan Myrvold, Alex Amato, Alexey Romanenko, Andrea Foegler, Andrew Fulton, Andrew Pilloud, Ankur Goenka, Anton Kedin, Babu, Ben Song, Bingfeng Shu, Boyuan Zhang, Brian Martin, Brian Quinlan, Chamikara Jayalath, Charles Chen, Christian Schneider, Colm O hEigeartaigh, Cory Brzycki, CraigChambersG, Daniel Oliveira, David Moravek, Dusan Rychnovsky, Etienne Chauchot, Eugene Kirpichov, Fabien Rousseau, Gleb Kanterov, Heejong Lee, Henning Rohde, Ismaël Mejía, Jan Lukavský, Jaromir Vanek, Jason Kuster, Jean-Baptiste Onofré, Jeff Klukas, Jeroen Steggink, Julien Tournay, Jára Vaněk, Katarzyna Kucharczyk, Keisuke Kondo, Kenneth Knowles, Liam Miller-Cushon, Luke Cwik, Manu Zhang, Mark Liu, Maximilian Michels, Melissa Pashniak, Micah Wylde, Michael Luckey, Mike Pedersen, Mikhail Gryzykhin, Novotnik,  Petr, Ondrej Kvasnicka, Pablo Estrada, Pavel Slechta, Raghu Angadi, Reuven Lax, Robbe Sneyders, Robert Bradshaw, Robert Burke, Ruoyu Liu, Ruoyun Huang, Sam Rohde, Sam sam, Scott Wegner, Simon Plovyt, Thomas Weise, Tim Robertson, Tomas Novak, Udi Meiri, Vaclav Plajt, Valentyn Tymofieiev, Varun Dhussa, Vojtech Janota, Wout Scheepers, Xinyu Liu, XuMingmin, Yifan Zou, Yueyang Qiu, akedin, amaliujia, connelloG, flyisland, huygaa11, jasonkuster, jglezt, kkpoon, mareksimunek, matthiasa4, melissa, mingmxu, nielm, reuvenlax, robbe, ruoyu90, splovyt, svXaverius, vaclav.plajt@gmail.com, xinyuiscool, xitep, Łukasz Gajowy&lt;/p&gt;
-</description>
-        <pubDate>Thu, 13 Dec 2018 00:00:01 -0800</pubDate>
-        <link>https://beam.apache.org/blog/2018/12/13/beam-2.9.0.html</link>
-        <guid isPermaLink="true">https://beam.apache.org/blog/2018/12/13/beam-2.9.0.html</guid>
         
         
         <category>blog</category>
