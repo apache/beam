@@ -381,7 +381,6 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
     found_files = [m.path for m in leftovers[0].metadata_list]
     self.assertListEqual(found_files, [f2])
 
-  @unittest.skip('BEAM-7510 - test is flaky')
   def test_write_to_different_file_types(self):
 
     dir = self._new_tempdir()
