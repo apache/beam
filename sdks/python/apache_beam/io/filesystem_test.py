@@ -393,7 +393,7 @@ atomized in instants hammered around the
 
   def test_concatenated_compressed_file(self):
     # The test apache_beam.io.textio_test.test_read_gzip_concat
-    # does not encounter the problem in the Beam 2.11 and earlier
+    # does not encounter the problem in the Beam 2.13 and earlier
     # code base because the test data is too small: the data is
     # smaller than read_size, so it goes through logic in the code
     # that avoids the problem in the code.  So, this test sets
@@ -441,7 +441,7 @@ atomized in instants hammered around the
     # gzip file, I got into an endless loop in the beam filesystem module.
     # That's why I put this handler in to trap an endless loop. However,
     # this unit test doesn't encounter an endless loop, it encounters a
-    # different error, in the Beam 2.11 and earlier implementation.
+    # different error, in the Beam 2.13 and earlier implementation.
     # So it's not strictly necessary to have this handler in this unit test.
 
     def alarm_handler(signum, frame):
