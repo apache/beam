@@ -27,6 +27,8 @@
 [![PyPI version](https://badge.fury.io/py/apache-beam.svg)](https://badge.fury.io/py/apache-beam)
 [![Build Status](https://builds.apache.org/buildStatus/icon?job=beam_PostCommit_Java)](https://builds.apache.org/job/beam_PostCommit_Java)
 [![Coverage Status](https://coveralls.io/repos/github/apache/beam/badge.svg?branch=master)](https://coveralls.io/github/apache/beam?branch=master)
+[![Compat Check PyPI](https://python-compatibility-tools.appspot.com/one_badge_image?package=apache-beam%5Bgcp%5D)](https://python-compatibility-tools.appspot.com/one_badge_target?package=apache-beam%5Bgcp%5D)
+[![Compat Check Github](https://python-compatibility-tools.appspot.com/one_badge_image?package=git%2Bgit%3A//github.com/apache/beam.git%23subdirectory%3Dsdks/python)](https://python-compatibility-tools.appspot.com/one_badge_target?package=git%2Bgit%3A//github.com/apache/beam.git%23subdirectory%3Dsdks/python)
 
 ### Post-commit tests status (on master branch)
 
