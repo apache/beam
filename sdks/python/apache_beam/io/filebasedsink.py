@@ -182,7 +182,8 @@ class FileBasedSink(iobase.Sink):
     file_name_suffix = self.file_name_suffix.get()
     suffix = (
         '.' + os.path.basename(file_path_prefix) + file_name_suffix)
-    return FileBasedSinkWriter(self, os.path.join(init_result, uid) + suffix)
+    writer_path = FileSystems.join(init_result, uid) + suffix
+    return FileBasedSinkWriter(self, writer_path)
 
   @check_accessible(['file_path_prefix', 'file_name_suffix'])
   def _get_final_name(self, shard_num, num_shards):
