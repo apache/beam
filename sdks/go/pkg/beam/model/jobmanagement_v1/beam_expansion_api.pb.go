@@ -46,7 +46,7 @@ func (m *ExpansionRequest) Reset()         { *m = ExpansionRequest{} }
 func (m *ExpansionRequest) String() string { return proto.CompactTextString(m) }
 func (*ExpansionRequest) ProtoMessage()    {}
 func (*ExpansionRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_expansion_api_864d3491b09f6fcb, []int{0}
+	return fileDescriptor_beam_expansion_api_7d6074648ff0899a, []int{0}
 }
 func (m *ExpansionRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ExpansionRequest.Unmarshal(m, b)
@@ -106,7 +106,7 @@ func (m *ExpansionResponse) Reset()         { *m = ExpansionResponse{} }
 func (m *ExpansionResponse) String() string { return proto.CompactTextString(m) }
 func (*ExpansionResponse) ProtoMessage()    {}
 func (*ExpansionResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_expansion_api_864d3491b09f6fcb, []int{1}
+	return fileDescriptor_beam_expansion_api_7d6074648ff0899a, []int{1}
 }
 func (m *ExpansionResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ExpansionResponse.Unmarshal(m, b)
@@ -225,10 +225,10 @@ var _ExpansionService_serviceDesc = grpc.ServiceDesc{
 }
 
 func init() {
-	proto.RegisterFile("beam_expansion_api.proto", fileDescriptor_beam_expansion_api_864d3491b09f6fcb)
+	proto.RegisterFile("beam_expansion_api.proto", fileDescriptor_beam_expansion_api_7d6074648ff0899a)
 }
 
-var fileDescriptor_beam_expansion_api_864d3491b09f6fcb = []byte{
+var fileDescriptor_beam_expansion_api_7d6074648ff0899a = []byte{
 	// 285 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x92, 0xc1, 0x4a, 0xc3, 0x40,
 	0x10, 0x86, 0x89, 0x62, 0x21, 0xab, 0x87, 0xba, 0x28, 0x84, 0xe2, 0xa1, 0xe4, 0xd4, 0x8b, 0x03,

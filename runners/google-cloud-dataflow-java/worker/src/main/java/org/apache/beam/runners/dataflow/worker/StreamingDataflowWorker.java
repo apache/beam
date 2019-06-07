@@ -703,15 +703,12 @@ public class StreamingDataflowWorker {
     LOG.debug("maxWorkItemCommitBytes: {}", maxWorkItemCommitBytes);
   }
 
-  private Node createPortNode(String predecessorId, String successorId) {
+  private Node createPortNode() {
     return RemoteGrpcPortNode.create(
         RemoteGrpcPort.newBuilder()
             .setApiServiceDescriptor(sdkHarnessRegistry.beamFnDataApiServiceDescriptor())
             .build(),
-        idGenerator.getId(),
-        idGenerator.getId(),
-        predecessorId,
-        successorId);
+        idGenerator.getId());
   }
 
   private int chooseMaximumNumberOfThreads() {

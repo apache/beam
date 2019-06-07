@@ -54,7 +54,7 @@ func (s *ScopedDataManager) OpenRead(ctx context.Context, id exec.StreamID) (io.
 	if err != nil {
 		return nil, err
 	}
-	return ch.OpenRead(ctx, id.Target, s.instID), nil
+	return ch.OpenRead(ctx, id.PtransformID, s.instID), nil
 }
 
 func (s *ScopedDataManager) OpenWrite(ctx context.Context, id exec.StreamID) (io.WriteCloser, error) {
@@ -62,7 +62,7 @@ func (s *ScopedDataManager) OpenWrite(ctx context.Context, id exec.StreamID) (io
 	if err != nil {
 		return nil, err
 	}
-	return ch.OpenWrite(ctx, id.Target, s.instID), nil
+	return ch.OpenWrite(ctx, id.PtransformID, s.instID), nil
 }
 
 func (s *ScopedDataManager) open(ctx context.Context, port exec.Port) (*DataChannel, error) {
@@ -118,8 +118,8 @@ func (m *DataChannelManager) Open(ctx context.Context, port exec.Port) (*DataCha
 
 // clientID identifies a client of a connected channel.
 type clientID struct {
-	target exec.Target
-	instID string
+	ptransformID string
+	instID       string
 }
 
 // This is a reduced version of the full gRPC interface to help with testing.
@@ -169,12 +169,12 @@ func makeDataChannel(ctx context.Context, id string, client dataClient) *DataCha
 	return ret
 }
 
-func (c *DataChannel) OpenRead(ctx context.Context, target exec.Target, instID string) io.ReadCloser {
-	return c.makeReader(ctx, clientID{target: target, instID: instID})
+func (c *DataChannel) OpenRead(ctx context.Context, ptransformID string, instID string) io.ReadCloser {
+	return c.makeReader(ctx, clientID{ptransformID: ptransformID, instID: instID})
 }
 
-func (c *DataChannel) OpenWrite(ctx context.Context, target exec.Target, instID string) io.WriteCloser {
-	return c.makeWriter(ctx, clientID{target: target, instID: instID})
+func (c *DataChannel) OpenWrite(ctx context.Context, ptransformID string, instID string) io.WriteCloser {
+	return c.makeWriter(ctx, clientID{ptransformID: ptransformID, instID: instID})
 }
 
 func (c *DataChannel) read(ctx context.Context) {
@@ -197,7 +197,7 @@ func (c *DataChannel) read(ctx context.Context) {
 		// to reduce lock contention.
 
 		for _, elm := range msg.GetData() {
-			id := clientID{target: exec.Target{ID: elm.GetTarget().PrimitiveTransformReference, Name: elm.GetTarget().GetName()}, instID: elm.GetInstructionReference()}
+			id := clientID{ptransformID: elm.PtransformId, instID: elm.GetInstructionReference()}
 
 			// log.Printf("Chan read (%v): %v\n", sid, elm.GetData())
 
@@ -329,12 +329,11 @@ func (w *dataWriter) Close() error {
 	w.ch.mu.Lock()
 	defer w.ch.mu.Unlock()
 	delete(w.ch.writers, w.id)
-	target := &pb.Target{PrimitiveTransformReference: w.id.target.ID, Name: w.id.target.Name}
 	msg := &pb.Elements{
 		Data: []*pb.Elements_Data{
 			{
 				InstructionReference: w.id.instID,
-				Target:               target,
+				PtransformId:         w.id.ptransformID,
 				// Empty data == sentinel
 			},
 		},
@@ -354,12 +353,11 @@ func (w *dataWriter) Flush() error {
 		return nil
 	}
 
-	target := &pb.Target{PrimitiveTransformReference: w.id.target.ID, Name: w.id.target.Name}
 	msg := &pb.Elements{
 		Data: []*pb.Elements_Data{
 			{
 				InstructionReference: w.id.instID,
-				Target:               target,
+				PtransformId:         w.id.ptransformID,
 				Data:                 w.buf,
 			},
 		},

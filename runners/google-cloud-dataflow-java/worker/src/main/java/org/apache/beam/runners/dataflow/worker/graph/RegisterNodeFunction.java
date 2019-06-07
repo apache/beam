@@ -413,7 +413,8 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
       Set<Node> successors = input.successors(node);
       if (predecessors.isEmpty() && !successors.isEmpty()) {
         pTransform.putOutputs(
-            node.getInputId(), nodesToPCollections.get(Iterables.getOnlyElement(successors)));
+            "generatedOutput" + idGenerator.getId(),
+            nodesToPCollections.get(Iterables.getOnlyElement(successors)));
         pTransform.setSpec(
             RunnerApi.FunctionSpec.newBuilder()
                 .setUrn(DATA_INPUT_URN)
@@ -421,7 +422,8 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
                 .build());
       } else if (!predecessors.isEmpty() && successors.isEmpty()) {
         pTransform.putInputs(
-            node.getOutputId(), nodesToPCollections.get(Iterables.getOnlyElement(predecessors)));
+            "generatedInput" + idGenerator.getId(),
+            nodesToPCollections.get(Iterables.getOnlyElement(predecessors)));
         pTransform.setSpec(
             RunnerApi.FunctionSpec.newBuilder()
                 .setUrn(DATA_OUTPUT_URN)
