@@ -122,13 +122,6 @@ class BeamModulePlugin implements Plugin<Project> {
      * Otherwise the shadowJar and shadowTestJar artifacts are used during publishing.
      *
      * The shadowJar / shadowTestJar tasks execute the specified closure to configure themselves.
-     * Users can compose their closure with a suggested default closure via:
-     * DEFAULT_SHADOW_CLOSURE << {
-     *   dependencies {
-     *     include(...)
-     *   }
-     *   relocate(...)
-     * }
      */
     Closure shadowClosure;
 
@@ -561,16 +554,6 @@ class BeamModulePlugin implements Plugin<Project> {
               + project.name.replace("-", "_")
               + "."
               + suffix)
-    }
-
-    // By default if there is at least one include rule then all included dependencies must be specified.
-    // This overrides the default behavior of include all if no includes are specified.
-    // See details here:
-    // https://github.com/johnrengelman/shadow/blob/98191096a94674245c7b3e63975df9e14f67074e/src/main/groovy/com/github/jengelman/gradle/plugins/shadow/internal/DefaultDependencyFilter.groovy#L123
-    project.ext.DEFAULT_SHADOW_CLOSURE = {
-      dependencies {
-        include(dependency("not.a.real:dependency"))
-      }
     }
 
     project.ext.repositories = {
