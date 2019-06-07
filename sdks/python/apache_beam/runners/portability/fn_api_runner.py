@@ -421,6 +421,78 @@ class FnApiRunner(runner.PipelineRunner):
       finally:
         controller.state.restore()
 
+======
+  def _collect_written_timers_and_add_to_deferred_inputs(self,
+                                                         context,
+                                                         pipeline_components,
+                                                         stage,
+                                                         get_buffer_callable,
+                                                         deferred_inputs):
+    for transform_id, timer_writes in stage.timer_pcollections:
+
+      # Queue any set timers as new inputs.
+      windowed_timer_coder_impl = context.coders[
+          pipeline_components.pcollections[timer_writes].coder_id].get_impl()
+      written_timers = get_buffer_callable(
+          create_buffer_id(timer_writes, kind='timers'))
+      if written_timers:
+        # Keep only the "last" timer set per key and window.
+        timers_by_key_and_window = {}
+        for elements_data in written_timers:
+          input_stream = create_InputStream(elements_data)
+          while input_stream.size() > 0:
+            windowed_key_timer = windowed_timer_coder_impl.decode_from_stream(
+                input_stream, True)
+            key, _ = windowed_key_timer.value
+            # TODO: Explode and merge windows.
+            assert len(windowed_key_timer.windows) == 1
+            timers_by_key_and_window[
+                key, windowed_key_timer.windows[0]] = windowed_key_timer
+        out = create_OutputStream()
+        for windowed_key_timer in timers_by_key_and_window.values():
+          windowed_timer_coder_impl.encode_to_stream(
+              windowed_key_timer, out, True)
+        deferred_inputs[transform_id, 'out'] = [out.get()]
+        written_timers[:] = []
+
+  def _add_residuals_and_channel_splits_to_deferred_inputs(
+      self, splits, get_input_coder_callable,
+      input_for_callable, last_sent, deferred_inputs):
+    prev_stops = {}
+    for split in splits:
+      for delayed_application in split.residual_roots:
+        deferred_inputs[
+            input_for_callable(
+                delayed_application.application.ptransform_id,
+                delayed_application.application.input_id)
+        ].append(delayed_application.application.element)
+      for channel_split in split.channel_splits:
+        coder_impl = get_input_coder_callable(channel_split.ptransform_id)
+        # TODO(SDF): This requires determanistic ordering of buffer iteration.
+        # TODO(SDF): The return split is in terms of indices.  Ideally,
+        # a runner could map these back to actual positions to effectively
+        # describe the two "halves" of the now-split range.  Even if we have
+        # to buffer each element we send (or at the very least a bit of
+        # metadata, like position, about each of them) this should be doable
+        # if they're already in memory and we are bounding the buffer size
+        # (e.g. to 10mb plus whatever is eagerly read from the SDK).  In the
+        # case of non-split-points, we can either immediately replay the
+        # "non-split-position" elements or record them as we do the other
+        # delayed applications.
+
+        # Decode and recode to split the encoded buffer by element index.
+        all_elements = list(coder_impl.decode_all(b''.join(last_sent[
+            channel_split.ptransform_id, channel_split.input_id])))
+        residual_elements = all_elements[
+            channel_split.first_residual_element : prev_stops.get(
+                channel_split.ptransform_id, len(all_elements)) + 1]
+        if residual_elements:
+          deferred_inputs[
+              channel_split.ptransform_id, channel_split.input_id].append(
+                  coder_impl.encode_all(residual_elements))
+        prev_stops[
+            channel_split.ptransform_id] = channel_split.last_primary_element
+
   def _run_stage(self,
                  worker_handler_factory,
                  pipeline_components,
@@ -551,32 +623,9 @@ class FnApiRunner(runner.PipelineRunner):
 
     while True:
       deferred_inputs = collections.defaultdict(list)
-      for transform_id, timer_writes in stage.timer_pcollections:
 
-        # Queue any set timers as new inputs.
-        windowed_timer_coder_impl = context.coders[
-            pipeline_components.pcollections[timer_writes].coder_id].get_impl()
-        written_timers = get_buffer(
-            create_buffer_id(timer_writes, kind='timers'))
-        if written_timers:
-          # Keep only the "last" timer set per key and window.
-          timers_by_key_and_window = {}
-          for elements_data in written_timers:
-            input_stream = create_InputStream(elements_data)
-            while input_stream.size() > 0:
-              windowed_key_timer = windowed_timer_coder_impl.decode_from_stream(
-                  input_stream, True)
-              key, _ = windowed_key_timer.value
-              # TODO: Explode and merge windows.
-              assert len(windowed_key_timer.windows) == 1
-              timers_by_key_and_window[
-                  key, windowed_key_timer.windows[0]] = windowed_key_timer
-          out = create_OutputStream()
-          for windowed_key_timer in timers_by_key_and_window.values():
-            windowed_timer_coder_impl.encode_to_stream(
-                windowed_key_timer, out, True)
-          deferred_inputs[transform_id] = [out.get()]
-          written_timers[:] = []
+      self._collect_written_timers_and_add_to_deferred_inputs(
+          context, pipeline_components, stage, get_buffer, deferred_inputs)
 
       # Queue any process-initiated delayed bundle applications.
       for delayed_application in last_result.process_bundle.residual_roots:
@@ -587,39 +636,8 @@ class FnApiRunner(runner.PipelineRunner):
         ].append(delayed_application.application.element)
 
       # Queue any runner-initiated delayed bundle applications.
-      prev_stops = {}
-      for split in splits:
-        for delayed_application in split.residual_roots:
-          deferred_inputs[
-              input_for(
-                  delayed_application.application.ptransform_id,
-                  delayed_application.application.input_id)
-          ].append(delayed_application.application.element)
-        for channel_split in split.channel_splits:
-          coder_impl = get_input_coder_impl(channel_split.ptransform_id)
-          # TODO(SDF): This requires determanistic ordering of buffer iteration.
-          # TODO(SDF): The return split is in terms of indices.  Ideally,
-          # a runner could map these back to actual positions to effectively
-          # describe the two "halves" of the now-split range.  Even if we have
-          # to buffer each element we send (or at the very least a bit of
-          # metadata, like position, about each of them) this should be doable
-          # if they're already in memory and we are bounding the buffer size
-          # (e.g. to 10mb plus whatever is eagerly read from the SDK).  In the
-          # case of non-split-points, we can either immediately replay the
-          # "non-split-position" elements or record them as we do the other
-          # delayed applications.
-
-          # Decode and recode to split the encoded buffer by element index.
-          all_elements = list(coder_impl.decode_all(b''.join(last_sent[
-              channel_split.ptransform_id])))
-          residual_elements = all_elements[
-              channel_split.first_residual_element : prev_stops.get(
-                  channel_split.ptransform_id, len(all_elements)) + 1]
-          if residual_elements:
-            deferred_inputs[channel_split.ptransform_id].append(
-                coder_impl.encode_all(residual_elements))
-          prev_stops[
-              channel_split.ptransform_id] = channel_split.last_primary_element
+      self._add_residuals_and_channel_splits_to_deferred_inputs(
+          splits, get_input_coder_impl, input_for, last_sent, deferred_inputs)
 
       if deferred_inputs:
         # The worker will be waiting on these inputs as well.
