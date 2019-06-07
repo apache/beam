@@ -442,23 +442,23 @@ class LatestCombineFnTest(unittest.TestCase):
 
   def test_create_accumulator(self):
     accumulator = self.fn.create_accumulator()
-    self.assertEquals(accumulator, (None, window.MIN_TIMESTAMP))
+    self.assertEqual(accumulator, (None, window.MIN_TIMESTAMP))
 
   def test_add_input(self):
     accumulator = self.fn.create_accumulator()
     element = (1, 100)
     new_accumulator = self.fn.add_input(accumulator, element)
-    self.assertEquals(new_accumulator, (1, 100))
+    self.assertEqual(new_accumulator, (1, 100))
 
   def test_merge_accumulators(self):
     accumulators = [(2, 400), (5, 100), (9, 200)]
     merged_accumulator = self.fn.merge_accumulators(accumulators)
-    self.assertEquals(merged_accumulator, (2, 400))
+    self.assertEqual(merged_accumulator, (2, 400))
 
   def test_extract_output(self):
     accumulator = (1, 100)
     output = self.fn.extract_output(accumulator)
-    self.assertEquals(output, 1)
+    self.assertEqual(output, 1)
 
   def test_with_input_types_decorator_violation(self):
     l_int = [1, 2, 3]
