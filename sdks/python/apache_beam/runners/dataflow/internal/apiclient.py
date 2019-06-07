@@ -581,13 +581,19 @@ class DataflowApplicationClient(object):
   @retry.with_exponential_backoff(num_retries=3)
   def submit_job_description(self, job):
     """Creates and excutes a job request."""
-    request = dataflow.DataflowProjectsLocationsJobsCreateRequest()
+    if self.google_cloud_options.interactive:
+      request = dataflow.DataflowProjectsLocationsSegmentsCreateRequest()
+    else:
+      request = dataflow.DataflowProjectsLocationsJobsCreateRequest()
     request.projectId = self.google_cloud_options.project
     request.location = self.google_cloud_options.region
     request.job = job.proto
 
     try:
-      response = self._client.projects_locations_jobs.Create(request)
+      if self.google_cloud_options.interactive:
+        response = self._client.projects_locations_segments.Create(request)
+      else:
+        response = self._client.projects_locations_jobs.Create(request)
     except exceptions.BadStatusCodeError as e:
       logging.error('HTTP status %d trying to create job'
                     ' at dataflow service endpoint %s',
