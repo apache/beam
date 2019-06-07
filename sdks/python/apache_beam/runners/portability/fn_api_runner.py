@@ -382,6 +382,45 @@ class FnApiRunner(runner.PipelineRunner):
     return RunnerResult(
         runner.PipelineState.DONE, monitoring_infos_by_stage, metrics_by_stage)
 
+  def _store_side_inputs_in_state(self,
+                                  controller,
+                                  context,
+                                  pipeline_components,
+                                  data_side_input,
+                                  pcoll_buffers,
+                                  safe_coders):
+    for (transform_id, tag), (buffer_id, si) in data_side_input.items():
+      _, pcoll_id = split_buffer_id(buffer_id)
+      value_coder = context.coders[safe_coders[
+          pipeline_components.pcollections[pcoll_id].coder_id]]
+      elements_by_window = _WindowGroupingBuffer(si, value_coder)
+      for element_data in pcoll_buffers[buffer_id]:
+        elements_by_window.append(element_data)
+      for key, window, elements_data in elements_by_window.encoded_items():
+        state_key = beam_fn_api_pb2.StateKey(
+            multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
+                ptransform_id=transform_id,
+                side_input_id=tag,
+                window=window,
+                key=key))
+        controller.state.blocking_append(state_key, elements_data)
+
+  def _run_bundle_multiple_times_for_testing(self,
+                                             controller,
+                                             process_bundle_descriptor,
+                                             data_input,
+                                             data_output,
+                                             get_input_coder_callable):
+    for k in range(self._bundle_repeat):
+      try:
+        controller.state.checkpoint()
+        BundleManager(
+            controller, lambda pcoll_id: [], get_input_coder_callable,
+            process_bundle_descriptor, self._progress_frequency, k
+        ).process_bundle(data_input, data_output)
+      finally:
+        controller.state.restore()
+
   def _run_stage(self,
                  worker_handler_factory,
                  pipeline_components,
@@ -435,22 +474,14 @@ class FnApiRunner(runner.PipelineRunner):
       process_bundle_descriptor.state_api_service_descriptor.url = (
           controller.state_api_service_descriptor().url)
 
-    # Store the required side inputs into state.
-    for (transform_id, tag), (buffer_id, si) in data_side_input.items():
-      _, pcoll_id = split_buffer_id(buffer_id)
-      value_coder = context.coders[safe_coders[
-          pipeline_components.pcollections[pcoll_id].coder_id]]
-      elements_by_window = _WindowGroupingBuffer(si, value_coder)
-      for element_data in pcoll_buffers[buffer_id]:
-        elements_by_window.append(element_data)
-      for key, window, elements_data in elements_by_window.encoded_items():
-        state_key = beam_fn_api_pb2.StateKey(
-            multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
-                ptransform_id=transform_id,
-                side_input_id=tag,
-                window=window,
-                key=key))
-        controller.state.blocking_append(state_key, elements_data)
+    # Store the required side inputs into state so it is accessible for the
+    # worker when it runs this bundle.
+    self._store_side_inputs_in_state(controller,
+                                     context,
+                                     pipeline_components,
+                                     data_side_input,
+                                     pcoll_buffers,
+                                     safe_coders)
 
     def get_buffer(buffer_id):
       """Returns the buffer for a given (operation_type, PCollection ID).
@@ -493,20 +524,17 @@ class FnApiRunner(runner.PipelineRunner):
           ).coder_id
       ]].get_impl()
 
-    for k in range(self._bundle_repeat):
-      try:
-        controller.state.checkpoint()
-        BundleManager(
-            controller, lambda pcoll_id: [], get_input_coder_impl,
-            process_bundle_descriptor, self._progress_frequency, k
-        ).process_bundle(data_input, data_output)
-      finally:
-        controller.state.restore()
+    self._run_bundle_multiple_times_for_testing(controller,
+                                                process_bundle_descriptor,
+                                                data_input,
+                                                data_output,
+                                                get_input_coder_impl)
 
-    result, splits = BundleManager(
+    bundle_manager = BundleManager(
         controller, get_buffer, get_input_coder_impl, process_bundle_descriptor,
-        self._progress_frequency).process_bundle(
-            data_input, data_output)
+        self._progress_frequency)
+
+    result, splits = bundle_manager.process_bundle(data_input, data_output)
 
     def input_for(ptransform_id, input_id):
       input_pcoll = process_bundle_descriptor.transforms[
@@ -1221,6 +1249,17 @@ def split_manager(stage_name, split_manager):
 
 
 class BundleManager(object):
+  """Manages the execution of a bundle from the runner-side.
+
+  This class receives a bundle descriptor, and performs the following tasks:
+  - Registration of the bundle with the worker.
+  - Splitting of the bundle
+  - Setting up any other bundle requirements (e.g. side inputs).
+  - Submitting the bundle to worker for execution
+  - Passing bundle input data to the worker
+  - Collecting bundle output data from the worker
+  - Finalizing the bundle.
+  """
 
   _uid_counter = 0
 
@@ -1281,6 +1320,69 @@ class BundleManager(object):
 
     return split_manager
 
+  def _generate_splits_for_testing(self,
+                                   split_manager,
+                                   inputs,
+                                   process_bundle_id):
+    split_results = []
+
+    (read_transform_id, name), buffer_data = only_element(inputs.items())
+
+    byte_stream = b''.join(buffer_data)
+    num_elements = len(list(
+        self._get_input_coder_impl(read_transform_id).decode_all(
+            byte_stream)))
+
+    # Start the split manager in case it wants to set any breakpoints.
+    split_manager_generator = split_manager(num_elements)
+    try:
+      split_fraction = next(split_manager_generator)
+      done = False
+    except StopIteration:
+      done = True
+
+    self._send_input_to_worker(
+        process_bundle_id, read_transform_id, name, [byte_stream])
+
+    # Execute the requested splits.
+    while not done:
+      if split_fraction is None:
+        split_result = None
+      else:
+        split_request = beam_fn_api_pb2.InstructionRequest(
+            process_bundle_split=
+            beam_fn_api_pb2.ProcessBundleSplitRequest(
+                instruction_reference=process_bundle_id,
+                desired_splits={
+                    read_transform_id:
+                        beam_fn_api_pb2.ProcessBundleSplitRequest.DesiredSplit(
+                            fraction_of_remainder=split_fraction,
+                            estimated_input_elements=num_elements)}))
+
+        split_future = self._controller.control_handler.push(split_request)
+        split_response = split_future.get()
+
+        for t in (0.05, 0.1, 0.2):
+          waiting = ('Instruction not running', 'not yet scheduled')
+          if any(msg in split_response.error for msg in waiting):
+            time.sleep(t)
+            split_response = self._controller.control_handler.push(
+                split_request).get()
+        if 'Unknown process bundle' in split_response.error:
+          # It may have finished too fast.
+          split_result = None
+        elif split_response.error:
+          raise RuntimeError(split_response.error)
+        else:
+          split_result = split_response.process_bundle_split
+          split_results.append(split_result)
+      try:
+        split_fraction = split_manager_generator.send(split_result)
+      except StopIteration:
+        break
+
+    return split_results
+
   def process_bundle(self, inputs, expected_outputs):
     # Unique id for the instruction processing this bundle.
     BundleManager._uid_counter += 1
@@ -1290,84 +1392,38 @@ class BundleManager(object):
     registration_future = self._register_bundle_descriptor()
 
     split_manager = self._select_split_manager()
-
     if not split_manager:
-      # Write all the input data to the channel immediately.
+      # If there is no split_manager, write all input data to the channel.
       for transform_id, elements in inputs.items():
         self._send_input_to_worker(
             process_bundle_id, transform_id, elements)
 
-    split_results = []
-    # Actually start the bundle.
+    # Check that the bundle was successfully registered.
     if registration_future and registration_future.get().error:
       raise RuntimeError(registration_future.get().error)
 
-    process_bundle_request = beam_fn_api_pb2.InstructionRequest(
+    # Actually start the bundle.
+    process_bundle_req = beam_fn_api_pb2.InstructionRequest(
         instruction_id=process_bundle_id,
         process_bundle=beam_fn_api_pb2.ProcessBundleRequest(
             process_bundle_descriptor_reference=self._bundle_descriptor.id))
-    result_future = self._controller.control_handler.push(
-        process_bundle_request)
+    result_future = self._controller.control_handler.push(process_bundle_req)
 
+    split_results = []
     with ProgressRequester(
         self._controller, process_bundle_id, self._progress_frequency):
+
       if split_manager:
-        read_transform_id, buffer_data = only_element(inputs.items())
-
-        byte_stream = b''.join(buffer_data)
-        num_elements = len(list(
-            self._get_input_coder_impl(read_transform_id).decode_all(
-                byte_stream)))
-
-        # Start the split manager in case it wants to set any breakpoints.
-        split_manager_generator = split_manager(num_elements)
-        try:
-          split_fraction = next(split_manager_generator)
-          done = False
-        except StopIteration:
-          done = True
-
-        self._send_input_to_worker(
-            process_bundle_id, read_transform_id, [byte_stream])
-
-        # Execute the requested splits.
-        while not done:
-          if split_fraction is None:
-            split_result = None
-          else:
-            split_request = beam_fn_api_pb2.InstructionRequest(
-                process_bundle_split=
-                beam_fn_api_pb2.ProcessBundleSplitRequest(
-                    instruction_reference=process_bundle_id,
-                    desired_splits={
-                        read_transform_id:
-                        beam_fn_api_pb2.ProcessBundleSplitRequest.DesiredSplit(
-                            fraction_of_remainder=split_fraction,
-                            estimated_input_elements=num_elements)
-                    }))
-            split_response = self._controller.control_handler.push(
-                split_request).get()
-            for t in (0.05, 0.1, 0.2):
-              waiting = ('Instruction not running', 'not yet scheduled')
-              if any(msg in split_response.error for msg in waiting):
-                time.sleep(t)
-                split_response = self._controller.control_handler.push(
-                    split_request).get()
-            if 'Unknown process bundle' in split_response.error:
-              # It may have finished too fast.
-              split_result = None
-            elif split_response.error:
-              raise RuntimeError(split_response.error)
-            else:
-              split_result = split_response.process_bundle_split
-              split_results.append(split_result)
-          try:
-            split_fraction = split_manager_generator.send(split_result)
-          except StopIteration:
-            break
+        split_results = self._generate_splits_for_testing(split_manager, inputs,
+                                                          process_bundle_id)
 
       # Gather all output data.
-      logging.debug('Gather all output data from %s.', expected_outputs)
+      expected_targets = [
+          beam_fn_api_pb2.Target(primitive_transform_reference=transform_id,
+                                 name=output_name)
+          for (transform_id, output_name), _ in expected_outputs.items()]
+
+      logging.debug('Gather all output data from %s.', expected_targets)
       for output in self._controller.data_plane_handler.input_elements(
           process_bundle_id,
           expected_outputs.keys(),
