@@ -135,8 +135,8 @@ def loadTestConfigurations = [
 ]
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
-        'beam_Python_LoadTests_GBK_Dataflow_Batch',
-        'Run Python Load Tests GBK Dataflow Batch',
+        'beam_LoadTests_Python_GBK_Dataflow_Batch',
+        'Run Load Tests Python GBK Dataflow Batch',
         'Load Tests Python GBK Dataflow Batch suite',
         this
 ) {
