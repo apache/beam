@@ -235,4 +235,36 @@ public class RowCoderTest {
     Row row = Row.withSchema(schema).addValue(Collections.singletonMap(1, null)).build();
     CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
   }
+
+  @Test
+  public void testStructuralValueReturnTheSameValue() {
+    Schema schema = Schema.builder().addField("field", FieldType.INT32).build();
+    Row expected = Row.withSchema(schema).addValue(2123).build();
+    Coder<Row> rowCoder = RowCoder.of(schema);
+    Object actual = rowCoder.structuralValue(expected);
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  public void testStructuralValueDecodeEncodeEqual() throws Exception {
+    Schema schema = Schema.builder().addField("field", FieldType.INT32).build();
+    Row row = Row.withSchema(schema).addValue(2123).build();
+    Coder<Row> rowCoder = RowCoder.of(schema);
+    CoderProperties.structuralValueDecodeEncodeEqual(rowCoder, row);
+  }
+
+  @Test
+  public void testStructuralValueConsistentWithEquals() throws Exception {
+    Schema schema = Schema.builder().addField("field", FieldType.INT32).build();
+    List<Row> rows =
+        Arrays.asList(
+            Row.withSchema(schema).addValue(2123).build(),
+            Row.withSchema(schema).addValue(4534).build());
+    Coder<Row> rowCoder = RowCoder.of(schema);
+    for (Row value1 : rows) {
+      for (Row value2 : rows) {
+        CoderProperties.structuralValueConsistentWithEquals(rowCoder, value1, value2);
+      }
+    }
+  }
 }

@@ -360,4 +360,31 @@ public class SerializableCoderTest implements Serializable {
 
     coder.encode("", outputStream);
   }
+
+  @Test
+  public void testStructuralValueReturnTheSameValue() {
+    Coder<String> coder = SerializableCoder.of(String.class);
+    String expected = "serTest";
+    Object actual = coder.structuralValue(expected);
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  public void testStructuralValueDecodeEncodeEqual() throws Exception {
+    Coder<MyRecord> coder = SerializableCoder.of(MyRecord.class);
+    MyRecord record = new MyRecord("serTest");
+    CoderProperties.structuralValueDecodeEncodeEqual(coder, record);
+  }
+
+  @Test
+  public void testStructuralValueConsistentWithEquals() throws Exception {
+    List<MyRecord> records =
+        Arrays.asList(new MyRecord("test1"), new MyRecord("test2"), new MyRecord("test3"));
+    Coder<MyRecord> coder = SerializableCoder.of(MyRecord.class);
+    for (MyRecord value1 : records) {
+      for (MyRecord value2 : records) {
+        CoderProperties.structuralValueConsistentWithEquals(coder, value1, value2);
+      }
+    }
+  }
 }

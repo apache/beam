@@ -74,4 +74,28 @@ public class VarIntCoderTest {
   public void testEncodedTypeDescriptor() throws Exception {
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(Integer.class)));
   }
+
+  @Test
+  public void testStructuralValueReturnTheSameValue() {
+    Integer expected = 2239;
+    Object actual = TEST_CODER.structuralValue(expected);
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  public void testStructuralValueDecodeEncodeEqual() throws Exception {
+    for (Integer value : TEST_VALUES) {
+      CoderProperties.structuralValueDecodeEncodeEqual(TEST_CODER, value);
+    }
+  }
+
+  @Test
+  public void testStructuralValueConsistentWithEquals() throws Exception {
+    for (Integer value1 : TEST_VALUES) {
+      for (Integer value2 : TEST_VALUES) {
+        CoderProperties.structuralValueConsistentWithEquals(
+            TEST_CODER, Integer.valueOf(value1), Integer.valueOf(value2));
+      }
+    }
+  }
 }

@@ -98,4 +98,18 @@ public class BitSetCoderTest {
   public void testEncodedTypeDescriptor() throws Exception {
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(BitSet.class)));
   }
+
+  @Test
+  public void testStructuralValueReturnTheSameValue() {
+    BitSet expected = BitSet.valueOf(new byte[] {0xd, 0x3});
+    Object actual = TEST_CODER.structuralValue(expected);
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  public void testStructuralValueDecodeEncodeEqual() throws Exception {
+    for (BitSet value : TEST_VALUES) {
+      CoderProperties.structuralValueDecodeEncodeEqual(TEST_CODER, value);
+    }
+  }
 }

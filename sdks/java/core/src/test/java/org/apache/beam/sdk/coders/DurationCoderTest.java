@@ -86,4 +86,28 @@ public class DurationCoderTest {
     assertThat(
         TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(ReadableDuration.class)));
   }
+
+  @Test
+  public void testStructuralValueReturnTheSameValue() {
+    ReadableDuration expected = Duration.millis(3_000);
+    Object actual = TEST_CODER.structuralValue(expected);
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  public void testStructuralValueDecodeEncodeEqual() throws Exception {
+    for (ReadableDuration value : TEST_VALUES) {
+      CoderProperties.structuralValueDecodeEncodeEqual(TEST_CODER, value);
+    }
+  }
+
+  @Test
+  public void testStructuralValueConsistentWithEquals() throws Exception {
+    for (ReadableDuration value1 : TEST_VALUES) {
+      for (ReadableDuration value2 : TEST_VALUES) {
+        CoderProperties.structuralValueConsistentWithEquals(
+            TEST_CODER, Duration.millis(value1.getMillis()), Duration.millis(value2.getMillis()));
+      }
+    }
+  }
 }

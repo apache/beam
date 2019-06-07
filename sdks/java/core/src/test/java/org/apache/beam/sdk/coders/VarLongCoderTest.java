@@ -97,4 +97,28 @@ public class VarLongCoderTest {
   public void testEncodedTypeDescriptor() throws Exception {
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(Long.class)));
   }
+
+  @Test
+  public void testStructuralValueReturnTheSameValue() {
+    Long expected = 223L;
+    Object actual = TEST_CODER.structuralValue(expected);
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  public void testStructuralValueDecodeEncodeEqual() throws Exception {
+    for (Long value : TEST_VALUES) {
+      CoderProperties.structuralValueDecodeEncodeEqual(TEST_CODER, value);
+    }
+  }
+
+  @Test
+  public void testStructuralValueConsistentWithEquals() throws Exception {
+    for (Long value1 : TEST_VALUES) {
+      for (Long value2 : TEST_VALUES) {
+        CoderProperties.structuralValueConsistentWithEquals(
+            TEST_CODER, Long.valueOf(value1), Long.valueOf(value2));
+      }
+    }
+  }
 }

@@ -88,4 +88,30 @@ public class BigIntegerCoderTest {
 
     CoderUtils.encodeToBase64(TEST_CODER, null);
   }
+
+  @Test
+  public void testStructuralValueReturnTheSameValue() {
+    BigInteger expected = BigInteger.valueOf(223L);
+    Object actual = TEST_CODER.structuralValue(expected);
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  public void testStructuralValueDecodeEncodeEqual() throws Exception {
+    for (BigInteger value : TEST_VALUES) {
+      CoderProperties.structuralValueDecodeEncodeEqual(TEST_CODER, value);
+    }
+  }
+
+  @Test
+  public void testStructuralValueConsistentWithEquals() throws Exception {
+    for (BigInteger value1 : TEST_VALUES) {
+      for (BigInteger value2 : TEST_VALUES) {
+        CoderProperties.structuralValueConsistentWithEquals(
+            TEST_CODER,
+            BigInteger.valueOf(value1.longValue()),
+            BigInteger.valueOf(value2.longValue()));
+      }
+    }
+  }
 }

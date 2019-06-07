@@ -74,4 +74,28 @@ public class ByteCoderTest {
   public void testEncodedTypeDescriptor() throws Exception {
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(Byte.class)));
   }
+
+  @Test
+  public void testStructuralValueReturnTheSameValue() {
+    Byte expected = 2;
+    Object actual = TEST_CODER.structuralValue(expected);
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  public void testStructuralValueDecodeEncodeEqual() throws Exception {
+    for (Byte value : TEST_VALUES) {
+      CoderProperties.structuralValueDecodeEncodeEqual(TEST_CODER, value);
+    }
+  }
+
+  @Test
+  public void testStructuralValueConsistentWithEquals() throws Exception {
+    for (Byte value1 : TEST_VALUES) {
+      for (Byte value2 : TEST_VALUES) {
+        CoderProperties.structuralValueConsistentWithEquals(
+            TEST_CODER, Byte.valueOf(value1.byteValue()), Byte.valueOf(value2.byteValue()));
+      }
+    }
+  }
 }

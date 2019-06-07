@@ -87,4 +87,27 @@ public class StringUtf8CoderTest {
   public void testEncodedTypeDescriptor() throws Exception {
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(String.class)));
   }
+
+  @Test
+  public void testStructuralValueReturnTheSameValue() {
+    String expected = "testStructuralValue";
+    Object actual = TEST_CODER.structuralValue(expected);
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  public void testStructuralValueDecodeEncodeEqual() throws Exception {
+    for (String value : TEST_VALUES) {
+      CoderProperties.structuralValueDecodeEncodeEqual(TEST_CODER, value);
+    }
+  }
+
+  @Test
+  public void testStructuralValueConsistentWithEquals() throws Exception {
+    for (String value1 : TEST_VALUES) {
+      for (String value2 : TEST_VALUES) {
+        CoderProperties.structuralValueConsistentWithEquals(TEST_CODER, value1, value2);
+      }
+    }
+  }
 }
