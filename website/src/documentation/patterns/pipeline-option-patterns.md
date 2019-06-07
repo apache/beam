@@ -41,7 +41,7 @@ You can use the `ValueProvider` interface to pass runtime parameters to your pip
 %}
 ```
 
-```python
+```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:AccessingValueProviderInfoAfterRunSnip1
 %}
 ```
