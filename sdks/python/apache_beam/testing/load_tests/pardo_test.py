@@ -132,6 +132,7 @@ if os.environ.get('LOAD_TEST_ENABLED') == 'true':
 @unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
 class ParDoTest(LoadTest):
   def setUp(self):
+    super(ParDoTest, self).setUp()
     self.output = self.pipeline.get_option('output')
     self.iterations = self.pipeline.get_option('number_of_counter_operations')
 
