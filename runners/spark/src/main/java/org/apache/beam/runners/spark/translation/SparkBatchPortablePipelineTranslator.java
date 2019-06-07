@@ -171,14 +171,14 @@ public class SparkBatchPortablePipelineTranslator {
         WindowedValue.FullWindowedValueCoder.of(inputValueCoder, windowFn.windowCoder());
 
     JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupedByKeyAndWindow;
+    Partitioner partitioner = getPartitioner(context);
     if (windowingStrategy.getWindowFn().isNonMerging()
         && windowingStrategy.getTimestampCombiner() == TimestampCombiner.END_OF_WINDOW) {
       // we can have a memory sensitive translation for non-merging windows
       groupedByKeyAndWindow =
           GroupNonMergingWindowsFunctions.groupByKeyAndWindow(
-              inputRdd, inputKeyCoder, inputValueCoder, windowingStrategy);
+              inputRdd, inputKeyCoder, inputValueCoder, windowingStrategy, partitioner);
     } else {
-      Partitioner partitioner = getPartitioner(context);
       JavaRDD<KV<K, Iterable<WindowedValue<V>>>> groupedByKeyOnly =
           GroupCombineFunctions.groupByKeyOnly(inputRdd, inputKeyCoder, wvCoder, partitioner);
       // for batch, GroupAlsoByWindow uses an in-memory StateInternals.
