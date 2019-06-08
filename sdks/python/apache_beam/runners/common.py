@@ -645,7 +645,7 @@ class PerWindowInvoker(DoFnInvoker):
       except (TypeError, ValueError):
         raise ValueError(
             ('Input value to a stateful DoFn or KeyParam must be a KV tuple; '
-             'instead, got %s.') % (windowed_value.value,))
+             'instead, got \'%s\'.') % (windowed_value.value,))
 
     for i, p in self.placeholders:
       if p == core.DoFn.ElementParam:
