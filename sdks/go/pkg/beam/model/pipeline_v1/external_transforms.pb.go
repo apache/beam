@@ -32,7 +32,7 @@ func (m *ConfigValue) Reset()         { *m = ConfigValue{} }
 func (m *ConfigValue) String() string { return proto.CompactTextString(m) }
 func (*ConfigValue) ProtoMessage()    {}
 func (*ConfigValue) Descriptor() ([]byte, []int) {
-	return fileDescriptor_external_transforms_8289d3acd195147a, []int{0}
+	return fileDescriptor_external_transforms_3f14b624c3936585, []int{0}
 }
 func (m *ConfigValue) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ConfigValue.Unmarshal(m, b)
@@ -80,7 +80,7 @@ func (m *ExternalConfigurationPayload) Reset()         { *m = ExternalConfigurat
 func (m *ExternalConfigurationPayload) String() string { return proto.CompactTextString(m) }
 func (*ExternalConfigurationPayload) ProtoMessage()    {}
 func (*ExternalConfigurationPayload) Descriptor() ([]byte, []int) {
-	return fileDescriptor_external_transforms_8289d3acd195147a, []int{1}
+	return fileDescriptor_external_transforms_3f14b624c3936585, []int{1}
 }
 func (m *ExternalConfigurationPayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ExternalConfigurationPayload.Unmarshal(m, b)
@@ -114,10 +114,10 @@ func init() {
 }
 
 func init() {
-	proto.RegisterFile("external_transforms.proto", fileDescriptor_external_transforms_8289d3acd195147a)
+	proto.RegisterFile("external_transforms.proto", fileDescriptor_external_transforms_3f14b624c3936585)
 }
 
-var fileDescriptor_external_transforms_8289d3acd195147a = []byte{
+var fileDescriptor_external_transforms_3f14b624c3936585 = []byte{
 	// 278 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x51, 0x4d, 0x4b, 0xc3, 0x40,
 	0x10, 0x25, 0x29, 0x7e, 0x64, 0xa3, 0x20, 0x0b, 0x42, 0xac, 0x1e, 0x62, 0x4f, 0x39, 0x2d, 0xb4,

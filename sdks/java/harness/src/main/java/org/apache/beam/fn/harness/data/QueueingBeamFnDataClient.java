@@ -60,9 +60,9 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
       Coder<WindowedValue<T>> coder,
       FnDataReceiver<WindowedValue<T>> consumer) {
     LOG.debug(
-        "Registering consumer for instruction {} and target {}",
+        "Registering consumer for instruction {} and transform {}",
         inputLocation.getInstructionId(),
-        inputLocation.getTarget());
+        inputLocation.getPTransformId());
 
     QueueingFnDataReceiver<T> queueingConsumer = new QueueingFnDataReceiver<T>(consumer);
     InboundDataClient inboundDataClient =
@@ -132,9 +132,9 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
       LogicalEndpoint outputLocation,
       Coder<WindowedValue<T>> coder) {
     LOG.debug(
-        "Creating output consumer for instruction {} and target {}",
+        "Creating output consumer for instruction {} and transform {}",
         outputLocation.getInstructionId(),
-        outputLocation.getTarget());
+        outputLocation.getPTransformId());
     return this.mainClient.send(apiServiceDescriptor, outputLocation, coder);
   }
 

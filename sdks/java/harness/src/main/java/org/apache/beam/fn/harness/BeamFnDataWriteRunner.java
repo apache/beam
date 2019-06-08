@@ -88,11 +88,6 @@ public class BeamFnDataWriteRunner<InputT> {
         PTransformFunctionRegistry finishFunctionRegistry,
         BundleSplitListener splitListener)
         throws IOException {
-      BeamFnApi.Target target =
-          BeamFnApi.Target.newBuilder()
-              .setPrimitiveTransformReference(pTransformId)
-              .setName(getOnlyElement(pTransform.getInputsMap().keySet()))
-              .build();
       RunnerApi.Coder coderSpec;
       if (RemoteGrpcPortWrite.fromPTransform(pTransform).getPort().getCoderId().isEmpty()) {
         LOG.error(
@@ -106,7 +101,12 @@ public class BeamFnDataWriteRunner<InputT> {
       }
       BeamFnDataWriteRunner<InputT> runner =
           new BeamFnDataWriteRunner<>(
-              pTransform, processBundleInstructionId, target, coderSpec, coders, beamFnDataClient);
+              pTransformId,
+              pTransform,
+              processBundleInstructionId,
+              coderSpec,
+              coders,
+              beamFnDataClient);
       startFunctionRegistry.register(pTransformId, runner::registerForOutput);
       pCollectionConsumerRegistry.register(
           getOnlyElement(pTransform.getInputsMap().values()),
@@ -119,7 +119,7 @@ public class BeamFnDataWriteRunner<InputT> {
   }
 
   private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
-  private final BeamFnApi.Target outputTarget;
+  private final String pTransformId;
   private final Coder<WindowedValue<InputT>> coder;
   private final BeamFnDataClient beamFnDataClientFactory;
   private final Supplier<String> processBundleInstructionIdSupplier;
@@ -127,18 +127,18 @@ public class BeamFnDataWriteRunner<InputT> {
   private CloseableFnDataReceiver<WindowedValue<InputT>> consumer;
 
   BeamFnDataWriteRunner(
+      String pTransformId,
       RunnerApi.PTransform remoteWriteNode,
       Supplier<String> processBundleInstructionIdSupplier,
-      BeamFnApi.Target outputTarget,
       RunnerApi.Coder coderSpec,
       Map<String, RunnerApi.Coder> coders,
       BeamFnDataClient beamFnDataClientFactory)
       throws IOException {
+    this.pTransformId = pTransformId;
     RemoteGrpcPort port = RemoteGrpcPortWrite.fromPTransform(remoteWriteNode).getPort();
     this.apiServiceDescriptor = port.getApiServiceDescriptor();
     this.beamFnDataClientFactory = beamFnDataClientFactory;
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
-    this.outputTarget = outputTarget;
 
     RehydratedComponents components =
         RehydratedComponents.forComponents(Components.newBuilder().putAllCoders(coders).build());
@@ -159,7 +159,7 @@ public class BeamFnDataWriteRunner<InputT> {
     consumer =
         beamFnDataClientFactory.send(
             apiServiceDescriptor,
-            LogicalEndpoint.of(processBundleInstructionIdSupplier.get(), outputTarget),
+            LogicalEndpoint.of(processBundleInstructionIdSupplier.get(), pTransformId),
             coder);
   }
 

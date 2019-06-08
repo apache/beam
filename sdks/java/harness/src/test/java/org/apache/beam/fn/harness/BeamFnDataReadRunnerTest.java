@@ -111,8 +111,7 @@ public class BeamFnDataReadRunnerTest {
     }
   }
 
-  private static final BeamFnApi.Target INPUT_TARGET =
-      BeamFnApi.Target.newBuilder().setPrimitiveTransformReference("1").setName("out").build();
+  private static final String INPUT_TRANSFORM_ID = "1";
 
   @Rule public TestExecutorService executor = TestExecutors.from(Executors::newCachedThreadPool);
   @Mock private BeamFnDataClient mockBeamFnDataClient;
@@ -175,13 +174,7 @@ public class BeamFnDataReadRunnerTest {
     verify(mockBeamFnDataClient)
         .receive(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(
-                LogicalEndpoint.of(
-                    bundleId,
-                    BeamFnApi.Target.newBuilder()
-                        .setPrimitiveTransformReference("pTransformId")
-                        .setName(Iterables.getOnlyElement(pTransform.getOutputsMap().keySet()))
-                        .build())),
+            eq(LogicalEndpoint.of(bundleId, pTransformId)),
             eq(CODER),
             consumerCaptor.capture());
 
@@ -211,9 +204,9 @@ public class BeamFnDataReadRunnerTest {
     AtomicReference<String> bundleId = new AtomicReference<>("0");
     BeamFnDataReadRunner<String> readRunner =
         new BeamFnDataReadRunner<>(
+            INPUT_TRANSFORM_ID,
             RemoteGrpcPortRead.readFromPort(PORT_SPEC, "localOutput").toPTransform(),
             bundleId::get,
-            INPUT_TARGET,
             CODER_SPEC,
             COMPONENTS.getCodersMap(),
             mockBeamFnDataClient,
@@ -225,7 +218,7 @@ public class BeamFnDataReadRunnerTest {
     verify(mockBeamFnDataClient)
         .receive(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(LogicalEndpoint.of(bundleId.get(), INPUT_TARGET)),
+            eq(LogicalEndpoint.of(bundleId.get(), INPUT_TRANSFORM_ID)),
             eq(CODER),
             consumerCaptor.capture());
 
@@ -258,7 +251,7 @@ public class BeamFnDataReadRunnerTest {
     verify(mockBeamFnDataClient)
         .receive(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(LogicalEndpoint.of(bundleId.get(), INPUT_TARGET)),
+            eq(LogicalEndpoint.of(bundleId.get(), INPUT_TRANSFORM_ID)),
             eq(CODER),
             consumerCaptor.capture());
 
