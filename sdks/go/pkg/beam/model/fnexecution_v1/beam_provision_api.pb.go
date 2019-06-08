@@ -35,7 +35,7 @@ func (m *GetProvisionInfoRequest) Reset()         { *m = GetProvisionInfoRequest
 func (m *GetProvisionInfoRequest) String() string { return proto.CompactTextString(m) }
 func (*GetProvisionInfoRequest) ProtoMessage()    {}
 func (*GetProvisionInfoRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_provision_api_e6401c027f28403b, []int{0}
+	return fileDescriptor_beam_provision_api_8f4efccfb023d8b2, []int{0}
 }
 func (m *GetProvisionInfoRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetProvisionInfoRequest.Unmarshal(m, b)
@@ -67,7 +67,7 @@ func (m *GetProvisionInfoResponse) Reset()         { *m = GetProvisionInfoRespon
 func (m *GetProvisionInfoResponse) String() string { return proto.CompactTextString(m) }
 func (*GetProvisionInfoResponse) ProtoMessage()    {}
 func (*GetProvisionInfoResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_provision_api_e6401c027f28403b, []int{1}
+	return fileDescriptor_beam_provision_api_8f4efccfb023d8b2, []int{1}
 }
 func (m *GetProvisionInfoResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetProvisionInfoResponse.Unmarshal(m, b)
@@ -124,7 +124,7 @@ func (m *ProvisionInfo) Reset()         { *m = ProvisionInfo{} }
 func (m *ProvisionInfo) String() string { return proto.CompactTextString(m) }
 func (*ProvisionInfo) ProtoMessage()    {}
 func (*ProvisionInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_provision_api_e6401c027f28403b, []int{2}
+	return fileDescriptor_beam_provision_api_8f4efccfb023d8b2, []int{2}
 }
 func (m *ProvisionInfo) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProvisionInfo.Unmarshal(m, b)
@@ -205,7 +205,7 @@ func (m *Resources) Reset()         { *m = Resources{} }
 func (m *Resources) String() string { return proto.CompactTextString(m) }
 func (*Resources) ProtoMessage()    {}
 func (*Resources) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_provision_api_e6401c027f28403b, []int{3}
+	return fileDescriptor_beam_provision_api_8f4efccfb023d8b2, []int{3}
 }
 func (m *Resources) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Resources.Unmarshal(m, b)
@@ -259,7 +259,7 @@ func (m *Resources_Memory) Reset()         { *m = Resources_Memory{} }
 func (m *Resources_Memory) String() string { return proto.CompactTextString(m) }
 func (*Resources_Memory) ProtoMessage()    {}
 func (*Resources_Memory) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_provision_api_e6401c027f28403b, []int{3, 0}
+	return fileDescriptor_beam_provision_api_8f4efccfb023d8b2, []int{3, 0}
 }
 func (m *Resources_Memory) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Resources_Memory.Unmarshal(m, b)
@@ -300,7 +300,7 @@ func (m *Resources_Cpu) Reset()         { *m = Resources_Cpu{} }
 func (m *Resources_Cpu) String() string { return proto.CompactTextString(m) }
 func (*Resources_Cpu) ProtoMessage()    {}
 func (*Resources_Cpu) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_provision_api_e6401c027f28403b, []int{3, 1}
+	return fileDescriptor_beam_provision_api_8f4efccfb023d8b2, []int{3, 1}
 }
 func (m *Resources_Cpu) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Resources_Cpu.Unmarshal(m, b)
@@ -340,7 +340,7 @@ func (m *Resources_Disk) Reset()         { *m = Resources_Disk{} }
 func (m *Resources_Disk) String() string { return proto.CompactTextString(m) }
 func (*Resources_Disk) ProtoMessage()    {}
 func (*Resources_Disk) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_provision_api_e6401c027f28403b, []int{3, 2}
+	return fileDescriptor_beam_provision_api_8f4efccfb023d8b2, []int{3, 2}
 }
 func (m *Resources_Disk) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Resources_Disk.Unmarshal(m, b)
@@ -452,10 +452,10 @@ var _ProvisionService_serviceDesc = grpc.ServiceDesc{
 }
 
 func init() {
-	proto.RegisterFile("beam_provision_api.proto", fileDescriptor_beam_provision_api_e6401c027f28403b)
+	proto.RegisterFile("beam_provision_api.proto", fileDescriptor_beam_provision_api_8f4efccfb023d8b2)
 }
 
-var fileDescriptor_beam_provision_api_e6401c027f28403b = []byte{
+var fileDescriptor_beam_provision_api_8f4efccfb023d8b2 = []byte{
 	// 506 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x93, 0xdb, 0x6e, 0xd3, 0x40,
 	0x10, 0x86, 0x95, 0x43, 0x4d, 0x33, 0x40, 0x1a, 0xad, 0x80, 0xba, 0xa6, 0x48, 0x28, 0x02, 0xc1,

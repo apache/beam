@@ -22,17 +22,17 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 
 /**
  * A logical endpoint is a pair of an instruction ID corresponding to the {@link
- * BeamFnApi.ProcessBundleRequest} and the {@link BeamFnApi.Target} within the processing graph.
- * This enables the same Data Service or Data Client to be re-used across multiple bundles.
+ * BeamFnApi.ProcessBundleRequest} and the transform within the processing graph. This enables the
+ * same Data Service or Data Client to be re-used across multiple bundles.
  */
 @AutoValue
 public abstract class LogicalEndpoint {
 
   public abstract String getInstructionId();
 
-  public abstract BeamFnApi.Target getTarget();
+  public abstract String getPTransformId();
 
-  public static LogicalEndpoint of(String instructionId, BeamFnApi.Target target) {
-    return new AutoValue_LogicalEndpoint(instructionId, target);
+  public static LogicalEndpoint of(String instructionId, String transformId) {
+    return new AutoValue_LogicalEndpoint(instructionId, transformId);
   }
 }
