@@ -19,29 +19,31 @@
 <html>
 <h2>Side Input</h2>
 <p>
-  In addition to the main input PCollection, you can provide additional inputs to a ParDo transform in the form of
-  side inputs. A side input is an additional input that your DoFn can access each time it processes an element in
-  the input PCollection. When you specify a side input, you create a view of some other data that can be read from
-  within the ParDo transform’s DoFn while processing each element.
+  In addition to the main input PCollection, you can provide additional inputs to a ParDo transform
+  in the form of side inputs. A side input is an additional input that your DoFn can access each
+  time it processes an element in the input PCollection. When you specify a side input, you create
+  a view of some other data that can be read from within the ParDo transform’s DoFn while
+  processing each element.
 </p>
 <p>
-  Side inputs are useful if your ParDo needs to inject additional data when processing each element in the input
-  PCollection, but the additional data needs to be determined at runtime (and not hard-coded). Such values might be
-  determined by the input data, or depend on a different branch of your pipeline.
+  Side inputs are useful if your ParDo needs to inject additional data when processing each element
+  in the input PCollection, but the additional data needs to be determined at runtime (and not
+  hard-coded). Such values might be determined by the input data, or depend on a different branch
+  of your pipeline.
 </p>
 <p>
-  For this task, please enrich each Person with the country based on the city he/she lives in.
+  <b>Kata:</b> Please enrich each Person with the country based on the city he/she lives in.
 </p>
 <br>
-<br>
-<div class='hint'>
-  Override <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.process">process</a>
-  method that also accepts side input argument.
+<div class="hint">
+  Override <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.process">
+  process</a> method that also accepts side input argument.
 </div>
-<div class='hint'>
-  Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo">ParDo</a> with
-  <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn">DoFn</a>
-  that accepts side input.
+<div class="hint">
+  Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo">
+  ParDo</a> with
+  <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn">
+    DoFn</a> that accepts side input.
 </div>
 <div class="hint">
   Refer to the Beam Programming Guide
