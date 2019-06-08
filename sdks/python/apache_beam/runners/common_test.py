@@ -83,23 +83,21 @@ class DoFnProcessTest(unittest.TestCase):
       def process(self, element, mykey=DoFn.KeyParam):
         yield "{key}-verify".format(key=mykey)
 
-
     pipeline_options = PipelineOptions()
+
     with TestPipeline(options=pipeline_options) as p:
-      test_stream = (TestStream()
-        .advance_watermark_to(10)
-        .add_elements([1, 2]))
+      test_stream = (TestStream().advance_watermark_to(10).add_elements([1, 2]))
       (p
        | test_stream
        | beam.Map(lambda x: (x, "some-value"))
        | "window_into" >> beam.WindowInto(
-            window.FixedWindows(5),
-            accumulation_mode=trigger.AccumulationMode.DISCARDING)
+           window.FixedWindows(5),
+           accumulation_mode=trigger.AccumulationMode.DISCARDING)
        | beam.ParDo(DoFnProcessWithKeyparam())
        | beam.ParDo(self.record_dofn()))
 
     self.assertEqual(
-      ['1-verify', '2-verify'],
+        ['1-verify', '2-verify'],
         sorted(DoFnProcessTest.all_records))
 
   def test_dofn_process_keyparam_error_no_key(self):
@@ -109,14 +107,12 @@ class DoFnProcessTest(unittest.TestCase):
         yield "{key}-verify".format(key=mykey)
 
     pipeline_options = PipelineOptions()
-    with self.assertRaises(ValueError):
-      with TestPipeline(options=pipeline_options) as p:
-        test_stream = (TestStream()
-          .advance_watermark_to(10)
-          .add_elements([1, 2]))
-        (p
-         | test_stream
-         | beam.ParDo(DoFnProcessWithKeyparam()))
+    with self.assertRaises(ValueError),\
+         TestPipeline(options=pipeline_options) as p:
+      test_stream = (TestStream().advance_watermark_to(10).add_elements([1, 2]))
+      (p
+       | test_stream
+       | beam.ParDo(DoFnProcessWithKeyparam()))
 
 
 if __name__ == '__main__':
