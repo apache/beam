@@ -911,14 +911,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/org/apache/beam/learning/katas/coretransforms/combine/binarycombinefnlambda/Tests.java">
+                                <entry key="test/org/apache/beam/learning/katas/coretransforms/combine/binarycombinefnlambda/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/org/apache/beam/learning/katas/coretransforms/combine/binarycombinefnlambda/Tests.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/coretransforms/combine/binarycombinefnlambda/TaskTest.java" />
                                       <option name="text" value="import org.junit.Assert;&#10;import org.junit.Test;&#10;&#10;public class Tests {&#10;  @Test&#10;  public void testSolution() {&#10;    // put your test here&#10;    Assert.fail(&quot;Tests not implemented for the task&quot;);&#10;  }&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1445,14 +1445,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/org/apache/beam/learning/katas/coretransforms/composite/Tests.java">
+                                <entry key="test/org/apache/beam/learning/katas/coretransforms/composite/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/org/apache/beam/learning/katas/coretransforms/composite/Tests.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/coretransforms/composite/TaskTest.java" />
                                       <option name="text" value="import org.junit.Assert;&#10;import org.junit.Test;&#10;&#10;public class Tests {&#10;  @Test&#10;  public void testSolution() {&#10;    // put your test here&#10;    Assert.fail(&quot;Tests not implemented for the task&quot;);&#10;  }&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
