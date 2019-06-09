@@ -82,7 +82,7 @@
                             <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/intro/hello/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -95,7 +95,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1461" />
+                                            <option name="offset" value="1514" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="pipeline.apply(Create.of(&quot;Hello Beam&quot;))" />
@@ -107,7 +107,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/intro/hello/Task.java" />
                                       <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -115,14 +115,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/intro/hello/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/intro/hello/TaskTest.java" />
                                       <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -179,54 +179,6 @@
                             <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
-                                  <value>
-                                    <TaskFile>
-                                      <option name="answerPlaceholders">
-                                        <list>
-                                          <AnswerPlaceholder>
-                                            <option name="hints">
-                                              <list />
-                                            </option>
-                                            <option name="index" value="0" />
-                                            <option name="initialState" />
-                                            <option name="initializedFromDependency" value="false" />
-                                            <option name="length" value="6" />
-                                            <option name="offset" value="1648" />
-                                            <option name="placeholderDependency" />
-                                            <option name="placeholderText" value="TODO()" />
-                                            <option name="possibleAnswer" value="input.apply(ParDo.of(new DoFn&lt;Integer, Integer&gt;() {&#10;&#10;      @ProcessElement&#10;      public void processElement(@Element Integer number, OutputReceiver&lt;Integer&gt; out) {&#10;        out.output(number * 10);&#10;      }&#10;&#10;    }))" />
-                                            <option name="selected" value="false" />
-                                            <option name="status" value="Unchecked" />
-                                            <option name="studentAnswer" />
-                                            <option name="useLength" value="false" />
-                                          </AnswerPlaceholder>
-                                        </list>
-                                      </option>
-                                      <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
-                                      <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
-                                      <option name="trackChanges" value="true" />
-                                      <option name="trackLengths" value="true" />
-                                      <option name="visible" value="true" />
-                                    </TaskFile>
-                                  </value>
-                                </entry>
-                                <entry key="test/TaskTest.java">
-                                  <value>
-                                    <TaskFile>
-                                      <option name="answerPlaceholders">
-                                        <list />
-                                      </option>
-                                      <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
-                                      <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
-                                      <option name="trackChanges" value="true" />
-                                      <option name="trackLengths" value="true" />
-                                      <option name="visible" value="false" />
-                                    </TaskFile>
-                                  </value>
-                                </entry>
                                 <entry key="src/Person.java">
                                   <value>
                                     <TaskFile>
@@ -239,6 +191,54 @@
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
                                       <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="src/org/apache/beam/learning/katas/coretransforms/map/pardo/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1714" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="input.apply(ParDo.of(new DoFn&lt;Integer, Integer&gt;() {&#10;&#10;      @ProcessElement&#10;      public void processElement(@Element Integer number, OutputReceiver&lt;Integer&gt; out) {&#10;        out.output(number * 10);&#10;      }&#10;&#10;    }))" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/coretransforms/map/pardo/Task.java" />
+                                      <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/org/apache/beam/learning/katas/coretransforms/map/pardo/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/coretransforms/map/pardo/TaskTest.java" />
+                                      <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
                                     </TaskFile>
                                   </value>
                                 </entry>
@@ -264,7 +264,7 @@
                             <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/coretransforms/map/pardoonetomany/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -277,7 +277,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1664" />
+                                            <option name="offset" value="1739" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(ParDo.of(new DoFn&lt;String, String&gt;() {&#10;&#10;      @ProcessElement&#10;      public void processElement(@Element String sentence, OutputReceiver&lt;String&gt; out) {&#10;        String[] words = sentence.split(&quot; &quot;);&#10;&#10;        for (String word : words) {&#10;          out.output(word);&#10;        }&#10;      }&#10;&#10;    }))" />
@@ -289,7 +289,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/coretransforms/map/pardoonetomany/Task.java" />
                                       <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -297,14 +297,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/coretransforms/map/pardoonetomany/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/coretransforms/map/pardoonetomany/TaskTest.java" />
                                       <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -334,7 +334,7 @@
                             <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/coretransforms/map/mapelements/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -347,7 +347,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1666" />
+                                            <option name="offset" value="1738" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(&#10;        MapElements.into(TypeDescriptors.integers())&#10;            .via(number -&gt; number * 5)&#10;    )" />
@@ -359,7 +359,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/coretransforms/map/mapelements/Task.java" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -367,14 +367,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/coretransforms/map/mapelements/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/coretransforms/map/mapelements/TaskTest.java" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -404,7 +404,7 @@
                             <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/coretransforms/map/flatmapelements/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -417,7 +417,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1721" />
+                                            <option name="offset" value="1797" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(&#10;        FlatMapElements.into(TypeDescriptors.strings())&#10;            .via(sentence -&gt; Arrays.asList(sentence.split(&quot; &quot;)))&#10;    )" />
@@ -429,7 +429,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/coretransforms/map/flatmapelements/Task.java" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -437,14 +437,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/coretransforms/map/flatmapelements/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/coretransforms/map/flatmapelements/TaskTest.java" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -487,7 +487,7 @@
                             <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/coretransforms/groupbykey/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -500,7 +500,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1920" />
+                                            <option name="offset" value="1987" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input&#10;        .apply(MapElements.into(kvs(strings(), strings()))&#10;            .via(word -&gt; KV.of(word.substring(0, 1), word)))&#10;&#10;        .apply(GroupByKey.create())" />
@@ -512,7 +512,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/coretransforms/groupbykey/Task.java" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -520,14 +520,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/coretransforms/groupbykey/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/coretransforms/groupbykey/TaskTest.java" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -570,7 +570,7 @@
                             <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/coretransforms/cogroupbykey/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -583,10 +583,10 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2332" />
+                                            <option name="offset" value="2380" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
-                                            <option name="possibleAnswer" value="TupleTag&lt;String&gt; fruitsTag = new TupleTag&lt;&gt;();&#10;    TupleTag&lt;String&gt; countriesTag = new TupleTag&lt;&gt;();&#10;&#10;    MapElements&lt;String, KV&lt;String, String&gt;&gt; mapToAlphabetKv =&#10;        MapElements.into(kvs(strings(), strings()))&#10;            .via(word -&gt; KV.of(word.substring(0, 1), word));&#10;&#10;    PCollection&lt;KV&lt;String, String&gt;&gt; fruitsPColl = fruits.apply(&quot;Fruit to KV&quot;, mapToAlphabetKv);&#10;    PCollection&lt;KV&lt;String, String&gt;&gt; countriesPColl = countries&#10;        .apply(&quot;Country to KV&quot;, mapToAlphabetKv);&#10;&#10;    return KeyedPCollectionTuple&#10;        .of(fruitsTag, fruitsPColl)&#10;        .and(countriesTag, countriesPColl)&#10;&#10;        .apply(CoGroupByKey.create())&#10;&#10;        .apply(ParDo.of(new DoFn&lt;KV&lt;String, CoGbkResult&gt;, String&gt;() {&#10;&#10;          @ProcessElement&#10;          public void processElement(&#10;              @Element KV&lt;String, CoGbkResult&gt; element, OutputReceiver&lt;String&gt; out) {&#10;&#10;            String alphabet = element.getKey();&#10;            CoGbkResult coGbkResult = element.getValue();&#10;&#10;            String fruit = coGbkResult.getOnly(fruitsTag);&#10;            String country = coGbkResult.getOnly(countriesTag);&#10;&#10;            out.output(new WordsAlphabet(alphabet, fruit, country).toString());&#10;          }&#10;&#10;        }))" />
+                                            <option name="possibleAnswer" value="TupleTag&lt;String&gt; fruitsTag = new TupleTag&lt;&gt;();&#10;    TupleTag&lt;String&gt; countriesTag = new TupleTag&lt;&gt;();&#10;&#10;    MapElements&lt;String, KV&lt;String, String&gt;&gt; mapToAlphabetKv =&#10;        MapElements.into(kvs(strings(), strings()))&#10;            .via(word -&gt; KV.of(word.substring(0, 1), word));&#10;&#10;    PCollection&lt;KV&lt;String, String&gt;&gt; fruitsPColl = fruits.apply(&quot;Fruit to KV&quot;, mapToAlphabetKv);&#10;    PCollection&lt;KV&lt;String, String&gt;&gt; countriesPColl = countries&#10;        .apply(&quot;Country to KV&quot;, mapToAlphabetKv);&#10;&#10;    return KeyedPCollectionTuple&#10;        .of(fruitsTag, fruitsPColl)&#10;        .and(countriesTag, countriesPColl)&#10;&#10;        .apply(CoGroupByKey.create())&#10;&#10;        .apply(ParDo.of(new DoFn&lt;KV&lt;String, CoGbkResult&gt;, String&gt;() {&#10;&#10;          @ProcessElement&#10;          public void processElement(&#10;              @Element KV&lt;String, CoGbkResult&gt; element, OutputReceiver&lt;String&gt; out) {&#10;&#10;            String alphabet = element.getKey();&#10;            CoGbkResult coGbkResult = element.getValue();&#10;&#10;            String fruit = coGbkResult.getOnly(fruitsTag);&#10;            String country = coGbkResult.getOnly(countriesTag);&#10;&#10;            out.output(new WordsAlphabet(alphabet, fruit, country).toString());&#10;          }&#10;&#10;        }));" />
                                             <option name="selected" value="false" />
                                             <option name="status" value="Unchecked" />
                                             <option name="studentAnswer" />
@@ -595,7 +595,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/coretransforms/cogroupbykey/Task.java" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -603,14 +603,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="src/WordsAlphabet.java">
+                                <entry key="src/org/apache/beam/learning/katas/coretransforms/cogroupbykey/WordsAlphabet.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/WordsAlphabet.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/coretransforms/cogroupbykey/WordsAlphabet.java" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -618,14 +618,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/coretransforms/cogroupbykey/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/coretransforms/cogroupbykey/TaskTest.java" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -668,7 +668,7 @@
                             <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/coretransforms/combine/simple/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -681,7 +681,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1814" />
+                                            <option name="offset" value="1885" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="@Override&#10;    public Integer apply(Iterable&lt;Integer&gt; input) {&#10;      int sum = 0;&#10;&#10;      for (int item : input) {&#10;        sum += item;&#10;      }&#10;&#10;      return sum;&#10;    }" />
@@ -693,7 +693,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/coretransforms/combine/simple/Task.java" />
                                       <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -701,14 +701,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/coretransforms/combine/simple/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/coretransforms/combine/simple/TaskTest.java" />
                                       <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -738,7 +738,7 @@
                             <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/coretransforms/combine/combinefn/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -751,7 +751,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1850" />
+                                            <option name="offset" value="1924" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="class Accum implements Serializable {&#10;      int sum = 0;&#10;      int count = 0;&#10;&#10;      @Override&#10;      public boolean equals(Object o) {&#10;        if (this == o) {&#10;          return true;&#10;        }&#10;        if (o == null || getClass() != o.getClass()) {&#10;          return false;&#10;        }&#10;        Accum accum = (Accum) o;&#10;        return sum == accum.sum &amp;&amp;&#10;            count == accum.count;&#10;      }&#10;&#10;      @Override&#10;      public int hashCode() {&#10;        return Objects.hash(sum, count);&#10;      }&#10;    }&#10;&#10;    @Override&#10;    public Accum createAccumulator() {&#10;      return new Accum();&#10;    }&#10;&#10;    @Override&#10;    public Accum addInput(Accum accumulator, Integer input) {&#10;      accumulator.sum += input;&#10;      accumulator.count++;&#10;&#10;      return accumulator;&#10;    }&#10;&#10;    @Override&#10;    public Accum mergeAccumulators(Iterable&lt;Accum&gt; accumulators) {&#10;      Accum merged = createAccumulator();&#10;&#10;      for (Accum accumulator : accumulators) {&#10;        merged.sum += accumulator.sum;&#10;        merged.count += accumulator.count;&#10;      }&#10;&#10;      return merged;&#10;    }&#10;&#10;    @Override&#10;    public Double extractOutput(Accum accumulator) {&#10;      return ((double) accumulator.sum) / accumulator.count;&#10;    }" />
@@ -763,7 +763,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/coretransforms/combine/combinefn/Task.java" />
                                       <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -771,14 +771,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/coretransforms/combine/combinefn/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/coretransforms/combine/combinefn/TaskTest.java" />
                                       <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -808,7 +808,7 @@
                             <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/coretransforms/combine/binarycombinefn/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -821,7 +821,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2007" />
+                                            <option name="offset" value="2087" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="@Override&#10;    public BigInteger apply(BigInteger left, BigInteger right) {&#10;      return left.add(right);&#10;    }" />
@@ -833,7 +833,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/coretransforms/combine/binarycombinefn/Task.java" />
                                       <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -841,14 +841,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/coretransforms/combine/binarycombinefn/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/coretransforms/combine/binarycombinefn/TaskTest.java" />
                                       <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -878,7 +878,7 @@
                             <option name="stepikChangeStatus" value="Up to date" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/coretransforms/combine/binarycombinefnlambda/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -891,7 +891,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1805" />
+                                            <option name="offset" value="1891" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Combine.globally(BigInteger::add))" />
@@ -903,7 +903,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/coretransforms/combine/binarycombinefnlambda/Task.java" />
                                       <option name="text" value="public class Task {&#10;  //put your task here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -911,14 +911,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/Tests.java">
+                                <entry key="test/org/apache/beam/learning/katas/coretransforms/combine/binarycombinefnlambda/Tests.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/Tests.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/coretransforms/combine/binarycombinefnlambda/Tests.java" />
                                       <option name="text" value="import org.junit.Assert;&#10;import org.junit.Test;&#10;&#10;public class Tests {&#10;  @Test&#10;  public void testSolution() {&#10;    // put your test here&#10;    Assert.fail(&quot;Tests not implemented for the task&quot;);&#10;  }&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -948,7 +948,7 @@
                             <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/coretransforms/combine/combineperkey/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -961,7 +961,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2039" />
+                                            <option name="offset" value="2117" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Combine.perKey(new SumIntBinaryCombineFn()))" />
@@ -978,7 +978,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2179" />
+                                            <option name="offset" value="2257" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="@Override&#10;    public Integer apply(Integer left, Integer right) {&#10;      return left + right;&#10;    }" />
@@ -990,7 +990,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/coretransforms/combine/combineperkey/Task.java" />
                                       <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -998,14 +998,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/coretransforms/combine/combineperkey/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/coretransforms/combine/combineperkey/TaskTest.java" />
                                       <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1048,7 +1048,7 @@
                             <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/coretransforms/flatten/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -1061,7 +1061,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1938" />
+                                            <option name="offset" value="2002" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="PCollectionList.of(words1).and(words2)&#10;        .apply(Flatten.pCollections())" />
@@ -1073,7 +1073,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/coretransforms/flatten/Task.java" />
                                       <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1081,14 +1081,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/coretransforms/flatten/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/coretransforms/flatten/TaskTest.java" />
                                       <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1131,7 +1131,7 @@
                             <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/coretransforms/partition/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -1144,7 +1144,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1862" />
+                                            <option name="offset" value="1928" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input&#10;        .apply(Partition.of(2,&#10;            (PartitionFn&lt;Integer&gt;) (number, numPartitions) -&gt; {&#10;              if (number &gt; 100) {&#10;                return 0;&#10;              } else {&#10;                return 1;&#10;              }&#10;            }))" />
@@ -1156,7 +1156,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/coretransforms/partition/Task.java" />
                                       <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1164,14 +1164,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/coretransforms/partition/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/coretransforms/partition/TaskTest.java" />
                                       <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1214,7 +1214,7 @@
                             <option name="stepikChangeStatus" value="Up to date" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/coretransforms/sideinput/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -1227,7 +1227,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2618" />
+                                            <option name="offset" value="2684" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="citiesToCountries.apply(View.asMap())" />
@@ -1244,7 +1244,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2816" />
+                                            <option name="offset" value="2882" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="persons.apply(ParDo.of(new DoFn&lt;Person, Person&gt;() {&#10;&#10;      @ProcessElement&#10;      public void processElement(@Element Person person, OutputReceiver&lt;Person&gt; out,&#10;          ProcessContext context) {&#10;        Map&lt;String, String&gt; citiesToCountries = context.sideInput(citiesToCountriesView);&#10;        String city = person.getCity();&#10;        String country = citiesToCountries.get(city);&#10;&#10;        out.output(new Person(person.getName(), city, country));&#10;      }&#10;&#10;    }).withSideInputs(citiesToCountriesView))" />
@@ -1256,7 +1256,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/coretransforms/sideinput/Task.java" />
                                       <option name="text" value="public class Task {&#10;  //put your task here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1264,14 +1264,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="src/Person.java">
+                                <entry key="src/org/apache/beam/learning/katas/coretransforms/sideinput/Person.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
-                                      <option name="highlightErrors" value="false" />
-                                      <option name="name" value="src/Person.java" />
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/coretransforms/sideinput/Person.java" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1279,14 +1279,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/coretransforms/sideinput/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/coretransforms/sideinput/TaskTest.java" />
                                       <option name="text" value="import org.junit.Assert;&#10;import org.junit.Test;&#10;&#10;public class Tests {&#10;  @Test&#10;  public void testSolution() {&#10;    // put your test here&#10;    Assert.fail(&quot;Tests not implemented for the task&quot;);&#10;  }&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1329,7 +1329,7 @@
                             <option name="stepikChangeStatus" value="Up to date" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/coretransforms/sideoutput/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -1342,7 +1342,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2155" />
+                                            <option name="offset" value="2222" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="numbers.apply(ParDo.of(new DoFn&lt;Integer, Integer&gt;() {&#10;&#10;      @ProcessElement&#10;      public void processElement(@Element Integer number, MultiOutputReceiver out) {&#10;        if (number &lt;= 100) {&#10;          out.get(numBelow100Tag).output(number);&#10;        } else {&#10;          out.get(numAbove100Tag).output(number);&#10;        }&#10;      }&#10;&#10;    }).withOutputTags(numBelow100Tag, TupleTagList.of(numAbove100Tag)))" />
@@ -1354,7 +1354,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/coretransforms/sideoutput/Task.java" />
                                       <option name="text" value="public class Task {&#10;  //put your task here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1362,14 +1362,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/coretransforms/sideoutput/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/coretransforms/sideoutput/TaskTest.java" />
                                       <option name="text" value="import org.junit.Assert;&#10;import org.junit.Test;&#10;&#10;public class Tests {&#10;  @Test&#10;  public void testSolution() {&#10;    // put your test here&#10;    Assert.fail(&quot;Tests not implemented for the task&quot;);&#10;  }&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1426,7 +1426,7 @@
                             <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/commontransforms/filter/pardo/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -1439,7 +1439,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1656" />
+                                            <option name="offset" value="1727" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(ParDo.of(&#10;        new DoFn&lt;Integer, Integer&gt;() {&#10;&#10;          @ProcessElement&#10;          public void processElement(@Element Integer number, OutputReceiver&lt;Integer&gt; out) {&#10;            if (number % 2 == 1) {&#10;              out.output(number);&#10;            }&#10;          }&#10;        })&#10;    )" />
@@ -1451,7 +1451,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/commontransforms/filter/pardo/Task.java" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1459,14 +1459,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/commontransforms/filter/pardo/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/commontransforms/filter/pardo/TaskTest.java" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1496,7 +1496,7 @@
                             <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/commontransforms/filter/filter/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -1509,7 +1509,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1621" />
+                                            <option name="offset" value="1693" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Filter.by(number -&gt; number % 2 == 0))" />
@@ -1521,7 +1521,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/commontransforms/filter/filter/Task.java" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1529,14 +1529,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/commontransforms/filter/filter/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/commontransforms/filter/filter/TaskTest.java" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1579,7 +1579,7 @@
                             <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/commontransforms/aggregation/count/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -1592,7 +1592,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1606" />
+                                            <option name="offset" value="1682" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Count.globally())" />
@@ -1604,7 +1604,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/commontransforms/aggregation/count/Task.java" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1612,14 +1612,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/commontransforms/aggregation/count/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/commontransforms/aggregation/count/TaskTest.java" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1649,7 +1649,7 @@
                             <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/commontransforms/aggregation/sum/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -1662,7 +1662,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1610" />
+                                            <option name="offset" value="1684" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Sum.integersGlobally())" />
@@ -1674,7 +1674,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/commontransforms/aggregation/sum/Task.java" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1682,14 +1682,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/commontransforms/aggregation/sum/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/commontransforms/aggregation/sum/TaskTest.java" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1719,7 +1719,7 @@
                             <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/commontransforms/aggregation/mean/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -1732,7 +1732,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1609" />
+                                            <option name="offset" value="1684" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Mean.globally())" />
@@ -1744,7 +1744,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/commontransforms/aggregation/mean/Task.java" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1752,14 +1752,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/commontransforms/aggregation/mean/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/commontransforms/aggregation/mean/TaskTest.java" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1789,7 +1789,7 @@
                             <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/commontransforms/aggregation/min/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -1802,7 +1802,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1610" />
+                                            <option name="offset" value="1684" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Min.integersGlobally())" />
@@ -1814,7 +1814,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/commontransforms/aggregation/min/Task.java" />
                                       <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1822,14 +1822,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/commontransforms/aggregation/min/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/commontransforms/aggregation/min/TaskTest.java" />
                                       <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1859,7 +1859,7 @@
                             <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/commontransforms/aggregation/max/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -1872,7 +1872,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1610" />
+                                            <option name="offset" value="1684" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Max.integersGlobally())" />
@@ -1884,7 +1884,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/commontransforms/aggregation/max/Task.java" />
                                       <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1892,14 +1892,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/commontransforms/aggregation/max/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/commontransforms/aggregation/max/TaskTest.java" />
                                       <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1956,7 +1956,7 @@
                             <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/examples/wordcount/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -1969,7 +1969,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1990" />
+                                            <option name="offset" value="2050" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input&#10;&#10;        .apply(FlatMapElements.into(TypeDescriptors.strings())&#10;            .via(line -&gt; Arrays.asList(line.split(&quot; &quot;))))&#10;&#10;        .apply(Count.perElement())&#10;&#10;        .apply(ParDo.of(new DoFn&lt;KV&lt;String, Long&gt;, String&gt;() {&#10;&#10;          @ProcessElement&#10;          public void processElement(&#10;              @Element KV&lt;String, Long&gt; element, OutputReceiver&lt;String&gt; out) {&#10;&#10;            out.output(element.getKey() + &quot;:&quot; + element.getValue());&#10;          }&#10;&#10;        }))" />
@@ -1981,7 +1981,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/examples/wordcount/Task.java" />
                                       <option name="text" value="class Task {&#10;  //put your task here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -1989,14 +1989,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/examples/wordcount/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/examples/wordcount/TaskTest.java" />
                                       <option name="text" value="public class Test {&#10;    // put your test here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
