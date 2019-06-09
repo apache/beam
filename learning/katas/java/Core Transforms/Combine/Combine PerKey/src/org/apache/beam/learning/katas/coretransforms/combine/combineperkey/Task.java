@@ -28,7 +28,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import util.Log;
 
-class Task {
+public class Task {
 
   static final String PLAYER_1 = "Player 1";
   static final String PLAYER_2 = "Player 2";
