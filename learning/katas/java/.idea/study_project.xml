@@ -95,7 +95,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1514" />
+                                            <option name="offset" value="1521" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="pipeline.apply(Create.of(&quot;Hello Beam&quot;))" />
@@ -207,7 +207,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1714" />
+                                            <option name="offset" value="1721" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(ParDo.of(new DoFn&lt;Integer, Integer&gt;() {&#10;&#10;      @ProcessElement&#10;      public void processElement(@Element Integer number, OutputReceiver&lt;Integer&gt; out) {&#10;        out.output(number * 10);&#10;      }&#10;&#10;    }))" />
@@ -277,7 +277,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1739" />
+                                            <option name="offset" value="1746" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(ParDo.of(new DoFn&lt;String, String&gt;() {&#10;&#10;      @ProcessElement&#10;      public void processElement(@Element String sentence, OutputReceiver&lt;String&gt; out) {&#10;        String[] words = sentence.split(&quot; &quot;);&#10;&#10;        for (String word : words) {&#10;          out.output(word);&#10;        }&#10;      }&#10;&#10;    }))" />
@@ -347,7 +347,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1738" />
+                                            <option name="offset" value="1745" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(&#10;        MapElements.into(TypeDescriptors.integers())&#10;            .via(number -&gt; number * 5)&#10;    )" />
@@ -417,7 +417,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1797" />
+                                            <option name="offset" value="1804" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(&#10;        FlatMapElements.into(TypeDescriptors.strings())&#10;            .via(sentence -&gt; Arrays.asList(sentence.split(&quot; &quot;)))&#10;    )" />
@@ -500,7 +500,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1987" />
+                                            <option name="offset" value="1994" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input&#10;        .apply(MapElements.into(kvs(strings(), strings()))&#10;            .via(word -&gt; KV.of(word.substring(0, 1), word)))&#10;&#10;        .apply(GroupByKey.create())" />
@@ -583,7 +583,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2380" />
+                                            <option name="offset" value="2387" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="TupleTag&lt;String&gt; fruitsTag = new TupleTag&lt;&gt;();&#10;    TupleTag&lt;String&gt; countriesTag = new TupleTag&lt;&gt;();&#10;&#10;    MapElements&lt;String, KV&lt;String, String&gt;&gt; mapToAlphabetKv =&#10;        MapElements.into(kvs(strings(), strings()))&#10;            .via(word -&gt; KV.of(word.substring(0, 1), word));&#10;&#10;    PCollection&lt;KV&lt;String, String&gt;&gt; fruitsPColl = fruits.apply(&quot;Fruit to KV&quot;, mapToAlphabetKv);&#10;    PCollection&lt;KV&lt;String, String&gt;&gt; countriesPColl = countries&#10;        .apply(&quot;Country to KV&quot;, mapToAlphabetKv);&#10;&#10;    return KeyedPCollectionTuple&#10;        .of(fruitsTag, fruitsPColl)&#10;        .and(countriesTag, countriesPColl)&#10;&#10;        .apply(CoGroupByKey.create())&#10;&#10;        .apply(ParDo.of(new DoFn&lt;KV&lt;String, CoGbkResult&gt;, String&gt;() {&#10;&#10;          @ProcessElement&#10;          public void processElement(&#10;              @Element KV&lt;String, CoGbkResult&gt; element, OutputReceiver&lt;String&gt; out) {&#10;&#10;            String alphabet = element.getKey();&#10;            CoGbkResult coGbkResult = element.getValue();&#10;&#10;            String fruit = coGbkResult.getOnly(fruitsTag);&#10;            String country = coGbkResult.getOnly(countriesTag);&#10;&#10;            out.output(new WordsAlphabet(alphabet, fruit, country).toString());&#10;          }&#10;&#10;        }));" />
@@ -681,7 +681,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1885" />
+                                            <option name="offset" value="1892" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="@Override&#10;    public Integer apply(Iterable&lt;Integer&gt; input) {&#10;      int sum = 0;&#10;&#10;      for (int item : input) {&#10;        sum += item;&#10;      }&#10;&#10;      return sum;&#10;    }" />
@@ -751,7 +751,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1924" />
+                                            <option name="offset" value="1931" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="class Accum implements Serializable {&#10;      int sum = 0;&#10;      int count = 0;&#10;&#10;      @Override&#10;      public boolean equals(Object o) {&#10;        if (this == o) {&#10;          return true;&#10;        }&#10;        if (o == null || getClass() != o.getClass()) {&#10;          return false;&#10;        }&#10;        Accum accum = (Accum) o;&#10;        return sum == accum.sum &amp;&amp;&#10;            count == accum.count;&#10;      }&#10;&#10;      @Override&#10;      public int hashCode() {&#10;        return Objects.hash(sum, count);&#10;      }&#10;    }&#10;&#10;    @Override&#10;    public Accum createAccumulator() {&#10;      return new Accum();&#10;    }&#10;&#10;    @Override&#10;    public Accum addInput(Accum accumulator, Integer input) {&#10;      accumulator.sum += input;&#10;      accumulator.count++;&#10;&#10;      return accumulator;&#10;    }&#10;&#10;    @Override&#10;    public Accum mergeAccumulators(Iterable&lt;Accum&gt; accumulators) {&#10;      Accum merged = createAccumulator();&#10;&#10;      for (Accum accumulator : accumulators) {&#10;        merged.sum += accumulator.sum;&#10;        merged.count += accumulator.count;&#10;      }&#10;&#10;      return merged;&#10;    }&#10;&#10;    @Override&#10;    public Double extractOutput(Accum accumulator) {&#10;      return ((double) accumulator.sum) / accumulator.count;&#10;    }" />
@@ -821,7 +821,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2087" />
+                                            <option name="offset" value="2094" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="@Override&#10;    public BigInteger apply(BigInteger left, BigInteger right) {&#10;      return left.add(right);&#10;    }" />
@@ -961,7 +961,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2117" />
+                                            <option name="offset" value="2124" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Combine.perKey(new SumIntBinaryCombineFn()))" />
@@ -978,7 +978,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2257" />
+                                            <option name="offset" value="2264" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="@Override&#10;    public Integer apply(Integer left, Integer right) {&#10;      return left + right;&#10;    }" />
@@ -1061,7 +1061,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2002" />
+                                            <option name="offset" value="2009" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="PCollectionList.of(words1).and(words2)&#10;        .apply(Flatten.pCollections())" />
@@ -1144,7 +1144,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1928" />
+                                            <option name="offset" value="1935" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input&#10;        .apply(Partition.of(2,&#10;            (PartitionFn&lt;Integer&gt;) (number, numPartitions) -&gt; {&#10;              if (number &gt; 100) {&#10;                return 0;&#10;              } else {&#10;                return 1;&#10;              }&#10;            }))" />
@@ -1522,7 +1522,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1727" />
+                                            <option name="offset" value="1721" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(ParDo.of(&#10;        new DoFn&lt;Integer, Integer&gt;() {&#10;&#10;          @ProcessElement&#10;          public void processElement(@Element Integer number, OutputReceiver&lt;Integer&gt; out) {&#10;            if (number % 2 == 1) {&#10;              out.output(number);&#10;            }&#10;          }&#10;        })&#10;    )" />
@@ -1592,7 +1592,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1693" />
+                                            <option name="offset" value="1687" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Filter.by(number -&gt; number % 2 == 0))" />
@@ -1675,7 +1675,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1682" />
+                                            <option name="offset" value="1676" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Count.globally())" />
@@ -1745,7 +1745,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1684" />
+                                            <option name="offset" value="1678" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Sum.integersGlobally())" />
@@ -1815,7 +1815,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1684" />
+                                            <option name="offset" value="1678" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Mean.globally())" />
@@ -1885,7 +1885,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1684" />
+                                            <option name="offset" value="1678" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Min.integersGlobally())" />
@@ -1955,7 +1955,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1684" />
+                                            <option name="offset" value="1678" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Max.integersGlobally())" />
@@ -2052,7 +2052,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2050" />
+                                            <option name="offset" value="2044" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input&#10;&#10;        .apply(FlatMapElements.into(TypeDescriptors.strings())&#10;            .via(line -&gt; Arrays.asList(line.split(&quot; &quot;))))&#10;&#10;        .apply(Count.perElement())&#10;&#10;        .apply(ParDo.of(new DoFn&lt;KV&lt;String, Long&gt;, String&gt;() {&#10;&#10;          @ProcessElement&#10;          public void processElement(&#10;              @Element KV&lt;String, Long&gt; element, OutputReceiver&lt;String&gt; out) {&#10;&#10;            out.output(element.getKey() + &quot;:&quot; + element.getValue());&#10;          }&#10;&#10;        }))" />
