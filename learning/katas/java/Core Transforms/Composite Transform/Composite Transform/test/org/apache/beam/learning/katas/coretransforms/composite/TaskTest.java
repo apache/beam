@@ -26,7 +26,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class Tests {
+public class TaskTest {
 
   @Rule
   public final transient TestPipeline testPipeline = TestPipeline.create();
