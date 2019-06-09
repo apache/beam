@@ -863,6 +863,76 @@
                           <EduTask>
                             <option name="customPresentableName" />
                             <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~ Licensed to the Apache Software Foundation (ASF) under one&#10;  ~ or more contributor license agreements.  See the NOTICE file&#10;  ~ distributed with this work for additional information&#10;  ~ regarding copyright ownership.  The ASF licenses this file&#10;  ~ to you under the Apache License, Version 2.0 (the&#10;  ~ &quot;License&quot;); you may not use this file except in compliance&#10;  ~ with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~     http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~ Unless required by applicable law or agreed to in writing, software&#10;  ~ distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~ See the License for the specific language governing permissions and&#10;  ~ limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Combine - BinaryCombineFn Lambda&lt;/h2&gt;&#10;&lt;p&gt;&#10;  BinaryCombineFn is used for implementing combiners that are more easily expressed as binary&#10;  operations.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  Since Beam v2.13.0, you can also use lambda or method reference in order to create the&#10;  BinaryCombineFn.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Implement the summation of BigInteger using lambda or method reference.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Refer to&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/SerializableBiFunction.html&quot;&gt;&#10;    SerializableBiFunction&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Refer to the Beam Programming Guide&#10;  &lt;a href=&quot;https://beam.apache.org/documentation/programming-guide/#combine&quot;&gt;&#10;    &quot;Combine&quot;&lt;/a&gt; section for more information.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="4" />
+                            <option name="name" value="BinaryCombineFn Lambda" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1805" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="input.apply(Combine.globally(BigInteger::add))" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="public class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/Tests.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/Tests.java" />
+                                      <option name="text" value="import org.junit.Assert;&#10;import org.junit.Test;&#10;&#10;public class Tests {&#10;  @Test&#10;  public void testSolution() {&#10;    // put your test here&#10;    Assert.fail(&quot;Tests not implemented for the task&quot;);&#10;  }&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="0" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
                             <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Combine - Combine PerKey&lt;/h2&gt;&#10;&lt;p&gt;&#10;  After creating a keyed PCollection (for example, by using a GroupByKey transform), a common&#10;  pattern is to combine the collection of values associated with each key into a single, merged&#10;  value. This pattern of a GroupByKey followed by merging the collection of values is equivalent to&#10;  Combine PerKey transform. The combine function you supply to Combine PerKey must be an associative&#10;  reduction function or a subclass of CombineFn.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Implement the sum of scores per player using&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/CombineFnBase.GlobalCombineFn.html&quot;&gt;&#10;    Combine.perKey&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/CombineFnBase.GlobalCombineFn.html&quot;&gt;&#10;  Combine.perKey(GlobalCombineFn)&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Extend the&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Combine.BinaryCombineFn.html&quot;&gt;&#10;    Combine.BinaryCombineFn&lt;/a&gt; class that counts the sum of the number.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Refer to the Beam Programming Guide&#10;  &lt;a href=&quot;https://beam.apache.org/documentation/programming-guide/#combining-values-in-a-keyed-pcollection&quot;&gt;&#10;    &quot;Combining values in a keyed PCollection&quot;&lt;/a&gt; section for more information.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
                             <option name="feedbackLink">
                               <FeedbackLink>
@@ -871,7 +941,7 @@
                               </FeedbackLink>
                             </option>
                             <option name="id" value="713733" />
-                            <option name="index" value="4" />
+                            <option name="index" value="5" />
                             <option name="name" value="Combine PerKey" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
