@@ -25,8 +25,6 @@ import math
 import sys
 from builtins import round
 
-import mmh3
-
 from apache_beam import coders
 from apache_beam import typehints
 from apache_beam.transforms.core import *
@@ -214,7 +212,7 @@ class ApproximateUniqueCombineFn(CombineFn):
 
   def add_input(self, accumulator, element, *args, **kwargs):
     try:
-      accumulator.add(mmh3.hash64(self._coder.encode(element))[1])
+      accumulator.add(hash(self._coder.encode(element)))
       return accumulator
     except Exception as e:
       raise RuntimeError("Runtime exception: %s", e)
