@@ -18,6 +18,8 @@
 # limitations under the License.
 ################################################################################
 
+cd $(dirname $0)
+
 save () {
   for i do printf %s\\n "$i" | sed "s/'/'\\\\''/g;1s/^/'/;\$s/\$/' \\\\/" ; done
   echo " "
@@ -25,11 +27,6 @@ save () {
 
 orig_args=$(save "$@")
 args=$orig_args
-
-echo "Executing"
-echo
-echo "  gradlew $@"
-echo
 
 while IFS=$'\n' read -r line_data; do
   # echo "$line_data"

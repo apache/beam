@@ -194,6 +194,10 @@ task pythonPreCommit() {
   dependsOn ":sdks:python:test-suites:tox:py36:preCommitPy36"
   dependsOn ":sdks:python:test-suites:tox:py37:preCommitPy37"
   dependsOn ":sdks:python:test-suites:dataflow:preCommitIT"
+  dependsOn ":sdks:python:test-suites:dataflow:py37:preCommitIT"
+  // We don't include Py35, Py36 precommit ITs to reduce quota footprint.
+  // We can reconsider if we ever see an issue that these suites would
+  // have caught. Note that the same tests will still run in postcommit.
 }
 
 task pythonPostCommit() {
@@ -204,7 +208,6 @@ task python3PostCommit() {
   dependsOn ":sdks:python:test-suites:dataflow:py35:postCommitIT"
   dependsOn ":sdks:python:test-suites:dataflow:py36:postCommitIT"
   dependsOn ":sdks:python:test-suites:dataflow:py37:postCommitIT"
-  dependsOn ":sdks:python:test-suites:dataflow:py35:validatesRunnerBatchTests"
   dependsOn ":sdks:python:test-suites:direct:py35:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py36:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py37:postCommitIT"

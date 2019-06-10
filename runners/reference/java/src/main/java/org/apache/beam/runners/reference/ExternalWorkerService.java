@@ -39,7 +39,7 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
   private final PipelineOptions options;
   private final ServerFactory serverFactory = ServerFactory.createDefault();
 
-  public ExternalWorkerService(PipelineOptions options) throws Exception {
+  public ExternalWorkerService(PipelineOptions options) {
     this.options = options;
   }
 

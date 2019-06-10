@@ -278,15 +278,12 @@ public class BatchDataflowWorker implements Closeable {
     return result;
   }
 
-  private Node createPortNode(String predecessorId, String successorId) {
+  private Node createPortNode() {
     return RemoteGrpcPortNode.create(
         RemoteGrpcPort.newBuilder()
             .setApiServiceDescriptor(sdkHarnessRegistry.beamFnDataApiServiceDescriptor())
             .build(),
-        idGenerator.getId(),
-        idGenerator.getId(),
-        predecessorId,
-        successorId);
+        idGenerator.getId());
   }
 
   /**

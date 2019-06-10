@@ -24,7 +24,9 @@ import static org.apache.beam.sdk.io.hadoop.format.HadoopFormatIO.SerializableSp
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -499,7 +501,7 @@ public class HadoopFormatIOReadTest {
             new SerializableSplit(mockInputSplit));
     boundedSource.setInputFormatObj(mockInputFormat);
     BoundedReader<KV<Text, Employee>> reader = boundedSource.createReader(p.getOptions());
-    assertEquals(false, reader.start());
+    assertFalse(reader.start());
     assertEquals(Double.valueOf(1), reader.getFractionConsumed());
     reader.close();
   }
@@ -532,7 +534,7 @@ public class HadoopFormatIOReadTest {
       // When start is not called, getFractionConsumed() should return 0.
       assertEquals(Double.valueOf(0), reader.getFractionConsumed());
       boolean start = reader.start();
-      assertEquals(true, start);
+      assertTrue(start);
       if (start) {
         elements.add(reader.getCurrent());
         boolean advance = reader.advance();
@@ -541,7 +543,7 @@ public class HadoopFormatIOReadTest {
         assertEquals(
             Double.valueOf(++recordsRead / TestEmployeeDataSet.NUMBER_OF_RECORDS_IN_EACH_SPLIT),
             reader.getFractionConsumed());
-        assertEquals(true, advance);
+        assertTrue(advance);
         while (advance) {
           elements.add(reader.getCurrent());
           advance = reader.advance();
@@ -586,11 +588,11 @@ public class HadoopFormatIOReadTest {
     BoundedReader<KV<Text, Employee>> reader = boundedSource.createReader(p.getOptions());
     assertEquals(Double.valueOf(0), reader.getFractionConsumed());
     boolean start = reader.start();
-    assertEquals(true, start);
+    assertTrue(start);
     if (start) {
       boolean advance = reader.advance();
       assertEquals(null, reader.getFractionConsumed());
-      assertEquals(true, advance);
+      assertTrue(advance);
       if (advance) {
         advance = reader.advance();
         assertEquals(null, reader.getFractionConsumed());
@@ -782,7 +784,7 @@ public class HadoopFormatIOReadTest {
       hifSource.createInputFormatInstance();
       ConfigurableEmployeeInputFormat inputFormatObj =
           (ConfigurableEmployeeInputFormat) hifSource.getInputFormat();
-      assertEquals(true, inputFormatObj.isConfSet);
+      assertTrue(inputFormatObj.isConfSet);
     }
   }
 

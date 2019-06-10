@@ -151,7 +151,7 @@ public class CoderTranslationTest {
       if (KNOWN_CODERS.contains(coder)) {
         for (RunnerApi.Coder encodedCoder : encodedComponents.getCodersMap().values()) {
           assertThat(
-              encodedCoder.getSpec().getSpec().getUrn(),
+              encodedCoder.getSpec().getUrn(),
               not(equalTo(CoderTranslation.JAVA_SERIALIZED_CODER_URN)));
         }
       }

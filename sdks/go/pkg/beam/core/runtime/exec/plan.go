@@ -87,6 +87,11 @@ func (p *Plan) ID() string {
 	return p.id
 }
 
+// SourcePTransformID returns the ID of the data's origin PTransform.
+func (p *Plan) SourcePTransformID() string {
+	return p.source.SID.PtransformID
+}
+
 // Execute executes the plan with the given data context and bundle id. Units
 // are brought up on the first execution. If a bundle fails, the plan cannot
 // be reused for further bundles. Does not panic. Blocking.
@@ -190,4 +195,20 @@ func (p *Plan) Metrics() *fnpb.Metrics {
 	return &fnpb.Metrics{
 		Ptransforms: transforms,
 	}
+}
+
+// SplitPoints captures the split requested by the Runner.
+type SplitPoints struct {
+	Splits []int64
+	Frac   float32
+}
+
+// Split takes a set of potential split points, selects and actuates split on an
+// appropriate split point, and returns the selected split point if successful.
+// Returns an error when unable to split.
+func (p *Plan) Split(s SplitPoints) (int64, error) {
+	if p.source != nil {
+		return p.source.Split(s.Splits, s.Frac)
+	}
+	return 0, fmt.Errorf("failed to split at requested splits: {%v}, Source not initialized", s)
 }

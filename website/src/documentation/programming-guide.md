@@ -188,13 +188,17 @@ a command-line argument.
 
 You can add your own custom options in addition to the standard
 `PipelineOptions`. To add your own options, define an interface with getter and
-setter methods for each option, as in the following example:
+setter methods for each option, as in the following example for
+adding `input` and `output` custom options:
 
 ```java
 public interface MyOptions extends PipelineOptions {
-    String getMyCustomOption();
-    void setMyCustomOption(String myCustomOption);
-  }
+    String getInput();
+    void setInput(String input);
+    
+    String getOutput();
+    void setOutput(String output);
+}
 ```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipeline_options_define_custom
@@ -214,11 +218,16 @@ You set the description and default value using annotations, as follows:
 
 ```java
 public interface MyOptions extends PipelineOptions {
-    @Description("My custom command line argument.")
-    @Default.String("DEFAULT")
-    String getMyCustomOption();
-    void setMyCustomOption(String myCustomOption);
-  }
+    @Description("Input for the pipeline")
+    @Default.String("gs://my-bucket/input")
+    String getInput();
+    void setInput(String input);
+
+    @Description("Output for the pipeline")
+    @Default.String("gs://my-bucket/input")
+    String getOutput();
+    void setOutput(String output);
+}
 ```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipeline_options_define_custom_with_help_and_default
@@ -226,8 +235,8 @@ public interface MyOptions extends PipelineOptions {
 ```
 ```go
 var (
-  input = flag.String("input", "gs://my-bucket/input", "File(s) to read.")
-  output = flag.String("output", "gs://my-bucket/output", "Output file.")
+  input = flag.String("input", "gs://my-bucket/input", "Input for the pipeline")
+  output = flag.String("output", "gs://my-bucket/output", "Output for the pipeline")
 )
 ```
 
@@ -251,7 +260,7 @@ MyOptions options = PipelineOptionsFactory.fromArgs(args)
                                                 .as(MyOptions.class);
 ```
 
-Now your pipeline can accept `--myCustomOption=value` as a command-line argument.
+Now your pipeline can accept `--input=value` and `--output=value` as command-line arguments.
 
 ## 3. PCollections {#pcollections}
 
@@ -302,7 +311,7 @@ public static void main(String[] args) {
 
     // Create the PCollection 'lines' by applying a 'Read' transform.
     PCollection<String> lines = p.apply(
-      "ReadMyFile", TextIO.read().from("protocol://path/to/some/inputData.txt"));
+      "ReadMyFile", TextIO.read().from("gs://some/inputData.txt"));
 }
 ```
 ```py
@@ -310,7 +319,7 @@ public static void main(String[] args) {
 %}
 ```
 ```go
-lines := textio.Read(s, "protocol://path/to/some/inputData.txt")
+lines := textio.Read(s, "gs://some/inputData.txt")
 ```
 
 See the [section on I/O](#pipeline-io) to learn more about how to read from the
@@ -514,12 +523,14 @@ that you can apply multiple transforms to the same input `PCollection` to create
 a branching pipeline, like so:
 
 ```java
-[Output PCollection 1] = [Input PCollection].apply([Transform 1])
-[Output PCollection 2] = [Input PCollection].apply([Transform 2])
+[PCollection of database table rows] = [Database Table Reader].apply([Read Transform])
+[PCollection of 'A' names] = [PCollection of database table rows].apply([Transform A])
+[PCollection of 'B' names] = [PCollection of database table rows].apply([Transform B])
 ```
 ```py
-[Output PCollection 1] = [Input PCollection] | [Transform 1]
-[Output PCollection 2] = [Input PCollection] | [Transform 2]
+[PCollection of database table rows] = [Database Table Reader] | [Read Transform]
+[PCollection of 'A' names] = [PCollection of database table rows] | [Transform A]
+[PCollection of 'B' names] = [PCollection of database table rows] | [Transform B]
 ```
 
 The resulting workflow graph from the branching pipeline above looks like this.
@@ -1591,7 +1602,16 @@ are being used, the window is of type `IntervalWindow`.
      public void processElement(@Element String word, IntervalWindow window) {
   }})
 ```
+```py
+import apache_beam as beam
 
+class ProcessRecord(beam.DoFn):
+
+  def process(self, element, window=beam.DoFn.WindowParam):
+     # access window e.g window.end.micros
+     pass  
+  
+```
 {:.language-java}
 **PaneInfo:**
 When triggers are used, Beam provides a `PaneInfo` object that contains information about the current firing. Using `PaneInfo`
@@ -1613,12 +1633,68 @@ The `PipelineOptions` for the current pipeline can always be accessed in a proce
 ```
 
 {:.language-java}
-`@OnTimer` methods can also access many of these parameters. Timestamp, window, `PipelineOptions`, `OutputReceiver`, and
+`@OnTimer` methods can also access many of these parameters. Timestamp, Window, key, `PipelineOptions`, `OutputReceiver`, and
 `MultiOutputReceiver` parameters can all be accessed in an `@OnTimer` method. In addition, an `@OnTimer` method can take
 a parameter of type `TimeDomain` which tells whether the timer is based on event time or processing time.
 Timers are explained in more detail in the
 [Timely (and Stateful) Processing with Apache Beam]({{ site.baseurl }}/blog/2017/08/28/timely-processing.html) blog post.
+```py
 
+class StatefulDoFn(beam.DoFn):
+  """An example stateful DoFn with state and timer"""
+
+  BUFFER_STATE_1 = BagStateSpec('buffer1', beam.BytesCoder())
+  BUFFER_STATE_2 = BagStateSpec('buffer2', beam.VarIntCoder())
+  WATERMARK_TIMER = TimerSpec('watermark_timer', TimeDomain.WATERMARK)
+
+  def process(self,
+              element,
+              timestamp=beam.DoFn.TimestampParam,
+              window=beam.DoFn.WindowParam,
+              buffer_1=beam.DoFn.StateParam(BUFFER_STATE_1),
+              buffer_2=beam.DoFn.StateParam(BUFFER_STATE_2),
+              watermark_timer=beam.DoFn.TimerParam(WATERMARK_TIMER)):
+
+    # Do you processing here
+    key, value = element
+    # Read all the data from buffer1
+    all_values_in_buffer_1 = [x for x in buffer_1.read()]
+
+    if StatefulDoFn._is_clear_buffer_1_required(all_values_in_buffer_1):
+        # clear the buffer data if required conditions are met.
+        buffer_1.clear()
+
+    # add the value to buffer 2
+    buffer_2.add(value)
+
+    if StatefulDoFn._all_condition_met():
+      # Clear the timer if certain condition met and you don't want to trigger
+      # the callback method.
+      watermark_timer.clear()
+
+    yield element
+
+  @on_timer(WATERMARK_TIMER)
+  def on_expiry_1(self,
+                  timestamp=beam.DoFn.TimestampParam,
+                  window=beam.DoFn.WindowParam,
+                  key=beam.DoFn.KeyParam,
+                  buffer_1=beam.DoFn.StateParam(BUFFER_STATE_1),
+                  buffer_2=beam.DoFn.StateParam(BUFFER_STATE_2)):
+    # Window and key parameters are really useful especially for debugging issues.
+    yield 'expired1'
+
+  @staticmethod
+  def _all_condition_met():
+      # some logic
+      return True
+
+  @staticmethod
+  def _is_clear_buffer_1_required(buffer_1_data):
+      # Some business logic
+      return True
+
+```
 ### 4.6. Composite transforms {#composite-transforms}
 
 Transforms can have a nested structure, where a complex transform performs

@@ -247,11 +247,36 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		msg := req.GetProcessBundleSplit()
 
 		log.Debugf(ctx, "PB Split: %v", msg)
+		ref := msg.GetInstructionReference()
+		c.mu.Lock()
+		plan, ok := c.active[ref]
+		c.mu.Unlock()
+		if !ok {
+			return fail(id, "execution plan for %v not found", ref)
+		}
+
+		// Get the desired splits for the root FnAPI read operation.
+		ds := msg.GetDesiredSplits()[plan.SourcePTransformID()]
+		if ds == nil {
+			return fail(id, "failed to split: desired splits for root was empty.")
+		}
+		split, err := plan.Split(exec.SplitPoints{ds.GetAllowedSplitPoints(), ds.GetFractionOfRemainder()})
+
+		if err != nil {
+			return fail(id, "unable to split: %v", err)
+		}
 
 		return &fnpb.InstructionResponse{
 			InstructionId: id,
 			Response: &fnpb.InstructionResponse_ProcessBundleSplit{
-				ProcessBundleSplit: &fnpb.ProcessBundleSplitResponse{},
+				ProcessBundleSplit: &fnpb.ProcessBundleSplitResponse{
+					ChannelSplits: []*fnpb.ProcessBundleSplitResponse_ChannelSplit{
+						&fnpb.ProcessBundleSplitResponse_ChannelSplit{
+							LastPrimaryElement:   int32(split - 1),
+							FirstResidualElement: int32(split),
+						},
+					},
+				},
 			},
 		}
 

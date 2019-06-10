@@ -15,18 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation.types;
 
-import java.io.ByteArrayOutputStream;
+import CommonJobProperties as commonJobProperties
+import PostcommitJobBuilder
 
-/**
- * Version of {@link java.io.ByteArrayOutputStream} that allows to retrieve the internal byte[]
- * buffer without incurring an array copy.
- */
-public class InspectableByteArrayOutputStream extends ByteArrayOutputStream {
+// This job runs the suite of Go integration tests against the Spark runner.
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go_VR_Spark',
+  'Run Go Spark ValidatesRunner', 'Go Spark ValidatesRunner Tests', this) {
+  description('Runs Go integration tests on the Spark runner.')
 
-  /** Get the underlying byte array. */
-  public byte[] getBuffer() {
-    return buf;
+  // Set common parameters.
+  commonJobProperties.setTopLevelMainJobProperties(delegate)
+
+  // Gradle goals for this job.
+  steps {
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':sdks:go:test:sparkValidatesRunner')
+      commonJobProperties.setGradleSwitches(delegate)
+    }
   }
 }

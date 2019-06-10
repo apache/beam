@@ -35,8 +35,10 @@ public class SelectHelpersTest {
           .addStringField("field1")
           .addInt32Field("field2")
           .addDoubleField("field3")
+          .addStringField("field_extra")
           .build();
-  static final Row FLAT_ROW = Row.withSchema(FLAT_SCHEMA).addValues("first", 42, 3.14).build();
+  static final Row FLAT_ROW =
+      Row.withSchema(FLAT_SCHEMA).addValues("first", 42, 3.14, "extra").build();
 
   static final Schema NESTED_SCHEMA =
       Schema.builder().addRowField("nested", FLAT_SCHEMA).addStringField("foo").build();
@@ -97,6 +99,19 @@ public class SelectHelpersTest {
 
     Row row = SelectHelpers.selectRow(FLAT_ROW, fieldAccessDescriptor, FLAT_SCHEMA, outputSchema);
     Row expectedRow = Row.withSchema(expectedSchema).addValue("first").build();
+    assertEquals(expectedRow, row);
+  }
+
+  @Test
+  public void testsSimpleSelectSingleWithUnderscore() {
+    FieldAccessDescriptor fieldAccessDescriptor =
+        FieldAccessDescriptor.withFieldNames("field_extra").resolve(FLAT_SCHEMA);
+    Schema outputSchema = SelectHelpers.getOutputSchema(FLAT_SCHEMA, fieldAccessDescriptor);
+    Schema expectedSchema = Schema.builder().addStringField("field_extra").build();
+    assertEquals(expectedSchema, outputSchema);
+
+    Row row = SelectHelpers.selectRow(FLAT_ROW, fieldAccessDescriptor, FLAT_SCHEMA, outputSchema);
+    Row expectedRow = Row.withSchema(expectedSchema).addValue("extra").build();
     assertEquals(expectedRow, row);
   }
 
@@ -273,6 +288,7 @@ public class SelectHelpersTest {
             .addMapField("field1", FieldType.INT32, FieldType.STRING)
             .addMapField("field2", FieldType.INT32, FieldType.INT32)
             .addMapField("field3", FieldType.INT32, FieldType.DOUBLE)
+            .addMapField("field_extra", FieldType.INT32, FieldType.STRING)
             .build();
     assertEquals(expectedSchema, outputSchema);
 
@@ -282,6 +298,7 @@ public class SelectHelpersTest {
             .addValue(ImmutableMap.of(1, FLAT_ROW.getValue(0)))
             .addValue(ImmutableMap.of(1, FLAT_ROW.getValue(1)))
             .addValue(ImmutableMap.of(1, FLAT_ROW.getValue(2)))
+            .addValue(ImmutableMap.of(1, FLAT_ROW.getValue(3)))
             .build();
     assertEquals(expectedRow, row);
   }

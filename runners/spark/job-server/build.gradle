@@ -48,14 +48,14 @@ configurations.all {
 }
 
 dependencies {
-  compile project(path: sparkRunnerProject, configuration: "shadow")
+  compile project(sparkRunnerProject)
   compile project(path: sparkRunnerProject, configuration: "provided")
-  validatesPortableRunner project(path: sparkRunnerProject, configuration: "shadowTest")
+  validatesPortableRunner project(path: sparkRunnerProject, configuration: "testRuntime")
   validatesPortableRunner project(path: sparkRunnerProject, configuration: "provided")
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
-  validatesPortableRunner project(path: ":runners:core-java", configuration: "shadowTest")
-  validatesPortableRunner project(path: ":runners:reference:java", configuration: "shadowTest")
-  compile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
+  validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntime")
+  validatesPortableRunner project(path: ":runners:reference:java", configuration: "testRuntime")
+  compile project(":sdks:java:extensions:google-cloud-platform-core")
 //  TODO: Enable AWS and HDFS file system.
 }
 
@@ -85,7 +85,7 @@ def portableValidatesRunnerTask(String name) {
   createPortableValidatesRunnerTask(
     name: "validatesPortableRunner${name}",
     jobServerDriver: "org.apache.beam.runners.spark.SparkJobServerDriver",
-    jobServerConfig: "--job-host=localhost,--job-port=0,--artifact-port=0",
+    jobServerConfig: "--job-host=localhost,--job-port=0,--artifact-port=0,--expansion-port=0",
     testClasspathConfiguration: configurations.validatesPortableRunner,
     numParallelTests: 1,
     environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
@@ -111,6 +111,7 @@ def portableValidatesRunnerTask(String name) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       // TODO re-enable when state is supported
       excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
       //SplitableDoFnTests
       excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'

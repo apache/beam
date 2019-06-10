@@ -60,12 +60,12 @@ from apache_beam.utils import windowed_value
 # This module is experimental. No backwards-compatibility guarantees.
 
 
-DATA_INPUT_URN = 'urn:org.apache.beam:source:runner:0.1'
-DATA_OUTPUT_URN = 'urn:org.apache.beam:sink:runner:0.1'
-IDENTITY_DOFN_URN = 'urn:org.apache.beam:dofn:identity:0.1'
+DATA_INPUT_URN = 'beam:source:runner:0.1'
+DATA_OUTPUT_URN = 'beam:sink:runner:0.1'
+IDENTITY_DOFN_URN = 'beam:dofn:identity:0.1'
 # TODO(vikasrk): Fix this once runner sends appropriate common_urns.
-OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN = 'urn:beam:dofn:javasdk:0.1'
-OLD_DATAFLOW_RUNNER_HARNESS_READ_URN = 'urn:org.apache.beam:source:java:0.1'
+OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN = 'beam:dofn:javasdk:0.1'
+OLD_DATAFLOW_RUNNER_HARNESS_READ_URN = 'beam:source:java:0.1'
 URNS_NEEDING_PCOLLECTIONS = set([monitoring_infos.ELEMENT_COUNT_URN,
                                  monitoring_infos.SAMPLED_BYTE_SIZE_URN])
 
@@ -74,14 +74,14 @@ class RunnerIOOperation(operations.Operation):
   """Common baseclass for runner harness IO operations."""
 
   def __init__(self, name_context, step_name, consumers, counter_factory,
-               state_sampler, windowed_coder, target, data_channel):
+               state_sampler, windowed_coder, transform_id, data_channel):
     super(RunnerIOOperation, self).__init__(
         name_context, None, counter_factory, state_sampler)
     self.windowed_coder = windowed_coder
     self.windowed_coder_impl = windowed_coder.get_impl()
-    # target represents the consumer for the bytes in the data plane for a
+    # transform_id represents the consumer for the bytes in the data plane for a
     # DataInputOperation or a producer of these bytes for a DataOutputOperation.
-    self.target = target
+    self.transform_id = transform_id
     self.data_channel = data_channel
     for _, consumer_ops in consumers.items():
       for consumer in consumer_ops:
@@ -109,10 +109,10 @@ class DataInputOperation(RunnerIOOperation):
   """A source-like operation that gathers input from the runner."""
 
   def __init__(self, operation_name, step_name, consumers, counter_factory,
-               state_sampler, windowed_coder, input_target, data_channel):
+               state_sampler, windowed_coder, transform_id, data_channel):
     super(DataInputOperation, self).__init__(
         operation_name, step_name, consumers, counter_factory, state_sampler,
-        windowed_coder, target=input_target, data_channel=data_channel)
+        windowed_coder, transform_id=transform_id, data_channel=data_channel)
     # We must do this manually as we don't have a spec or spec.output_coders.
     self.receivers = [
         operations.ConsumerSet.create(
@@ -558,7 +558,7 @@ class BundleProcessor(object):
         # TODO(robertwb): Is there a better way to pass the instruction id to
         # the operation?
         op.set_output_stream(op.data_channel.output_stream(
-            instruction_id, op.target))
+            instruction_id, op.transform_id))
       elif isinstance(op, DataInputOperation):
         # We must wait until we receive "end of stream" for each of these ops.
         expected_inputs.append(op)
@@ -574,19 +574,16 @@ class BundleProcessor(object):
 
       # Inject inputs from data plane.
       data_channels = collections.defaultdict(list)
-      input_op_by_target = {}
+      input_op_by_transform_id = {}
       for input_op in expected_inputs:
-        data_channels[input_op.data_channel].append(input_op.target)
-        # ignores input name
-        input_op_by_target[
-            input_op.target.primitive_transform_reference] = input_op
+        data_channels[input_op.data_channel].append(input_op.transform_id)
+        input_op_by_transform_id[input_op.transform_id] = input_op
 
-      for data_channel, expected_targets in data_channels.items():
+      for data_channel, expected_transforms in data_channels.items():
         for data in data_channel.input_elements(
-            instruction_id, expected_targets):
-          input_op_by_target[
-              data.target.primitive_transform_reference
-          ].process_encoded(data.data)
+            instruction_id, expected_transforms):
+          input_op_by_transform_id[
+              data.ptransform_id].process_encoded(data.data)
 
       # Finish all operations.
       for op in self.ops.values():
@@ -617,7 +614,7 @@ class BundleProcessor(object):
       for op in self.ops.values():
         if isinstance(op, DataInputOperation):
           desired_split = bundle_split_request.desired_splits.get(
-              op.target.primitive_transform_reference)
+              op.transform_id)
           if desired_split:
             split = op.try_split(desired_split.fraction_of_remainder,
                                  desired_split.estimated_input_elements)
@@ -633,8 +630,7 @@ class BundleProcessor(object):
                     self.delayed_bundle_application(*element_residual))
               split_response.channel_splits.extend([
                   beam_fn_api_pb2.ProcessBundleSplitResponse.ChannelSplit(
-                      ptransform_id=op.target.primitive_transform_reference,
-                      input_id=op.target.name,
+                      ptransform_id=op.transform_id,
                       last_primary_element=primary_end,
                       first_residual_element=residual_start)])
 
@@ -797,12 +793,12 @@ class BeamTransformFactory(object):
     if coder_id not in self.descriptor.coders:
       raise KeyError("No such coder: %s" % coder_id)
     coder_proto = self.descriptor.coders[coder_id]
-    if coder_proto.spec.spec.urn:
+    if coder_proto.spec.urn:
       return self.context.coders.get_by_id(coder_id)
     else:
       # No URN, assume cloud object encoding json bytes.
       return operation_specs.get_coder_from_spec(
-          json.loads(coder_proto.spec.spec.payload.decode('utf-8')))
+          json.loads(coder_proto.spec.payload.decode('utf-8')))
 
   def get_windowed_coder(self, pcoll_id):
     coder = self.get_coder(self.descriptor.pcollections[pcoll_id].coder_id)
@@ -868,9 +864,6 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
         output_consumers[:] = [TimerConsumer(tag, do_op)]
         break
 
-  target = beam_fn_api_pb2.Target(
-      primitive_transform_reference=transform_id,
-      name=only_element(list(transform_proto.outputs.keys())))
   if grpc_port.coder_id:
     output_coder = factory.get_coder(grpc_port.coder_id)
   else:
@@ -886,16 +879,13 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
       factory.counter_factory,
       factory.state_sampler,
       output_coder,
-      input_target=target,
+      transform_id=transform_id,
       data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
 
 
 @BeamTransformFactory.register_urn(
     DATA_OUTPUT_URN, beam_fn_api_pb2.RemoteGrpcPort)
 def create(factory, transform_id, transform_proto, grpc_port, consumers):
-  target = beam_fn_api_pb2.Target(
-      primitive_transform_reference=transform_id,
-      name=only_element(list(transform_proto.inputs.keys())))
   if grpc_port.coder_id:
     output_coder = factory.get_coder(grpc_port.coder_id)
   else:
@@ -911,7 +901,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
       factory.counter_factory,
       factory.state_sampler,
       output_coder,
-      target=target,
+      transform_id=transform_id,
       data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
 
 
@@ -1187,43 +1177,6 @@ def create(factory, transform_id, transform_proto, unused_parameter, consumers):
           factory.state_sampler),
       transform_proto.unique_name,
       consumers)
-
-
-@BeamTransformFactory.register_urn(
-    common_urns.combine_components.COMBINE_PGBKCV.urn,
-    beam_runner_api_pb2.CombinePayload)
-def create(factory, transform_id, transform_proto, payload, consumers):
-  # TODO: Combine side inputs.
-  serialized_combine_fn = pickler.dumps(
-      (beam.CombineFn.from_runner_api(payload.combine_fn, factory.context),
-       [], {}))
-  return factory.augment_oldstyle_op(
-      operations.PGBKCVOperation(
-          transform_proto.unique_name,
-          operation_specs.WorkerPartialGroupByKey(
-              serialized_combine_fn,
-              None,
-              [factory.get_only_output_coder(transform_proto)]),
-          factory.counter_factory,
-          factory.state_sampler),
-      transform_proto.unique_name,
-      consumers)
-
-
-@BeamTransformFactory.register_urn(
-    common_urns.combine_components.COMBINE_MERGE_ACCUMULATORS.urn,
-    beam_runner_api_pb2.CombinePayload)
-def create(factory, transform_id, transform_proto, payload, consumers):
-  return _create_combine_phase_operation(
-      factory, transform_proto, payload, consumers, 'merge')
-
-
-@BeamTransformFactory.register_urn(
-    common_urns.combine_components.COMBINE_EXTRACT_OUTPUTS.urn,
-    beam_runner_api_pb2.CombinePayload)
-def create(factory, transform_id, transform_proto, payload, consumers):
-  return _create_combine_phase_operation(
-      factory, transform_proto, payload, consumers, 'extract')
 
 
 @BeamTransformFactory.register_urn(

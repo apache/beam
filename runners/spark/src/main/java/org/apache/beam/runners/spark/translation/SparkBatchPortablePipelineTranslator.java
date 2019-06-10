@@ -39,7 +39,6 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNo
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.io.SourceRDD;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -64,6 +63,7 @@ import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
+import org.apache.spark.storage.StorageLevel;
 import scala.Tuple2;
 
 /** Translates a bounded portable pipeline into a Spark job. */
@@ -112,6 +112,24 @@ public class SparkBatchPortablePipelineTranslator {
         QueryablePipeline.forTransforms(
             pipeline.getRootTransformIdsList(), pipeline.getComponents());
     for (PipelineNode.PTransformNode transformNode : p.getTopologicallyOrderedTransforms()) {
+      // Pre-scan pipeline to count which pCollections are consumed as inputs more than once so
+      // their corresponding RDDs can later be cached.
+      for (String inputId : transformNode.getTransform().getInputsMap().values()) {
+        context.incrementConsumptionCountBy(inputId, 1);
+      }
+      // Executable stage consists of two parts: computation and extraction. This means the result
+      // of computation is an intermediate RDD, which we might also need to cache.
+      if (transformNode.getTransform().getSpec().getUrn().equals(ExecutableStage.URN)) {
+        context.incrementConsumptionCountBy(
+            getExecutableStageIntermediateId(transformNode),
+            transformNode.getTransform().getOutputsMap().size());
+      }
+      for (String outputId : transformNode.getTransform().getOutputsMap().values()) {
+        WindowedValueCoder outputCoder = getWindowedValueCoder(outputId, pipeline.getComponents());
+        context.putCoder(outputId, outputCoder);
+      }
+    }
+    for (PipelineNode.PTransformNode transformNode : p.getTopologicallyOrderedTransforms()) {
       urnToTransformTranslator
           .getOrDefault(
               transformNode.getTransform().getSpec().getUrn(),
@@ -141,18 +159,9 @@ public class SparkBatchPortablePipelineTranslator {
 
     RunnerApi.Components components = pipeline.getComponents();
     String inputId = getInputId(transformNode);
-    PCollection inputPCollection = components.getPcollectionsOrThrow(inputId);
     Dataset inputDataset = context.popDataset(inputId);
     JavaRDD<WindowedValue<KV<K, V>>> inputRdd = ((BoundedDataset<KV<K, V>>) inputDataset).getRDD();
-    PCollectionNode inputPCollectionNode = PipelineNode.pCollection(inputId, inputPCollection);
-    WindowedValueCoder<KV<K, V>> inputCoder;
-    try {
-      inputCoder =
-          (WindowedValueCoder)
-              WireCoders.instantiateRunnerWireCoder(inputPCollectionNode, components);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    WindowedValueCoder<KV<K, V>> inputCoder = getWindowedValueCoder(inputId, components);
     KvCoder<K, V> inputKvCoder = (KvCoder<K, V>) inputCoder.getValueCoder();
     Coder<K> inputKeyCoder = inputKvCoder.getKeyCoder();
     Coder<V> inputValueCoder = inputKvCoder.getValueCoder();
@@ -162,15 +171,15 @@ public class SparkBatchPortablePipelineTranslator {
         WindowedValue.FullWindowedValueCoder.of(inputValueCoder, windowFn.windowCoder());
 
     JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupedByKeyAndWindow;
+    Partitioner partitioner = getPartitioner(context);
     if (windowingStrategy.getWindowFn().isNonMerging()
         && windowingStrategy.getTimestampCombiner() == TimestampCombiner.END_OF_WINDOW) {
       // we can have a memory sensitive translation for non-merging windows
       groupedByKeyAndWindow =
           GroupNonMergingWindowsFunctions.groupByKeyAndWindow(
-              inputRdd, inputKeyCoder, inputValueCoder, windowingStrategy);
+              inputRdd, inputKeyCoder, inputValueCoder, windowingStrategy, partitioner);
     } else {
-      Partitioner partitioner = getPartitioner(context);
-      JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKeyOnly =
+      JavaRDD<KV<K, Iterable<WindowedValue<V>>>> groupedByKeyOnly =
           GroupCombineFunctions.groupByKeyOnly(inputRdd, inputKeyCoder, wvCoder, partitioner);
       // for batch, GroupAlsoByWindow uses an in-memory StateInternals.
       groupedByKeyAndWindow =
@@ -179,8 +188,7 @@ public class SparkBatchPortablePipelineTranslator {
                   windowingStrategy,
                   new TranslationUtils.InMemoryStateInternalsFactory<>(),
                   SystemReduceFn.buffering(inputValueCoder),
-                  context.serializablePipelineOptions,
-                  AggregatorsAccumulator.getInstance()));
+                  context.serializablePipelineOptions));
     }
     context.pushDataset(getOutputId(transformNode), new BoundedDataset<>(groupedByKeyAndWindow));
   }
@@ -200,18 +208,18 @@ public class SparkBatchPortablePipelineTranslator {
     Dataset inputDataset = context.popDataset(inputPCollectionId);
     JavaRDD<WindowedValue<InputT>> inputRdd = ((BoundedDataset<InputT>) inputDataset).getRDD();
     Map<String, String> outputs = transformNode.getTransform().getOutputsMap();
-    BiMap<String, Integer> outputMap = createOutputMap(outputs.values());
+    BiMap<String, Integer> outputExtractionMap = createOutputMap(outputs.values());
 
     ImmutableMap.Builder<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>>
         broadcastVariablesBuilder = ImmutableMap.builder();
     for (SideInputId sideInputId : stagePayload.getSideInputsList()) {
-      RunnerApi.Components components = stagePayload.getComponents();
+      RunnerApi.Components stagePayloadComponents = stagePayload.getComponents();
       String collectionId =
-          components
+          stagePayloadComponents
               .getTransformsOrThrow(sideInputId.getTransformId())
               .getInputsOrThrow(sideInputId.getLocalName());
       Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>> tuple2 =
-          broadcastSideInput(collectionId, components, context);
+          broadcastSideInput(collectionId, stagePayloadComponents, context);
       broadcastVariablesBuilder.put(collectionId, tuple2);
     }
 
@@ -219,14 +227,38 @@ public class SparkBatchPortablePipelineTranslator {
         new SparkExecutableStageFunction<>(
             stagePayload,
             context.jobInfo,
-            outputMap,
+            outputExtractionMap,
             broadcastVariablesBuilder.build(),
             MetricsAccumulator.getInstance());
     JavaRDD<RawUnionValue> staged = inputRdd.mapPartitions(function);
+    String intermediateId = getExecutableStageIntermediateId(transformNode);
+    context.pushDataset(
+        intermediateId,
+        new Dataset() {
+          @Override
+          public void cache(String storageLevel, Coder<?> coder) {
+            StorageLevel level = StorageLevel.fromString(storageLevel);
+            staged.persist(level);
+          }
+
+          @Override
+          public void action() {
+            // Empty function to force computation of RDD.
+            staged.foreach(TranslationUtils.emptyVoidFunction());
+          }
+
+          @Override
+          public void setName(String name) {
+            staged.setName(name);
+          }
+        });
+    // pop dataset to mark RDD as used
+    context.popDataset(intermediateId);
 
     for (String outputId : outputs.values()) {
       JavaRDD<WindowedValue<OutputT>> outputRdd =
-          staged.flatMap(new SparkExecutableStageExtractionFunction<>(outputMap.get(outputId)));
+          staged.flatMap(
+              new SparkExecutableStageExtractionFunction<>(outputExtractionMap.get(outputId)));
       context.pushDataset(outputId, new BoundedDataset<>(outputRdd));
     }
     if (outputs.isEmpty()) {
@@ -249,17 +281,9 @@ public class SparkBatchPortablePipelineTranslator {
    */
   private static <T> Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<T>> broadcastSideInput(
       String collectionId, RunnerApi.Components components, SparkTranslationContext context) {
-    PCollection collection = components.getPcollectionsOrThrow(collectionId);
     @SuppressWarnings("unchecked")
     BoundedDataset<T> dataset = (BoundedDataset<T>) context.popDataset(collectionId);
-    PCollectionNode collectionNode = PipelineNode.pCollection(collectionId, collection);
-    WindowedValueCoder<T> coder;
-    try {
-      coder =
-          (WindowedValueCoder<T>) WireCoders.instantiateRunnerWireCoder(collectionNode, components);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    WindowedValueCoder<T> coder = getWindowedValueCoder(collectionId, components);
     List<byte[]> bytes = dataset.getBytes(coder);
     Broadcast<List<byte[]>> broadcast = context.getSparkContext().broadcast(bytes);
     return new Tuple2<>(broadcast, coder);
@@ -323,5 +347,23 @@ public class SparkBatchPortablePipelineTranslator {
 
   private static String getOutputId(PTransformNode transformNode) {
     return Iterables.getOnlyElement(transformNode.getTransform().getOutputsMap().values());
+  }
+
+  private static <T> WindowedValueCoder<T> getWindowedValueCoder(
+      String pCollectionId, RunnerApi.Components components) {
+    PCollection pCollection = components.getPcollectionsOrThrow(pCollectionId);
+    PCollectionNode pCollectionNode = PipelineNode.pCollection(pCollectionId, pCollection);
+    WindowedValueCoder<T> coder;
+    try {
+      coder =
+          (WindowedValueCoder) WireCoders.instantiateRunnerWireCoder(pCollectionNode, components);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    return coder;
+  }
+
+  private static String getExecutableStageIntermediateId(PTransformNode transformNode) {
+    return transformNode.getId();
   }
 }

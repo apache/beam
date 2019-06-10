@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.fn.data;
 
 import java.io.Closeable;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
@@ -49,12 +48,12 @@ public class RemoteGrpcPortReadOperation<T> extends Operation {
   // Should only be set and cleared once per start/finish cycle in the start method and
   // finish method respectively.
   private String bundleId;
-  private final Target target;
+  private final String ptransformId;
   private InboundDataClient inboundDataClient;
 
   public RemoteGrpcPortReadOperation(
       FnDataService beamFnDataService,
-      Target target,
+      String ptransformId,
       IdGenerator bundleIdSupplier,
       Coder<WindowedValue<T>> coder,
       OutputReceiver[] receivers,
@@ -63,7 +62,7 @@ public class RemoteGrpcPortReadOperation<T> extends Operation {
     this.coder = coder;
     this.beamFnDataService = beamFnDataService;
     this.bundleIdSupplier = bundleIdSupplier;
-    this.target = target;
+    this.ptransformId = ptransformId;
   }
 
   @Override
@@ -73,14 +72,14 @@ public class RemoteGrpcPortReadOperation<T> extends Operation {
       super.start();
       inboundDataClient =
           beamFnDataService.receive(
-              LogicalEndpoint.of(bundleId, target), coder, this::consumeOutput);
+              LogicalEndpoint.of(bundleId, ptransformId), coder, this::consumeOutput);
     }
   }
 
   @Override
   public void finish() throws Exception {
     try (Closeable scope = context.enterFinish()) {
-      LOG.debug("Waiting for instruction {} and target {} to close.", bundleId, target);
+      LOG.debug("Waiting for instruction {} and transform {} to close.", bundleId, ptransformId);
       inboundDataClient.awaitCompletion();
       bundleId = null;
       super.finish();
@@ -108,7 +107,7 @@ public class RemoteGrpcPortReadOperation<T> extends Operation {
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
-        .add("target", target)
+        .add("ptransformId", ptransformId)
         .add("coder", coder)
         .add("bundleId", bundleId)
         .toString();

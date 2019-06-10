@@ -115,7 +115,7 @@ func getTop(e error) string {
 	if be, ok := e.(*beamError); ok {
 		return be.top
 	}
-	return e.Error()
+	return ""
 }
 
 // beamError represents one or more details about an error. They are usually
@@ -127,10 +127,10 @@ func getTop(e error) string {
 //
 // * If no cause is present it indicates that this instance is the original
 //   error, and the message is assumed to be present.
-// * If both message and context are present, the context describes this error
-//   not the next error.
-// * top is always assumed to be present since it is propogated up from the
-//   original error if not explicitly set.
+// * If both message and context are present, the context describes this error,
+//   not the cause of this error.
+// * top is always propogated up from the cause. If it's empty that means that
+//   it was never set on any error in the sequence.
 type beamError struct {
 	cause   error  // The error being wrapped. If nil then this is the first error.
 	context string // Adds additional context to this error and any following.
@@ -153,9 +153,8 @@ func (e *beamError) Error() string {
 	return builder.String()
 }
 
-// printRecursive outputs the contexts and messages of beamErrors recursively
-// while ignoring the top-level error. This avoids calling Error recursively on
-// beamErrors since that would repeatedly print top-level messages.
+// printRecursive is a helper function for outputting the contexts and messages
+// of a sequence of beamErrors.
 func (e *beamError) printRecursive(builder *strings.Builder) {
 	wraps := e.cause != nil
 
@@ -165,7 +164,7 @@ func (e *beamError) printRecursive(builder *strings.Builder) {
 	if e.msg != "" {
 		builder.WriteString(e.msg)
 		if wraps {
-			builder.WriteString("\nCaused by:\n")
+			builder.WriteString("\n\tcaused by:\n")
 		}
 	}
 

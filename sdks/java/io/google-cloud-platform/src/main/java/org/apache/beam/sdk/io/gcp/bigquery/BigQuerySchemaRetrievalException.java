@@ -15,17 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
+package org.apache.beam.sdk.io.gcp.bigquery;
 
-import java.io.DataInputStream;
-
-/** This interface is used to restore key-groups state. */
-public interface KeyGroupRestoringOperator {
-  /**
-   * Restore the state for a given {@code keyGroupIndex}.
-   *
-   * @param keyGroupIndex the id of the key-group to be put in the snapshot.
-   * @param in the stream to read from.
-   */
-  void restoreKeyGroupState(int keyGroupIndex, DataInputStream in) throws Exception;
+/** Exception to signal that BigQuery schema retrieval failed. */
+public class BigQuerySchemaRetrievalException extends RuntimeException {
+  BigQuerySchemaRetrievalException(String message, Throwable cause) {
+    super(message, cause);
+  }
 }

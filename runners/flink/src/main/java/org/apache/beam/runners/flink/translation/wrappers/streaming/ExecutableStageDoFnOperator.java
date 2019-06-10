@@ -402,8 +402,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   }
 
   @Override
-  public void fireTimer(InternalTimer<?, TimerInternals.TimerData> timer) {
-    final ByteBuffer encodedKey = (ByteBuffer) timer.getKey();
+  protected void fireTimer(InternalTimer<ByteBuffer, TimerInternals.TimerData> timer) {
+    final ByteBuffer encodedKey = timer.getKey();
     // We have to synchronize to ensure the state backend is not concurrently accessed by the state
     // requests
     try {

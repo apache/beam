@@ -32,6 +32,36 @@ def basicTestOpts = [
     "--process-timeout=4500", // timeout of whole command execution
 ]
 
+task preCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+
+  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+
+  doLast {
+    // Basic integration tests to run in PreCommit
+    def precommitTests = [
+        "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
+        "apache_beam.examples.streaming_wordcount_it_test:StreamingWordCountIT.test_streaming_wordcount_it",
+    ]
+    def testOpts = [
+        "--tests=${precommitTests.join(',')}",
+        "--nocapture",    // Print stdout instantly
+        "--processes=2",    // Number of tests running in parallel
+        "--process-timeout=1800",   // Timeout of whole command execution
+    ]
+    def cmdArgs = project.mapToArgString([
+        "test_opts": testOpts,
+        "sdk_location": "${project.buildDir}/apache-beam.tar.gz",
+        "worker_jar": dataflowWorkerJar
+    ])
+
+    exec {
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
 task postCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
@@ -64,6 +94,26 @@ task validatesRunnerBatchTests(dependsOn: ['installGcpTest', 'sdist']) {
         "sdk_location": "${project.buildDir}/apache-beam.tar.gz",
         "worker_jar": dataflowWorkerJar
     ])
+    exec {
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
+task validatesRunnerStreamingTests(dependsOn: ['installGcpTest', 'sdist']) {
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+
+  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+
+  doLast {
+    // TODO(BEAM-3544,BEAM-5025): Disable tests with 'sickbay-streaming' tag.
+    def testOpts = basicTestOpts + ["--attr=ValidatesRunner,!sickbay-streaming"]
+    def argMap = ["test_opts": testOpts,
+                  "streaming": "true",
+                  "sdk_location": "${project.buildDir}/apache-beam.tar.gz",
+                  "worker_jar": dataflowWorkerJar]
+    def cmdArgs = project.mapToArgString(argMap)
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"

@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -119,7 +120,7 @@ import org.joda.time.Instant;
 public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<WindowedValue<OutputT>>
     implements OneInputStreamOperator<WindowedValue<InputT>, WindowedValue<OutputT>>,
         TwoInputStreamOperator<WindowedValue<InputT>, RawUnionValue, WindowedValue<OutputT>>,
-        Triggerable<Object, TimerData> {
+        Triggerable<ByteBuffer, TimerData> {
 
   protected DoFn<InputT, OutputT> doFn;
 
@@ -765,20 +766,20 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   }
 
   @Override
-  public void onEventTime(InternalTimer<Object, TimerData> timer) throws Exception {
+  public void onEventTime(InternalTimer<ByteBuffer, TimerData> timer) throws Exception {
     // We don't have to cal checkInvokeStartBundle() because it's already called in
     // processWatermark*().
     fireTimer(timer);
   }
 
   @Override
-  public void onProcessingTime(InternalTimer<Object, TimerData> timer) throws Exception {
+  public void onProcessingTime(InternalTimer<ByteBuffer, TimerData> timer) throws Exception {
     checkInvokeStartBundle();
     fireTimer(timer);
   }
 
   // allow overriding this in WindowDoFnOperator
-  public void fireTimer(InternalTimer<?, TimerData> timer) {
+  protected void fireTimer(InternalTimer<ByteBuffer, TimerData> timer) {
     TimerInternals.TimerData timerData = timer.getNamespace();
     StateNamespace namespace = timerData.getNamespace();
     // This is a user timer, so namespace must be WindowNamespace

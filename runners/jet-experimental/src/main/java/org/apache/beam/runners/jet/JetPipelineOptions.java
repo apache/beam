@@ -27,28 +27,42 @@ public interface JetPipelineOptions extends PipelineOptions {
 
   @Description("Name of Jet group")
   @Validation.Required
+  @Default.String("jet")
   String getJetGroupName();
 
   void setJetGroupName(String jetGroupName);
 
+  @Description("Specifies the addresses of the Jet cluster; needed only with external clusters")
+  @Validation.Required
+  @Default.String("127.0.0.1:5701")
+  String getJetServers();
+
+  void setJetServers(String jetServers);
+
+  @Description(
+      "Specifies where the fat-jar containing all the code is located; needed only with external clusters")
+  String getCodeJarPathname();
+
+  void setCodeJarPathname(String codeJarPathname);
+
   @Description("Local parallelism of Jet nodes")
   @Validation.Required
-  @Default.Integer(-1)
-  Integer getJetLocalParallelism();
-
-  void setJetLocalParallelism(Integer localParallelism);
-
-  @Description("Specifies if the Runner should start its own Jet cluster")
-  @Validation.Required
-  @Default.Boolean(true)
-  Boolean getJetStartOwnCluster();
-
-  void setJetStartOwnCluster(Boolean startOwnCluser);
-
-  @Description("Specifies how many cluster members should be started, if any")
-  @Validation.Required
   @Default.Integer(2)
-  Integer getJetClusterMemberCount();
+  Integer getJetDefaultParallelism();
 
-  void setJetClusterMemberCount(Integer clusterMemberCount);
+  void setJetDefaultParallelism(Integer localParallelism);
+
+  @Description("Number of locally started Jet Cluster Members")
+  @Validation.Required
+  @Default.Integer(0)
+  Integer getJetLocalMode();
+
+  void setJetLocalMode(Integer noOfLocalClusterMembers);
+
+  @Description("Weather Jet Processors for DoFns should use green threads or not")
+  @Validation.Required
+  @Default.Boolean(false)
+  Boolean getJetProcessorsCooperative();
+
+  void setJetProcessorsCooperative(Boolean cooperative);
 }

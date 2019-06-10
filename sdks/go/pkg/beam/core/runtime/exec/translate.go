@@ -38,8 +38,8 @@ import (
 
 // TODO(lostluck): 2018/05/28 Extract these from the canonical enums in beam_runner_api.proto
 const (
-	urnDataSource           = "urn:org.apache.beam:source:runner:0.1"
-	urnDataSink             = "urn:org.apache.beam:sink:runner:0.1"
+	urnDataSource           = "beam:source:runner:0.1"
+	urnDataSink             = "beam:sink:runner:0.1"
 	urnPerKeyCombinePre     = "beam:transform:combine_per_key_precombine:v1"
 	urnPerKeyCombineMerge   = "beam:transform:combine_per_key_merge_accumulators:v1"
 	urnPerKeyCombineExtract = "beam:transform:combine_per_key_extract_outputs:v1"
@@ -67,7 +67,8 @@ func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
 		u := &DataSource{UID: b.idgen.New()}
 
 		for key, pid := range transform.GetOutputs() {
-			u.SID = StreamID{Target: Target{ID: id, Name: key}, Port: port}
+			u.SID = StreamID{PtransformID: id, Port: port}
+			u.Name = key
 
 			u.Out, err = b.makePCollection(pid)
 			if err != nil {
@@ -396,13 +397,11 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					}
 
 					sid := StreamID{
-						Port: Port{URL: b.desc.GetStateApiServiceDescriptor().GetUrl()},
-						Target: Target{
-							ID:   id.to,                 // PTransformID
-							Name: fmt.Sprintf("i%v", i), // SideInputID (= local id, "iN")
-						},
+						Port:         Port{URL: b.desc.GetStateApiServiceDescriptor().GetUrl()},
+						PtransformID: id.to,
 					}
-					side := NewSideInputAdapter(sid, coder.NewW(ec, wc))
+					sideInputID := fmt.Sprintf("i%v", i) // SideInputID (= local id, "iN")
+					side := NewSideInputAdapter(sid, sideInputID, coder.NewW(ec, wc))
 					n.Side = append(n.Side, side)
 				}
 				u = n
@@ -502,8 +501,8 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 		sink := &DataSink{UID: b.idgen.New()}
 
-		for key, pid := range transform.GetInputs() {
-			sink.SID = StreamID{Target: Target{ID: id.to, Name: key}, Port: port}
+		for _, pid := range transform.GetInputs() {
+			sink.SID = StreamID{PtransformID: id.to, Port: port}
 
 			if cid == "" {
 				c, wc, err := b.makeCoderForPCollection(pid)

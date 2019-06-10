@@ -21,6 +21,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -511,7 +512,7 @@ public class PAssertTest implements Serializable {
             new MatcherCheckerFn(SerializableMatchers.contains(11)));
 
     String stacktrace = Throwables.getStackTraceAsString(res.assertionError());
-    assertEquals(false, res.isSuccess());
+    assertFalse(res.isSuccess());
     assertThat(stacktrace, containsString("PAssertionSite.capture"));
   }
 

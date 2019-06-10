@@ -39,19 +39,13 @@ import org.junit.Test;
 public class BeamFnDataGrpcMultiplexerTest {
   private static final Endpoints.ApiServiceDescriptor DESCRIPTOR =
       Endpoints.ApiServiceDescriptor.newBuilder().setUrl("test").build();
-  private static final LogicalEndpoint OUTPUT_LOCATION =
-      LogicalEndpoint.of(
-          "777L",
-          BeamFnApi.Target.newBuilder()
-              .setName("name")
-              .setPrimitiveTransformReference("888L")
-              .build());
+  private static final LogicalEndpoint OUTPUT_LOCATION = LogicalEndpoint.of("777L", "888L");
   private static final BeamFnApi.Elements ELEMENTS =
       BeamFnApi.Elements.newBuilder()
           .addData(
               BeamFnApi.Elements.Data.newBuilder()
                   .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
-                  .setTarget(OUTPUT_LOCATION.getTarget())
+                  .setPtransformId(OUTPUT_LOCATION.getPTransformId())
                   .setData(ByteString.copyFrom(new byte[1])))
           .build();
   private static final BeamFnApi.Elements TERMINAL_ELEMENTS =
@@ -59,7 +53,7 @@ public class BeamFnDataGrpcMultiplexerTest {
           .addData(
               BeamFnApi.Elements.Data.newBuilder()
                   .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
-                  .setTarget(OUTPUT_LOCATION.getTarget()))
+                  .setPtransformId(OUTPUT_LOCATION.getPTransformId()))
           .build();
 
   @Test

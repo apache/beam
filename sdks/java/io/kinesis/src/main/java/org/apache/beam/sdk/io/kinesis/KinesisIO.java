@@ -23,7 +23,6 @@ import com.amazonaws.regions.Regions;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
-import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import com.amazonaws.services.kinesis.producer.Attempt;
 import com.amazonaws.services.kinesis.producer.IKinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
@@ -581,6 +580,7 @@ public final class KinesisIO {
           getPartitionKey() == null || (getPartitioner() == null),
           "only one of either withPartitionKey() or withPartitioner() is possible");
       checkArgument(getAWSClientsProvider() != null, "withAWSClientsProvider() is required");
+
       input.apply(ParDo.of(new KinesisWriterFn(this)));
       return PDone.in(input.getPipeline());
     }
@@ -601,11 +601,6 @@ public final class KinesisIO {
 
       @Setup
       public void setup() throws Exception {
-        checkArgument(
-            streamExists(spec.getAWSClientsProvider().getKinesisClient(), spec.getStreamName()),
-            "Stream %s does not exist",
-            spec.getStreamName());
-
         // Init producer config
         Properties props = spec.getProducerProperties();
         if (props == null) {
@@ -770,17 +765,6 @@ public final class KinesisIO {
         }
       }
     }
-  }
-
-  private static boolean streamExists(AmazonKinesis client, String streamName) {
-    try {
-      DescribeStreamResult describeStreamResult = client.describeStream(streamName);
-      return (describeStreamResult != null
-          && describeStreamResult.getSdkHttpMetadata().getHttpStatusCode() == 200);
-    } catch (Exception e) {
-      LOG.warn("Error checking whether stream {} exists.", streamName, e);
-    }
-    return false;
   }
 
   /** An exception that puts information about the failed record. */

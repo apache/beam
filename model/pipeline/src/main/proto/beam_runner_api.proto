@@ -124,7 +124,7 @@ message PTransform {
   // For some special composite transforms, the payload is also officially
   // defined:
   //
-  //  - when the URN is "urn:beam:transforms:combine" it is a CombinePayload
+  //  - when the URN is "beam:transforms:combine" it is a CombinePayload
   //
   FunctionSpec spec = 1;
 
@@ -170,7 +170,7 @@ message StandardPTransforms {
     // Represents Beam's parallel do operation.
     // Payload: ParDoPayload.
     // TODO(BEAM-3595): Change this to beam:transform:pardo:v1.
-    PAR_DO = 0 [(beam_urn) = "urn:beam:transform:pardo:v1"];
+    PAR_DO = 0 [(beam_urn) = "beam:transform:pardo:v1"];
 
     // Represents Beam's flatten operation.
     // Payload: None.
@@ -189,7 +189,7 @@ message StandardPTransforms {
 
     // Represents the TestStream.
     // Payload: TestStreamPayload
-    TEST_STREAM = 5 [(beam_urn) = "urn:beam:transform:teststream:v1"];
+    TEST_STREAM = 5 [(beam_urn) = "beam:transform:teststream:v1"];
 
     // Represents mapping of main input window onto side input window.
     //
@@ -251,34 +251,29 @@ message StandardPTransforms {
   }
   // Payload for all of these: CombinePayload
   enum CombineComponents {
-    // TODO(BEAM-6199): Remove these old URNs.
-    COMBINE_PGBKCV = 0 [(beam_urn) = "beam:transform:combine_pgbkcv:v1"];
-    COMBINE_MERGE_ACCUMULATORS = 1 [(beam_urn) = "beam:transform:combine_merge_accumulators:v1"];
-    COMBINE_EXTRACT_OUTPUTS = 2 [(beam_urn) = "beam:transform:combine_extract_outputs:v1"];
-
     // Represents the Pre-Combine part of a lifted Combine Per Key, as described
     // in the following document:
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.ta0g6ase8z07
     // Payload: CombinePayload
-    COMBINE_PER_KEY_PRECOMBINE = 3 [(beam_urn) = "beam:transform:combine_per_key_precombine:v1"];
+    COMBINE_PER_KEY_PRECOMBINE = 0 [(beam_urn) = "beam:transform:combine_per_key_precombine:v1"];
 
     // Represents the Merge Accumulators part of a lifted Combine Per Key, as
     // described in the following document:
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.jco9rvatld5m
     // Payload: CombinePayload
-    COMBINE_PER_KEY_MERGE_ACCUMULATORS = 4 [(beam_urn) = "beam:transform:combine_per_key_merge_accumulators:v1"];
+    COMBINE_PER_KEY_MERGE_ACCUMULATORS = 1 [(beam_urn) = "beam:transform:combine_per_key_merge_accumulators:v1"];
 
     // Represents the Extract Outputs part of a lifted Combine Per Key, as
     // described in the following document:
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.i9i6p8gtl6ku
     // Payload: CombinePayload
-    COMBINE_PER_KEY_EXTRACT_OUTPUTS = 5 [(beam_urn) = "beam:transform:combine_per_key_extract_outputs:v1"];
+    COMBINE_PER_KEY_EXTRACT_OUTPUTS = 2 [(beam_urn) = "beam:transform:combine_per_key_extract_outputs:v1"];
 
     // Represents the Combine Grouped Values transform, as described in the
     // following document:
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.aj86ew4v1wk
     // Payload: CombinePayload
-    COMBINE_GROUPED_VALUES = 6 [(beam_urn) = "beam:transform:combine_grouped_values:v1"];
+    COMBINE_GROUPED_VALUES = 3 [(beam_urn) = "beam:transform:combine_grouped_values:v1"];
   }
   // Payload for all of these: ParDoPayload containing the user's SDF
   enum SplittableParDoComponents {
@@ -545,8 +540,8 @@ message Coder {
   // may be a cross-language agreed-upon format, or it may be a "custom coder"
   // that can only be used by a particular SDK. It does not include component
   // coders, as it is beneficial for these to be comprehensible to a runner
-  // regardless of whether the binary format is agree-upon.
-  SdkFunctionSpec spec = 1;
+  // regardless of whether the binary format is agreed-upon.
+  FunctionSpec spec = 1;
 
   // (Optional) If this coder is parametric, such as ListCoder(VarIntCoder),
   // this is a list of the components. In order for encodings to be identical,
@@ -1006,7 +1001,7 @@ message SideInput {
   // interface for accessing a side input.
   //
   // The only access pattern intended for Beam, because of its superior
-  // performance possibilities, is "urn:beam:sideinput:multimap" (or some such
+  // performance possibilities, is "beam:sideinput:multimap" (or some such
   // URN)
   FunctionSpec access_pattern = 1;
 
@@ -1126,12 +1121,12 @@ extend google.protobuf.EnumValueOptions {
 // one should bear in mind:
 //
 // 1. The runner understands the URN. For example, it might be
-//    a well-known URN like "urn:beam:transform:Top" or
-//    "urn:beam:windowfn:FixedWindows" with
+//    a well-known URN like "beam:transform:Top" or
+//    "beam:windowfn:FixedWindows" with
 //    an agreed-upon payload (e.g. a number or duration,
 //    respectively).
 // 2. The runner does not understand the URN. It might be an
-//    SDK specific URN such as "urn:beam:dofn:javasdk:1.0"
+//    SDK specific URN such as "beam:dofn:javasdk:1.0"
 //    that indicates to the SDK what the payload is,
 //    such as a serialized Java DoFn from a particular
 //    version of the Beam Java SDK. The payload will often

@@ -129,8 +129,7 @@ def generate_proto_files(force=False):
           'Error installing future during proto generation')
 
     ret_code = subprocess.call(
-        ["futurize", "--both-stages", "--write", "--verbose", "--no-diff",
-         out_dir])
+        ["futurize", "--both-stages", "--write", "--no-diff", out_dir])
     if ret_code:
       raise RuntimeError(
           'Error applying futurize to generated protobuf python files.')

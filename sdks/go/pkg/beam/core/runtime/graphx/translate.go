@@ -34,7 +34,7 @@ import (
 // TODO(lostluck): 2018/05/28 Extract these from their enum descriptors in the pipeline_v1 proto
 const (
 	URNImpulse       = "beam:transform:impulse:v1"
-	URNParDo         = "urn:beam:transform:pardo:v1"
+	URNParDo         = "beam:transform:pardo:v1"
 	URNFlatten       = "beam:transform:flatten:v1"
 	URNGBK           = "beam:transform:group_by_key:v1"
 	URNCombinePerKey = "beam:transform:combine_per_key:v1"
@@ -53,7 +53,7 @@ const (
 	// URNJavaDoFn is the legacy constant for marking a DoFn.
 	// TODO: remove URNJavaDoFN when the Dataflow runner
 	// uses the model pipeline and no longer falls back to Java.
-	URNJavaDoFn = "urn:beam:dofn:javasdk:0.1"
+	URNJavaDoFn = "beam:dofn:javasdk:0.1"
 	URNDoFn     = "beam:go:transform:dofn:v1"
 
 	URNIterableSideInputKey = "beam:go:transform:iterablesideinputkey:v1"
@@ -128,7 +128,7 @@ func (m *marshaller) addScopeTree(s *ScopeTree) string {
 
 	var subtransforms []string
 	for _, edge := range s.Edges {
-		subtransforms = append(subtransforms, m.addMultiEdge(edge))
+		subtransforms = append(subtransforms, m.addMultiEdge(edge)...)
 	}
 	for _, tree := range s.Children {
 		subtransforms = append(subtransforms, m.addScopeTree(tree))
@@ -173,14 +173,14 @@ func (m *marshaller) updateIfCombineComposite(s *ScopeTree, transform *pb.PTrans
 	transform.Spec = &pb.FunctionSpec{Urn: URNCombinePerKey, Payload: protox.MustEncode(payload)}
 }
 
-func (m *marshaller) addMultiEdge(edge NamedEdge) string {
+func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 	id := edgeID(edge.Edge)
 	if _, exists := m.transforms[id]; exists {
-		return id
+		return []string{id}
 	}
 
 	if edge.Edge.Op == graph.CoGBK && len(edge.Edge.Input) > 1 {
-		return m.expandCoGBK(edge)
+		return []string{m.expandCoGBK(edge)}
 	}
 
 	inputs := make(map[string]string)
@@ -194,6 +194,8 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) string {
 		outputs[fmt.Sprintf("i%v", i)] = nodeID(out.To)
 	}
 
+	// allPIds tracks additional PTransformIDs generated for the pipeline
+	var allPIds []string
 	var spec *pb.FunctionSpec
 	switch edge.Edge.Op {
 	case graph.Impulse:
@@ -238,6 +240,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) string {
 					Outputs: map[string]string{"i0": out},
 				}
 				m.transforms[keyedID] = keyed
+				allPIds = append(allPIds, keyedID)
 
 				// Fixup input map
 				inputs[fmt.Sprintf("i%v", i)] = out
@@ -320,7 +323,8 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) string {
 		Outputs:    outputs,
 	}
 	m.transforms[id] = transform
-	return id
+	allPIds = append(allPIds, id)
+	return allPIds
 }
 
 func (m *marshaller) expandCoGBK(edge NamedEdge) string {

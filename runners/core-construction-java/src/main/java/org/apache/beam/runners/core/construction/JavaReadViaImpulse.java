@@ -47,7 +47,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
  * transforms.
  */
 public class JavaReadViaImpulse {
-  private static final long DEFAULT_BUNDLE_SIZE = 64L << 20;
+  private static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024L;
 
   public static <T> PTransform<PBegin, PCollection<T>> bounded(BoundedSource<T> source) {
     return new BoundedReadViaImpulse<>(source);
@@ -77,7 +77,7 @@ public class JavaReadViaImpulse {
     public PCollection<T> expand(PBegin input) {
       return input
           .apply(Impulse.create())
-          .apply(ParDo.of(new SplitBoundedSourceFn<>(source, DEFAULT_BUNDLE_SIZE)))
+          .apply(ParDo.of(new SplitBoundedSourceFn<>(source, DEFAULT_BUNDLE_SIZE_BYTES)))
           .setCoder(new BoundedSourceCoder<>())
           .apply(Reshuffle.viaRandomKey())
           .apply(ParDo.of(new ReadFromBoundedSourceFn<>()))
@@ -132,11 +132,12 @@ public class JavaReadViaImpulse {
   @VisibleForTesting
   static class ReadFromBoundedSourceFn<T> extends DoFn<BoundedSource<T>, T> {
     @ProcessElement
-    public void readSoruce(ProcessContext ctxt) throws IOException {
-      BoundedSource.BoundedReader<T> reader =
-          ctxt.element().createReader(ctxt.getPipelineOptions());
-      for (boolean more = reader.start(); more; more = reader.advance()) {
-        ctxt.outputWithTimestamp(reader.getCurrent(), reader.getCurrentTimestamp());
+    public void readSource(ProcessContext ctxt) throws IOException {
+      try (BoundedSource.BoundedReader<T> reader =
+          ctxt.element().createReader(ctxt.getPipelineOptions())) {
+        for (boolean more = reader.start(); more; more = reader.advance()) {
+          ctxt.outputWithTimestamp(reader.getCurrent(), reader.getCurrentTimestamp());
+        }
       }
     }
   }

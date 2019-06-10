@@ -17,8 +17,10 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-archivesBaseName = 'beam-runners-google-cloud-dataflow-java-windmill'
-applyPortabilityNature(shadowJarValidationExcludes: ["org/apache/beam/runners/dataflow/worker/windmill/**"])
+applyPortabilityNature(
+    shadowJarValidationExcludes: ["org/apache/beam/runners/dataflow/worker/windmill/**"],
+    archivesBaseName: 'beam-runners-google-cloud-dataflow-java-windmill'
+)
 
 description = "Apache Beam :: Runners :: Google Cloud Dataflow Java :: Windmill"
 ext.summary = "Windmill proto specifications"

@@ -22,6 +22,10 @@ applyPythonNature()
 def runScriptsDir = "${project.rootDir}/sdks/python/scripts"
 
 task preCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+
+  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+
   doLast {
     // Basic integration tests to run in PreCommit
     def precommitTests = [
@@ -36,7 +40,8 @@ task preCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
     ]
     def cmdArgs = project.mapToArgString([
         "test_opts": testOpts,
-        "sdk_location": "${project.buildDir}/apache-beam.tar.gz"
+        "sdk_location": "${project.buildDir}/apache-beam.tar.gz",
+        "worker_jar": dataflowWorkerJar
     ])
 
     exec {

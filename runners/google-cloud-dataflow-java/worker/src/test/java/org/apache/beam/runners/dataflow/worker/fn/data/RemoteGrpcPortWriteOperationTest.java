@@ -31,7 +31,6 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
 import org.apache.beam.sdk.coders.Coder;
@@ -54,8 +53,7 @@ import org.mockito.MockitoAnnotations;
 public class RemoteGrpcPortWriteOperationTest {
   private static final Coder<WindowedValue<String>> CODER =
       WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
-  private static final BeamFnApi.Target TARGET =
-      BeamFnApi.Target.newBuilder().setPrimitiveTransformReference("1").setName("name").build();
+  private static final String TRANSFORM_ID = "1";
   private static final String BUNDLE_ID = "999";
   private static final String BUNDLE_ID_2 = "222";
 
@@ -69,7 +67,7 @@ public class RemoteGrpcPortWriteOperationTest {
     MockitoAnnotations.initMocks(this);
     operation =
         new RemoteGrpcPortWriteOperation<>(
-            beamFnDataService, TARGET, bundleIdSupplier, CODER, operationContext);
+            beamFnDataService, TRANSFORM_ID, bundleIdSupplier, CODER, operationContext);
   }
 
   @Test
@@ -84,7 +82,7 @@ public class RemoteGrpcPortWriteOperationTest {
         .thenReturn(recordingConsumer);
     when(bundleIdSupplier.getId()).thenReturn(BUNDLE_ID);
     operation.start();
-    verify(beamFnDataService).send(LogicalEndpoint.of(BUNDLE_ID, TARGET), CODER);
+    verify(beamFnDataService).send(LogicalEndpoint.of(BUNDLE_ID, TRANSFORM_ID), CODER);
     assertFalse(recordingConsumer.closed);
 
     operation.process(valueInGlobalWindow("ABC"));
@@ -106,7 +104,7 @@ public class RemoteGrpcPortWriteOperationTest {
     when(beamFnDataService.send(any(), Matchers.<Coder<WindowedValue<String>>>any()))
         .thenReturn(recordingConsumer);
     operation.start();
-    verify(beamFnDataService).send(LogicalEndpoint.of(BUNDLE_ID_2, TARGET), CODER);
+    verify(beamFnDataService).send(LogicalEndpoint.of(BUNDLE_ID_2, TRANSFORM_ID), CODER);
 
     verifyNoMoreInteractions(beamFnDataService);
   }
@@ -118,7 +116,7 @@ public class RemoteGrpcPortWriteOperationTest {
         .thenReturn(recordingConsumer);
     when(bundleIdSupplier.getId()).thenReturn(BUNDLE_ID);
     operation.start();
-    verify(beamFnDataService).send(LogicalEndpoint.of(BUNDLE_ID, TARGET), CODER);
+    verify(beamFnDataService).send(LogicalEndpoint.of(BUNDLE_ID, TRANSFORM_ID), CODER);
     assertFalse(recordingConsumer.closed);
 
     operation.process(valueInGlobalWindow("ABC"));
@@ -147,7 +145,7 @@ public class RemoteGrpcPortWriteOperationTest {
     operation =
         new RemoteGrpcPortWriteOperation<>(
             beamFnDataService,
-            TARGET,
+            TRANSFORM_ID,
             bundleIdSupplier,
             CODER,
             operationContext,

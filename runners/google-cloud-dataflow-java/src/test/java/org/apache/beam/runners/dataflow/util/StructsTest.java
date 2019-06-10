@@ -126,8 +126,8 @@ public class StructsTest {
   public void testGetBooleanParameter() throws Exception {
     Map<String, Object> o = makeCloudDictionary();
 
-    Assert.assertEquals(true, getBoolean(o, "singletonBooleanKey", false));
-    Assert.assertEquals(false, getBoolean(o, "missingKey", false));
+    Assert.assertTrue(getBoolean(o, "singletonBooleanKey", false));
+    Assert.assertFalse(getBoolean(o, "missingKey", false));
 
     try {
       getBoolean(o, "emptyKey", false);

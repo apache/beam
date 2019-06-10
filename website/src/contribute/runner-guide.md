@@ -863,12 +863,12 @@ message FunctionSpec {
 
 A `FunctionSpec` includes a URN identifying the function as well as an arbitrary
 fixed parameter. For example the (hypothetical) "max" CombineFn might have the
-URN `urn:beam:combinefn:max:0.1` and a parameter that indicates by what
+URN `beam:combinefn:max:0.1` and a parameter that indicates by what
 comparison to take the max.
 
 For most UDFs in a pipeline constructed using a particular language's SDK, the
 URN will indicate that the SDK must interpret it, for example
-`urn:beam:dofn:javasdk:0.1` or `urn:beam:dofn:pythonsdk:0.1`. The parameter
+`beam:dofn:javasdk:0.1` or `beam:dofn:pythonsdk:0.1`. The parameter
 will contain serialized code, such as a Java-serialized `DoFn` or a Python
 pickled `DoFn`.
 

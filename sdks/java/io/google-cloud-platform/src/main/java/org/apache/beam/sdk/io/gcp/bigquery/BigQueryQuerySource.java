@@ -17,20 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createTempTableReference;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-
-import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.TableReference;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
@@ -45,115 +35,44 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
 
   static <T> BigQueryQuerySource<T> create(
       String stepUuid,
-      ValueProvider<String> query,
-      Boolean flattenResults,
-      Boolean useLegacySql,
+      BigQueryQuerySourceDef queryDef,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<SchemaAndRecord, T> parseFn,
-      QueryPriority priority,
-      String location,
-      String kmsKey) {
-    return new BigQueryQuerySource<>(
-        stepUuid,
-        query,
-        flattenResults,
-        useLegacySql,
-        bqServices,
-        coder,
-        parseFn,
-        priority,
-        location,
-        kmsKey);
+      SerializableFunction<SchemaAndRecord, T> parseFn) {
+    return new BigQueryQuerySource<>(stepUuid, queryDef, bqServices, coder, parseFn);
   }
 
-  private final ValueProvider<String> query;
-  private final Boolean flattenResults;
-  private final Boolean useLegacySql;
-  private final QueryPriority priority;
-  private final String location;
-  private final String kmsKey;
-
-  private transient AtomicReference<JobStatistics> dryRunJobStats;
+  private final BigQueryQuerySourceDef queryDef;
 
   private BigQueryQuerySource(
       String stepUuid,
-      ValueProvider<String> query,
-      Boolean flattenResults,
-      Boolean useLegacySql,
+      BigQueryQuerySourceDef queryDef,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<SchemaAndRecord, T> parseFn,
-      QueryPriority priority,
-      String location,
-      String kmsKey) {
+      SerializableFunction<SchemaAndRecord, T> parseFn) {
     super(stepUuid, bqServices, coder, parseFn);
-    this.query = checkNotNull(query, "query");
-    this.flattenResults = checkNotNull(flattenResults, "flattenResults");
-    this.useLegacySql = checkNotNull(useLegacySql, "useLegacySql");
-    this.priority = priority;
-    this.location = location;
-    this.kmsKey = kmsKey;
-    dryRunJobStats = new AtomicReference<>();
-  }
-
-  /**
-   * Since the query helper reference is declared as transient, neither the AtomicReference nor the
-   * structure it refers to are persisted across serialization boundaries. The code below is
-   * resilient to the QueryHelper object disappearing in between method calls, but the reference
-   * object must be recreated at deserialization time.
-   */
-  private void readObject(ObjectInputStream in) throws ClassNotFoundException, IOException {
-    in.defaultReadObject();
-    dryRunJobStats = new AtomicReference<>();
+    this.queryDef = queryDef;
   }
 
   @Override
   public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
-    return BigQueryQueryHelper.dryRunQueryIfNeeded(
-            bqServices,
-            options.as(BigQueryOptions.class),
-            dryRunJobStats,
-            query.get(),
-            flattenResults,
-            useLegacySql,
-            location)
-        .getQuery()
-        .getTotalBytesProcessed();
+    return queryDef.getEstimatedSizeBytes(options.as(BigQueryOptions.class));
   }
 
   @Override
   protected TableReference getTableToExtract(BigQueryOptions bqOptions)
       throws IOException, InterruptedException {
-    return BigQueryQueryHelper.executeQuery(
-        bqServices,
-        bqOptions,
-        dryRunJobStats,
-        stepUuid,
-        query.get(),
-        flattenResults,
-        useLegacySql,
-        priority,
-        location,
-        kmsKey);
+    return queryDef.getTableReference(bqOptions, stepUuid);
   }
 
   @Override
   protected void cleanupTempResource(BigQueryOptions bqOptions) throws Exception {
-    TableReference tableToRemove =
-        createTempTableReference(
-            bqOptions.getProject(), createJobIdToken(bqOptions.getJobName(), stepUuid));
-
-    DatasetService tableService = bqServices.getDatasetService(bqOptions);
-    LOG.info("Deleting temporary table with query results {}", tableToRemove);
-    tableService.deleteTable(tableToRemove);
-    LOG.info("Deleting temporary dataset with query results {}", tableToRemove.getDatasetId());
-    tableService.deleteDataset(tableToRemove.getProjectId(), tableToRemove.getDatasetId());
+    queryDef.cleanupTempResource(bqOptions, stepUuid);
   }
 
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-    builder.add(DisplayData.item("query", query));
+    builder.add(DisplayData.item("query", queryDef.getQuery()));
   }
 }

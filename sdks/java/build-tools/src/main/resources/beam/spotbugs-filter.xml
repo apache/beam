@@ -411,4 +411,14 @@
     <Bug pattern="URF_UNREAD_FIELD"/>
     <!-- Fix build. -->
   </Match>
+
+  <Match>
+    <!--
+      This is a false positive. Spotbugs does not recognize the use of try-with-resources, so it thinks that
+      the connection is not correctly closed.
+    -->
+    <Class name="org.apache.beam.sdk.io.jdbc.JdbcIO$ReadFn"/>
+    <Method name="processElement"/>
+    <Bug pattern="OBL_UNSATISFIED_OBLIGATION"/>
+  </Match>
 </FindBugsFilter>

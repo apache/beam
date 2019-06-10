@@ -61,6 +61,7 @@ A Beam Runner runs a Beam pipeline on a specific (often distributed) data proces
 * [GearpumpRunner]({{ site.baseurl }}/documentation/runners/gearpump/): Runs on [Apache Gearpump (incubating)](http://gearpump.apache.org).
 * [SamzaRunner]({{ site.baseurl }}/documentation/runners/samza/): Runs on [Apache Samza](http://samza.apache.org).
 * [NemoRunner]({{ site.baseurl }}/documentation/runners/nemo/): Runs on [Apache Nemo](http://nemo.apache.org).
+* [JetRunner]({{ site.baseurl }}/documentation/runners/jet/): Runs on [Hazelcast Jet](https://jet.hazelcast.org/).
 
 ### Choosing a Runner
 
