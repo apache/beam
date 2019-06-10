@@ -253,7 +253,6 @@ class PipelineOptionsTest(unittest.TestCase):
     options = PipelineOptions(flags=[''])
     self.assertEqual(options.get_all_options()['experiments'], None)
 
-
   def test_worker_options(self):
     options = PipelineOptions(['--machine_type', 'abc', '--disk_type', 'def'])
     worker_options = options.view_as(WorkerOptions)
@@ -265,7 +264,6 @@ class PipelineOptionsTest(unittest.TestCase):
     worker_options = options.view_as(WorkerOptions)
     self.assertEqual(worker_options.machine_type, 'abc')
     self.assertEqual(worker_options.disk_type, 'def')
-
 
   def test_option_modifications_are_shared_between_views(self):
     pipeline_options = PipelineOptions([
