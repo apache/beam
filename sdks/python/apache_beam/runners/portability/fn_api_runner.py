@@ -173,6 +173,10 @@ class _GroupingBuffer(object):
         windowed_key_values = lambda key, values: [
             globally_window((key, values))]
       else:
+        # TODO(pabloem, BEAM-7514): Trigger driver needs access to the clock
+        #   note that this only comes through if windowing is default - but what
+        #   about having multiple firings on the global window.
+        #   May need to revise.
         trigger_driver = trigger.create_trigger_driver(self._windowing, True)
         windowed_key_values = trigger_driver.process_entire_key
       coder_impl = self._post_grouped_coder.get_impl()
@@ -291,7 +295,10 @@ class FnApiRunner(runner.PipelineRunner):
     return self._latest_run_result
 
   def run_via_runner_api(self, pipeline_proto):
-    return self.run_stages(*self.create_stages(pipeline_proto))
+    stage_context, stages = self.create_stages(pipeline_proto)
+    # TODO(pabloem, BEAM-7514): Create a watermark manager (that has access to
+    #   the teststream (if any), and all the stages).
+    return self.run_stages(stage_context, stages)
 
   @contextlib.contextmanager
   def maybe_profile(self):
@@ -353,7 +360,7 @@ class FnApiRunner(runner.PipelineRunner):
         use_state_iterables=self._use_state_iterables)
 
   def run_stages(self, stage_context, stages):
-    """Run all of the stages.
+    """Run a list of topologically-sorted stages in batch mode.
 
     Args:
       stage_context (fn_api_runner_transforms.TransformContext)
@@ -421,7 +428,6 @@ class FnApiRunner(runner.PipelineRunner):
       finally:
         controller.state.restore()
 
-======
   def _collect_written_timers_and_add_to_deferred_inputs(self,
                                                          context,
                                                          pipeline_components,
@@ -492,6 +498,46 @@ class FnApiRunner(runner.PipelineRunner):
                   coder_impl.encode_all(residual_elements))
         prev_stops[
             channel_split.ptransform_id] = channel_split.last_primary_element
+
+  @staticmethod
+  def _extract_stage_data_endpoints(
+      stage, pipeline_components, data_api_service_descriptor, pcoll_buffers):
+    # Returns maps of transform names to PCollection identifiers.
+    # Also mutates IO stages to point to the data ApiServiceDescriptor.
+    data_input = {}
+    data_side_input = {}
+    data_output = {}
+    for transform in stage.transforms:
+      if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
+                                bundle_processor.DATA_OUTPUT_URN):
+        pcoll_id = transform.spec.payload
+        if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
+          target = transform.unique_name, only_element(transform.outputs)
+          if pcoll_id == fn_api_runner_transforms.IMPULSE_BUFFER:
+            data_input[target] = [ENCODED_IMPULSE_VALUE]
+          else:
+            data_input[target] = pcoll_buffers[pcoll_id]
+          coder_id = pipeline_components.pcollections[
+              only_element(transform.outputs.values())].coder_id
+        elif transform.spec.urn == bundle_processor.DATA_OUTPUT_URN:
+          target = transform.unique_name, only_element(transform.inputs)
+          data_output[target] = pcoll_id
+          coder_id = pipeline_components.pcollections[
+              only_element(transform.inputs.values())].coder_id
+        else:
+          raise NotImplementedError
+        data_spec = beam_fn_api_pb2.RemoteGrpcPort(coder_id=coder_id)
+        if data_api_service_descriptor:
+          data_spec.api_service_descriptor.url = (
+              data_api_service_descriptor.url)
+        transform.spec.payload = data_spec.SerializeToString()
+      elif transform.spec.urn in fn_api_runner_transforms.PAR_DO_URNS:
+        payload = proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        for tag, si in payload.side_inputs.items():
+          data_side_input[transform.unique_name, tag] = (
+              create_buffer_id(transform.inputs[tag]), si.access_pattern)
+    return data_input, data_side_input, data_output
 
   def _run_stage(self,
                  worker_handler_factory,
