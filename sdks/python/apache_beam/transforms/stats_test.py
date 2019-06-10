@@ -21,6 +21,7 @@ from __future__ import division
 
 import math
 import random
+import sys
 import unittest
 from collections import defaultdict
 
@@ -151,6 +152,8 @@ class ApproximateUniqueTest(unittest.TestCase):
     assert beam.ApproximateUnique._get_sample_size_from_est_error(0.05) == 1600
     assert beam.ApproximateUnique._get_sample_size_from_est_error(0.01) == 40000
 
+  @unittest.skipIf(sys.version_info < (3, 0, 0),
+                   'Skip with py27 because hash function is not good enough.')
   def test_approximate_unique_global_by_sample_size(self):
     # test if estimation error with a given sample size is not greater than
     # expected max error (sample size = 50% of population).
@@ -211,6 +214,8 @@ class ApproximateUniqueTest(unittest.TestCase):
                 label='assert:global_by_sample_size_with_small_population')
     pipeline.run()
 
+  @unittest.skipIf(sys.version_info < (3, 0, 0),
+                   'Skip with py27 because hash function is not good enough.')
   def test_approximate_unique_global_by_error(self):
     # test if estimation error from input error is not greater than input error.
     est_err = 0.3
