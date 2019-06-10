@@ -66,7 +66,7 @@ or:
       "force_initial_num_bundles": 1}\'
     --runner=DirectRunner' \
 -PloadTest.mainClass=apache_beam.testing.load_tests.pardo_test \
--Prunner=DirectRunner :sdks:python:apache_beam:testing:load-tests:run
+-Prunner=DirectRunner :sdks:python:apache_beam:testing:load_tests:run
 
 
 To run test on other runner (ex. Dataflow):
@@ -110,7 +110,7 @@ or:
       "force_initial_num_bundles": 1}\'
     --runner=TestDataflowRunner' \
 -PloadTest.mainClass=apache_beam.testing.load_tests.pardo_test \
--Prunner=TestDataflowRunner :sdks:python:apache_beam:testing:load-tests:run
+-Prunner=TestDataflowRunner :sdks:python:apache_beam:testing:load_tests:run
 """
 
 from __future__ import absolute_import

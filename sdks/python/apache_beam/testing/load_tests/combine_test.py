@@ -64,7 +64,7 @@ or:
     --runner=DirectRunner
     --fanout=1' \
 -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
--Prunner=DirectRunner :sdks:python:apache_beam:testing:load-tests:run
+-Prunner=DirectRunner :sdks:python:apache_beam:testing:load_tests:run
 
 To run test on other runner (ex. Dataflow):
 
@@ -109,7 +109,7 @@ or:
 -PloadTest.mainClass=
 apache_beam.testing.load_tests.combine_test \
 -Prunner=
-TestDataflowRunner :sdks:python:apache_beam:testing:load-tests:run
+TestDataflowRunner :sdks:python:apache_beam:testing:load_tests:run
 """
 
 from __future__ import absolute_import
