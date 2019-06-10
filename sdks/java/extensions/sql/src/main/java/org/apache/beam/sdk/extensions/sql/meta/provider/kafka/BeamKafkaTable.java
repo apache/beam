@@ -53,6 +53,18 @@ public abstract class BeamKafkaTable extends BaseBeamTable {
     this.configUpdates = new HashMap<>();
   }
 
+  public BeamKafkaTable(
+      Schema beamSchema, List<TopicPartition> topicPartitions, String bootstrapServers) {
+    super(beamSchema);
+    this.bootstrapServers = bootstrapServers;
+    this.topicPartitions = topicPartitions;
+  }
+
+  public BeamKafkaTable updateConsumerProperties(Map<String, Object> configUpdates) {
+    this.configUpdates = configUpdates;
+    return this;
+  }
+
   @Override
   public PCollection.IsBounded isBounded() {
     return PCollection.IsBounded.UNBOUNDED;
