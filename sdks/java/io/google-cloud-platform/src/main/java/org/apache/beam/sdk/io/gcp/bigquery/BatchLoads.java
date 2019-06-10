@@ -250,9 +250,9 @@ class BatchLoads<DestinationT, ElementT>
     final PCollectionView<String> loadJobIdPrefixView = createLoadJobIdPrefixView(p);
     final PCollectionView<String> tempFilePrefixView =
         createTempFilePrefixView(p, loadJobIdPrefixView);
-    // The user-supplied triggeringDuration is often chosen to to control how many BigQuery load
+    // The user-supplied triggeringDuration is often chosen to control how many BigQuery load
     // jobs are generated, to prevent going over BigQuery's daily quota for load jobs. If this
-    // is set to a large value, currently we have to buffer all the data unti the trigger fires.
+    // is set to a large value, currently we have to buffer all the data until the trigger fires.
     // Instead we ensure that the files are written if a threshold number of records are ready.
     // We use only the user-supplied trigger on the actual BigQuery load. This allows us to
     // offload the data to the filesystem.
