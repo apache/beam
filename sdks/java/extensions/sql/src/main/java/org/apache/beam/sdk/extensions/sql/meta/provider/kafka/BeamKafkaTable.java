@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -53,6 +54,7 @@ public abstract class BeamKafkaTable extends BaseBeamTable {
     super(beamSchema);
     this.bootstrapServers = bootstrapServers;
     this.topics = topics;
+    this.configUpdates = new HashMap<>();
   }
 
   public BeamKafkaTable(
