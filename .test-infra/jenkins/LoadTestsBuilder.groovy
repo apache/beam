@@ -26,7 +26,7 @@ class LoadTestsBuilder {
 
     options.put('runner', runner.option)
 
-    String datasetKey = 'bigQueryDataset'
+    String datasetKey = getContextualDatasetKey(sdk)
     String datasetValue = options.get(datasetKey)
 
     if (datasetValue) {
@@ -68,6 +68,14 @@ class LoadTestsBuilder {
     } else {
       return baseName
     }
+  }
+
+  private static String getContextualDatasetKey(SDK sdk) {
+    String datasetKey = 'bigQueryDataset'
+    if (sdk == SDK.PYTHON) {
+      datasetKey = 'metrics_dataset'
+    }
+    return datasetKey
   }
 }
 
