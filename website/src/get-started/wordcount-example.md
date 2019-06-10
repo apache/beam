@@ -1267,7 +1267,12 @@ each element in the `PCollection`.
 ```
 
 ```py
-# This feature is not yet available in the Beam SDK for Python.
+import apache_beam as beam
+from apache_beam.transforms import window
+...
+...
+beam.Map(window.TimestampedValue(element, timestamp_seconds))
+...
 ```
 
 ```go
@@ -1308,7 +1313,14 @@ static class AddTimestampFn extends DoFn<String, String> {
 ```
 
 ```py
-# This feature is not yet available in the Beam SDK for Python.
+import apache_beam as beam
+from apache_beam.transforms import window
+...
+...
+class AddTimestampFn(beam.DoFn):
+
+  def process(self, element):
+    return window.TimestampedValue(element, timestamp_seconds)
 ```
 
 ```go
@@ -1344,7 +1356,11 @@ PCollection<String> windowedWords = input
 ```
 
 ```py
-# This feature is not yet available in the Beam SDK for Python.
+import apache_beam as beam
+from apache_beam.transforms import window
+...
+...
+windowed_words = input | beam.WindowInto(window.FixedWindows(60 * window_size_min))
 ```
 
 ```go
@@ -1362,7 +1378,11 @@ PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.Cou
 ```
 
 ```py
-# This feature is not yet available in the Beam SDK for Python.
+import apache_beam as beam
+from apache_beam.transforms import window
+...
+...
+word_counts = windowed_words | beam.Map(WordCount()) 
 ```
 
 ```go
