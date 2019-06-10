@@ -30,7 +30,6 @@ import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
-import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -102,7 +101,6 @@ public abstract class MapFnRunners {
         String pTransformId,
         PTransform pTransform,
         Supplier<String> processBundleInstructionId,
-        RehydratedComponents rehydratedComponents,
         Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
@@ -114,7 +112,7 @@ public abstract class MapFnRunners {
 
       FnDataReceiver<WindowedValue<InputT>> consumer =
           (FnDataReceiver)
-              pCollectionConsumerRegistry.getMultiplexingConsumer(
+              pCollectionConsumerRegistry.getConsumerFor(
                   getOnlyElement(pTransform.getOutputsMap().values()));
 
       Mapper<InputT, OutputT> mapper = mapperFactory.create(pTransformId, pTransform, consumer);

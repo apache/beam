@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
  */
 public class SimpleExecutionState extends ExecutionState {
   private long totalMillis = 0;
-  private HashMap<String, String> labelsMetadata;
+  private Map<String, String> labelsMetadata;
   private String urn;
 
   private static final Logger LOG = LoggerFactory.getLogger(SimpleExecutionState.class);
@@ -60,7 +60,7 @@ public class SimpleExecutionState extends ExecutionState {
    * @param labelsMetadata arbitrary metadata to use for reporting purposes.
    */
   public SimpleExecutionState(
-      String stateName, String urn, HashMap<String, String> labelsMetadata) {
+      String stateName, String urn, Map<String, String> labelsMetadata) {
     super(stateName);
     this.urn = urn;
     this.labelsMetadata = labelsMetadata;

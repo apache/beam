@@ -174,7 +174,6 @@ public class BoundedSourceRunnerTest {
             "pTransformId",
             pTransform,
             Suppliers.ofInstance("57L")::get,
-            rehydratedComponents,
             Collections.emptyMap(),
             Collections.emptyMap(),
             Collections.emptyMap(),
@@ -194,7 +193,7 @@ public class BoundedSourceRunnerTest {
     // Check that when passing a source along as an input, the source is processed.
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
     consumers
-        .getMultiplexingConsumer("inputPC")
+        .getConsumerFor("inputPC")
         .accept(valueInGlobalWindow(CountingSource.upTo(2)));
     assertThat(outputValues, contains(valueInGlobalWindow(0L), valueInGlobalWindow(1L)));
 

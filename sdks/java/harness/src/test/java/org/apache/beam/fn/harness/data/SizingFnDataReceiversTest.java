@@ -46,7 +46,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 /** Tests for {@link ElementCountFnDataReceiver}. */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(MetricsEnvironment.class)
-public class ElementCountFnDataReceiverTest {
+public class SizingFnDataReceiversTest {
   /**
    * Test that the elements are counted, and a MonitoringInfo can be extracted from a
    * metricsContainer, if it is in scope.
@@ -60,12 +60,10 @@ public class ElementCountFnDataReceiverTest {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
 
     FnDataReceiver<WindowedValue<String>> consumer = mock(FnDataReceiver.class);
-    PCollection<String> pColl = mock(PCollection.class);
     Coder<String> elementCoder = (Coder<String>) mock(Coder.class);
-    when(pColl.getCoder()).thenReturn(elementCoder);
 
-    ElementCountFnDataReceiver<String> wrapperConsumer =
-        new ElementCountFnDataReceiver(consumer, pCollectionA, metricsContainerRegistry, pColl);
+    FnDataReceiver<WindowedValue<String>> wrapperConsumer = SizingFnDataReceivers.forPCollection(
+            metricsContainerRegistry.getUnboundContainer(), pCollectionA, elementCoder, consumer);
     WindowedValue<String> element = WindowedValue.valueInGlobalWindow("elem");
     int numElements = 20;
     for (int i = 0; i < numElements; i++) {
@@ -103,12 +101,10 @@ public class ElementCountFnDataReceiverTest {
 
     FnDataReceiver<WindowedValue<String>> consumer =
         mock(FnDataReceiver.class, withSettings().verboseLogging());
-    PCollection<String> pColl = mock(PCollection.class);
     Coder<String> elementCoder = (Coder<String>) mock(Coder.class);
-    when(pColl.getCoder()).thenReturn(elementCoder);
 
-    ElementCountFnDataReceiver<String> wrapperConsumer =
-        new ElementCountFnDataReceiver(consumer, pCollectionA, metricsContainerRegistry, pColl);
+    FnDataReceiver<WindowedValue<String>> wrapperConsumer = SizingFnDataReceivers.forPCollection(
+            metricsContainerRegistry.getUnboundContainer(), pCollectionA, elementCoder, consumer);
     WindowedValue<String> element = WindowedValue.valueInGlobalWindow("elem");
     wrapperConsumer.accept(element);
 

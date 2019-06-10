@@ -95,7 +95,6 @@ public class MapFnRunnersTest {
             EXPECTED_ID,
             EXPECTED_PTRANSFORM,
             Suppliers.ofInstance("57L")::get,
-            rehydratedComponents,
             Collections.emptyMap(),
             Collections.emptyMap(),
             Collections.emptyMap(),
@@ -109,7 +108,7 @@ public class MapFnRunnersTest {
 
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
 
-    consumers.getMultiplexingConsumer("inputPC").accept(valueInGlobalWindow("abc"));
+    consumers.getConsumerFor("inputPC").accept(valueInGlobalWindow("abc"));
 
     assertThat(outputConsumer, contains(valueInGlobalWindow("ABC")));
   }
@@ -145,7 +144,6 @@ public class MapFnRunnersTest {
             EXPECTED_ID,
             EXPECTED_PTRANSFORM,
             Suppliers.ofInstance("57L")::get,
-            rehydratedComponents,
             Collections.emptyMap(),
             Collections.emptyMap(),
             Collections.emptyMap(),
@@ -159,7 +157,7 @@ public class MapFnRunnersTest {
 
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
 
-    consumers.getMultiplexingConsumer("inputPC").accept(valueInGlobalWindow("abc"));
+    consumers.getConsumerFor("inputPC").accept(valueInGlobalWindow("abc"));
 
     assertThat(outputConsumer, contains(valueInGlobalWindow("ABC")));
   }
@@ -196,7 +194,6 @@ public class MapFnRunnersTest {
             EXPECTED_ID,
             EXPECTED_PTRANSFORM,
             Suppliers.ofInstance("57L")::get,
-            rehydratedComponents,
             Collections.emptyMap(),
             Collections.emptyMap(),
             Collections.emptyMap(),
@@ -214,7 +211,7 @@ public class MapFnRunnersTest {
     IntervalWindow secondWindow =
         new IntervalWindow(new Instant(-10L), Duration.standardSeconds(22L));
     consumers
-        .getMultiplexingConsumer("inputPC")
+        .getConsumerFor("inputPC")
         .accept(
             WindowedValue.of(
                 "abc",

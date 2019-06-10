@@ -166,7 +166,6 @@ public class BeamFnDataReadRunnerTest {
             pTransformId,
             pTransform,
             Suppliers.ofInstance(bundleId)::get,
-            rehydratedComponents,
             ImmutableMap.of(
                 localOutputId,
                 RunnerApi.PCollection.newBuilder().setCoderId(ELEMENT_CODER_SPEC_ID).build()),
@@ -218,7 +217,6 @@ public class BeamFnDataReadRunnerTest {
             INPUT_TRANSFORM_ID,
             RemoteGrpcPortRead.readFromPort(PORT_SPEC, "localOutput").toPTransform(),
             bundleId::get,
-            CODER_SPEC,
             COMPONENTS.getCodersMap(),
             mockBeamFnDataClient,
             consumers);

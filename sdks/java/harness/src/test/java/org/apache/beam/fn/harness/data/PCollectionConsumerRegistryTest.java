@@ -75,7 +75,7 @@ public class PCollectionConsumerRegistryTest {
 
     FnDataReceiver<WindowedValue<String>> wrapperConsumer =
         (FnDataReceiver<WindowedValue<String>>)
-            (FnDataReceiver) consumers.getMultiplexingConsumer(pCollectionA);
+            (FnDataReceiver) consumers.getConsumerFor(pCollectionA);
 
     WindowedValue<String> element = WindowedValue.valueInGlobalWindow("elem");
     int numElements = 20;
@@ -109,7 +109,7 @@ public class PCollectionConsumerRegistryTest {
     FnDataReceiver<WindowedValue<String>> consumerA2 = mock(FnDataReceiver.class);
 
     consumers.register(pCollectionA, pTransformId, consumerA1);
-    consumers.getMultiplexingConsumer(pCollectionA);
+    consumers.getConsumerFor(pCollectionA);
 
     expectedException.expect(RuntimeException.class);
     expectedException.expectMessage("cannot be register()-d after");
@@ -140,7 +140,7 @@ public class PCollectionConsumerRegistryTest {
 
     FnDataReceiver<WindowedValue<String>> wrapperConsumer =
         (FnDataReceiver<WindowedValue<String>>)
-            (FnDataReceiver) consumers.getMultiplexingConsumer(pCollectionA);
+            (FnDataReceiver) consumers.getConsumerFor(pCollectionA);
 
     WindowedValue<String> element = WindowedValue.valueInGlobalWindow("elem");
     wrapperConsumer.accept(element);

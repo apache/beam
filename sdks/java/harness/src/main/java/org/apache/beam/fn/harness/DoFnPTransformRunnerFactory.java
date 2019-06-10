@@ -36,6 +36,7 @@ import org.apache.beam.runners.core.construction.PCollectionViewTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.Timer;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -91,7 +92,6 @@ abstract class DoFnPTransformRunnerFactory<
       String pTransformId,
       PTransform pTransform,
       Supplier<String> processBundleInstructionId,
-      RehydratedComponents rehydratedComponents,
       Map<String, PCollection> pCollections,
       Map<String, RunnerApi.Coder> coders,
       Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
@@ -107,7 +107,6 @@ abstract class DoFnPTransformRunnerFactory<
             pTransformId,
             pTransform,
             processBundleInstructionId,
-            rehydratedComponents,
             pCollections,
             coders,
             windowingStrategies,
@@ -181,7 +180,6 @@ abstract class DoFnPTransformRunnerFactory<
         String ptransformId,
         PTransform pTransform,
         Supplier<String> processBundleInstructionId,
-        RehydratedComponents rehydratedComponents,
         Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
@@ -193,10 +191,17 @@ abstract class DoFnPTransformRunnerFactory<
       this.ptransformId = ptransformId;
       this.pTransform = pTransform;
       this.processBundleInstructionId = processBundleInstructionId;
-      this.rehydratedComponents = rehydratedComponents;
       ImmutableMap.Builder<TupleTag<?>, SideInputSpec> tagToSideInputSpecMapBuilder =
           ImmutableMap.builder();
       try {
+        rehydratedComponents =
+                RehydratedComponents.forComponents(
+                        RunnerApi.Components.newBuilder()
+                                .putAllCoders(coders)
+                                .putAllPcollections(pCollections)
+                                .putAllWindowingStrategies(windowingStrategies)
+                                .build())
+                        .withPipeline(Pipeline.create());
         parDoPayload = ParDoPayload.parseFrom(pTransform.getSpec().getPayload());
         doFn = (DoFn) ParDoTranslation.getDoFn(parDoPayload);
         doFnSignature = DoFnSignatures.signatureForDoFn(doFn);
@@ -288,7 +293,7 @@ abstract class DoFnPTransformRunnerFactory<
           localNameToConsumerBuilder = ImmutableListMultimap.builder();
       for (Map.Entry<String, String> entry : pTransform.getOutputsMap().entrySet()) {
         localNameToConsumerBuilder.putAll(
-            entry.getKey(), pCollectionConsumerRegistry.getMultiplexingConsumer(entry.getValue()));
+            entry.getKey(), pCollectionConsumerRegistry.getConsumerFor(entry.getValue()));
       }
       localNameToConsumer = localNameToConsumerBuilder.build();
       tagToSideInputSpecMap = tagToSideInputSpecMapBuilder.build();

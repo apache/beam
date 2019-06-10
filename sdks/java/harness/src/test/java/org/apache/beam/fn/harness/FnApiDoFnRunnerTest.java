@@ -230,7 +230,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
             TEST_PTRANSFORM_ID,
             pTransform,
             Suppliers.ofInstance("57L")::get,
-            rehydratedComponents,
             pProto.getComponents().getPcollectionsMap(),
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),
@@ -247,7 +246,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     // Ensure that bag user state that is initially empty or populated works.
     // Ensure that the key order does not matter when we traverse over KV pairs.
     FnDataReceiver<WindowedValue<?>> mainInput =
-        consumers.getMultiplexingConsumer(inputPCollectionId);
+        consumers.getConsumerFor(inputPCollectionId);
     mainInput.accept(valueInGlobalWindow(KV.of("X", "X1")));
     mainInput.accept(valueInGlobalWindow(KV.of("Y", "Y1")));
     mainInput.accept(valueInGlobalWindow(KV.of("X", "X2")));
@@ -406,7 +405,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
             TEST_PTRANSFORM_ID,
             pTransform,
             Suppliers.ofInstance("57L")::get,
-            rehydratedComponents,
             pProto.getComponents().getPcollectionsMap(),
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),
@@ -425,7 +423,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     // Ensure that bag user state that is initially empty or populated works.
     // Ensure that the bagUserStateKey order does not matter when we traverse over KV pairs.
     FnDataReceiver<WindowedValue<?>> mainInput =
-        consumers.getMultiplexingConsumer(inputPCollectionId);
+        consumers.getConsumerFor(inputPCollectionId);
     mainInput.accept(valueInGlobalWindow("X"));
     mainInput.accept(valueInGlobalWindow("Y"));
     assertThat(
@@ -546,7 +544,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
             TEST_PTRANSFORM_ID,
             pTransform,
             Suppliers.ofInstance("57L")::get,
-            rehydratedComponents,
             pProto.getComponents().getPcollectionsMap(),
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),
@@ -563,7 +560,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     // Ensure that bag user state that is initially empty or populated works.
     // Ensure that the bagUserStateKey order does not matter when we traverse over KV pairs.
     FnDataReceiver<WindowedValue<?>> mainInput =
-        consumers.getMultiplexingConsumer(inputPCollectionId);
+        consumers.getConsumerFor(inputPCollectionId);
     mainInput.accept(valueInWindow("X", windowA));
     mainInput.accept(valueInWindow("Y", windowB));
     assertThat(mainOutputValues, hasSize(2));
@@ -659,7 +656,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
             TEST_PTRANSFORM_ID,
             pTransform,
             Suppliers.ofInstance("57L")::get,
-            rehydratedComponents,
             pProto.getComponents().getPcollectionsMap(),
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),
@@ -676,7 +672,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     // Ensure that bag user state that is initially empty or populated works.
     // Ensure that the bagUserStateKey order does not matter when we traverse over KV pairs.
     FnDataReceiver<WindowedValue<?>> mainInput =
-        consumers.getMultiplexingConsumer(inputPCollectionId);
+        consumers.getConsumerFor(inputPCollectionId);
     mainInput.accept(valueInWindow("X", windowA));
     mainInput.accept(valueInWindow("Y", windowB));
 
@@ -877,7 +873,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
             TEST_PTRANSFORM_ID,
             pTransform,
             Suppliers.ofInstance("57L")::get,
-            rehydratedComponents,
             pCollections,
             coders,
             windowingStrategies,
@@ -902,11 +897,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
     // Ensure that bag user state that is initially empty or populated works.
     // Ensure that the key order does not matter when we traverse over KV pairs.
     FnDataReceiver<WindowedValue<?>> mainInput =
-        consumers.getMultiplexingConsumer(inputPCollectionId);
+        consumers.getConsumerFor(inputPCollectionId);
     FnDataReceiver<WindowedValue<?>> eventTimerInput =
-        consumers.getMultiplexingConsumer(eventTimerInputPCollectionId);
+        consumers.getConsumerFor(eventTimerInputPCollectionId);
     FnDataReceiver<WindowedValue<?>> processingTimerInput =
-        consumers.getMultiplexingConsumer(processingTimerInputPCollectionId);
+        consumers.getConsumerFor(processingTimerInputPCollectionId);
     mainInput.accept(timestampedValueInGlobalWindow(KV.of("X", "X1"), new Instant(1000L)));
     mainInput.accept(timestampedValueInGlobalWindow(KV.of("Y", "Y1"), new Instant(1100L)));
     mainInput.accept(timestampedValueInGlobalWindow(KV.of("X", "X2"), new Instant(1200L)));

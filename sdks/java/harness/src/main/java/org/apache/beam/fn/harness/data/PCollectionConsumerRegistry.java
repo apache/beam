@@ -31,22 +31,24 @@ import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.runners.core.metrics.SimpleStateRegistry;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
 
 /**
  * The {@code PCollectionConsumerRegistry} is used to maintain a collection of consuming
  * FnDataReceiver for each pCollectionId. Registering with this class allows inserting an element
  * count counter for every pCollection. A combined MultiplexingConsumer (Wrapped with an
- * ElementCountFnDataReceiver) is returned by calling getMultiplexingConsumer.
+ * SizingFnDataReceivers) is returned by calling getConsumerFor.
  */
 public class PCollectionConsumerRegistry {
 
   private ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers;
-  private Map<String, ElementCountFnDataReceiver> pCollectionIdsToWrappedConsumer;
+  private Map<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToWrappedConsumer;
   private MetricsContainerStepMap metricsContainerRegistry;
   private ExecutionStateTracker stateTracker;
   private SimpleStateRegistry executionStates = new SimpleStateRegistry();
@@ -59,14 +61,14 @@ public class PCollectionConsumerRegistry {
     this.metricsContainerRegistry = metricsContainerRegistry;
     this.stateTracker = stateTracker;
     this.pCollectionIdsToConsumers = ArrayListMultimap.create();
-    this.pCollectionIdsToWrappedConsumer = new HashMap<String, ElementCountFnDataReceiver>();
+    this.pCollectionIdsToWrappedConsumer = new HashMap<>();
     this.rehydratedComponents = rehydratedComponents;
   }
 
   /**
    * Register the specified consumer to handle the elements in the pCollection associated with
    * pCollectionId. All consumers must be registered before extracting the combined consumer by
-   * calling getMultiplexingConsumer(), or an exception will be thrown.
+   * calling getConsumerFor(), or an exception will be thrown.
    *
    * <p>This will cause both Element Count and Process Bundle Execution time metrics to be
    * collected.
@@ -76,23 +78,22 @@ public class PCollectionConsumerRegistry {
    * @param consumer
    * @param <T> the element type of the PCollection
    * @throws RuntimeException if {@code register()} is called after {@code
-   *     getMultiplexingConsumer()} is called.
+   *     getConsumerFor()} is called.
    */
   public <T> void register(
       String pCollectionId, String pTransformId, FnDataReceiver<WindowedValue<T>> consumer) {
     // Just save these consumers for now, but package them up later with an
-    // ElementCountFnDataReceiver and possibly a MultiplexingFnDataReceiver
+    // SizingFnDataReceivers and possibly a MultiplexingFnDataReceiver
     // if there are multiple consumers.
-    ElementCountFnDataReceiver wrappedConsumer =
+    FnDataReceiver<WindowedValue<?>> wrappedConsumer =
         pCollectionIdsToWrappedConsumer.getOrDefault(pCollectionId, null);
     if (wrappedConsumer != null) {
       throw new RuntimeException(
           "New consumers for a pCollectionId cannot be register()-d after "
-              + "calling getMultiplexingConsumer.");
+              + "calling getConsumerFor().");
     }
 
-    HashMap<String, String> labelsMetadata = new HashMap<String, String>();
-    labelsMetadata.put(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId);
+    Map<String, String> labelsMetadata = ImmutableMap.of(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId);
     SimpleExecutionState state =
         new SimpleExecutionState(
             ExecutionStateTracker.PROCESS_STATE_NAME,
@@ -121,15 +122,15 @@ public class PCollectionConsumerRegistry {
   }
 
   /**
-   * New consumers should not be register()-ed after calling this method. This will cause a
+   * New receivers should not be register()-ed after calling this method for the given PCollection id. This will cause a
    * RuntimeException, as this would fail to properly wrap the late-added consumer to the
-   * ElementCountFnDataReceiver.
+   * SizingFnDataReceivers.
    *
-   * @return A single ElementCountFnDataReceiver which directly wraps all the registered consumers.
+   * @return A single SizingFnDataReceivers which directly wraps all the registered consumers.
    */
-  public FnDataReceiver<WindowedValue<?>> getMultiplexingConsumer(String pCollectionId)
+  public FnDataReceiver<WindowedValue<?>> getConsumerFor(String pCollectionId)
       throws IOException {
-    ElementCountFnDataReceiver wrappedConsumer =
+    FnDataReceiver<WindowedValue<?>> wrappedConsumer =
         pCollectionIdsToWrappedConsumer.getOrDefault(pCollectionId, null);
     if (wrappedConsumer == null) {
       List<FnDataReceiver<WindowedValue<?>>> consumers =
@@ -137,12 +138,11 @@ public class PCollectionConsumerRegistry {
       FnDataReceiver<WindowedValue<?>> consumer =
           MultiplexingFnDataReceiver.forConsumers(consumers);
 
-      wrappedConsumer =
-          new ElementCountFnDataReceiver(
-              consumer,
+      wrappedConsumer = SizingFnDataReceivers.forPCollection(
+              metricsContainerRegistry.getUnboundContainer(),
               pCollectionId,
-              metricsContainerRegistry,
-              this.rehydratedComponents.getPCollection(pCollectionId));
+              rehydratedComponents.getPCollection(pCollectionId).getCoder(),
+              (FnDataReceiver) consumer);
       pCollectionIdsToWrappedConsumer.put(pCollectionId, wrappedConsumer);
     }
     return wrappedConsumer;
@@ -151,13 +151,5 @@ public class PCollectionConsumerRegistry {
   /** @return Execution Time MonitoringInfos based on the tracked start or finish function. */
   public List<MonitoringInfo> getExecutionTimeMonitoringInfos() {
     return executionStates.getExecutionTimeMonitoringInfos();
-  }
-
-  /**
-   * @return the number of underlying consumers for a pCollectionId, some tests may wish to check
-   *     this.
-   */
-  public List<FnDataReceiver<WindowedValue<?>>> getUnderlyingConsumers(String pCollectionId) {
-    return pCollectionIdsToConsumers.get(pCollectionId);
   }
 }

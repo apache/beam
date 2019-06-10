@@ -195,7 +195,7 @@ public class AssignWindowsRunnerTest implements Serializable {
             null /* pipelineOptions */,
             null /* beamFnDataClient */,
             null /* beamFnStateClient */,
-            null /* pTransformId */,
+            "ptransformId",
             PTransform.newBuilder()
                 .putInputs("in", "input")
                 .putOutputs("out", "output")
@@ -210,7 +210,6 @@ public class AssignWindowsRunnerTest implements Serializable {
                                 .toByteString()))
                 .build(),
             null /* processBundleInstructionId */,
-            null /* pCollections */,
             null /* pCollections */,
             null /* coders */,
             null /* windowingStrategies */,
@@ -227,7 +226,7 @@ public class AssignWindowsRunnerTest implements Serializable {
                 new IntervalWindow(new Instant(-22L), Duration.standardMinutes(5L)),
                 new IntervalWindow(new Instant(-120000L), Duration.standardMinutes(3L))),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
-    pCollectionConsumerRegistry.getMultiplexingConsumer("input").accept(value);
+    pCollectionConsumerRegistry.getConsumerFor("input").accept(value);
     assertThat(
         outputs,
         containsInAnyOrder(

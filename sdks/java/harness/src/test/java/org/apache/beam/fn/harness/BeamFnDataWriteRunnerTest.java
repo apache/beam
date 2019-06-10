@@ -147,7 +147,6 @@ public class BeamFnDataWriteRunnerTest {
             TRANSFORM_ID,
             pTransform,
             Suppliers.ofInstance(bundleId)::get,
-            rehydratedComponents,
             ImmutableMap.of(
                 localInputId, RunnerApi.PCollection.newBuilder().setCoderId(ELEM_CODER_ID).build()),
             COMPONENTS.getCodersMap(),
@@ -189,7 +188,7 @@ public class BeamFnDataWriteRunnerTest {
             eq(WIRE_CODER));
 
     assertThat(consumers.keySet(), containsInAnyOrder(localInputId));
-    consumers.getMultiplexingConsumer(localInputId).accept(valueInGlobalWindow("TestValue"));
+    consumers.getConsumerFor(localInputId).accept(valueInGlobalWindow("TestValue"));
     assertThat(outputValues, contains(valueInGlobalWindow("TestValue")));
     outputValues.clear();
 
@@ -213,7 +212,6 @@ public class BeamFnDataWriteRunnerTest {
             TRANSFORM_ID,
             RemoteGrpcPortWrite.writeToPort("myWrite", PORT_SPEC).toPTransform(),
             bundleId::get,
-            WIRE_CODER_SPEC,
             COMPONENTS.getCodersMap(),
             mockBeamFnDataClient);
 

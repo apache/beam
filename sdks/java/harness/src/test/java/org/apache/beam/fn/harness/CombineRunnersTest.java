@@ -158,7 +158,6 @@ public class CombineRunnersTest {
             TEST_COMBINE_ID,
             pTransform,
             null,
-            rehydratedComponents,
             pProto.getComponents().getPcollectionsMap(),
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),
@@ -173,7 +172,7 @@ public class CombineRunnersTest {
     mainOutputValues.clear();
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
-    FnDataReceiver<WindowedValue<?>> input = consumers.getMultiplexingConsumer(inputPCollectionId);
+    FnDataReceiver<WindowedValue<?>> input = consumers.getConsumerFor(inputPCollectionId);
     input.accept(valueInGlobalWindow(KV.of("A", "1")));
     input.accept(valueInGlobalWindow(KV.of("A", "2")));
     input.accept(valueInGlobalWindow(KV.of("A", "6")));
@@ -240,7 +239,6 @@ public class CombineRunnersTest {
             TEST_COMBINE_ID,
             pTransform,
             null,
-            rehydratedComponents,
             Collections.emptyMap(),
             Collections.emptyMap(),
             Collections.emptyMap(),
@@ -256,7 +254,7 @@ public class CombineRunnersTest {
     mainOutputValues.clear();
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
-    FnDataReceiver<WindowedValue<?>> input = consumers.getMultiplexingConsumer(inputPCollectionId);
+    FnDataReceiver<WindowedValue<?>> input = consumers.getConsumerFor(inputPCollectionId);
     input.accept(valueInGlobalWindow(KV.of("A", Arrays.asList(1, 2, 6))));
     input.accept(valueInGlobalWindow(KV.of("B", Arrays.asList(2, 3))));
     input.accept(valueInGlobalWindow(KV.of("C", Arrays.asList(5, 2))));
@@ -310,7 +308,6 @@ public class CombineRunnersTest {
             TEST_COMBINE_ID,
             pTransform,
             null,
-            rehydratedComponents,
             Collections.emptyMap(),
             Collections.emptyMap(),
             Collections.emptyMap(),
@@ -326,7 +323,7 @@ public class CombineRunnersTest {
     mainOutputValues.clear();
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
-    FnDataReceiver<WindowedValue<?>> input = consumers.getMultiplexingConsumer(inputPCollectionId);
+    FnDataReceiver<WindowedValue<?>> input = consumers.getConsumerFor(inputPCollectionId);
     input.accept(valueInGlobalWindow(KV.of("A", 9)));
     input.accept(valueInGlobalWindow(KV.of("B", 5)));
     input.accept(valueInGlobalWindow(KV.of("C", 7)));
@@ -380,7 +377,6 @@ public class CombineRunnersTest {
             TEST_COMBINE_ID,
             pTransform,
             null,
-            rehydratedComponents,
             Collections.emptyMap(),
             Collections.emptyMap(),
             Collections.emptyMap(),
@@ -396,7 +392,7 @@ public class CombineRunnersTest {
     mainOutputValues.clear();
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
-    FnDataReceiver<WindowedValue<?>> input = consumers.getMultiplexingConsumer(inputPCollectionId);
+    FnDataReceiver<WindowedValue<?>> input = consumers.getConsumerFor(inputPCollectionId);
     input.accept(valueInGlobalWindow(KV.of("A", Arrays.asList("1", "2", "6"))));
     input.accept(valueInGlobalWindow(KV.of("B", Arrays.asList("2", "3"))));
     input.accept(valueInGlobalWindow(KV.of("C", Arrays.asList("5", "2"))));

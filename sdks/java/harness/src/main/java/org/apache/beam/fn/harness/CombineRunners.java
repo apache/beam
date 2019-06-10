@@ -119,7 +119,6 @@ public class CombineRunners {
         String pTransformId,
         PTransform pTransform,
         Supplier<String> processBundleInstructionId,
-        RehydratedComponents rehydratedComponents,
         Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
@@ -129,6 +128,12 @@ public class CombineRunners {
         BundleSplitListener splitListener)
         throws IOException {
       // Get objects needed to create the runner.
+      RehydratedComponents rehydratedComponents =
+              RehydratedComponents.forComponents(
+                      RunnerApi.Components.newBuilder()
+                              .putAllCoders(coders)
+                              .putAllWindowingStrategies(windowingStrategies)
+                              .build());
       String mainInputTag = Iterables.getOnlyElement(pTransform.getInputsMap().keySet());
       RunnerApi.PCollection mainInput = pCollections.get(pTransform.getInputsOrThrow(mainInputTag));
 
@@ -155,7 +160,7 @@ public class CombineRunners {
 
       FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>> consumer =
           (FnDataReceiver)
-              pCollectionConsumerRegistry.getMultiplexingConsumer(
+              pCollectionConsumerRegistry.getConsumerFor(
                   Iterables.getOnlyElement(pTransform.getOutputsMap().values()));
 
       PrecombineRunner<KeyT, InputT, AccumT> runner =
