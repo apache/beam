@@ -113,22 +113,12 @@ function configure_flink() {
   # NB: This assumes > 1 worker node.
   local num_taskmanagers="$(($num_workers - 1))"
 
-  # Determine the number of task slots per worker.
-  # TODO: Dataproc does not currently set the number of worker cores on the
-  # master node. However, the spark configuration sets the number of executors
-  # to be half the number of CPU cores per worker. We use this value to
-  # determine the number of worker cores. Fix this hack when
-  # yarn.nodemanager.resource.cpu-vcores is correctly populated.
-  local spark_executor_cores=$(\
-    grep 'spark\.executor\.cores' /etc/spark/conf/spark-defaults.conf \
-      | tail -n1 \
-      | cut -d'=' -f2)
+  local num_cores="$(grep -c processor /proc/cpuinfo)"
+  local flink_taskmanager_slots_default=$num_cores
 
   local slots="$(/usr/share/google/get_metadata_value \
     "attributes/${START_FLINK_YARN_SESSION_METADATA_KEY}" \
     || echo "${START_FLINK_YARN_SESSION_DEFAULT}")"
-
-  local flink_taskmanager_slots_default="$(($spark_executor_cores * 2))"
 
   # if provided, use user defined number of slots.
   local flink_taskmanager_slots="$(/usr/share/google/get_metadata_value \
