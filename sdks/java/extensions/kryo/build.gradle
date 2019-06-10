@@ -24,7 +24,7 @@ ext {
 
 applyJavaNature(
     exportJavadoc: false,
-    shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+    shadowClosure: {
     dependencies {
         include(dependency('com.esotericsoftware:.*'))
         include(dependency('org.ow2.asm:asm'))
