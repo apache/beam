@@ -46,6 +46,10 @@ public abstract class BeamKafkaTable extends BaseBeamTable {
   private List<TopicPartition> topicPartitions;
   private Map<String, Object> configUpdates;
 
+  protected BeamKafkaTable(Schema beamSchema) {
+    super(beamSchema);
+  }
+
   public BeamKafkaTable(Schema beamSchema, String bootstrapServers, List<String> topics) {
     super(beamSchema);
     this.bootstrapServers = bootstrapServers;
