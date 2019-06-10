@@ -594,14 +594,13 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
 
   def test_index_assignment(self):
     class IndexAssigningStatefulDoFn(DoFn):
-      INDEX_STATE = BagStateSpec('index', VarIntCoder())
+      INDEX_STATE = CombiningValueStateSpec('index', sum)
 
       def process(self, element, state=DoFn.StateParam(INDEX_STATE)):
         unused_key, value = element
-        next_index, = list(state.read()) or [0]
-        yield (value, next_index)
-        state.clear()
-        state.add(next_index + 1)
+        current_index = state.read()
+        yield (value, current_index)
+        state.add(1)
 
     with TestPipeline() as p:
       test_stream = (TestStream()
