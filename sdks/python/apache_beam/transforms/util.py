@@ -32,6 +32,7 @@ from builtins import zip
 from future.utils import itervalues
 
 from apache_beam import typehints
+from apache_beam import coders
 from apache_beam.metrics import Metrics
 from apache_beam.portability import common_urns
 from apache_beam.transforms import window
@@ -52,6 +53,8 @@ from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
+from apache_beam.transforms.userstate import BagStateSpec, CombiningValueStateSpec
+from apache_beam.transforms.combiners import TopCombineFn
 
 __all__ = [
     'BatchElements',
@@ -666,3 +669,33 @@ def WithKeys(pcoll, k):
   if callable(k):
     return pcoll | Map(lambda v: (k(v), v))
   return pcoll | Map(lambda v: (k, v))
+
+
+class GroupIntoBatches(PTransform):
+  def __init__(self, batch_size):
+    super(GroupIntoBatches, self).__init__()
+    self.batch_size = batch_size
+
+  @staticmethod
+  def of_size(batch_size):
+    return GroupIntoBatches(batch_size)
+  
+  def expand(self, pcoll):
+    input_coder = coders.registry.get_coder(pcoll)
+    if not input_coder.is_kv_coder():
+          raise ValueError(
+            'coder specified in the input PCollection is not a KvCoder')
+    key_coder = input_coder.key_coder()
+    value_coder = input_coder.value_coder()
+
+    return pcoll | ParDo(_GroupIntoBatchesDoFn(self.batch_size, key_coder, value_coder))
+
+
+class _GroupIntoBatchesDoFn(DoFn):
+    def __init__(self, batch_size, input_key_coder, input_value_coder):
+      self.batch_size = batch_size
+      self.batch_spec = BagStateSpec("GroupIntoBatches", input_value_coder)
+    
+    def process(self, element):
+      print element
+        

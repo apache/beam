@@ -432,6 +432,13 @@ class WithKeysTest(unittest.TestCase):
     assert_that(with_keys, equal_to([(1, 1), (4, 2), (9, 3)]))
 
 
+class GroupIntoBatches(unittest.TestCase):
+
+  def test_group_into_batches(self):
+    with TestPipeline() as p:
+      pc = p | beam.Create([("A", "B"), ("X", "Y")]) | util.GroupIntoBatches(15)
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
