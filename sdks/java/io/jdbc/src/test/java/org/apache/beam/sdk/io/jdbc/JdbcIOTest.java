@@ -308,6 +308,39 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
+  public void testReadWithSchema() {
+    SerializableFunction<Void, DataSource> dataSourceProvider = ignored -> dataSource;
+    JdbcIO.RowMapper<RowWithSchema> rowMapper =
+        rs -> new RowWithSchema(rs.getString("NAME"), rs.getInt("ID"));
+    pipeline.getSchemaRegistry().registerJavaBean(RowWithSchema.class);
+
+    PCollection<RowWithSchema> rows =
+        pipeline.apply(
+            JdbcIO.<RowWithSchema>read()
+                .withDataSourceProviderFn(dataSourceProvider)
+                .withQuery(String.format("select name,id from %s where name = ?", readTableName))
+                .withRowMapper(rowMapper)
+                .withCoder(SerializableCoder.of(RowWithSchema.class))
+                .withStatementPreparator(
+                    preparedStatement ->
+                        preparedStatement.setString(1, TestRow.getNameForSeed(1))));
+
+    Schema expectedSchema =
+        Schema.of(
+            Schema.Field.of("name", Schema.FieldType.STRING),
+            Schema.Field.of("id", Schema.FieldType.INT32));
+
+    assertEquals(expectedSchema, rows.getSchema());
+
+    PCollection<Row> output = rows.apply(Select.fieldNames("name", "id"));
+    PAssert.that(output)
+        .containsInAnyOrder(
+            ImmutableList.of(Row.withSchema(expectedSchema).addValues("Testval1", 1).build()));
+
+    pipeline.run();
+  }
+
+  @Test
   public void testWrite() throws Exception {
     final long rowsToAdd = 1000L;
 

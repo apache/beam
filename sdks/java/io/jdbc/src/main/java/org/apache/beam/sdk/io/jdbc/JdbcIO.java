@@ -35,7 +35,9 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
@@ -57,6 +59,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.commons.dbcp2.DataSourceConnectionFactory;
 import org.apache.commons.dbcp2.PoolableConnectionFactory;
@@ -798,6 +801,16 @@ public class JdbcIO {
 
       if (getOutputParallelization()) {
         output = output.apply(new Reparallelize<>());
+      }
+
+      try {
+        TypeDescriptor<OutputT> typeDesc = getCoder().getEncodedTypeDescriptor();
+        SchemaRegistry registry = input.getPipeline().getSchemaRegistry();
+        Schema schema = registry.getSchema(typeDesc);
+        output.setSchema(
+            schema, registry.getToRowFunction(typeDesc), registry.getFromRowFunction(typeDesc));
+      } catch (NoSuchSchemaException e) {
+        // ignore
       }
 
       return output;
