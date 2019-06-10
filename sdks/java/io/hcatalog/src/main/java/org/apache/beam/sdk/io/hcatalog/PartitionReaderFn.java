@@ -1,0 +1,82 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.sdk.io.hcatalog;
+
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import org.apache.beam.sdk.io.hcatalog.HCatalogIO.Read;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.hadoop.hive.metastore.api.Partition;
+import org.apache.hive.hcatalog.common.HCatConstants;
+import org.apache.hive.hcatalog.common.HCatException;
+import org.apache.hive.hcatalog.data.HCatRecord;
+import org.apache.hive.hcatalog.data.transfer.DataTransferFactory;
+import org.apache.hive.hcatalog.data.transfer.HCatReader;
+import org.apache.hive.hcatalog.data.transfer.ReadEntity;
+import org.apache.hive.hcatalog.data.transfer.ReaderContext;
+
+/** Reads a split of a partition. */
+class PartitionReaderFn extends DoFn<KV<Read, Integer>, HCatRecord> {
+  private ReaderContext getReaderContext(Read readRequest, long desiredSplitCount)
+      throws HCatException {
+    final Partition partition = readRequest.getPartitionToRead();
+    final List<String> values = partition.getValues();
+    final ImmutableList<String> partitionCols = readRequest.getPartitionCols();
+    checkArgument(
+        values.size() == partitionCols.size(),
+        "Number of input partitions should be equal to the values of list partition values.");
+
+    List<String> filter = new ArrayList<>();
+    for (int i = 0; i < partitionCols.size(); i++) {
+      filter.add(partitionCols.get(i) + "=" + "'" + values.get(i) + "'");
+    }
+    final String filterString = String.join(" and ", filter);
+
+    ReadEntity entity =
+        new ReadEntity.Builder()
+            .withDatabase(readRequest.getDatabase())
+            .withFilter(filterString)
+            .withTable(readRequest.getTable())
+            .build();
+    // pass the 'desired' split count as an hint to the API
+    Map<String, String> configProps = new HashMap<>(readRequest.getConfigProperties());
+    configProps.put(
+        HCatConstants.HCAT_DESIRED_PARTITION_NUM_SPLITS, String.valueOf(desiredSplitCount));
+    return DataTransferFactory.getHCatReader(entity, configProps).prepareRead();
+  }
+
+  @ProcessElement
+  @SuppressWarnings("unused")
+  public void processElement(ProcessContext c) throws Exception {
+    ReaderContext readerContext =
+        getReaderContext(c.element().getKey(), HCatalogUtils.getSplitCount(c.element().getKey()));
+    HCatReader reader = DataTransferFactory.getHCatReader(readerContext, c.element().getValue());
+    Iterator<HCatRecord> hcatIterator = reader.read();
+    while (hcatIterator.hasNext()) {
+      final HCatRecord record = hcatIterator.next();
+      c.output(record);
+    }
+  }
+}

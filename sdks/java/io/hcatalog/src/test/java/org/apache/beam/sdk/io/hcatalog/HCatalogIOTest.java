@@ -56,19 +56,15 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableComparator;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
-import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.ql.CommandNeedRetryException;
 import org.apache.hive.hcatalog.data.DefaultHCatRecord;
 import org.apache.hive.hcatalog.data.HCatRecord;
 import org.apache.hive.hcatalog.data.transfer.ReaderContext;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -205,21 +201,17 @@ public class HCatalogIOTest implements Serializable {
                 .withPartition(getPartitions())
                 .withBatchSize(512L));
     defaultPipeline.run();
-
     final ImmutableList<String> partitions = ImmutableList.of("load_date", "product_type");
     final PCollection<HCatRecord> data =
         readAfterWritePipeline
             .apply(
                 "ReadData",
-                HCatalogIO.unbounded()
+                HCatalogIO.read()
                     .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
                     .withDatabase(TEST_DATABASE)
-                    .withTable(TEST_TABLE)
-                    .withWatermarkPartitionColumn("load_date")
-                    .withPollingInterval(Duration.millis(15000))
                     .withPartitionCols(partitions)
-                    .withPartitionComparator(new PartitionCreateTimeComparator())
-                    .withWatermarkTimestampConverter(new WatermarkTimestampConverter()))
+                    .withTable(TEST_TABLE)
+                    .withPollingInterval(Duration.millis(15000)))
             .setCoder((Coder) WritableCoder.of(DefaultHCatRecord.class));
 
     final PCollection<String> output =
@@ -234,27 +226,6 @@ public class HCatalogIOTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder(getExpectedRecords(TEST_RECORDS_COUNT));
     readAfterWritePipeline.run();
-  }
-
-  private static class PartitionCreateTimeComparator implements SerializableComparator<Partition> {
-    @Override
-    public int compare(Partition o1, Partition o2) {
-      if (o1.getCreateTime() > o2.getCreateTime()) {
-        return -1;
-      } else if (o1.getCreateTime() < o2.getCreateTime()) {
-        return 1;
-      }
-      return 0;
-    }
-  }
-
-  private static class WatermarkTimestampConverter
-      implements SerializableFunction<String, Instant> {
-
-    @Override
-    public Instant apply(String input) {
-      return Instant.parse(input);
-    }
   }
 
   /** Test of Write to a non-existent table. */
