@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.flink;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -38,7 +37,7 @@ public class FlinkJobInvoker implements JobInvoker {
 
   public static FlinkJobInvoker create(
       ListeningExecutorService executorService, String flinkMasterUrl) {
-    return new FlinkJobInvoker(executorService, firstNonNull(flinkMasterUrl, "[auto]"));
+    return new FlinkJobInvoker(executorService, flinkMasterUrl);
   }
 
   private final ListeningExecutorService executorService;
@@ -62,7 +61,7 @@ public class FlinkJobInvoker implements JobInvoker {
         String.format("%s_%s", flinkOptions.getJobName(), UUID.randomUUID().toString());
     LOG.info("Invoking job {}", invocationId);
 
-    flinkOptions.setFlinkMaster(firstNonNull(flinkOptions.getFlinkMaster(), flinkMasterUrl));
+    flinkOptions.setFlinkMaster(flinkMasterUrl);
 
     flinkOptions.setRunner(null);
 

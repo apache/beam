@@ -46,7 +46,7 @@ configurations {
   validatesRunner
 }
 
-def flink_version = "1.5.2"
+def flink_version = "1.5.6"
 
 dependencies {
   compile library.java.guava

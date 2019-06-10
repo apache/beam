@@ -17,6 +17,13 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.fail;
+
+import com.google.common.base.Charsets;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.io.Serializable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -60,5 +67,42 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
     flinkEnv.translate(pipeline);
 
     // no exception should be thrown
+  }
+
+  @Test
+  public void shouldLogWarningWhenCheckpointingIsDisabled() {
+    Pipeline pipeline = Pipeline.create();
+    pipeline.getOptions().setRunner(TestFlinkRunner.class);
+
+    pipeline
+        // Add an UnboundedSource to check for the warning if checkpointing is disabled
+        .apply(GenerateSequence.from(0))
+        .apply(
+            ParDo.of(
+                new DoFn<Long, Void>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext ctx) {
+                    throw new RuntimeException("Failing here is ok.");
+                  }
+                }));
+
+    final PrintStream oldErr = System.err;
+    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+    PrintStream replacementStdErr = new PrintStream(byteArrayOutputStream);
+    try {
+      System.setErr(replacementStdErr);
+      // Run pipeline and fail during execution
+      pipeline.run();
+      fail("Should have failed");
+    } catch (Exception e) {
+      // We want to fail here
+    } finally {
+      System.setErr(oldErr);
+    }
+    replacementStdErr.flush();
+    assertThat(
+        new String(byteArrayOutputStream.toByteArray(), Charsets.UTF_8),
+        containsString(
+            "UnboundedSources present which rely on checkpointing, but checkpointing is disabled."));
   }
 }

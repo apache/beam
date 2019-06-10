@@ -21,6 +21,7 @@ import com.google.common.base.Joiner;
 import java.io.File;
 import java.io.Serializable;
 import java.util.Arrays;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.FlinkTestPipeline;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
@@ -82,6 +83,7 @@ public class GroupByNullKeyTest extends StreamingProgramTestBase implements Seri
   protected void testProgram() throws Exception {
 
     Pipeline p = FlinkTestPipeline.createForStreaming();
+    p.getOptions().as(FlinkPipelineOptions.class).setParallelism(1);
 
     PCollection<String> output =
         p.apply(

@@ -17,6 +17,10 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.Is.is;
+import static org.hamcrest.core.IsNull.nullValue;
+
 import java.util.Collections;
 import java.util.HashMap;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
@@ -36,6 +40,7 @@ import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.joda.time.Instant;
@@ -58,6 +63,27 @@ public class PipelineOptionsTest {
 
   private static MyOptions options =
       PipelineOptionsFactory.fromArgs("--testOption=nothing").as(MyOptions.class);
+
+  /** These defaults should only be changed with a very good reason. */
+  @Test
+  public void testDefaults() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    assertThat(options.getParallelism(), is(-1));
+    assertThat(options.getFlinkMaster(), is("[auto]"));
+    assertThat(options.getFilesToStage(), is(nullValue()));
+    assertThat(options.getLatencyTrackingInterval(), is(0L));
+    assertThat(options.isShutdownSourcesOnFinalWatermark(), is(false));
+    assertThat(options.getObjectReuse(), is(false));
+    assertThat(options.getCheckpointingMode(), is(CheckpointingMode.EXACTLY_ONCE));
+    assertThat(options.getCheckpointingInterval(), is(-1L));
+    assertThat(options.getCheckpointTimeoutMillis(), is(-1L));
+    assertThat(options.getNumberOfExecutionRetries(), is(-1));
+    assertThat(options.getExecutionRetryDelay(), is(-1L));
+    assertThat(options.getRetainExternalizedCheckpointsOnCancellation(), is(false));
+    assertThat(options.getStateBackend(), is(nullValue()));
+    assertThat(options.getMaxBundleSize(), is(1000L));
+    assertThat(options.getMaxBundleTimeMills(), is(1000L));
+  }
 
   @Test(expected = Exception.class)
   public void parDoBaseClassPipelineOptionsNullTest() {

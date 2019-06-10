@@ -17,12 +17,14 @@
  */
 package org.apache.beam.runners.flink;
 
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +36,8 @@ class PipelineTranslationOptimizer extends FlinkPipelineTranslator {
   private TranslationMode translationMode;
 
   private final FlinkPipelineOptions options;
+  private boolean hasRun;
+  private boolean hasUnboundedSources;
 
   public PipelineTranslationOptimizer(TranslationMode defaultMode, FlinkPipelineOptions options) {
     this.translationMode = defaultMode;
@@ -51,6 +55,12 @@ class PipelineTranslationOptimizer extends FlinkPipelineTranslator {
   }
 
   @Override
+  public void translate(Pipeline pipeline) {
+    super.translate(pipeline);
+    hasRun = true;
+  }
+
+  @Override
   public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
     return CompositeBehavior.ENTER_TRANSFORM;
   }
@@ -65,6 +75,7 @@ class PipelineTranslationOptimizer extends FlinkPipelineTranslator {
       Class<? extends PTransform> transformClass = node.getTransform().getClass();
       LOG.info("Found {}. Switching to streaming execution.", transformClass);
       translationMode = TranslationMode.STREAMING;
+      hasUnboundedSources = true;
     }
   }
 
@@ -80,4 +91,9 @@ class PipelineTranslationOptimizer extends FlinkPipelineTranslator {
 
   @Override
   public void visitValue(PValue value, TransformHierarchy.Node producer) {}
+
+  boolean hasUnboundedSources() {
+    Preconditions.checkState(hasRun, "%s has not run yet.", getClass().getSimpleName());
+    return hasUnboundedSources;
+  }
 }
