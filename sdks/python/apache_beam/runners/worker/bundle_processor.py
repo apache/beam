@@ -184,6 +184,15 @@ class DataInputOperation(RunnerIOOperation):
         self.stop = stop_index
         return self.stop - 1, None, None, self.stop
 
+  def progress_metrics(self):
+    with self.splitting_lock:
+      metrics = super(DataInputOperation, self).progress_metrics()
+      current_element_progress = self.receivers[0].current_element_progress()
+    if current_element_progress:
+      metrics.active_elements.fraction_remaining = (
+          current_element_progress.fraction_remaining)
+    return metrics
+
   def finish(self):
     with self.splitting_lock:
       self.started = False
