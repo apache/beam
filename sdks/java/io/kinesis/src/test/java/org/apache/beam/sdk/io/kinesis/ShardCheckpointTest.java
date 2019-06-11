@@ -23,7 +23,6 @@ import static com.amazonaws.services.kinesis.model.ShardIteratorType.AFTER_SEQUE
 import static com.amazonaws.services.kinesis.model.ShardIteratorType.AT_SEQUENCE_NUMBER;
 import static com.amazonaws.services.kinesis.model.ShardIteratorType.AT_TIMESTAMP;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isNull;
@@ -141,7 +140,7 @@ public class ShardCheckpointTest {
 
   private KinesisRecord recordWith(ExtendedSequenceNumber extendedSequenceNumber) {
     KinesisRecord record = mock(KinesisRecord.class);
-    given(record.getExtendedSequenceNumber()).willReturn(extendedSequenceNumber);
+    when(record.getExtendedSequenceNumber()).thenReturn(extendedSequenceNumber);
     return record;
   }
 
@@ -153,7 +152,7 @@ public class ShardCheckpointTest {
 
   private KinesisRecord recordWith(Instant approximateArrivalTimestamp) {
     KinesisRecord record = mock(KinesisRecord.class);
-    given(record.getApproximateArrivalTimestamp()).willReturn(approximateArrivalTimestamp);
+    when(record.getApproximateArrivalTimestamp()).thenReturn(approximateArrivalTimestamp);
     return record;
   }
 

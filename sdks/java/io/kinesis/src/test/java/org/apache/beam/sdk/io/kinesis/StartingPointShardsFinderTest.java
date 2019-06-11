@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io.kinesis;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
@@ -89,7 +89,7 @@ public class StartingPointShardsFinderTest {
     for (Shard shard : allShards) {
       activeAtTimestamp(shard, timestampAtTheBeginning);
     }
-    given(kinesis.listShards(STREAM_NAME)).willReturn(allShards);
+    when(kinesis.listShards(STREAM_NAME)).thenReturn(allShards);
 
     // when
     Iterable<Shard> shardsAtStartingPoint =
@@ -118,7 +118,7 @@ public class StartingPointShardsFinderTest {
     activeAtTimestamp(shard09, timestampAfterShards3And4Merge);
     activeAtTimestamp(shard10, timestampAfterShards3And4Merge);
 
-    given(kinesis.listShards(STREAM_NAME)).willReturn(allShards);
+    when(kinesis.listShards(STREAM_NAME)).thenReturn(allShards);
 
     // when
     Iterable<Shard> shardsAtStartingPoint =
@@ -147,7 +147,7 @@ public class StartingPointShardsFinderTest {
     activeAtTimestamp(shard09, timestampAtTheEnd);
     activeAtTimestamp(shard10, timestampAtTheEnd);
 
-    given(kinesis.listShards(STREAM_NAME)).willReturn(allShards);
+    when(kinesis.listShards(STREAM_NAME)).thenReturn(allShards);
 
     // when
     Iterable<Shard> shardsAtStartingPoint =
@@ -161,7 +161,7 @@ public class StartingPointShardsFinderTest {
   public void shouldFindLastShardsWhenLatestStartingPointRequested() throws Exception {
     // given
     StartingPoint latestStartingPoint = new StartingPoint(InitialPositionInStream.LATEST);
-    given(kinesis.listShards(STREAM_NAME)).willReturn(allShards);
+    when(kinesis.listShards(STREAM_NAME)).thenReturn(allShards);
 
     // when
     Iterable<Shard> shardsAtStartingPoint =
@@ -176,7 +176,7 @@ public class StartingPointShardsFinderTest {
     // given
     StartingPoint trimHorizonStartingPoint =
         new StartingPoint(InitialPositionInStream.TRIM_HORIZON);
-    given(kinesis.listShards(STREAM_NAME)).willReturn(allShards);
+    when(kinesis.listShards(STREAM_NAME)).thenReturn(allShards);
 
     // when
     Iterable<Shard> shardsAtStartingPoint =
@@ -206,7 +206,7 @@ public class StartingPointShardsFinderTest {
             shard09,
             closedShard10);
 
-    given(kinesis.listShards(STREAM_NAME)).willReturn(shards);
+    when(kinesis.listShards(STREAM_NAME)).thenReturn(shards);
 
     // when
     underTest.findShardsAtStartingPoint(kinesis, STREAM_NAME, latestStartingPoint);
@@ -254,19 +254,17 @@ public class StartingPointShardsFinderTest {
     try {
       String shardIterator = shardIteratorType + shard.getShardId() + "-current";
       if (shardIteratorType == ShardIteratorType.AT_TIMESTAMP) {
-        given(
-                kinesis.getShardIterator(
-                    STREAM_NAME,
-                    shard.getShardId(),
-                    ShardIteratorType.AT_TIMESTAMP,
-                    null,
-                    startTimestamp))
-            .willReturn(shardIterator);
+        when(kinesis.getShardIterator(
+                STREAM_NAME,
+                shard.getShardId(),
+                ShardIteratorType.AT_TIMESTAMP,
+                null,
+                startTimestamp))
+            .thenReturn(shardIterator);
       } else {
-        given(
-                kinesis.getShardIterator(
-                    STREAM_NAME, shard.getShardId(), shardIteratorType, null, null))
-            .willReturn(shardIterator);
+        when(kinesis.getShardIterator(
+                STREAM_NAME, shard.getShardId(), shardIteratorType, null, null))
+            .thenReturn(shardIterator);
       }
       GetKinesisRecordsResult result =
           new GetKinesisRecordsResult(
@@ -275,7 +273,7 @@ public class StartingPointShardsFinderTest {
               0,
               STREAM_NAME,
               shard.getShardId());
-      given(kinesis.getRecords(shardIterator, STREAM_NAME, shard.getShardId())).willReturn(result);
+      when(kinesis.getRecords(shardIterator, STREAM_NAME, shard.getShardId())).thenReturn(result);
     } catch (TransientKinesisException e) {
       throw new RuntimeException(e);
     }
