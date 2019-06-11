@@ -100,12 +100,15 @@ rat {
     "ownership/**/*",
     "**/OWNERS",
 
-    // FIXME add licencse header
+    // FIXME add license header
     "project-mappings",
     "deprecation-warning.txt",
 
     // Json doesn't support comments.
     "**/*.json",
+      
+    // Katas files
+    "learning/katas/*/IO/**/*.txt"
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
