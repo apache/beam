@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.when;
 
 import java.util.Collections;
 import java.util.List;
@@ -37,11 +37,11 @@ public class RecordFilterTest {
 
   @Test
   public void shouldFilterOutRecordsBeforeOrAtCheckpoint() {
-    given(checkpoint.isBeforeOrAt(record1)).willReturn(false);
-    given(checkpoint.isBeforeOrAt(record2)).willReturn(true);
-    given(checkpoint.isBeforeOrAt(record3)).willReturn(true);
-    given(checkpoint.isBeforeOrAt(record4)).willReturn(false);
-    given(checkpoint.isBeforeOrAt(record5)).willReturn(true);
+    when(checkpoint.isBeforeOrAt(record1)).thenReturn(false);
+    when(checkpoint.isBeforeOrAt(record2)).thenReturn(true);
+    when(checkpoint.isBeforeOrAt(record3)).thenReturn(true);
+    when(checkpoint.isBeforeOrAt(record4)).thenReturn(false);
+    when(checkpoint.isBeforeOrAt(record5)).thenReturn(true);
     List<KinesisRecord> records = Lists.newArrayList(record1, record2, record3, record4, record5);
     RecordFilter underTest = new RecordFilter();
 
