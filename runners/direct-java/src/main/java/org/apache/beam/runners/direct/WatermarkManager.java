@@ -39,7 +39,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.StateNamespace;
@@ -224,9 +226,8 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     private final Collection<? extends Watermark> inputWatermarks;
     private final SortedMultiset<Bundle<?, ?>> pendingElements;
 
-    // This tracks only the quantity of timers at each timestamp, for quickly getting the cross-key
-    // minimum
-    private final SortedMultiset<TimerData> pendingTimers;
+    // This tracks timers sorted by timestamp for quickly getting the cross-key minimum
+    private final NavigableSet<TimerData> pendingTimers;
 
     // Entries in this table represent the authoritative timestamp for which
     // a per-key-and-StateNamespace timer is set.
@@ -234,6 +235,9 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
     // This per-key sorted set allows quick retrieval of timers that should fire for a key
     private final Map<StructuralKey<?>, NavigableSet<TimerData>> objectTimers;
+
+    // track timers that have already been extracted using extractFiredEventTimers
+    private final NavigableSet<TimerData> firedTimers = new TreeSet<>();
 
     private AtomicReference<Instant> currentWatermark;
 
@@ -250,7 +254,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       Ordering<Bundle<?, ?>> pendingBundleComparator =
           new BundleByElementTimestampComparator().compound(Ordering.arbitrary());
       this.pendingElements = TreeMultiset.create(pendingBundleComparator);
-      this.pendingTimers = TreeMultiset.create();
+      this.pendingTimers = new TreeSet<>();
       this.objectTimers = new HashMap<>();
       this.existingTimers = new HashMap<>();
       currentWatermark = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
@@ -308,11 +312,16 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
     @VisibleForTesting
     synchronized Instant getEarliestTimerTimestamp() {
-      if (pendingTimers.isEmpty()) {
+      Instant pending = minFrom(pendingTimers);
+      Instant fired = minFrom(firedTimers);
+      return INSTANT_ORDERING.min(pending, fired);
+    }
+
+    Instant minFrom(NavigableSet<TimerData> set) {
+      if (set.isEmpty()) {
         return BoundedWindow.TIMESTAMP_MAX_VALUE;
-      } else {
-        return pendingTimers.firstEntry().getElement().getTimestamp();
       }
+      return set.first().getTimestamp();
     }
 
     @VisibleForTesting
@@ -332,8 +341,8 @@ public class WatermarkManager<ExecutableT, CollectionT> {
             pendingTimers.add(timer);
             keyTimers.add(timer);
           } else if (!existingTimer.equals(timer)) {
-            pendingTimers.remove(existingTimer);
             keyTimers.remove(existingTimer);
+            pendingTimers.remove(existingTimer);
             pendingTimers.add(timer);
             keyTimers.add(timer);
           } // else the timer is already set identically, so noop
@@ -349,8 +358,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
               existingTimersForKey.get(timer.getNamespace(), timer.getTimerId());
 
           if (existingTimer != null) {
-            pendingTimers.remove(existingTimer);
-            keyTimers.remove(existingTimer);
+            removeTimer(existingTimer, keyTimers);
             existingTimersForKey.remove(existingTimer.getNamespace(), existingTimer.getTimerId());
           }
         }
@@ -358,15 +366,29 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
       for (TimerData timer : update.getCompletedTimers()) {
         if (TimeDomain.EVENT_TIME.equals(timer.getDomain())) {
-          keyTimers.remove(timer);
-          pendingTimers.remove(timer);
+          removeTimer(timer, keyTimers);
         }
       }
     }
 
+    private void removeTimer(TimerData timer, NavigableSet<TimerData> keyTimers) {
+      firedTimers.remove(timer);
+      keyTimers.remove(timer);
+      pendingTimers.remove(timer);
+    }
+
     @VisibleForTesting
-    synchronized Map<StructuralKey<?>, List<TimerData>> extractFiredEventTimeTimers() {
-      return extractFiredTimers(currentWatermark.get(), objectTimers);
+    synchronized Map<StructuralKey<?>, Collection<TimerData>> extractFiredEventTimeTimers() {
+      Map<StructuralKey<?>, Collection<TimerData>> extracted =
+          extractFiredTimers(
+              currentWatermark.get(),
+              objectTimers,
+              t ->
+                  firedTimers.isEmpty()
+                      || !firedTimers.first().getTimestamp().isBefore(t.getTimestamp()),
+              firedTimers::add);
+      // t -> {});
+      return extracted;
     }
 
     @Override
@@ -619,9 +641,9 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       }
     }
 
-    private synchronized Map<StructuralKey<?>, List<TimerData>> extractFiredDomainTimers(
+    private synchronized Map<StructuralKey<?>, Collection<TimerData>> extractFiredDomainTimers(
         TimeDomain domain, Instant firingTime) {
-      Map<StructuralKey<?>, List<TimerData>> firedTimers;
+      Map<StructuralKey<?>, Collection<TimerData>> firedTimers;
       switch (domain) {
         case PROCESSING_TIME:
           firedTimers = extractFiredTimers(firingTime, processingTimers);
@@ -766,28 +788,44 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
   private static final Ordering<Instant> INSTANT_ORDERING = Ordering.natural();
 
+  private static Map<StructuralKey<?>, Collection<TimerData>> extractFiredTimers(
+      Instant latestTime, Map<StructuralKey<?>, NavigableSet<TimerData>> objectTimers) {
+
+    return extractFiredTimers(latestTime, objectTimers, e -> true, t -> {});
+  }
+
   /**
    * For each (Object, NavigableSet) pair in the provided map, remove each Timer that is before the
    * latestTime argument and put in in the result with the same key, then remove all of the keys
    * which have no more pending timers.
    *
-   * <p>The result collection retains ordering of timers (from earliest to latest).
+   * <p>The result collection contains only timers with lowest timestamp.
    */
-  private static Map<StructuralKey<?>, List<TimerData>> extractFiredTimers(
-      Instant latestTime, Map<StructuralKey<?>, NavigableSet<TimerData>> objectTimers) {
-    Map<StructuralKey<?>, List<TimerData>> result = new HashMap<>();
+  private static Map<StructuralKey<?>, Collection<TimerData>> extractFiredTimers(
+      Instant latestTime,
+      Map<StructuralKey<?>, NavigableSet<TimerData>> objectTimers,
+      Predicate<TimerData> canAdd,
+      Consumer<TimerData> onAdded) {
+
+    Map<StructuralKey<?>, Collection<TimerData>> result = new HashMap<>();
     Set<StructuralKey<?>> emptyKeys = new HashSet<>();
     for (Map.Entry<StructuralKey<?>, NavigableSet<TimerData>> pendingTimers :
         objectTimers.entrySet()) {
       NavigableSet<TimerData> timers = pendingTimers.getValue();
-      if (!timers.isEmpty() && timers.first().getTimestamp().isBefore(latestTime)) {
-        ArrayList<TimerData> keyFiredTimers = new ArrayList<>();
-        result.put(pendingTimers.getKey(), keyFiredTimers);
-        while (!timers.isEmpty() && timers.first().getTimestamp().isBefore(latestTime)) {
-          keyFiredTimers.add(timers.first());
-          timers.remove(timers.first());
+
+      List<TimerData> toDelete = new ArrayList<>();
+      for (TimerData timer : timers) {
+        if (canAdd.test(timer) && timer.getTimestamp().isBefore(latestTime)) {
+          Collection<TimerData> keyFiredTimers =
+              result.computeIfAbsent(pendingTimers.getKey(), k -> new ArrayList<>());
+          keyFiredTimers.add(timer);
+          toDelete.add(timer);
+          onAdded.accept(timer);
+        } else {
+          break;
         }
       }
+      toDelete.forEach(timers::remove);
       if (timers.isEmpty()) {
         emptyKeys.add(pendingTimers.getKey());
       }
@@ -1339,10 +1377,10 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     }
 
     private Collection<FiredTimers<ExecutableT>> extractFiredTimers() {
-      Map<StructuralKey<?>, List<TimerData>> eventTimeTimers =
+      Map<StructuralKey<?>, Collection<TimerData>> eventTimeTimers =
           inputWatermark.extractFiredEventTimeTimers();
-      Map<StructuralKey<?>, List<TimerData>> processingTimers;
-      Map<StructuralKey<?>, List<TimerData>> synchronizedTimers;
+      Map<StructuralKey<?>, Collection<TimerData>> processingTimers;
+      Map<StructuralKey<?>, Collection<TimerData>> synchronizedTimers;
       processingTimers =
           synchronizedProcessingInputWatermark.extractFiredDomainTimers(
               TimeDomain.PROCESSING_TIME, clock.now());
@@ -1350,10 +1388,11 @@ public class WatermarkManager<ExecutableT, CollectionT> {
           synchronizedProcessingInputWatermark.extractFiredDomainTimers(
               TimeDomain.SYNCHRONIZED_PROCESSING_TIME, getSynchronizedProcessingInputTime());
 
-      Map<StructuralKey<?>, List<TimerData>> timersPerKey =
+      Map<StructuralKey<?>, Collection<TimerData>> timersPerKey =
           groupFiredTimers(eventTimeTimers, processingTimers, synchronizedTimers);
       Collection<FiredTimers<ExecutableT>> keyFiredTimers = new ArrayList<>(timersPerKey.size());
-      for (Map.Entry<StructuralKey<?>, List<TimerData>> firedTimers : timersPerKey.entrySet()) {
+      for (Map.Entry<StructuralKey<?>, Collection<TimerData>> firedTimers :
+          timersPerKey.entrySet()) {
         keyFiredTimers.add(
             new FiredTimers<>(executable, firedTimers.getKey(), firedTimers.getValue()));
       }
@@ -1361,12 +1400,12 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     }
 
     @SafeVarargs
-    private final Map<StructuralKey<?>, List<TimerData>> groupFiredTimers(
-        Map<StructuralKey<?>, List<TimerData>>... timersToGroup) {
-      Map<StructuralKey<?>, List<TimerData>> groupedTimers = new HashMap<>();
-      for (Map<StructuralKey<?>, List<TimerData>> subGroup : timersToGroup) {
-        for (Map.Entry<StructuralKey<?>, List<TimerData>> newTimers : subGroup.entrySet()) {
-          List<TimerData> grouped =
+    private final Map<StructuralKey<?>, Collection<TimerData>> groupFiredTimers(
+        Map<StructuralKey<?>, Collection<TimerData>>... timersToGroup) {
+      Map<StructuralKey<?>, Collection<TimerData>> groupedTimers = new HashMap<>();
+      for (Map<StructuralKey<?>, Collection<TimerData>> subGroup : timersToGroup) {
+        for (Map.Entry<StructuralKey<?>, Collection<TimerData>> newTimers : subGroup.entrySet()) {
+          Collection<TimerData> grouped =
               groupedTimers.computeIfAbsent(newTimers.getKey(), k -> new ArrayList<>());
           grouped.addAll(newTimers.getValue());
         }
@@ -1534,6 +1573,11 @@ public class WatermarkManager<ExecutableT, CollectionT> {
           && Objects.equals(this.completedTimers, that.completedTimers)
           && Objects.equals(this.setTimers, that.setTimers)
           && Objects.equals(this.deletedTimers, that.deletedTimers);
+    }
+
+    @Override
+    public String toString() {
+      return "TimerUpdate(" + setTimers + ", " + deletedTimers + ", " + completedTimers + ")";
     }
   }
 

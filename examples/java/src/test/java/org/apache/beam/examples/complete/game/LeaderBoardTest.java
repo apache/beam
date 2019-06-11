@@ -121,7 +121,6 @@ public class LeaderBoardTest implements Serializable {
    */
   @Test
   public void testTeamScoresSpeculative() {
-
     TestStream<GameActionInfo> createEvents =
         TestStream.create(AvroCoder.of(GameActionInfo.class))
             // Start at the epoch
@@ -137,9 +136,8 @@ public class LeaderBoardTest implements Serializable {
             // Some additional time passes and we get a speculative pane for the red team
             .advanceProcessingTime(Duration.standardMinutes(12))
             .addElements(event(TestUser.BLUE_TWO, 3, Duration.standardSeconds(22)))
-            // More time passes and a speculative pane containing a refined value for the blue pane
-            // is
-            // emitted
+            // More time passes and a speculative pane containing a refined value for
+            // the blue pane is emitted
             .advanceProcessingTime(Duration.standardMinutes(10))
             // Some more events occur
             .addElements(

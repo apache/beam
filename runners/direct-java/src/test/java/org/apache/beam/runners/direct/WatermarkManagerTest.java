@@ -31,9 +31,9 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
@@ -1242,6 +1242,15 @@ public class WatermarkManagerTest implements Serializable {
     FiredTimers<AppliedPTransform<?, ?, ?>> firstFired = Iterables.getOnlyElement(firstFiredTimers);
     assertThat(firstFired.getTimers(), contains(earliestTimer));
 
+    // mark earliestTimer as completed
+    manager.updateWatermarks(
+        null,
+        TimerUpdate.builder(key).withCompletedTimers(Arrays.asList(earliestTimer)).build(),
+        graph.getProducer(filtered),
+        null,
+        Collections.emptyList(),
+        new Instant(1000L));
+
     manager.updateWatermarks(
         null,
         TimerUpdate.empty(),
@@ -1255,8 +1264,26 @@ public class WatermarkManagerTest implements Serializable {
     assertThat(secondFiredTimers, not(emptyIterable()));
     FiredTimers<AppliedPTransform<?, ?, ?>> secondFired =
         Iterables.getOnlyElement(secondFiredTimers);
-    // Contains, in order, middleTimer and then lastTimer
-    assertThat(secondFired.getTimers(), contains(middleTimer, lastTimer));
+    // Contains middleTimer
+    assertThat(secondFired.getTimers().size(), equalTo(1));
+    assertThat(secondFired.getTimers(), contains(middleTimer));
+
+    // mark middleTimer as completed
+    manager.updateWatermarks(
+        null,
+        TimerUpdate.builder(key).withCompletedTimers(Arrays.asList(middleTimer)).build(),
+        graph.getProducer(filtered),
+        null,
+        Collections.emptyList(),
+        new Instant(1000L));
+
+    Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> thirdFiredTimers =
+        manager.extractFiredTimers();
+    assertThat(thirdFiredTimers, not(emptyIterable()));
+    FiredTimers<AppliedPTransform<?, ?, ?>> thirdFired = Iterables.getOnlyElement(thirdFiredTimers);
+    // Contains lastTimer
+    assertThat(thirdFired.getTimers().size(), equalTo(1));
+    assertThat(thirdFired.getTimers(), contains(lastTimer));
   }
 
   @Test
@@ -1521,8 +1548,8 @@ public class WatermarkManagerTest implements Serializable {
     assertEquals(new Instant(1000), underTest.get()); // input watermark is not held by timers
 
     // Examine the fired event time timers
-    Map<StructuralKey<?>, List<TimerData>> fired = underTest.extractFiredEventTimeTimers();
-    List<TimerData> timers = fired.get(key);
+    Map<StructuralKey<?>, Collection<TimerData>> fired = underTest.extractFiredEventTimeTimers();
+    Collection<TimerData> timers = fired.get(key);
     assertNotNull(timers);
     assertThat(timers, contains(timer2));
 

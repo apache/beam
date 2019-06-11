@@ -634,6 +634,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     public final boolean isGarbageCollection;
 
     WindowActivation(
+        Instant timestamp,
         ReduceFn<K, InputT, OutputT, W>.Context directContext,
         ReduceFn<K, InputT, OutputT, W>.Context renamedContext) {
       this.directContext = directContext;
@@ -651,16 +652,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       // it but the local output watermark (also for this key) has not. After data is emitted and
       // the output watermark hold is released, the output watermark on this key will immediately
       // exceed the end of the window (otherwise we could see multiple ON_TIME outputs)
-      this.isEndOfWindow =
-          timerInternals.currentInputWatermarkTime().isAfter(window.maxTimestamp())
-              && outputWatermarkBeforeEOW;
+      this.isEndOfWindow = !timestamp.isBefore(window.maxTimestamp()) && outputWatermarkBeforeEOW;
 
       // The "GC time" is reached when the input watermark surpasses the end of the window
       // plus allowed lateness. After this, the window is expired and expunged.
       this.isGarbageCollection =
-          timerInternals
-              .currentInputWatermarkTime()
-              .isAfter(LateDataUtils.garbageCollectionTime(window, windowingStrategy));
+          !timestamp.isBefore(LateDataUtils.garbageCollectionTime(window, windowingStrategy));
     }
 
     // Has this window had its trigger finish?
@@ -672,8 +669,25 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       return activeWindows.isActive(directContext.window())
           && !triggerRunner.isClosed(directContext.state());
     }
+
+    @Override
+    public String toString() {
+      return "WindowActivation(window="
+          + directContext.window()
+          + ", isEndOfWindow="
+          + isEndOfWindow
+          + ", isGarbageCollection="
+          + isGarbageCollection
+          + ")";
+    }
   }
 
+  /**
+   * Process given timers.
+   *
+   * @param timers timers to process
+   * @throws Exception on errors
+   */
   public void onTimers(Iterable<TimerData> timers) throws Exception {
     if (!timers.iterator().hasNext()) {
       return;
@@ -704,7 +718,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
       // Processing time timers for an expired window are ignored, just like elements
       // that show up too late. Window GC is management by an event time timer
-      if (TimeDomain.EVENT_TIME != timer.getDomain() && windowIsExpired(window)) {
+      if (TimeDomain.EVENT_TIME != timer.getDomain()
+          && windowIsExpired(timer.getTimestamp(), window)) {
         continue;
       }
 
@@ -720,7 +735,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
           contextFactory.base(window, StateStyle.DIRECT);
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext =
           contextFactory.base(window, StateStyle.RENAMED);
-      WindowActivation windowActivation = new WindowActivation(directContext, renamedContext);
+      WindowActivation windowActivation =
+          new WindowActivation(timer.getTimestamp(), directContext, renamedContext);
       windowActivations.put(window, windowActivation);
 
       // Perform prefetching of state to determine if the trigger should fire.
@@ -759,6 +775,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
             timerInternals.currentOutputWatermarkTime());
 
         boolean windowIsActiveAndOpen = windowActivation.windowIsActiveAndOpen();
+
         if (windowIsActiveAndOpen) {
           // We need to call onTrigger to emit the final pane if required.
           // The final pane *may* be ON_TIME if no prior ON_TIME pane has been emitted,
@@ -1109,9 +1126,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     }
   }
 
-  private boolean windowIsExpired(BoundedWindow w) {
-    return timerInternals
-        .currentInputWatermarkTime()
-        .isAfter(w.maxTimestamp().plus(windowingStrategy.getAllowedLateness()));
+  private boolean windowIsExpired(Instant timestamp, BoundedWindow w) {
+    return timestamp.isAfter(w.maxTimestamp().plus(windowingStrategy.getAllowedLateness()));
   }
 }

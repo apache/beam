@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.runners.core.KeyedWorkItem;
@@ -48,16 +49,23 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -329,5 +337,69 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
       }
     }
     assertThat(pushedBackInts, containsInAnyOrder(1, 13, 15));
+  }
+
+  @Test
+  public void testTimersOrdering() {
+    final String timerId1 = "my_timer1";
+    final String timerId2 = "my_timer2";
+    final String fireOrder = "bag";
+    final Instant tomorrow = Instant.now().plus(86400000L);
+    final Instant maxFireStamp = tomorrow.plus(3);
+
+    pipeline
+        .apply(Create.of(KV.of(1, "1"), KV.of(1, "2"), KV.of(1, "3")))
+        .apply(
+            ParDo.of(
+                new DoFn<KV<Integer, String>, Instant>() {
+                  @TimerId(timerId1)
+                  final TimerSpec timer1 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+                  @TimerId(timerId2)
+                  final TimerSpec timer2 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+                  @StateId(fireOrder)
+                  final StateSpec<BagState<Instant>> fireOrderState = StateSpecs.bag();
+
+                  @ProcessElement
+                  public void processElement(
+                      ProcessContext context,
+                      @TimerId(timerId1) Timer t1,
+                      @TimerId(timerId2) Timer t2) {
+
+                    t1.set(tomorrow);
+                    t2.set(GlobalWindow.INSTANCE.maxTimestamp());
+                  }
+
+                  @OnTimer(timerId1)
+                  public void onTimer1(
+                      OnTimerContext context,
+                      @TimerId(timerId1) Timer t,
+                      @StateId(fireOrder) BagState<Instant> fired) {
+                    Instant now = context.timestamp();
+                    fired.add(now);
+                    now = now.plus(1);
+                    if (maxFireStamp.isAfter(now)) {
+                      t.set(now);
+                    }
+                  }
+
+                  @OnTimer(timerId2)
+                  void onTimer2(
+                      OnTimerContext context, @StateId(fireOrder) BagState<Instant> fired) {
+                    fired.add(context.timestamp());
+                    List<Instant> read = new ArrayList<>();
+                    fired.read().forEach(read::add);
+                    assertThat(
+                        read,
+                        equalTo(
+                            Arrays.asList(
+                                tomorrow,
+                                tomorrow.plus(1),
+                                tomorrow.plus(2),
+                                GlobalWindow.INSTANCE.maxTimestamp())));
+                  }
+                }));
+    pipeline.run();
   }
 }

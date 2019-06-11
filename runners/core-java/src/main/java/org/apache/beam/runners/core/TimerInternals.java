@@ -209,11 +209,12 @@ public interface TimerInternals {
               .compare(this.getTimestamp(), that.getTimestamp())
               .compare(this.getDomain(), that.getDomain())
               .compare(this.getTimerId(), that.getTimerId());
-      if (chain.result() == 0 && !this.getNamespace().equals(that.getNamespace())) {
+      int res = chain.result();
+      if (res == 0 && !this.getNamespace().equals(that.getNamespace())) {
         // Obtaining the stringKey may be expensive; only do so if required
-        chain = chain.compare(getNamespace().stringKey(), that.getNamespace().stringKey());
+        return getNamespace().stringKey().compareTo(that.getNamespace().stringKey());
       }
-      return chain.result();
+      return res;
     }
   }
 

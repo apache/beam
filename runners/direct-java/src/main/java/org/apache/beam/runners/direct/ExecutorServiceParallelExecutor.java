@@ -168,7 +168,7 @@ final class ExecutorServiceParallelExecutor
           @Override
           public void run() {
             DriverState drive = executionDriver.drive();
-            if (drive.isTermainal()) {
+            if (drive.isTerminal()) {
               State newPipelineState = State.UNKNOWN;
               switch (drive) {
                 case FAILED:
