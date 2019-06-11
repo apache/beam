@@ -444,12 +444,15 @@ public class BigQueryUtils {
     if (jsonBQValue instanceof List) {
       return ((List<Object>) jsonBQValue)
           .stream()
+              .map(v -> ((Map<String, Object>) v).get("v"))
               .map(v -> toBeamValue(fieldType.getCollectionElementType(), v))
               .collect(toList());
     }
 
-    if (jsonBQValue instanceof TableRow) {
-      return toBeamRow(fieldType.getRowSchema(), (TableRow) jsonBQValue);
+    if (jsonBQValue instanceof Map) {
+      TableRow tr = new TableRow();
+      tr.putAll((Map<String, Object>) jsonBQValue);
+      return toBeamRow(fieldType.getRowSchema(), tr);
     }
 
     throw new UnsupportedOperationException(
