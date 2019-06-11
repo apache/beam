@@ -21,9 +21,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSinkRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.calcite.adapter.java.AbstractQueryableTable;
 import org.apache.calcite.linq4j.QueryProvider;
@@ -38,6 +40,8 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.ModifiableTable;
 import org.apache.calcite.schema.SchemaPlus;
+import org.apache.calcite.schema.Statistic;
+import org.apache.calcite.schema.Statistics;
 import org.apache.calcite.schema.TranslatableTable;
 
 /** Adapter from {@link BeamSqlTable} to a calcite Table. */
@@ -59,6 +63,25 @@ public class BeamCalciteTable extends AbstractQueryableTable
   @Override
   public RelDataType getRowType(RelDataTypeFactory typeFactory) {
     return CalciteUtils.toCalciteRowType(this.beamTable.getSchema(), typeFactory);
+  }
+
+  @Override
+  public Statistic getStatistic() {
+    /*
+     Changing class loader is required for the JDBC path. It is similar to what done in
+     {@link BeamEnumerableConverter#toRowList} and {@link BeamEnumerableConverter#toEnumerable }.
+    */
+    final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+    try {
+      Thread.currentThread().setContextClassLoader(BeamEnumerableConverter.class.getClassLoader());
+      BeamRowCountStatistics beamStatistics =
+          beamTable.getRowCount(BeamEnumerableConverter.createPipelineOptions(pipelineOptions));
+      return beamStatistics.isUnknown()
+          ? Statistics.UNKNOWN
+          : Statistics.of(beamStatistics.getRowCount().doubleValue(), ImmutableList.of());
+    } finally {
+      Thread.currentThread().setContextClassLoader(originalClassLoader);
+    }
   }
 
   @Override

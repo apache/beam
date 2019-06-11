@@ -37,6 +37,7 @@ import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
@@ -331,7 +332,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
      */
     public void check(Pipeline pipeline) throws Exception {
       checkPTransform(pipeline);
-      checkJdbc();
+      checkJdbc(pipeline.getOptions());
     }
 
     private static final Schema DUMMY_SCHEMA = Schema.builder().addBooleanField("dummy").build();
@@ -353,7 +354,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
                         Schema.FieldType.STRING, "name")
                     .addRows(1, "first")));
 
-    private void checkJdbc() throws Exception {
+    private void checkJdbc(PipelineOptions pipelineOptions) throws Exception {
       // Beam SQL code is only invoked when the calling convention insists on it, so we
       // have to express this as selecting from a Beam table, even though the contents are
       // irrelevant.
@@ -363,7 +364,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       //
       // Here we create a Beam table just to force the calling convention.
       TestTableProvider tableProvider = new TestTableProvider();
-      Connection connection = JdbcDriver.connect(tableProvider);
+      Connection connection = JdbcDriver.connect(tableProvider, pipelineOptions);
       connection
           .createStatement()
           .executeUpdate("CREATE EXTERNAL TABLE dummy (dummy BOOLEAN) TYPE 'test'");
