@@ -43,7 +43,7 @@ class AggregatorCombinerGlobally<InputT, AccumT, OutputT>
   @Override
   public AccumT reduce(AccumT accumulator, InputT input) {
     // because of generic type InputT, spark cannot infer an input type.
-    // it would pass Integer as input if we had a Aggregator<Input, ..., ...>
+    // it would pass Integer as input if we had a Aggregator<Integer, ..., ...>
     // without the type inference it stores input in a GenericRowWithSchema
     Row row = (Row) input;
     InputT t = RowHelpers.extractObjectFromRow(row);
