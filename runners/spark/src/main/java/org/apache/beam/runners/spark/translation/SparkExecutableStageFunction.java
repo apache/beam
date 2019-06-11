@@ -41,11 +41,13 @@ import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.runners.fnexecution.state.InMemoryBagUserStateFactory;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.runners.fnexecution.translation.BatchSideInputHandlerFactory;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
+import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -77,6 +79,7 @@ class SparkExecutableStageFunction<InputT, SideInputT>
   private final Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>>
       sideInputs;
   private final MetricsContainerStepMapAccumulator metricsAccumulator;
+  private transient InMemoryBagUserStateFactory bagUserStateHandlerFactory;
 
   SparkExecutableStageFunction(
       RunnerApi.ExecutableStagePayload stagePayload,
@@ -103,6 +106,11 @@ class SparkExecutableStageFunction<InputT, SideInputT>
     this.jobBundleFactoryCreator = jobBundleFactoryCreator;
     this.sideInputs = sideInputs;
     this.metricsAccumulator = metricsAccumulator;
+  }
+
+  /** Call the executable stage function on the values of a PairRDD, ignoring the key. */
+  FlatMapFunction<Tuple2<ByteArray, Iterable<WindowedValue<InputT>>>, RawUnionValue> forPair() {
+    return (input) -> call(input._2.iterator());
   }
 
   @Override
@@ -176,7 +184,24 @@ class SparkExecutableStageFunction<InputT, SideInputT>
     } catch (IOException e) {
       throw new RuntimeException("Failed to setup state handler", e);
     }
+
+    if (bagUserStateHandlerFactory == null) {
+      bagUserStateHandlerFactory = new InMemoryBagUserStateFactory();
+    }
+
+    final StateRequestHandler userStateHandler;
+    if (executableStage.getUserStates().size() > 0) {
+      // Need to discard the old key's state
+      bagUserStateHandlerFactory.resetForNewKey();
+      userStateHandler =
+          StateRequestHandlers.forBagUserStateHandlerFactory(
+              processBundleDescriptor, bagUserStateHandlerFactory);
+    } else {
+      userStateHandler = StateRequestHandler.unsupported();
+    }
+
     handlerMap.put(StateKey.TypeCase.MULTIMAP_SIDE_INPUT, sideInputHandler);
+    handlerMap.put(StateKey.TypeCase.BAG_USER_STATE, userStateHandler);
     return StateRequestHandlers.delegateBasedUponType(handlerMap);
   }
 
