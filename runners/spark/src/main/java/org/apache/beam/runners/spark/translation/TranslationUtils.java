@@ -140,8 +140,19 @@ public final class TranslationUtils {
   }
 
   /** A pair to {@link KV} function . */
-  static <K, V> Function<Tuple2<K, V>, KV<K, V>> fromPairFunction() {
-    return t2 -> KV.of(t2._1(), t2._2());
+  static class FromPairFunction<K, V>
+      implements Function<Tuple2<K, V>, KV<K, V>>,
+          org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function<
+              Tuple2<K, V>, KV<K, V>> {
+    @Override
+    public KV<K, V> call(Tuple2<K, V> t2) {
+      return KV.of(t2._1(), t2._2());
+    }
+
+    @Override
+    public KV<K, V> apply(Tuple2<K, V> t2) {
+      return call(t2);
+    }
   }
 
   /** A pair to {@link KV} flatmap function . */
@@ -160,11 +171,21 @@ public final class TranslationUtils {
   }
 
   /** Extract window from a {@link KV} with {@link WindowedValue} value. */
-  static <K, V> Function<KV<K, WindowedValue<V>>, WindowedValue<KV<K, V>>> toKVByWindowInValue() {
-    return kv -> {
+  static class ToKVByWindowInValueFunction<K, V>
+      implements Function<KV<K, WindowedValue<V>>, WindowedValue<KV<K, V>>>,
+          org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function<
+              KV<K, WindowedValue<V>>, WindowedValue<KV<K, V>>> {
+
+    @Override
+    public WindowedValue<KV<K, V>> call(KV<K, WindowedValue<V>> kv) {
       WindowedValue<V> wv = kv.getValue();
       return wv.withValue(KV.of(kv.getKey(), wv.getValue()));
-    };
+    }
+
+    @Override
+    public WindowedValue<KV<K, V>> apply(KV<K, WindowedValue<V>> kv) {
+      return call(kv);
+    }
   }
 
   /**
