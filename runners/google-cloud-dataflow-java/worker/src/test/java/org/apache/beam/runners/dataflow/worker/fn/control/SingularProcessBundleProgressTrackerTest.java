@@ -26,7 +26,6 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.dataflow.worker.fn.control.BeamFnMapTaskExecutor.Interpolator;
 import org.apache.beam.runners.dataflow.worker.fn.control.BeamFnMapTaskExecutor.SingularProcessBundleProgressTracker;
-import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortWriteOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.Progress;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.junit.Test;
@@ -64,18 +63,16 @@ public class SingularProcessBundleProgressTrackerTest {
   @Test
   public void testProgressInterpolation() throws Exception {
     ReadOperation read = Mockito.mock(ReadOperation.class);
-    RemoteGrpcPortWriteOperation grpcWrite = Mockito.mock(RemoteGrpcPortWriteOperation.class);
-    RegisterAndProcessBundleOperation process =
-        Mockito.mock(RegisterAndProcessBundleOperation.class);
+    ProcessRemoteBundleOperation process = Mockito.mock(ProcessRemoteBundleOperation.class);
 
-    when(grpcWrite.processedElementsConsumer()).thenReturn(elementsConsumed -> {});
+    when(process.processedElementsConsumer()).thenReturn(elementsConsumed -> {});
 
     SingularProcessBundleProgressTracker tracker =
-        new SingularProcessBundleProgressTracker(read, grpcWrite, process);
+        new SingularProcessBundleProgressTracker(read, process);
 
     when(read.getProgress())
         .thenReturn(new TestProgress("A"), new TestProgress("B"), new TestProgress("C"));
-    when(grpcWrite.getElementsSent()).thenReturn(1, 10, 20, 30);
+    when(process.getElementsSent()).thenReturn(1, 10, 20, 30);
 
     // This test ignores them, directly working on mocked getInputElementsConsumed
     when(process.getProcessBundleProgress())

@@ -45,6 +45,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.UserStateId;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
+import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.construction.*;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.ImmutableExecutableStage;
@@ -58,6 +59,7 @@ import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.CombinePhase;
+import org.apache.beam.runners.dataflow.worker.DataflowPortabilityPCollectionView;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.DefaultEdge;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
@@ -69,14 +71,18 @@ import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNo
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.RemoteGrpcPortNode;
 import org.apache.beam.runners.dataflow.worker.util.CloudSourceUtils;
 import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
+import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
@@ -121,6 +127,43 @@ public class CreateExecutableStageNodeFunction
     this.idGenerator = idGenerator;
   }
 
+  /**
+   * Returns an artificial PCollectionView that can be used to fulfill API requirements of a {@link
+   * SideInputReader} when used inside the Dataflow runner harness.
+   *
+   * <p>Generates length prefixed coder variants suitable to be used within the Dataflow Runner
+   * harness so that encoding and decoding values matches the length prefixing that occurred when
+   * materializing the side input.
+   */
+  public static final PCollectionView<?> transformSideInputForRunner(
+      RunnerApi.Pipeline pipeline,
+      RunnerApi.PTransform parDoPTransform,
+      String sideInputTag,
+      RunnerApi.SideInput sideInput) {
+    checkArgument(
+        Materializations.MULTIMAP_MATERIALIZATION_URN.equals(sideInput.getAccessPattern().getUrn()),
+        "This handler is only capable of dealing with %s materializations "
+            + "but was asked to handle %s for PCollectionView with tag %s.",
+        Materializations.MULTIMAP_MATERIALIZATION_URN,
+        sideInput.getAccessPattern().getUrn(),
+        sideInputTag);
+    String sideInputPCollectionId = parDoPTransform.getInputsOrThrow(sideInputTag);
+    RunnerApi.PCollection sideInputPCollection =
+        pipeline.getComponents().getPcollectionsOrThrow(sideInputPCollectionId);
+    try {
+      FullWindowedValueCoder<KV<Object, Object>> runnerSideInputCoder =
+          (FullWindowedValueCoder)
+              WireCoders.instantiateRunnerWireCoder(
+                  PipelineNode.pCollection(sideInputPCollectionId, sideInputPCollection),
+                  pipeline.getComponents());
+
+      return DataflowPortabilityPCollectionView.with(
+          new TupleTag<>(sideInputTag), runnerSideInputCoder);
+    } catch (IOException e) {
+      throw new IllegalStateException("Unable to translate proto to coder", e);
+    }
+  }
+
   @Override
   public Node apply(MutableNetwork<Node, Edge> input) {
     for (Node node : input.nodes()) {
@@ -153,6 +196,7 @@ public class CreateExecutableStageNodeFunction
 
     RunnerApi.Components.Builder componentsBuilder = RunnerApi.Components.newBuilder();
     componentsBuilder.mergeFrom(this.pipeline.getComponents());
+    SdkComponents sdkComponents = SdkComponents.create(pipeline.getComponents());
 
     // We start off by replacing all edges within the graph with edges that have the named
     // outputs from the predecessor step. For ParallelInstruction Source nodes and RemoteGrpcPort
@@ -165,7 +209,7 @@ public class CreateExecutableStageNodeFunction
 
     // Default to use the Java environment if pipeline doesn't have environment specified.
     if (pipeline.getComponents().getEnvironmentsMap().isEmpty()) {
-      String envId = Environments.JAVA_SDK_HARNESS_ENVIRONMENT.getUrn() + idGenerator.getId();
+      String envId = sdkComponents.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT);
       componentsBuilder.putEnvironments(envId, Environments.JAVA_SDK_HARNESS_ENVIRONMENT);
     }
 
@@ -176,7 +220,6 @@ public class CreateExecutableStageNodeFunction
     String intervalWindowEncodingWindowingStrategyId =
         "generatedIntervalWindowEncodingWindowingStrategy" + idGenerator.getId();
 
-    SdkComponents sdkComponents = SdkComponents.create(pipeline.getComponents());
     try {
       registerWindowingStrategy(
           globalWindowingStrategyId,
@@ -377,7 +420,7 @@ public class CreateExecutableStageNodeFunction
             for (Map.Entry<String, RunnerApi.SideInput> sideInputEntry :
                 parDoPayload.getSideInputsMap().entrySet()) {
               pcollectionViews.add(
-                  RegisterNodeFunction.transformSideInputForRunner(
+                  transformSideInputForRunner(
                       pipeline,
                       parDoPTransform,
                       sideInputEntry.getKey(),

@@ -48,7 +48,6 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
-import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortWriteOperation;
 import org.apache.beam.runners.dataflow.worker.util.CounterHamcrestMatchers;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
@@ -83,7 +82,6 @@ public class BeamFnMapTaskExecutorTest {
 
   // Hacks to cause progress tracking to be done
   @Mock private ReadOperation readOperation;
-  @Mock private RemoteGrpcPortWriteOperation grpcPortWriteOperation;
 
   @Before
   public void setUp() {
@@ -190,7 +188,7 @@ public class BeamFnMapTaskExecutorTest {
 
     BeamFnMapTaskExecutor mapTaskExecutor =
         BeamFnMapTaskExecutor.forOperations(
-            ImmutableList.of(readOperation, grpcPortWriteOperation, processOperation),
+            ImmutableList.of(readOperation, processOperation),
             executionStateTracker);
 
     // Launch the BeamFnMapTaskExecutor and wait until we are sure there has been one
@@ -277,7 +275,7 @@ public class BeamFnMapTaskExecutorTest {
           public void close() {}
         };
 
-    when(grpcPortWriteOperation.processedElementsConsumer()).thenReturn(elementsConsumed -> {});
+    when(processRemoteBundleOperation.processedElementsConsumer()).thenReturn(elementsConsumed -> {});
 
     RegisterAndProcessBundleOperation processOperation =
         new RegisterAndProcessBundleOperation(
@@ -294,7 +292,7 @@ public class BeamFnMapTaskExecutorTest {
 
     BeamFnMapTaskExecutor mapTaskExecutor =
         BeamFnMapTaskExecutor.forOperations(
-            ImmutableList.of(readOperation, grpcPortWriteOperation, processOperation),
+            ImmutableList.of(readOperation, processOperation),
             executionStateTracker);
 
     // Launch the BeamFnMapTaskExecutor and wait until we are sure there has been one
@@ -404,7 +402,7 @@ public class BeamFnMapTaskExecutorTest {
 
     BeamFnMapTaskExecutor mapTaskExecutor =
         BeamFnMapTaskExecutor.forOperations(
-            ImmutableList.of(readOperation, grpcPortWriteOperation, processOperation),
+            ImmutableList.of(readOperation, processOperation),
             executionStateTracker);
 
     // Launch the BeamFnMapTaskExecutor and wait until we are sure there has been one
@@ -530,7 +528,7 @@ public class BeamFnMapTaskExecutorTest {
 
     BeamFnMapTaskExecutor mapTaskExecutor =
         BeamFnMapTaskExecutor.forOperations(
-            ImmutableList.of(readOperation, grpcPortWriteOperation, processOperation),
+            ImmutableList.of(readOperation, processOperation),
             executionStateTracker);
 
     // Launch the BeamFnMapTaskExecutor and wait until we are sure there has been one

@@ -54,7 +54,6 @@ import org.apache.beam.runners.core.metrics.MetricsTranslation;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
-import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortWriteOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.DynamicSplitRequest;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.DynamicSplitResult;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.Progress;
@@ -291,8 +290,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     private static final int MAX_DATA_POINTS = 1000;
 
     private final ReadOperation readOperation;
-    private final RemoteGrpcPortWriteOperation grpcWriteOperation;
-    private final RegisterAndProcessBundleOperation bundleProcessOperation;
+    private final ProcessRemoteBundleOperation processRemoteBundleOperation;
     private static final long progressUpdatePeriodMs =
         ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS;
     private int progressErrors;
@@ -302,7 +300,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     private final AtomicReference<Progress> latestProgress = new AtomicReference<>();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private ScheduledFuture<?> nextProgressFuture;
-    private final Consumer<Integer> grpcWriteOperationElementsProcessed;
+    private final Consumer<Integer> processRemoteBundleOperationElementsProcessed;
 
     private List<CounterUpdate> counterUpdates = new ArrayList<>();
 
@@ -312,12 +310,10 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
     public SingularProcessBundleProgressTracker(
         ReadOperation readOperation,
-        RemoteGrpcPortWriteOperation grpcWriteOperation,
-        RegisterAndProcessBundleOperation bundleProcessOperation) {
+        ProcessRemoteBundleOperation processRemoteBundleOperation) {
       this.readOperation = readOperation;
-      this.grpcWriteOperation = grpcWriteOperation;
-      this.bundleProcessOperation = bundleProcessOperation;
-      this.grpcWriteOperationElementsProcessed = grpcWriteOperation.processedElementsConsumer();
+      this.processRemoteBundleOperation = processRemoteBundleOperation;
+      this.processRemoteBundleOperationElementsProcessed = processRemoteBundleOperation.processedElementsConsumer();
       this.progressInterpolator =
           new Interpolator<Progress>(MAX_DATA_POINTS) {
             @Override
@@ -337,14 +333,10 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     @VisibleForTesting
     void updateProgress() {
       try {
-        if (bundleProcessOperation.hasFailed()) {
-          grpcWriteOperation.abortWait();
-        }
-
         // TODO(BEAM-6189): Replace getProcessBundleProgress with getMonitoringInfos when Metrics
         // is deprecated.
         ProcessBundleProgressResponse processBundleProgressResponse =
-            MoreFutures.get(bundleProcessOperation.getProcessBundleProgress());
+            MoreFutures.get(processRemoteBundleOperation.getProcessBundleProgress());
         updateMetrics(processBundleProgressResponse.getMonitoringInfosList());
 
         // Supporting deprecated metrics until all supported runners are migrated to using
@@ -354,16 +346,16 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
         // todo(migryz): utilize monitoringInfos here.
         // Requires Element Count metrics to be implemented.
-        double elementsConsumed = bundleProcessOperation.getInputElementsConsumed(metrics);
+        double elementsConsumed = processRemoteBundleOperation.getInputElementsConsumed(metrics);
 
-        grpcWriteOperationElementsProcessed.accept((int) elementsConsumed);
+        processRemoteBundleOperationElementsProcessed.accept((int) elementsConsumed);
         progressInterpolator.addPoint(
-            grpcWriteOperation.getElementsSent(), readOperation.getProgress());
+                processRemoteBundleOperation.getElementsSent(), readOperation.getProgress());
         latestProgress.set(progressInterpolator.interpolateAndPurge(elementsConsumed));
         progressErrors = 0;
       } catch (Exception exn) {
         if (!isTransientProgressError(exn.getMessage())) {
-          grpcWriteOperationElementsProcessed.accept(-1); // Not supported.
+          processRemoteBundleOperationElementsProcessed.accept(-1); // Not supported.
           progressErrors++;
           // Only log verbosely every power of two to avoid spamming the logs.
           if (Integer.bitCount(progressErrors) == 1) {
@@ -383,7 +375,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
         try {
           latestProgress.set(
-              progressInterpolator.interpolate(grpcWriteOperation.getElementsSent()));
+              progressInterpolator.interpolate(processRemoteBundleOperation.getElementsSent()));
         } catch (IllegalStateException exn2) {
           // This can happen if the operation has not yet been started; don't update
           // the progress in this case.
@@ -402,8 +394,8 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     private void updateMetrics(List<MonitoringInfo> monitoringInfos) {
       final MonitoringInfoToCounterUpdateTransformer monitoringInfoToCounterUpdateTransformer =
           new FnApiMonitoringInfoToCounterUpdateTransformer(
-              this.bundleProcessOperation.getPtransformIdToUserStepContext(),
-              this.bundleProcessOperation.getPCollectionIdToNameContext());
+              this.processRemoteBundleOperation.getPtransformIdToUserStepContext(),
+              this.processRemoteBundleOperation.getPCollectionIdToNameContext());
 
       counterUpdates =
           monitoringInfos.stream()
@@ -510,8 +502,8 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
       deprecatedDistributionUpdates.clear();
       deprecatedGaugeUpdates.clear();
       try {
-        updateMetrics(MoreFutures.get(bundleProcessOperation.getFinalMonitoringInfos()));
-        updateMetricsDeprecated(MoreFutures.get(bundleProcessOperation.getFinalMetrics()));
+        updateMetrics(MoreFutures.get(processRemoteBundleOperation.getFinalMonitoringInfos()));
+        updateMetricsDeprecated(MoreFutures.get(processRemoteBundleOperation.getFinalMetrics()));
       } catch (ExecutionException | InterruptedException exn) {
         LOG.info("Failed to get final metrics for bundle", exn);
       }
@@ -639,8 +631,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
   private ProgressTracker createProgressTracker() {
     ReadOperation readOperation;
-    RemoteGrpcPortWriteOperation grpcWriteOperation;
-    RegisterAndProcessBundleOperation bundleProcessOperation;
+    ProcessRemoteBundleOperation processRemoteBundleOperation;
 
     try {
       readOperation = getReadOperation();
@@ -653,22 +644,16 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     // If there is a exactly one of each of RemoteGrpcPortWriteOperation and
     // RegisterAndProcessBundleOperation we know they have the right topology.
     try {
-      grpcWriteOperation =
-          Iterables.getOnlyElement(
-              Iterables.filter(operations, RemoteGrpcPortWriteOperation.class));
-      bundleProcessOperation =
-          Iterables.getOnlyElement(
-              Iterables.filter(operations, RegisterAndProcessBundleOperation.class));
+      processRemoteBundleOperation = Iterables.getOnlyElement(
+              Iterables.filter(operations, ProcessRemoteBundleOperation.class));
     } catch (IllegalArgumentException | NoSuchElementException exn) {
       // TODO: Handle more than one sdk worker processing a single bundle.
-      grpcWriteOperation = null;
-      bundleProcessOperation = null;
+      processRemoteBundleOperation = null;
       LOG.debug("Does not have exactly one grpcWRite and bundleProcess operation.", exn);
     }
 
-    if (grpcWriteOperation != null && bundleProcessOperation != null) {
-      return new SingularProcessBundleProgressTracker(
-          readOperation, grpcWriteOperation, bundleProcessOperation);
+    if (processRemoteBundleOperation != null) {
+      return new SingularProcessBundleProgressTracker(readOperation, processRemoteBundleOperation);
     } else {
       return new ReadOperationProgressTracker(readOperation);
     }

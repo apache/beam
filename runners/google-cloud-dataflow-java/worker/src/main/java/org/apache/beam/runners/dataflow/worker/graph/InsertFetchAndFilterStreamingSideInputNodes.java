@@ -139,7 +139,7 @@ public class InsertFetchAndFilterStreamingSideInputNodes {
           .forEach(
               (sideInputTag, sideInput) ->
                   pCollectionViewsToWindowMapingsFns.put(
-                      RegisterNodeFunction.transformSideInputForRunner(
+                      CreateExecutableStageNodeFunction.transformSideInputForRunner(
                           pipeline, parDoPTransform, sideInputTag, sideInput),
                       sideInput.getWindowMappingFn()));
       Node streamingSideInputWindowHandlerNode =

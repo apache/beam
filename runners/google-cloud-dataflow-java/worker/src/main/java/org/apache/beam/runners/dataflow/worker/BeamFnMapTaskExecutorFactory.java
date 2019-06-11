@@ -44,16 +44,12 @@ import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
-import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.fn.control.BeamFnMapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.fn.control.ProcessRemoteBundleOperation;
-import org.apache.beam.runners.dataflow.worker.fn.control.RegisterAndProcessBundleOperation;
 import org.apache.beam.runners.dataflow.worker.fn.control.TimerReceiver;
-import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortReadOperation;
-import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortWriteOperation;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.MultiOutputInfoEdge;
 import org.apache.beam.runners.dataflow.worker.graph.Networks;
@@ -65,8 +61,6 @@ import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.OperationNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.OutputReceiverNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
-import org.apache.beam.runners.dataflow.worker.graph.Nodes.RegisterRequestNode;
-import org.apache.beam.runners.dataflow.worker.graph.Nodes.RemoteGrpcPortNode;
 import org.apache.beam.runners.dataflow.worker.util.CloudSourceUtils;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.FlattenOperation;
@@ -149,41 +143,17 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
     Networks.replaceDirectedNetworkNodes(
         network, createOutputReceiversTransform(stageName, counterSet));
 
-    if (DataflowRunner.hasExperiment(
-        options.as(DataflowPipelineDebugOptions.class), "use_executable_stage_bundle_execution")) {
-      LOG.debug("Using SingleEnvironmentInstanceJobBundleFactory");
-      JobBundleFactory jobBundleFactory =
-          SingleEnvironmentInstanceJobBundleFactory.create(
-              StaticRemoteEnvironmentFactory.forService(instructionRequestHandler),
-              grpcDataFnServer,
-              grpcStateFnServer,
-              idGenerator);
-      // If the use_executable_stage_bundle_execution is enabled, use ExecutableStage instead.
-      Networks.replaceDirectedNetworkNodes(
-          network,
-          createOperationTransformForExecutableStageNode(
-              network, stageName, executionContext, jobBundleFactory));
-    } else {
-      // Swap out all the RegisterFnRequest nodes with Operation nodes
-      Networks.replaceDirectedNetworkNodes(
-          network,
-          createOperationTransformForRegisterFnNodes(
-              idGenerator,
-              instructionRequestHandler,
-              grpcStateFnServer.getService(),
-              stageName,
-              executionContext));
-      // Swap out all the RemoteGrpcPort nodes with Operation nodes, note that it is expected
-      // that the RegisterFnRequest nodes have already been replaced.
-      Networks.replaceDirectedNetworkNodes(
-          network,
-          createOperationTransformForGrpcPortNodes(
-              network,
-              grpcDataFnServer.getService(),
-              // TODO: Set NameContext properly for these operations.
-              executionContext.createOperationContext(
-                  NameContext.create(stageName, stageName, stageName, stageName))));
-    }
+    LOG.debug("Using SingleEnvironmentInstanceJobBundleFactory");
+    JobBundleFactory jobBundleFactory =
+        SingleEnvironmentInstanceJobBundleFactory.create(
+            StaticRemoteEnvironmentFactory.forService(instructionRequestHandler),
+            grpcDataFnServer,
+            grpcStateFnServer,
+            idGenerator);
+    Networks.replaceDirectedNetworkNodes(
+        network,
+        createOperationTransformForExecutableStageNode(
+            network, stageName, executionContext, jobBundleFactory));
 
     // Swap out all the FetchAndFilterStreamingSideInput nodes with operation nodes
     Networks.replaceDirectedNetworkNodes(
@@ -264,57 +234,6 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
     };
   }
 
-  private Function<Node, Node> createOperationTransformForGrpcPortNodes(
-      final Network<Node, Edge> network,
-      final FnDataService beamFnDataService,
-      final OperationContext context) {
-    return new TypeSafeNodeFunction<RemoteGrpcPortNode>(RemoteGrpcPortNode.class) {
-      @Override
-      public Node typedApply(RemoteGrpcPortNode input) {
-        RegisterAndProcessBundleOperation registerFnOperation =
-            (RegisterAndProcessBundleOperation)
-                Iterables.getOnlyElement(
-                        Iterables.filter(network.adjacentNodes(input), OperationNode.class))
-                    .getOperation();
-
-        // The coder comes from the one and only adjacent output node
-        Coder<?> coder =
-            Iterables.getOnlyElement(
-                    Iterables.filter(network.adjacentNodes(input), OutputReceiverNode.class))
-                .getCoder();
-        // We figure out whether we are outputting some where if the output node is a
-        // successor.
-        Iterable<OutputReceiverNode> outputReceiverNodes =
-            Iterables.filter(network.successors(input), OutputReceiverNode.class);
-        Operation operation;
-        if (outputReceiverNodes.iterator().hasNext()) {
-          OutputReceiver[] outputReceivers =
-              new OutputReceiver[] {
-                Iterables.getOnlyElement(outputReceiverNodes).getOutputReceiver()
-              };
-
-          operation =
-              new RemoteGrpcPortReadOperation<>(
-                  beamFnDataService,
-                  input.getPrimitiveTransformId(),
-                  registerFnOperation::getProcessBundleInstructionId,
-                  (Coder) coder,
-                  outputReceivers,
-                  context);
-        } else {
-          operation =
-              new RemoteGrpcPortWriteOperation<>(
-                  beamFnDataService,
-                  input.getPrimitiveTransformId(),
-                  registerFnOperation::getProcessBundleInstructionId,
-                  (Coder) coder,
-                  context);
-        }
-        return OperationNode.create(operation);
-      }
-    };
-  }
-
   private Function<Node, Node> createOperationTransformForExecutableStageNode(
       final Network<Node, Edge> network,
       final String stageName,
@@ -386,104 +305,6 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
     };
   }
 
-  private Function<Node, Node> createOperationTransformForRegisterFnNodes(
-      final IdGenerator idGenerator,
-      final InstructionRequestHandler instructionRequestHandler,
-      final StateDelegator beamFnStateDelegator,
-      final String stageName,
-      final DataflowExecutionContext<?> executionContext) {
-    return new TypeSafeNodeFunction<RegisterRequestNode>(RegisterRequestNode.class) {
-      @Override
-      public Node typedApply(RegisterRequestNode input) {
-        ImmutableMap.Builder<String, DataflowOperationContext>
-            ptransformIdToOperationContextBuilder = ImmutableMap.builder();
-        ImmutableMap.Builder<String, DataflowStepContext> ptransformIdToStepContext =
-            ImmutableMap.builder();
-        for (Map.Entry<String, NameContext> entry :
-            input.getPTransformIdToPartialNameContextMap().entrySet()) {
-          NameContext fullNameContext =
-              NameContext.create(
-                  stageName,
-                  entry.getValue().originalName(),
-                  entry.getValue().systemName(),
-                  entry.getValue().userName());
-
-          DataflowOperationContext operationContext =
-              executionContext.createOperationContext(fullNameContext);
-          ptransformIdToOperationContextBuilder.put(entry.getKey(), operationContext);
-          ptransformIdToStepContext.put(
-              entry.getKey(), executionContext.getStepContext(operationContext));
-        }
-
-        ImmutableMap.Builder<String, NameContext> pcollectionIdToNameContext =
-            ImmutableMap.builder();
-        for (Map.Entry<String, NameContext> entry :
-            input.getPCollectionToPartialNameContextMap().entrySet()) {
-          pcollectionIdToNameContext.put(
-              entry.getKey(),
-              NameContext.create(
-                  stageName,
-                  entry.getValue().originalName(),
-                  entry.getValue().systemName(),
-                  entry.getValue().userName()));
-        }
-
-        ImmutableMap<String, DataflowOperationContext> ptransformIdToOperationContexts =
-            ptransformIdToOperationContextBuilder.build();
-
-        ImmutableMap<String, SideInputReader> ptransformIdToSideInputReaders =
-            buildPTransformIdToSideInputReadersMap(
-                executionContext, input, ptransformIdToOperationContexts);
-
-        ImmutableTable<String, String, PCollectionView<?>>
-            ptransformIdToSideInputIdToPCollectionView =
-                buildPTransformIdToSideInputIdToPCollectionView(input);
-
-        return OperationNode.create(
-            new RegisterAndProcessBundleOperation(
-                idGenerator,
-                instructionRequestHandler,
-                beamFnStateDelegator,
-                input.getRegisterRequest(),
-                ptransformIdToOperationContexts,
-                ptransformIdToStepContext.build(),
-                ptransformIdToSideInputReaders,
-                ptransformIdToSideInputIdToPCollectionView,
-                pcollectionIdToNameContext.build(),
-                // TODO: Set NameContext properly for these operations.
-                executionContext.createOperationContext(
-                    NameContext.create(stageName, stageName, stageName, stageName))));
-      }
-    };
-  }
-
-  /** Returns a map from PTransform id to side input reader. */
-  private static ImmutableMap<String, SideInputReader> buildPTransformIdToSideInputReadersMap(
-      DataflowExecutionContext executionContext,
-      RegisterRequestNode registerRequestNode,
-      ImmutableMap<String, DataflowOperationContext> ptransformIdToOperationContexts) {
-
-    ImmutableMap.Builder<String, SideInputReader> ptransformIdToSideInputReaders =
-        ImmutableMap.builder();
-    for (Map.Entry<String, Iterable<PCollectionView<?>>> ptransformIdToPCollectionView :
-        registerRequestNode.getPTransformIdToPCollectionViewMap().entrySet()) {
-      try {
-        ptransformIdToSideInputReaders.put(
-            ptransformIdToPCollectionView.getKey(),
-            executionContext.getSideInputReader(
-                // Note that the side input infos will only be populated for a batch pipeline
-                registerRequestNode
-                    .getPTransformIdToSideInputInfoMap()
-                    .get(ptransformIdToPCollectionView.getKey()),
-                ptransformIdToPCollectionView.getValue(),
-                ptransformIdToOperationContexts.get(ptransformIdToPCollectionView.getKey())));
-      } catch (Exception e) {
-        throw Throwables.propagate(e);
-      }
-    }
-    return ptransformIdToSideInputReaders.build();
-  }
-
   /** Returns a map from PTransform id to side input reader. */
   private static ImmutableMap<String, SideInputReader> buildPTransformIdToSideInputReadersMap(
       DataflowExecutionContext executionContext,
@@ -509,27 +330,6 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
       }
     }
     return ptransformIdToSideInputReaders.build();
-  }
-
-  /**
-   * Returns a table where the row key is the PTransform id, the column key is the side input id,
-   * and the value is the corresponding PCollectionView.
-   */
-  private static ImmutableTable<String, String, PCollectionView<?>>
-      buildPTransformIdToSideInputIdToPCollectionView(RegisterRequestNode registerRequestNode) {
-    ImmutableTable.Builder<String, String, PCollectionView<?>>
-        ptransformIdToSideInputIdToPCollectionViewBuilder = ImmutableTable.builder();
-    for (Map.Entry<String, Iterable<PCollectionView<?>>> ptransformIdToPCollectionViews :
-        registerRequestNode.getPTransformIdToPCollectionViewMap().entrySet()) {
-      for (PCollectionView<?> pCollectionView : ptransformIdToPCollectionViews.getValue()) {
-        ptransformIdToSideInputIdToPCollectionViewBuilder.put(
-            ptransformIdToPCollectionViews.getKey(),
-            pCollectionView.getTagInternal().getId(),
-            pCollectionView);
-      }
-    }
-
-    return ptransformIdToSideInputIdToPCollectionViewBuilder.build();
   }
 
   /** Returns a map where key is the SideInput id, value is PCollectionView. */
