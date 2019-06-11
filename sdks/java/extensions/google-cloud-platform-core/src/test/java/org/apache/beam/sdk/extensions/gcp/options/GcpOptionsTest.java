@@ -63,7 +63,7 @@ public class GcpOptionsTest {
 
   /** Tests for the majority of methods. */
   @RunWith(JUnit4.class)
-  public static class Common {
+  public static class CommonTests {
     @Rule public TestRule restoreSystemProperties = new RestoreSystemProperties();
     @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
     @Rule public ExpectedException thrown = ExpectedException.none();
@@ -199,7 +199,7 @@ public class GcpOptionsTest {
 
   /** Tests related to determining the GCP temp location. */
   @RunWith(JUnit4.class)
-  public static class GcpTempLocation {
+  public static class GcpTempLocationTest {
     @Rule public ExpectedException thrown = ExpectedException.none();
     @Mock private GcsUtil mockGcsUtil;
     @Mock private CloudResourceManager mockCrmClient;
@@ -267,6 +267,16 @@ public class GcpOptionsTest {
 
       thrown.expect(IllegalArgumentException.class);
       thrown.expectMessage("Bucket owner does not match the project");
+      GcpTempLocationFactory.tryCreateDefaultBucket(options, mockCrmClient);
+    }
+
+    @Test
+    public void testCreateBucketCreateWithKmsFails() throws Exception {
+      doReturn(fakeProject).when(mockGet).execute();
+      options.as(GcpOptions.class).setDataflowKmsKey("kms_key");
+
+      thrown.expect(RuntimeException.class);
+      thrown.expectMessage("dataflowKmsKey");
       GcpTempLocationFactory.tryCreateDefaultBucket(options, mockCrmClient);
     }
 
