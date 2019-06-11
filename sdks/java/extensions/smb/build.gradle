@@ -22,45 +22,22 @@ applyJavaNature()
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SMB"
 
 dependencies {
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(path: ":sdks:java:extensions:sorter", configuration: "shadow")
-  shadow project(path: ":runners:google-cloud-dataflow-java", configuration: "shadow")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":sdks:java:extensions:sorter")
+  compile library.java.vendored_guava_20_0
 
   // Required by sorter module
   provided library.java.hadoop_mapreduce_client_core
   provided library.java.hadoop_common
   // Required by TableRow JSON
-  provided project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
+  provided project(":sdks:java:io:google-cloud-platform")
 
-  shadowTest project(path: ":runners:direct-java", configuration: "shadow")
-  shadowTest project(path: ":sdks:java:testing:test-utils", configuration: "shadowTest")
-  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
-  shadow library.java.vendored_guava_20_0
-  testCompile library.java.junit
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(":runners:direct-java")
+  testCompile project(":sdks:java:testing:test-utils")
+
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  testRuntimeOnly project(path: ":runners:direct-java")
-}
-
-// TODO: These tasks are here for quick reference, can probably be removed before merge.
-task runBenchmarkMatchingBuckets(type: JavaExec) {
-  classpath = sourceSets.test.runtimeClasspath
-  main = "org.apache.beam.sdk.extensions.smb.benchmark.SmbIT"
-  args "--numKeys=10000",
-       "--maxRecordsPerKey=20",
-       "--avroNumBuckets=16",
-       "--avroNumShards=2",
-       "--jsonNumBuckets=16",
-       "--jsonNumShards=2"
-}
-
-task runBenchmarkMixedBuckets(type: JavaExec) {
-  classpath = sourceSets.test.runtimeClasspath
-  main = "org.apache.beam.sdk.extensions.smb.benchmark.SmbIT"
-  args "--numKeys=10000",
-       "--maxRecordsPerKey=20",
-       "--avroNumBuckets=16",
-       "--avroNumShards=2",
-       "--jsonNumBuckets=16",
-       "--jsonNumShards=2"
+  testCompile library.java.junit
+  testRuntimeOnly project(":runners:direct-java")
 }
