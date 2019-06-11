@@ -191,13 +191,6 @@ class Environment(object):
       if ('use_multiple_sdk_containers' not in debug_options_experiments and
           'no_use_multiple_sdk_containers' not in debug_options_experiments):
         debug_options_experiments.append('use_multiple_sdk_containers')
-      # Add enable_health_checker flag if it's not already present. Do not
-      # add the flag if 'disable_health_checker' is present.
-      # TODO[BEAM-7466]: Cleanup enable_health_checker once Python SDK 2.13
-      # becomes unsupported.
-      if ('enable_health_checker' not in debug_options_experiments and
-          'disable_health_checker' not in debug_options_experiments):
-        debug_options_experiments.append('enable_health_checker')
     # FlexRS
     if self.google_cloud_options.flexrs_goal == 'COST_OPTIMIZED':
       self.proto.flexResourceSchedulingGoal = (
