@@ -76,7 +76,6 @@ public class CreateRegisterFnOperationFunction
   private final IdGenerator idGenerator;
   private final Supplier<Node> portSupplier;
   private final Function<MutableNetwork<Node, Edge>, Node> registerFnOperationFunction;
-  private final boolean useExecutableStageBundleExecution;
 
   /**
    * Constructs a function which is able to break up the instruction graph into SDK and Runner
@@ -92,12 +91,10 @@ public class CreateRegisterFnOperationFunction
   public CreateRegisterFnOperationFunction(
       IdGenerator idGenerator,
       Supplier<Node> portSupplier,
-      Function<MutableNetwork<Node, Edge>, Node> registerFnOperationFunction,
-      boolean useExecutableStageBundleExecution) {
+      Function<MutableNetwork<Node, Edge>, Node> registerFnOperationFunction) {
     this.idGenerator = idGenerator;
     this.portSupplier = portSupplier;
     this.registerFnOperationFunction = registerFnOperationFunction;
-    this.useExecutableStageBundleExecution = useExecutableStageBundleExecution;
   }
 
   @Override
@@ -188,11 +185,9 @@ public class CreateRegisterFnOperationFunction
     Set<Node> allRunnerNodes =
         Networks.reachableNodes(
             network, Sets.union(runnerRootNodes, sdkToRunnerBoundaries), runnerToSdkBoundaries);
-    if (this.useExecutableStageBundleExecution) {
-      // When using shared library, there is no grpc node in runner graph.
-      allRunnerNodes =
-          Sets.difference(allRunnerNodes, Sets.union(runnerToSdkBoundaries, sdkToRunnerBoundaries));
-    }
+    // When using shared library, there is no grpc node in runner graph.
+    allRunnerNodes =
+        Sets.difference(allRunnerNodes, Sets.union(runnerToSdkBoundaries, sdkToRunnerBoundaries));
     MutableNetwork<Node, Edge> runnerNetwork = Graphs.inducedSubgraph(network, allRunnerNodes);
 
     // TODO: Reduce the amount of 'copying' of SDK nodes by breaking potential cycles
@@ -210,24 +205,15 @@ public class CreateRegisterFnOperationFunction
       // Create happens before relationships between all Runner and SDK nodes which are in the
       // SDK subnetwork; direction dependent on whether its a predecessor of the SDK subnetwork or
       // a successor.
-      if (this.useExecutableStageBundleExecution) {
-        // When using shared library, there is no gprc node in runner graph. Then the registerFnNode
-        // should be linked directly to 2 OutputInstruction nodes.
-        for (Node predecessor : Sets.intersection(sdkSubnetworkNodes, runnerToSdkBoundaries)) {
-          predecessor = network.predecessors(predecessor).iterator().next();
-          runnerNetwork.addEdge(predecessor, registerFnNode, HappensBeforeEdge.create());
-        }
-        for (Node successor : Sets.intersection(sdkSubnetworkNodes, sdkToRunnerBoundaries)) {
-          successor = network.successors(successor).iterator().next();
-          runnerNetwork.addEdge(registerFnNode, successor, HappensBeforeEdge.create());
-        }
-      } else {
-        for (Node predecessor : Sets.intersection(sdkSubnetworkNodes, runnerToSdkBoundaries)) {
-          runnerNetwork.addEdge(predecessor, registerFnNode, HappensBeforeEdge.create());
-        }
-        for (Node successor : Sets.intersection(sdkSubnetworkNodes, sdkToRunnerBoundaries)) {
-          runnerNetwork.addEdge(registerFnNode, successor, HappensBeforeEdge.create());
-        }
+      // When using shared library, there is no gprc node in runner graph. Then the registerFnNode
+      // should be linked directly to 2 OutputInstruction nodes.
+      for (Node predecessor : Sets.intersection(sdkSubnetworkNodes, runnerToSdkBoundaries)) {
+        predecessor = network.predecessors(predecessor).iterator().next();
+        runnerNetwork.addEdge(predecessor, registerFnNode, HappensBeforeEdge.create());
+      }
+      for (Node successor : Sets.intersection(sdkSubnetworkNodes, sdkToRunnerBoundaries)) {
+        successor = network.successors(successor).iterator().next();
+        runnerNetwork.addEdge(registerFnNode, successor, HappensBeforeEdge.create());
       }
     }
 

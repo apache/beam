@@ -69,7 +69,7 @@ public class CreateRegisterFnOperationFunctionTest {
     MockitoAnnotations.initMocks(this);
     createRegisterFnOperation =
         new CreateRegisterFnOperationFunction(
-            IdGenerators.decrementingLongs(), portSupplier, registerFnOperationFunction, false);
+            IdGenerators.decrementingLongs(), portSupplier, registerFnOperationFunction);
   }
 
   @Test
