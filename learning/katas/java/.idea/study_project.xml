@@ -179,21 +179,6 @@
                             <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Person.java">
-                                  <value>
-                                    <TaskFile>
-                                      <option name="answerPlaceholders">
-                                        <list />
-                                      </option>
-                                      <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Person.java" />
-                                      <option name="text" value="" />
-                                      <option name="trackChanges" value="true" />
-                                      <option name="trackLengths" value="true" />
-                                      <option name="visible" value="true" />
-                                    </TaskFile>
-                                  </value>
-                                </entry>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/map/pardo/Task.java">
                                   <value>
                                     <TaskFile>
