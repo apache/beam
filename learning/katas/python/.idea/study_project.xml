@@ -2192,7 +2192,7 @@
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
-                                      <option name="highlightErrors" value="false" />
+                                      <option name="highlightErrors" value="true" />
                                       <option name="name" value="tests.py" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
