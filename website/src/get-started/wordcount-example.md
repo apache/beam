@@ -1360,7 +1360,7 @@ import apache_beam as beam
 from apache_beam.transforms import window
 ...
 ...
-windowed_words = input | beam.WindowInto(window.FixedWindows(60 * window_size_min))
+windowed_words = input | beam.WindowInto(window.FixedWindows(60 * window_size_minutes))
 ```
 
 ```go
