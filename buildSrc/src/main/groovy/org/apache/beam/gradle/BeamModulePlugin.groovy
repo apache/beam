@@ -1417,7 +1417,6 @@ class BeamModulePlugin implements Plugin<Project> {
     /** ***********************************************************************************************/
 
     project.ext.applyGroovyNature = {
-      println "Applying groovy nature"
       project.apply plugin: "groovy"
 
       project.apply plugin: "com.diffplug.gradle.spotless"
