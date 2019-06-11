@@ -83,7 +83,8 @@ public class DockerEnvironmentFactoryTest {
             provisioningServiceServer,
             (workerId, timeout) -> client,
             ID_GENERATOR,
-            false);
+            false,
+            null);
   }
 
   @Test

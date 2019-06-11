@@ -591,7 +591,7 @@ public class PipelineOptionsFactory {
     checkNotNull(iface);
     CACHE.get().validateWellFormed(iface);
 
-    Set<PipelineOptionSpec> properties = PipelineOptionsReflector.getOptionSpecs(iface);
+    Set<PipelineOptionSpec> properties = PipelineOptionsReflector.getOptionSpecs(iface, true);
 
     RowSortedTable<Class<?>, String, Method> ifacePropGetterTable =
         TreeBasedTable.create(ClassNameComparator.INSTANCE, Ordering.natural());
@@ -660,7 +660,7 @@ public class PipelineOptionsFactory {
     for (Class<? extends PipelineOptions> iface : ifaces) {
       CACHE.get().validateWellFormed(iface);
 
-      Set<PipelineOptionSpec> properties = PipelineOptionsReflector.getOptionSpecs(iface);
+      Set<PipelineOptionSpec> properties = PipelineOptionsReflector.getOptionSpecs(iface, false);
 
       RowSortedTable<Class<?>, String, Method> ifacePropGetterTable =
           TreeBasedTable.create(ClassNameComparator.INSTANCE, Ordering.natural());

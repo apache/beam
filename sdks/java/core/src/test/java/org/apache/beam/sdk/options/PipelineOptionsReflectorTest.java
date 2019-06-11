@@ -41,7 +41,7 @@ public class PipelineOptionsReflectorTest {
   @Test
   public void testGetOptionSpecs() throws NoSuchMethodException {
     Set<PipelineOptionSpec> properties =
-        PipelineOptionsReflector.getOptionSpecs(SimpleOptions.class);
+        PipelineOptionsReflector.getOptionSpecs(SimpleOptions.class, true);
 
     assertThat(
         properties,
@@ -60,7 +60,7 @@ public class PipelineOptionsReflectorTest {
   @Test
   public void testFiltersNonGetterMethods() {
     Set<PipelineOptionSpec> properties =
-        PipelineOptionsReflector.getOptionSpecs(OnlyTwoValidGetters.class);
+        PipelineOptionsReflector.getOptionSpecs(OnlyTwoValidGetters.class, true);
 
     assertThat(properties, not(hasItem(hasName(isOneOf("misspelled", "hasParameter", "prefix")))));
   }
@@ -91,7 +91,7 @@ public class PipelineOptionsReflectorTest {
   @Test
   public void testBaseClassOptions() {
     Set<PipelineOptionSpec> props =
-        PipelineOptionsReflector.getOptionSpecs(ExtendsSimpleOptions.class);
+        PipelineOptionsReflector.getOptionSpecs(ExtendsSimpleOptions.class, true);
 
     assertThat(props, hasItem(allOf(hasName("foo"), hasClass(SimpleOptions.class))));
     assertThat(props, hasItem(allOf(hasName("foo"), hasClass(ExtendsSimpleOptions.class))));
@@ -114,7 +114,7 @@ public class PipelineOptionsReflectorTest {
   @Test
   public void testExcludesNonPipelineOptionsMethods() {
     Set<PipelineOptionSpec> properties =
-        PipelineOptionsReflector.getOptionSpecs(ExtendsNonPipelineOptions.class);
+        PipelineOptionsReflector.getOptionSpecs(ExtendsNonPipelineOptions.class, true);
 
     assertThat(properties, not(hasItem(hasName("foo"))));
   }
@@ -132,7 +132,7 @@ public class PipelineOptionsReflectorTest {
   @Test
   public void testExcludesHiddenInterfaces() {
     Set<PipelineOptionSpec> properties =
-        PipelineOptionsReflector.getOptionSpecs(HiddenOptions.class);
+        PipelineOptionsReflector.getOptionSpecs(HiddenOptions.class, true);
 
     assertThat(properties, not(hasItem(hasName("foo"))));
   }
@@ -148,7 +148,7 @@ public class PipelineOptionsReflectorTest {
   @Test
   public void testShouldSerialize() {
     Set<PipelineOptionSpec> properties =
-        PipelineOptionsReflector.getOptionSpecs(JsonIgnoreOptions.class);
+        PipelineOptionsReflector.getOptionSpecs(JsonIgnoreOptions.class, true);
 
     assertThat(properties, hasItem(allOf(hasName("notIgnored"), shouldSerialize())));
     assertThat(properties, hasItem(allOf(hasName("ignored"), not(shouldSerialize()))));

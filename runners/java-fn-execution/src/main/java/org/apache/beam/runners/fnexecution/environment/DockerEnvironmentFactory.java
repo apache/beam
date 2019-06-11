@@ -20,6 +20,7 @@ package org.apache.beam.runners.fnexecution.environment;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
 
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.List;
@@ -62,7 +63,8 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       ControlClientPool.Source clientSource,
       IdGenerator idGenerator,
-      boolean retainDockerContainer) {
+      boolean retainDockerContainer,
+      String mountTempDir) {
     return new DockerEnvironmentFactory(
         docker,
         controlServiceServer,
@@ -71,7 +73,8 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
         provisioningServiceServer,
         idGenerator,
         clientSource,
-        retainDockerContainer);
+        retainDockerContainer,
+        mountTempDir);
   }
 
   private final DockerCommand docker;
@@ -82,6 +85,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
   private final IdGenerator idGenerator;
   private final ControlClientPool.Source clientSource;
   private final boolean retainDockerContainer;
+  private final String mountTempDir;
 
   private DockerEnvironmentFactory(
       DockerCommand docker,
@@ -91,7 +95,8 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       IdGenerator idGenerator,
       ControlClientPool.Source clientSource,
-      boolean retainDockerContainer) {
+      boolean retainDockerContainer,
+      String mountTempDir) {
     this.docker = docker;
     this.controlServiceServer = controlServiceServer;
     this.loggingServiceServer = loggingServiceServer;
@@ -100,6 +105,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     this.idGenerator = idGenerator;
     this.clientSource = clientSource;
     this.retainDockerContainer = retainDockerContainer;
+    this.mountTempDir = mountTempDir;
   }
 
   /** Creates a new, active {@link RemoteEnvironment} backed by a local Docker container. */
@@ -134,6 +140,18 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
 
     if (!retainDockerContainer) {
       dockerArgsBuilder.add("--rm");
+    }
+
+    if (mountTempDir != null) {
+      String localTempBase = System.getProperty("java.io.tmpdir");
+      Path localTempDir = Paths.get(localTempBase, mountTempDir);
+      String dockerTempBase = "/tmp";
+      Path dockerTempDir = Paths.get(dockerTempBase, mountTempDir);
+      if (localTempDir.toAbsolutePath().startsWith(localTempBase)
+          && dockerTempDir.toAbsolutePath().startsWith(dockerTempBase)) {
+        dockerArgsBuilder.add(
+            "--mount", String.format("type=bind,src=%s,dst=%s", localTempDir, dockerTempDir));
+      }
     }
 
     List<String> args =
@@ -240,10 +258,12 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
   /** Provider for DockerEnvironmentFactory. */
   public static class Provider implements EnvironmentFactory.Provider {
     private final boolean retainDockerContainer;
+    private final String mountTempDir;
 
     public Provider(PipelineOptions options) {
       this.retainDockerContainer =
           options.as(ManualDockerEnvironmentOptions.class).getRetainDockerContainers();
+      this.mountTempDir = options.as(ManualDockerEnvironmentOptions.class).getMountTempDir();
     }
 
     @Override
@@ -262,7 +282,8 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
           provisioningServiceServer,
           clientPool.getSource(),
           idGenerator,
-          retainDockerContainer);
+          retainDockerContainer,
+          mountTempDir);
     }
 
     @Override

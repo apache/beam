@@ -32,6 +32,14 @@ public interface ManualDockerEnvironmentOptions extends PipelineOptions {
 
   void setRetainDockerContainers(boolean retainDockerContainers);
 
+  @Description(
+      "Mount temporary directory to Docker container instance. "
+          + "The parameter is a path relative to the system temporary directory "
+          + "e.g. '--mountTempDir foo' implies '/tmp/foo' on Linux.")
+  String getMountTempDir();
+
+  void setMountTempDir(String mountTempDir);
+
   /** Register the {@link ManualDockerEnvironmentOptions}. */
   @AutoService(PipelineOptionsRegistrar.class)
   class Options implements PipelineOptionsRegistrar {
