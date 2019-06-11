@@ -19,8 +19,8 @@ package org.apache.beam.sdk.extensions.gcp.util;
 
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertNull;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.mock;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.json.Json;
@@ -59,13 +59,13 @@ public class CustomHttpErrorsTest {
   private HttpRequestWrapper createHttpRequest(String url) throws MalformedURLException {
     HttpRequestWrapper request = mock(HttpRequestWrapper.class);
     GenericUrl genericUrl = new GenericUrl(new URL(url));
-    given(request.getUrl()).willReturn(genericUrl);
+    when(request.getUrl()).thenReturn(genericUrl);
     return request;
   }
 
   private HttpResponseWrapper createHttpResponse(int statusCode) {
     HttpResponseWrapper response = mock(HttpResponseWrapper.class);
-    given(response.getStatusCode()).willReturn(statusCode);
+    when(response.getStatusCode()).thenReturn(statusCode);
     return response;
   }
 
