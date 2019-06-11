@@ -203,6 +203,8 @@ def portableWordCountTask(name, streaming) {
 
 task dataflowChicagoTaxiExample(dependsOn: ['installGcpTest', 'sdist']) {
   
+  def gcsRoot = findProperty('gcsRoot')
+  def runner = findProperty('runner')
   def cliArgs = "${gcsRoot} ${runner} ${project.buildDir}/apache-beam.tar.gz"
   
   doLast {
