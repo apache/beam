@@ -132,7 +132,7 @@ public class SMBFilenamePolicyTest {
         Instant.now().toString(DateTimeFormat.forPattern("yyyy-MM-dd_HH-mm-"));
 
     return String.format(
-        "%s.temp-beam-%s\\d{2}-\\d/%s\\d{2}-%s%s",
+        "%s.temp-beam-%s\\d{2}-\\d{2}/%s\\d{2}-%s%s",
         directory.toString(), timestampMinutePrefix, timestampMinutePrefix, filename, suffix);
   }
 }
