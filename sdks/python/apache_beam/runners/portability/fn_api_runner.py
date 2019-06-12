@@ -650,16 +650,14 @@ class FnApiRunner(runner.PipelineRunner):
                                 bundle_processor.DATA_OUTPUT_URN):
         pcoll_id = transform.spec.payload
         if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
-          target = transform.unique_name, only_element(transform.outputs)
           if pcoll_id == fn_api_runner_transforms.IMPULSE_BUFFER:
-            data_input[target] = [ENCODED_IMPULSE_VALUE]
+            data_input[transform.unique_name] = [ENCODED_IMPULSE_VALUE]
           else:
-            data_input[target] = pcoll_buffers[pcoll_id]
+            data_input[transform.unique_name] = pcoll_buffers[pcoll_id]
           coder_id = pipeline_components.pcollections[
               only_element(transform.outputs.values())].coder_id
         elif transform.spec.urn == bundle_processor.DATA_OUTPUT_URN:
-          target = transform.unique_name, only_element(transform.inputs)
-          data_output[target] = pcoll_id
+          data_output[transform.unique_name] = pcoll_id
           coder_id = pipeline_components.pcollections[
               only_element(transform.inputs.values())].coder_id
         else:
