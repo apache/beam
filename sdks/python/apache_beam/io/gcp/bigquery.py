@@ -920,6 +920,7 @@ class WriteToBigQuery(PTransform):
                additional_bq_parameters=None,
                table_side_inputs=None,
                schema_side_inputs=None,
+               triggering_frequency=None,
                validate=True):
     """Initialize a WriteToBigQuery transform.
 
@@ -1027,6 +1028,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.max_file_size = max_file_size
     self.max_files_per_bundle = max_files_per_bundle
     self.method = method or WriteToBigQuery.Method.DEFAULT
+    self.triggering_frequency = triggering_frequency
     self.insert_retry_strategy = insert_retry_strategy
     self._validate = validate
 
@@ -1112,19 +1114,14 @@ bigquery_v2_messages.TableSchema):
     else:
       raise TypeError('Unexpected schema argument: %s.' % schema)
 
-  def _compute_method(self, pipeline, options):
-    experiments = options.view_as(DebugOptions).experiments or []
-
-    # TODO(pabloem): Use a different method to determine if streaming or batch.
-    streaming_pipeline = pipeline.options.view_as(StandardOptions).streaming
-
+  def _compute_method(self, experiments, is_streaming_pipeline):
     # If the new BQ sink is not activated for experiment flags, then we use
     # streaming inserts by default (it gets overridden in dataflow_runner.py).
     if 'use_beam_bq_sink' not in experiments:
       return self.Method.STREAMING_INSERTS
-    elif self.method == self.Method.DEFAULT and streaming_pipeline:
+    elif self.method == self.Method.DEFAULT and is_streaming_pipeline:
       return self.Method.STREAMING_INSERTS
-    elif self.method == self.Method.DEFAULT and not streaming_pipeline:
+    elif self.method == self.Method.DEFAULT and not is_streaming_pipeline:
       return self.Method.FILE_LOADS
     else:
       return self.method
@@ -1137,7 +1134,11 @@ bigquery_v2_messages.TableSchema):
       self.table_reference.projectId = pcoll.pipeline.options.view_as(
           GoogleCloudOptions).project
 
-    method_to_use = self._compute_method(p, p.options)
+    experiments = p.options.view_as(DebugOptions).experiments or []
+    # TODO(pabloem): Use a different method to determine if streaming or batch.
+    is_streaming_pipeline = p.options.view_as(StandardOptions).streaming
+
+    method_to_use = self._compute_method(experiments, is_streaming_pipeline)
 
     if (method_to_use == WriteToBigQuery.Method.STREAMING_INSERTS
         and self.schema == SCHEMA_AUTODETECT):
@@ -1145,7 +1146,6 @@ bigquery_v2_messages.TableSchema):
                        'inserts into BigQuery. Only for File Loads.')
 
     if method_to_use == WriteToBigQuery.Method.STREAMING_INSERTS:
-      # TODO: Support load jobs for streaming pipelines.
       bigquery_write_fn = BigQueryWriteFn(
           schema=self.schema,
           batch_size=self.batch_size,
@@ -1166,16 +1166,13 @@ bigquery_v2_messages.TableSchema):
 
       return {BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS]}
     else:
-      if p.options.view_as(StandardOptions).streaming:
-        raise NotImplementedError(
-            'File Loads to BigQuery are only supported on Batch pipelines.')
-
       from apache_beam.io.gcp import bigquery_file_loads
       return pcoll | bigquery_file_loads.BigQueryBatchFileLoads(
           destination=self.table_reference,
           schema=self.schema,
           create_disposition=self.create_disposition,
           write_disposition=self.write_disposition,
+          triggering_frequency=self.triggering_frequency,
           max_file_size=self.max_file_size,
           max_files_per_bundle=self.max_files_per_bundle,
           custom_gcs_temp_location=self.custom_gcs_temp_location,
@@ -1183,7 +1180,8 @@ bigquery_v2_messages.TableSchema):
           table_side_inputs=self.table_side_inputs,
           schema_side_inputs=self.schema_side_inputs,
           additional_bq_parameters=self.additional_bq_parameters,
-          validate=self._validate)
+          validate=self._validate,
+          is_streaming_pipeline=is_streaming_pipeline)
 
   def display_data(self):
     res = {}
