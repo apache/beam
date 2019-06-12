@@ -897,9 +897,7 @@ class EmbeddedWorkerHandler(WorkerHandler):
     if not request.instruction_id:
       self._uid_counter += 1
       request.instruction_id = 'control_%s' % self._uid_counter
-    logging.debug('CONTROL REQUEST ID %s', request.instruction_id)
     response = self.worker.do_instruction(request)
-    logging.debug('CONTROL RESPONSE ID %s', response.instruction_id)
     return ControlFuture(request.instruction_id, response)
 
   def start_worker(self):
