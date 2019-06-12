@@ -65,8 +65,8 @@ def _generate_load_job_name():
   return 'beam_load_%s_%s' % (datetime_component, random.randint(0, 100))
 
 
-def file_prefix_generator(with_validation=True):
-  def _generate_file_prefix(pipeline_gcs_location):
+def file_prefix_generator(with_validation=True, pipeline_gcs_location=None):
+  def _generate_file_prefix(unused_elm):
     # If a gcs location is provided to the pipeline, then we shall use that.
     # Otherwise, we shall use the temp_location from pipeline options.
     gcs_base = str(pipeline_gcs_location.get() or
@@ -76,11 +76,12 @@ def file_prefix_generator(with_validation=True):
     # step doesn't have any dependencies (and thus will be one of the first
     # stages to be run).
     if with_validation and (not gcs_base or not gcs_base.startswith('gs://')):
-      raise ValueError('Invalid GCS location.\n'
+      raise ValueError('Invalid GCS location: %s.\n'
                        'Writing to BigQuery with FILE_LOADS method requires a '
                        'GCS location to be provided to write files to be loaded'
                        ' loaded into BigQuery. Please provide a GCS bucket, or '
-                       'pass method="STREAMING_INSERTS" to WriteToBigQuery.')
+                       'pass method="STREAMING_INSERTS" to WriteToBigQuery.'
+                       % gcs_base)
 
     prefix_uuid = _bq_uuid()
     return fs.FileSystems.join(gcs_base, 'bq_load', prefix_uuid)
@@ -563,10 +564,10 @@ class BigQueryBatchFileLoads(beam.PTransform):
 
     file_prefix_pcv = pvalue.AsSingleton(
         p
-        | "CreateFilePrefixView" >> beam.Create(
-            [self._custom_gcs_temp_location])
+        | "CreateFilePrefixView" >> beam.Create([''])
         | "GenerateFilePrefix" >> beam.Map(
-            file_prefix_generator(self._validate)))
+            file_prefix_generator(self._validate,
+                                  self._custom_gcs_temp_location)))
 
     outputs = (
         pcoll
