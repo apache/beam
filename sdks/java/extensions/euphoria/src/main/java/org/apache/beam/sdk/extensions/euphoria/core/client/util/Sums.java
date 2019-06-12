@@ -26,9 +26,13 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.Combinable
 public class Sums {
 
   private static final CombinableReduceFunction<Long> SUMS_OF_LONG =
-      (CombinableReduceFunction<Long>) s -> s.collect(Collectors.summingLong(e -> e));
+      s -> s.collect(Collectors.summingLong(e -> e));
   private static final CombinableReduceFunction<Integer> SUMS_OF_INT =
-      (CombinableReduceFunction<Integer>) s -> s.collect(Collectors.summingInt(e -> e));
+      s -> s.collect(Collectors.summingInt(e -> e));
+  private static final CombinableReduceFunction<Float> SUMS_OF_FLOAT =
+      s -> s.collect(Collectors.reducing((a, b) -> a + b)).orElse(0.0f);
+  private static final CombinableReduceFunction<Double> SUMS_OF_DOUBLE =
+      s -> s.collect(Collectors.summingDouble(e -> e));
 
   private Sums() {}
 
@@ -38,5 +42,13 @@ public class Sums {
 
   public static CombinableReduceFunction<Integer> ofInts() {
     return SUMS_OF_INT;
+  }
+
+  public static CombinableReduceFunction<Float> ofFloats() {
+    return SUMS_OF_FLOAT;
+  }
+
+  public static CombinableReduceFunction<Double> ofDoubles() {
+    return SUMS_OF_DOUBLE;
   }
 }
