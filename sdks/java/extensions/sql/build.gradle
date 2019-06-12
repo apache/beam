@@ -96,6 +96,7 @@ dependencies {
   shadow project(path: ":runners:direct-java", configuration: "shadow")
   provided project(":sdks:java:io:kafka")
   provided project(":sdks:java:io:google-cloud-platform")
+  provided project(":sdks:java:io:parquet")
   provided library.java.kafka_clients
   shadowTest library.java.junit
   shadowTest library.java.hamcrest_core
