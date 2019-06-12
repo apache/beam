@@ -35,7 +35,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Website_Publish', '',
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':beam-website:clean')
       tasks(':beam-website:publishWebsite')
-      commonJobProperties.setGradleSwitches(delegate)
+      //commonJobProperties.setGradleSwitches(delegate)
     }
   }
 }
