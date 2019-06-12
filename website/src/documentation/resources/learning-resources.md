@@ -95,6 +95,26 @@ If you have additional material that you would like to see here, please let us k
 *   **[NDVI from Landsat Images](https://qwiklabs.com/focuses/1849?locale=en&parent=catalog)** (45m) - Process Landsat satellite data in a distributed environment to compute the [Normalized Difference Vegetation Index](https://en.wikipedia.org/wiki/Normalized_difference_vegetation_index) (NDVI).
 *   **[Simulate historic flights](https://qwiklabs.com/focuses/1159?locale=en&parent=catalog)** (60m) - Simulate real-time historic internal flights in the United States and store the resulting simulated data in BigQuery.
 
+## Beam Katas (IDE-based Learning) {#beam-katas}
+
+### Java
+
+*   Download [IntelliJ Edu](https://www.jetbrains.com/education/download/#section=idea)
+*   Upon opening the IDE, expand the "Learn and Teach" menu, then select "Browse Courses"
+*   Search for "Beam Katas - Java"
+*   Expand the "Advanced Settings" and modify the "Location" and "Jdk" appropriately
+*   Click "Join"
+*   [Learn more](https://www.jetbrains.com/help/education/learner-start-guide.html?section=Introduction%20to%20Java#explore_course) on how to use the Education product
+
+### Python
+
+*   Download [PyCharm Edu](https://www.jetbrains.com/education/download/#section=pycharm-edu)
+*   Upon opening the IDE, expand the "Learn and Teach" menu, then select "Browse Courses"
+*   Search for "Beam Katas - Python"
+*   Expand the "Advanced Settings" and modify the "Location" and "Interpreter" appropriately
+*   Click "Join"
+*   [Learn more](https://www.jetbrains.com/help/education/learner-start-guide.html?section=Introduction%20to%20Python#explore_course) on how to use the Education product
+
 ## Code Examples {#code-examples}
 
 ### Java
