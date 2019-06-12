@@ -69,7 +69,7 @@ def file_prefix_generator(with_validation=True):
   def _generate_file_prefix(pipeline_gcs_location):
     # If a gcs location is provided to the pipeline, then we shall use that.
     # Otherwise, we shall use the temp_location from pipeline options.
-    gcs_base = str(pipeline_gcs_location or
+    gcs_base = str(pipeline_gcs_location.get() or
                    vp.RuntimeValueProvider.get_value('temp_location', str, ''))
 
     # This will fail at pipeline execution time, but will fail early, as this
@@ -507,7 +507,15 @@ class BigQueryBatchFileLoads(beam.PTransform):
     self.max_file_size = max_file_size or _DEFAULT_MAX_FILE_SIZE
     self.max_files_per_bundle = (max_files_per_bundle or
                                  _DEFAULT_MAX_WRITERS_PER_BUNDLE)
-    self._custom_gcs_temp_location = custom_gcs_temp_location
+    if (isinstance(custom_gcs_temp_location, str)
+        or custom_gcs_temp_location is None):
+      self._custom_gcs_temp_location = vp.StaticValueProvider(
+          str, custom_gcs_temp_location)
+    elif isinstance(custom_gcs_temp_location, vp.ValueProvider):
+      self._custom_gcs_temp_location = custom_gcs_temp_location
+    else:
+      raise ValueError('custom_gcs_temp_location must be str or ValueProvider')
+
     self.test_client = test_client
     self.schema = schema
     self.coder = coder or bigquery_tools.RowAsDictJsonCoder()
@@ -527,8 +535,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
       self.verify()
 
   def verify(self):
-    if (isinstance(self._custom_gcs_temp_location, str) and
-        not self._custom_gcs_temp_location.startswith('gs://')):
+    if (isinstance(self._custom_gcs_temp_location, vp.StaticValueProvider) and
+        not self._custom_gcs_temp_location.get().startswith('gs://')):
       # Only fail if the custom location is provided, and it is not a GCS
       # location.
       raise ValueError('Invalid GCS location.\n'
@@ -540,9 +548,11 @@ class BigQueryBatchFileLoads(beam.PTransform):
   def expand(self, pcoll):
     p = pcoll.pipeline
 
+    value_provider_temp_location = vp.StaticValueProvider(
+        str, p.options.view_as(GoogleCloudOptions).temp_location)
+
     self._custom_gcs_temp_location = (
-        self._custom_gcs_temp_location
-        or p.options.view_as(GoogleCloudOptions).temp_location)
+        self._custom_gcs_temp_location or value_provider_temp_location)
 
     load_job_name_pcv = pvalue.AsSingleton(
         p
