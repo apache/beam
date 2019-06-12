@@ -21,7 +21,6 @@ applyPythonNature()
 // Required to setup a Python 3.5 virtualenv.
 pythonVersion = '3.5'
 
-
 addPortableWordCountTasks()
 
 task portablePreCommitPy35() {
