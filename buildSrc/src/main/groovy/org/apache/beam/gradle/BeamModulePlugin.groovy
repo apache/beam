@@ -1848,9 +1848,8 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      project.ext.addPortableWordCountTask = { String nameSuffix, boolean isStreaming ->
-
-        project.task('portableWordCount' + nameSuffix) {
+      def addPortableWordCountTask = { boolean isStreaming ->
+        project.task('portableWordCount' + (isStreaming ? 'Streaming' : 'Batch')) {
           dependsOn = ['installGcpTest']
           mustRunAfter = [
             ':runners:flink:1.5:job-server-container:docker',
@@ -1897,6 +1896,11 @@ class BeamModulePlugin implements Plugin<Project> {
             }
           }
         }
+      }
+      project.ext.addPortableWordCountTasks = {
+        ->
+        addPortableWordCountTask(false)
+        addPortableWordCountTask(true)
       }
     }
   }

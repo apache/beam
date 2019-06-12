@@ -77,14 +77,13 @@ task preCommitPy2() {
   dependsOn "lint"
 }
 
-addPortableWordCountTask('BatchPy2', false)
-addPortableWordCountTask('StreamingPy2', true)
+addPortableWordCountTasks()
 
 task portablePreCommitPy2() {
   dependsOn ':runners:flink:1.5:job-server-container:docker'
   dependsOn ':sdks:python:container:docker'
-  dependsOn portableWordCountBatchPy2
-  dependsOn portableWordCountStreamingPy2
+  dependsOn portableWordCountBatch
+  dependsOn portableWordCountStreaming
 }
 
 
@@ -165,9 +164,8 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
 //    ./gradlew :sdks:python:portableWordCount -PjobEndpoint=localhost:8099
 //
 
-addPortableWordCountTask('Example', project.hasProperty("streaming"))
 task portableWordCount {
-  dependsOn portableWordCountExample
+  dependsOn project.hasProperty("streaming") ? portableWordCountStreaming : portableWordCountBatch
 }
 
 // Run PostCommit integration tests on default runner (TestDataflowRunner)

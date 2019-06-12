@@ -21,13 +21,13 @@ applyPythonNature()
 // Required to setup a Python 3.5 virtualenv.
 pythonVersion = '3.5'
 
-addPortableWordCountTask('BatchPy35', false)
-addPortableWordCountTask('StreamingPy35', true)
+
+addPortableWordCountTasks()
 
 task portablePreCommitPy35() {
     dependsOn ':runners:flink:1.5:job-server-container:docker'
     dependsOn ':sdks:python:container:py3:docker'
-    dependsOn portableWordCountBatchPy35
-    dependsOn portableWordCountStreamingPy35
+    dependsOn portableWordCountBatch
+    dependsOn portableWordCountStreaming
 }
 
