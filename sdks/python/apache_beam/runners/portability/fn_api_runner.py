@@ -421,7 +421,6 @@ class FnApiRunner(runner.PipelineRunner):
     data_input, data_side_input, data_output = self._extract_endpoints(
         stage, pipeline_components, data_api_service_descriptor, pcoll_buffers)
 
-    # TODO(pabloem) Describe what is a process bundle descriptor
     process_bundle_descriptor = beam_fn_api_pb2.ProcessBundleDescriptor(
         id=self._next_uid(),
         transforms={transform.unique_name: transform
