@@ -432,12 +432,36 @@ class WithKeysTest(unittest.TestCase):
     assert_that(with_keys, equal_to([(1, 1), (4, 2), (9, 3)]))
 
 
-class GroupIntoBatches(unittest.TestCase):
+class GroupIntoBatchesTest(unittest.TestCase):
+  NUM_ELEMENTS = 10
+  BATCH_SIZE = 5
 
-  def test_group_into_batches(self):
-    with TestPipeline() as p:
-      pc = p | beam.Create([("A", "B"), ("X", "Y")]) | util.GroupIntoBatches(15)
+  @staticmethod
+  def _create_test_data():
+    scientists = [
+      "Einstein",
+      "Darwin",
+      "Copernicus",
+      "Pasteur",
+      "Curie",
+      "Faraday",
+      "Newton",
+      "Bohr",
+      "Galilei",
+      "Maxwell"
+    ]
 
+    data = []
+    for i in range(GroupIntoBatchesTest.NUM_ELEMENTS):
+      index = i % len(scientists)
+      data.append(("key", scientists[index]))
+    return data
+
+  def test_in_global_window(self):
+    pipeline = TestPipeline()
+    collection = pipeline | beam.Create(GroupIntoBatchesTest._create_test_data()) | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE)
+    pipeline.run()
+    
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

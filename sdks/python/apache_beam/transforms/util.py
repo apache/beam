@@ -65,7 +65,8 @@ __all__ = [
     'RemoveDuplicates',
     'Reshuffle',
     'Values',
-    'WithKeys'
+    'WithKeys',
+    'GroupIntoBatches'
     ]
 
 K = typehints.TypeVariable('K')
@@ -671,9 +672,9 @@ def WithKeys(pcoll, k):
   return pcoll | Map(lambda v: (k, v))
 
 
+@typehints.with_input_types(typehints.KV[K, V])
 class GroupIntoBatches(PTransform):
   def __init__(self, batch_size):
-    super(GroupIntoBatches, self).__init__()
     self.batch_size = batch_size
 
   @staticmethod
@@ -694,8 +695,7 @@ class GroupIntoBatches(PTransform):
 class _GroupIntoBatchesDoFn(DoFn):
     def __init__(self, batch_size, input_key_coder, input_value_coder):
       self.batch_size = batch_size
-      self.batch_spec = BagStateSpec("GroupIntoBatches", input_value_coder)
     
     def process(self, element):
-      print element
-        
+        print element
+    
