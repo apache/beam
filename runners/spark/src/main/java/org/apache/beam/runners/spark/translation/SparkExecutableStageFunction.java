@@ -26,11 +26,14 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.InMemoryTimerInternals;
+import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
@@ -40,20 +43,27 @@ import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
+import org.apache.beam.runners.fnexecution.control.TimerReceiverFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.InMemoryBagUserStateFactory;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.runners.fnexecution.translation.BatchSideInputHandlerFactory;
+import org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.runners.spark.util.ByteArray;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.broadcast.Broadcast;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
@@ -79,20 +89,25 @@ class SparkExecutableStageFunction<InputT, SideInputT>
   private final Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>>
       sideInputs;
   private final MetricsContainerStepMapAccumulator metricsAccumulator;
+  private final Coder windowCoder;
+
   private transient InMemoryBagUserStateFactory bagUserStateHandlerFactory;
+  private transient Object currentTimerKey;
 
   SparkExecutableStageFunction(
       RunnerApi.ExecutableStagePayload stagePayload,
       JobInfo jobInfo,
       Map<String, Integer> outputMap,
       Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>> sideInputs,
-      MetricsContainerStepMapAccumulator metricsAccumulator) {
+      MetricsContainerStepMapAccumulator metricsAccumulator,
+      Coder windowCoder) {
     this(
         stagePayload,
         outputMap,
         () -> DefaultJobBundleFactory.create(jobInfo),
         sideInputs,
-        metricsAccumulator);
+        metricsAccumulator,
+        windowCoder);
   }
 
   SparkExecutableStageFunction(
@@ -100,12 +115,14 @@ class SparkExecutableStageFunction<InputT, SideInputT>
       Map<String, Integer> outputMap,
       JobBundleFactoryCreator jobBundleFactoryCreator,
       Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>> sideInputs,
-      MetricsContainerStepMapAccumulator metricsAccumulator) {
+      MetricsContainerStepMapAccumulator metricsAccumulator,
+      Coder windowCoder) {
     this.stagePayload = stagePayload;
     this.outputMap = outputMap;
     this.jobBundleFactoryCreator = jobBundleFactoryCreator;
     this.sideInputs = sideInputs;
     this.metricsAccumulator = metricsAccumulator;
+    this.windowCoder = windowCoder;
   }
 
   /** Call the executable stage function on the values of a PairRDD, ignoring the key. */
@@ -119,23 +136,89 @@ class SparkExecutableStageFunction<InputT, SideInputT>
       ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
       try (StageBundleFactory stageBundleFactory = jobBundleFactory.forStage(executableStage)) {
         ConcurrentLinkedQueue<RawUnionValue> collector = new ConcurrentLinkedQueue<>();
-        ReceiverFactory receiverFactory = new ReceiverFactory(collector, outputMap);
         StateRequestHandler stateRequestHandler =
             getStateRequestHandler(
                 executableStage, stageBundleFactory.getProcessBundleDescriptor());
-        BundleProgressHandler bundleProgressHandler = getBundleProgressHandler();
-        try (RemoteBundle bundle =
-            stageBundleFactory.getBundle(
-                receiverFactory, stateRequestHandler, bundleProgressHandler)) {
-          String inputPCollectionId = executableStage.getInputPCollection().getId();
-          FnDataReceiver<WindowedValue<?>> mainReceiver =
-              bundle.getInputReceivers().get(inputPCollectionId);
-          while (inputs.hasNext()) {
-            WindowedValue<InputT> input = inputs.next();
-            mainReceiver.accept(input);
+        if (executableStage.getTimers().size() > 0) {
+          // Used with Batch, we know that all the data is available for this key. We can't use the
+          // timer manager from the context because it doesn't exist. So we create one and advance
+          // time to the end after processing all elements.
+          final InMemoryTimerInternals timerInternals = new InMemoryTimerInternals();
+          timerInternals.advanceProcessingTime(Instant.now());
+          timerInternals.advanceSynchronizedProcessingTime(Instant.now());
+
+          ReceiverFactory receiverFactory =
+              new ReceiverFactory(
+                  collector,
+                  outputMap,
+                  new TimerReceiverFactory(
+                      stageBundleFactory,
+                      (WindowedValue timerElement, TimerInternals.TimerData timerData) -> {
+                        currentTimerKey = ((KV) timerElement.getValue()).getKey();
+                        timerInternals.setTimer(timerData);
+                      },
+                      windowCoder));
+
+          // Process inputs.
+          processElements(
+              executableStage, stateRequestHandler, receiverFactory, stageBundleFactory, inputs);
+
+          // Finish any pending windows by advancing the input watermark to infinity.
+          timerInternals.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
+          // Finally, advance the processing time to infinity to fire any timers.
+          timerInternals.advanceProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
+          timerInternals.advanceSynchronizedProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
+
+          // Now we fire the timers and process elements generated by timers (which may be timers
+          // itself)
+          try (RemoteBundle bundle =
+              stageBundleFactory.getBundle(
+                  receiverFactory, stateRequestHandler, getBundleProgressHandler())) {
+
+            PipelineTranslatorUtils.fireEligibleTimers(
+                timerInternals,
+                (String timerId, WindowedValue timerValue) -> {
+                  FnDataReceiver<WindowedValue<?>> fnTimerReceiver =
+                      bundle.getInputReceivers().get(timerId);
+                  Preconditions.checkNotNull(
+                      fnTimerReceiver, "No FnDataReceiver found for %s", timerId);
+                  try {
+                    fnTimerReceiver.accept(timerValue);
+                  } catch (Exception e) {
+                    throw new RuntimeException(
+                        String.format(Locale.ENGLISH, "Failed to process timer: %s", timerValue));
+                  }
+                },
+                currentTimerKey);
           }
+        } else {
+          ReceiverFactory receiverFactory = new ReceiverFactory(collector, outputMap);
+          processElements(
+              executableStage, stateRequestHandler, receiverFactory, stageBundleFactory, inputs);
         }
         return collector.iterator();
+      }
+    }
+  }
+
+  // Processes the inputs of the executable stage. Output is returned via side effects on the
+  // receiver.
+  private void processElements(
+      ExecutableStage executableStage,
+      StateRequestHandler stateRequestHandler,
+      ReceiverFactory receiverFactory,
+      StageBundleFactory stageBundleFactory,
+      Iterator<WindowedValue<InputT>> inputs)
+      throws Exception {
+    try (RemoteBundle bundle =
+        stageBundleFactory.getBundle(
+            receiverFactory, stateRequestHandler, getBundleProgressHandler())) {
+      String inputPCollectionId = executableStage.getInputPCollection().getId();
+      FnDataReceiver<WindowedValue<?>> mainReceiver =
+          bundle.getInputReceivers().get(inputPCollectionId);
+      while (inputs.hasNext()) {
+        WindowedValue<InputT> input = inputs.next();
+        mainReceiver.accept(input);
       }
     }
   }
@@ -217,22 +300,35 @@ class SparkExecutableStageFunction<InputT, SideInputT>
 
     private final ConcurrentLinkedQueue<RawUnionValue> collector;
     private final Map<String, Integer> outputMap;
+    @Nullable private final TimerReceiverFactory timerReceiverFactory;
 
     ReceiverFactory(
         ConcurrentLinkedQueue<RawUnionValue> collector, Map<String, Integer> outputMap) {
+      this(collector, outputMap, null);
+    }
+
+    ReceiverFactory(
+        ConcurrentLinkedQueue<RawUnionValue> collector,
+        Map<String, Integer> outputMap,
+        @Nullable TimerReceiverFactory timerReceiverFactory) {
       this.collector = collector;
       this.outputMap = outputMap;
+      this.timerReceiverFactory = timerReceiverFactory;
     }
 
     @Override
     public <OutputT> FnDataReceiver<OutputT> create(String pCollectionId) {
       Integer unionTag = outputMap.get(pCollectionId);
-      if (unionTag == null) {
+      if (unionTag != null) {
+        int tagInt = unionTag;
+        return receivedElement -> collector.add(new RawUnionValue(tagInt, receivedElement));
+      } else if (timerReceiverFactory != null) {
+        // Delegate to TimerReceiverFactory
+        return timerReceiverFactory.create(pCollectionId);
+      } else {
         throw new IllegalStateException(
             String.format(Locale.ENGLISH, "Unknown PCollectionId %s", pCollectionId));
       }
-      int tagInt = unionTag;
-      return receivedElement -> collector.add(new RawUnionValue(tagInt, receivedElement));
     }
   }
 }
