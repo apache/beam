@@ -535,16 +535,17 @@ class BigQueryBatchFileLoads(beam.PTransform):
       self.verify()
 
   def verify(self):
-    if (isinstance(self._custom_gcs_temp_location, vp.StaticValueProvider) and
-        self._custom_gcs_temp_location.get() is not None and
+    if (isinstance(self._custom_gcs_temp_location.get(),
+                   vp.StaticValueProvider) and
         not self._custom_gcs_temp_location.get().startswith('gs://')):
       # Only fail if the custom location is provided, and it is not a GCS
       # location.
-      raise ValueError('Invalid GCS location.\n'
+      raise ValueError('Invalid GCS location: %s.\n'
                        'Writing to BigQuery with FILE_LOADS method requires a '
                        'GCS location to be provided to write files to be '
                        'loaded into BigQuery. Please provide a GCS bucket, or '
-                       'pass method="STREAMING_INSERTS" to WriteToBigQuery.')
+                       'pass method="STREAMING_INSERTS" to WriteToBigQuery.'
+                       % self._custom_gcs_temp_location.get())
 
   def expand(self, pcoll):
     p = pcoll.pipeline
