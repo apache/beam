@@ -27,14 +27,24 @@ import CommonTestProperties
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Chicago_Taxi_Example_Dataflow',
         'Run Chicago Taxi Example on Dataflow', 'Google Cloud Dataflow Runner Chicago Taxi Example', this) {
 
-    chicagoTaxiExampleJob(delegate)
+    description('Runs the Chicago Taxi Example on the Dataflow runner.')
+    // Publish all test results to Jenkins
+    publishers {
+        archiveJunit('**/build/test-results/**/*.xml')
+    }
+
+    // Gradle goals for this job.
+    steps {
+        gradle {
+            rootBuildScriptDir(commonJobProperties.checkoutDir)
+            tasks(':sdks:python:dataflowChicagoTaxiExample')
+            switches('-PgcsRoot=gs://')
+            switches('-Prunner=DataflowRunner')
+        }
+    }
 }
 
 CronJobBuilder.cronJob('beam_PostCommit_Python_Chicago_Taxi_Example_Dataflow', 'H 12 * * *', this) {
-    chicagoTaxiExampleJob(delegate)
-}
-
-def chicagoTaxiExampleJob = { scope ->
     description('Runs the Chicago Taxi Example on the Dataflow runner.')
     // Publish all test results to Jenkins
     publishers {
