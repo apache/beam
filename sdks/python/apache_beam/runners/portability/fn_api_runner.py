@@ -1293,7 +1293,6 @@ class BundleManager(object):
     if registration_future and registration_future.get().error:
       raise RuntimeError(registration_future.get().error)
 
-    # Runner requests the SDK to fulfill the following instruction:
     process_bundle_request = beam_fn_api_pb2.InstructionRequest(
         instruction_id=process_bundle_id,
         process_bundle=beam_fn_api_pb2.ProcessBundleRequest(
