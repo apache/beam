@@ -53,7 +53,7 @@ class DockerizedJobServer(object):
     # TODO This is hardcoded to Flink at the moment but should be changed
     job_server_image_name = os.environ['USER'] + \
         "-docker-apache.bintray.io/beam/flink-job-server:latest"
-    docker_path = check_output(['which', 'docker']).strip()
+    docker_path = check_output(['which', 'docker']).strip().decode('utf-8')
     cmd = ["docker", "run",
            # We mount the docker binary and socket to be able to spin up
            # "sibling" containers for the SDK harness.

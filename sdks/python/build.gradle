@@ -77,11 +77,13 @@ task preCommitPy2() {
   dependsOn "lint"
 }
 
-task portablePreCommit() {
+addPortableWordCountTasks()
+
+task portablePreCommitPy2() {
   dependsOn ':runners:flink:1.5:job-server-container:docker'
   dependsOn ':sdks:python:container:docker'
-  dependsOn portableWordCountTask('portableWordCountBatch', false)
-  dependsOn portableWordCountTask('portableWordCountStreaming', true)
+  dependsOn portableWordCountBatch
+  dependsOn portableWordCountStreaming
 }
 
 
@@ -161,44 +163,9 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
 //
 //    ./gradlew :sdks:python:portableWordCount -PjobEndpoint=localhost:8099
 //
-task portableWordCount {
-  dependsOn portableWordCountTask('portableWordCountExample', project.hasProperty("streaming"))
-}
 
-def portableWordCountTask(name, streaming) {
-  tasks.create(name) {
-    dependsOn = ['installGcpTest']
-    mustRunAfter = [':runners:flink:1.5:job-server-container:docker', ':sdks:python:container:docker']
-    doLast {
-      // TODO: Figure out GCS credentials and use real GCS input and output.
-      def options = [
-              "--input=/etc/profile",
-              "--output=/tmp/py-wordcount-direct",
-              "--runner=PortableRunner",
-              "--experiments=worker_threads=100",
-              "--parallelism=2",
-              "--shutdown_sources_on_final_watermark",
-      ]
-      if (streaming)
-        options += ["--streaming"]
-      else
-        // workaround for local file output in docker container
-        options += ["--environment_cache_millis=10000"]
-      if (project.hasProperty("jobEndpoint"))
-        options += ["--job_endpoint=${project.property('jobEndpoint')}"]
-      if (project.hasProperty("environmentType")) {
-        options += ["--environment_type=${project.property('environmentType')}"]
-      }
-      if (project.hasProperty("environmentConfig")) {
-        options += ["--environment_config=${project.property('environmentConfig')}"]
-      }
-      exec {
-        executable 'sh'
-        args '-c', ". ${project.ext.envdir}/bin/activate && python -m apache_beam.examples.wordcount ${options.join(' ')}"
-        // TODO: Check that the output file is generated and runs.
-      }
-    }
-  }
+task portableWordCount {
+  dependsOn project.hasProperty("streaming") ? portableWordCountStreaming : portableWordCountBatch
 }
 
 // Run PostCommit integration tests on default runner (TestDataflowRunner)
