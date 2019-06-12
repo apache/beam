@@ -27,10 +27,12 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Recommended;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunction;
+import org.apache.beam.sdk.extensions.euphoria.core.client.functional.CombinableBinaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.CombinableReduceFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
+import org.apache.beam.sdk.extensions.euphoria.core.client.functional.VoidFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
@@ -39,6 +41,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputH
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareness;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
@@ -83,6 +86,7 @@ import org.joda.time.Duration;
  * @param <InputT> Type of input records
  * @param <KeyT> Output type of #keyBy method
  * @param <ValueT> Output type of #valueBy method
+ * @param <AccT> type of accumulator (if CombineFn used)
  * @param <OutputT> Type of output value
  */
 @Audience(Audience.Type.CLIENT)
@@ -93,8 +97,25 @@ import org.joda.time.Duration;
             + "can be efficiently used in the executor-specific implementation",
     state = StateComplexity.CONSTANT_IF_COMBINABLE,
     repartitions = 1)
-public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
+public class ReduceByKey<InputT, KeyT, ValueT, AccT, OutputT>
     extends ShuffleOperator<InputT, KeyT, KV<KeyT, OutputT>> implements TypeAware.Value<ValueT> {
+
+  /**
+   * A syntactic sugar interface to enable #combineBy(Sums.ofLongs()) to use Combine.CombineFn style
+   * combine logic.
+   *
+   * @param <T> type paramter
+   */
+  public interface CombineFunctionWithIdentity<T> extends CombinableBinaryFunction<T> {
+
+    /** @return identity value with respect to the combining function. */
+    T identity();
+
+    /** @return type descriptor of the value */
+    default TypeDescriptor<T> valueDesc() {
+      return null;
+    }
+  }
 
   /**
    * Starts building a nameless {@link ReduceByKey} operator to process the given input dataset.
@@ -187,6 +208,9 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
      * function is combinable (associative and commutative) so it can be used to compute partial
      * results before shuffle.
      *
+     * <p>Note: this might be less efficient, so you should use #combineBy(ValueT identity,
+     * BinaryFunction reducer) whenever it is possible.
+     *
      * @param reducer function that reduces all values into one output object
      * @return next builder to complete the setup of the {@link ReduceByKey} operator
      */
@@ -198,6 +222,62 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
         CombinableReduceFunction<ValueT> reducer, TypeDescriptor<ValueT> outputType) {
       return reduceBy(ReduceFunctor.of(reducer), outputType);
     }
+
+    /**
+     * Syntactic sugar to enable #combineBy to take only single argument and be used in helpers like
+     * #combineBy(Sums.ofLongs()).
+     */
+    default WindowByBuilder<KeyT, ValueT> combineBy(CombineFunctionWithIdentity<ValueT> reduce) {
+      return combineBy(reduce.identity(), reduce, reduce.valueDesc());
+    }
+
+    /**
+     * Define a function that reduces all values related to one key into one result object.
+     *
+     * @param identity zero (identity) element, must be {@link java.io.Serializable}.
+     * @param reducer function combining two values into result
+     * @return next builder to complete the setup of the {@link ReduceByKey} operator
+     */
+    default WindowByBuilder<KeyT, ValueT> combineBy(
+        ValueT identity, CombinableBinaryFunction<ValueT> reducer) {
+      return combineBy(identity, reducer, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    default WindowByBuilder<KeyT, ValueT> combineBy(
+        ValueT identity,
+        CombinableBinaryFunction<ValueT> reducer,
+        @Nullable TypeDescriptor<ValueT> valueType) {
+      return (WindowByBuilder<KeyT, ValueT>)
+          this.<ValueT, ValueT>combineBy(
+              () -> identity, (BinaryFunction) reducer, reducer, e -> e, valueType, valueType);
+    }
+
+    /**
+     * Combine with full semantics defined by {@link Combine.CombineFn}.
+     *
+     * @param <AccT> type parameter of accumulator
+     * @param accumulatorFactory factory of accumulator
+     * @param accumulate accumulation function
+     * @param mergeAccumulators merging function
+     * @param outputFn output function
+     * @return next builder to complete the setup of the {@link ReduceByKey} operator
+     */
+    default <AccT> WindowByBuilder<KeyT, ValueT> combineBy(
+        VoidFunction<AccT> accumulatorFactory,
+        BinaryFunction<AccT, ValueT, AccT> accumulate,
+        CombinableBinaryFunction<AccT> mergeAccumulators,
+        UnaryFunction<AccT, ValueT> outputFn) {
+      return combineBy(accumulatorFactory, accumulate, mergeAccumulators, outputFn, null, null);
+    }
+
+    <AccT, OutputT> WindowByBuilder<KeyT, OutputT> combineBy(
+        VoidFunction<AccT> accumulatorFactory,
+        BinaryFunction<AccT, ValueT, AccT> accumulate,
+        CombinableBinaryFunction<AccT> mergeAccumulators,
+        UnaryFunction<AccT, OutputT> outputFn,
+        @Nullable TypeDescriptor<AccT> accumulatorDescriptor,
+        @Nullable TypeDescriptor<OutputT> outputDescriptor);
   }
 
   /** Builder for 'valueBy' / 'reduceBy' step. */
@@ -301,9 +381,10 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
    * @param <InputT> type of input
    * @param <KeyT> type of key
    * @param <ValueT> type of value
-   * @param <OutputT> type ouf output
+   * @param <AccT> type of accumulator (if using CombineFn)
+   * @param <OutputT> type of output
    */
-  static class Builder<InputT, KeyT, ValueT, OutputT>
+  static class Builder<InputT, KeyT, ValueT, AccT, OutputT>
       implements OfBuilder,
           KeyByBuilder<InputT>,
           ValueByReduceByBuilder<InputT, KeyT, ValueT>,
@@ -323,19 +404,78 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
     @Nullable private TypeDescriptor<KeyT> keyType;
     @Nullable private UnaryFunction<InputT, ValueT> valueExtractor;
     @Nullable private TypeDescriptor<ValueT> valueType;
-    private ReduceFunctor<ValueT, OutputT> reducer;
     @Nullable private TypeDescriptor<OutputT> outputType;
     @Nullable private BinaryFunction<ValueT, ValueT, Integer> valueComparator;
 
+    // following are defined for RBK using ReduceFunctor
+    @Nullable private final ReduceFunctor<ValueT, OutputT> reducer;
+
+    // following are defined when combineFnStyle == true
+    @Nullable private final VoidFunction<AccT> accumulatorFactory;
+    @Nullable private final BinaryFunction<AccT, ValueT, AccT> accumulate;
+    @Nullable private final CombinableBinaryFunction<AccT> mergeAccumulators;
+    @Nullable private final UnaryFunction<AccT, OutputT> outputFn;
+    @Nullable private final TypeDescriptor<AccT> accumulatorTypeDescriptor;
+
     Builder(@Nullable String name) {
       this.name = name;
+      this.reducer = null;
+      this.accumulatorFactory = null;
+      this.accumulate = null;
+      this.mergeAccumulators = null;
+      this.outputFn = null;
+      this.accumulatorTypeDescriptor = null;
+    }
+
+    // constructor for combine style
+    private Builder(
+        Builder parent,
+        VoidFunction<AccT> accumulatorFactory,
+        BinaryFunction<AccT, ValueT, AccT> accumulate,
+        CombinableBinaryFunction<AccT> mergeAccumulators,
+        UnaryFunction<AccT, OutputT> outputFn,
+        @Nullable TypeDescriptor<AccT> accumulatorTypeDescriptor) {
+      this.name = parent.name;
+      this.input = parent.input;
+      this.keyExtractor = parent.keyExtractor;
+      this.keyType = parent.keyType;
+      this.valueExtractor = parent.valueExtractor;
+      this.valueType = parent.valueType;
+      this.outputType = parent.outputType;
+      this.valueComparator = parent.valueComparator;
+
+      this.accumulatorFactory = requireNonNull(accumulatorFactory);
+      this.accumulate = requireNonNull(accumulate);
+      this.mergeAccumulators = requireNonNull(mergeAccumulators);
+      this.outputFn = requireNonNull(outputFn);
+      this.accumulatorTypeDescriptor = accumulatorTypeDescriptor;
+      this.reducer = null;
+    }
+
+    // constructor for ReduceFunctor style
+    private Builder(Builder parent, ReduceFunctor<ValueT, OutputT> reducer) {
+      this.name = parent.name;
+      this.input = parent.input;
+      this.keyExtractor = parent.keyExtractor;
+      this.keyType = parent.keyType;
+      this.valueExtractor = parent.valueExtractor;
+      this.valueType = parent.valueType;
+      this.outputType = parent.outputType;
+      this.valueComparator = parent.valueComparator;
+
+      this.accumulatorFactory = null;
+      this.accumulate = null;
+      this.mergeAccumulators = null;
+      this.outputFn = null;
+      this.accumulatorTypeDescriptor = null;
+      this.reducer = requireNonNull(reducer);
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> KeyByBuilder<T> of(PCollection<T> input) {
       @SuppressWarnings("unchecked")
-      final Builder<T, ?, ?, ?> cast = (Builder) this;
+      final Builder<T, ?, ?, ?, ?> cast = (Builder) this;
       cast.input = input;
       return cast;
     }
@@ -344,7 +484,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
     public <T> ValueByReduceByBuilder<InputT, T, InputT> keyBy(
         UnaryFunction<InputT, T> keyExtractor, @Nullable TypeDescriptor<T> keyType) {
       @SuppressWarnings("unchecked")
-      final Builder<InputT, T, InputT, ?> cast = (Builder) this;
+      final Builder<InputT, T, InputT, ?, ?> cast = (Builder) this;
       cast.keyExtractor = requireNonNull(keyExtractor);
       cast.keyType = keyType;
       return cast;
@@ -354,25 +494,40 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
     public <T> ReduceByBuilder<KeyT, T> valueBy(
         UnaryFunction<InputT, T> valueExtractor, @Nullable TypeDescriptor<T> valueType) {
       @SuppressWarnings("unchecked")
-      final Builder<InputT, KeyT, T, ?> cast = (Builder) this;
+      final Builder<InputT, KeyT, T, ?, ?> cast = (Builder) this;
       cast.valueExtractor = requireNonNull(valueExtractor);
       cast.valueType = valueType;
       return cast;
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> WithSortedValuesBuilder<KeyT, ValueT, T> reduceBy(
         ReduceFunctor<ValueT, T> reducer, @Nullable TypeDescriptor<T> outputType) {
-      if (valueExtractor == null) {
-        // if the valueExtractor was not set in 'valueBy' step, we use untouched input element
-        valueExtractor = (UnaryFunction) UnaryFunction.identity();
-      }
       @SuppressWarnings("unchecked")
-      final Builder<InputT, KeyT, ValueT, T> cast = (Builder) this;
-      cast.reducer = requireNonNull(reducer);
+      final Builder<InputT, KeyT, ValueT, ?, T> cast = new Builder(this, reducer);
       cast.outputType = outputType;
       return cast;
+    }
+
+    @Override
+    public <NewAccT, T> WindowByBuilder<KeyT, T> combineBy(
+        VoidFunction<NewAccT> accumulatorFactory,
+        BinaryFunction<NewAccT, ValueT, NewAccT> accumulate,
+        CombinableBinaryFunction<NewAccT> mergeAccumulators,
+        UnaryFunction<NewAccT, T> outputFn,
+        TypeDescriptor<NewAccT> accumulatorDescriptor,
+        TypeDescriptor<T> outputDescriptor) {
+      Builder<InputT, KeyT, ValueT, NewAccT, T> ret =
+          new Builder<>(
+              this,
+              accumulatorFactory,
+              accumulate,
+              mergeAccumulators,
+              outputFn,
+              accumulatorDescriptor);
+      ret.valueType = valueType;
+      ret.outputType = outputDescriptor;
+      return ret;
     }
 
     @Override
@@ -445,23 +600,58 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
           new OutputValues<>(name, outputType, createOperator()), PCollectionList.of(input));
     }
 
-    private ReduceByKey<InputT, KeyT, ValueT, OutputT> createOperator() {
+    private ReduceByKey<InputT, KeyT, ValueT, AccT, OutputT> createOperator() {
+      if (valueExtractor == null) {
+        valueExtractor = identity();
+      }
+      if (reducer != null) {
+        return new ReduceByKey<>(
+            name,
+            keyExtractor,
+            keyType,
+            valueExtractor,
+            valueType,
+            reducer,
+            valueComparator,
+            windowBuilder.getWindow().orElse(null),
+            TypeDescriptors.kvs(
+                TypeAwareness.orObjects(Optional.ofNullable(keyType)),
+                TypeAwareness.orObjects(Optional.ofNullable(outputType))));
+      }
       return new ReduceByKey<>(
           name,
           keyExtractor,
           keyType,
           valueExtractor,
           valueType,
-          reducer,
+          accumulatorFactory,
+          accumulate,
+          mergeAccumulators,
+          outputFn,
+          accumulatorTypeDescriptor,
           valueComparator,
           windowBuilder.getWindow().orElse(null),
           TypeDescriptors.kvs(
               TypeAwareness.orObjects(Optional.ofNullable(keyType)),
               TypeAwareness.orObjects(Optional.ofNullable(outputType))));
     }
+
+    @SuppressWarnings("unchecked")
+    private UnaryFunction<InputT, ValueT> identity() {
+      return (UnaryFunction) UnaryFunction.identity();
+    }
   }
 
-  private final ReduceFunctor<ValueT, OutputT> reducer;
+  // ReduceFunctor variant
+  private final @Nullable ReduceFunctor<ValueT, OutputT> reducer;
+
+  // CombineFn variant
+  private final @Nullable VoidFunction<AccT> accumulatorFactory;
+  private final @Nullable BinaryFunction<AccT, ValueT, AccT> accumulate;
+  private final @Nullable CombinableBinaryFunction<AccT> mergeAccumulators;
+  private final @Nullable UnaryFunction<AccT, OutputT> outputFn;
+  private final @Nullable TypeDescriptor<AccT> accumulatorType;
+
   private final UnaryFunction<InputT, ValueT> valueExtractor;
   @Nullable private final BinaryFunction<ValueT, ValueT, Integer> valueComparator;
   @Nullable private final TypeDescriptor<ValueT> valueType;
@@ -475,20 +665,81 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
       ReduceFunctor<ValueT, OutputT> reducer,
       @Nullable BinaryFunction<ValueT, ValueT, Integer> valueComparator,
       @Nullable Window<InputT> window,
-      TypeDescriptor<KV<KeyT, OutputT>> outputType) {
+      @Nullable TypeDescriptor<KV<KeyT, OutputT>> outputType) {
     super(name, outputType, keyExtractor, keyType, window);
-    this.reducer = reducer;
-    this.valueExtractor = valueExtractor;
+    this.reducer = requireNonNull(reducer);
+    this.valueExtractor = requireNonNull(valueExtractor);
     this.valueType = valueType;
     this.valueComparator = valueComparator;
+
+    this.accumulatorFactory = null;
+    this.accumulate = null;
+    this.mergeAccumulators = null;
+    this.outputFn = null;
+    this.accumulatorType = null;
+  }
+
+  private ReduceByKey(
+      @Nullable String name,
+      UnaryFunction<InputT, KeyT> keyExtractor,
+      @Nullable TypeDescriptor<KeyT> keyType,
+      UnaryFunction<InputT, ValueT> valueExtractor,
+      @Nullable TypeDescriptor<ValueT> valueType,
+      VoidFunction<AccT> accumulatorFactory,
+      BinaryFunction<AccT, ValueT, AccT> accumulate,
+      CombinableBinaryFunction<AccT> mergeAccumulators,
+      UnaryFunction<AccT, OutputT> outputFn,
+      TypeDescriptor<AccT> accumulatorType,
+      @Nullable BinaryFunction<ValueT, ValueT, Integer> valueComparator,
+      @Nullable Window<InputT> window,
+      @Nullable TypeDescriptor<KV<KeyT, OutputT>> outputType) {
+    super(name, outputType, keyExtractor, keyType, window);
+    this.reducer = null;
+    this.valueExtractor = requireNonNull(valueExtractor);
+    this.valueType = valueType;
+    this.valueComparator = valueComparator;
+
+    this.accumulatorFactory = requireNonNull(accumulatorFactory);
+    this.accumulate = requireNonNull(accumulate);
+    this.mergeAccumulators = requireNonNull(mergeAccumulators);
+    this.outputFn = requireNonNull(outputFn);
+    this.accumulatorType = accumulatorType;
+  }
+
+  public boolean isCombineFnStyle() {
+    return reducer == null;
   }
 
   public ReduceFunctor<ValueT, OutputT> getReducer() {
-    return reducer;
+    return requireNonNull(reducer, "Don't call #getReducer when #isCombinableFnStyle() == true");
+  }
+
+  public VoidFunction<AccT> getAccumulatorFactory() {
+    return requireNonNull(
+        accumulatorFactory,
+        "Don't vall #getAccumulatorFactory when #isCombinableFnStyle() == false");
+  }
+
+  public BinaryFunction<AccT, ValueT, AccT> getAccumulate() {
+    return requireNonNull(
+        accumulate, "Don't vall #getAccumulate when #isCombinableFnStyle() == false");
+  }
+
+  public CombinableBinaryFunction<AccT> getMergeAccumulators() {
+    return requireNonNull(
+        mergeAccumulators, "Don't vall #getMergeAccumulators when #isCombinableFnStyle() == false");
+  }
+
+  public UnaryFunction<AccT, OutputT> getOutputFn() {
+    return requireNonNull(outputFn, "Don't vall #getOutputFn when #isCombinableFnStyle() == false");
+  }
+
+  public TypeDescriptor<AccT> getAccumulatorType() {
+    return accumulatorType;
   }
 
   public boolean isCombinable() {
-    return reducer.isCombinable();
+    return isCombineFnStyle() || reducer.isCombinable();
   }
 
   public UnaryFunction<InputT, ValueT> getValueExtractor() {
