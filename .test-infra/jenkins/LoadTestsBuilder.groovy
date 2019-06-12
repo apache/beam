@@ -22,26 +22,19 @@ import CommonTestProperties.SDK
 import CommonTestProperties.TriggeringContext
 
 class LoadTestsBuilder {
-  static void loadTests(scope, CommonTestProperties.SDK sdk, List testConfigurations, TriggeringContext triggeringContext, String test, String mode){
+  static void loadTests(scope, CommonTestProperties.SDK sdk, List testConfigurations, String test, String mode){
     scope.description("Runs ${sdk.toString().toLowerCase().capitalize()} ${test} load tests in ${mode} mode")
 
     commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
     for (testConfiguration in testConfigurations) {
-        loadTest(scope, testConfiguration.title, testConfiguration.runner, sdk, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
+        loadTest(scope, testConfiguration.title, testConfiguration.runner, sdk, testConfiguration.jobProperties, testConfiguration.itClass)
     }
   }
 
 
-  static void loadTest(context, String title, Runner runner, SDK sdk, Map<String, ?> options, String mainClass, TriggeringContext triggeringContext) {
+  static void loadTest(context, String title, Runner runner, SDK sdk, Map<String, ?> options, String mainClass) {
     options.put('runner', runner.option)
-
-    String datasetKey = 'bigQueryDataset'
-    String datasetValue = options.get(datasetKey)
-
-    if (datasetValue) {
-      options.put(datasetKey, setContextualDatasetName(datasetValue, triggeringContext))
-    }
 
     context.steps {
       shell("echo *** ${title} ***")
@@ -53,6 +46,14 @@ class LoadTestsBuilder {
         switches("-Prunner=${runner.getDepenedencyBySDK(sdk)}")
         switches("-PloadTest.args=\"${parseOptions(options)}\"")
       }
+    }
+  }
+
+  static String getBigQueryDataset(String baseName, TriggeringContext triggeringContext) {
+    if (triggeringContext == TriggeringContext.PR) {
+      return baseName + '_PRs'
+    } else {
+      return baseName
     }
   }
 
@@ -70,14 +71,6 @@ class LoadTestsBuilder {
     options.collect {
       "--${it.key}=$it.value".replace('\"', '\\\"').replace('\'', '\\\'')
     }.join(' ')
-  }
-
-  private static String setContextualDatasetName(String baseName, TriggeringContext triggeringContext) {
-    if (triggeringContext == TriggeringContext.PR) {
-      return baseName + '_PRs'
-    } else {
-      return baseName
-    }
   }
 }
 
