@@ -51,6 +51,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -295,7 +297,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
             return ReduceByKey.of(input)
                 .keyBy(e -> e, TypeDescriptor.of(String.class))
                 .valueBy(e -> 1L, TypeDescriptor.of(Long.class))
-                .combineBy(Sums.ofLongs(), TypeDescriptor.of(Long.class))
+                .combineBy(Sums.ofLongs())
                 .output();
           }
         });
@@ -498,6 +500,49 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
             Map<String, Long> counters = snapshots.getCounterSnapshots();
             assertEquals(Long.valueOf(2), counters.get("evens"));
             assertEquals(Long.valueOf(3), counters.get("odds"));
+          }
+        });
+  }
+
+  @Test
+  public void testCombineFull() {
+    execute(
+        new AbstractTestCase<Integer, KV<Integer, Integer>>() {
+
+          @Override
+          protected List<Integer> getInput() {
+            return Arrays.asList(1, 2, 3, 4, 5, 6, 7, 9);
+          }
+
+          @Override
+          protected TypeDescriptor<Integer> getInputType() {
+            return TypeDescriptors.integers();
+          }
+
+          @Override
+          protected PCollection<KV<Integer, Integer>> getOutput(PCollection<Integer> input) {
+            return ReduceByKey.of(input)
+                .keyBy(e -> e % 2)
+                .valueBy(e -> e)
+                .combineBy(
+                    () -> new ArrayList<>(),
+                    (acc, e) -> {
+                      acc.add(e);
+                      return acc;
+                    },
+                    (l, r) -> Lists.newArrayList(Iterables.concat(l, r)),
+                    List::size,
+                    TypeDescriptors.lists(TypeDescriptors.integers()),
+                    TypeDescriptors.integers())
+                .windowBy(new GlobalWindows())
+                .triggeredBy(AfterWatermark.pastEndOfWindow())
+                .discardingFiredPanes()
+                .output();
+          }
+
+          @Override
+          public List<KV<Integer, Integer>> getUnorderedOutput() {
+            return Arrays.asList(KV.of(0, 3), KV.of(1, 5));
           }
         });
   }
