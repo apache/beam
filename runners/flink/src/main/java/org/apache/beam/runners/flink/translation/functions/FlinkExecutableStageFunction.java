@@ -18,13 +18,9 @@
 package org.apache.beam.runners.flink.translation.functions;
 
 import java.io.IOException;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.function.BiConsumer;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
@@ -32,31 +28,27 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
-import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.core.construction.graph.TimerReference;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
+import org.apache.beam.runners.fnexecution.control.TimerReceiverFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.InMemoryBagUserStateFactory;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.runners.fnexecution.translation.BatchSideInputHandlerFactory;
+import org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
@@ -225,8 +217,6 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
             outputMap,
             new TimerReceiverFactory(
                 stageBundleFactory,
-                executableStage.getTimers(),
-                stageBundleFactory.getProcessBundleDescriptor().getTimerSpecs(),
                 (WindowedValue timerElement, TimerInternals.TimerData timerData) -> {
                   currentTimerKey = ((KV) timerElement.getValue()).getKey();
                   timerInternals.setTimer(timerData);
@@ -249,7 +239,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
     try (RemoteBundle bundle =
         stageBundleFactory.getBundle(receiverFactory, stateRequestHandler, progressHandler)) {
 
-      fireEligibleTimers(
+      PipelineTranslatorUtils.fireEligibleTimers(
           timerInternals,
           (String timerId, WindowedValue timerValue) -> {
             FnDataReceiver<WindowedValue<?>> fnTimerReceiver =
@@ -261,7 +251,8 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
               throw new RuntimeException(
                   String.format(Locale.ENGLISH, "Failed to process timer: %s", timerValue));
             }
-          });
+          },
+          currentTimerKey);
     }
   }
 
@@ -278,48 +269,6 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
     for (WindowedValue<InputT> input : iterable) {
       mainReceiver.accept(input);
     }
-  }
-
-  /**
-   * Fires all timers which are ready to be fired. This is done in a loop because timers may itself
-   * schedule timers.
-   */
-  private void fireEligibleTimers(
-      InMemoryTimerInternals timerInternals, BiConsumer<String, WindowedValue> timerConsumer) {
-
-    boolean hasFired;
-    do {
-      hasFired = false;
-      TimerInternals.TimerData timer;
-
-      while ((timer = timerInternals.removeNextEventTimer()) != null) {
-        hasFired = true;
-        fireTimer(timer, timerConsumer);
-      }
-      while ((timer = timerInternals.removeNextProcessingTimer()) != null) {
-        hasFired = true;
-        fireTimer(timer, timerConsumer);
-      }
-      while ((timer = timerInternals.removeNextSynchronizedProcessingTimer()) != null) {
-        hasFired = true;
-        fireTimer(timer, timerConsumer);
-      }
-    } while (hasFired);
-  }
-
-  private void fireTimer(
-      TimerInternals.TimerData timer, BiConsumer<String, WindowedValue> timerConsumer) {
-    StateNamespace namespace = timer.getNamespace();
-    Preconditions.checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
-    BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
-    Instant timestamp = timer.getTimestamp();
-    WindowedValue<KV<Object, Timer>> timerValue =
-        WindowedValue.of(
-            KV.of(currentTimerKey, Timer.of(timestamp, new byte[0])),
-            timestamp,
-            Collections.singleton(window),
-            PaneInfo.NO_FIRING);
-    timerConsumer.accept(timer.getTimerId(), timerValue);
   }
 
   @Override
@@ -380,62 +329,6 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
         throw new IllegalStateException(
             String.format(Locale.ENGLISH, "Unknown PCollectionId %s", collectionId));
       }
-    }
-  }
-
-  private static class TimerReceiverFactory implements OutputReceiverFactory {
-
-    private final StageBundleFactory stageBundleFactory;
-    /** Timer PCollection id => TimerReference. */
-    private final HashMap<String, ProcessBundleDescriptors.TimerSpec> timerOutputIdToSpecMap;
-    /** Timer PCollection id => timer name => TimerSpec. */
-    private final Map<String, Map<String, ProcessBundleDescriptors.TimerSpec>> timerSpecMap;
-
-    private final BiConsumer<WindowedValue, TimerInternals.TimerData> timerDataConsumer;
-    private final Coder windowCoder;
-
-    TimerReceiverFactory(
-        StageBundleFactory stageBundleFactory,
-        Collection<TimerReference> timerReferenceCollection,
-        Map<String, Map<String, ProcessBundleDescriptors.TimerSpec>> timerSpecMap,
-        BiConsumer<WindowedValue, TimerInternals.TimerData> timerDataConsumer,
-        Coder windowCoder) {
-      this.stageBundleFactory = stageBundleFactory;
-      this.timerOutputIdToSpecMap = new HashMap<>();
-      // Gather all timers from all transforms by their output pCollectionId which is unique
-      for (Map<String, ProcessBundleDescriptors.TimerSpec> transformTimerMap :
-          stageBundleFactory.getProcessBundleDescriptor().getTimerSpecs().values()) {
-        for (ProcessBundleDescriptors.TimerSpec timerSpec : transformTimerMap.values()) {
-          timerOutputIdToSpecMap.put(timerSpec.outputCollectionId(), timerSpec);
-        }
-      }
-      this.timerSpecMap = timerSpecMap;
-      this.timerDataConsumer = timerDataConsumer;
-      this.windowCoder = windowCoder;
-    }
-
-    @Override
-    public <OutputT> FnDataReceiver<OutputT> create(String pCollectionId) {
-      final ProcessBundleDescriptors.TimerSpec timerSpec =
-          timerOutputIdToSpecMap.get(pCollectionId);
-
-      return receivedElement -> {
-        WindowedValue windowedValue = (WindowedValue) receivedElement;
-        Timer timer =
-            Preconditions.checkNotNull(
-                (Timer) ((KV) windowedValue.getValue()).getValue(),
-                "Received null Timer from SDK harness: %s",
-                receivedElement);
-        LOG.debug("Timer received: {} {}", pCollectionId, timer);
-        for (Object window : windowedValue.getWindows()) {
-          StateNamespace namespace = StateNamespaces.window(windowCoder, (BoundedWindow) window);
-          TimeDomain timeDomain = timerSpec.getTimerSpec().getTimeDomain();
-          String timerId = timerSpec.inputCollectionId();
-          TimerInternals.TimerData timerData =
-              TimerInternals.TimerData.of(timerId, namespace, timer.getTimestamp(), timeDomain);
-          timerDataConsumer.accept(windowedValue, timerData);
-        }
-      };
     }
   }
 }
