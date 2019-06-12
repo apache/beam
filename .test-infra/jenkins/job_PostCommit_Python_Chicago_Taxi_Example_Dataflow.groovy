@@ -19,6 +19,7 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 import CronJobBuilder
+import CommonTestProperties
 
 
 
@@ -26,8 +27,15 @@ import CronJobBuilder
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Chicago_Taxi_Example_Dataflow',
         'Run Chicago Taxi Example on Dataflow', 'Google Cloud Dataflow Runner Chicago Taxi Example', this) {
 
-    description('Runs the Chicago Taxi Exmample on the Dataflow runner.')
+    chicagoTaxiExampleJob(delegate)
+}
 
+CronJobBuilder.cronJob('beam_PostCommit_Python_Chicago_Taxi_Example_Dataflow', 'H 12 * * *', this) {
+    chicagoTaxiExampleJob(delegate)
+}
+
+def chicagoTaxiExampleJob = { scope ->
+    description('Runs the Chicago Taxi Example on the Dataflow runner.')
     // Publish all test results to Jenkins
     publishers {
         archiveJunit('**/build/test-results/**/*.xml')
@@ -42,8 +50,4 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Chicago_Taxi_Example_
             switches('-Prunner=DataflowRunner')
         }
     }
-}
-
-CronJobBuilder.cronJob('beam_PostCommit_Python_Chicago_Taxi_Example_Dataflow', 'H 12 * * *', this) {
-
 }
