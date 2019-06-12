@@ -19,7 +19,7 @@
 # This image contains Ruby and dependencies required to build and test the Beam
 # website. It is used by tasks in build.gradle.
 
-FROM ruby:2.5
+FROM ruby:2.6
 
 WORKDIR /ruby
 RUN gem install bundler
