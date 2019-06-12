@@ -1281,20 +1281,20 @@ class BeamModulePlugin implements Plugin<Project> {
         /* include dependencies required by runners */
         //if (runner?.contains('dataflow')) {
         if (runner?.equalsIgnoreCase('dataflow')) {
-          testCompile it.project(path: ":runners:google-cloud-dataflow-java", configuration: 'testCompile')
-          shadow it.project(path: ":runners:google-cloud-dataflow-java:worker:legacy-worker", configuration: 'shadow')
+          testCompile it.project(path: ":runners:google-cloud-dataflow-java", configuration: 'testRuntime')
+          testCompile it.project(path: ":runners:google-cloud-dataflow-java:worker:legacy-worker", configuration: 'testRuntime')
         }
 
         if (runner?.equalsIgnoreCase('direct')) {
-          testCompile it.project(path: ":runners:direct-java", configuration: 'shadowTest')
+          testCompile it.project(path: ":runners:direct-java", configuration: 'testRuntime')
         }
 
         if (runner?.equalsIgnoreCase('flink')) {
-          testCompile it.project(path: ":runners:flink:1.5", configuration: 'testCompile')
+          testCompile it.project(path: ":runners:flink:1.5", configuration: 'testRuntime')
         }
 
         if (runner?.equalsIgnoreCase('spark')) {
-          testCompile it.project(path: ":runners:spark", configuration: 'testCompile')
+          testCompile it.project(path: ":runners:spark", configuration: 'testRuntime')
           testCompile project.library.java.spark_core
           testCompile project.library.java.spark_streaming
 
@@ -1306,13 +1306,13 @@ class BeamModulePlugin implements Plugin<Project> {
 
         /* include dependencies required by filesystems */
         if (filesystem?.equalsIgnoreCase('hdfs')) {
-          testCompile it.project(path: ":sdks:java:io:hadoop-file-system", configuration: 'testCompile')
+          testCompile it.project(path: ":sdks:java:io:hadoop-file-system", configuration: 'testRuntime')
           testRuntime project.library.java.hadoop_client
         }
 
         /* include dependencies required by AWS S3 */
         if (filesystem?.equalsIgnoreCase('s3')) {
-          testCompile it.project(path: ":sdks:java:io:amazon-web-services", configuration: 'testCompile')
+          testCompile it.project(path: ":sdks:java:io:amazon-web-services", configuration: 'testRuntime')
         }
       }
 
