@@ -536,6 +536,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
 
   def verify(self):
     if (isinstance(self._custom_gcs_temp_location, vp.StaticValueProvider) and
+        self._custom_gcs_temp_location.get() is not None and
         not self._custom_gcs_temp_location.get().startswith('gs://')):
       # Only fail if the custom location is provided, and it is not a GCS
       # location.
