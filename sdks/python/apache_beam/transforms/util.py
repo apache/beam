@@ -25,6 +25,7 @@ import collections
 import contextlib
 import random
 import time
+import sys
 from builtins import object
 from builtins import range
 from builtins import zip
@@ -44,6 +45,7 @@ from apache_beam.transforms.core import GroupByKey
 from apache_beam.transforms.core import Map
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import Windowing
+from apache_beam.transforms.core import CombineFn
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
 from apache_beam.transforms.trigger import AccumulationMode
@@ -53,7 +55,7 @@ from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
-from apache_beam.transforms.userstate import BagStateSpec, CombiningValueStateSpec
+from apache_beam.transforms.userstate import BagStateSpec, ValueStateSpec, CombiningValueStateSpec
 from apache_beam.transforms.combiners import TopCombineFn
 
 __all__ = [
@@ -693,9 +695,21 @@ class GroupIntoBatches(PTransform):
 
 
 class _GroupIntoBatchesDoFn(DoFn):
-    def __init__(self, batch_size, input_key_coder, input_value_coder):
-      self.batch_size = batch_size
+  END_OF_WINDOW_ID = "endOFWindow"
+  BATCH_ID = "batch"
+  NUM_ELEMENTS_IN_BATCH_ID = "numElementsInBatch"
+  KEY_ID = "key"
+
+  def __init__(self, batch_size, input_key_coder, input_value_coder):
+    self.batch_size = batch_size
+    self.batch_spec = BagStateSpec("GroupIntoBatches", input_value_coder)
+    self.key_spec = ValueStateSpec("GroupIntoBatches", input_key_coder)
+    self.num_elements_in_batch_spec = CombiningValueStateSpec("GroupIntoBatches", None, _NumElementsInBatchesCombineFn())
+    self.prefetch_frequency = int(sys.maxint) if ((batch_size / 5) <= 1) else int(batch_size / 5)
     
-    def process(self, element):
-        print element
-    
+  def process(self, element):
+    print self.prefetch_frequency
+
+
+class _NumElementsInBatchesCombineFn(CombineFn):
+  pass   
