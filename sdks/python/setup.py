@@ -135,6 +135,16 @@ REQUIRED_TEST_PACKAGES = [
     'parameterized>=0.6.0,<0.7.0',
     'pyhamcrest>=1.9,<2.0',
     'tenacity>=5.0.2,<6.0',
+    'jupyter>=1.0,<2',
+    'notebook>=5.7.8,<5.8',
+    'protobuf>=3.7.0,<3.8.0',
+    'tensorflow>=1.13.1',
+    'tensorflow-data-validation>=0.13.1,<0.14',
+    'tensorflow-metadata>=0.13.0,<0.14',
+    'tensorflow-model-analysis>=0.13.2,<0.14',
+    'tensorflow-serving-api>=1.13.0,<1.14',
+    'tensorflow-transform>=0.13.0,<0.14',
+    'pydevd_pycharm'
     ]
 
 GCP_REQUIREMENTS = [
