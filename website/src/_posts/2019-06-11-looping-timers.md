@@ -5,8 +5,8 @@ date:   2019-06-11 00:00:01 -0800
 excerpt_separator: <!--more-->
 categories: blog
 authors:
-  - rez
-  - klk
+       - rez
+       - klk
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
