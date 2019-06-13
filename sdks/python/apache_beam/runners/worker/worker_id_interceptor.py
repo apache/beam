@@ -50,7 +50,7 @@ class WorkerIdInterceptor(grpc.StreamStreamClientInterceptor):
     if client_call_details.metadata is not None:
       metadata = list(client_call_details.metadata)
     if 'worker_id' in metadata:
-      raise RuntimeError('Header metadata alreay have worker_id.')
+      raise RuntimeError('Header metadata already have worker_id.')
     metadata.append(('worker_id', self._worker_id))
     new_client_details = _ClientCallDetails(
         client_call_details.method, client_call_details.timeout, metadata,

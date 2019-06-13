@@ -130,7 +130,7 @@ class SdkHarness(object):
 
     try:
       for work_request in control_stub.Control(get_responses()):
-        logging.debug('Got work %s', work_request.instruction_id)
+        logging.debug('%s got work %s', self._worker_id, work_request.instruction_id)
         request_type = work_request.WhichOneof('request')
         # Name spacing the request method with 'request_'. The called method
         # will be like self.request_register(request)
@@ -277,7 +277,7 @@ class BundleProcessorCache(object):
     active_bundle_processors (dict): A dictionary, indexed by instruction IDs,
       containing ``bundle_processor.BundleProcessor`` objects that are currently
       active processing the corresponding instruction.
-    cached_bundle_processors (dict): A dictionary, indexed by bundle processor
+    cached_bundle_processors (dict): A dictionary, indexed by bundle descriptor
       id, of cached ``bundle_processor.BundleProcessor`` that are not currently
       performing processing.
   """
@@ -303,6 +303,7 @@ class BundleProcessorCache(object):
           self.state_handler_factory.create_state_handler(
               self.fns[bundle_descriptor_id].state_api_service_descriptor),
           self.data_channel_factory)
+
     self.active_bundle_processors[
         instruction_id] = bundle_descriptor_id, processor
     return processor

@@ -61,7 +61,6 @@ from apache_beam.runners import pipeline_context
 from apache_beam.runners import runner
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import fn_api_runner_transforms
-from apache_beam.runners.portability import local_job_service
 from apache_beam.runners.portability.fn_api_runner_transforms import create_buffer_id
 from apache_beam.runners.portability.fn_api_runner_transforms import only_element
 from apache_beam.runners.portability.fn_api_runner_transforms import split_buffer_id
@@ -82,6 +81,14 @@ ENCODED_IMPULSE_VALUE = beam.coders.WindowedValueCoder(
     beam.coders.coders.GlobalWindowCoder()).get_impl().encode_nested(
         beam.transforms.window.GlobalWindows.windowed_value(b''))
 
+class WorkerInfo(object):
+  def __init__(self, worker_id):
+    self._worker_id = worker_id
+    self._push_queue = queue.Queue()
+    self._inputs = None
+    self._work_load = 0
+    threading.Thread(name='beam_control_read_%s' % worker_id, target=self._read,
+        args=(self._worker_id,)).start()
 
 class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
 
@@ -95,27 +102,23 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
   queue_per_worker = dict()
 
   def __init__(self):
-    self._push_queue = queue.Queue()
     self._futures_by_id = dict()
-    self._read_thread = {}
     self._uid_counter = 0
     self._state = self.UNSTARTED_STATE
     self._lock = threading.Lock()
-    self._inputs = collections.defaultdict(iter)
 
-    self._send = collections.defaultdict(int)
+    self._sent = collections.defaultdict(int)
     self._received = collections.defaultdict(int)
-    self._worker_load = collections.defaultdict(int)
+
+    self._inputs = collections.defaultdict(iter)
+    self._work_load = collections.defaultdict(int)
+    self._read_thread = {}
 
   def _get_available_worker(self):
     candidate = None
-    min_load = -1
-    for worker, load in self._worker_load.items():
-      # if found a worker without any task, return it.
-      if load == 0:
-        return worker
-
-      if min_load == -1 or load < min_load:
+    min_load = float('inf')
+    for worker, load in self._work_load.items():
+      if candidate is None or load < min_load:
         min_load = load
         candidate = worker
     
@@ -132,15 +135,15 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
       # send to all workers
       for worker_id, q in self.queue_per_worker.items():
         q.put(item)
-        self._worker_load[worker_id] += 1
+        self._work_load[worker_id] += 1
     elif request_type == 'process_bundle':
       worker_id = self._get_available_worker()
-      self._worker_load[worker_id] += 1
+      self._work_load[worker_id] += 1
       self.queue_per_worker[worker_id].put(item)
       self.task_worker_mapping[item.instruction_id] = worker_id
     else:
       worker_id = self.task_worker_mapping[item.instruction_reference]
-      self._worker_load[worker_id] += 1
+      self._work_load[worker_id] += 1
       self.queue_per_worker[worker_id].put(item)
 
   def Control(self, iterator, context):
@@ -167,12 +170,12 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
         return
 
       yield to_push
-      self._send[to_push.instruction_id] += 1
+      self._sent[to_push.instruction_id] += 1
 
   def _read(self, worker_id):
     for data in self._inputs[worker_id]:
       self._received[data.instruction_id] += 1
-      self._worker_load[worker_id] -= 1
+      self._work_load[worker_id] -= 1
       if data.instruction_id in self._futures_by_id:
         self._futures_by_id.pop(data.instruction_id).set(data)
 
@@ -197,11 +200,11 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
           t.join()
       self._state = self.DONE_STATE
 
-      logging.debug('Runner: Task requests sent by runner: %s',
-                   [(task, count) for task, count in self._send.items()])
-      logging.debug('Runner: Task responses received by runner: %s',
+      logging.info('Runner: Task requests sent by runner: %s',
+                   [(task, count) for task, count in self._sent.items()])
+      logging.info('Runner: Task responses received by runner: %s',
                    [(task, count) for task, count in self._received.items()])
-      logging.debug('Runner: Task multiplexing info: %s',
+      logging.info('Runner: Task multiplexing info: %s',
                    [(task, worker) for task, worker
                     in self.task_worker_mapping.items()])
 
@@ -233,7 +236,13 @@ class _GroupingBuffer(object):
 
   def __iter__(self):
     if not self._grouped_output:
-      output_stream = create_OutputStream()
+      self._grouped_output = []
+      #Todo: read it more general way
+      num_workers = min(EmbeddedGrpcWorkerHandler.num_workers, len(self._table))
+      output_stream_list = []
+      for _ in range(num_workers):
+        output_stream_list.append(create_OutputStream())
+
       if self._windowing.is_default():
         globally_window = GlobalWindows.windowed_value(None).with_value
         windowed_key_values = lambda key, values: [
@@ -241,16 +250,20 @@ class _GroupingBuffer(object):
       else:
         trigger_driver = trigger.create_trigger_driver(self._windowing, True)
         windowed_key_values = trigger_driver.process_entire_key
+
       coder_impl = self._post_grouped_coder.get_impl()
       key_coder_impl = self._key_coder.get_impl()
-      for encoded_key, windowed_values in self._table.items():
+
+      for idx, (encoded_key, windowed_values) in enumerate(self._table.items()):
         key = key_coder_impl.decode(encoded_key)
         for wkvs in windowed_key_values(key, windowed_values):
-          coder_impl.encode_to_stream(wkvs, output_stream, True)
-      self._grouped_output = [output_stream.get()]
-      self._table = None
-    return iter(self._grouped_output)
+          coder_impl.encode_to_stream(wkvs, output_stream_list[idx % num_workers], True)
 
+      self._table = None
+      for output_stream in output_stream_list:
+        self._grouped_output.append([output_stream.get()])
+
+    return iter(self._grouped_output)
 
 class _WindowGroupingBuffer(object):
   """Used to partition windowed side inputs."""
@@ -587,14 +600,14 @@ class FnApiRunner(runner.PipelineRunner):
     for k in range(self._bundle_repeat):
       try:
         controller.state.checkpoint()
-        BundleManager(
+        ParallelBundleManager(
             controller, lambda pcoll_id: [], get_input_coder_impl,
             process_bundle_descriptor, self._progress_frequency, k
         ).process_bundle(data_input, data_output)
       finally:
         controller.state.restore()
 
-    result, splits = BundleManager(
+    result, splits = ParallelBundleManager(
         controller, get_buffer, get_input_coder_impl, process_bundle_descriptor,
         self._progress_frequency).process_bundle(
             data_input, data_output)
@@ -691,7 +704,7 @@ class FnApiRunner(runner.PipelineRunner):
           if other_input not in deferred_inputs:
             deferred_inputs[other_input] = []
         # TODO(robertwb): merge results
-        last_result, splits = BundleManager(
+        last_result, splits = ParallelBundleManager(
             controller,
             get_buffer,
             get_input_coder_impl,
@@ -1100,17 +1113,19 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
 
 @WorkerHandler.register_environment(python_urns.EMBEDDED_PYTHON_GRPC, bytes)
 class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
+  num_workers = 1
   def __init__(self, num_workers_payload, state, provision_info):
     super(EmbeddedGrpcWorkerHandler, self).__init__(state, provision_info)
-    self._num_workers = int(num_workers_payload) \
+    EmbeddedGrpcWorkerHandler.num_workers = int(num_workers_payload) \
       if num_workers_payload else 1
     self._worker_list = []
 
   def start_worker(self):
+    from apache_beam.runners.portability import local_job_service
     _work_commend_line = b'%s -m apache_beam.runners.worker.sdk_worker_main' \
                          % sys.executable.encode('ascii')
 
-    for i in range(self._num_workers):
+    for i in range(EmbeddedGrpcWorkerHandler.num_workers):
       worker_id = 'worker_%s' % i
       sdk_harness = local_job_service.SubprocessSdkWorker(
           _work_commend_line,
@@ -1256,7 +1271,6 @@ def split_manager(stage_name, split_manager):
   finally:
     _split_managers.pop()
 
-
 class BundleManager(object):
 
   _uid_counter = 0
@@ -1271,13 +1285,12 @@ class BundleManager(object):
     self._registered = skip_registration
     self._progress_frequency = progress_frequency
 
-  def process_bundle(self, inputs, expected_outputs, parallel_uid_counter=None):
+  def process_bundle(self, inputs, expected_outputs, parallel_uid_counter=None, idx=None):
     # Unique id for the instruction processing this bundle.
-    if parallel_uid_counter is None:
-      BundleManager._uid_counter += 1
-    else:
+    if parallel_uid_counter:
       BundleManager._uid_counter = parallel_uid_counter
-
+    else:
+      BundleManager._uid_counter += 1
     process_bundle_id = 'bundle_%s' % BundleManager._uid_counter
 
     # Register the bundle descriptor, if needed.
@@ -1287,6 +1300,7 @@ class BundleManager(object):
       process_bundle_registration = beam_fn_api_pb2.InstructionRequest(
           register=beam_fn_api_pb2.RegisterRequest(
               process_bundle_descriptor=[self._bundle_descriptor]))
+
       registration_future = self._controller.control_handler.push(
           process_bundle_registration)
       self._registered = True
@@ -1306,6 +1320,7 @@ class BundleManager(object):
     # Actually start the bundle.
     if registration_future and registration_future.get().error:
       raise RuntimeError(registration_future.get().error)
+
     process_bundle = beam_fn_api_pb2.InstructionRequest(
         instruction_id=process_bundle_id,
         process_bundle=beam_fn_api_pb2.ProcessBundleRequest(
@@ -1314,6 +1329,12 @@ class BundleManager(object):
 
     # send process bundle request first, then send data because we need to know
     # which worker processes which bundle when we send data
+
+    print('----------------------------',
+          'process_bundle_id = ', process_bundle_id,
+          'parallel_uid_counter = ', parallel_uid_counter,
+          'idx = ', idx)
+
     if not split_manager:
       # Write all the input data to the channel immediately.
       for (transform_id, name), elements in inputs.items():
@@ -1321,8 +1342,18 @@ class BundleManager(object):
             process_bundle_id, beam_fn_api_pb2.Target(
                 primitive_transform_reference=transform_id, name=name))
 
-        for element_data in elements:
-          data_out.write(element_data)
+        # if idx is not None, it means elements are splitable which is
+        # _GroupingBuffer type.
+        if idx is None:
+          for element_data in elements:
+            data_out.write(element_data)
+        else:
+          for i, element_data in enumerate(elements):
+            for data in element_data:
+              if i == idx:
+                data_out.write(data)
+                break
+
         data_out.close()
 
     with ProgressRequester(
@@ -1417,6 +1448,51 @@ class BundleManager(object):
           finalize_request)
 
     return result, split_results
+
+class ParallelBundleManager(BundleManager):
+  _uid_counter = 0
+  def process_bundle(self, inputs, expected_outputs):
+    input_value = list(inputs.values())[0]
+    if isinstance(input_value, list):
+      ParallelBundleManager._uid_counter += 1
+      return super(ParallelBundleManager, self).process_bundle(
+          inputs, expected_outputs, ParallelBundleManager._uid_counter)
+
+    elif isinstance(input_value, _GroupingBuffer):
+      #TODO: read it more general way
+      num_workers = min(EmbeddedGrpcWorkerHandler.num_workers,
+                        len(input_value._table))
+
+      merged_result = None
+      split_result_list = []
+      future_list = []
+      with futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
+        for i in range(num_workers):
+          ParallelBundleManager._uid_counter += 1
+          future = executor.submit(
+              super(ParallelBundleManager, self).process_bundle, inputs,
+              expected_outputs, ParallelBundleManager._uid_counter, i)
+          future_list.append(future)
+
+      for future in future_list:
+        result, split_result = future.result()
+        split_result_list += split_result
+
+        if merged_result is None:
+          merged_result = result
+        else:
+          merged_result = beam_fn_api_pb2.InstructionResponse(
+              process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
+                  monitoring_infos=monitoring_infos.consolidate(
+                      itertools.chain(
+                          result.process_bundle.monitoring_infos,
+                          merged_result.process_bundle.monitoring_infos))),
+              error=result.error or merged_result.error)
+
+      return merged_result, split_result_list
+
+    else:
+      raise NotImplementedError
 
 class ProgressRequester(threading.Thread):
   def __init__(self, controller, instruction_id, frequency, callback=None):
