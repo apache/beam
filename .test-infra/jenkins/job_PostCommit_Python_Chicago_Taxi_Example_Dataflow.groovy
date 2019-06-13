@@ -24,8 +24,8 @@ import CommonTestProperties
 
 
 // This job runs the Chicao Taxi Example script on Dataflow
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Chicago_Taxi_Example_Dataflow',
-        'Run Chicago Taxi Example on Dataflow', 'Google Cloud Dataflow Runner Chicago Taxi Example', this) {
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Chicago_Taxi_Dataflow',
+        'Run Chicago Taxi on Dataflow', 'Google Cloud Dataflow Runner Chicago Taxi Example', this) {
 
     description('Runs the Chicago Taxi Example on the Dataflow runner.')
     // Publish all test results to Jenkins
@@ -44,8 +44,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Chicago_Taxi_Example_
     }
 }
 
-CronJobBuilder.cronJob('beam_PostCommit_Python_Chicago_Taxi_Example_Dataflow', 'H 12 * * *', this) {
-    description('Runs the Chicago Taxi Example on the Dataflow runner.')
+CronJobBuilder.cronJob('beam_PostCommit_Python_Chicago_Taxi_Dataflow', 'H 12 * * *', this) {
+    description('Runs the Chicago Taxi on the Dataflow runner.')
     // Publish all test results to Jenkins
     publishers {
         archiveJunit('**/build/test-results/**/*.xml')
