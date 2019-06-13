@@ -34,6 +34,7 @@ import org.apache.beam.sdk.extensions.smb.FileOperations.Writer;
 import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy.FileAssignment;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink.WriteResult;
 import org.apache.beam.sdk.extensions.sorter.BufferedExternalSorter;
+import org.apache.beam.sdk.extensions.sorter.ExternalSorter;
 import org.apache.beam.sdk.extensions.sorter.SortValues;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -94,7 +95,11 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
         .setCoder(
             KvCoder.of(BucketShardIdCoder.of(), KvCoder.of(ByteArrayCoder.of(), input.getCoder())))
         .apply("GroupByKey", GroupByKey.create())
-        .apply("SortValues", SortValues.create(BufferedExternalSorter.options()))
+        .apply(
+            "SortValues",
+            SortValues.create(
+                BufferedExternalSorter.options()
+                    .withExternalSorterType(ExternalSorter.Options.SorterType.NATIVE)))
         .apply(
             "WriteOperation",
             new WriteOperation<>(filenamePolicy, bucketMetadata, writerSupplier, tempDirectory));
