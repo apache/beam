@@ -40,7 +40,7 @@
           </option>
           <option name="stepikChangeStatus" value="Content changed" />
           <option name="type" value="pycharm11 JAVA 8" />
-          <option name="updateDate" value="1559325078000" />
+          <option name="updateDate" value="1560434425000" />
           <option name="items">
             <list>
               <Section>
@@ -50,8 +50,8 @@
                 <option name="index" value="1" />
                 <option name="name" value="Introduction" />
                 <option name="position" value="0" />
-                <option name="stepikChangeStatus" value="Up to date" />
-                <option name="updateDate" value="1558359731000" />
+                <option name="stepikChangeStatus" value="Content changed" />
+                <option name="updateDate" value="1559325015000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -59,8 +59,8 @@
                       <option name="id" value="229506" />
                       <option name="index" value="1" />
                       <option name="name" value="Hello Beam" />
-                      <option name="stepikChangeStatus" value="Up to date" />
-                      <option name="updateDate" value="1558359731000" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" value="1559325015000" />
                       <option name="unitId" value="202031" />
                       <option name="items">
                         <list>
@@ -79,7 +79,7 @@
                             <option name="name" value="Hello Beam" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/intro/hello/Task.java">
@@ -132,7 +132,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325015000" />
+                            <option name="updateDate" value="1560434330000" />
                           </EduTask>
                         </list>
                       </option>
@@ -148,7 +148,7 @@
                 <option name="name" value="Core Transforms" />
                 <option name="position" value="0" />
                 <option name="stepikChangeStatus" value="Content changed" />
-                <option name="updateDate" value="1558359740000" />
+                <option name="updateDate" value="1559325050000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -157,7 +157,7 @@
                       <option name="index" value="1" />
                       <option name="name" value="Map" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824502000" />
+                      <option name="updateDate" value="1559325026000" />
                       <option name="unitId" value="202032" />
                       <option name="items">
                         <list>
@@ -176,7 +176,7 @@
                             <option name="name" value="ParDo" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/map/pardo/Task.java">
@@ -246,7 +246,7 @@
                             <option name="name" value="ParDo OneToMany" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/map/pardoonetomany/Task.java">
@@ -299,7 +299,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325020000" />
+                            <option name="updateDate" value="1560432589000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -316,7 +316,7 @@
                             <option name="name" value="MapElements" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/map/mapelements/Task.java">
@@ -369,7 +369,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325023000" />
+                            <option name="updateDate" value="1560434337000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -386,7 +386,7 @@
                             <option name="name" value="FlatMapElements" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/map/flatmapelements/Task.java">
@@ -439,7 +439,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325026000" />
+                            <option name="updateDate" value="1560434341000" />
                           </EduTask>
                         </list>
                       </option>
@@ -450,7 +450,7 @@
                       <option name="index" value="2" />
                       <option name="name" value="GroupByKey" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824519000" />
+                      <option name="updateDate" value="1559325029000" />
                       <option name="unitId" value="202033" />
                       <option name="items">
                         <list>
@@ -469,7 +469,7 @@
                             <option name="name" value="GroupByKey" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/groupbykey/Task.java">
@@ -522,7 +522,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325029000" />
+                            <option name="updateDate" value="1560431490000" />
                           </EduTask>
                         </list>
                       </option>
@@ -533,7 +533,7 @@
                       <option name="index" value="3" />
                       <option name="name" value="CoGroupByKey" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824522000" />
+                      <option name="updateDate" value="1559325032000" />
                       <option name="unitId" value="202034" />
                       <option name="items">
                         <list>
@@ -552,7 +552,7 @@
                             <option name="name" value="CoGroupByKey" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/cogroupbykey/Task.java">
@@ -620,7 +620,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325032000" />
+                            <option name="updateDate" value="1560434346000" />
                           </EduTask>
                         </list>
                       </option>
@@ -631,7 +631,7 @@
                       <option name="index" value="4" />
                       <option name="name" value="Combine" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1558359740000" />
+                      <option name="updateDate" value="1559325044000" />
                       <option name="unitId" value="202035" />
                       <option name="items">
                         <list>
@@ -650,7 +650,7 @@
                             <option name="name" value="Simple Function" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/combine/simple/Task.java">
@@ -703,7 +703,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325035000" />
+                            <option name="updateDate" value="1560434349000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -720,7 +720,7 @@
                             <option name="name" value="CombineFn" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/combine/combinefn/Task.java">
@@ -773,7 +773,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325038000" />
+                            <option name="updateDate" value="1560434353000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -790,7 +790,7 @@
                             <option name="name" value="BinaryCombineFn" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/combine/binarycombinefn/Task.java">
@@ -843,7 +843,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325041000" />
+                            <option name="updateDate" value="1560434356000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -855,12 +855,12 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="750324" />
                             <option name="index" value="4" />
                             <option name="name" value="BinaryCombineFn Lambda" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/combine/binarycombinefnlambda/Task.java">
@@ -913,7 +913,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1560434360000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -930,7 +930,7 @@
                             <option name="name" value="Combine PerKey" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/combine/combineperkey/Task.java">
@@ -1000,7 +1000,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325044000" />
+                            <option name="updateDate" value="1560434363000" />
                           </EduTask>
                         </list>
                       </option>
@@ -1011,7 +1011,7 @@
                       <option name="index" value="5" />
                       <option name="name" value="Flatten" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824540000" />
+                      <option name="updateDate" value="1559325047000" />
                       <option name="unitId" value="202036" />
                       <option name="items">
                         <list>
@@ -1030,7 +1030,7 @@
                             <option name="name" value="Flatten" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/flatten/Task.java">
@@ -1083,7 +1083,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325047000" />
+                            <option name="updateDate" value="1560434366000" />
                           </EduTask>
                         </list>
                       </option>
@@ -1094,7 +1094,7 @@
                       <option name="index" value="6" />
                       <option name="name" value="Partition" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824556000" />
+                      <option name="updateDate" value="1559325050000" />
                       <option name="unitId" value="202037" />
                       <option name="items">
                         <list>
@@ -1113,7 +1113,7 @@
                             <option name="name" value="Partition" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/partition/Task.java">
@@ -1166,19 +1166,19 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325050000" />
+                            <option name="updateDate" value="1560434370000" />
                           </EduTask>
                         </list>
                       </option>
                     </Lesson>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="0" />
+                      <option name="id" value="237189" />
                       <option name="index" value="7" />
                       <option name="name" value="Side Input" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="0" />
-                      <option name="unitId" value="0" />
+                      <option name="updateDate" value="1560431442000" />
+                      <option name="unitId" value="209565" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -1191,12 +1191,12 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="750379" />
                             <option name="index" value="1" />
                             <option name="name" value="Side Input" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/sideinput/Task.java">
@@ -1281,19 +1281,19 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1560434376489" />
                           </EduTask>
                         </list>
                       </option>
                     </Lesson>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="0" />
+                      <option name="id" value="237190" />
                       <option name="index" value="8" />
                       <option name="name" value="Side Output" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="0" />
-                      <option name="unitId" value="0" />
+                      <option name="updateDate" value="1560431448000" />
+                      <option name="unitId" value="209566" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -1306,12 +1306,12 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="750326" />
                             <option name="index" value="1" />
                             <option name="name" value="Side Output" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/sideoutput/Task.java">
@@ -1364,19 +1364,19 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1560431471000" />
                           </EduTask>
                         </list>
                       </option>
                     </Lesson>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="0" />
+                      <option name="id" value="237191" />
                       <option name="index" value="9" />
                       <option name="name" value="Branching" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="0" />
-                      <option name="unitId" value="0" />
+                      <option name="updateDate" value="1560431454000" />
+                      <option name="unitId" value="209567" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -1389,12 +1389,12 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="750380" />
                             <option name="index" value="1" />
                             <option name="name" value="Branching" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/branching/Task.java">
@@ -1464,19 +1464,19 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1560434382270" />
                           </EduTask>
                         </list>
                       </option>
                     </Lesson>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="0" />
+                      <option name="id" value="237192" />
                       <option name="index" value="10" />
                       <option name="name" value="Composite Transform" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="0" />
-                      <option name="unitId" value="0" />
+                      <option name="updateDate" value="1560431460000" />
+                      <option name="unitId" value="209568" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -1489,12 +1489,12 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="750323" />
                             <option name="index" value="1" />
                             <option name="name" value="Composite Transform" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/composite/Task.java">
@@ -1547,7 +1547,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1560434384000" />
                           </EduTask>
                         </list>
                       </option>
@@ -1562,8 +1562,8 @@
                 <option name="index" value="3" />
                 <option name="name" value="Common Transforms" />
                 <option name="position" value="0" />
-                <option name="stepikChangeStatus" value="Up to date" />
-                <option name="updateDate" value="1557824583000" />
+                <option name="stepikChangeStatus" value="Content changed" />
+                <option name="updateDate" value="1559325072000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -1572,7 +1572,7 @@
                       <option name="index" value="1" />
                       <option name="name" value="Filter" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824569000" />
+                      <option name="updateDate" value="1559325056000" />
                       <option name="unitId" value="202038" />
                       <option name="items">
                         <list>
@@ -1591,7 +1591,7 @@
                             <option name="name" value="ParDo" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/commontransforms/filter/pardo/Task.java">
@@ -1644,7 +1644,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325053000" />
+                            <option name="updateDate" value="1560434388000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -1661,7 +1661,7 @@
                             <option name="name" value="Filter" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/commontransforms/filter/filter/Task.java">
@@ -1714,7 +1714,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325056000" />
+                            <option name="updateDate" value="1560434391000" />
                           </EduTask>
                         </list>
                       </option>
@@ -1725,7 +1725,7 @@
                       <option name="index" value="2" />
                       <option name="name" value="Aggregation" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824583000" />
+                      <option name="updateDate" value="1559325072000" />
                       <option name="unitId" value="202039" />
                       <option name="items">
                         <list>
@@ -1744,7 +1744,7 @@
                             <option name="name" value="Count" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/commontransforms/aggregation/count/Task.java">
@@ -1797,7 +1797,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325060000" />
+                            <option name="updateDate" value="1560434395000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -1814,7 +1814,7 @@
                             <option name="name" value="Sum" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/commontransforms/aggregation/sum/Task.java">
@@ -1867,7 +1867,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325063000" />
+                            <option name="updateDate" value="1560434398000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -1884,7 +1884,7 @@
                             <option name="name" value="Mean" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/commontransforms/aggregation/mean/Task.java">
@@ -1937,7 +1937,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325066000" />
+                            <option name="updateDate" value="1560434401000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -1954,7 +1954,7 @@
                             <option name="name" value="Min" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/commontransforms/aggregation/min/Task.java">
@@ -2007,7 +2007,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325069000" />
+                            <option name="updateDate" value="1560434405000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -2024,7 +2024,7 @@
                             <option name="name" value="Max" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/commontransforms/aggregation/max/Task.java">
@@ -2077,7 +2077,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325072000" />
+                            <option name="updateDate" value="1560434408000" />
                           </EduTask>
                         </list>
                       </option>
@@ -2088,22 +2088,22 @@
               <Section>
                 <option name="courseId" value="54530" />
                 <option name="customPresentableName" />
-                <option name="id" value="0" />
+                <option name="id" value="88010" />
                 <option name="index" value="4" />
                 <option name="name" value="IO" />
-                <option name="position" value="0" />
+                <option name="position" value="5" />
                 <option name="stepikChangeStatus" value="Content changed" />
-                <option name="updateDate" value="0" />
+                <option name="updateDate" value="1560431425000" />
                 <option name="items">
                   <list>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="0" />
+                      <option name="id" value="237187" />
                       <option name="index" value="1" />
                       <option name="name" value="TextIO" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="0" />
-                      <option name="unitId" value="0" />
+                      <option name="updateDate" value="1560431430000" />
+                      <option name="unitId" value="209563" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -2116,12 +2116,12 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="750317" />
                             <option name="index" value="1" />
                             <option name="name" value="TextIO Read" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="countries.txt">
@@ -2206,19 +2206,19 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1560431432000" />
                           </EduTask>
                         </list>
                       </option>
                     </Lesson>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="0" />
+                      <option name="id" value="237188" />
                       <option name="index" value="2" />
                       <option name="name" value="Built-in IOs" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="0" />
-                      <option name="unitId" value="0" />
+                      <option name="updateDate" value="1560431436000" />
+                      <option name="unitId" value="209564" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -2231,12 +2231,12 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="750319" />
                             <option name="index" value="1" />
                             <option name="name" value="Built-in IOs" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/Task.java">
@@ -2256,7 +2256,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1560434413000" />
                           </EduTask>
                         </list>
                       </option>
@@ -2271,7 +2271,7 @@
                 <option name="index" value="5" />
                 <option name="name" value="Examples" />
                 <option name="position" value="0" />
-                <option name="stepikChangeStatus" value="Up to date" />
+                <option name="stepikChangeStatus" value="Content changed" />
                 <option name="updateDate" value="1557824624000" />
                 <option name="items">
                   <list>
@@ -2300,7 +2300,7 @@
                             <option name="name" value="Word Count" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/examples/wordcount/Task.java">
@@ -2353,7 +2353,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557823128000" />
+                            <option name="updateDate" value="1560434416000" />
                           </EduTask>
                         </list>
                       </option>
