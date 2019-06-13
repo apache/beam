@@ -18,54 +18,39 @@
 package org.apache.beam.sdk.io.hcatalog;
 
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.beam.sdk.io.hcatalog.HCatalogIO.Read;
-import org.apache.beam.sdk.transforms.DoFn.Setup;
-import org.apache.beam.sdk.transforms.DoFn.Teardown;
 import org.apache.beam.sdk.transforms.Watch.Growth.PollFn;
 import org.apache.beam.sdk.transforms.Watch.Growth.PollResult;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.joda.time.Instant;
 
-/** Unbounded poller to listen for new partitions. */
-public class PartitionPollerFn extends PollFn<Read, Read> {
+/** Return the list of current partitions present. */
+public class PartitionPollerFn extends PollFn<Read, Integer> {
   private transient IMetaStoreClient metaStoreClient;
-  private Map<String, String> configProperties;
-
-  public PartitionPollerFn(Map<String, String> configProperties) {
-    this.configProperties = configProperties;
-  }
 
   @Override
-  public PollResult<Read> apply(Read element, Context c) throws Exception {
-    Instant now = Instant.now();
-    return PollResult.incomplete(now, getPartitions(element)).withWatermark(now);
-  }
-
-  private List<Read> getPartitions(Read read) throws Exception {
-    return metaStoreClient.listPartitions(read.getDatabase(), read.getTable(), Short.MAX_VALUE)
-        .stream()
-        .map(partition -> read.withPartitionToRead(partition))
-        .collect(Collectors.toList());
-  }
-
-  @Setup
-  @SuppressWarnings("unused")
-  public void setup() throws Exception {
-    Configuration conf = new Configuration();
-    for (Map.Entry<String, String> entry : configProperties.entrySet()) {
-      conf.set(entry.getKey(), entry.getValue());
-    }
+  public PollResult<Integer> apply(Read element, Context c) throws Exception {
+    final Configuration conf = HCatalogUtils.createConfiguration(element.getConfigProperties());
     metaStoreClient = HCatalogUtils.createMetaStoreClient(conf);
-  }
-
-  @Teardown
-  @SuppressWarnings("unused")
-  public void teardown() {
+    final Instant now = Instant.now();
+    final PollResult<Integer> pollResult =
+        PollResult.incomplete(now, getPartitionIndices(element)).withWatermark(now);
     if (metaStoreClient != null) {
       metaStoreClient.close();
     }
+    return pollResult;
+  }
+
+  private List<Integer> getPartitionIndices(Read read) throws Exception {
+    return IntStream.range(
+            0,
+            metaStoreClient
+                .listPartitions(read.getDatabase(), read.getTable(), Short.MAX_VALUE)
+                .size())
+        .boxed()
+        .collect(Collectors.toList());
   }
 }

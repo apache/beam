@@ -56,6 +56,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
@@ -211,7 +212,8 @@ public class HCatalogIOTest implements Serializable {
                     .withDatabase(TEST_DATABASE)
                     .withPartitionCols(partitions)
                     .withTable(TEST_TABLE)
-                    .withPollingInterval(Duration.millis(15000)))
+                    .withPollingInterval(Duration.millis(15000))
+                    .withTerminationCondition(Watch.Growth.afterTotalOf(Duration.millis(60000))))
             .setCoder((Coder) WritableCoder.of(DefaultHCatRecord.class));
 
     final PCollection<String> output =

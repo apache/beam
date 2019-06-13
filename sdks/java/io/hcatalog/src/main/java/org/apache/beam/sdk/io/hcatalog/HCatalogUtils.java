@@ -26,7 +26,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.MetaException;
-import org.apache.hadoop.hive.ql.metadata.Partition;
+import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.stats.StatsUtils;
 import org.apache.hive.hcatalog.common.HCatUtil;
@@ -41,31 +41,37 @@ public class HCatalogUtils {
   }
 
   static HiveConf createHiveConf(Read readRequest) throws IOException {
-    Configuration conf = new Configuration();
-    for (Map.Entry<String, String> entry : readRequest.getConfigProperties().entrySet()) {
-      conf.set(entry.getKey(), entry.getValue());
-    }
+    Configuration conf = createConfiguration(readRequest.getConfigProperties());
     return HCatUtil.getHiveConf(conf);
   }
 
-  static int getSplitCount(Read readRequest) throws Exception {
+  static int getSplitCount(Read readRequest, Partition partitionToRead) throws Exception {
     int desiredSplitCount = 1;
-    long estimatedSizeBytes = HCatalogUtils.getFileSizeForPartitions(readRequest);
+    long estimatedSizeBytes = getFileSizeForPartition(readRequest, partitionToRead);
     if (estimatedSizeBytes > 0) {
       desiredSplitCount = (int) Math.ceil((double) estimatedSizeBytes / Integer.MAX_VALUE);
     }
     return desiredSplitCount;
   }
 
-  private static long getFileSizeForPartitions(Read readRequest) throws Exception {
+  static Configuration createConfiguration(Map<String, String> configProperties) {
+    Configuration conf = new Configuration();
+    for (Map.Entry<String, String> entry : configProperties.entrySet()) {
+      conf.set(entry.getKey(), entry.getValue());
+    }
+    return conf;
+  }
+
+  private static long getFileSizeForPartition(Read readRequest, Partition partitionToRead)
+      throws Exception {
     IMetaStoreClient client = null;
     try {
       HiveConf hiveConf = HCatalogUtils.createHiveConf(readRequest);
       client = HCatalogUtils.createMetaStoreClient(hiveConf);
-      List<Partition> p = new ArrayList<>();
+      List<org.apache.hadoop.hive.ql.metadata.Partition> p = new ArrayList<>();
       Table table = HCatUtil.getTable(client, readRequest.getDatabase(), readRequest.getTable());
       final org.apache.hadoop.hive.ql.metadata.Partition partition =
-          new org.apache.hadoop.hive.ql.metadata.Partition(table, readRequest.getPartitionToRead());
+          new org.apache.hadoop.hive.ql.metadata.Partition(table, partitionToRead);
       p.add(partition);
       final List<Long> fileSizeForPartitions = StatsUtils.getFileSizeForPartitions(hiveConf, p);
       return fileSizeForPartitions.get(0);

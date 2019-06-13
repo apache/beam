@@ -36,9 +36,8 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.Watch;
+import org.apache.beam.sdk.transforms.Watch.Growth.TerminationCondition;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -47,7 +46,6 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.stats.StatsUtils;
 import org.apache.hive.hcatalog.common.HCatConstants;
@@ -117,7 +115,6 @@ public class HCatalogIO {
 
   private static final long BATCH_SIZE = 1024L;
   private static final String DEFAULT_DATABASE = "default";
-  private static final Boolean TREAT_UNBOUNDED_AS_BOUNDED = true;
 
   /** Write data to Hive. */
   public static Write write() {
@@ -126,10 +123,7 @@ public class HCatalogIO {
 
   /** Read data from Hive. */
   public static Read read() {
-    return new AutoValue_HCatalogIO_Read.Builder()
-        .setDatabase(DEFAULT_DATABASE)
-        .setShouldTreatUnboundedAsBounded(TREAT_UNBOUNDED_AS_BOUNDED)
-        .build();
+    return new AutoValue_HCatalogIO_Read.Builder().setDatabase(DEFAULT_DATABASE).build();
   }
 
   private HCatalogIO() {}
@@ -161,13 +155,10 @@ public class HCatalogIO {
     abstract Duration getPollingInterval();
 
     @Nullable
-    abstract Boolean getShouldTreatUnboundedAsBounded();
-
-    @Nullable
-    abstract Partition getPartitionToRead();
-
-    @Nullable
     abstract ImmutableList<String> getPartitionCols();
+
+    @Nullable
+    abstract TerminationCondition<Read, ?> getTerminationCondition();
 
     abstract Builder toBuilder();
 
@@ -187,11 +178,9 @@ public class HCatalogIO {
 
       abstract Builder setPollingInterval(Duration pollingInterval);
 
-      abstract Builder setShouldTreatUnboundedAsBounded(Boolean treatUnboundedAsBounded);
-
-      abstract Builder setPartitionToRead(Partition readPartition);
-
       abstract Builder setPartitionCols(ImmutableList<String> partitionCols);
+
+      abstract Builder setTerminationCondition(TerminationCondition<Read, ?> terminationCondition);
 
       abstract Read build();
     }
@@ -216,14 +205,13 @@ public class HCatalogIO {
       return toBuilder().setFilter(filter).build();
     }
 
-    /** Sets the duration after which the PartitionPollerFn resumes polling for new partitions. */
+    /**
+     * If specified, polling for new partitions will happen at this periodicity. The returned
+     * PCollection will be unbounded. However if a withTerminationCondition is set along with
+     * pollingInterval, polling will stop after the termination condition has been met.
+     */
     public Read withPollingInterval(Duration pollingInterval) {
       return toBuilder().setPollingInterval(pollingInterval).build();
-    }
-
-    /** Specifies the name of the column which contains the watermark values. */
-    public Read withUnboundedAsBounded(boolean treatBoundedAsUnbounded) {
-      return toBuilder().setShouldTreatUnboundedAsBounded(treatBoundedAsUnbounded).build();
     }
 
     /** Set the names of the columns that are partitions. */
@@ -231,9 +219,12 @@ public class HCatalogIO {
       return toBuilder().setPartitionCols(partitionCols).build();
     }
 
-    /** Specifies the partition you want to read. */
-    public Read withPartitionToRead(Partition partition) {
-      return toBuilder().setPartitionToRead(partition).build();
+    /**
+     * If specified, the poll function will stop polling after the termination condition has been
+     * satisfied.
+     */
+    public Read withTerminationCondition(TerminationCondition<Read, ?> terminationCondition) {
+      return toBuilder().setTerminationCondition(terminationCondition).build();
     }
 
     Read withSplitId(int splitId) {
@@ -250,23 +241,19 @@ public class HCatalogIO {
     public PCollection<HCatRecord> expand(PBegin input) {
       checkArgument(getTable() != null, "withTable() is required");
       checkArgument(getConfigProperties() != null, "withConfigProperties() is required");
-      if (!getShouldTreatUnboundedAsBounded()) {
-        checkArgument(getPollingInterval() != null, "withPollingInterval() is required");
-        final Read readSpec =
-            new AutoValue_HCatalogIO_Read.Builder()
-                .setDatabase(DEFAULT_DATABASE)
-                .setShouldTreatUnboundedAsBounded(getShouldTreatUnboundedAsBounded())
-                .build();
+      Watch.Growth<Read, Integer, Integer> growthFn;
+      if (getPollingInterval() != null) {
+        growthFn = Watch.growthOf(new PartitionPollerFn()).withPollInterval(getPollingInterval());
+        if (getTerminationCondition() != null) {
+          growthFn =
+              Watch.growthOf(new PartitionPollerFn())
+                  .withPollInterval(getPollingInterval())
+                  .withTerminationPerInput(getTerminationCondition());
+        }
         return input
-            .apply("ConvertToReadRequest", Create.of(readSpec))
-            .apply(
-                "WatchForNewPartitions",
-                Watch.growthOf(new PartitionPollerFn(getConfigProperties()))
-                    .withPollInterval(getPollingInterval()))
-            .apply(Values.create())
-            .apply("PartitionSplitter", ParDo.of(new PartitionSplitterFn()))
-            .apply(Reshuffle.of())
-            .apply("PartitionReader", ParDo.of(new PartitionReaderFn()));
+            .apply("ConvertToReadRequest", Create.of(this))
+            .apply("WatchForNewPartitions", growthFn)
+            .apply("PartitionReader", ParDo.of(new PartitionReaderFn(getConfigProperties())));
       } else {
         // Treat as Bounded
         return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedHCatalogSource(this)));

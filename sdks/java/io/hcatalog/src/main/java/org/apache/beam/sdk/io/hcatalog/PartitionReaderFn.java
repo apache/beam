@@ -28,20 +28,35 @@ import org.apache.beam.sdk.io.hcatalog.HCatalogIO.Read;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hive.hcatalog.common.HCatConstants;
-import org.apache.hive.hcatalog.common.HCatException;
 import org.apache.hive.hcatalog.data.HCatRecord;
 import org.apache.hive.hcatalog.data.transfer.DataTransferFactory;
 import org.apache.hive.hcatalog.data.transfer.HCatReader;
 import org.apache.hive.hcatalog.data.transfer.ReadEntity;
 import org.apache.hive.hcatalog.data.transfer.ReaderContext;
 
-/** Reads a split of a partition. */
+/** Reads partition at a given index. */
 class PartitionReaderFn extends DoFn<KV<Read, Integer>, HCatRecord> {
-  private ReaderContext getReaderContext(Read readRequest, long desiredSplitCount)
-      throws HCatException {
-    final Partition partition = readRequest.getPartitionToRead();
+  private transient IMetaStoreClient metaStoreClient;
+  private Map<String, String> configProperties;
+
+  public PartitionReaderFn(Map<String, String> configProperties) {
+    this.configProperties = configProperties;
+  }
+
+  private ReaderContext getReaderContext(Read readRequest, Integer partitionIndexToRead)
+      throws Exception {
+    final List<Partition> partitions =
+        metaStoreClient.listPartitions(
+            readRequest.getDatabase(), readRequest.getTable(), Short.MAX_VALUE);
+    final Partition partition = partitions.get(partitionIndexToRead);
+    checkArgument(
+        partition != null, "Unable to find a partition to read at index " + partitionIndexToRead);
+
+    final int desiredSplitCount = HCatalogUtils.getSplitCount(readRequest, partition);
     final List<String> values = partition.getValues();
     final ImmutableList<String> partitionCols = readRequest.getPartitionCols();
     checkArgument(
@@ -70,13 +85,31 @@ class PartitionReaderFn extends DoFn<KV<Read, Integer>, HCatRecord> {
   @ProcessElement
   @SuppressWarnings("unused")
   public void processElement(ProcessContext c) throws Exception {
-    ReaderContext readerContext =
-        getReaderContext(c.element().getKey(), HCatalogUtils.getSplitCount(c.element().getKey()));
-    HCatReader reader = DataTransferFactory.getHCatReader(readerContext, c.element().getValue());
-    Iterator<HCatRecord> hcatIterator = reader.read();
-    while (hcatIterator.hasNext()) {
-      final HCatRecord record = hcatIterator.next();
-      c.output(record);
+    final Read readRequest = c.element().getKey();
+    final Integer partitionIndexToRead = c.element().getValue();
+    ReaderContext readerContext = getReaderContext(readRequest, partitionIndexToRead);
+    for (int i = 0; i < readerContext.numSplits(); i++) {
+      HCatReader reader = DataTransferFactory.getHCatReader(readerContext, i);
+      Iterator<HCatRecord> hcatIterator = reader.read();
+      while (hcatIterator.hasNext()) {
+        final HCatRecord record = hcatIterator.next();
+        c.output(record);
+      }
+    }
+  }
+
+  @Setup
+  @SuppressWarnings("unused")
+  public void setup() throws Exception {
+    final Configuration conf = HCatalogUtils.createConfiguration(configProperties);
+    metaStoreClient = HCatalogUtils.createMetaStoreClient(conf);
+  }
+
+  @Teardown
+  @SuppressWarnings("unused")
+  public void teardown() {
+    if (metaStoreClient != null) {
+      metaStoreClient.close();
     }
   }
 }
