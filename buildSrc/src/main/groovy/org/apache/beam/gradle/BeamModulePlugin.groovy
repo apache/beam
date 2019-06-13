@@ -1281,22 +1281,22 @@ class BeamModulePlugin implements Plugin<Project> {
         /* include dependencies required by runners */
         //if (runner?.contains('dataflow')) {
         if (runner?.equalsIgnoreCase('dataflow')) {
-          testCompile it.project(path: ":runners:google-cloud-dataflow-java", configuration: 'testCompile')
-          shadow it.project(path: ":runners:google-cloud-dataflow-java:worker:legacy-worker", configuration: 'shadow')
+          testRuntime it.project(path: ":runners:google-cloud-dataflow-java", configuration: 'testRuntime')
+          testRuntime it.project(path: ":runners:google-cloud-dataflow-java:worker:legacy-worker", configuration: 'shadow')
         }
 
         if (runner?.equalsIgnoreCase('direct')) {
-          testCompile it.project(path: ":runners:direct-java", configuration: 'shadowTest')
+          testRuntime it.project(path: ":runners:direct-java", configuration: 'shadowTest')
         }
 
         if (runner?.equalsIgnoreCase('flink')) {
-          testCompile it.project(path: ":runners:flink:1.5", configuration: 'testCompile')
+          testRuntime it.project(path: ":runners:flink:1.5", configuration: 'testRuntime')
         }
 
         if (runner?.equalsIgnoreCase('spark')) {
-          testCompile it.project(path: ":runners:spark", configuration: 'testCompile')
-          testCompile project.library.java.spark_core
-          testCompile project.library.java.spark_streaming
+          testRuntime it.project(path: ":runners:spark", configuration: 'testRuntime')
+          testRuntime project.library.java.spark_core
+          testRuntime project.library.java.spark_streaming
 
           // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
           project.configurations.testRuntimeClasspath {
@@ -1306,13 +1306,13 @@ class BeamModulePlugin implements Plugin<Project> {
 
         /* include dependencies required by filesystems */
         if (filesystem?.equalsIgnoreCase('hdfs')) {
-          testCompile it.project(path: ":sdks:java:io:hadoop-file-system", configuration: 'testCompile')
+          testRuntime it.project(path: ":sdks:java:io:hadoop-file-system", configuration: 'testRuntime')
           testRuntime project.library.java.hadoop_client
         }
 
         /* include dependencies required by AWS S3 */
         if (filesystem?.equalsIgnoreCase('s3')) {
-          testCompile it.project(path: ":sdks:java:io:amazon-web-services", configuration: 'testCompile')
+          testRuntime it.project(path: ":sdks:java:io:amazon-web-services", configuration: 'testRuntime')
         }
       }
 
