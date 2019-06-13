@@ -20,6 +20,7 @@ import json
 import logging
 import unittest
 
+from apache_beam.metrics import MetricsFilter
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
 from apache_beam.testing.test_pipeline import TestPipeline
 
@@ -52,16 +53,17 @@ class LoadTest(unittest.TestCase):
     self.project_id = self.pipeline.get_option('project')
 
     self.publish_to_big_query = self.pipeline.get_option('publish_to_big_query')
+    self.metrics_dataset = self.pipeline.get_option('metrics_dataset')
     self.metrics_namespace = self.pipeline.get_option('metrics_table')
 
-    if not self.publish_to_big_query or self.publish_to_big_query != 'true':
+    if not self.are_metrics_collected():
       logging.info('Metrics will not be collected')
       self.metrics_monitor = None
     else:
       self.metrics_monitor = MetricsReader(
-          project_name=self.pipeline.get_option('project'),
+          project_name=self.project_id,
           bq_table=self.metrics_namespace,
-          bq_dataset=self.pipeline.get_option('metrics_dataset'),
+          bq_dataset=self.metrics_dataset,
       )
 
   def tearDown(self):
@@ -70,6 +72,29 @@ class LoadTest(unittest.TestCase):
 
     if self.metrics_monitor:
       self.metrics_monitor.publish_metrics(result)
+
+  def apply_filter(self, allowed):
+    """Prevents metrics from namespaces other than specified in the argument
+    from being published."""
+    if allowed:
+      self.metrics_monitor.filters = MetricsFilter().with_namespaces(allowed)
+
+  def get_option_or_default(self, opt_name, default=0):
+    """Returns a pipeline option or a default value if it was not provided.
+
+    The returned value is converted to an integer.
+    """
+    option = self.pipeline.get_option(opt_name)
+    try:
+      return int(option)
+    except TypeError:
+      return default
+    except ValueError as exc:
+      self.fail(str(exc))
+
+  def are_metrics_collected(self):
+    return self.publish_to_big_query != 'true' and None not in (
+        self.project_id, self.metrics_dataset, self.metrics_namespace)
 
 
 if __name__ == '__main__':
