@@ -26,6 +26,7 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 
@@ -50,25 +51,15 @@ class CombineGloballyTranslatorBatch<InputT, AccumT, OutputT>
     @SuppressWarnings("unchecked")
     final Combine.CombineFn<InputT, AccumT, OutputT> combineFn =
         (Combine.CombineFn<InputT, AccumT, OutputT>) combineTransform.getFn();
-
+    WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
     Dataset<WindowedValue<InputT>> inputDataset = context.getDataset(input);
 
-    //TODO merge windows instead of doing unwindow/window to comply with beam model
-    Dataset<InputT> unWindowedDataset =
-        inputDataset.map(WindowingHelpers.unwindowMapFunction(), EncoderHelpers.genericEncoder());
-
     Dataset<Row> combinedRowDataset =
-        unWindowedDataset.agg(new AggregatorCombinerGlobally<>(combineFn).toColumn());
+        inputDataset.agg(new AggregatorCombinerGlobally<>(combineFn, windowingStrategy).toColumn());
 
-    Dataset<OutputT> combinedDataset =
-        combinedRowDataset.map(
-            RowHelpers.extractObjectFromRowMapFunction(), EncoderHelpers.genericEncoder());
-
-    // Window the result into global window.
     Dataset<WindowedValue<OutputT>> outputDataset =
-        combinedDataset.map(
-            WindowingHelpers.windowMapFunction(), EncoderHelpers.windowedValueEncoder());
-
+        combinedRowDataset.map(
+            RowHelpers.extractObjectFromRowMapFunction(), EncoderHelpers.windowedValueEncoder());
     context.putDataset(output, outputDataset);
   }
 }
