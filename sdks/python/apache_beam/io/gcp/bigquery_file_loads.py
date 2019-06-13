@@ -69,14 +69,15 @@ def file_prefix_generator(with_validation=True, pipeline_gcs_location=None):
   def _generate_file_prefix(unused_elm):
     # If a gcs location is provided to the pipeline, then we shall use that.
     # Otherwise, we shall use the temp_location from pipeline options.
-    gcs_base = str(pipeline_gcs_location.get() or
-                   vp.RuntimeValueProvider.get_value('temp_location', str, ''))
+    gcs_base = pipeline_gcs_location.get()
+    if not gcs_base:
+      gcs_base = vp.RuntimeValueProvider.get_value('temp_location', str, '')
 
     # This will fail at pipeline execution time, but will fail early, as this
     # step doesn't have any dependencies (and thus will be one of the first
     # stages to be run).
     if with_validation and (not gcs_base or not gcs_base.startswith('gs://')):
-      raise ValueError('Invalid GCS location: %s.\n'
+      raise ValueError('Invalid GCS location: %r.\n'
                        'Writing to BigQuery with FILE_LOADS method requires a '
                        'GCS location to be provided to write files to be loaded'
                        ' loaded into BigQuery. Please provide a GCS bucket, or '
@@ -541,7 +542,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
         not self._custom_gcs_temp_location.get().startswith('gs://')):
       # Only fail if the custom location is provided, and it is not a GCS
       # location.
-      raise ValueError('Invalid GCS location: %s.\n'
+      raise ValueError('Invalid GCS location: %r.\n'
                        'Writing to BigQuery with FILE_LOADS method requires a '
                        'GCS location to be provided to write files to be '
                        'loaded into BigQuery. Please provide a GCS bucket, or '
