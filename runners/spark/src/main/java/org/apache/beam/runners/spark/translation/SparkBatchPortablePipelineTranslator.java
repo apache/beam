@@ -213,6 +213,9 @@ public class SparkBatchPortablePipelineTranslator {
     Dataset inputDataset = context.popDataset(inputPCollectionId);
     Map<String, String> outputs = transformNode.getTransform().getOutputsMap();
     BiMap<String, Integer> outputExtractionMap = createOutputMap(outputs.values());
+    Components components = pipeline.getComponents();
+    Coder windowCoder =
+        getWindowingStrategy(inputPCollectionId, components).getWindowFn().windowCoder();
 
     ImmutableMap.Builder<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>>
         broadcastVariablesBuilder = ImmutableMap.builder();
@@ -228,12 +231,7 @@ public class SparkBatchPortablePipelineTranslator {
     }
 
     JavaRDD<RawUnionValue> staged;
-    if (stagePayload.getTimersCount() > 0) {
-      throw new UnsupportedOperationException(
-          "Timers are not yet supported in Spark portable runner (BEAM-7221)");
-    }
-    if (stagePayload.getUserStatesCount() > 0) {
-      Components components = pipeline.getComponents();
+    if (stagePayload.getUserStatesCount() > 0 || stagePayload.getTimersCount() > 0) {
       Coder<WindowedValue<InputT>> windowedInputCoder =
           instantiateCoder(inputPCollectionId, components);
       Coder valueCoder =
@@ -262,7 +260,8 @@ public class SparkBatchPortablePipelineTranslator {
               context.jobInfo,
               outputExtractionMap,
               broadcastVariablesBuilder.build(),
-              MetricsAccumulator.getInstance());
+              MetricsAccumulator.getInstance(),
+              windowCoder);
       staged = groupedByKey.flatMap(function.forPair());
     } else {
       JavaRDD<WindowedValue<InputT>> inputRdd2 = ((BoundedDataset<InputT>) inputDataset).getRDD();
@@ -272,7 +271,8 @@ public class SparkBatchPortablePipelineTranslator {
               context.jobInfo,
               outputExtractionMap,
               broadcastVariablesBuilder.build(),
-              MetricsAccumulator.getInstance());
+              MetricsAccumulator.getInstance(),
+              windowCoder);
       staged = inputRdd2.mapPartitions(function2);
     }
 
