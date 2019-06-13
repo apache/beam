@@ -144,7 +144,6 @@ REQUIRED_TEST_PACKAGES = [
     'tensorflow-model-analysis>=0.13.2,<0.14',
     'tensorflow-serving-api>=1.13.0,<1.14',
     'tensorflow-transform>=0.13.0,<0.14',
-    'pydevd_pycharm'
     ]
 
 GCP_REQUIREMENTS = [

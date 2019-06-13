@@ -18,9 +18,6 @@
 
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
-import CronJobBuilder
-import CommonTestProperties
-
 
 
 // This job runs the Chicao Taxi Example script on Dataflow
@@ -28,24 +25,10 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Chicago_Taxi_Dataflow
         'Run Chicago Taxi on Dataflow', 'Google Cloud Dataflow Runner Chicago Taxi Example', this) {
 
     description('Runs the Chicago Taxi Example on the Dataflow runner.')
-    // Publish all test results to Jenkins
-    publishers {
-        archiveJunit('**/build/test-results/**/*.xml')
-    }
 
-    // Gradle goals for this job.
-    steps {
-        gradle {
-            rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':sdks:python:dataflowChicagoTaxiExample')
-            switches('-PgcsRoot=gs://')
-            switches('-Prunner=DataflowRunner')
-        }
-    }
-}
+    // Set common parameters.
+    commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-CronJobBuilder.cronJob('beam_PostCommit_Python_Chicago_Taxi_Dataflow', 'H 12 * * *', this) {
-    description('Runs the Chicago Taxi on the Dataflow runner.')
     // Publish all test results to Jenkins
     publishers {
         archiveJunit('**/build/test-results/**/*.xml')
