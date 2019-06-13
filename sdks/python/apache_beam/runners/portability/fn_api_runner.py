@@ -434,6 +434,7 @@ class FnApiRunner(runner.PipelineRunner):
                                                          stage,
                                                          get_buffer_callable,
                                                          deferred_inputs):
+
     for transform_id, timer_writes in stage.timer_pcollections:
 
       # Queue any set timers as new inputs.
@@ -458,7 +459,7 @@ class FnApiRunner(runner.PipelineRunner):
         for windowed_key_timer in timers_by_key_and_window.values():
           windowed_timer_coder_impl.encode_to_stream(
               windowed_key_timer, out, True)
-        deferred_inputs[transform_id, 'out'] = [out.get()]
+        deferred_inputs[transform_id] = [out.get()]
         written_timers[:] = []
 
   def _add_residuals_and_channel_splits_to_deferred_inputs(
@@ -488,14 +489,13 @@ class FnApiRunner(runner.PipelineRunner):
 
         # Decode and recode to split the encoded buffer by element index.
         all_elements = list(coder_impl.decode_all(b''.join(last_sent[
-            channel_split.ptransform_id, channel_split.input_id])))
+            channel_split.ptransform_id])))
         residual_elements = all_elements[
             channel_split.first_residual_element : prev_stops.get(
                 channel_split.ptransform_id, len(all_elements)) + 1]
         if residual_elements:
-          deferred_inputs[
-              channel_split.ptransform_id, channel_split.input_id].append(
-                  coder_impl.encode_all(residual_elements))
+          deferred_inputs[channel_split.ptransform_id].append(
+              coder_impl.encode_all(residual_elements))
         prev_stops[
             channel_split.ptransform_id] = channel_split.last_primary_element
 
@@ -1389,13 +1389,11 @@ class BundleManager(object):
                                    inputs,
                                    process_bundle_id):
     split_results = []
-
-    (read_transform_id, name), buffer_data = only_element(inputs.items())
+    read_transform_id, buffer_data = only_element(inputs.items())
 
     byte_stream = b''.join(buffer_data)
     num_elements = len(list(
-        self._get_input_coder_impl(read_transform_id).decode_all(
-            byte_stream)))
+        self._get_input_coder_impl(read_transform_id).decode_all(byte_stream)))
 
     # Start the split manager in case it wants to set any breakpoints.
     split_manager_generator = split_manager(num_elements)
@@ -1405,8 +1403,9 @@ class BundleManager(object):
     except StopIteration:
       done = True
 
+    # Send all the data.
     self._send_input_to_worker(
-        process_bundle_id, read_transform_id, name, [byte_stream])
+        process_bundle_id, read_transform_id, [byte_stream])
 
     # Execute the requested splits.
     while not done:
@@ -1419,13 +1418,12 @@ class BundleManager(object):
                 instruction_reference=process_bundle_id,
                 desired_splits={
                     read_transform_id:
-                        beam_fn_api_pb2.ProcessBundleSplitRequest.DesiredSplit(
-                            fraction_of_remainder=split_fraction,
-                            estimated_input_elements=num_elements)}))
-
-        split_future = self._controller.control_handler.push(split_request)
-        split_response = split_future.get()
-
+                    beam_fn_api_pb2.ProcessBundleSplitRequest.DesiredSplit(
+                        fraction_of_remainder=split_fraction,
+                        estimated_input_elements=num_elements)
+                }))
+        split_response = self._controller.control_handler.push(
+            split_request).get()
         for t in (0.05, 0.1, 0.2):
           waiting = ('Instruction not running', 'not yet scheduled')
           if any(msg in split_response.error for msg in waiting):
@@ -1444,7 +1442,6 @@ class BundleManager(object):
         split_fraction = split_manager_generator.send(split_result)
       except StopIteration:
         break
-
     return split_results
 
   def process_bundle(self, inputs, expected_outputs):
@@ -1482,12 +1479,6 @@ class BundleManager(object):
                                                           process_bundle_id)
 
       # Gather all output data.
-      expected_targets = [
-          beam_fn_api_pb2.Target(primitive_transform_reference=transform_id,
-                                 name=output_name)
-          for (transform_id, output_name), _ in expected_outputs.items()]
-
-      logging.debug('Gather all output data from %s.', expected_targets)
       for output in self._controller.data_plane_handler.input_elements(
           process_bundle_id,
           expected_outputs.keys(),
