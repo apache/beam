@@ -216,7 +216,7 @@ class TestWriteToTFRecord(TestTFRecordSink):
     with TempDir() as temp_dir:
       file_path_prefix = temp_dir.create_temp_file('result')
       with TestPipeline() as p:
-        input_data = ['foo', 'bar']
+        input_data = [b'foo', b'bar']
         _ = p | beam.Create(input_data) | WriteToTFRecord(
             file_path_prefix, compression_type=CompressionTypes.GZIP)
 
@@ -232,7 +232,7 @@ class TestWriteToTFRecord(TestTFRecordSink):
     with TempDir() as temp_dir:
       file_path_prefix = temp_dir.create_temp_file('result')
       with TestPipeline() as p:
-        input_data = ['foo', 'bar']
+        input_data = [b'foo', b'bar']
         _ = p | beam.Create(input_data) | WriteToTFRecord(
             file_path_prefix, file_name_suffix='.gz')
 
