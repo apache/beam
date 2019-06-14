@@ -211,8 +211,8 @@ def map_add(state, arg):
   new_key_type = Const.unwrap(state.stack.pop())
   new_value_type = Const.unwrap(state.stack.pop())
   state.stack[-arg] = Dict[
-    Union[state.stack[-arg].key_type, new_key_type],
-    Union[state.stack[-arg].value_type, new_value_type]]
+      Union[state.stack[-arg].key_type, new_key_type],
+      Union[state.stack[-arg].value_type, new_value_type]]
 
 
 load_locals = push_value(Dict[str, Any])
@@ -366,13 +366,6 @@ def load_deref(state, arg):
 # raise_varargs
 
 
-def call_function(state, arg, has_var=False, has_kw=False):
-  # TODO(robertwb): Recognize builtins and dataflow objects
-  # (especially special return values).
-  pop_count = (arg & 0xFF) + 2 * (arg >> 8) + 1 + has_var + has_kw
-  state.stack[-pop_count:] = [Any]
-
-
 def make_function(state, arg):
   """Creates a function with the arguments at the top of the stack.
   """
@@ -381,11 +374,24 @@ def make_function(state, arg):
   if sys.version_info[0] == 2:
     func_code = state.stack[-1].value
     func = types.FunctionType(func_code, globals)
+    # argc is the number of default parameters. Ignored here.
+    pop_count = 1 + arg
   else:  # Python 3.x
     func_name = state.stack[-1].value
     func_code = state.stack[-2].value
+    pop_count = 2
     closure = None
-    if sys.version_info[1] >= 6:
+    if sys.version_info[:2] == (3, 5):
+      # https://docs.python.org/3.5/library/dis.html#opcode-MAKE_FUNCTION
+      num_default_pos_args = (arg & 0xff)
+      num_default_kwonly_args = ((arg >> 8) & 0xff)
+      num_annotations = ((arg >> 16) & 0x7fff)
+      pop_count += (num_default_pos_args + 2 * num_default_kwonly_args +
+                    num_annotations + num_annotations > 0)
+    elif sys.version_info >= (3, 6):
+      # arg contains flags, with corresponding stack values if positive.
+      # https://docs.python.org/3.6/library/dis.html#opcode-MAKE_FUNCTION
+      pop_count += bin(arg).count('1')
       if arg & 0x08:
         # Convert types in Tuple constraint to a tuple of CPython cells.
         # https://stackoverflow.com/a/44670295
@@ -396,7 +402,8 @@ def make_function(state, arg):
     func = types.FunctionType(func_code, globals, name=func_name,
                               closure=closure)
 
-  state.stack.append(Const(func))
+  assert pop_count <= len(state.stack)
+  state.stack[-pop_count:] = [Const(func)]
 
 
 def make_closure(state, arg):
@@ -405,15 +412,3 @@ def make_closure(state, arg):
 
 def build_slice(state, arg):
   state.stack[-arg:] = [slice]  # a slice object
-
-
-def call_function_var(state, arg):
-  call_function(state, arg, has_var=True)
-
-
-def call_function_kw(state, arg):
-  call_function(state, arg, has_kw=True)
-
-
-def call_function_var_wk(state, arg):
-  call_function(state, arg, has_var=True, has_kw=True)

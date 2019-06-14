@@ -118,7 +118,7 @@ class TrivialInferenceTest(unittest.TestCase):
         typehints.List[typehints.Union[int, float]],
         lambda xs: [x for x in xs],
         [typehints.Tuple[int, float]])
-    if sys.version_info[0] == 3 and sys.version_info[1] == 5:
+    if sys.version_info[:2] == (3, 5):
       # A better result requires implementing the MAKE_CLOSURE opcode.
       expected = typehints.Any
     else:
@@ -204,7 +204,7 @@ class TrivialInferenceTest(unittest.TestCase):
 
   def testDictComprehension(self):
     fields = []
-    if sys.version_info[0] == 3 and sys.version_info[1] >= 6:
+    if sys.version_info >= (3, 6):
       expected_type = typehints.Dict[typehints.Any, typehints.Any]
     else:
       # For Python 2, just ensure it doesn't crash.
@@ -234,6 +234,7 @@ class TrivialInferenceTest(unittest.TestCase):
 
     self.assertReturnType(typehints.Any, lambda: A.m(A(), 3.0), depth=0)
     self.assertReturnType(float, lambda: A.m(A(), 3.0), depth=1)
+
 
 if __name__ == '__main__':
   unittest.main()
