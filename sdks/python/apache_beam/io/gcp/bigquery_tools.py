@@ -928,7 +928,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
         # return base64 encoded bytes as byte type on python 3
         # which matches the behavior of Beam Java SDK
         for i in range(len(row.f)):
-          if self.schema.fields[i].type == 'BYTES':
+          if self.schema.fields[i].type == 'BYTES' and row.f[i].v:
             row.f[i].v.string_value = row.f[i].v.string_value.encode('utf-8')
 
         if self.row_as_dict:
