@@ -66,10 +66,22 @@ public class WorkerStatusPagesTest {
   }
 
   @Test
-  public void testHealthz() throws Exception {
-    String response = getPage("/threadz");
+  public void testHealthzHealthy() throws Exception {
+    String response = getPage("/healthz");
     assertThat(response, containsString("HTTP/1.1 200 OK"));
     assertThat(response, containsString("ok"));
+  }
+
+  @Test
+  public void testHealthzUnhealthy() throws Exception {
+    // set up WorkerStatusPages that respond unhealthy status on "healthz"
+    wsp.stop();
+    wsp = new WorkerStatusPages(server, mockMemoryMonitor, () -> false);
+    wsp.start();
+
+    String response = getPage("/healthz");
+    assertThat(response, containsString("HTTP/1.1 500 Server Error"));
+    assertThat(response, containsString("internal server error"));
   }
 
   @Test
