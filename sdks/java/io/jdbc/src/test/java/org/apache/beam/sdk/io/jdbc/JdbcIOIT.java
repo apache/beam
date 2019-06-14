@@ -37,8 +37,6 @@ import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
-import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
-import org.apache.beam.sdk.testutils.metrics.CountMonitor;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
@@ -150,16 +148,6 @@ public class JdbcIOIT {
           return NamedTestResult.create(
               uuid, timestamp, "write_time", (writeEnd - writeStart) / 1e3);
         });
-    suppliers.add(
-        reader -> {
-          double byteCount = reader.getCounterMetric("byte_count");
-          return NamedTestResult.create(uuid, timestamp, "byte_count", byteCount);
-        });
-    suppliers.add(
-        reader -> {
-          double itemCount = reader.getCounterMetric("item_count");
-          return NamedTestResult.create(uuid, timestamp, "item_count", itemCount);
-        });
     return suppliers;
   }
 
@@ -188,8 +176,6 @@ public class JdbcIOIT {
         .apply(GenerateSequence.from(0).to(numberOfRows))
         .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
         .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "write_time")))
-        .apply(ParDo.of(new ByteMonitor<>(NAMESPACE, "byte_count")))
-        .apply(ParDo.of(new CountMonitor<>(NAMESPACE, "item_count")))
         .apply(
             JdbcIO.<TestRow>write()
                 .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))

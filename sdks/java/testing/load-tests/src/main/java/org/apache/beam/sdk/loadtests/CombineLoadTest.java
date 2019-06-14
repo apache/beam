@@ -124,7 +124,7 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
                 ParDo.of(new TimeMonitor<>(METRICS_NAMESPACE, "runtime")))
             .apply(
                 "Collect metrics",
-                ParDo.of(new ByteMonitor<>(METRICS_NAMESPACE, "totalBytes.count")));
+                ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")));
 
     input = applyWindowing(input);
 
