@@ -268,7 +268,6 @@ def infer_return_type(c, input_types, debug=False, depth=5):
   """Analyses a callable to deduce its return type.
 
   Args:
-
     c: A Python callable to infer the return type of.
     input_types: A sequence of inputs corresponding to the input types.
     debug: Whether to print verbose debugging information.
@@ -362,7 +361,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
 
   # Python 2 - 3.5: 1 byte opcode + optional 2 byte arg (1 or 3 bytes).
   # Python 3.6+: 1 byte opcode + 1 byte arg (2 bytes, arg may be ignored).
-  if sys.version_info[0] == 3 and sys.version_info[1] >= 6:
+  if sys.version_info >= (3, 6):
     inst_size = 2
     opt_arg_size = 0
   else:
@@ -419,54 +418,53 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
 
     opname = dis.opname[op]
     jmp = jmp_state = None
-    if opname.startswith('CALL_FUNCTION') and (
-        (sys.version_info[0] == 3 and sys.version_info[1] < 6) or
-        sys.version_info[0] == 2):
-      # Each keyword takes up two arguments on the stack (name and value).
-      standard_args = (arg & 0xFF) + 2 * (arg >> 8)
-      var_args = 'VAR' in opname
-      kw_args = 'KW' in opname
-      pop_count = standard_args + var_args + kw_args + 1
-      if depth <= 0:
-        return_type = Any
-      elif arg >> 8:
-        # TODO(robertwb): Handle this case.
-        return_type = Any
-      elif isinstance(state.stack[-pop_count], Const):
-        # TODO(robertwb): Handle this better.
-        if var_args or kw_args:
-          state.stack[-1] = Any
-          state.stack[-var_args - kw_args] = Any
-        return_type = infer_return_type(state.stack[-pop_count].value,
-                                        state.stack[1 - pop_count:],
-                                        debug=debug,
-                                        depth=depth - 1)
-      else:
-        return_type = Any
-      state.stack[-pop_count:] = [return_type]
-    elif opname.startswith('CALL_FUNCTION'):  # Python 3.6+
-      if opname == 'CALL_FUNCTION':
-        pop_count = arg + 1
+    if opname.startswith('CALL_FUNCTION'):
+      if sys.version_info < (3, 6):
+        # Each keyword takes up two arguments on the stack (name and value).
+        standard_args = (arg & 0xFF) + 2 * (arg >> 8)
+        var_args = 'VAR' in opname
+        kw_args = 'KW' in opname
+        pop_count = standard_args + var_args + kw_args + 1
         if depth <= 0:
           return_type = Any
-        else:
+        elif arg >> 8:
+          # TODO(robertwb): Handle this case.
+          return_type = Any
+        elif isinstance(state.stack[-pop_count], Const):
+          # TODO(robertwb): Handle this better.
+          if var_args or kw_args:
+            state.stack[-1] = Any
+            state.stack[-var_args - kw_args] = Any
           return_type = infer_return_type(state.stack[-pop_count].value,
                                           state.stack[1 - pop_count:],
                                           debug=debug,
                                           depth=depth - 1)
-      elif opname == 'CALL_FUNCTION_KW':
-        # TODO(udim): Handle keyword arguments. Requires passing them by name to
-        #   infer_return_type.
-        pop_count = arg + 2
-        return_type = Any
-      elif opname == 'CALL_FUNCTION_EX':
-        # TODO(udim): Handle variable argument lists. Requires handling kwargs
-        #   first.
-        pop_count = (arg & 1) + 3
-        return_type = Any
-      else:
-        raise TypeInferenceError('unable to handle %s' % opname)
-      state.stack[-pop_count:] = [return_type]
+        else:
+          return_type = Any
+        state.stack[-pop_count:] = [return_type]
+      else:  # Python 3.6+
+        if opname == 'CALL_FUNCTION':
+          pop_count = arg + 1
+          if depth <= 0:
+            return_type = Any
+          else:
+            return_type = infer_return_type(state.stack[-pop_count].value,
+                                            state.stack[1 - pop_count:],
+                                            debug=debug,
+                                            depth=depth - 1)
+        elif opname == 'CALL_FUNCTION_KW':
+          # TODO(udim): Handle keyword arguments. Requires passing them by name
+          #   to infer_return_type.
+          pop_count = arg + 2
+          return_type = Any
+        elif opname == 'CALL_FUNCTION_EX':
+          # TODO(udim): Handle variable argument lists. Requires handling kwargs
+          #   first.
+          pop_count = (arg & 1) + 3
+          return_type = Any
+        else:
+          raise TypeInferenceError('unable to handle %s' % opname)
+        state.stack[-pop_count:] = [return_type]
     elif opname == 'CALL_METHOD':
       pop_count = 1 + arg
       # LOAD_METHOD will return a non-Const (Any) if loading from an Any.
