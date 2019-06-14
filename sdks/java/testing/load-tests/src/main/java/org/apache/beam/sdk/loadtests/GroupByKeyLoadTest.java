@@ -88,7 +88,7 @@ public class GroupByKeyLoadTest extends LoadTest<GroupByKeyLoadTest.Options> {
             .apply("Collect start time metrics", ParDo.of(runtimeMonitor))
             .apply(
                 "Total bytes monitor",
-                ParDo.of(new ByteMonitor<>(METRICS_NAMESPACE, "totalBytes.count")));
+                ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")));
 
     input = applyWindowing(input);
 
