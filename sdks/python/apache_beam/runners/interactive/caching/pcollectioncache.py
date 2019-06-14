@@ -42,7 +42,6 @@ class PCollectionCache(with_metaclass(abc.ABCMeta)):
     raise NotImplementedError
 
   @property
-  @property
   @abc.abstractmethod
   def _reader_passthrough_arguments(self):
     """Writer arguments, which if provided, shoud be passed onto the reader.
