@@ -1,0 +1,92 @@
+import abc
+
+from future.utils import with_metaclass
+
+
+class PCollectionCache(with_metaclass(abc.ABCMeta)):
+
+  @property
+  @abc.abstractmethod
+  def _reader_class(self):
+    """A reader PTransform to be used for reading a PCollection from cache.
+
+    Returns:
+      PTransform: A PTransform which reads from a file.
+    """
+    raise NotImplementedError
+
+  @property
+  @abc.abstractmethod
+  def _writer_class(self):
+    """A writer PTransform to be used for writing a PCollection to cache.
+
+    Returns:
+      PTransform: A PTransform which writes to a file.
+    """
+    raise NotImplementedError
+
+  @property
+  @property
+  @abc.abstractmethod
+  def _reader_passthrough_arguments(self):
+    """Writer arguments, which if provided, shoud be passed onto the reader.
+
+    Returns:
+      Set[str]: A set of writer argument names.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def __init__(self, location, **writer_kwargs):
+    """Instantiate a ``PCollectionCache`` object.
+
+    Args:
+      location (str): Location where the cache data should be stored.
+      **writer_kwargs: Arguments to pass to the underlying writer class.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def reader(self, **reader_kwargs):
+    """Return a reader PTransform which can be used to read a PCollection.
+
+    Args:
+      **reader_kwargs: Arguments to pass to the underlying reader class.
+
+    Returns:
+      Union[FileBasedSource, NativeSource]: A source from which we can read
+          a PCollection.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def writer(self):
+    """Return a writer PTransform which can be used to write a PCollection.
+
+    Returns:
+      Union[FileBasedSink, NativeSink]: A sink to which we can write
+          a PCollection.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def read(self, limit=None, **reader_kwargs):
+    """Return a list of elements in a PCollection.
+
+    Args:
+      limit: Maximum number of elements that should be returned.
+      **reader_kwargs: Arguments to pass to the underlying reader class.
+
+    Returns:
+      List[Any]: A list of elements in the PCollections.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def write(self):
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def clear(self):
+    """Delete PCollection data from the underlying persistence layer."""
+    raise NotImplementedError
