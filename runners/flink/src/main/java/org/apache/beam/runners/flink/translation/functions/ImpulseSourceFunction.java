@@ -18,6 +18,13 @@
 package org.apache.beam.runners.flink.translation.functions;
 
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 /**
@@ -25,13 +32,17 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
  * source alive although its work is already done. It will only shutdown when the streaming job is
  * cancelled.
  */
-public class ImpulseSourceFunction implements SourceFunction<WindowedValue<byte[]>> {
+public class ImpulseSourceFunction
+    implements SourceFunction<WindowedValue<byte[]>>, CheckpointedFunction {
 
   /** Keep source running even after it has done all the work. */
   private final boolean keepSourceAlive;
 
   /** Indicates the streaming job is running and the source can produce elements. */
   private volatile boolean running;
+
+  /** Checkpointed state which indicates whether the impulse has finished. */
+  private transient ListState<Boolean> impulseEmitted;
 
   public ImpulseSourceFunction(boolean keepSourceAlive) {
     this.keepSourceAlive = keepSourceAlive;
@@ -40,8 +51,13 @@ public class ImpulseSourceFunction implements SourceFunction<WindowedValue<byte[
 
   @Override
   public void run(SourceContext<WindowedValue<byte[]>> sourceContext) throws Exception {
-    // emit single impulse element
-    sourceContext.collect(WindowedValue.valueInGlobalWindow(new byte[0]));
+    if (Iterables.isEmpty(impulseEmitted.get())) {
+      synchronized (sourceContext.getCheckpointLock()) {
+        // emit single impulse element
+        sourceContext.collect(WindowedValue.valueInGlobalWindow(new byte[0]));
+        impulseEmitted.add(true);
+      }
+    }
     // Do nothing, but still look busy ...
     // we can't return here since Flink requires that all operators stay up,
     // otherwise checkpointing would not work correctly anymore
@@ -71,5 +87,16 @@ public class ImpulseSourceFunction implements SourceFunction<WindowedValue<byte[
   @Override
   public void cancel() {
     this.running = false;
+  }
+
+  @Override
+  public void snapshotState(FunctionSnapshotContext context) {}
+
+  @Override
+  public void initializeState(FunctionInitializationContext context) throws Exception {
+    impulseEmitted =
+        context
+            .getOperatorStateStore()
+            .getListState(new ListStateDescriptor<>("impulse-emitted", BooleanSerializer.INSTANCE));
   }
 }
