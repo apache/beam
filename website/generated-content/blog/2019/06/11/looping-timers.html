@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<html lang="en">
+  <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Looping timers in Apache Beam</title>
+  <meta name="description" content="Apache Beam’s primitives let you build expressive data pipelines, suitable for avariety of use cases. One specific use case is the analysis of time series da...">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/language-switch.js"></script>
+  <script src="/js/fix-menu.js"></script>
+  <script src="/js/section-nav.js"></script>
+  <script src="/js/page-nav.js"></script>
+  <link rel="canonical" href="https://beam.apache.org/blog/2019/06/11/looping-timers.html" data-proofer-ignore>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+  </script>
+</head>
+
+  <body class="body ">
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<nav class="header navbar navbar-fixed-top">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+    </div>
+
+    <div class="navbar-mask closed"></div>
+
+    <div id="navbar" class="navbar-container closed">
+      <ul class="nav navbar-nav">
+        <li>
+          <a href="/get-started/beam-overview/">Get Started</a>
+        </li>
+        <li>
+          <a href="/documentation/">Documentation</a>
+        </li>
+        <li>
+          <a href="/documentation/sdks/java/">Languages</a>
+        </li>
+        <li>
+          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+        </li>
+        <li>
+          <a href="/roadmap/">Roadmap</a>
+        </li>
+        <li>
+          <a href="/contribute/">Contribute</a>
+        </li>
+        <li>
+          <a href="/community/contact-us/">Community</a>
+        </li>
+        <li><a href="/blog">Blog</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+          <div style="width: 300px;">
+            <script>
+              (function() {
+                var cx = '012923275103528129024:4emlchv9wzi';
+                var gcse = document.createElement('script');
+                gcse.type = 'text/javascript';
+                gcse.async = true;
+                gcse.src = 'https://cse.google.com/cse.js?cx=' + cx;
+                var s = document.getElementsByTagName('script')[0];
+                s.parentNode.insertBefore(gcse, s);
+              })();
+            </script>
+            <gcse:search></gcse:search>
+          </div>
+        </li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+        <li>
+          <!--
+            data-proofer-ignore disables link checking from website test automation.
+            GitHub links will not resolve until the markdown source is available on the master branch.
+            New pages would fail validation during development / PR test automation.
+          -->
+          <a href="https://github.com/apache/beam/edit/master/website/src/_posts/2019-06-11-looping-timers.md" data-proofer-ignore>
+            <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
+          </a>
+        </li>
+      </ul>
+    </div>
+</nav>
+
+    <div class="body__contained">
+      <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+
+
+<article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Looping timers in Apache Beam</h1>
+    <p class="post-meta"><time datetime="2019-06-11T01:00:01-07:00" itemprop="datePublished">Jun 11, 2019</time> •
+       Reza Rokni [<a href="https://twitter.com/rarokni">@rarokni</a>] &amp; Kenneth Knowles [<a href="https://twitter.com/KennKnowles">@KennKnowles</a>]
+      
+    </p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>Apache Beam’s primitives let you build expressive data pipelines, suitable for a
+variety of use cases. One specific use case is the analysis of time series data
+in which continuous sequences across window boundaries are important. A few fun
+challenges arise as you tackle this type of data and in this blog we will
+explore one of those in more detail and make use of the Timer API
+(<a href="/blog/2017/08/28/timely-processing.html">blog post</a>)
+using the “looping timer” pattern.</p>
+
+<!--more-->
+
+<p>With Beam in streaming mode, you can take streams of data and build analytical
+transforms to produce results on the data. But for time series data, the absence
+of data is useful information. So how can we produce results in the absence of
+data?</p>
+
+<p>Let’s use a more concrete example to illustrate the requirement. Imagine you
+have a simple pipeline that sums the number of events coming from an IoT device
+every minute. We would like to produce the value 0 when no data has been seen
+within a specific time interval. So why can this get tricky? Well it is easy to
+build a simple pipeline that counts events as they arrive, but when there is no
+event, there is nothing to count!</p>
+
+<p>Let’s build a simple pipeline to work with:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>  // We will start our timer at 1 sec from the fixed upper boundary of our
+  // minute window
+  Instant now = Instant.parse("2000-01-01T00:00:59Z");
+
+  // ----- Create some dummy data
+
+  // Create 3 elements, incrementing by 1 minute and leaving a time gap between
+  // element 2 and element 3
+  TimestampedValue&lt;KV&lt;String, Integer&gt;&gt; time_1 =
+    TimestampedValue.of(KV.of("Key_A", 1), now);
+
+  TimestampedValue&lt;KV&lt;String, Integer&gt;&gt; time_2 =
+    TimestampedValue.of(KV.of("Key_A", 2),
+    now.plus(Duration.standardMinutes(1)));
+
+  // No Value for start time + 2 mins
+  TimestampedValue&lt;KV&lt;String, Integer&gt;&gt; time_3 =
+    TimestampedValue.of(KV.of("Key_A", 3),
+    now.plus(Duration.standardMinutes(3)));
+
+  // Create pipeline
+  PipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
+    .as(PipelineOptions.class);
+
+  Pipeline p = Pipeline.create(options);
+
+  // Apply a fixed window of duration 1 min and Sum the results
+  p.apply(Create.timestamped(time_1, time_2, time_3))
+   .apply(
+      Window.&lt;KV&lt;String,Integer&gt;&gt;into(
+FixedWindows.&lt;Integer&gt;of(Duration.standardMinutes(1))))
+        .apply(Sum.integersPerKey())
+        .apply(ParDo.of(new DoFn&lt;KV&lt;String, Integer&gt;, KV&lt;String, Integer&gt;&gt;() {
+
+          @ProcessElement public void process(ProcessContext c) {
+            LOG.info("Value is {} timestamp is {}", c.element(), c.timestamp());
+          }
+       }));
+
+  p.run();
+</code></pre>
+</div>
+
+<p>Running that pipeline will result in the following output:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>INFO  LoopingTimer  - Value is KV{Key_A, 1} timestamp is 2000-01-01T00:00:59.999Z
+INFO  LoopingTimer  - Value is KV{Key_A, 3} timestamp is 2000-01-01T00:03:59.999Z
+INFO  LoopingTimer  - Value is KV{Key_A, 2} timestamp is 2000-01-01T00:01:59.999Z
+</code></pre>
+</div>
+
+<blockquote>
+  <p>Note: The lack of order in the output should be expected, however the
+key-window tuple is correctly computed.</p>
+</blockquote>
+
+<p>As expected, we see output in each of the interval windows which had a data
+point with a timestamp between the minimum and maximum value of the window.
+There was a data point at timestamps  00:00:59,  00:01:59 and  00:03:59, which
+fell into the following interval windows.</p>
+
+<ul>
+  <li>[00:00:00, 00:00:59.999)</li>
+  <li>[00:01:00, 00:01:59.999)</li>
+  <li>[00:03:00, 00:03:59.999)</li>
+</ul>
+
+<p>But as there was no data between  00:02:00 and  00:02:59, no value is produced
+for interval window  [00:02:00,00:02:59.999).</p>
+
+<p>How can we get Beam to output values for that missing window? First, let’s walk
+through some options that do not make use of the Timer API.</p>
+
+<h2 id="option-1-external-heartbeat">Option 1: External heartbeat</h2>
+
+<p>We can use an external system to emit a value for each time interval and inject
+it into the stream of data that Beam consumes. This simple option moves any
+complexity out of the Beam pipeline. But using an external system means we need
+to monitor this system and perform other maintenance tasks in tandem with the
+Beam pipeline.</p>
+
+<h2 id="option-2-use-a-generated-source-in-the-beam-pipeline">Option 2: Use a generated source in the Beam pipeline</h2>
+
+<p>We can use a generating source to emit the value using this code snippet:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>pipeline.apply(GenerateSequence.
+            from(0).withRate(1,Duration.standardSeconds(1L)))
+</code></pre>
+</div>
+
+<p>We can then:</p>
+
+<ol>
+  <li>Use a DoFn to convert the value to zero.</li>
+  <li>Flatten this value with the real source.</li>
+  <li>Produce a PCollection which has ticks in every time interval.</li>
+</ol>
+
+<p>This is also a simple way of producing a value in each time interval.</p>
+
+<h2 id="option-1--2-the-problem-with-multiple-keys">Option 1 &amp; 2 The problem with multiple keys</h2>
+
+<p>Both options 1 and 2 work well for the case where there the pipeline processes a
+single key. Let’s now deal with the case where instead of 1 IoT device, there
+are 1000s or 100,000s of these devices, each with a unique key. To make option 1
+or option 2 work in this scenario, we need to carry out an extra step: creating
+a FanOut DoFn. Each tick needs to be distributed to all the potential keys, so
+we need to create a FanOut DoFn that takes the dummy value and generates a
+key-value pair for every available key.</p>
+
+<p>For example, let’s assume we have 3 keys for 3 IoT devices, {key1,key2,key3}.
+Using the method we outlined in Option 2 when we get the first element from
+GenerateSequence, we need to create a loop in the DoFn that generates 3
+key-value pairs. These pairs become the heartbeat value for each of the IoT
+devices.</p>
+
+<p>And things get a lot more fun when we need to deal with lots of IoT devices,
+with a list of keys that are dynamically changing. We would need to add a
+transform that does a Distinct operation and feed the data produced as a
+side-input into the FanOut DoFn.</p>
+
+<h2 id="option-3-implementing-a-heartbeat-using-beam-timers">Option 3: Implementing a heartbeat using Beam timers</h2>
+
+<p>So how do timers help? Well let’s have a look at a new transform:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">LoopingStatefulTimer</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;,</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="o">{</span>
+
+  <span class="n">Instant</span> <span class="n">stopTimerTime</span><span class="o">;</span>
+
+  <span class="n">LoopingStatefulTimer</span><span class="o">(</span><span class="n">Instant</span> <span class="n">stopTime</span><span class="o">){</span>
+    <span class="k">this</span><span class="o">.</span><span class="na">stopTimerTime</span> <span class="o">=</span> <span class="n">stopTime</span><span class="o">;</span>
+  <span class="o">}</span>
+
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"timerRunning"</span><span class="o">)</span>
+    <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Boolean</span><span class="o">&gt;&gt;</span> <span class="n">timerRunning</span> <span class="o">=</span>
+      <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">(</span><span class="n">BooleanCoder</span><span class="o">.</span><span class="na">of</span><span class="o">());</span>
+
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"key"</span><span class="o">)</span>
+    <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">key</span> <span class="o">=</span>
+      <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">(</span><span class="n">StringUtf8Coder</span><span class="o">.</span><span class="na">of</span><span class="o">());</span>
+
+  <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"loopingTimer"</span><span class="o">)</span>
+    <span class="kd">private</span> <span class="kd">final</span> <span class="n">TimerSpec</span> <span class="n">loopingTimer</span> <span class="o">=</span>
+      <span class="n">TimerSpecs</span><span class="o">.</span><span class="na">timer</span><span class="o">(</span><span class="n">TimeDomain</span><span class="o">.</span><span class="na">EVENT_TIME</span><span class="o">);</span>
+
+  <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">,</span> <span class="nd">@StateId</span><span class="o">(</span><span class="s">"key"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">key</span><span class="o">,</span>
+        <span class="nd">@StateId</span><span class="o">(</span><span class="s">"timerRunning"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Boolean</span><span class="o">&gt;</span> <span class="n">timerRunning</span><span class="o">,</span>
+        <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"loopingTimer"</span><span class="o">)</span> <span class="n">Timer</span> <span class="n">loopingTimer</span><span class="o">)</span> <span class="o">{</span>
+
+    <span class="c1">// If the timer has been set already, do not reset</span>
+    <span class="k">if</span> <span class="o">(</span><span class="n">timerRunning</span><span class="o">.</span><span class="na">read</span><span class="o">()</span> <span class="o">==</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+      <span class="n">loopingTimer</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">timestamp</span><span class="o">().</span><span class="na">plus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">)));</span>
+      <span class="n">timerRunning</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
+    <span class="o">}</span>
+
+    <span class="c1">// We need this value so that we can output a value for the correct key in OnTimer</span>
+    <span class="k">if</span> <span class="o">(</span><span class="n">key</span><span class="o">.</span><span class="na">read</span><span class="o">()</span> <span class="o">==</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+      <span class="n">key</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">getKey</span><span class="o">());</span>
+    <span class="o">}</span>
+
+    <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
+  <span class="o">}</span>
+
+  <span class="nd">@OnTimer</span><span class="o">(</span><span class="s">"loopingTimer"</span><span class="o">)</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onTimer</span><span class="o">(</span>
+        <span class="n">OnTimerContext</span> <span class="n">c</span><span class="o">,</span>
+        <span class="nd">@StateId</span><span class="o">(</span><span class="s">"key"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">key</span><span class="o">,</span>
+        <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"loopingTimer"</span><span class="o">)</span> <span class="n">Timer</span> <span class="n">loopingTimer</span><span class="o">)</span> <span class="o">{</span>
+
+      <span class="n">LOG</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">"Timer @ {} fired"</span><span class="o">,</span> <span class="n">c</span><span class="o">.</span><span class="na">timestamp</span><span class="o">());</span>
+      <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">key</span><span class="o">.</span><span class="na">read</span><span class="o">(),</span> <span class="mi">0</span><span class="o">));</span>
+
+      <span class="c1">// If we do not put in a “time to live” value, then the timer would loop forever</span>
+      <span class="n">Instant</span> <span class="n">nextTimer</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="na">timestamp</span><span class="o">().</span><span class="na">plus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">));</span>
+      <span class="k">if</span> <span class="o">(</span><span class="n">nextTimer</span><span class="o">.</span><span class="na">isBefore</span><span class="o">(</span><span class="n">stopTimerTime</span><span class="o">))</span> <span class="o">{</span>
+          <span class="n">loopingTimer</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">nextTimer</span><span class="o">);</span>
+      <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+        <span class="n">LOG</span><span class="o">.</span><span class="na">info</span><span class="o">(</span>
+          <span class="s">"Timer not being set as exceeded Stop Timer value {} "</span><span class="o">,</span>
+          <span class="n">stopTimerTime</span><span class="o">);</span>
+      <span class="o">}</span>
+   <span class="o">}</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<p>There are two data values that the state API needs to keep:</p>
+
+<ol>
+  <li>A boolean <code class="highlighter-rouge">timeRunning</code> value used to avoid resetting the timer if it’s
+already running.</li>
+  <li>A “<em>key</em>” state object value that allows us to store the key that we are
+working with. This information will be needed in the <code class="highlighter-rouge">OnTimer</code> event later.</li>
+</ol>
+
+<p>We also have a Timer with the ID <code class="highlighter-rouge">**loopingTimer**</code> that acts as our per
+interval alarm clock. Note that the timer is an <em>event timer</em>. It fires based on
+the watermark, not on the passage of time as the pipeline runs.</p>
+
+<p>Next, let’s unpack what’s happening in the @ProcessElement block:</p>
+
+<p>The first element to come to this block will:</p>
+
+<ol>
+  <li>Set the state of the <code class="highlighter-rouge">timerRunner</code> to True.</li>
+  <li>Write the value of the key from the key-value pair into the key StateValue.</li>
+  <li>The code sets the value of the timer to fire one minute after the elements
+timestamp. Note that the maximum value allowed for this timestamp is
+XX:XX:59.999. This places the maximum alarm value at the upper boundary of
+the next time interval.</li>
+  <li>Finally, we output the data from the <code class="highlighter-rouge">@ProcessElement</code> block using
+<code class="highlighter-rouge">c.output</code>.</li>
+</ol>
+
+<p>In the @OnTimer block, the following occurs:</p>
+
+<ol>
+  <li>The code emits a value with the key pulled from our key StateValue and a
+value of 0. The timestamp of the event corresponds to  the event time of the
+timer firing.</li>
+  <li>We set a new timer for one minute from now, unless we are past the
+<code class="highlighter-rouge">stopTimerTime</code> value. Your use case will normally have more complex stopping
+conditions, but we use a simple condition here to allow us to keep the
+illustrated code simple. The topic of stopping conditions is discussed in
+more detail later.</li>
+</ol>
+
+<p>And that’s it, let’s add our transform back into the pipeline:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="c1">// Apply a fixed window of duration 1 min and Sum the results</span>
+  <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Create</span><span class="o">.</span><span class="na">timestamped</span><span class="o">(</span><span class="n">time_1</span><span class="o">,</span> <span class="n">time_2</span><span class="o">,</span> <span class="n">time_3</span><span class="o">)).</span><span class="na">apply</span><span class="o">(</span>
+    <span class="n">Window</span><span class="o">.&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span><span class="n">into</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.&lt;</span><span class="n">Integer</span><span class="o">&gt;</span><span class="n">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">))))</span>
+    <span class="c1">// We use a combiner to reduce the number of calls in keyed state</span>
+    <span class="c1">// from all elements to 1 per FixedWindow</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Sum</span><span class="o">.</span><span class="na">integersPerKey</span><span class="o">())</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Window</span><span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="k">new</span> <span class="n">GlobalWindows</span><span class="o">()))</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">LoopingStatefulTimer</span><span class="o">(</span><span class="n">Instant</span><span class="o">.</span><span class="na">parse</span><span class="o">(</span><span class="s">"2000-01-01T00:04:00Z"</span><span class="o">))))</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Window</span><span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">))))</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Sum</span><span class="o">.</span><span class="na">integersPerKey</span><span class="o">())</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;,</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;()</span> <span class="o">{</span>
+
+      <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
+
+        <span class="n">LOG</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">"Value is {} timestamp is {}"</span><span class="o">,</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">(),</span> <span class="n">c</span><span class="o">.</span><span class="na">timestamp</span><span class="o">());</span>
+
+     <span class="o">}</span>
+  <span class="o">}));</span>
+</code></pre>
+</div>
+
+<ol>
+  <li>In the first part of the pipeline we create FixedWindows and reduce the value
+per key down to a single Sum.</li>
+  <li>Next we re-window the output into a GlobalWindow. Since state and timers are
+per window, they must be set within the window boundary. We want the looping
+timer to span all the fixed windows, so we set it up in the global window.</li>
+  <li>We then add our LoopingStatefulTimer DoFn.</li>
+  <li>Finally, we reapply the FixedWindows and Sum our values.</li>
+</ol>
+
+<p>This pipeline ensures that a value of zero exists for each interval window, even
+if the Source of the pipeline emitted a value in the minimum and maximum
+boundaries of the interval window. This means that we can mark the absence of
+data.</p>
+
+<p>You might question why we use two reducers with multiple <code class="highlighter-rouge">Sum.integersPerKey</code>.
+Why not just use one? Functionally, using one would also produce the correct
+result. However, putting two <code class="highlighter-rouge">Sum.integersPerKey</code> gives us a nice performance
+advantage. It reduces the number of elements from many to just one per time
+interval. This can reduce the number of reads of the State API during the
+<code class="highlighter-rouge">@ProcessElement</code> calls.</p>
+
+<p>Here is the logging output of running our modified pipeline:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>INFO  LoopingTimer  - Timer @ 2000-01-01T00:01:59.999Z fired
+INFO  LoopingTimer  - Timer @ 2000-01-01T00:02:59.999Z fired
+INFO  LoopingTimer  - Timer @ 2000-01-01T00:03:59.999Z fired
+INFO  LoopingTimer  - Timer not being set as exceeded Stop Timer value 2000-01-01T00:04:00.000Z
+INFO  LoopingTimer  - Value is KV{Key_A, 1} timestamp is 2000-01-01T00:00:59.999Z
+INFO  LoopingTimer  - Value is KV{Key_A, 0} timestamp is 2000-01-01T00:02:59.999Z
+INFO  LoopingTimer  - Value is KV{Key_A, 2} timestamp is 2000-01-01T00:01:59.999Z
+INFO  LoopingTimer  - Value is KV{Key_A, 3} timestamp is 2000-01-01T00:03:59.999Z
+</code></pre>
+</div>
+
+<p>Yay! We now have output from the time interval [00:01:00, 00:01:59.999), even
+though the source dataset has no elements in that interval.</p>
+
+<p>In this blog, we covered one of the fun areas around time series use cases and
+worked through several options, including an advanced use case of the Timer API.
+Happy looping everyone!</p>
+
+<p><strong>Note:</strong> Looping timers is an interesting new use case for the Timer API and
+runners will need to add support for it with all of their more advanced
+feature sets. You can experiment with this pattern today using the
+DirectRunner. For other runners, please look out for their release notes on
+support for dealing with this use case in production.</p>
+
+<p>(<a href="/documentation/runners/capability-matrix/">Capability Matrix</a>)</p>
+
+<p>Runner specific notes:
+Google Cloud Dataflow Runners Drain feature does not support looping timers (Link to matrix)</p>
+
+  </div>
+
+</article>
+
+    </div>
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<footer class="footer">
+  <div class="footer__contained">
+    <div class="footer__cols">
+      <div class="footer__cols__col">
+        <div class="footer__cols__col__logo">
+          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
+        </div>
+        <div class="footer__cols__col__logo">
+          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
+        </div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Start</div>
+        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Docs</div>
+        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Community</div>
+        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
+        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+                                                                                                                                width="14" height="14"
+                                                                                                                                alt="External link."></a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Resources</div>
+        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/support/">Support</a></div>
+        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer__bottom">
+    &copy;
+    <a href="http://www.apache.org">The Apache Software Foundation</a>
+    | <a href="/privacy_policy">Privacy Policy</a>
+    | <a href="/feed.xml">RSS Feed</a>
+    <br><br>
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
+    either registered trademarks or trademarks of The Apache Software
+    Foundation. All other products or name brands are trademarks of their
+    respective holders, including The Apache Software Foundation.
+  </div>
+</footer>
+
+  </body>
+</html>

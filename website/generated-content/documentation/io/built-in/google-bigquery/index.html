@@ -108,6 +108,22 @@
         <li><a href="/blog">Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
+        <li>
+          <div style="width: 300px;">
+            <script>
+              (function() {
+                var cx = '012923275103528129024:4emlchv9wzi';
+                var gcse = document.createElement('script');
+                gcse.type = 'text/javascript';
+                gcse.async = true;
+                gcse.src = 'https://cse.google.com/cse.js?cx=' + cx;
+                var s = document.getElementsByTagName('script')[0];
+                s.parentNode.insertBefore(gcse, s);
+              })();
+            </script>
+            <gcse:search></gcse:search>
+          </div>
+        </li>
         <li class="dropdown">
           <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
           <ul class="dropdown-menu dropdown-menu-right">
@@ -712,10 +728,10 @@ Beam’s support for the BigQuery Storage API has the following limitations:</p>
 
 <ul>
   <li>The SDK for Python does not support the BigQuery Storage API.</li>
-  <li>You must read from a table. Reading with a query string is not currently
-supported.</li>
   <li>Dynamic work re-balancing is not currently supported. As a result, reads might
 be less efficient in the presence of stragglers.</li>
+  <li>SDK versions 2.11.0 and 2.12.0 do not support reading with a query string; you
+can only read from a table.</li>
 </ul>
 
 <p>Because this is currently a Beam experimental feature, export based reads are
@@ -739,7 +755,7 @@ you must also specify a <a href="https://googleapis.github.io/google-cloud-java/
 proto using the <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withReadOptions-com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions-">withReadOptions</a> method.</li>
 </ul>
 
-<p>The following code snippet is from the <a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java">BigQueryTornadoes
+<p>The following code snippet reads from a table. This example is from the <a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java">BigQueryTornadoes
 example</a>.
 When the example’s read method option is set to <code class="highlighter-rouge">DIRECT_READ</code>, the pipeline uses
 the BigQuery Storage API and column projection to read public samples of weather
@@ -757,6 +773,15 @@ GitHub</a>.</p>
                <span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getInput</span><span class="o">())</span>
                <span class="o">.</span><span class="na">withMethod</span><span class="o">(</span><span class="n">Method</span><span class="o">.</span><span class="na">DIRECT_READ</span><span class="o">)</span>
                <span class="o">.</span><span class="na">withReadOptions</span><span class="o">(</span><span class="n">tableReadOptions</span><span class="o">));</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The SDK for Python does not support the BigQuery Storage API.</span>
+</code></pre>
+</div>
+
+<p>The following code snippet reads with a query string.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Snippet not yet available (BEAM-7034).</span>
 </code></pre>
 </div>
 <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The SDK for Python does not support the BigQuery Storage API.</span>

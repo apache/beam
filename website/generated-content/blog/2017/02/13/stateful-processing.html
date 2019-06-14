@@ -107,6 +107,22 @@
         <li><a href="/blog">Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
+        <li>
+          <div style="width: 300px;">
+            <script>
+              (function() {
+                var cx = '012923275103528129024:4emlchv9wzi';
+                var gcse = document.createElement('script');
+                gcse.type = 'text/javascript';
+                gcse.async = true;
+                gcse.src = 'https://cse.google.com/cse.js?cx=' + cx;
+                var s = document.getElementsByTagName('script')[0];
+                s.parentNode.insertBefore(gcse, s);
+              })();
+            </script>
+            <gcse:search></gcse:search>
+          </div>
+        </li>
         <li class="dropdown">
           <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
           <ul class="dropdown-menu dropdown-menu-right">
@@ -178,6 +194,9 @@ that expands the capabilities of Beam, unlocking new use cases and new
 efficiencies. In this post, I will guide you through stateful processing in
 Beam: how it works, how it fits in with the other features of the Beam model,
 what you might use it for, and what it looks like in code.</p>
+
+<p><strong>Note: This post has been updated in May of 2019, to include Python
+snippets!</strong></p>
 
 <!--more-->
 
@@ -444,7 +463,7 @@ on a per key-and-window basis:</p>
 
   <span class="c1">// A state cell holding a single Integer per key+window</span>
   <span class="nd">@StateId</span><span class="o">(</span><span class="s">"index"</span><span class="o">)</span>
-  <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">indexSpec</span> <span class="o">=</span> 
+  <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">indexSpec</span> <span class="o">=</span>
       <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">(</span><span class="n">VarIntCoder</span><span class="o">.</span><span class="na">of</span><span class="o">());</span>
 
   <span class="nd">@ProcessElement</span>
@@ -459,8 +478,14 @@ on a per key-and-window basis:</p>
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># State and timers are not yet supported in Beam's Python SDK.</span>
-<span class="c"># Watch this space!</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">IndexAssigningStatefulDoFn</span><span class="p">(</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="n">INDEX_STATE</span> <span class="o">=</span> <span class="n">CombiningStateSpec</span><span class="p">(</span><span class="s">'index'</span><span class="p">,</span> <span class="nb">sum</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">DoFn</span><span class="o">.</span><span class="n">StateParam</span><span class="p">(</span><span class="n">INDEX_STATE</span><span class="p">)):</span>
+    <span class="n">unused_key</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="n">element</span>
+    <span class="n">current_index</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+    <span class="k">yield</span> <span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">current_index</span><span class="p">)</span>
+    <span class="n">index</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
 </code></pre>
 </div>
 
@@ -541,8 +566,20 @@ look something like this:</p>
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># State and timers are not yet supported in Beam's Python SDK.</span>
-<span class="c"># Watch this space!</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ModelFromEventsFn</span><span class="p">(</span><span class="n">apache_beam</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">CombineFn</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">create_accumulator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c"># Create a new empty model</span>
+    <span class="k">return</span> <span class="n">Model</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="nb">input</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">model</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">merge_accumulators</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulators</span><span class="p">):</span>
+    <span class="c"># Custom merging logic</span>
+
+  <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">model</span>
 </code></pre>
 </div>
 
@@ -577,8 +614,24 @@ against it, outputting the prediction, like so:</p>
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># State and timers are not yet supported in Beam's Python SDK.</span>
-<span class="c"># Watch this space!</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Events is a collection of (user, event) pairs.</span>
+<span class="n">events</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span> <span class="o">|</span> <span class="n">ReadFromEventSource</span><span class="p">()</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span><span class="o">....</span><span class="p">))</span>
+
+<span class="n">user_models</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsDict</span><span class="p">(</span>
+                  <span class="n">events</span>
+                  <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="n">ModelFromEventsFn</span><span class="p">()))</span>
+
+<span class="k">def</span> <span class="nf">event_prediction</span><span class="p">(</span><span class="n">user_event</span><span class="p">,</span> <span class="n">models</span><span class="p">):</span>
+  <span class="n">user</span> <span class="o">=</span> <span class="n">user_event</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+  <span class="n">event</span> <span class="o">=</span> <span class="n">user_event</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+  <span class="c"># Retrieve the model calculated for this user</span>
+  <span class="n">model</span> <span class="o">=</span> <span class="n">models</span><span class="p">[</span><span class="n">user</span><span class="p">]</span>
+
+  <span class="k">return</span> <span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">prediction</span><span class="p">(</span><span class="n">event</span><span class="p">))</span>
+
+<span class="c"># Predictions is a collection of (user, prediction) pairs.</span>
+<span class="n">predictions</span> <span class="o">=</span> <span class="n">events</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">event_prediction</span><span class="p">,</span> <span class="n">user_models</span><span class="p">)</span>
 </code></pre>
 </div>
 
@@ -611,8 +664,15 @@ after input arrives:</p>
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># State and timers are not yet supported in Beam's Python SDK.</span>
-<span class="c"># Watch this space!</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">events</span> <span class="o">=</span> <span class="o">...</span>
+
+<span class="n">user_models</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsDict</span><span class="p">(</span>
+                  <span class="n">events</span>
+                  <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span><span class="n">GlobalWindows</span><span class="p">(),</span>
+                      <span class="n">trigger</span><span class="o">=</span><span class="n">trigger</span><span class="o">.</span><span class="n">AfterAll</span><span class="p">(</span>
+                          <span class="n">trigger</span><span class="o">.</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span>
+                          <span class="n">trigger</span><span class="o">.</span><span class="n">AfterProcessingTime</span><span class="p">(</span><span class="mi">1</span><span class="p">)))</span>
+                  <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="n">ModelFromEventsFn</span><span class="p">()))</span>
 </code></pre>
 </div>
 
@@ -669,8 +729,31 @@ only features I have already introduced:</p>
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># State and timers are not yet supported in Beam's Python SDK.</span>
-<span class="c"># Watch this space!</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ModelStatefulFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+
+  <span class="n">PREVIOUS_PREDICTION</span> <span class="o">=</span> <span class="n">BagStateSpec</span><span class="p">(</span><span class="s">'previous_pred_state'</span><span class="p">,</span> <span class="n">PredictionCoder</span><span class="p">())</span>
+  <span class="n">MODEL_STATE</span> <span class="o">=</span> <span class="n">CombiningValueStateSpec</span><span class="p">(</span><span class="s">'model_state'</span><span class="p">,</span>
+                                        <span class="n">ModelCoder</span><span class="p">(),</span>
+                                        <span class="n">ModelFromEventsFn</span><span class="p">())</span>
+
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+              <span class="n">user_event</span><span class="p">,</span>
+              <span class="n">previous_pred_state</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">StateParam</span><span class="p">(</span><span class="n">PREVIOUS_PREDICTION</span><span class="p">),</span>
+              <span class="n">model_state</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">StateParam</span><span class="p">(</span><span class="n">MODEL_STATE</span><span class="p">)):</span>
+    <span class="n">user</span> <span class="o">=</span> <span class="n">user_event</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">event</span> <span class="o">=</span> <span class="n">user_event</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">model_state</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+    <span class="n">previous_prediction</span> <span class="o">=</span> <span class="n">previous_pred_state</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+
+    <span class="n">new_prediction</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">prediction</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">model_state</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">previous_prediction</span> <span class="ow">is</span> <span class="bp">None</span>
+        <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">should_output_prediction</span><span class="p">(</span>
+            <span class="n">previous_prediction</span><span class="p">,</span> <span class="n">new_prediction</span><span class="p">)):</span>
+      <span class="n">previous_pred_state</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+      <span class="n">previous_pred_state</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">new_prediction</span><span class="p">)</span>
+      <span class="k">yield</span> <span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">new_prediction</span><span class="p">)</span>
 </code></pre>
 </div>
 
@@ -682,20 +765,21 @@ state of the model for a user and <code class="highlighter-rouge">@StateId("prev
 the prediction output previously.</li>
   <li>Access to the two state cells by annotation in the <code class="highlighter-rouge">@ProcessElement</code> method
 is as before.</li>
-  <li>You read the current model via <code class="highlighter-rouge">modelState.read()</code>. Because state is also
-per-key-and-window, this is a model just for the UserId of the Event
+  <li>You read the current model via <code class="highlighter-rouge">modelState.read()</code>.
+per-key-and-window, this is a model just for the UserId of the Event 
 currently being processed.</li>
   <li>You derive a new prediction <code class="highlighter-rouge">model.prediction(event)</code> and compare it against
-the last one you output, accessed via <code class="highlighter-rouge">previousPredicationState.read()</code>.</li>
+the last one you output, accessed via
+<code class="highlighter-rouge">previousPredicationState.read()</code>.</li>
   <li>You then update the model <code class="highlighter-rouge">model.update()</code> and write it via
-<code class="highlighter-rouge">modelState.write(...)</code>. It is perfectly fine to mutate the value you pulled
-out of state as long as you also remember to write the mutated value, in the
-same way you are encouraged to mutate <code class="highlighter-rouge">CombineFn</code> accumulators.</li>
+<code class="highlighter-rouge">modelState.write(...)</code>. It is perfectly fine to mutate the value
+you pulled out of state as long as you also remember to write the mutated
+value, in the same way you are encouraged to mutate <code class="highlighter-rouge">CombineFn</code> accumulators.</li>
   <li>If the prediction has changed a significant amount since the last time you
-output, you emit it via <code class="highlighter-rouge">context.output(...)</code> and save the prediction using
-<code class="highlighter-rouge">previousPredictionState.write(...)</code>. Here the decision is relative to the
-prior prediction output, not the last one computed - realistically you might
-have some complex conditions here.</li>
+output, you emit it via <code class="highlighter-rouge">context.output(...)</code> and
+save the prediction using <code class="highlighter-rouge">previousPredictionState.write(...)</code>.
+Here the decision is relative to the prior prediction output, not the last
+one computed - realistically you might have some complex conditions here.</li>
 </ul>
 
 <p>Most of the above is just talking through Java! But before you go out and

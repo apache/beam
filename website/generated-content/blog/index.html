@@ -108,6 +108,22 @@
         <li><a href="/blog">Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
+        <li>
+          <div style="width: 300px;">
+            <script>
+              (function() {
+                var cx = '012923275103528129024:4emlchv9wzi';
+                var gcse = document.createElement('script');
+                gcse.type = 'text/javascript';
+                gcse.async = true;
+                gcse.src = 'https://cse.google.com/cse.js?cx=' + cx;
+                var s = document.getElementsByTagName('script')[0];
+                s.parentNode.insertBefore(gcse, s);
+              })();
+            </script>
+            <gcse:search></gcse:search>
+          </div>
+        </li>
         <li class="dropdown">
           <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
           <ul class="dropdown-menu dropdown-menu-right">
@@ -152,6 +168,75 @@ limitations under the License.
 
 <p>This is the blog for the Apache Beam project. This blog contains news and updates
 for the project.</p>
+
+<h3 id="looping-timers-in-apache-beam"><a class="post-link" href="/blog/2019/06/11/looping-timers.html">Looping timers in Apache Beam</a></h3>
+<p><i>Jun 11, 2019 •
+ Reza Rokni [<a href="https://twitter.com/rarokni">@rarokni</a>] &amp; Kenneth Knowles [<a href="https://twitter.com/KennKnowles">@KennKnowles</a>]
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>Apache Beam’s primitives let you build expressive data pipelines, suitable for a
+variety of use cases. One specific use case is the analysis of time series data
+in which continuous sequences across window boundaries are important. A few fun
+challenges arise as you tackle this type of data and in this blog we will
+explore one of those in more detail and make use of the Timer API
+(<a href="/blog/2017/08/28/timely-processing.html">blog post</a>)
+using the “looping timer” pattern.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2019/06/11/looping-timers.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="apache-beam-2130"><a class="post-link" href="/blog/2019/05/22/beam-2.13.0.html">Apache Beam 2.13.0</a></h3>
+<p><i>Jun 7, 2019 •</i></p>
+
+<p>&lt;/i&gt;</p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>We are happy to present the new 2.13.0 release of Beam. This release includes both improvements and new functionality.
+See the <a href="/get-started/downloads/#2130-2019-05-21">download page</a> for this release.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2019/05/22/beam-2.13.0.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
 
 <h3 id="adding-new-data-sources-to-beam-sql-cli"><a class="post-link" href="/blog/2019/06/04/adding-data-sources-to-sql.html">Adding new Data Sources to Beam SQL CLI</a></h3>
 <p><i>Jun 4, 2019 •
@@ -225,38 +310,6 @@ learning Apache Beam concepts and programming model hands-on.</p>
 
 <p>
 <a class="btn btn-default btn-sm" href="/blog/2019/05/30/beam-kata-release.html" role="button">
-Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
-</a>
-</p>
-
-<hr />
-
-<h3 id="apache-beam-2130"><a class="post-link" href="/blog/2019/05/22/beam-2.13.0.html">Apache Beam 2.13.0</a></h3>
-<p><i>May 22, 2019 •</i></p>
-
-<p>&lt;/i&gt;</p>
-
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-
-<p>We are happy to present the new 2.13.0 release of Beam. This release includes both improvements and new functionality.
-See the <a href="/get-started/downloads/#2130-2019-05-21">download page</a> for this release.</p>
-
-<!-- Render a "read more" button if the post is longer than the excerpt -->
-
-<p>
-<a class="btn btn-default btn-sm" href="/blog/2019/05/22/beam-2.13.0.html" role="button">
 Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
 </a>
 </p>
@@ -1048,6 +1101,9 @@ that expands the capabilities of Beam, unlocking new use cases and new
 efficiencies. In this post, I will guide you through stateful processing in
 Beam: how it works, how it fits in with the other features of the Beam model,
 what you might use it for, and what it looks like in code.</p>
+
+<p><strong>Note: This post has been updated in May of 2019, to include Python
+snippets!</strong></p>
 
 <!-- Render a "read more" button if the post is longer than the excerpt -->
 

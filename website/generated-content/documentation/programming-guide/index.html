@@ -108,6 +108,22 @@
         <li><a href="/blog">Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
+        <li>
+          <div style="width: 300px;">
+            <script>
+              (function() {
+                var cx = '012923275103528129024:4emlchv9wzi';
+                var gcse = document.createElement('script');
+                gcse.type = 'text/javascript';
+                gcse.async = true;
+                gcse.src = 'https://cse.google.com/cse.js?cx=' + cx;
+                var s = document.getElementsByTagName('script')[0];
+                s.parentNode.insertBefore(gcse, s);
+              })();
+            </script>
+            <gcse:search></gcse:search>
+          </div>
+        </li>
         <li class="dropdown">
           <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
           <ul class="dropdown-menu dropdown-menu-right">
@@ -2257,8 +2273,17 @@ are being used, the window is of type <code class="highlighter-rouge">IntervalWi
   <span class="o">}})</span>
 </code></pre>
 </div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
 
-<p class="language-java"><strong>PaneInfo:</strong>
+<span class="k">class</span> <span class="nc">ProcessRecord</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">WindowParam</span><span class="p">):</span>
+     <span class="c"># access window e.g window.end.micros</span>
+     <span class="k">pass</span>  
+  
+</code></pre>
+</div>
+<p><strong>PaneInfo:</strong>
 When triggers are used, Beam provides a <code class="highlighter-rouge">PaneInfo</code> object that contains information about the current firing. Using <code class="highlighter-rouge">PaneInfo</code>
 you can determine whether this is an early or a late firing, and how many times this window has already fired for this key.</p>
 
@@ -2276,12 +2301,68 @@ The <code class="highlighter-rouge">PipelineOptions</code> for the current pipel
 </code></pre>
 </div>
 
-<p class="language-java"><code class="highlighter-rouge">@OnTimer</code> methods can also access many of these parameters. Timestamp, window, <code class="highlighter-rouge">PipelineOptions</code>, <code class="highlighter-rouge">OutputReceiver</code>, and
+<p class="language-java"><code class="highlighter-rouge">@OnTimer</code> methods can also access many of these parameters. Timestamp, Window, key, <code class="highlighter-rouge">PipelineOptions</code>, <code class="highlighter-rouge">OutputReceiver</code>, and
 <code class="highlighter-rouge">MultiOutputReceiver</code> parameters can all be accessed in an <code class="highlighter-rouge">@OnTimer</code> method. In addition, an <code class="highlighter-rouge">@OnTimer</code> method can take
 a parameter of type <code class="highlighter-rouge">TimeDomain</code> which tells whether the timer is based on event time or processing time.
 Timers are explained in more detail in the
 <a href="/blog/2017/08/28/timely-processing.html">Timely (and Stateful) Processing with Apache Beam</a> blog post.</p>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code>
+<span class="k">class</span> <span class="nc">StatefulDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="s">"""An example stateful DoFn with state and timer"""</span>
 
+  <span class="n">BUFFER_STATE_1</span> <span class="o">=</span> <span class="n">BagStateSpec</span><span class="p">(</span><span class="s">'buffer1'</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">BytesCoder</span><span class="p">())</span>
+  <span class="n">BUFFER_STATE_2</span> <span class="o">=</span> <span class="n">BagStateSpec</span><span class="p">(</span><span class="s">'buffer2'</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">VarIntCoder</span><span class="p">())</span>
+  <span class="n">WATERMARK_TIMER</span> <span class="o">=</span> <span class="n">TimerSpec</span><span class="p">(</span><span class="s">'watermark_timer'</span><span class="p">,</span> <span class="n">TimeDomain</span><span class="o">.</span><span class="n">WATERMARK</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+              <span class="n">element</span><span class="p">,</span>
+              <span class="n">timestamp</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">TimestampParam</span><span class="p">,</span>
+              <span class="n">window</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">WindowParam</span><span class="p">,</span>
+              <span class="n">buffer_1</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">StateParam</span><span class="p">(</span><span class="n">BUFFER_STATE_1</span><span class="p">),</span>
+              <span class="n">buffer_2</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">StateParam</span><span class="p">(</span><span class="n">BUFFER_STATE_2</span><span class="p">),</span>
+              <span class="n">watermark_timer</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">TimerParam</span><span class="p">(</span><span class="n">WATERMARK_TIMER</span><span class="p">)):</span>
+
+    <span class="c"># Do you processing here</span>
+    <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="n">element</span>
+    <span class="c"># Read all the data from buffer1</span>
+    <span class="n">all_values_in_buffer_1</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">buffer_1</span><span class="o">.</span><span class="n">read</span><span class="p">()]</span>
+
+    <span class="k">if</span> <span class="n">StatefulDoFn</span><span class="o">.</span><span class="n">_is_clear_buffer_1_required</span><span class="p">(</span><span class="n">all_values_in_buffer_1</span><span class="p">):</span>
+        <span class="c"># clear the buffer data if required conditions are met.</span>
+        <span class="n">buffer_1</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+    <span class="c"># add the value to buffer 2</span>
+    <span class="n">buffer_2</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">StatefulDoFn</span><span class="o">.</span><span class="n">_all_condition_met</span><span class="p">():</span>
+      <span class="c"># Clear the timer if certain condition met and you don't want to trigger</span>
+      <span class="c"># the callback method.</span>
+      <span class="n">watermark_timer</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+    <span class="k">yield</span> <span class="n">element</span>
+
+  <span class="nd">@on_timer</span><span class="p">(</span><span class="n">WATERMARK_TIMER</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">on_expiry_1</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                  <span class="n">timestamp</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">TimestampParam</span><span class="p">,</span>
+                  <span class="n">window</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">WindowParam</span><span class="p">,</span>
+                  <span class="n">key</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">KeyParam</span><span class="p">,</span>
+                  <span class="n">buffer_1</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">StateParam</span><span class="p">(</span><span class="n">BUFFER_STATE_1</span><span class="p">),</span>
+                  <span class="n">buffer_2</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">StateParam</span><span class="p">(</span><span class="n">BUFFER_STATE_2</span><span class="p">)):</span>
+    <span class="c"># Window and key parameters are really useful especially for debugging issues.</span>
+    <span class="k">yield</span> <span class="s">'expired1'</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_all_condition_met</span><span class="p">():</span>
+      <span class="c"># some logic</span>
+      <span class="k">return</span> <span class="bp">True</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_is_clear_buffer_1_required</span><span class="p">(</span><span class="n">buffer_1_data</span><span class="p">):</span>
+      <span class="c"># Some business logic</span>
+      <span class="k">return</span> <span class="bp">True</span>
+
+</code></pre>
+</div>
 <h3 id="composite-transforms">4.6. Composite transforms</h3>
 
 <p>Transforms can have a nested structure, where a complex transform performs
