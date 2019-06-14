@@ -37,8 +37,6 @@ import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
-import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
-import org.apache.beam.sdk.testutils.metrics.CountMonitor;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
@@ -172,8 +170,6 @@ public class HadoopFormatIOIT {
         .apply("Produce db rows", ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
         .apply("Prevent fusion before writing", Reshuffle.viaRandomKey())
         .apply("Collect write time", ParDo.of(new TimeMonitor<>(NAMESPACE, "write_time")))
-        .apply("Count bytes", ParDo.of(new ByteMonitor<>(NAMESPACE, "byte_count")))
-        .apply("Count items", ParDo.of(new CountMonitor<>(NAMESPACE, "item_count")))
         .apply("Construct rows for DBOutputFormat", ParDo.of(new ConstructDBOutputFormatRowFn()))
         .apply(
             "Write using Hadoop OutputFormat",
@@ -230,16 +226,6 @@ public class HadoopFormatIOIT {
           long writeEnd = reader.getEndTimeMetric("write_time");
           return NamedTestResult.create(
               uuid, timestamp, "write_time", (writeEnd - writeStart) / 1e3);
-        });
-    suppliers.add(
-        reader -> {
-          long byteCount = reader.getCounterMetric("byte_count");
-          return NamedTestResult.create(uuid, timestamp, "byte_count", byteCount);
-        });
-    suppliers.add(
-        reader -> {
-          long itemCount = reader.getCounterMetric("item_count");
-          return NamedTestResult.create(uuid, timestamp, "item_count", itemCount);
         });
     return suppliers;
   }
