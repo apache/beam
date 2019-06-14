@@ -32,10 +32,10 @@ import pyarrow as pa
 from nose.plugins.attrib import attr
 from parameterized import parameterized
 from past.builtins import unicode
+from apache_beam.testing.test_pipeline import TestPipeline
 
 from apache_beam import coders
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.pipeline import Pipeline
 from apache_beam.runners import DirectRunner
 from apache_beam.runners.interactive.caching.filebasedcache import *
 from apache_beam.transforms import Create
@@ -139,7 +139,7 @@ def read_through_pipeline(cache):
   temp_dir = tempfile.mkdtemp()
   temp_cache = SafeTextBasedCache(os.path.join(temp_dir, uuid.uuid1().hex))
   try:
-    with Pipeline(runner=DirectRunner()) as p:
+    with TestPipeline() as p:
       _ = (p | "Read" >> cache.reader() | "Write" >> temp_cache.writer())
     return list(temp_cache.read())
   finally:
@@ -148,7 +148,7 @@ def read_through_pipeline(cache):
 
 def write_through_pipeline(cache, data_in):
   """Write elements to cache using a Beam pipeline."""
-  with Pipeline(runner=DirectRunner()) as p:
+  with TestPipeline() as p:
     _ = (p | "Create" >> Create(data_in) | "Write" >> cache.writer())
 
 
