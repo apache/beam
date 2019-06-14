@@ -28,6 +28,7 @@ import uuid
 import avro.schema
 import numpy as np
 import pyarrow as pa
+from nose.plugins.attrib import attr
 from parameterized import parameterized
 from past.builtins import unicode
 
@@ -172,7 +173,7 @@ def infer_column_coders(data):
 
 def infer_avro_schema(data):
   _typehint_to_avro_type = {
-      typehints.Union[[int]]: "int", 
+      typehints.Union[[int]]: "int",
       typehints.Union[[int, None]]: ["int", "null"],
       typehints.Union[[long]]: "long",
       typehints.Union[[long, None]]: ["long", "null"],
@@ -229,6 +230,7 @@ class CheckCoder(object):
       for write_fn in [write_directly, write_through_pipeline]
       for data_name, data in DATASET_TEST_DATA
   ])
+  @attr('IT')
   def test_coder(self, _, write_fn, data):
     element_type = typehints.Union[[
         trivial_inference.instance_to_type(v) for v in data
@@ -259,6 +261,7 @@ class CheckRoundtripDataset(object):
       for read_fn in [read_directly, read_through_pipeline]
       for data_name, data in DATASET_TEST_DATA
   ])
+  @attr('IT')
   def test_roundtrip(self, _, write_fn, read_fn, data):
     cache = self._cache_class(self.location)
     write_fn(cache, data)
@@ -331,6 +334,7 @@ class AvroBasedCacheRoundtripTest(unittest.TestCase):
       for read_fn in [read_directly, read_through_pipeline]
       for data_name, data in AVRO_TEST_DATA
   ])
+  @attr('IT')
   def test_roundtrip(self, _, write_fn, read_fn, data):
     schema = self._schema_gen(data)
     cache = self._cache_class(self.location, schema=schema)
@@ -364,6 +368,7 @@ class ParquetBasedCacheRoundtripTest(unittest.TestCase):
       for read_fn in [read_directly, read_through_pipeline]
       for data_name, data in PARQUET_TEST_DATA
   ])
+  @attr('IT')
   def test_roundtrip(self, _, write_fn, read_fn, data):
     schema = self._schema_gen(data)
     cache = self._cache_class(self.location, schema=schema)
