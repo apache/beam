@@ -21,12 +21,12 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTr
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.RowHelpers;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.WindowingHelpers;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 
@@ -57,9 +57,12 @@ class CombineGloballyTranslatorBatch<InputT, AccumT, OutputT>
     Dataset<Row> combinedRowDataset =
         inputDataset.agg(new AggregatorCombinerGlobally<>(combineFn, windowingStrategy).toColumn());
 
-    Dataset<WindowedValue<OutputT>> outputDataset =
+    Dataset<Iterable<WindowedValue<OutputT>>> accumulatedDataset =
         combinedRowDataset.map(
             RowHelpers.extractObjectFromRowMapFunction(), EncoderHelpers.windowedValueEncoder());
+    Dataset<WindowedValue<OutputT>> outputDataset = accumulatedDataset.flatMap(
+        (FlatMapFunction<Iterable<WindowedValue<OutputT>>, WindowedValue<OutputT>>)
+            windowedValues -> windowedValues.iterator(), EncoderHelpers.windowedValueEncoder());
     context.putDataset(output, outputDataset);
   }
 }

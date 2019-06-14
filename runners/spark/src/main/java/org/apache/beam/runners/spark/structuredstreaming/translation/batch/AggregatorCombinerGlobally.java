@@ -44,7 +44,7 @@ import scala.Tuple2;
  * */
 
 class AggregatorCombinerGlobally<InputT, AccumT, OutputT, W extends BoundedWindow>
-    extends Aggregator<WindowedValue<InputT>, Iterable<WindowedValue<AccumT>>, WindowedValue<OutputT>> {
+    extends Aggregator<WindowedValue<InputT>, Iterable<WindowedValue<AccumT>>, Iterable<WindowedValue<OutputT>>> {
 
   private final Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
   private WindowingStrategy<InputT, W> windowingStrategy;
@@ -123,10 +123,12 @@ class AggregatorCombinerGlobally<InputT, AccumT, OutputT, W extends BoundedWindo
     return null;
   }
 
-  @Override public WindowedValue<OutputT> finish(Iterable<WindowedValue<AccumT>> reduction) {
-    // TODO
-    //    return combineFn.extractOutput(reduction);
-    return null;
+  @Override public Iterable<WindowedValue<OutputT>> finish(Iterable<WindowedValue<AccumT>> reduction) {
+    List<WindowedValue<OutputT>> result = new ArrayList<>();
+    for (WindowedValue<AccumT> windowedValue: reduction) {
+      result.add(windowedValue.withValue(combineFn.extractOutput(windowedValue.getValue())));
+    }
+    return result;
   }
 
   @Override public Encoder<Iterable<WindowedValue<AccumT>>> bufferEncoder() {
@@ -134,7 +136,7 @@ class AggregatorCombinerGlobally<InputT, AccumT, OutputT, W extends BoundedWindo
     return EncoderHelpers.genericEncoder();
   }
 
-  @Override public Encoder<WindowedValue<OutputT>> outputEncoder() {
+  @Override public Encoder<Iterable<WindowedValue<OutputT>>> outputEncoder() {
     // TODO replace with outputCoder if possible
     return EncoderHelpers.genericEncoder();
   }
