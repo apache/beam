@@ -21,6 +21,7 @@ import array
 import json
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 import uuid
@@ -40,6 +41,9 @@ from apache_beam.runners.interactive.caching.filebasedcache import *
 from apache_beam.transforms import Create
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints import typehints
+
+if sys.version_info > (3,):
+  long = int
 
 # yapf: disable
 DATASET_TEST_DATA = [
