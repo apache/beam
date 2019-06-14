@@ -95,7 +95,14 @@ If you have additional material that you would like to see here, please let us k
 *   **[NDVI from Landsat Images](https://qwiklabs.com/focuses/1849?locale=en&parent=catalog)** (45m) - Process Landsat satellite data in a distributed environment to compute the [Normalized Difference Vegetation Index](https://en.wikipedia.org/wiki/Normalized_difference_vegetation_index) (NDVI).
 *   **[Simulate historic flights](https://qwiklabs.com/focuses/1159?locale=en&parent=catalog)** (60m) - Simulate real-time historic internal flights in the United States and store the resulting simulated data in BigQuery.
 
-## Beam Katas (IDE-based Learning) {#beam-katas}
+## Beam Katas {#beam-katas}
+
+Beam Katas are interactive Beam coding exercises (i.e. [code katas](http://codekata.com/))
+that can help you to learn Apache Beam concepts and programming model hands-on.
+Built based on [JetBrains Educational Products](https://www.jetbrains.com/education/), Beam Katas 
+objective is to provide a series of structured hands-on learning experiences for learners 
+to understand about Apache Beam and its SDKs by solving exercises with gradually increasing 
+complexity. Beam Katas are available for both Java and Python SDKs.
 
 ### Java
 
@@ -104,7 +111,7 @@ If you have additional material that you would like to see here, please let us k
 *   Search for "Beam Katas - Java"
 *   Expand the "Advanced Settings" and modify the "Location" and "Jdk" appropriately
 *   Click "Join"
-*   [Learn more](https://www.jetbrains.com/help/education/learner-start-guide.html?section=Introduction%20to%20Java#explore_course) on how to use the Education product
+*   [Learn more](https://www.jetbrains.com/help/education/learner-start-guide.html?section=Introduction%20to%20Java#explore_course) about how to use the Education product
 
 ### Python
 
@@ -113,7 +120,7 @@ If you have additional material that you would like to see here, please let us k
 *   Search for "Beam Katas - Python"
 *   Expand the "Advanced Settings" and modify the "Location" and "Interpreter" appropriately
 *   Click "Join"
-*   [Learn more](https://www.jetbrains.com/help/education/learner-start-guide.html?section=Introduction%20to%20Python#explore_course) on how to use the Education product
+*   [Learn more](https://www.jetbrains.com/help/education/learner-start-guide.html?section=Introduction%20to%20Python#explore_course) about how to use the Education product
 
 ## Code Examples {#code-examples}
 
