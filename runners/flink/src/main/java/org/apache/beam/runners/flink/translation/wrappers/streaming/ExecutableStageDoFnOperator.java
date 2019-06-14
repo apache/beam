@@ -82,6 +82,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.state.KeyedStateBackend;
@@ -241,8 +242,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     return StateRequestHandlers.delegateBasedUponType(handlerMap);
   }
 
-  private static class BagUserStateFactory
-      implements StateRequestHandlers.BagUserStateHandlerFactory {
+  private static class BagUserStateFactory<K extends ByteString, V, W extends BoundedWindow>
+      implements StateRequestHandlers.BagUserStateHandlerFactory<K, V, W> {
 
     private final StateInternals stateInternals;
     private final KeyedStateBackend<ByteBuffer> keyedStateBackend;
@@ -259,13 +260,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     }
 
     @Override
-    public <K, V, W extends BoundedWindow>
-        StateRequestHandlers.BagUserStateHandler<K, V, W> forUserState(
-            String pTransformId,
-            String userStateId,
-            Coder<K> keyCoder,
-            Coder<V> valueCoder,
-            Coder<W> windowCoder) {
+    public StateRequestHandlers.BagUserStateHandler<K, V, W> forUserState(
+        String pTransformId,
+        String userStateId,
+        Coder<K> keyCoder,
+        Coder<V> valueCoder,
+        Coder<W> windowCoder) {
       return new StateRequestHandlers.BagUserStateHandler<K, V, W>() {
         @Override
         public Iterable<V> get(K key, W window) {
@@ -339,7 +339,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
           // Key for state request is shipped already encoded as ByteString,
           // this is mostly a wrapping with ByteBuffer. We still follow the
           // usual key encoding procedure.
-          final ByteBuffer encodedKey = FlinkKeyUtils.encodeKey(key, keyCoder);
+          // final ByteBuffer encodedKey = FlinkKeyUtils.encodeKey(key, keyCoder);
+          final ByteBuffer encodedKey = ByteBuffer.wrap(key.toByteArray());
           keyedStateBackend.setCurrentKey(encodedKey);
         }
       };
