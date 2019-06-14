@@ -47,13 +47,27 @@ __all__ = [
 
 class FileBasedCache(PCollectionCache):
 
-  def __init__(self, location, **writer_kwargs):
-    self._file_path_prefix = location
+  def __init__(self, location, if_exists="error", **writer_kwargs):
+    self.location = location
     self._writer_kwargs = writer_kwargs
     self._coder_is_inferred = False
+    self._num_writes = 0
 
-    if (not self._writer_kwargs.get("coder") and
-        "coder" in self._reader_passthrough_arguments):
+    def check_if_exists():
+      if if_exists == "overwrite":
+        self.clear()
+      elif if_exists == "error":
+        existing_files = self._existing_file_paths()
+        if existing_files:
+          raise OSError("The following cache files already exist: {}.".format(
+              existing_files))
+      else:
+        raise ValueError(
+            '`if_exists` must be set to either "error" or "overwrite".')
+
+    check_if_exists()
+
+    if self._infer_coder:
       self._writer_class = register_coder_patch(self._writer_class,
                                                 self._writer_kwargs)
       self._coder_is_inferred = True
@@ -67,12 +81,10 @@ class FileBasedCache(PCollectionCache):
     kwargs.update(reader_kwargs)
     return self._reader_class(self._file_pattern, **kwargs)
 
-  @property
-  def _file_pattern(self):
-    return self._file_path_prefix + '*'
-
   def writer(self):
-    return self._writer_class(self._file_path_prefix, **self._writer_kwargs)
+    writer = self._writer_class(self._file_path_prefix, **self._writer_kwargs)
+    self._num_writes += 1
+    return writer
 
   def read(self, **reader_kwargs):
     source = self.reader(**reader_kwargs)._source
@@ -82,10 +94,7 @@ class FileBasedCache(PCollectionCache):
 
   def write(self, elements):
     writer = self.writer()
-    if (not self._writer_kwargs.get("coder") and
-        "coder" in self._reader_passthrough_arguments):
-      # TODO(ostrokach): We may need to warn the user that we are loading
-      # all elements in memory.
+    if self._infer_coder:
       elements = list(elements)
       element_type = typehints.Union[[
           trivial_inference.instance_to_type(e) for e in elements
@@ -97,22 +106,34 @@ class FileBasedCache(PCollectionCache):
       for element in elements:
         writer._sink.write_record(handle, element)
     finally:
-      try:
-        writer._sink.close(handle)
-      except AttributeError:
-        # Not all sinks implement the close() method
-        pass
+      self._num_writes += 1
+      writer._sink.close(handle)
 
   def clear(self):
-    paths = [
+    FileSystems.delete(self._existing_file_paths())
+    if self._coder_is_inferred:
+      del self._writer_kwargs["coder"]
+      self._coder_is_inferred = False
+
+  @property
+  def _file_path_prefix(self):
+    return self.location + "-{:03d}".format(self._num_writes)
+
+  @property
+  def _file_pattern(self):
+    return self.location + '*'
+
+  def _existing_file_paths(self):
+    return [
         match_meta.path
         for match_result in FileSystems.match([self._file_pattern])
         for match_meta in match_result.metadata_list
     ]
-    FileSystems.delete(paths)
-    if self._coder_is_inferred:
-      del self._writer_kwargs["coder"]
-      self._coder_is_inferred = False
+
+  @property
+  def _infer_coder(self):
+    return (not self._writer_kwargs.get("coder") and
+            "coder" in self._reader_passthrough_arguments)
 
 
 class TextBasedCache(FileBasedCache):
