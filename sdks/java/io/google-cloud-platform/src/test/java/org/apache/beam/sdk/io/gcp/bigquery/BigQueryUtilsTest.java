@@ -32,6 +32,7 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions.TruncateTimestamps;
@@ -54,6 +55,7 @@ public class BigQueryUtilsTest {
           .addNullableField("name", Schema.FieldType.STRING)
           .addNullableField("timestamp", Schema.FieldType.DATETIME)
           .addNullableField("valid", Schema.FieldType.BOOLEAN)
+          .addNullableField("binary", Schema.FieldType.BYTES)
           .build();
 
   private static final Schema ARRAY_TYPE =
@@ -80,6 +82,9 @@ public class BigQueryUtilsTest {
   private static final TableFieldSchema VALID =
       new TableFieldSchema().setName("valid").setType(StandardSQLTypeName.BOOL.toString());
 
+  private static final TableFieldSchema BINARY =
+      new TableFieldSchema().setName("binary").setType(StandardSQLTypeName.BYTES.toString());
+
   private static final TableFieldSchema IDS =
       new TableFieldSchema()
           .setName("ids")
@@ -91,18 +96,25 @@ public class BigQueryUtilsTest {
           .setName("row")
           .setType(StandardSQLTypeName.STRUCT.toString())
           .setMode(Mode.NULLABLE.toString())
-          .setFields(Arrays.asList(ID, VALUE, NAME, TIMESTAMP, VALID));
+          .setFields(Arrays.asList(ID, VALUE, NAME, TIMESTAMP, VALID, BINARY));
 
   private static final TableFieldSchema ROWS =
       new TableFieldSchema()
           .setName("rows")
           .setType(StandardSQLTypeName.STRUCT.toString())
           .setMode(Mode.REPEATED.toString())
-          .setFields(Arrays.asList(ID, VALUE, NAME, TIMESTAMP, VALID));
+          .setFields(Arrays.asList(ID, VALUE, NAME, TIMESTAMP, VALID, BINARY));
 
+  // Make sure that chosen BYTES test value is the same after a full base64 round trip.
   private static final Row FLAT_ROW =
       Row.withSchema(FLAT_TYPE)
-          .addValues(123L, 123.456, "test", new DateTime(123456), false)
+          .addValues(
+              123L,
+              123.456,
+              "test",
+              new DateTime(123456),
+              false,
+              Base64.getDecoder().decode("ABCD1234"))
           .build();
 
   private static final TableRow BQ_FLAT_ROW =
@@ -114,10 +126,11 @@ public class BigQueryUtilsTest {
               "timestamp",
               String.valueOf(
                   new DateTime(123456L, ISOChronology.getInstanceUTC()).getMillis() / 1000.0D))
-          .set("valid", "false");
+          .set("valid", "false")
+          .set("binary", "ABCD1234");
 
   private static final Row NULL_FLAT_ROW =
-      Row.withSchema(FLAT_TYPE).addValues(null, null, null, null, null).build();
+      Row.withSchema(FLAT_TYPE).addValues(null, null, null, null, null, null).build();
 
   private static final TableRow BQ_NULL_FLAT_ROW =
       new TableRow()
@@ -125,7 +138,8 @@ public class BigQueryUtilsTest {
           .set("value", null)
           .set("name", null)
           .set("timestamp", null)
-          .set("valid", null);
+          .set("valid", null)
+          .set("binary", null);
 
   private static final Row ARRAY_ROW =
       Row.withSchema(ARRAY_TYPE).addValues((Object) Arrays.asList(123L, 124L)).build();
@@ -149,7 +163,7 @@ public class BigQueryUtilsTest {
           .set("rows", Collections.singletonList(Collections.singletonMap("v", BQ_FLAT_ROW)));
 
   private static final TableSchema BQ_FLAT_TYPE =
-      new TableSchema().setFields(Arrays.asList(ID, VALUE, NAME, TIMESTAMP, VALID));
+      new TableSchema().setFields(Arrays.asList(ID, VALUE, NAME, TIMESTAMP, VALID, BINARY));
 
   private static final TableSchema BQ_ARRAY_TYPE = new TableSchema().setFields(Arrays.asList(IDS));
 
@@ -162,7 +176,7 @@ public class BigQueryUtilsTest {
   public void testToTableSchema_flat() {
     TableSchema schema = toTableSchema(FLAT_TYPE);
 
-    assertThat(schema.getFields(), containsInAnyOrder(ID, VALUE, NAME, TIMESTAMP, VALID));
+    assertThat(schema.getFields(), containsInAnyOrder(ID, VALUE, NAME, TIMESTAMP, VALID, BINARY));
   }
 
   @Test
@@ -181,7 +195,7 @@ public class BigQueryUtilsTest {
     assertThat(field.getName(), equalTo("row"));
     assertThat(field.getType(), equalTo(StandardSQLTypeName.STRUCT.toString()));
     assertThat(field.getMode(), nullValue());
-    assertThat(field.getFields(), containsInAnyOrder(ID, VALUE, NAME, TIMESTAMP, VALID));
+    assertThat(field.getFields(), containsInAnyOrder(ID, VALUE, NAME, TIMESTAMP, VALID, BINARY));
   }
 
   @Test
@@ -193,7 +207,7 @@ public class BigQueryUtilsTest {
     assertThat(field.getName(), equalTo("rows"));
     assertThat(field.getType(), equalTo(StandardSQLTypeName.STRUCT.toString()));
     assertThat(field.getMode(), equalTo(Mode.REPEATED.toString()));
-    assertThat(field.getFields(), containsInAnyOrder(ID, VALUE, NAME, TIMESTAMP, VALID));
+    assertThat(field.getFields(), containsInAnyOrder(ID, VALUE, NAME, TIMESTAMP, VALID, BINARY));
   }
 
   @Test
@@ -201,11 +215,12 @@ public class BigQueryUtilsTest {
     TableRow row = toTableRow().apply(FLAT_ROW);
     System.out.println(row);
 
-    assertThat(row.size(), equalTo(5));
+    assertThat(row.size(), equalTo(6));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("name", "test"));
     assertThat(row, hasEntry("valid", "false"));
+    assertThat(row, hasEntry("binary", "ABCD1234"));
   }
 
   @Test
@@ -222,11 +237,12 @@ public class BigQueryUtilsTest {
 
     assertThat(row.size(), equalTo(1));
     row = (TableRow) row.get("row");
-    assertThat(row.size(), equalTo(5));
+    assertThat(row.size(), equalTo(6));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("name", "test"));
     assertThat(row, hasEntry("valid", "false"));
+    assertThat(row, hasEntry("binary", "ABCD1234"));
   }
 
   @Test
@@ -235,23 +251,25 @@ public class BigQueryUtilsTest {
 
     assertThat(row.size(), equalTo(1));
     row = ((List<TableRow>) row.get("rows")).get(0);
-    assertThat(row.size(), equalTo(5));
+    assertThat(row.size(), equalTo(6));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("name", "test"));
     assertThat(row, hasEntry("valid", "false"));
+    assertThat(row, hasEntry("binary", "ABCD1234"));
   }
 
   @Test
   public void testToTableRow_null_row() {
     TableRow row = toTableRow().apply(NULL_FLAT_ROW);
 
-    assertThat(row.size(), equalTo(5));
+    assertThat(row.size(), equalTo(6));
     assertThat(row, hasEntry("id", null));
     assertThat(row, hasEntry("value", null));
     assertThat(row, hasEntry("name", null));
     assertThat(row, hasEntry("timestamp", null));
     assertThat(row, hasEntry("valid", null));
+    assertThat(row, hasEntry("binary", null));
   }
 
   private static final BigQueryUtils.ConversionOptions TRUNCATE_OPTIONS =
