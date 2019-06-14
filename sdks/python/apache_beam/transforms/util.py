@@ -683,7 +683,7 @@ class ToString(object):
     by the specific delimiter and the value.
     """
 
-    def __init__(self, delimiter=None, **kwargs):
+    def __init__(self, delimiter=None):
       self.delimiter = delimiter or ","
 
     def expand(self, pcoll):
@@ -699,7 +699,7 @@ class ToString(object):
     Transforms each element of the PCollection to a string.
     """
 
-    def __init__(self, delimiter=None, **kwargs):
+    def __init__(self, delimiter=None):
       self.delimiter = delimiter or ","
 
     def expand(self, pcoll):
@@ -716,7 +716,7 @@ class ToString(object):
     string. There is no trailing delimiter.
     """
 
-    def __init__(self, delimiter=None, **kwargs):
+    def __init__(self, delimiter=None):
       self.delimiter = delimiter or ","
 
     def expand(self, pcoll):
