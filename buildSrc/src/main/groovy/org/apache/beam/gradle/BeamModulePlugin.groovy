@@ -424,6 +424,7 @@ class BeamModulePlugin implements Plugin<Project> {
         avro_tests                                  : "org.apache.avro:avro:1.8.2:tests",
         aws_java_sdk_cloudwatch                     : "com.amazonaws:aws-java-sdk-cloudwatch:$aws_java_sdk_version",
         aws_java_sdk_core                           : "com.amazonaws:aws-java-sdk-core:$aws_java_sdk_version",
+        aws_java_sdk_dynamodb                       : "com.amazonaws:aws-java-sdk-dynamodb:$aws_java_sdk_version",
         aws_java_sdk_kinesis                        : "com.amazonaws:aws-java-sdk-kinesis:$aws_java_sdk_version",
         aws_java_sdk_s3                             : "com.amazonaws:aws-java-sdk-s3:$aws_java_sdk_version",
         aws_java_sdk_sns                            : "com.amazonaws:aws-java-sdk-sns:$aws_java_sdk_version",
@@ -565,7 +566,6 @@ class BeamModulePlugin implements Plugin<Project> {
         url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease(project)
                 ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
                 : 'https://repository.apache.org/content/repositories/snapshots')
-
         // We attempt to find and load credentials from ~/.m2/settings.xml file that a user
         // has configured with the Apache release and snapshot staging credentials.
         // <settings>

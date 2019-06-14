@@ -29,6 +29,7 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.aws_java_sdk_cloudwatch
   compile library.java.aws_java_sdk_core
+  compile library.java.aws_java_sdk_dynamodb
   compile library.java.aws_java_sdk_s3
   compile library.java.aws_java_sdk_sns
   compile library.java.aws_java_sdk_sqs
@@ -47,6 +48,7 @@ dependencies {
   testCompile library.java.mockito_core
   testCompile library.java.junit
   testCompile 'org.elasticmq:elasticmq-rest-sqs_2.12:0.14.1'
+  testCompile 'org.testcontainers:localstack:1.11.2'
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(":runners:direct-java")
 }
