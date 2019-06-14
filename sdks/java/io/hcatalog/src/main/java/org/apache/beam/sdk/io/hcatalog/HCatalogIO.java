@@ -269,6 +269,9 @@ public class HCatalogIO {
             .apply("PartitionReader", ParDo.of(new PartitionReaderFn(getConfigProperties())));
       } else {
         // Treat as Bounded
+        checkArgument(
+            getTerminationCondition() == null,
+            "withTerminationCondition() is not required when using in bounded reads mode");
         return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedHCatalogSource(this)));
       }
     }

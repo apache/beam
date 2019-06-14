@@ -34,6 +34,8 @@ import org.apache.hive.hcatalog.common.HCatUtil;
 /** Utility classes to enable meta store conf/client creation. */
 public class HCatalogUtils {
 
+  private static final int DESIRED_BUNDLE_SIZE_BYTES = 134217728; // 128 MB
+
   static IMetaStoreClient createMetaStoreClient(Configuration conf)
       throws IOException, MetaException {
     final HiveConf hiveConf = HCatUtil.getHiveConf(conf);
@@ -49,7 +51,7 @@ public class HCatalogUtils {
     int desiredSplitCount = 1;
     long estimatedSizeBytes = getFileSizeForPartition(readRequest, partitionToRead);
     if (estimatedSizeBytes > 0) {
-      desiredSplitCount = (int) Math.ceil((double) estimatedSizeBytes / Integer.MAX_VALUE);
+      desiredSplitCount = (int) Math.ceil((double) estimatedSizeBytes / DESIRED_BUNDLE_SIZE_BYTES);
     }
     return desiredSplitCount;
   }
