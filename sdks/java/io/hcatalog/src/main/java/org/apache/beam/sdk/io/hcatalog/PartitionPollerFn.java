@@ -28,7 +28,7 @@ import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.joda.time.Instant;
 
 /** Return the list of current partitions present. */
-public class PartitionPollerFn extends PollFn<Read, Integer> {
+class PartitionPollerFn extends PollFn<Read, Integer> {
   private transient IMetaStoreClient metaStoreClient;
 
   @Override

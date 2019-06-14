@@ -43,7 +43,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.ql.metadata.Table;
@@ -86,6 +85,20 @@ import org.slf4j.LoggerFactory;
  *       .withFilter(filterString) //optional, may be specified if the table is partitioned
  * }</pre>
  *
+ * <p>HCatalog source supports reading of HCatRecord in an unbounded mode. When run in an unbounded
+ * mode, HCatalogIO will continuously poll for new partitions and read that data. If provided with a
+ * termination condition, it will stop reading data after the condition is met.
+ *
+ * <pre>{@code
+ * pipeline
+ *   .apply(HCatalogIO.read()
+ *       .withConfigProperties(configProperties)
+ *       .withDatabase("default") //optional, assumes default if none specified
+ *       .withTable("employee")
+ *       .withPollingInterval(Duration.millis(15000)) // poll for new partitions every 15 seconds
+ *       .withTerminationCondition(Watch.Growth.afterTotalOf(Duration.millis(60000)))) //optional
+ * }</pre>
+ *
  * <h3>Writing using HCatalog</h3>
  *
  * <p>HCatalog sink supports writing of HCatRecord to a HCatalog managed source, for eg. Hive.
@@ -123,7 +136,10 @@ public class HCatalogIO {
 
   /** Read data from Hive. */
   public static Read read() {
-    return new AutoValue_HCatalogIO_Read.Builder().setDatabase(DEFAULT_DATABASE).build();
+    return new AutoValue_HCatalogIO_Read.Builder()
+        .setDatabase(DEFAULT_DATABASE)
+        .setPartitionCols(new ArrayList<>())
+        .build();
   }
 
   private HCatalogIO() {}
@@ -155,7 +171,7 @@ public class HCatalogIO {
     abstract Duration getPollingInterval();
 
     @Nullable
-    abstract ImmutableList<String> getPartitionCols();
+    abstract List<String> getPartitionCols();
 
     @Nullable
     abstract TerminationCondition<Read, ?> getTerminationCondition();
@@ -178,7 +194,7 @@ public class HCatalogIO {
 
       abstract Builder setPollingInterval(Duration pollingInterval);
 
-      abstract Builder setPartitionCols(ImmutableList<String> partitionCols);
+      abstract Builder setPartitionCols(List<String> partitionCols);
 
       abstract Builder setTerminationCondition(TerminationCondition<Read, ?> terminationCondition);
 
@@ -215,7 +231,7 @@ public class HCatalogIO {
     }
 
     /** Set the names of the columns that are partitions. */
-    public Read withPartitionCols(ImmutableList<String> partitionCols) {
+    public Read withPartitionCols(List<String> partitionCols) {
       return toBuilder().setPartitionCols(partitionCols).build();
     }
 
@@ -245,10 +261,7 @@ public class HCatalogIO {
       if (getPollingInterval() != null) {
         growthFn = Watch.growthOf(new PartitionPollerFn()).withPollInterval(getPollingInterval());
         if (getTerminationCondition() != null) {
-          growthFn =
-              Watch.growthOf(new PartitionPollerFn())
-                  .withPollInterval(getPollingInterval())
-                  .withTerminationPerInput(getTerminationCondition());
+          growthFn = growthFn.withTerminationPerInput(getTerminationCondition());
         }
         return input
             .apply("ConvertToReadRequest", Create.of(this))

@@ -27,7 +27,6 @@ import java.util.Map;
 import org.apache.beam.sdk.io.hcatalog.HCatalogIO.Read;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Partition;
@@ -58,7 +57,7 @@ class PartitionReaderFn extends DoFn<KV<Read, Integer>, HCatRecord> {
 
     final int desiredSplitCount = HCatalogUtils.getSplitCount(readRequest, partition);
     final List<String> values = partition.getValues();
-    final ImmutableList<String> partitionCols = readRequest.getPartitionCols();
+    final List<String> partitionCols = readRequest.getPartitionCols();
     checkArgument(
         values.size() == partitionCols.size(),
         "Number of input partitions should be equal to the values of list partition values.");
@@ -83,7 +82,6 @@ class PartitionReaderFn extends DoFn<KV<Read, Integer>, HCatRecord> {
   }
 
   @ProcessElement
-  @SuppressWarnings("unused")
   public void processElement(ProcessContext c) throws Exception {
     final Read readRequest = c.element().getKey();
     final Integer partitionIndexToRead = c.element().getValue();
@@ -99,14 +97,12 @@ class PartitionReaderFn extends DoFn<KV<Read, Integer>, HCatRecord> {
   }
 
   @Setup
-  @SuppressWarnings("unused")
   public void setup() throws Exception {
     final Configuration conf = HCatalogUtils.createConfiguration(configProperties);
     metaStoreClient = HCatalogUtils.createMetaStoreClient(conf);
   }
 
   @Teardown
-  @SuppressWarnings("unused")
   public void teardown() {
     if (metaStoreClient != null) {
       metaStoreClient.close();
