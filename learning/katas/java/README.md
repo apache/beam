@@ -17,10 +17,15 @@
     under the License.
 -->
 
-# Beam Katas
-Beam Katas are interactive Beam coding exercises (i.e. [code katas](http://codekata.com/))
-that can help you to learn Apache Beam concepts and programming model hands-on.
-Built based on [JetBrains Educational Products](https://www.jetbrains.com/education/), Beam Katas 
-objective is to provide a series of structured hands-on learning experiences for learners 
-to understand about Apache Beam and its SDKs by solving exercises with gradually increasing 
-complexity. Beam Katas are available for both Java and Python SDKs.
+### How to Setup
+Please follow the below steps in order to setup the project properly:
+* Using IntelliJ Education (or IntelliJ with EduTools plugin), select "Open" and select this 
+directory (learning/katas/java)
+* "Import Gradle project" when prompted, and configure the Gradle setup
+* Wait for Gradle build to finish
+* Open "Project Structure" and setup the project SDK (e.g. JDK 8)
+* Open the "Project" tool window, and select the "Course" view
+* Your project is ready
+
+For further instructions on how the IntelliJ Education works, you can refer 
+[here](https://www.jetbrains.com/help/education/educator-start-guide.html?section=Java).
