@@ -55,8 +55,9 @@ from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
-from apache_beam.transforms.userstate import BagStateSpec, ValueStateSpec, CombiningValueStateSpec
+from apache_beam.transforms.userstate import BagStateSpec, ValueStateSpec, CombiningValueStateSpec, TimerSpec
 from apache_beam.transforms.combiners import TopCombineFn
+from apache_beam.transforms.timeutil import TimeDomain
 
 __all__ = [
     'BatchElements',
@@ -706,10 +707,20 @@ class _GroupIntoBatchesDoFn(DoFn):
     self.key_spec = ValueStateSpec("GroupIntoBatches", input_key_coder)
     self.num_elements_in_batch_spec = CombiningValueStateSpec("GroupIntoBatches", None, _NumElementsInBatchesCombineFn())
     self.prefetch_frequency = int(sys.maxint) if ((batch_size / 5) <= 1) else int(batch_size / 5)
+    self.timer = TimerSpec("GroupIntoBatches", TimeDomain.WATERMARK)
     
   def process(self, element):
-    print self.prefetch_frequency
-
+    
 
 class _NumElementsInBatchesCombineFn(CombineFn):
-  pass   
+  def create_accumulator(self):
+    return 0
+
+  def add_input(self, accumulator, element):
+    return accumulator + element
+
+  def merge_accumulators(self, accumulators):
+    return sum(accumulators)
+
+  def extract_output(self, accumulator):
+    return accumulator
