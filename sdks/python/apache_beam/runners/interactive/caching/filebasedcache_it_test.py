@@ -26,7 +26,6 @@ import tempfile
 import unittest
 import uuid
 
-import avro.schema
 import numpy as np
 import pyarrow as pa
 from nose.plugins.attrib import attr
@@ -36,7 +35,6 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 from apache_beam import coders
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.runners import DirectRunner
 from apache_beam.runners.interactive.caching.filebasedcache import *
 from apache_beam.transforms import Create
 from apache_beam.typehints import trivial_inference
@@ -175,7 +173,7 @@ def infer_column_coders(data):
   return column_coders
 
 
-def infer_avro_schema(data):
+def infer_avro_schema(data, use_fastavro=False):
   _typehint_to_avro_type = {
       typehints.Union[[int]]: "int",
       typehints.Union[[int, None]]: ["int", "null"],
@@ -204,7 +202,12 @@ def infer_avro_schema(data):
       "name": "User",
       "fields": avro_fields
   }
-  return avro.schema.parse(json.dumps(schema_dict))
+  if use_fastavro:
+    from fastavro import parse_schema
+    return parse_schema(schema_dict)
+  else:
+    import avro.schema
+    return avro.schema.parse(json.dumps(schema_dict))
 
 
 def infer_parquet_schema(data):
@@ -319,7 +322,7 @@ class TFRecordBasedCacheRoundtripTest(CheckRoundtripDataset, unittest.TestCase):
 ## AvroBasedCache
 
 
-class AvroBasedCacheRoundtripTest(unittest.TestCase):
+class AvroBasedCacheRoundtripBase(object):
 
   _cache_class = AvroBasedCache
   _schema_gen = staticmethod(infer_avro_schema)
@@ -340,14 +343,30 @@ class AvroBasedCacheRoundtripTest(unittest.TestCase):
   ])
   @attr('IT')
   def test_roundtrip(self, _, write_fn, read_fn, data):
-    schema = self._schema_gen(data)
-    cache = self._cache_class(self.location, schema=schema)
+    schema = self._schema_gen(data, use_fastavro=self._use_fastavro)
+    cache = self._cache_class(self.location,
+                              schema=schema,
+                              use_fastavro=self._use_fastavro)
     write_fn(cache, data)
     data_out = read_fn(cache)
     self.assertEqual(data_out, data)
     cache.clear()
     with self.assertRaises(IOError):
       data_out = read_fn(cache)
+
+
+@unittest.skipIf(sys.version > (3,),
+                 "On Python 3, Avro is supported only through fastavro")
+class AvroBasedCacheRoundtripTest(AvroBasedCacheRoundtripBase,
+                                  unittest.TestCase):
+
+  _use_fastavro = False
+
+
+class FastAvroBasedCacheRoundtripTest(AvroBasedCacheRoundtripBase,
+                                      unittest.TestCase):
+
+  _use_fastavro = True
 
 
 ## ParquetBasedCache
