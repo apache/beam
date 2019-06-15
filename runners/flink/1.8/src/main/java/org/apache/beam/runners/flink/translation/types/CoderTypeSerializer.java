@@ -39,7 +39,7 @@ import org.apache.flink.core.memory.DataOutputView;
  */
 public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
-  private Coder<T> coder;
+  private final Coder<T> coder;
 
   public CoderTypeSerializer(Coder<T> coder) {
     Preconditions.checkNotNull(coder);

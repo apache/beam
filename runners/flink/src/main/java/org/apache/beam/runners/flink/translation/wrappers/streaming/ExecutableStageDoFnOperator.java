@@ -38,6 +38,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
@@ -57,6 +58,7 @@ import org.apache.beam.runners.core.construction.graph.UserStateReference;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
 import org.apache.beam.runners.flink.translation.functions.FlinkStreamingSideInputHandlerFactory;
+import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
@@ -84,6 +86,9 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -174,6 +179,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   @Override
   public void open() throws Exception {
     executableStage = ExecutableStage.fromPayload(payload);
+    initializeUserState(executableStage, getKeyedStateBackend());
     // TODO: Wire this into the distributed cache and make it pluggable.
     // TODO: Do we really want this layer of indirection when accessing the stage bundle factory?
     // It's a little strange because this operator is responsible for the lifetime of the stage
@@ -833,6 +839,26 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         }
       }
     }
+  }
+
+  /**
+   * Eagerly create the user state to work around https://jira.apache.org/jira/browse/FLINK-12653.
+   */
+  private static void initializeUserState(
+      ExecutableStage executableStage, @Nullable KeyedStateBackend keyedStateBackend) {
+    executableStage
+        .getUserStates()
+        .forEach(
+            ref -> {
+              try {
+                keyedStateBackend.getOrCreateKeyedState(
+                    StringSerializer.INSTANCE,
+                    new ListStateDescriptor<>(
+                        ref.localName(), new CoderTypeSerializer<>(ByteStringCoder.of())));
+              } catch (Exception e) {
+                throw new RuntimeException("Couldn't initialize user states.", e);
+              }
+            });
   }
 
   private static class NoOpDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
