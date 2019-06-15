@@ -79,7 +79,7 @@
                             <option name="name" value="Hello Beam" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/intro/hello/Task.java">
@@ -95,7 +95,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1521" />
+                                            <option name="offset" value="1552" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="pipeline.apply(Create.of(&quot;Hello Beam&quot;))" />
@@ -176,7 +176,7 @@
                             <option name="name" value="ParDo" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/map/pardo/Task.java">
@@ -192,7 +192,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1721" />
+                                            <option name="offset" value="1752" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(ParDo.of(new DoFn&lt;Integer, Integer&gt;() {&#10;&#10;      @ProcessElement&#10;      public void processElement(@Element Integer number, OutputReceiver&lt;Integer&gt; out) {&#10;        out.output(number * 10);&#10;      }&#10;&#10;    }))" />
@@ -246,7 +246,7 @@
                             <option name="name" value="ParDo OneToMany" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/map/pardoonetomany/Task.java">
@@ -262,7 +262,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1746" />
+                                            <option name="offset" value="1777" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(ParDo.of(new DoFn&lt;String, String&gt;() {&#10;&#10;      @ProcessElement&#10;      public void processElement(@Element String sentence, OutputReceiver&lt;String&gt; out) {&#10;        String[] words = sentence.split(&quot; &quot;);&#10;&#10;        for (String word : words) {&#10;          out.output(word);&#10;        }&#10;      }&#10;&#10;    }))" />
@@ -316,7 +316,7 @@
                             <option name="name" value="MapElements" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/map/mapelements/Task.java">
@@ -332,7 +332,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1745" />
+                                            <option name="offset" value="1776" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(&#10;        MapElements.into(TypeDescriptors.integers())&#10;            .via(number -&gt; number * 5)&#10;    )" />
@@ -386,7 +386,7 @@
                             <option name="name" value="FlatMapElements" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/map/flatmapelements/Task.java">
@@ -402,7 +402,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1804" />
+                                            <option name="offset" value="1835" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(&#10;        FlatMapElements.into(TypeDescriptors.strings())&#10;            .via(sentence -&gt; Arrays.asList(sentence.split(&quot; &quot;)))&#10;    )" />
@@ -469,7 +469,7 @@
                             <option name="name" value="GroupByKey" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/groupbykey/Task.java">
@@ -485,7 +485,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1994" />
+                                            <option name="offset" value="2025" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input&#10;        .apply(MapElements.into(kvs(strings(), strings()))&#10;            .via(word -&gt; KV.of(word.substring(0, 1), word)))&#10;&#10;        .apply(GroupByKey.create())" />
@@ -552,7 +552,7 @@
                             <option name="name" value="CoGroupByKey" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/cogroupbykey/Task.java">
@@ -568,10 +568,10 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2387" />
+                                            <option name="offset" value="2418" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
-                                            <option name="possibleAnswer" value="TupleTag&lt;String&gt; fruitsTag = new TupleTag&lt;&gt;();&#10;    TupleTag&lt;String&gt; countriesTag = new TupleTag&lt;&gt;();&#10;&#10;    MapElements&lt;String, KV&lt;String, String&gt;&gt; mapToAlphabetKv =&#10;        MapElements.into(kvs(strings(), strings()))&#10;            .via(word -&gt; KV.of(word.substring(0, 1), word));&#10;&#10;    PCollection&lt;KV&lt;String, String&gt;&gt; fruitsPColl = fruits.apply(&quot;Fruit to KV&quot;, mapToAlphabetKv);&#10;    PCollection&lt;KV&lt;String, String&gt;&gt; countriesPColl = countries&#10;        .apply(&quot;Country to KV&quot;, mapToAlphabetKv);&#10;&#10;    return KeyedPCollectionTuple&#10;        .of(fruitsTag, fruitsPColl)&#10;        .and(countriesTag, countriesPColl)&#10;&#10;        .apply(CoGroupByKey.create())&#10;&#10;        .apply(ParDo.of(new DoFn&lt;KV&lt;String, CoGbkResult&gt;, String&gt;() {&#10;&#10;          @ProcessElement&#10;          public void processElement(&#10;              @Element KV&lt;String, CoGbkResult&gt; element, OutputReceiver&lt;String&gt; out) {&#10;&#10;            String alphabet = element.getKey();&#10;            CoGbkResult coGbkResult = element.getValue();&#10;&#10;            String fruit = coGbkResult.getOnly(fruitsTag);&#10;            String country = coGbkResult.getOnly(countriesTag);&#10;&#10;            out.output(new WordsAlphabet(alphabet, fruit, country).toString());&#10;          }&#10;&#10;        }));" />
+                                            <option name="possibleAnswer" value="TupleTag&lt;String&gt; fruitsTag = new TupleTag&lt;&gt;();&#10;    TupleTag&lt;String&gt; countriesTag = new TupleTag&lt;&gt;();&#10;&#10;    MapElements&lt;String, KV&lt;String, String&gt;&gt; mapToAlphabetKv =&#10;        MapElements.into(kvs(strings(), strings()))&#10;            .via(word -&gt; KV.of(word.substring(0, 1), word));&#10;&#10;    PCollection&lt;KV&lt;String, String&gt;&gt; fruitsPColl = fruits.apply(&quot;Fruit to KV&quot;, mapToAlphabetKv);&#10;    PCollection&lt;KV&lt;String, String&gt;&gt; countriesPColl = countries&#10;        .apply(&quot;Country to KV&quot;, mapToAlphabetKv);&#10;&#10;    return KeyedPCollectionTuple&#10;        .of(fruitsTag, fruitsPColl)&#10;        .and(countriesTag, countriesPColl)&#10;&#10;        .apply(CoGroupByKey.create())&#10;&#10;        .apply(ParDo.of(new DoFn&lt;KV&lt;String, CoGbkResult&gt;, String&gt;() {&#10;&#10;          @ProcessElement&#10;          public void processElement(&#10;              @Element KV&lt;String, CoGbkResult&gt; element, OutputReceiver&lt;String&gt; out) {&#10;&#10;            String alphabet = element.getKey();&#10;            CoGbkResult coGbkResult = element.getValue();&#10;&#10;            String fruit = coGbkResult.getOnly(fruitsTag);&#10;            String country = coGbkResult.getOnly(countriesTag);&#10;&#10;            out.output(new WordsAlphabet(alphabet, fruit, country).toString());&#10;          }&#10;&#10;        }))" />
                                             <option name="selected" value="false" />
                                             <option name="status" value="Unchecked" />
                                             <option name="studentAnswer" />
@@ -650,7 +650,7 @@
                             <option name="name" value="Simple Function" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/combine/simple/Task.java">
@@ -666,7 +666,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1892" />
+                                            <option name="offset" value="1923" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="@Override&#10;    public Integer apply(Iterable&lt;Integer&gt; input) {&#10;      int sum = 0;&#10;&#10;      for (int item : input) {&#10;        sum += item;&#10;      }&#10;&#10;      return sum;&#10;    }" />
@@ -720,7 +720,7 @@
                             <option name="name" value="CombineFn" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/combine/combinefn/Task.java">
@@ -736,7 +736,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1931" />
+                                            <option name="offset" value="1962" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="class Accum implements Serializable {&#10;      int sum = 0;&#10;      int count = 0;&#10;&#10;      @Override&#10;      public boolean equals(Object o) {&#10;        if (this == o) {&#10;          return true;&#10;        }&#10;        if (o == null || getClass() != o.getClass()) {&#10;          return false;&#10;        }&#10;        Accum accum = (Accum) o;&#10;        return sum == accum.sum &amp;&amp;&#10;            count == accum.count;&#10;      }&#10;&#10;      @Override&#10;      public int hashCode() {&#10;        return Objects.hash(sum, count);&#10;      }&#10;    }&#10;&#10;    @Override&#10;    public Accum createAccumulator() {&#10;      return new Accum();&#10;    }&#10;&#10;    @Override&#10;    public Accum addInput(Accum accumulator, Integer input) {&#10;      accumulator.sum += input;&#10;      accumulator.count++;&#10;&#10;      return accumulator;&#10;    }&#10;&#10;    @Override&#10;    public Accum mergeAccumulators(Iterable&lt;Accum&gt; accumulators) {&#10;      Accum merged = createAccumulator();&#10;&#10;      for (Accum accumulator : accumulators) {&#10;        merged.sum += accumulator.sum;&#10;        merged.count += accumulator.count;&#10;      }&#10;&#10;      return merged;&#10;    }&#10;&#10;    @Override&#10;    public Double extractOutput(Accum accumulator) {&#10;      return ((double) accumulator.sum) / accumulator.count;&#10;    }" />
@@ -790,7 +790,7 @@
                             <option name="name" value="BinaryCombineFn" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/combine/binarycombinefn/Task.java">
@@ -806,7 +806,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2094" />
+                                            <option name="offset" value="2125" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="@Override&#10;    public BigInteger apply(BigInteger left, BigInteger right) {&#10;      return left.add(right);&#10;    }" />
@@ -860,7 +860,7 @@
                             <option name="name" value="BinaryCombineFn Lambda" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/combine/binarycombinefnlambda/Task.java">
@@ -876,7 +876,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1891" />
+                                            <option name="offset" value="1922" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Combine.globally(BigInteger::add))" />
@@ -930,7 +930,7 @@
                             <option name="name" value="Combine PerKey" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/combine/combineperkey/Task.java">
@@ -946,7 +946,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2124" />
+                                            <option name="offset" value="2155" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Combine.perKey(new SumIntBinaryCombineFn()))" />
@@ -963,7 +963,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2264" />
+                                            <option name="offset" value="2295" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="@Override&#10;    public Integer apply(Integer left, Integer right) {&#10;      return left + right;&#10;    }" />
@@ -1030,7 +1030,7 @@
                             <option name="name" value="Flatten" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/flatten/Task.java">
@@ -1046,7 +1046,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2009" />
+                                            <option name="offset" value="2040" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="PCollectionList.of(words1).and(words2)&#10;        .apply(Flatten.pCollections())" />
@@ -1113,7 +1113,7 @@
                             <option name="name" value="Partition" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/partition/Task.java">
@@ -1129,7 +1129,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1935" />
+                                            <option name="offset" value="1966" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input&#10;        .apply(Partition.of(2,&#10;            (PartitionFn&lt;Integer&gt;) (number, numPartitions) -&gt; {&#10;              if (number &gt; 100) {&#10;                return 0;&#10;              } else {&#10;                return 1;&#10;              }&#10;            }))" />
@@ -1196,7 +1196,7 @@
                             <option name="name" value="Side Input" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/sideinput/Task.java">
@@ -1212,7 +1212,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2684" />
+                                            <option name="offset" value="2716" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="citiesToCountries.apply(View.asMap())" />
@@ -1229,7 +1229,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2882" />
+                                            <option name="offset" value="2914" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="persons.apply(ParDo.of(new DoFn&lt;Person, Person&gt;() {&#10;&#10;      @ProcessElement&#10;      public void processElement(@Element Person person, OutputReceiver&lt;Person&gt; out,&#10;          ProcessContext context) {&#10;        Map&lt;String, String&gt; citiesToCountries = context.sideInput(citiesToCountriesView);&#10;        String city = person.getCity();&#10;        String country = citiesToCountries.get(city);&#10;&#10;        out.output(new Person(person.getName(), city, country));&#10;      }&#10;&#10;    }).withSideInputs(citiesToCountriesView))" />
@@ -1311,7 +1311,7 @@
                             <option name="name" value="Side Output" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/sideoutput/Task.java">
@@ -1327,7 +1327,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2222" />
+                                            <option name="offset" value="2253" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="numbers.apply(ParDo.of(new DoFn&lt;Integer, Integer&gt;() {&#10;&#10;      @ProcessElement&#10;      public void processElement(@Element Integer number, MultiOutputReceiver out) {&#10;        if (number &lt;= 100) {&#10;          out.get(numBelow100Tag).output(number);&#10;        } else {&#10;          out.get(numAbove100Tag).output(number);&#10;        }&#10;      }&#10;&#10;    }).withOutputTags(numBelow100Tag, TupleTagList.of(numAbove100Tag)))" />
@@ -1394,7 +1394,7 @@
                             <option name="name" value="Branching" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/branching/Task.java">
@@ -1410,7 +1410,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1963" />
+                                            <option name="offset" value="1994" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(&quot;Multiply by 5&quot;, MapElements.into(integers()).via(num -&gt; num * 5))" />
@@ -1427,7 +1427,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2144" />
+                                            <option name="offset" value="2175" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(&quot;Multiply by 10&quot;, MapElements.into(integers()).via(num -&gt; num * 10))" />
@@ -1494,7 +1494,7 @@
                             <option name="name" value="Composite Transform" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/composite/Task.java">
@@ -1510,10 +1510,10 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1989" />
+                                            <option name="offset" value="1929" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
-                                            <option name="possibleAnswer" value="input&#10;          .apply(ParDo.of(new DoFn&lt;String, Integer&gt;() {&#10;&#10;            @ProcessElement&#10;            public void processElement(@Element String numbers, OutputReceiver&lt;Integer&gt; out) {&#10;              Arrays.stream(numbers.split(&quot;,&quot;))&#10;                  .forEach(numStr -&gt; out.output(Integer.parseInt(numStr)));&#10;            }&#10;&#10;          }))&#10;&#10;          .apply(MapElements.into(integers()).via(number -&gt; number * 10))" />
+                                            <option name="possibleAnswer" value="@Override&#10;    public PCollection&lt;Integer&gt; expand(PCollection&lt;String&gt; input) {&#10;      return input&#10;          .apply(ParDo.of(new DoFn&lt;String, Integer&gt;() {&#10;&#10;            @ProcessElement&#10;            public void processElement(@Element String numbers, OutputReceiver&lt;Integer&gt; out) {&#10;              Arrays.stream(numbers.split(&quot;,&quot;))&#10;                  .forEach(numStr -&gt; out.output(Integer.parseInt(numStr)));&#10;            }&#10;&#10;          }))&#10;&#10;          .apply(MapElements.into(integers()).via(number -&gt; number * 10));&#10;    }" />
                                             <option name="selected" value="false" />
                                             <option name="status" value="Unchecked" />
                                             <option name="studentAnswer" />
@@ -1591,7 +1591,7 @@
                             <option name="name" value="ParDo" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/commontransforms/filter/pardo/Task.java">
@@ -1607,7 +1607,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1721" />
+                                            <option name="offset" value="1752" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(ParDo.of(&#10;        new DoFn&lt;Integer, Integer&gt;() {&#10;&#10;          @ProcessElement&#10;          public void processElement(@Element Integer number, OutputReceiver&lt;Integer&gt; out) {&#10;            if (number % 2 == 1) {&#10;              out.output(number);&#10;            }&#10;          }&#10;        })&#10;    )" />
@@ -1661,7 +1661,7 @@
                             <option name="name" value="Filter" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/commontransforms/filter/filter/Task.java">
@@ -1677,7 +1677,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1687" />
+                                            <option name="offset" value="1718" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Filter.by(number -&gt; number % 2 == 0))" />
@@ -1744,7 +1744,7 @@
                             <option name="name" value="Count" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/commontransforms/aggregation/count/Task.java">
@@ -1760,7 +1760,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1676" />
+                                            <option name="offset" value="1707" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Count.globally())" />
@@ -1814,7 +1814,7 @@
                             <option name="name" value="Sum" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/commontransforms/aggregation/sum/Task.java">
@@ -1830,7 +1830,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1678" />
+                                            <option name="offset" value="1709" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Sum.integersGlobally())" />
@@ -1884,7 +1884,7 @@
                             <option name="name" value="Mean" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/commontransforms/aggregation/mean/Task.java">
@@ -1900,7 +1900,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1678" />
+                                            <option name="offset" value="1709" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Mean.globally())" />
@@ -1954,7 +1954,7 @@
                             <option name="name" value="Min" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/commontransforms/aggregation/min/Task.java">
@@ -1970,7 +1970,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1678" />
+                                            <option name="offset" value="1709" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Min.integersGlobally())" />
@@ -2024,7 +2024,7 @@
                             <option name="name" value="Max" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/commontransforms/aggregation/max/Task.java">
@@ -2040,7 +2040,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1678" />
+                                            <option name="offset" value="1709" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Max.integersGlobally())" />
@@ -2121,7 +2121,7 @@
                             <option name="name" value="TextIO Read" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="countries.txt">
@@ -2152,7 +2152,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1579" />
+                                            <option name="offset" value="1610" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="TextIO.read().from(FILE_PATH)" />
@@ -2169,7 +2169,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1819" />
+                                            <option name="offset" value="1850" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(MapElements.into(strings()).via(String::toUpperCase))" />
@@ -2331,7 +2331,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2218" />
+                                            <option name="offset" value="2249" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="events.apply(ParDo.of(new DoFn&lt;Event, Event&gt;() {&#10;&#10;      @ProcessElement&#10;      public void processElement(@Element Event event, OutputReceiver&lt;Event&gt; out) {&#10;        out.outputWithTimestamp(event, event.getDate().toInstant());&#10;      }&#10;&#10;    }))" />
@@ -2416,7 +2416,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2192" />
+                                            <option name="offset" value="2223" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="events.apply(WithTimestamps.of(event -&gt; event.getDate().toInstant()))" />
@@ -2499,7 +2499,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2875" />
+                                            <option name="offset" value="2906" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="events&#10;        .apply(Window.into(FixedWindows.of(Duration.standardDays(1))))&#10;        .apply(Count.perElement())" />
@@ -2595,7 +2595,7 @@
                             <option name="name" value="Word Count" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/examples/wordcount/Task.java">
@@ -2611,7 +2611,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2044" />
+                                            <option name="offset" value="2075" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input&#10;&#10;        .apply(FlatMapElements.into(TypeDescriptors.strings())&#10;            .via(line -&gt; Arrays.asList(line.split(&quot; &quot;))))&#10;&#10;        .apply(Count.perElement())&#10;&#10;        .apply(ParDo.of(new DoFn&lt;KV&lt;String, Long&gt;, String&gt;() {&#10;&#10;          @ProcessElement&#10;          public void processElement(&#10;              @Element KV&lt;String, Long&gt; element, OutputReceiver&lt;String&gt; out) {&#10;&#10;            out.output(element.getKey() + &quot;:&quot; + element.getValue());&#10;          }&#10;&#10;        }))" />
