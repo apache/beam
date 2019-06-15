@@ -1096,17 +1096,26 @@ class BeamModulePlugin implements Plugin<Project> {
                 def generateDependenciesFromConfiguration = { param ->
                   project.configurations."${param.configuration}".allDependencies.each {
                     def dependencyNode = dependenciesNode.appendNode('dependency')
+                    def appendClassifier = { dep ->
+                      dep.artifacts.each { art ->
+                        if (art.hasProperty('classifier')) {
+                          dependencyNode.appendNode('classifier', art.classifier)
+                        }
+                      }
+                    }
 
                     if (it instanceof ProjectDependency) {
                       dependencyNode.appendNode('groupId', it.getDependencyProject().mavenGroupId)
                       dependencyNode.appendNode('artifactId', archivesBaseName(it.getDependencyProject()))
                       dependencyNode.appendNode('version', it.version)
                       dependencyNode.appendNode('scope', param.scope)
+                      appendClassifier(it)
                     } else {
                       dependencyNode.appendNode('groupId', it.group)
                       dependencyNode.appendNode('artifactId', it.name)
                       dependencyNode.appendNode('version', it.version)
                       dependencyNode.appendNode('scope', param.scope)
+                      appendClassifier(it)
                     }
 
                     // Start with any exclusions that were added via configuration exclude rules.
