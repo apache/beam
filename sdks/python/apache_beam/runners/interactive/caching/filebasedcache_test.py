@@ -49,13 +49,19 @@ class FileBasedCacheTest(unittest.TestCase):
     with open(filename, "wb") as fout:
       fout.write(b"dummy data")
 
-  def test_overwrite_empty_cache(self):
+  def test_init(self):
     _ = self._cache_class(self.location)
 
     try:
       _ = self._cache_class(self.location)
     except OSError:
       self.fail("Encountered an OSError when overwriting an empty cache.")
+
+    with self.assertRaises(ValueError):
+      _ = self._cache_class(self.location, if_exists=None)
+
+    with self.assertRaises(ValueError):
+      _ = self._cache_class(self.location, if_exists="be happy")
 
   def test_overwrite_filled_cache(self):
     cache = self._cache_class(self.location)
