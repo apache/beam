@@ -173,8 +173,8 @@ python_requires = '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*'
 
 if sys.version_info[0] == 3:
   warnings.warn(
-      'Python 3 support for the Apache Beam SDK is not yet fully supported. '
-      'You may encounter buggy behavior or missing features.')
+      'Some syntactic constructs of Python 3 are not yet fully supported by '
+      'Apache Beam.')
 
 setuptools.setup(
     name=PACKAGE_NAME,
@@ -218,6 +218,8 @@ setuptools.setup(
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
