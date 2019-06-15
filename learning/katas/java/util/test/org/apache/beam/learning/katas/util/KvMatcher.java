@@ -16,7 +16,7 @@
  *  limitations under the License.
  */
 
-package test.util;
+package org.apache.beam.learning.katas.util;
 
 import org.apache.beam.sdk.values.KV;
 import org.hamcrest.Description;

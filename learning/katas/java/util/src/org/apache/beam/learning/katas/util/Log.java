@@ -16,7 +16,7 @@
  *  limitations under the License.
  */
 
-package util;
+package org.apache.beam.learning.katas.util;
 
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
