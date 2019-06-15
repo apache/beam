@@ -67,12 +67,14 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -356,6 +358,17 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     if (keyCoder != null) {
       keyedStateInternals =
           new FlinkStateInternals<>((KeyedStateBackend) getKeyedStateBackend(), keyCoder);
+
+      if (doFn != null) {
+        DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
+        FlinkStateInternals.EarlyBinder earlyBinder =
+            new FlinkStateInternals.EarlyBinder(getKeyedStateBackend());
+        for (DoFnSignature.StateDeclaration value : signature.stateDeclarations().values()) {
+          StateSpec<?> spec =
+              (StateSpec<?>) signature.stateDeclarations().get(value.id()).field().get(doFn);
+          spec.bind(value.id(), earlyBinder);
+        }
+      }
 
       if (timerService == null) {
         timerService =

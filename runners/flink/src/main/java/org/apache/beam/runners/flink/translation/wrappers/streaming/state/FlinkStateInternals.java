@@ -60,6 +60,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
@@ -1231,6 +1232,123 @@ public class FlinkStateInternals<K> implements StateInternals {
         flinkStateBackend.setCurrentKey(iterator.next());
         mapState.entries().forEach(entry -> watermarkHolds.put(entry.getKey(), entry.getValue()));
       }
+    }
+  }
+
+  /** Eagerly create user state to work around https://jira.apache.org/jira/browse/FLINK-12653. */
+  public static class EarlyBinder implements StateBinder {
+
+    private final KeyedStateBackend keyedStateBackend;
+
+    public EarlyBinder(KeyedStateBackend keyedStateBackend) {
+      this.keyedStateBackend = keyedStateBackend;
+    }
+
+    @Override
+    public <T> ValueState<T> bindValue(String id, StateSpec<ValueState<T>> spec, Coder<T> coder) {
+      try {
+        keyedStateBackend.getOrCreateKeyedState(
+            StringSerializer.INSTANCE,
+            new ValueStateDescriptor<>(id, new CoderTypeSerializer<>(coder)));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+
+      return null;
+    }
+
+    @Override
+    public <T> BagState<T> bindBag(String id, StateSpec<BagState<T>> spec, Coder<T> elemCoder) {
+      try {
+        keyedStateBackend.getOrCreateKeyedState(
+            StringSerializer.INSTANCE,
+            new ListStateDescriptor<>(id, new CoderTypeSerializer<>(elemCoder)));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+
+      return null;
+    }
+
+    @Override
+    public <T> SetState<T> bindSet(String id, StateSpec<SetState<T>> spec, Coder<T> elemCoder) {
+      try {
+        keyedStateBackend.getOrCreateKeyedState(
+            StringSerializer.INSTANCE,
+            new MapStateDescriptor<>(
+                id, new CoderTypeSerializer<>(elemCoder), VoidSerializer.INSTANCE));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+      return null;
+    }
+
+    @Override
+    public <KeyT, ValueT> org.apache.beam.sdk.state.MapState<KeyT, ValueT> bindMap(
+        String id,
+        StateSpec<org.apache.beam.sdk.state.MapState<KeyT, ValueT>> spec,
+        Coder<KeyT> mapKeyCoder,
+        Coder<ValueT> mapValueCoder) {
+      try {
+        keyedStateBackend.getOrCreateKeyedState(
+            StringSerializer.INSTANCE,
+            new MapStateDescriptor<>(
+                id,
+                new CoderTypeSerializer<>(mapKeyCoder),
+                new CoderTypeSerializer<>(mapValueCoder)));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+      return null;
+    }
+
+    @Override
+    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT> bindCombining(
+        String id,
+        StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
+        Coder<AccumT> accumCoder,
+        Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
+      try {
+        keyedStateBackend.getOrCreateKeyedState(
+            StringSerializer.INSTANCE,
+            new ValueStateDescriptor<>(id, new CoderTypeSerializer<>(accumCoder)));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+      return null;
+    }
+
+    @Override
+    public <InputT, AccumT, OutputT>
+        CombiningState<InputT, AccumT, OutputT> bindCombiningWithContext(
+            String id,
+            StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
+            Coder<AccumT> accumCoder,
+            CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
+      try {
+        keyedStateBackend.getOrCreateKeyedState(
+            StringSerializer.INSTANCE,
+            new ValueStateDescriptor<>(id, new CoderTypeSerializer<>(accumCoder)));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+      return null;
+    }
+
+    @Override
+    public WatermarkHoldState bindWatermark(
+        String id, StateSpec<WatermarkHoldState> spec, TimestampCombiner timestampCombiner) {
+      try {
+        keyedStateBackend.getOrCreateKeyedState(
+            VoidNamespaceSerializer.INSTANCE,
+            new MapStateDescriptor<>(
+                "watermark-holds",
+                StringSerializer.INSTANCE,
+                new CoderTypeSerializer<>(InstantCoder.of())));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+      return null;
     }
   }
 }
