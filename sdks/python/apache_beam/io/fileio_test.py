@@ -449,7 +449,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
         # TODO(BEAM-3759): Add many firings per window after getting PaneInfo.
         ts.advance_processing_time(5)
         ts.advance_watermark_to(timestamp)
-        
+
     def no_colon_file_naming(*args):
       file_name = fileio.destination_prefix_naming()(*args)
       return file_name.replace(':', '_')
