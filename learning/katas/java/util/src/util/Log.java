@@ -21,6 +21,8 @@ package util;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,8 +59,16 @@ public class Log {
       return input.apply(ParDo.of(new DoFn<T, T>() {
 
         @ProcessElement
-        public void processElement(@Element T element, OutputReceiver<T> out) {
-          LOGGER.info(prefix + element.toString());
+        public void processElement(@Element T element, OutputReceiver<T> out,
+            BoundedWindow window) {
+
+          String message = prefix + element.toString();
+
+          if (!(window instanceof GlobalWindow)) {
+            message = message + "  Window:" + window.toString();
+          }
+
+          LOGGER.info(message);
 
           out.output(element);
         }
