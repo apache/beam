@@ -512,7 +512,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
     if (isinstance(custom_gcs_temp_location, str)
         or custom_gcs_temp_location is None):
       self._custom_gcs_temp_location = vp.StaticValueProvider(
-          str, custom_gcs_temp_location)
+          str, custom_gcs_temp_location or '')
     elif isinstance(custom_gcs_temp_location, vp.ValueProvider):
       self._custom_gcs_temp_location = custom_gcs_temp_location
     else:
