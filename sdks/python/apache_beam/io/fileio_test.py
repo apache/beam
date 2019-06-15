@@ -437,7 +437,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
     # streaming mode.
     WriteFilesTest.all_records = []
 
-    dir = self._new_tempdir()
+    dir = '%s%s' % (self._new_tempdir(), os.sep)
 
     # Setting up the input (TestStream)
     ts = TestStream().advance_watermark_to(0)
@@ -505,6 +505,10 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
           .add_elements([next(input), next(input)])
           .advance_watermark_to(40))
 
+    def no_colon_file_naming(*args):
+      file_name = fileio.destination_prefix_naming()(*args)
+      return file_name.replace(':', '_')
+
     with TestPipeline() as p:
       _ = (p
            | ts
@@ -515,7 +519,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
                sink=lambda dest: (
                    WriteFilesTest.CsvSink(WriteFilesTest.CSV_HEADERS)
                    if dest == 'apache' else WriteFilesTest.JsonSink()),
-               file_naming=fileio.destination_prefix_naming(),
+               file_naming=no_colon_file_naming,
                max_writers_per_bundle=0,
            ))
 
@@ -534,25 +538,25 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
                       stringmatches.matches_regexp(
                           FileSystems.join(
                               dir,
-                              'cncf-1970-01-01T00:00:00-1970-01-01T00:00:10--.*'
+                              'cncf-1970-01-01T00_00_00-1970-01-01T00_00_10--.*'
                           )
                       ),
                       stringmatches.matches_regexp(
                           FileSystems.join(
                               dir,
-                              'cncf-1970-01-01T00:00:10-1970-01-01T00:00:20--.*'
+                              'cncf-1970-01-01T00_00_10-1970-01-01T00_00_20--.*'
                           )
                       ),
                       stringmatches.matches_regexp(
                           FileSystems.join(
                               dir,
-                              'cncf-1970-01-01T00:00:20-1970-01-01T00:00:30--.*'
+                              'cncf-1970-01-01T00_00_20-1970-01-01T00_00_30--.*'
                           )
                       ),
                       stringmatches.matches_regexp(
                           FileSystems.join(
                               dir,
-                              'cncf-1970-01-01T00:00:30-1970-01-01T00:00:40--.*'
+                              'cncf-1970-01-01T00_00_30-1970-01-01T00_00_40--.*'
                           )
                       )
                   ]),
@@ -562,19 +566,19 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
                   matches_all([
                       stringmatches.matches_regexp(FileSystems.join(
                           dir,
-                          'apache-1970-01-01T00:00:00-1970-01-01T00:00:10--.*')
+                          'apache-1970-01-01T00_00_00-1970-01-01T00_00_10--.*')
                                                   ),
                       stringmatches.matches_regexp(FileSystems.join(
                           dir,
-                          'apache-1970-01-01T00:00:10-1970-01-01T00:00:20--.*')
+                          'apache-1970-01-01T00_00_10-1970-01-01T00_00_20--.*')
                                                   ),
                       stringmatches.matches_regexp(FileSystems.join(
                           dir,
-                          'apache-1970-01-01T00:00:20-1970-01-01T00:00:30--.*')
+                          'apache-1970-01-01T00_00_20-1970-01-01T00_00_30--.*')
                                                   ),
                       stringmatches.matches_regexp(FileSystems.join(
                           dir,
-                          'apache-1970-01-01T00:00:30-1970-01-01T00:00:40--.*')
+                          'apache-1970-01-01T00_00_30-1970-01-01T00_00_40--.*')
                                                   )
                   ]),
                   label='verifyApacheFiles')
