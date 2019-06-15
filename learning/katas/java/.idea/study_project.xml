@@ -2267,8 +2267,120 @@
               <Section>
                 <option name="courseId" value="54530" />
                 <option name="customPresentableName" />
-                <option name="id" value="85642" />
+                <option name="id" value="0" />
                 <option name="index" value="5" />
+                <option name="name" value="Windowing" />
+                <option name="position" value="0" />
+                <option name="stepikChangeStatus" value="Content changed" />
+                <option name="updateDate" value="0" />
+                <option name="items">
+                  <list>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="0" />
+                      <option name="index" value="1" />
+                      <option name="name" value="Adding Timestamp" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" value="0" />
+                      <option name="unitId" value="0" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~ Licensed to the Apache Software Foundation (ASF) under one&#10;  ~ or more contributor license agreements.  See the NOTICE file&#10;  ~ distributed with this work for additional information&#10;  ~ regarding copyright ownership.  The ASF licenses this file&#10;  ~ to you under the Apache License, Version 2.0 (the&#10;  ~ &quot;License&quot;); you may not use this file except in compliance&#10;  ~ with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~     http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~ Unless required by applicable law or agreed to in writing, software&#10;  ~ distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~ See the License for the specific language governing permissions and&#10;  ~ limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Adding Timestamp - ParDo&lt;/h2&gt;&#10;&lt;p&gt;&#10;  Bounded sources (such as a file from TextIO) do not provide timestamps for elements. If you need&#10;  timestamps, you must add them to your PCollection’s elements.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  You can assign new timestamps to the elements of a PCollection by applying a ParDo transform that&#10;  outputs new elements with timestamps that you set.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ParDo.html&quot;&gt;&#10;  ParDo&lt;/a&gt;&#10;  with &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.html&quot;&gt;&#10;  DoFn&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.OutputReceiver.html#outputWithTimestamp-T-org.joda.time.Instant-&quot;&gt;&#10;  OutputReceiver.outputWithTimestamp&lt;/a&gt; method to assign timestamp to the element.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Refer to the Beam Programming Guide&#10;  &lt;a href=&quot;https://beam.apache.org/documentation/programming-guide/#adding-timestamps-to-a-pcollections-elements&quot;&gt;&#10;    &quot;Adding timestamps to a PCollection’s elements&quot;&lt;/a&gt; section for more information.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="1" />
+                            <option name="name" value="ParDo" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/org/apache/beam/learning/katas/windowing/addingtimestamp/pardo/Event.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/windowing/addingtimestamp/pardo/Event.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="src/org/apache/beam/learning/katas/windowing/addingtimestamp/pardo/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="2218" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="events.apply(ParDo.of(new DoFn&lt;Event, Event&gt;() {&#10;&#10;      @ProcessElement&#10;      public void processElement(@Element Event event, OutputReceiver&lt;Event&gt; out) {&#10;        out.outputWithTimestamp(event, event.getDate().toInstant());&#10;      }&#10;&#10;    }))" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/windowing/addingtimestamp/pardo/Task.java" />
+                                      <option name="text" value="public class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/org/apache/beam/learning/katas/windowing/addingtimestamp/pardo/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/windowing/addingtimestamp/pardo/TaskTest.java" />
+                                      <option name="text" value="import org.junit.Assert;&#10;import org.junit.Test;&#10;&#10;public class Tests {&#10;  @Test&#10;  public void testSolution() {&#10;    // put your test here&#10;    Assert.fail(&quot;Tests not implemented for the task&quot;);&#10;  }&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="0" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                  </list>
+                </option>
+              </Section>
+              <Section>
+                <option name="courseId" value="54530" />
+                <option name="customPresentableName" />
+                <option name="id" value="85642" />
+                <option name="index" value="6" />
                 <option name="name" value="Examples" />
                 <option name="position" value="0" />
                 <option name="stepikChangeStatus" value="Content changed" />
