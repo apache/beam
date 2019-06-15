@@ -473,7 +473,7 @@ atomized in instants hammered around the
     # because default read_size is 16MiB, and the ReadFromText
     # interface does not allow you to modify the read_size.
     import random
-    import signal
+    import threading
     from six import int2byte
     num_test_lines = 10
     timeout = 30
@@ -514,25 +514,25 @@ atomized in instants hammered around the
     # different error, in the Beam 2.13 and earlier implementation.
     # So it's not strictly necessary to have this handler in this unit test.
 
-    def alarm_handler(signum, frame):
-      self.fail('Timed out reading compressed file.')
+    def timeout_handler():
       raise IOError('Exiting due to likley infinite loop logic in code.')
 
-    old_handler = signal.signal(signal.SIGALRM, alarm_handler)
+    timer = threading.Timer(timeout, timeout_handler)
     try:
       test_lines = tuple(generate_random_line() for i in range(num_test_lines))
       for compression_type in [CompressionTypes.BZIP2, CompressionTypes.GZIP]:
         file_name = create_test_file(compression_type, test_lines)
-        signal.alarm(timeout)
+        timer.start()
         with open(file_name, 'rb') as f:
           data = CompressedFile(f, compression_type, read_size=read_size)
           for written_line in test_lines:
             read_line = data.readline()
             self.assertEqual(written_line, read_line)
-        signal.alarm(0)
+        timer.cancel()
+        # Starting a new timer for the next iteration/test.
+        timer = threading.Timer(timeout, timeout_handler)
     finally:
-      signal.alarm(0)
-      signal.signal(signal.SIGALRM, old_handler)
+      timer.cancel()
 
 
 if __name__ == '__main__':
