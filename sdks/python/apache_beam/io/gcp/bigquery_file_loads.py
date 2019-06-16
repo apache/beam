@@ -65,7 +65,7 @@ def _generate_load_job_name():
   return 'beam_load_%s_%s' % (datetime_component, random.randint(0, 100))
 
 
-def file_prefix_generator(with_validation=True, 
+def file_prefix_generator(with_validation=True,
                           pipeline_gcs_location=None,
                           temp_location=None):
   def _generate_file_prefix(unused_elm):
