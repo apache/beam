@@ -1552,6 +1552,71 @@
                         </list>
                       </option>
                     </Lesson>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="0" />
+                      <option name="index" value="11" />
+                      <option name="name" value="DoFn Additional Parameters" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" value="0" />
+                      <option name="unitId" value="0" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~ Licensed to the Apache Software Foundation (ASF) under one&#10;  ~ or more contributor license agreements.  See the NOTICE file&#10;  ~ distributed with this work for additional information&#10;  ~ regarding copyright ownership.  The ASF licenses this file&#10;  ~ to you under the Apache License, Version 2.0 (the&#10;  ~ &quot;License&quot;); you may not use this file except in compliance&#10;  ~ with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~     http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~ Unless required by applicable law or agreed to in writing, software&#10;  ~ distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~ See the License for the specific language governing permissions and&#10;  ~ limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;DoFn Additional Parameters&lt;/h2&gt;&#10;&lt;p&gt;&#10;  In addition to the element and the OutputReceiver, Beam will populate other parameters to your&#10;  DoFn’s @ProcessElement method. Any combination of these parameters can be added to your process&#10;  method in any order.&#10;&lt;/p&gt;&#10;&lt;div&gt;&#10;  &lt;ul&gt;&#10;    &lt;li&gt;&#10;      &lt;b&gt;Timestamp&lt;/b&gt;: To access the timestamp of an input element, add a parameter annotated with&#10;      @Timestamp of type Instant&#10;    &lt;/li&gt;&#10;    &lt;li&gt;&#10;      &lt;b&gt;Window&lt;/b&gt;: To access the window an input element falls into, add a parameter of the type of the&#10;      window used for the input PCollection.&#10;    &lt;/li&gt;&#10;    &lt;li&gt;&#10;      &lt;b&gt;PaneInfo&lt;/b&gt;: When triggers are used, Beam provides a PaneInfo object that contains information&#10;      about the current firing. Using PaneInfo you can determine whether this is an early or a&#10;      late firing, and how many times this window has already fired for this key.&#10;    &lt;/li&gt;&#10;    &lt;li&gt;&#10;      &lt;b&gt;PipelineOptions&lt;/b&gt;: The PipelineOptions for the current pipeline can always be accessed in a&#10;      process method by adding it as a parameter.&#10;    &lt;/li&gt;&#10;  &lt;/ul&gt;&#10;&lt;/div&gt;&#10;&lt;p&gt;&#10;  Refer to the Beam Programming Guide&#10;  &lt;a href=&quot;https://beam.apache.org/documentation/programming-guide/#other-dofn-parameters&quot;&gt;&#10;    &quot;Accessing additional parameters in your DoFn&quot;&lt;/a&gt; section for more information.&#10;&lt;/p&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="1" />
+                            <option name="name" value="DoFn Additional Parameters" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/org/apache/beam/learning/katas/coretransforms/dofnadditionalparams/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/coretransforms/dofnadditionalparams/Task.java" />
+                                      <option name="text" value="public class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/org/apache/beam/learning/katas/coretransforms/dofnadditionalparams/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/coretransforms/dofnadditionalparams/TaskTest.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="0" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
                   </list>
                 </option>
               </Section>
