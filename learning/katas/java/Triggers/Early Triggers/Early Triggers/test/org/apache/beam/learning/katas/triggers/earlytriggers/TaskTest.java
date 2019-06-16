@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+package org.apache.beam.learning.katas.triggers.earlytriggers;
+
 import java.io.Serializable;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.testing.PAssert;
@@ -55,9 +57,9 @@ public class TaskTest implements Serializable {
 
     PAssert.that(results)
         .inEarlyPane(new IntervalWindow(Instant.EPOCH, Instant.parse("1970-01-02T00:00:00+00:00")))
-        .containsInAnyOrder(1L, 5L)
+        .containsInAnyOrder(1L, 4L)
         .inFinalPane(new IntervalWindow(Instant.EPOCH, Instant.parse("1970-01-02T00:00:00+00:00")))
-        .containsInAnyOrder(7L);
+        .containsInAnyOrder(2L);
 
     testPipeline.run().waitUntilFinish();
   }
