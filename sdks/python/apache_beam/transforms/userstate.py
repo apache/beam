@@ -60,21 +60,6 @@ class BagStateSpec(StateSpec):
             element_coder_id=context.coders.get_id(self.coder)))
 
 
-class ValueStateSpec(StateSpec):
-  """Specification for a user DoFn bag state cell."""
-
-  def __init__(self, name, coder):
-    assert isinstance(name, str)
-    assert isinstance(coder, Coder)
-    self.name = name
-    self.coder = coder
-
-  def to_runner_api(self, context):
-    return beam_runner_api_pb2.StateSpec(
-        bag_spec=beam_runner_api_pb2.ValueStateSpec(
-            element_coder_id=context.coders.get_id(self.coder)))
-
-
 class CombiningValueStateSpec(StateSpec):
   """Specification for a user DoFn combining value state cell."""
 

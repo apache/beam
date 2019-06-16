@@ -53,7 +53,7 @@ from apache_beam.transforms.trigger import AfterCount
 from apache_beam.transforms.window import NonMergingWindowFn
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
-from apache_beam.transforms.userstate import BagStateSpec, ValueStateSpec, CombiningValueStateSpec, TimerSpec
+from apache_beam.transforms.userstate import BagStateSpec, CombiningValueStateSpec, TimerSpec
 from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
