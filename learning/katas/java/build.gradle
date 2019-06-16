@@ -22,6 +22,7 @@ buildscript {
     guavaVersion = '27.1-jre'
     jodaTimeVersion = '2.10.2'
     slf4jVersion = '1.7.26'
+    log4jSlf4jImpl = '2.11.2'
 
     assertjVersion = '3.12.2'
     hamcrestVersion = '1.3'
@@ -57,7 +58,7 @@ subprojects {
 
     compile "joda-time:joda-time:$jodaTimeVersion"
     compile "org.slf4j:slf4j-api:$slf4jVersion"
-    compile "org.slf4j:slf4j-jdk14:$slf4jVersion"
+    compile "org.apache.logging.log4j:log4j-slf4j-impl:$log4jSlf4jImpl"
     compile "com.google.guava:guava:$guavaVersion"
 
     testCompile "junit:junit:$junitVersion"
@@ -69,6 +70,7 @@ subprojects {
   sourceSets {
     main {
       java.srcDir 'src'
+      resources.srcDir 'resources'
     }
     test {
       java.srcDir 'test'
