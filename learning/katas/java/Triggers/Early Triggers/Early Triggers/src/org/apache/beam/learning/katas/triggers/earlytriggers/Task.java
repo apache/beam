@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+package org.apache.beam.learning.katas.triggers.earlytriggers;
+
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -51,10 +53,10 @@ public class Task {
             Window.<String>into(FixedWindows.of(Duration.standardDays(1)))
                 .triggering(
                     AfterWatermark.pastEndOfWindow()
-                        .withEarlyFirings(
-                            AfterProcessingTime.pastFirstElementInPane()))
+                    .withEarlyFirings(
+                        AfterProcessingTime.pastFirstElementInPane()))
                 .withAllowedLateness(Duration.ZERO)
-                .accumulatingFiredPanes())
+                .discardingFiredPanes())
 
         .apply(Combine.globally(Count.<String>combineFn()).withoutDefaults());
   }

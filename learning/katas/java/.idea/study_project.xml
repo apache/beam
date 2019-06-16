@@ -2859,69 +2859,6 @@
                             <option name="stepikChangeStatus" value="Up to date" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
-                                  <value>
-                                    <TaskFile>
-                                      <option name="answerPlaceholders">
-                                        <list>
-                                          <AnswerPlaceholder>
-                                            <option name="hints">
-                                              <list />
-                                            </option>
-                                            <option name="index" value="0" />
-                                            <option name="initialState" />
-                                            <option name="initializedFromDependency" value="false" />
-                                            <option name="length" value="6" />
-                                            <option name="offset" value="1906" />
-                                            <option name="placeholderDependency" />
-                                            <option name="placeholderText" value="TODO()" />
-                                            <option name="possibleAnswer" value="events&#10;        .apply(&#10;            Window.&lt;String&gt;into(FixedWindows.of(Duration.standardDays(1)))&#10;                .triggering(&#10;                    AfterWatermark.pastEndOfWindow()&#10;                    .withEarlyFirings(&#10;                        AfterProcessingTime.pastFirstElementInPane()))&#10;                .withAllowedLateness(Duration.ZERO)&#10;                .discardingFiredPanes())&#10;&#10;        .apply(Combine.globally(Count.&lt;String&gt;combineFn()).withoutDefaults())" />
-                                            <option name="selected" value="false" />
-                                            <option name="status" value="Unchecked" />
-                                            <option name="studentAnswer" />
-                                            <option name="useLength" value="false" />
-                                          </AnswerPlaceholder>
-                                        </list>
-                                      </option>
-                                      <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
-                                      <option name="text" value="public class Task {&#10;  //put your task here&#10;}" />
-                                      <option name="trackChanges" value="true" />
-                                      <option name="trackLengths" value="true" />
-                                      <option name="visible" value="true" />
-                                    </TaskFile>
-                                  </value>
-                                </entry>
-                                <entry key="src/GenerateEvent.java">
-                                  <value>
-                                    <TaskFile>
-                                      <option name="answerPlaceholders">
-                                        <list />
-                                      </option>
-                                      <option name="highlightErrors" value="false" />
-                                      <option name="name" value="src/GenerateEvent.java" />
-                                      <option name="text" value="" />
-                                      <option name="trackChanges" value="true" />
-                                      <option name="trackLengths" value="true" />
-                                      <option name="visible" value="true" />
-                                    </TaskFile>
-                                  </value>
-                                </entry>
-                                <entry key="test/TaskTest.java">
-                                  <value>
-                                    <TaskFile>
-                                      <option name="answerPlaceholders">
-                                        <list />
-                                      </option>
-                                      <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
-                                      <option name="text" value="import org.junit.Assert;&#10;import org.junit.Test;&#10;&#10;public class Tests {&#10;  @Test&#10;  public void testSolution() {&#10;    // put your test here&#10;    Assert.fail(&quot;Tests not implemented for the task&quot;);&#10;  }&#10;}" />
-                                      <option name="trackChanges" value="true" />
-                                      <option name="trackLengths" value="true" />
-                                      <option name="visible" value="false" />
-                                    </TaskFile>
-                                  </value>
-                                </entry>
                                 <entry key="resources/log4j2.xml">
                                   <value>
                                     <TaskFile>
@@ -2934,6 +2871,69 @@
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
                                       <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="src/org/apache/beam/learning/katas/triggers/earlytriggers/GenerateEvent.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/triggers/earlytriggers/GenerateEvent.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="src/org/apache/beam/learning/katas/triggers/earlytriggers/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1970" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="events&#10;        .apply(&#10;            Window.&lt;String&gt;into(FixedWindows.of(Duration.standardDays(1)))&#10;                .triggering(&#10;                    AfterWatermark.pastEndOfWindow()&#10;                    .withEarlyFirings(&#10;                        AfterProcessingTime.pastFirstElementInPane()))&#10;                .withAllowedLateness(Duration.ZERO)&#10;                .discardingFiredPanes())&#10;&#10;        .apply(Combine.globally(Count.&lt;String&gt;combineFn()).withoutDefaults())" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/triggers/earlytriggers/Task.java" />
+                                      <option name="text" value="public class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/org/apache/beam/learning/katas/triggers/earlytriggers/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/triggers/earlytriggers/TaskTest.java" />
+                                      <option name="text" value="import org.junit.Assert;&#10;import org.junit.Test;&#10;&#10;public class Tests {&#10;  @Test&#10;  public void testSolution() {&#10;    // put your test here&#10;    Assert.fail(&quot;Tests not implemented for the task&quot;);&#10;  }&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
                                     </TaskFile>
                                   </value>
                                 </entry>
@@ -2972,7 +2972,22 @@
                             <option name="stepikChangeStatus" value="Up to date" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/triggers/windowaccummode/GenerateEvent.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/triggers/windowaccummode/GenerateEvent.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="src/org/apache/beam/learning/katas/triggers/windowaccummode/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
@@ -2985,7 +3000,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1906" />
+                                            <option name="offset" value="1972" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="events&#10;        .apply(&#10;            Window.&lt;String&gt;into(FixedWindows.of(Duration.standardDays(1)))&#10;                .triggering(&#10;                    AfterWatermark.pastEndOfWindow()&#10;                        .withEarlyFirings(&#10;                            AfterProcessingTime.pastFirstElementInPane()))&#10;                .withAllowedLateness(Duration.ZERO)&#10;                .accumulatingFiredPanes())&#10;&#10;        .apply(Combine.globally(Count.&lt;String&gt;combineFn()).withoutDefaults())" />
@@ -2997,7 +3012,7 @@
                                         </list>
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/triggers/windowaccummode/Task.java" />
                                       <option name="text" value="public class Task {&#10;  //put your task here&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -3005,29 +3020,14 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
-                                <entry key="src/GenerateEvent.java">
-                                  <value>
-                                    <TaskFile>
-                                      <option name="answerPlaceholders">
-                                        <list />
-                                      </option>
-                                      <option name="highlightErrors" value="false" />
-                                      <option name="name" value="src/GenerateEvent.java" />
-                                      <option name="text" value="" />
-                                      <option name="trackChanges" value="true" />
-                                      <option name="trackLengths" value="true" />
-                                      <option name="visible" value="true" />
-                                    </TaskFile>
-                                  </value>
-                                </entry>
-                                <entry key="test/TaskTest.java">
+                                <entry key="test/org/apache/beam/learning/katas/triggers/windowaccummode/TaskTest.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/triggers/windowaccummode/TaskTest.java" />
                                       <option name="text" value="import org.junit.Assert;&#10;import org.junit.Test;&#10;&#10;public class Tests {&#10;  @Test&#10;  public void testSolution() {&#10;    // put your test here&#10;    Assert.fail(&quot;Tests not implemented for the task&quot;);&#10;  }&#10;}" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />

@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+package org.apache.beam.learning.katas.triggers.earlytriggers;
+
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 
 import org.apache.beam.sdk.io.GenerateSequence;
