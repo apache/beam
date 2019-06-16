@@ -25,7 +25,6 @@ import collections
 import contextlib
 import random
 import time
-import sys
 from builtins import object
 from builtins import range
 from builtins import zip
@@ -638,14 +637,14 @@ class ReshufflePerKey(PTransform):
 @typehints.with_output_types(T)
 class Reshuffle(PTransform):
   """PTransform that returns a PCollection equivalent to its input,
-  but operationally provides Countsome of the side effects of a GroupByKey,
+  but operationally provides some of the side effects of a GroupByKey,
   in particular preventing fusion of the surrounding transforms,
   checkpointing, and deduplication by id.
 
   Reshuffle adds a temporary random key to each element, performs a
   ReshufflePerKey, and finally removes the temporary key.
 
-  Reshuffle is experimental. CountNo backwards compatibility guarantees.
+  Reshuffle is experimental. No backwards compatibility guarantees.
   """
 
   def expand(self, pcoll):
