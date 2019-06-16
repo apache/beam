@@ -65,13 +65,15 @@ def _generate_load_job_name():
   return 'beam_load_%s_%s' % (datetime_component, random.randint(0, 100))
 
 
-def file_prefix_generator(with_validation=True, pipeline_gcs_location=None):
+def file_prefix_generator(with_validation=True, 
+                          pipeline_gcs_location=None,
+                          temp_location=None):
   def _generate_file_prefix(unused_elm):
     # If a gcs location is provided to the pipeline, then we shall use that.
     # Otherwise, we shall use the temp_location from pipeline options.
     gcs_base = pipeline_gcs_location.get()
     if not gcs_base:
-      gcs_base = vp.RuntimeValueProvider.get_value('temp_location', str, '')
+      gcs_base = temp_location
 
     # This will fail at pipeline execution time, but will fail early, as this
     # step doesn't have any dependencies (and thus will be one of the first
@@ -552,11 +554,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
   def expand(self, pcoll):
     p = pcoll.pipeline
 
-    value_provider_temp_location = vp.StaticValueProvider(
-        str, p.options.view_as(GoogleCloudOptions).temp_location)
-
-    self._custom_gcs_temp_location = (
-        self._custom_gcs_temp_location or value_provider_temp_location)
+    temp_location = p.options.view_as(GoogleCloudOptions).temp_location
 
     load_job_name_pcv = pvalue.AsSingleton(
         p
@@ -568,7 +566,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
         | "CreateFilePrefixView" >> beam.Create([''])
         | "GenerateFilePrefix" >> beam.Map(
             file_prefix_generator(self._validate,
-                                  self._custom_gcs_temp_location)))
+                                  self._custom_gcs_temp_location,
+                                  temp_location)))
 
     outputs = (
         pcoll
