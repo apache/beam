@@ -2831,6 +2831,119 @@
                         </list>
                       </option>
                     </Lesson>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="0" />
+                      <option name="index" value="2" />
+                      <option name="name" value="Early Triggers" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" value="0" />
+                      <option name="unitId" value="0" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~ Licensed to the Apache Software Foundation (ASF) under one&#10;  ~ or more contributor license agreements.  See the NOTICE file&#10;  ~ distributed with this work for additional information&#10;  ~ regarding copyright ownership.  The ASF licenses this file&#10;  ~ to you under the Apache License, Version 2.0 (the&#10;  ~ &quot;License&quot;); you may not use this file except in compliance&#10;  ~ with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~     http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~ Unless required by applicable law or agreed to in writing, software&#10;  ~ distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~ See the License for the specific language governing permissions and&#10;  ~ limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Early Triggers&lt;/h2&gt;&#10;&lt;p&gt;&#10;  Triggers allow Beam to emit early results, before all the data in a given window has arrived.&#10;  For example, emitting after a certain amount of time elapses, or after a certain number of&#10;  elements arrives.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Given that events are being generated every second and a fixed window of 1-day&#10;  duration, please implement an early trigger that emits the number of events count immediately&#10;  after new element is processed.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/AfterWatermark.AfterWatermarkEarlyAndLate.html#withEarlyFirings-org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger-&quot;&gt;&#10;  withEarlyFirings&lt;/a&gt; to set early firing triggers.&#10;&lt;/a&gt;&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/FixedWindows.html&quot;&gt;&#10;  FixedWindows&lt;/a&gt; with 1-day duration using&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/AfterWatermark.html#pastEndOfWindow--&quot;&gt;&#10;    AfterWatermark.pastEndOfWindow()&lt;/a&gt; trigger.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Set the allowed lateness to 0 with discarding accumulation mode.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Combine.html#globally-org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn-&quot;&gt;&#10;  Combine.globally&lt;/a&gt; and&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Count.html#combineFn--&quot;&gt;&#10;    Count.combineFn&lt;/a&gt; to calculate the count of events.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Refer to the Beam Programming Guide&#10;  &lt;a href=&quot;https://beam.apache.org/documentation/programming-guide/#event-time-triggers&quot;&gt;&#10;    &quot;Event time triggers&quot;&lt;/a&gt; section for more information.&#10;&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="1" />
+                            <option name="name" value="Early Triggers" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1906" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="events&#10;        .apply(&#10;            Window.&lt;String&gt;into(FixedWindows.of(Duration.standardDays(1)))&#10;                .triggering(&#10;                    AfterWatermark.pastEndOfWindow()&#10;                    .withEarlyFirings(&#10;                        AfterProcessingTime.pastFirstElementInPane()))&#10;                .withAllowedLateness(Duration.ZERO)&#10;                .discardingFiredPanes())&#10;&#10;        .apply(Combine.globally(Count.&lt;String&gt;combineFn()).withoutDefaults())" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/Task.java" />
+                                      <option name="text" value="public class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="src/GenerateEvent.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="false" />
+                                      <option name="name" value="src/GenerateEvent.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/TaskTest.java" />
+                                      <option name="text" value="import org.junit.Assert;&#10;import org.junit.Test;&#10;&#10;public class Tests {&#10;  @Test&#10;  public void testSolution() {&#10;    // put your test here&#10;    Assert.fail(&quot;Tests not implemented for the task&quot;);&#10;  }&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="resources/log4j2.xml">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="false" />
+                                      <option name="name" value="resources/log4j2.xml" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="0" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
                   </list>
                 </option>
               </Section>
