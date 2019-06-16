@@ -2301,21 +2301,36 @@
                             <option name="name" value="Built-in IOs" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/io/builtinios/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/io/builtinios/Task.java" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
                                       <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/org/apache/beam/learning/katas/io/builtinios/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/io/builtinios/TaskTest.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
                                     </TaskFile>
                                   </value>
                                 </entry>
