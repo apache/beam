@@ -456,10 +456,12 @@ class GroupIntoBatchesTest(unittest.TestCase):
       index = i % len(scientists)
       data.append(("key", scientists[index]))
     return data
-
+    
   def test_in_global_window(self):
     pipeline = TestPipeline()
     collection = pipeline | beam.Create(GroupIntoBatchesTest._create_test_data()) | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE)
+    num_batches = collection | beam.combiners.Count.Globally()
+    assert_that(num_batches, equal_to([GroupIntoBatchesTest.NUM_ELEMENTS // GroupIntoBatchesTest.BATCH_SIZE]))
     pipeline.run()
     
 

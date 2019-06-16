@@ -45,19 +45,18 @@ from apache_beam.transforms.core import GroupByKey
 from apache_beam.transforms.core import Map
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import Windowing
-from apache_beam.transforms.core import CombineFn
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
+from apache_beam.transforms.combiners import CountCombineFn
 from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import AfterCount
 from apache_beam.transforms.window import NonMergingWindowFn
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
+from apache_beam.transforms.userstate import BagStateSpec, ValueStateSpec, CombiningValueStateSpec, TimerSpec
+from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
-from apache_beam.transforms.userstate import BagStateSpec, ValueStateSpec, CombiningValueStateSpec, TimerSpec
-from apache_beam.transforms.combiners import TopCombineFn
-from apache_beam.transforms.timeutil import TimeDomain
 
 __all__ = [
     'BatchElements',
@@ -639,14 +638,14 @@ class ReshufflePerKey(PTransform):
 @typehints.with_output_types(T)
 class Reshuffle(PTransform):
   """PTransform that returns a PCollection equivalent to its input,
-  but operationally provides some of the side effects of a GroupByKey,
+  but operationally provides Countsome of the side effects of a GroupByKey,
   in particular preventing fusion of the surrounding transforms,
   checkpointing, and deduplication by id.
 
   Reshuffle adds a temporary random key to each element, performs a
   ReshufflePerKey, and finally removes the temporary key.
 
-  Reshuffle is experimental. No backwards compatibility guarantees.
+  Reshuffle is experimental. CountNo backwards compatibility guarantees.
   """
 
   def expand(self, pcoll):
@@ -683,44 +682,30 @@ class GroupIntoBatches(PTransform):
   @staticmethod
   def of_size(batch_size):
     return GroupIntoBatches(batch_size)
-  
+
   def expand(self, pcoll):
     input_coder = coders.registry.get_coder(pcoll)
     if not input_coder.is_kv_coder():
-          raise ValueError(
-            'coder specified in the input PCollection is not a KvCoder')
-    key_coder = input_coder.key_coder()
-    value_coder = input_coder.value_coder()
-
-    return pcoll | ParDo(_GroupIntoBatchesDoFn(self.batch_size, key_coder, value_coder))
-
-
-class _GroupIntoBatchesDoFn(DoFn):
-  END_OF_WINDOW_ID = "endOFWindow"
-  BATCH_ID = "batch"
-  NUM_ELEMENTS_IN_BATCH_ID = "numElementsInBatch"
-  KEY_ID = "key"
-
-  def __init__(self, batch_size, input_key_coder, input_value_coder):
-    self.batch_size = batch_size
-    self.batch_spec = BagStateSpec("GroupIntoBatches", input_value_coder)
-    self.key_spec = ValueStateSpec("GroupIntoBatches", input_key_coder)
-    self.num_elements_in_batch_spec = CombiningValueStateSpec("GroupIntoBatches", None, _NumElementsInBatchesCombineFn())
-    self.prefetch_frequency = int(sys.maxint) if ((batch_size / 5) <= 1) else int(batch_size / 5)
-    self.timer = TimerSpec("GroupIntoBatches", TimeDomain.WATERMARK)
+      raise ValueError('coder specified in the input \
+      PCollection is not a KvCoder')
     
-  def process(self, element):
+    return pcoll | ParDo(_pardo_group_into_batches(self.batch_size, input_coder))
+
+
+def _pardo_group_into_batches(batch_size, input_coder):
+  ELEMENT_STATE = BagStateSpec('values', input_coder)
+  COUNT_STATE = CombiningValueStateSpec('count', coders.VarIntCoder(), CountCombineFn())
+
+  class _GroupIntoBatchesDoFn(DoFn):
     
-
-class _NumElementsInBatchesCombineFn(CombineFn):
-  def create_accumulator(self):
-    return 0
-
-  def add_input(self, accumulator, element):
-    return accumulator + element
-
-  def merge_accumulators(self, accumulators):
-    return sum(accumulators)
-
-  def extract_output(self, accumulator):
-    return accumulator
+    def process(self, element, element_state=DoFn.StateParam(ELEMENT_STATE), count_state=DoFn.StateParam(COUNT_STATE)):
+      element_state.add(element)
+      count_state.add(1)
+      count = count_state.read()
+      if count >= batch_size:
+        batch = [element for element in element_state.read()]
+        yield batch
+        element_state.clear()
+        count_state.clear()
+      
+  return _GroupIntoBatchesDoFn()
