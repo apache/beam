@@ -40,6 +40,9 @@ public interface SdkHarnessRegistry {
    */
   void unregisterWorkerClient(FnApiControlClient controlClient);
 
+  /** Returns true if all of the registered SDK harnesses are healthy. */
+  boolean sdkHarnessesAreHealthy();
+
   /** Find the available worker and assign work to it or wait till a worker becomes available */
   SdkWorkerHarness getAvailableWorkerAndAssignWork();
 
