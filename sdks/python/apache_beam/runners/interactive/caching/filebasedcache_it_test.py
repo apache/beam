@@ -23,33 +23,22 @@ import os
 import shutil
 import sys
 import tempfile
-import time
 import unittest
 import uuid
-from functools import partial, wraps
 
 import numpy as np
 import pyarrow as pa
-from apache_beam import coders
-from apache_beam.io.filesystems import FileSystems
-from apache_beam.pipeline import Pipeline
-from apache_beam.runners import PipelineState
-from apache_beam.runners.direct.direct_runner import BundleBasedDirectRunner
-from apache_beam.runners.interactive.caching.filebasedcache import *
-from apache_beam.runners.interactive.caching.streambasedcache import *
-from apache_beam.runners.interactive.caching.streambasedcache import \
-    remove_topic_and_subscriptions
-from apache_beam.transforms import Create
-from apache_beam.typehints import trivial_inference, typehints
 from nose.plugins.attrib import attr
 from parameterized import parameterized
 from past.builtins import unicode
+from apache_beam.testing.test_pipeline import TestPipeline
 
-# Protect against environments where the PubSub library is not available.
-try:
-  from google.cloud import pubsub
-except ImportError:
-  pubsub = None
+from apache_beam import coders
+from apache_beam.io.filesystems import FileSystems
+from apache_beam.runners.interactive.caching.filebasedcache import *
+from apache_beam.transforms import Create
+from apache_beam.typehints import trivial_inference
+from apache_beam.typehints import typehints
 
 if sys.version_info > (3,):
   long = int
@@ -143,46 +132,30 @@ PARQUET_TEST_DATA = [
 # yapf: enable
 
 
-def evaluate_pipeline(p, duration):
-  result = p.run()
-  if duration is None:
-    result.wait_until_finish()
-  else:
-    time_slept = 0
-    while time_slept < duration:
-      if result.state == PipelineState.DONE:
-        break
-      time.sleep(1)
-      time_slept += 1
-    if result.state != PipelineState.DONE:
-      result.cancel()
-
-
-def read_through_pipeline(cache, duration=None):
+def read_through_pipeline(cache):
   """Read elements from cache using a Beam pipeline."""
   temp_dir = tempfile.mkdtemp()
   temp_cache = SafeTextBasedCache(os.path.join(temp_dir, uuid.uuid1().hex))
   try:
-    p = (TestPipeline() | "Read" >> cache.reader() |
-         "Write" >> temp_cache.writer())
-    evaluate_pipeline(p, duration)
+    with TestPipeline() as p:
+      _ = (p | "Read" >> cache.reader() | "Write" >> temp_cache.writer())
     return list(temp_cache.read())
   finally:
     shutil.rmtree(temp_dir)
 
 
-def write_through_pipeline(cache, data_in, duration=None):
+def write_through_pipeline(cache, data_in):
   """Write elements to cache using a Beam pipeline."""
-  p = (TestPipeline() | "Create" >> Create(data_in) | "Write" >> cache.writer())
-  evaluate_pipeline(p, duration)
+  with TestPipeline() as p:
+    _ = (p | "Create" >> Create(data_in) | "Write" >> cache.writer())
 
 
-def read_directly(cache, unused_duration):
+def read_directly(cache):
   """Read elements from cache using the cache API."""
   return list(cache.read())
 
 
-def write_directly(cache, data_in, unused_duration):
+def write_directly(cache, data_in):
   """Write elements to cache using the cache API."""
   cache.write(data_in)
 
@@ -281,8 +254,6 @@ class CheckCoder(object):
 
 class CheckRoundtripDataset(object):
 
-  _max_duration = None
-
   def setUp(self):
     self.temp_dir = tempfile.mkdtemp()
     self.location = FileSystems.join(self.temp_dir, self._cache_class.__name__)
@@ -300,15 +271,15 @@ class CheckRoundtripDataset(object):
   @attr('IT')
   def test_roundtrip(self, _, write_fn, read_fn, data):
     cache = self._cache_class(self.location)
-    write_fn(cache, data, self._max_duration)
-    data_out = read_fn(cache, self._max_duration)
+    write_fn(cache, data)
+    data_out = read_fn(cache)
     self.assertEqual(data_out, data)
-    write_fn(cache, data, self._max_duration)
-    data_out = read_fn(cache, self._max_duration)
+    write_fn(cache, data)
+    data_out = read_fn(cache)
     self.assertEqual(data_out, data * 2)
     cache.clear()
     with self.assertRaises(IOError):
-      data_out = read_fn(cache, self._max_duration)
+      data_out = read_fn(cache)
 
 
 # TextBasedCache
@@ -349,27 +320,6 @@ class TFRecordBasedCacheCoderTest(CheckCoder, unittest.TestCase):
 class TFRecordBasedCacheRoundtripTest(CheckRoundtripDataset, unittest.TestCase):
 
   _cache_class = TFRecordBasedCache
-
-
-# PubSubBasedCache
-
-
-@unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
-@unittest.skipIf("PROJECT_ID" not in os.environ,
-                 'Need a GCP project to run this test')
-class PubSubBasedCacheRoundtripTest(CheckRoundtripDataset, unittest.TestCase):
-
-  _cache_class = PubSubBasedCache
-  _max_duration = 60
-
-  def setUp(self):
-    self.location = "projects/{}/topics/test-{}".format(
-        os.environ["PROJECT_ID"],
-        uuid.uuid1().hex)
-    print(self.location)
-
-  def tearDown(self):
-    remove_topic_and_subscriptions(self.location)
 
 
 ## AvroBasedCache
