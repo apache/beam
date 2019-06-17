@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 from __future__ import division
 
+import math
 import logging
 import random
 import time
@@ -461,7 +462,7 @@ class GroupIntoBatchesTest(unittest.TestCase):
     pipeline = TestPipeline()
     collection = pipeline | beam.Create(GroupIntoBatchesTest._create_test_data()) | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE)
     num_batches = collection | beam.combiners.Count.Globally()
-    assert_that(num_batches, equal_to([GroupIntoBatchesTest.NUM_ELEMENTS // GroupIntoBatchesTest.BATCH_SIZE]))
+    assert_that(num_batches, equal_to([int(math.ceil(GroupIntoBatchesTest.NUM_ELEMENTS / GroupIntoBatchesTest.BATCH_SIZE))]))
     pipeline.run()
     
 

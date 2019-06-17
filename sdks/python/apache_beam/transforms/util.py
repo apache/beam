@@ -52,7 +52,7 @@ from apache_beam.transforms.trigger import AfterCount
 from apache_beam.transforms.window import NonMergingWindowFn
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
-from apache_beam.transforms.userstate import BagStateSpec, CombiningValueStateSpec, TimerSpec
+from apache_beam.transforms.userstate import BagStateSpec, CombiningValueStateSpec, TimerSpec, on_timer
 from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
@@ -694,10 +694,18 @@ class GroupIntoBatches(PTransform):
 def _pardo_group_into_batches(batch_size, input_coder):
   ELEMENT_STATE = BagStateSpec('values', input_coder)
   COUNT_STATE = CombiningValueStateSpec('count', coders.VarIntCoder(), CountCombineFn())
+  EXPIRY_TIMER = TimerSpec('expiry', TimeDomain.WATERMARK)
 
   class _GroupIntoBatchesDoFn(DoFn):
     
-    def process(self, element, element_state=DoFn.StateParam(ELEMENT_STATE), count_state=DoFn.StateParam(COUNT_STATE)):
+    def process(self, element, 
+                window=DoFn.WindowParam, 
+                element_state=DoFn.StateParam(ELEMENT_STATE), 
+                count_state=DoFn.StateParam(COUNT_STATE), 
+                expiry_timer=DoFn.TimerParam(EXPIRY_TIMER)):
+      # Allowed lateness not supported in Python SDK
+      # https://beam.apache.org/documentation/programming-guide/#watermarks-and-late-data
+      expiry_timer.set(window.end)
       element_state.add(element)
       count_state.add(1)
       count = count_state.read()
@@ -706,5 +714,11 @@ def _pardo_group_into_batches(batch_size, input_coder):
         yield batch
         element_state.clear()
         count_state.clear()
-      
+    
+    @on_timer(EXPIRY_TIMER)
+    def expiry(self, element_state=DoFn.StateParam(ELEMENT_STATE), count_state=DoFn.StateParam(COUNT_STATE)):
+        yield [element for element in element_state.read()]
+        element_state.clear()
+        count_state.clear()
+  
   return _GroupIntoBatchesDoFn()
