@@ -54,8 +54,8 @@ class FileBasedCacheTest(unittest.TestCase):
 
     try:
       _ = self._cache_class(self.location)
-    except OSError:
-      self.fail("Encountered an OSError when overwriting an empty cache.")
+    except IOError:
+      self.fail("Encountered an IOError when overwriting an empty cache.")
 
     with self.assertRaises(ValueError):
       _ = self._cache_class(self.location, if_exists=None)
@@ -68,7 +68,7 @@ class FileBasedCacheTest(unittest.TestCase):
     self.create_dummy_file()
 
     def test_write():
-      with self.assertRaises(OSError):
+      with self.assertRaises(IOError):
         _ = self._cache_class(self.location)
 
     test_write()
@@ -76,8 +76,8 @@ class FileBasedCacheTest(unittest.TestCase):
     def test_overwrite():
       try:
         _ = self._cache_class(self.location, if_exists="overwrite")
-      except OSError:
-        self.fail("Unexpected OSError when force-overwriting a filled cache.")
+      except IOError:
+        self.fail("Unexpected IOError when force-overwriting a filled cache.")
 
     test_overwrite()
 
@@ -85,8 +85,8 @@ class FileBasedCacheTest(unittest.TestCase):
       cache.clear()
       try:
         _ = self._cache_class(self.location)
-      except OSError:
-        self.fail("Encountered an OSError when overwriting an empty cache.")
+      except IOError:
+        self.fail("Encountered an IOError when overwriting an empty cache.")
 
     test_write_after_clear()
 

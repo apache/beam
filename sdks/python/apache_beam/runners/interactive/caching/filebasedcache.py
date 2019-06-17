@@ -59,7 +59,7 @@ class FileBasedCache(PCollectionCache):
       elif if_exists == "error":
         existing_files = self._existing_file_paths()
         if existing_files:
-          raise OSError("The following cache files already exist: {}.".format(
+          raise IOError("The following cache files already exist: {}.".format(
               existing_files))
       else:
         raise ValueError(
