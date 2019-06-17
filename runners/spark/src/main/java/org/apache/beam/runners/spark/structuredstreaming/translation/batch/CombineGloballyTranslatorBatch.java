@@ -59,7 +59,7 @@ class CombineGloballyTranslatorBatch<InputT, AccumT, OutputT>
 
     Dataset<Iterable<WindowedValue<OutputT>>> accumulatedDataset =
         combinedRowDataset.map(
-            RowHelpers.extractObjectFromRowMapFunction(), EncoderHelpers.windowedValueEncoder());
+            RowHelpers.extractObjectFromRowMapFunction(), EncoderHelpers.genericEncoder());
     Dataset<WindowedValue<OutputT>> outputDataset = accumulatedDataset.flatMap(
         (FlatMapFunction<Iterable<WindowedValue<OutputT>>, WindowedValue<OutputT>>)
             windowedValues -> windowedValues.iterator(), EncoderHelpers.windowedValueEncoder());
