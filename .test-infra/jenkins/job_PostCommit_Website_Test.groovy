@@ -29,7 +29,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Website_Test', 'Run Full Web
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-website:testWebsite -PdisableExternal=false')
+      tasks(':website:testWebsite -PdisableExternal=false')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }
