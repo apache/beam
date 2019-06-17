@@ -124,11 +124,9 @@ class FileBasedCache(PCollectionCache):
     return self.location + '*'
 
   def _existing_file_paths(self):
-    return [
-        match_meta.path
-        for match_result in FileSystems.match([self._file_pattern])
-        for match_meta in match_result.metadata_list
-    ]
+    match = FileSystems.match([self._file_pattern])
+    assert len(match) == 1
+    return [metadata.path for metadata in match[0].metadata_list]
 
   @property
   def _infer_coder(self):
