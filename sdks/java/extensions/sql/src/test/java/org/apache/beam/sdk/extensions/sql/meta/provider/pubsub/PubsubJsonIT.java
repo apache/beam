@@ -348,7 +348,7 @@ public class PubsubJsonIT implements Serializable {
       inMemoryMetaStore.registerProvider(tableProvider);
     }
 
-    JdbcConnection connection = JdbcDriver.connect(inMemoryMetaStore);
+    JdbcConnection connection = JdbcDriver.connect(inMemoryMetaStore, options);
     connection.setPipelineOptionsMap(argsMap);
     return connection;
   }
