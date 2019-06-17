@@ -38,6 +38,8 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.UdfUdafProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
@@ -66,14 +68,26 @@ public class BeamSqlEnv {
     return new BeamSqlEnvBuilder(tableProvider);
   }
 
+  /**
+   * This method creates {@link org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv} using empty
+   * Pipeline Options. It should only be used in tests.
+   */
   public static BeamSqlEnv readOnly(String tableType, Map<String, BeamSqlTable> tables) {
     return withTableProvider(new ReadOnlyTableProvider(tableType, tables));
   }
 
+  /**
+   * This method creates {@link org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv} using empty
+   * Pipeline Options. It should only be used in tests.
+   */
   public static BeamSqlEnv withTableProvider(TableProvider tableProvider) {
-    return builder(tableProvider).build();
+    return builder(tableProvider).setPipelineOptions(PipelineOptionsFactory.create()).build();
   }
 
+  /**
+   * This method creates {@link org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv} using empty *
+   * Pipeline Options. It should only be used in tests.
+   */
   public static BeamSqlEnv inMemory(TableProvider... tableProviders) {
     InMemoryMetaStore inMemoryMetaStore = new InMemoryMetaStore();
     for (TableProvider tableProvider : tableProviders) {
@@ -123,6 +137,7 @@ public class BeamSqlEnv {
     private Set<Map.Entry<String, Function>> functionSet;
     private boolean autoLoadBuiltinFunctions;
     private boolean autoLoadUdfs;
+    private PipelineOptions pipelineOptions;
 
     private BeamSqlEnvBuilder(TableProvider tableProvider) {
       checkNotNull(tableProvider, "Table provider for the default schema must be sets.");
@@ -133,6 +148,7 @@ public class BeamSqlEnv {
       functionSet = new HashSet<>();
       autoLoadUdfs = false;
       autoLoadBuiltinFunctions = false;
+      pipelineOptions = null;
     }
 
     /** Add a top-level schema backed by the table provider. */
@@ -194,14 +210,20 @@ public class BeamSqlEnv {
       return this;
     }
 
+    public BeamSqlEnvBuilder setPipelineOptions(PipelineOptions pipelineOptions) {
+      this.pipelineOptions = pipelineOptions;
+      return this;
+    }
+
     /**
      * Build function to create an instance of BeamSqlEnv based on preset fields.
      *
      * @return BeamSqlEnv.
      */
     public BeamSqlEnv build() {
+      checkNotNull(pipelineOptions);
 
-      JdbcConnection jdbcConnection = JdbcDriver.connect(defaultTableProvider);
+      JdbcConnection jdbcConnection = JdbcDriver.connect(defaultTableProvider, pipelineOptions);
 
       configureSchemas(jdbcConnection);
 
