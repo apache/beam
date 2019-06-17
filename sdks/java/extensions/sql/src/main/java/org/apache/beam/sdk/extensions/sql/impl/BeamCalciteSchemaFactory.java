@@ -51,8 +51,8 @@ import org.apache.calcite.schema.Table;
  * a normal JDBC path, e.g. when CLI connects to {@link JdbcDriver} (without any extra connection
  * properties).
  *
- * <p>{@link Empty} is an override used in {@link JdbcDriver#connect(TableProvider,
- * org.apache.beam.sdk.options.PipelineOptions)} to avoid loading all available table providers.
+ * <p>{@link Empty} is an override used in {@link JdbcDriver#connect(TableProvider)} to avoid
+ * loading all available table providers.
  */
 class BeamCalciteSchemaFactory {
 
@@ -97,10 +97,10 @@ class BeamCalciteSchemaFactory {
   }
 
   /**
-   * This is the override to create an empty schema, used in {@link JdbcDriver#connect(TableProvider
-   * , org.apache.beam.sdk.options.PipelineOptions)} to avoid loading all table providers. This
-   * schema is expected to be replaced by an actual functional schema by the same code that
-   * specified this override in the first place.
+   * This is the override to create an empty schema, used in {@link
+   * JdbcDriver#connect(TableProvider)} to avoid loading all table providers. This schema is
+   * expected to be replaced by an actual functional schema by the same code that specified this
+   * override in the first place.
    */
   public static class Empty extends InitialEmptySchema implements SchemaFactory {
 
