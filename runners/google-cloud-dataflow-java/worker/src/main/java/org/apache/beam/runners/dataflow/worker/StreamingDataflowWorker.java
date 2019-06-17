@@ -565,7 +565,9 @@ public class StreamingDataflowWorker {
     this.sdkHarnessRegistry = sdkHarnessRegistry;
     this.windmillServiceEnabled = options.isEnableStreamingEngine();
     this.memoryMonitor = MemoryMonitor.fromOptions(options);
-    this.statusPages = WorkerStatusPages.create(DEFAULT_STATUS_PORT, memoryMonitor);
+    this.statusPages =
+        WorkerStatusPages.create(
+            DEFAULT_STATUS_PORT, memoryMonitor, sdkHarnessRegistry::sdkHarnessesAreHealthy);
     if (windmillServiceEnabled) {
       this.debugCaptureManager =
           new DebugCapture.Manager(options, statusPages.getDebugCapturePages());
