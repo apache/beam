@@ -219,6 +219,8 @@ task python3PostCommit() {
 task portablePythonPreCommit() {
   dependsOn "sdks:python:portablePreCommitPy2"
   dependsOn "sdks:python:test-suites:portable:py35:portablePreCommitPy35"
+  dependsOn "sdks:python:test-suites:portable:py36:portablePreCommitPy36"
+  dependsOn "sdks:python:test-suites:portable:py37:portablePreCommitPy37"
 }
 
 task websitePreCommit() {
