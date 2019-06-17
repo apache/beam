@@ -28,6 +28,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.KeyValueGroupedDataset;
 import scala.Tuple2;
@@ -52,8 +53,10 @@ class CombinePerKeyTranslatorBatch<K, InputT, AccumT, OutputT>
 
     Dataset<WindowedValue<KV<K, InputT>>> inputDataset = context.getDataset(input);
 
-    KeyValueGroupedDataset<K, WindowedValue<KV<K, InputT>>> groupedDataset =
-        inputDataset.groupByKey(KVHelpers.extractKey(), EncoderHelpers.genericEncoder());
+    Dataset<KV<K, InputT>> unwindowedDataset = inputDataset
+        .map(WindowingHelpers.unwindowMapFunction(), EncoderHelpers.kvEncoder());
+    KeyValueGroupedDataset<K, KV<K, InputT>> groupedDataset =
+        unwindowedDataset.groupByKey((MapFunction<KV<K, InputT>, K>) kv -> kv.getKey(), EncoderHelpers.genericEncoder());
 
     Dataset<Tuple2<K, OutputT>> combinedDataset =
         groupedDataset.agg(
