@@ -405,6 +405,11 @@ class DirectOptions(PipelineOptions):
         default=0,
         help='replay every bundle this many extra times, for profiling'
         'and debugging')
+    parser.add_argument(
+        '--direct_num_workers',
+        type=int,
+        default=1,
+        help='number of parallel running workers.')
 
 
 class GoogleCloudOptions(PipelineOptions):
