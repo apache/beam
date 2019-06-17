@@ -48,6 +48,7 @@ import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -100,6 +101,7 @@ public class BeamSqlLineIT implements Serializable {
   }
 
   @Test
+  @Ignore("https://jira.apache.org/jira/browse/BEAM-7582")
   public void testSelectFromPubsub() throws Exception {
     String[] args =
         buildArgs(
@@ -134,6 +136,7 @@ public class BeamSqlLineIT implements Serializable {
   }
 
   @Test
+  @Ignore("https://jira.apache.org/jira/browse/BEAM-7582")
   public void testFilterForSouthManhattan() throws Exception {
     String[] args =
         buildArgs(
