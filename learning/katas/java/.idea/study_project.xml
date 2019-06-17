@@ -40,7 +40,7 @@
           </option>
           <option name="stepikChangeStatus" value="Content changed" />
           <option name="type" value="pycharm11 JAVA 8" />
-          <option name="updateDate" value="1560701314000" />
+          <option name="updateDate" value="1560793795000" />
           <option name="items">
             <list>
               <Section>
@@ -132,7 +132,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701640000" />
+                            <option name="updateDate" value="1560791575000" />
                           </EduTask>
                         </list>
                       </option>
@@ -229,7 +229,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701644000" />
+                            <option name="updateDate" value="1560793716000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -299,7 +299,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701647000" />
+                            <option name="updateDate" value="1560793719000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -369,7 +369,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701650000" />
+                            <option name="updateDate" value="1560793723000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -439,7 +439,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701653000" />
+                            <option name="updateDate" value="1560791586000" />
                           </EduTask>
                         </list>
                       </option>
@@ -522,7 +522,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701656000" />
+                            <option name="updateDate" value="1560793727000" />
                           </EduTask>
                         </list>
                       </option>
@@ -571,7 +571,7 @@
                                             <option name="offset" value="2418" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
-                                            <option name="possibleAnswer" value="TupleTag&lt;String&gt; fruitsTag = new TupleTag&lt;&gt;();&#10;    TupleTag&lt;String&gt; countriesTag = new TupleTag&lt;&gt;();&#10;&#10;    MapElements&lt;String, KV&lt;String, String&gt;&gt; mapToAlphabetKv =&#10;        MapElements.into(kvs(strings(), strings()))&#10;            .via(word -&gt; KV.of(word.substring(0, 1), word));&#10;&#10;    PCollection&lt;KV&lt;String, String&gt;&gt; fruitsPColl = fruits.apply(&quot;Fruit to KV&quot;, mapToAlphabetKv);&#10;    PCollection&lt;KV&lt;String, String&gt;&gt; countriesPColl = countries&#10;        .apply(&quot;Country to KV&quot;, mapToAlphabetKv);&#10;&#10;    return KeyedPCollectionTuple&#10;        .of(fruitsTag, fruitsPColl)&#10;        .and(countriesTag, countriesPColl)&#10;&#10;        .apply(CoGroupByKey.create())&#10;&#10;        .apply(ParDo.of(new DoFn&lt;KV&lt;String, CoGbkResult&gt;, String&gt;() {&#10;&#10;          @ProcessElement&#10;          public void processElement(&#10;              @Element KV&lt;String, CoGbkResult&gt; element, OutputReceiver&lt;String&gt; out) {&#10;&#10;            String alphabet = element.getKey();&#10;            CoGbkResult coGbkResult = element.getValue();&#10;&#10;            String fruit = coGbkResult.getOnly(fruitsTag);&#10;            String country = coGbkResult.getOnly(countriesTag);&#10;&#10;            out.output(new WordsAlphabet(alphabet, fruit, country).toString());&#10;          }&#10;&#10;        }))" />
+                                            <option name="possibleAnswer" value="TupleTag&lt;String&gt; fruitsTag = new TupleTag&lt;&gt;();&#10;    TupleTag&lt;String&gt; countriesTag = new TupleTag&lt;&gt;();&#10;&#10;    MapElements&lt;String, KV&lt;String, String&gt;&gt; mapToAlphabetKv =&#10;        MapElements.into(kvs(strings(), strings()))&#10;            .via(word -&gt; KV.of(word.substring(0, 1), word));&#10;&#10;    PCollection&lt;KV&lt;String, String&gt;&gt; fruitsPColl = fruits.apply(&quot;Fruit to KV&quot;, mapToAlphabetKv);&#10;    PCollection&lt;KV&lt;String, String&gt;&gt; countriesPColl = countries&#10;        .apply(&quot;Country to KV&quot;, mapToAlphabetKv);&#10;&#10;    return KeyedPCollectionTuple&#10;        .of(fruitsTag, fruitsPColl)&#10;        .and(countriesTag, countriesPColl)&#10;&#10;        .apply(CoGroupByKey.create())&#10;&#10;        .apply(ParDo.of(new DoFn&lt;KV&lt;String, CoGbkResult&gt;, String&gt;() {&#10;&#10;          @ProcessElement&#10;          public void processElement(&#10;              @Element KV&lt;String, CoGbkResult&gt; element, OutputReceiver&lt;String&gt; out) {&#10;&#10;            String alphabet = element.getKey();&#10;            CoGbkResult coGbkResult = element.getValue();&#10;&#10;            String fruit = coGbkResult.getOnly(fruitsTag);&#10;            String country = coGbkResult.getOnly(countriesTag);&#10;&#10;            out.output(new WordsAlphabet(alphabet, fruit, country).toString());&#10;          }&#10;&#10;        }));" />
                                             <option name="selected" value="false" />
                                             <option name="status" value="Unchecked" />
                                             <option name="studentAnswer" />
@@ -620,7 +620,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701659000" />
+                            <option name="updateDate" value="1560793730000" />
                           </EduTask>
                         </list>
                       </option>
@@ -703,7 +703,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701247000" />
+                            <option name="updateDate" value="1560793733000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -773,7 +773,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701663000" />
+                            <option name="updateDate" value="1560791596000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -843,7 +843,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701666000" />
+                            <option name="updateDate" value="1560793738000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -913,7 +913,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701669000" />
+                            <option name="updateDate" value="1560793741000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -1000,7 +1000,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701673000" />
+                            <option name="updateDate" value="1560793744000" />
                           </EduTask>
                         </list>
                       </option>
@@ -1083,7 +1083,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701676000" />
+                            <option name="updateDate" value="1560791133000" />
                           </EduTask>
                         </list>
                       </option>
@@ -1166,32 +1166,32 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701679000" />
+                            <option name="updateDate" value="1560793748000" />
                           </EduTask>
                         </list>
                       </option>
                     </Lesson>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="237189" />
+                      <option name="id" value="237989" />
                       <option name="index" value="7" />
                       <option name="name" value="Side Input" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1560431442000" />
+                      <option name="updateDate" value="1560791406453" />
                       <option name="unitId" value="-1" />
                       <option name="items">
                         <list>
                           <EduTask>
                             <option name="customPresentableName" />
                             <option name="descriptionFormat" value="HTML" />
-                            <option name="descriptionText" value="&lt;!--&#10;  ~ Licensed to the Apache Software Foundation (ASF) under one&#10;  ~ or more contributor license agreements.  See the NOTICE file&#10;  ~ distributed with this work for additional information&#10;  ~ regarding copyright ownership.  The ASF licenses this file&#10;  ~ to you under the Apache License, Version 2.0 (the&#10;  ~ &quot;License&quot;); you may not use this file except in compliance&#10;  ~ with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~     http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~ Unless required by applicable law or agreed to in writing, software&#10;  ~ distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~ See the License for the specific language governing permissions and&#10;  ~ limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Side Input&lt;/h2&gt;&#10;&lt;p&gt;&#10;  In addition to the main input PCollection, you can provide additional inputs to a ParDo transform&#10;  in the form of side inputs. A side input is an additional input that your DoFn can access each&#10;  time it processes an element in the input PCollection. When you specify a side input, you create&#10;  a view of some other data that can be read from within the ParDo transform’s DoFn while&#10;  processing each element.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  Side inputs are useful if your ParDo needs to inject additional data when processing each element&#10;  in the input PCollection, but the additional data needs to be determined at runtime (and not&#10;  hard-coded). Such values might be determined by the input data, or depend on a different branch&#10;  of your pipeline.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Please enrich each Person with the country based on the city he/she lives in.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Override &lt;a href=&quot;https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.process&quot;&gt;&#10;  process&lt;/a&gt; method that also accepts side input argument.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo&quot;&gt;&#10;  ParDo&lt;/a&gt; with&#10;  &lt;a href=&quot;https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn&quot;&gt;&#10;    DoFn&lt;/a&gt; that accepts side input.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Refer to the Beam Programming Guide&#10;  &lt;a href=&quot;https://beam.apache.org/documentation/programming-guide/#side-inputs&quot;&gt;&quot;Side inputs&quot;&lt;/a&gt;&#10;  section for more information.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~ Licensed to the Apache Software Foundation (ASF) under one&#10;  ~ or more contributor license agreements.  See the NOTICE file&#10;  ~ distributed with this work for additional information&#10;  ~ regarding copyright ownership.  The ASF licenses this file&#10;  ~ to you under the Apache License, Version 2.0 (the&#10;  ~ &quot;License&quot;); you may not use this file except in compliance&#10;  ~ with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~     http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~ Unless required by applicable law or agreed to in writing, software&#10;  ~ distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~ See the License for the specific language governing permissions and&#10;  ~ limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Side Input&lt;/h2&gt;&#10;&lt;p&gt;&#10;  In addition to the main input PCollection, you can provide additional inputs to a ParDo transform&#10;  in the form of side inputs. A side input is an additional input that your DoFn can access each&#10;  time it processes an element in the input PCollection. When you specify a side input, you create&#10;  a view of some other data that can be read from within the ParDo transform’s DoFn while&#10;  processing each element.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  Side inputs are useful if your ParDo needs to inject additional data when processing each element&#10;  in the input PCollection, but the additional data needs to be determined at runtime (and not&#10;  hard-coded). Such values might be determined by the input data, or depend on a different branch&#10;  of your pipeline.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Please enrich each Person with the country based on the city he/she lives in.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/View.html&quot;&gt;&#10;  View&lt;/a&gt; to create PCollectionView of citiesToCountries.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ParDo.html&quot;&gt;&#10;  ParDo&lt;/a&gt; with &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.html&quot;&gt;&#10;  DoFn&lt;/a&gt; that accepts&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ParDo.SingleOutput.html#withSideInputs-org.apache.beam.sdk.values.PCollectionView...-&quot;&gt;&#10;  side input&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Refer to the Beam Programming Guide&#10;  &lt;a href=&quot;https://beam.apache.org/documentation/programming-guide/#side-inputs&quot;&gt;&quot;Side inputs&quot;&lt;/a&gt;&#10;  section for more information.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
                             <option name="feedbackLink">
                               <FeedbackLink>
                                 <option name="link" />
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="750379" />
+                            <option name="id" value="754085" />
                             <option name="index" value="1" />
                             <option name="name" value="Side Input" />
                             <option name="record" value="-1" />
@@ -1281,18 +1281,18 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701682000" />
+                            <option name="updateDate" value="1560793752000" />
                           </EduTask>
                         </list>
                       </option>
                     </Lesson>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="237190" />
+                      <option name="id" value="237990" />
                       <option name="index" value="8" />
                       <option name="name" value="Side Output" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1560431448000" />
+                      <option name="updateDate" value="1560791445676" />
                       <option name="unitId" value="-1" />
                       <option name="items">
                         <list>
@@ -1306,7 +1306,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="753148" />
+                            <option name="id" value="754087" />
                             <option name="index" value="1" />
                             <option name="name" value="Side Output" />
                             <option name="record" value="-1" />
@@ -1364,18 +1364,18 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701685000" />
+                            <option name="updateDate" value="1560791612000" />
                           </EduTask>
                         </list>
                       </option>
                     </Lesson>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="237191" />
+                      <option name="id" value="237991" />
                       <option name="index" value="9" />
                       <option name="name" value="Branching" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1560431454000" />
+                      <option name="updateDate" value="1560791458069" />
                       <option name="unitId" value="-1" />
                       <option name="items">
                         <list>
@@ -1389,7 +1389,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="750380" />
+                            <option name="id" value="754088" />
                             <option name="index" value="1" />
                             <option name="name" value="Branching" />
                             <option name="record" value="-1" />
@@ -1464,7 +1464,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701688000" />
+                            <option name="updateDate" value="1560793756000" />
                           </EduTask>
                         </list>
                       </option>
@@ -1547,7 +1547,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701691000" />
+                            <option name="updateDate" value="1560791618000" />
                           </EduTask>
                         </list>
                       </option>
@@ -1644,7 +1644,7 @@
                           <EduTask>
                             <option name="customPresentableName" />
                             <option name="descriptionFormat" value="HTML" />
-                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Filter using ParDo&lt;/h2&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Implement a filter function that filters out the even numbers by using&#10;  &lt;a href=&quot;https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo&quot;&gt;&#10;    ParDo&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Override &lt;a href=&quot;https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.process&quot;&gt;&#10;  process&lt;/a&gt; method. You can use &quot;yield&quot; for each intended element.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Filter using ParDo&lt;/h2&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Implement a filter function that filters out the even numbers by using&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.html&quot;&gt;&#10;    DoFn&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ParDo.html&quot;&gt;&#10;  ParDo&lt;/a&gt; with&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.html&quot;&gt;&#10;    DoFn&lt;/a&gt; and only output the intended element.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
                             <option name="feedbackLink">
                               <FeedbackLink>
                                 <option name="link" />
@@ -1709,12 +1709,12 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701694000" />
+                            <option name="updateDate" value="1560793760000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
                             <option name="descriptionFormat" value="HTML" />
-                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Filter&lt;/h2&gt;&#10;&lt;p&gt;&#10;  The Beam SDKs provide language-specific ways to simplify how you provide your DoFn implementation.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Implement a filter function that filters out the odd numbers by using&#10;  &lt;a href=&quot;https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter&quot;&gt;&#10;    Filter&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter&quot;&gt;&#10;  Filter&lt;/a&gt; with a lambda.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Filter&lt;/h2&gt;&#10;&lt;p&gt;&#10;  The Beam SDKs provide language-specific ways to simplify how you provide your DoFn implementation.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Implement a filter function that filters out the odd numbers by using&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Filter.html&quot;&gt;&#10;    Filter&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Filter.html&quot;&gt;&#10;  Filter.by(...)&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
                             <option name="feedbackLink">
                               <FeedbackLink>
                                 <option name="link" />
@@ -1779,7 +1779,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701697000" />
+                            <option name="updateDate" value="1560793763000" />
                           </EduTask>
                         </list>
                       </option>
@@ -1797,7 +1797,7 @@
                           <EduTask>
                             <option name="customPresentableName" />
                             <option name="descriptionFormat" value="HTML" />
-                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Aggregation - Count&lt;/h2&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Count the number of elements from an input.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.combiners.html#apache_beam.transforms.combiners.Count&quot;&gt;&#10;  Count&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Aggregation - Count&lt;/h2&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Count the number of elements from an input.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Count.html&quot;&gt;&#10;  Count&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
                             <option name="feedbackLink">
                               <FeedbackLink>
                                 <option name="link" />
@@ -1862,12 +1862,12 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701700000" />
+                            <option name="updateDate" value="1560793766000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
                             <option name="descriptionFormat" value="HTML" />
-                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Aggregation - Sum&lt;/h2&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Compute the sum of all elements from an input.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.CombineGlobally&quot;&gt;&#10;  CombineGlobally&lt;/a&gt; and Python built-in&#10;  &lt;a href=&quot;https://docs.python.org/2/library/functions.html#sum&quot;&gt;sum&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Aggregation - Sum&lt;/h2&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Compute the sum of all elements from an input.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Sum.html&quot;&gt;&#10;  Sum&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
                             <option name="feedbackLink">
                               <FeedbackLink>
                                 <option name="link" />
@@ -1932,12 +1932,12 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701703000" />
+                            <option name="updateDate" value="1560793769000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
                             <option name="descriptionFormat" value="HTML" />
-                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Aggregation - Mean&lt;/h2&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Compute the mean/average of all elements from an input.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.combiners.html#apache_beam.transforms.combiners.Mean&quot;&gt;&#10;  Mean&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Aggregation - Mean&lt;/h2&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Compute the mean/average of all elements from an input.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Mean.html&quot;&gt;&#10;  Mean&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
                             <option name="feedbackLink">
                               <FeedbackLink>
                                 <option name="link" />
@@ -2002,7 +2002,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701705000" />
+                            <option name="updateDate" value="1560793772000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -2072,7 +2072,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701708000" />
+                            <option name="updateDate" value="1560793775000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -2142,18 +2142,18 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701711000" />
+                            <option name="updateDate" value="1560793778000" />
                           </EduTask>
                         </list>
                       </option>
                     </Lesson>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="237766" />
+                      <option name="id" value="237992" />
                       <option name="index" value="3" />
                       <option name="name" value="WithKeys" />
                       <option name="stepikChangeStatus" value="Info and Content changed" />
-                      <option name="updateDate" value="1560701776549" />
+                      <option name="updateDate" value="1560791491864" />
                       <option name="unitId" value="-1" />
                       <option name="items">
                         <list>
@@ -2167,7 +2167,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="754089" />
                             <option name="index" value="1" />
                             <option name="name" value="WithKeys" />
                             <option name="record" value="-1" />
@@ -2188,7 +2188,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1884" />
+                                            <option name="offset" value="1875" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input&#10;        .apply(WithKeys.&lt;String, String&gt;of(fruit -&gt; fruit.substring(0, 1))&#10;            .withKeyType(strings()))" />
@@ -2225,7 +2225,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1560793781000" />
                           </EduTask>
                         </list>
                       </option>
@@ -2354,7 +2354,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701301000" />
+                            <option name="updateDate" value="1560791646000" />
                           </EduTask>
                         </list>
                       </option>
@@ -2419,7 +2419,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701304000" />
+                            <option name="updateDate" value="1560793785000" />
                           </EduTask>
                         </list>
                       </option>
@@ -3134,7 +3134,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1560701307000" />
+                            <option name="updateDate" value="1560793788000" />
                           </EduTask>
                         </list>
                       </option>
