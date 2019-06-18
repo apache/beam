@@ -15,29 +15,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation.functions;
+package org.apache.beam.runners.fnexecution.control;
 
 import java.io.Serializable;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.flink.FlinkPipelineOptions;
-import org.apache.beam.runners.flink.translation.functions.FlinkDefaultExecutableStageContext.MultiInstanceFactory;
-import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
+import org.apache.beam.runners.fnexecution.control.DefaultExecutableStageContext.MultiInstanceFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 
-/** The Flink context required in order to execute {@link ExecutableStage stages}. */
-public interface FlinkExecutableStageContext extends AutoCloseable {
+/** The context required in order to execute {@link ExecutableStage stages}. */
+public interface ExecutableStageContext extends AutoCloseable {
 
   /**
-   * Creates {@link FlinkExecutableStageContext} instances. Serializable so that factories can be
-   * defined at translation time and distributed to TaskManagers.
+   * Creates {@link ExecutableStageContext} instances. Serializable so that factories can be defined
+   * at translation time and distributed to TaskManagers.
    */
   interface Factory extends Serializable {
 
-    /** Get or create {@link FlinkExecutableStageContext} for given {@link JobInfo}. */
-    FlinkExecutableStageContext get(JobInfo jobInfo);
+    /** Get or create {@link ExecutableStageContext} for given {@link JobInfo}. */
+    ExecutableStageContext get(
+        JobInfo jobInfo, SerializableFunction<Object, Boolean> isReleaseSynchronous);
+
+    default ExecutableStageContext get(JobInfo jobInfo) {
+      return get(jobInfo, (caller) -> true /* always release context synchronously */);
+    }
   }
 
-  static Factory factory(FlinkPipelineOptions options) {
+  static Factory factory() {
     return MultiInstanceFactory.MULTI_INSTANCE;
   }
 

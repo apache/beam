@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation.functions;
+package org.apache.beam.runners.fnexecution.control;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,24 +23,22 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.fnexecution.control.DefaultJobBundleFactory;
-import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
-import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
-/** Implementation of a {@link FlinkExecutableStageContext}. */
-class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext, AutoCloseable {
+/** Implementation of a {@link ExecutableStageContext}. */
+class DefaultExecutableStageContext implements ExecutableStageContext, AutoCloseable {
   private final JobBundleFactory jobBundleFactory;
 
-  private static FlinkDefaultExecutableStageContext create(JobInfo jobInfo) {
+  private static DefaultExecutableStageContext create(JobInfo jobInfo) {
     JobBundleFactory jobBundleFactory = DefaultJobBundleFactory.create(jobInfo);
-    return new FlinkDefaultExecutableStageContext(jobBundleFactory);
+    return new DefaultExecutableStageContext(jobBundleFactory);
   }
 
-  private FlinkDefaultExecutableStageContext(JobBundleFactory jobBundleFactory) {
+  private DefaultExecutableStageContext(JobBundleFactory jobBundleFactory) {
     this.jobBundleFactory = jobBundleFactory;
   }
 
@@ -56,7 +54,7 @@ class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext,
 
   private static class JobFactoryState {
     private int index = 0;
-    private final List<ReferenceCountingFlinkExecutableStageContextFactory> factories =
+    private final List<ReferenceCountingExecutableStageContextFactory> factories =
         new ArrayList<>();
     private final int maxFactories;
 
@@ -72,14 +70,15 @@ class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext,
       }
     }
 
-    private synchronized FlinkExecutableStageContext.Factory getFactory() {
-      ReferenceCountingFlinkExecutableStageContextFactory factory;
+    private synchronized ExecutableStageContext.Factory getFactory(
+        SerializableFunction<Object, Boolean> isReleaseSynchronous) {
+      ReferenceCountingExecutableStageContextFactory factory;
       // If we haven't yet created maxFactories factories, create a new one. Otherwise use an
       // existing one from factories.
       if (factories.size() < maxFactories) {
         factory =
-            ReferenceCountingFlinkExecutableStageContextFactory.create(
-                FlinkDefaultExecutableStageContext::create);
+            ReferenceCountingExecutableStageContextFactory.create(
+                DefaultExecutableStageContext::create, isReleaseSynchronous);
         factories.add(factory);
       } else {
         factory = factories.get(index);
@@ -102,7 +101,8 @@ class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext,
         new ConcurrentHashMap<>();
 
     @Override
-    public FlinkExecutableStageContext get(JobInfo jobInfo) {
+    public ExecutableStageContext get(
+        JobInfo jobInfo, SerializableFunction<Object, Boolean> isReleaseSynchronous) {
       JobFactoryState state =
           jobFactories.computeIfAbsent(
               jobInfo.jobId(),
@@ -116,7 +116,7 @@ class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext,
                         .intValue());
               });
 
-      return state.getFactory().get(jobInfo);
+      return state.getFactory(isReleaseSynchronous).get(jobInfo, isReleaseSynchronous);
     }
   }
 }

@@ -32,6 +32,7 @@ import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
+import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
@@ -55,6 +56,7 @@ import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
@@ -84,7 +86,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
   private final JobInfo jobInfo;
   // Map from PCollection id to the union tag used to represent this PCollection in the output.
   private final Map<String, Integer> outputMap;
-  private final FlinkExecutableStageContext.Factory contextFactory;
+  private final ExecutableStageContext.Factory contextFactory;
   private final Coder windowCoder;
   // Unique name for namespacing metrics; currently just takes the input ID
   private final String stageName;
@@ -93,7 +95,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
   private transient RuntimeContext runtimeContext;
   private transient FlinkMetricContainer container;
   private transient StateRequestHandler stateRequestHandler;
-  private transient FlinkExecutableStageContext stageContext;
+  private transient ExecutableStageContext stageContext;
   private transient StageBundleFactory stageBundleFactory;
   private transient BundleProgressHandler progressHandler;
   // Only initialized when the ExecutableStage is stateful
@@ -106,7 +108,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
       RunnerApi.ExecutableStagePayload stagePayload,
       JobInfo jobInfo,
       Map<String, Integer> outputMap,
-      FlinkExecutableStageContext.Factory contextFactory,
+      ExecutableStageContext.Factory contextFactory,
       Coder windowCoder) {
     this.stagePayload = stagePayload;
     this.jobInfo = jobInfo;
@@ -125,7 +127,12 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
     runtimeContext = getRuntimeContext();
     container = new FlinkMetricContainer(getRuntimeContext());
     // TODO: Wire this into the distributed cache and make it pluggable.
-    stageContext = contextFactory.get(jobInfo);
+    stageContext =
+        contextFactory.get(
+            jobInfo,
+            // Clean up context immediately if its class is not loaded on Flink parent classloader.
+            (caller) ->
+                caller.getClass().getClassLoader() != ExecutionEnvironment.class.getClassLoader());
     stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
     // NOTE: It's safe to reuse the state handler between partitions because each partition uses the
     // same backing runtime context and broadcast variables. We use checkState below to catch errors

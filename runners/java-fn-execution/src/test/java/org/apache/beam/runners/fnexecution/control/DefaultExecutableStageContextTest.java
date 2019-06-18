@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation.functions;
+package org.apache.beam.runners.fnexecution.control;
 
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.runners.flink.translation.functions.FlinkDefaultExecutableStageContext.MultiInstanceFactory;
-import org.apache.beam.runners.flink.translation.functions.ReferenceCountingFlinkExecutableStageContextFactory.WrappedContext;
+import org.apache.beam.runners.fnexecution.control.DefaultExecutableStageContext.MultiInstanceFactory;
+import org.apache.beam.runners.fnexecution.control.ReferenceCountingExecutableStageContextFactory.WrappedContext;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
@@ -29,9 +29,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link FlinkDefaultExecutableStageContext}. */
+/** Tests for {@link DefaultExecutableStageContext}. */
 @RunWith(JUnit4.class)
-public class FlinkDefaultExecutableStageContextTest {
+public class DefaultExecutableStageContextTest {
   private static JobInfo constructJobInfo(String jobId, long parallelism) {
     PortablePipelineOptions portableOptions =
         PipelineOptionsFactory.as(PortablePipelineOptions.class);
