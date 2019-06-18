@@ -36,6 +36,14 @@ public interface TestPipelineOptions extends PipelineOptions {
 
   void setTempRoot(String value);
 
+  /**
+   * An alternative tempRoot that has a bucket-default KMS key set. Used for GCP CMEK integration
+   * tests.
+   */
+  String getTempRootKms();
+
+  void setTempRootKms(String value);
+
   @Default.InstanceFactory(AlwaysPassMatcherFactory.class)
   @JsonIgnore
   SerializableMatcher<PipelineResult> getOnCreateMatcher();
