@@ -781,7 +781,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
 
 # These tests are kept in a separate group so that they are
-# not ran in he FnApiRunnerTestWithBundleRepeat which repeats
+# not ran in the FnApiRunnerTestWithBundleRepeat which repeats
 # bundle processing. This breaks the byte sampling metrics as
 # it makes the probability of sampling far too small
 # upon repeating bundle processing due to unncessarily incrementing
@@ -1176,6 +1176,16 @@ class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
                 payload=b'2')))
 
 
+class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
+
+  def create_pipeline(self):
+    return beam.Pipeline(
+        runner=fn_api_runner.FnApiRunner(
+            num_workers=2,
+            default_environment=beam_runner_api_pb2.Environment(
+                urn=python_urns.EMBEDDED_PYTHON_GRPC)))
+
+
 class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
 
   def create_pipeline(self):
@@ -1185,17 +1195,13 @@ class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
   def test_register_finalizations(self):
     raise unittest.SkipTest("TODO: Avoid bundle finalizations on repeat.")
 
+
 class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
 
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(num_workers=2))
 
-  def test_checkpoint(self):
-    raise unittest.SkipTest("Multiworker doesn't support split request.")
-
-  def test_split_half(self):
-    raise unittest.SkipTest("Multiworker doesn't support split request.")
 
 class FnApiRunnerTestWithMultiWorkersAndBundleRepeat(FnApiRunnerTest):
 
@@ -1203,14 +1209,9 @@ class FnApiRunnerTestWithMultiWorkersAndBundleRepeat(FnApiRunnerTest):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(num_workers=2, bundle_repeat=2))
 
-  def test_checkpoint(self):
-    raise unittest.SkipTest("Multiworker doesn't support split request.")
-
-  def test_split_half(self):
-    raise unittest.SkipTest("Multiworker doesn't support split request.")
-
   def test_register_finalizations(self):
     raise unittest.SkipTest("TODO: Avoid bundle finalizations on repeat.")
+
 
 class FnApiRunnerSplitTest(unittest.TestCase):
 
