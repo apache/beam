@@ -27,6 +27,7 @@ import io
 import json
 import logging
 import os
+import pkg_resources
 import re
 import sys
 import tempfile
@@ -936,7 +937,7 @@ def _get_required_container_version(job_type=None):
     else:
       return names.BEAM_CONTAINER_VERSION
   else:
-    return beam_version.__version__
+    return pkg_resources.parse_version(beam_version.__version__).base_version
 
 
 def get_runner_harness_container_image():
@@ -950,7 +951,7 @@ def get_runner_harness_container_image():
   # Pin runner harness for released versions of the SDK.
   if 'dev' not in beam_version.__version__:
     return (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + 'harness' + ':' +
-            beam_version.__version__)
+            pkg_resources.parse_version(beam_version.__version__).base_version)
   # Don't pin runner harness for dev versions so that we can notice
   # potential incompatibility between runner and sdk harnesses.
   return None
