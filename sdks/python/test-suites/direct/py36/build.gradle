@@ -34,6 +34,7 @@ task postCommitIT(dependsOn: 'installGcpTest') {
         "apache_beam.io.gcp.bigquery_io_read_it_test",
         "apache_beam.io.gcp.bigquery_read_it_test",
         "apache_beam.io.gcp.bigquery_write_it_test",
+        "apache_beam.io.gcp.bigtableio_it_test",
         "apache_beam.io.gcp.datastore.v1new.datastore_write_it_test",
     ]
     def testOpts = [
