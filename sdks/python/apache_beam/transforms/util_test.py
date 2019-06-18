@@ -25,14 +25,17 @@ import logging
 import random
 import time
 import unittest
+import itertools
 from builtins import object
 from builtins import range
 
 import apache_beam as beam
+from apache_beam import WindowInto
 from apache_beam.coders import coders
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import TestWindowedValue
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import contains_in_any_order
@@ -45,6 +48,7 @@ from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
+from apache_beam.transforms.window import FixedWindows
 from apache_beam.utils import timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
@@ -464,7 +468,26 @@ class GroupIntoBatchesTest(unittest.TestCase):
     num_batches = collection | beam.combiners.Count.Globally()
     assert_that(num_batches, equal_to([int(math.ceil(GroupIntoBatchesTest.NUM_ELEMENTS / GroupIntoBatchesTest.BATCH_SIZE))]))
     pipeline.run()
-    
+
+  # def test_in_streaming_mode(self):
+  #   timestamp_interval = 1
+  #   offset = itertools.count(0)
+  #   start_time = timestamp.Timestamp(0)
+  #   window_duration = 6
+  #   test_stream = (TestStream()
+  #                 .advance_watermark_to(start_time)
+  #                 .add_elements([TimestampedValue(x, next(offset) * timestamp_interval) for x in GroupIntoBatchesTest._create_test_data()])
+  #                 .advance_watermark_to(start_time + (window_duration - 1))
+  #                 .advance_watermark_to(start_time + (window_duration + 1))
+  #                 .advance_watermark_to(start_time + GroupIntoBatchesTest.NUM_ELEMENTS)
+  #                 .advance_watermark_to_infinity())
+  #   pipeline = TestPipeline()
+  #   collection = pipeline | test_stream | WindowInto(FixedWindows(window_duration)) | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE)
+  #   print collection
+  #   # assert_that(num_batches, equal_to([int(math.ceil(GroupIntoBatchesTest.NUM_ELEMENTS / GroupIntoBatchesTest.BATCH_SIZE))]))
+  #   result = pipeline.run()
+  #   result.wait_until_finish()
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
