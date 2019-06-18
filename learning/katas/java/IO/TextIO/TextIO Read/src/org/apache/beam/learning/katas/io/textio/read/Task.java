@@ -30,7 +30,7 @@ import org.apache.beam.sdk.values.PCollection;
 
 public class Task {
 
-  private static final String FILE_PATH = "IO/TextIO/TextIO/countries.txt";
+  private static final String FILE_PATH = "IO/TextIO/TextIO Read/countries.txt";
 
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();

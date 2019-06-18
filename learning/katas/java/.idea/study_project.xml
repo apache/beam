@@ -2300,7 +2300,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1610" />
+                                            <option name="offset" value="1615" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="TextIO.read().from(FILE_PATH)" />
@@ -2317,7 +2317,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1850" />
+                                            <option name="offset" value="1855" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(MapElements.into(strings()).via(String::toUpperCase))" />
