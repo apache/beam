@@ -139,19 +139,34 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
       self._state = self.DONE_STATE
 
 
+class _PartitionBuffer(object):
+  """This class is created to support partition(n) function."""
+  def __init__(self, inputs):
+    self._inputs = inputs
+
+  def partition(self, n):
+    v = list(self._inputs.values())[0]
+    if isinstance(v, list):
+      return [self._inputs]
+    elif isinstance(v, _GroupingBuffer):
+      partitions = []
+      for name, input in self._inputs.items():
+        for part in input.partition(n):
+          partitions.append({name : part})
+      return partitions
+    else:
+      raise NotImplementedError(type(self._inputs))
+
+
 class _GroupingBuffer(object):
   """Used to accumulate groupded (shuffled) results."""
-  def __init__(self, pre_grouped_coder, post_grouped_coder, windowing,
-               num_workers=1):
+  def __init__(self, pre_grouped_coder, post_grouped_coder, windowing):
     self._key_coder = pre_grouped_coder.key_coder()
     self._pre_grouped_coder = pre_grouped_coder
     self._post_grouped_coder = post_grouped_coder
     self._table = collections.defaultdict(list)
     self._windowing = windowing
-    self._grouped_output = None
-    self._lock = threading.Lock()
-    self._iter_flag = 0
-    self._num_workers = num_workers
+    self._grouped_output = []
 
   def append(self, elements_data):
     if self._grouped_output:
@@ -169,61 +184,45 @@ class _GroupingBuffer(object):
           value if is_trivial_windowing
           else windowed_key_value.with_value(value))
 
-  def __iter__(self):
-    # use self._iter_flag to indicate _grouped_output process status.
-    # 0: not started, 1: started, 2: finished, 99: failed
-    if self._iter_flag > 0:
-      while self._iter_flag == 1:
-        time.sleep(0.2)
-
-      if self._iter_flag == 2:
-        return iter(self._grouped_output)
-      elif self._iter_flag == 99:
-        raise RuntimeError('Failed when reading from buffer.')
+  def _output_ready(self):
+    if len(self._grouped_output) == 0:
+      if self._windowing.is_default():
+        globally_window = GlobalWindows.windowed_value(None).with_value
+        windowed_key_values = lambda key, values: [
+            globally_window((key, values))]
       else:
-        raise RuntimeError('Unhandled error occurred when reading from buffer.')
+        # TODO(pabloem, BEAM-7514): Trigger driver needs access to the clock
+        #   note that this only comes through if windowing is default - but what
+        #   about having multiple firings on the global window.
+        #   May need to revise.
+        trigger_driver = trigger.create_trigger_driver(self._windowing, True)
+        windowed_key_values = trigger_driver.process_entire_key
 
-    with self._lock:
-      try:
-        self._iter_flag = 1
-        self._grouped_output = []
-        num_workers = min(self._num_workers, len(self._table))
-        output_stream_list = []
-        for _ in range(num_workers):
-          output_stream_list.append(create_OutputStream())
+      key_coder_impl = self._key_coder.get_impl()
+      coder_impl = self._post_grouped_coder.get_impl()
+      for encoded_key, windowed_values in self._table.items():
+        key = key_coder_impl.decode(encoded_key)
+        output_stream = create_OutputStream()
+        for wkvs in windowed_key_values(key, windowed_values):
+          coder_impl.encode_to_stream(wkvs, output_stream, True)
 
-        if self._windowing.is_default():
-          globally_window = GlobalWindows.windowed_value(None).with_value
-          windowed_key_values = lambda key, values: [
-              globally_window((key, values))]
-        else:
-          # TODO(pabloem, BEAM-7514): Trigger driver needs access to the clock
-          #   note that this only comes through if windowing is default - but
-          #   what about having multiple firings on the global window.
-          #   May need to revise.
-          trigger_driver = trigger.create_trigger_driver(self._windowing, True)
-          windowed_key_values = trigger_driver.process_entire_key
+        self._grouped_output.append(output_stream.get())
+      self._table = None
 
-        coder_impl = self._post_grouped_coder.get_impl()
-        key_coder_impl = self._key_coder.get_impl()
+  def __iter__(self):
+    self._output_ready()
+    return iter(self._grouped_output)
 
-        for idx, (encoded_key, windowed_values) in \
-            enumerate(self._table.items()):
-          key = key_coder_impl.decode(encoded_key)
-          for wkvs in windowed_key_values(key, windowed_values):
-            coder_impl.encode_to_stream(wkvs,
-                                        output_stream_list[idx % num_workers],
-                                        True)
+  def partition(self, n):
+    self._output_ready()
 
-        for output_stream in output_stream_list:
-          self._grouped_output.append(b''.join([output_stream.get()]))
+    n = min(n, len(self._grouped_output))
+    partitions = [[] for _ in range(n)]
 
-        self._iter_flag = 2
-        return iter(self._grouped_output)
-      except Exception as e:
-        self._iter_flag = 99
-        raise RuntimeError('Failed to generate an iterator from buffer. %s' % e)
+    for idx, out in enumerate(self._grouped_output):
+      partitions[idx % n].append(out)
 
+    return partitions
 
 
 class _WindowGroupingBuffer(object):
@@ -269,6 +268,7 @@ class _WindowGroupingBuffer(object):
 
 
 class FnApiRunner(runner.PipelineRunner):
+  _num_workers = 1
 
   def __init__(
       self,
@@ -288,12 +288,12 @@ class FnApiRunner(runner.PipelineRunner):
       provision_info: provisioning info to make available to workers, or None
     """
     super(FnApiRunner, self).__init__()
+    FnApiRunner._num_workers = num_workers
     self._last_uid = -1
     self._default_environment = (
         default_environment
         or beam_runner_api_pb2.Environment(urn=python_urns.EMBEDDED_PYTHON))
     self._bundle_repeat = bundle_repeat
-    self._num_workers = num_workers
     self._progress_frequency = None
     self._profiler_factory = None
     self._use_state_iterables = use_state_iterables
@@ -322,8 +322,8 @@ class FnApiRunner(runner.PipelineRunner):
     pipeline.visit(DataflowRunner.group_by_key_input_visitor())
     self._bundle_repeat = self._bundle_repeat or options.view_as(
         pipeline_options.DirectOptions).direct_runner_bundle_repeat
-    self._num_workers = max(options.view_as(
-        pipeline_options.DirectOptions).direct_num_workers, self._num_workers)
+    FnApiRunner._num_workers = max(FnApiRunner._num_workers, options.view_as(
+        pipeline_options.DirectOptions).direct_num_workers)
     self._profiler_factory = profiler.Profile.factory_from_options(
         options.view_as(pipeline_options.ProfilingOptions))
 
@@ -457,15 +457,14 @@ class FnApiRunner(runner.PipelineRunner):
                                              process_bundle_descriptor,
                                              data_input,
                                              data_output,
-                                             get_input_coder_callable,
-                                             num_workers):
+                                             get_input_coder_callable):
     for k in range(self._bundle_repeat):
       try:
         controller.state.checkpoint()
         ParallelBundleManager(
             controller, lambda pcoll_id: [], get_input_coder_callable,
             process_bundle_descriptor, self._progress_frequency, k
-        ).process_bundle(data_input, data_output, num_workers)
+        ).process_bundle(data_input, data_output)
       finally:
         controller.state.restore()
 
@@ -669,8 +668,7 @@ class FnApiRunner(runner.PipelineRunner):
               pipeline_components
               .pcollections[output_pcoll].windowing_strategy_id]
           pcoll_buffers[buffer_id] = _GroupingBuffer(
-              pre_gbk_coder, post_gbk_coder, windowing_strategy,
-              self._num_workers)
+              pre_gbk_coder, post_gbk_coder, windowing_strategy)
       else:
         # These should be the only two identifiers we produce for now,
         # but special side input writes may go here.
@@ -688,15 +686,13 @@ class FnApiRunner(runner.PipelineRunner):
                                                 process_bundle_descriptor,
                                                 data_input,
                                                 data_output,
-                                                get_input_coder_impl,
-                                                self._num_workers)
+                                                get_input_coder_impl)
 
     bundle_manager = ParallelBundleManager(
         controller, get_buffer, get_input_coder_impl, process_bundle_descriptor,
         self._progress_frequency)
 
-    result, splits = bundle_manager.process_bundle(data_input, data_output,
-                                                   self._num_workers)
+    result, splits = bundle_manager.process_bundle(data_input, data_output)
 
     def input_for(ptransform_id, input_id):
       input_pcoll = process_bundle_descriptor.transforms[
@@ -741,8 +737,7 @@ class FnApiRunner(runner.PipelineRunner):
             get_input_coder_impl,
             process_bundle_descriptor,
             self._progress_frequency,
-            True).process_bundle(deferred_inputs, data_output,
-                                 self._num_workers)
+            True).process_bundle(deferred_inputs, data_output)
         last_sent = deferred_inputs
         result = beam_fn_api_pb2.InstructionResponse(
             process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
@@ -1032,6 +1027,7 @@ class EmbeddedWorkerHandler(WorkerHandler):
     if not request.instruction_id:
       self._uid_counter += 1
       request.instruction_id = 'control_%s' % self._uid_counter
+
     response = self.worker.do_instruction(request)
     return ControlFuture(request.instruction_id, response)
 
@@ -1395,18 +1391,11 @@ class BundleManager(object):
   def _send_input_to_worker(self,
                             process_bundle_id,
                             read_transform_id,
-                            byte_streams,
-                            idx=None):
-
+                            byte_streams):
     data_out = self._controller.data_plane_handler.output_stream(
         process_bundle_id, read_transform_id)
-
-    for i, byte_stream in enumerate(byte_streams):
-      if idx is None or i == idx:
-        data_out.write(byte_stream)
-        if idx is not None:
-          break
-
+    for byte_stream in byte_streams:
+      data_out.write(byte_stream)
     data_out.close()
 
   def _register_bundle_descriptor(self):
@@ -1439,14 +1428,13 @@ class BundleManager(object):
   def _generate_splits_for_testing(self,
                                    split_manager,
                                    inputs,
-                                   process_bundle_id,
-                                   idx):
+                                   process_bundle_id):
     split_results = []
     read_transform_id, buffer_data = only_element(inputs.items())
 
+    byte_stream = b''.join(buffer_data)
     num_elements = len(list(
-        self._get_input_coder_impl(read_transform_id).decode_all(
-            b''.join(buffer_data))))
+        self._get_input_coder_impl(read_transform_id).decode_all(byte_stream)))
 
     # Start the split manager in case it wants to set any breakpoints.
     split_manager_generator = split_manager(num_elements)
@@ -1458,7 +1446,7 @@ class BundleManager(object):
 
     # Send all the data.
     self._send_input_to_worker(
-        process_bundle_id, read_transform_id, buffer_data, idx)
+        process_bundle_id, read_transform_id, [byte_stream])
 
     # Execute the requested splits.
     while not done:
@@ -1497,8 +1485,7 @@ class BundleManager(object):
         break
     return split_results
 
-  def process_bundle(self, inputs, expected_outputs, parallel_uid_counter=None,
-                     idx=None):
+  def process_bundle(self, inputs, expected_outputs, parallel_uid_counter=None):
     # Unique id for the instruction processing this bundle.
     if parallel_uid_counter:
       BundleManager._uid_counter = parallel_uid_counter
@@ -1513,8 +1500,7 @@ class BundleManager(object):
     if not split_manager:
       # If there is no split_manager, write all input data to the channel.
       for transform_id, elements in inputs.items():
-        self._send_input_to_worker(
-            process_bundle_id, transform_id, elements, idx)
+        self._send_input_to_worker(process_bundle_id, transform_id, elements)
 
     # Check that the bundle was successfully registered.
     if registration_future and registration_future.get().error:
@@ -1526,13 +1512,14 @@ class BundleManager(object):
         process_bundle=beam_fn_api_pb2.ProcessBundleRequest(
             process_bundle_descriptor_reference=self._bundle_descriptor.id))
     result_future = self._controller.control_handler.push(process_bundle_req)
+
     split_results = []
     with ProgressRequester(
         self._controller, process_bundle_id, self._progress_frequency):
 
       if split_manager:
         split_results = self._generate_splits_for_testing(
-            split_manager, inputs, process_bundle_id, idx)
+            split_manager, inputs, process_bundle_id)
 
       # Gather all output data.
       for output in self._controller.data_plane_handler.input_elements(
@@ -1561,49 +1548,43 @@ class BundleManager(object):
 
     return result, split_results
 
+
 class ParallelBundleManager(BundleManager):
   _uid_counter = 0
-  def process_bundle(self, inputs, expected_outputs, num_workers=1):
-    input_value = list(inputs.values())[0]
-    if isinstance(input_value, list):
+
+  def process_bundle(self, inputs, expected_outputs):
+    num_workers = FnApiRunner._num_workers
+    param_list = []
+
+    for part in _PartitionBuffer(inputs).partition(num_workers):
       ParallelBundleManager._uid_counter += 1
-      return super(ParallelBundleManager, self).process_bundle(
-          inputs, expected_outputs, ParallelBundleManager._uid_counter)
+      param_list.append((part, expected_outputs,
+                         ParallelBundleManager._uid_counter))
 
-    elif isinstance(input_value, _GroupingBuffer):
-      input_count = len(input_value._table)
-      num_workers = min(num_workers, input_count)
+    merged_result = None
+    split_result_list = []
 
-      merged_result = None
-      split_result_list = []
-      future_list = []
-      with futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
-        for i in range(num_workers):
-          ParallelBundleManager._uid_counter += 1
-          future = executor.submit(
-              super(ParallelBundleManager, self).process_bundle, inputs,
-              expected_outputs, ParallelBundleManager._uid_counter, i)
-          future_list.append(future)
+    with futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
+      for result, split_result in executor.map(lambda p: BundleManager(
+          self._controller, self._get_buffer, self._get_input_coder_impl,
+          self._bundle_descriptor, self._progress_frequency,
+          self._registered).process_bundle(*p), param_list):
 
-        for future in futures.as_completed(future_list):
-          result, split_result = future.result()
-          split_result_list += split_result
+        split_result_list += split_result
 
-          if merged_result is None:
-            merged_result = result
-          else:
-            merged_result = beam_fn_api_pb2.InstructionResponse(
-                process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
-                    monitoring_infos=monitoring_infos.consolidate(
-                        itertools.chain(
-                            result.process_bundle.monitoring_infos,
-                            merged_result.process_bundle.monitoring_infos))),
-                error=result.error or merged_result.error)
+        if merged_result is None:
+          merged_result = result
+        else:
+          merged_result = beam_fn_api_pb2.InstructionResponse(
+              process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
+                  monitoring_infos=monitoring_infos.consolidate(
+                      itertools.chain(
+                          result.process_bundle.monitoring_infos,
+                          merged_result.process_bundle.monitoring_infos))),
+              error=result.error or merged_result.error)
 
-      return merged_result, split_result_list
+    return merged_result, split_result_list
 
-    else:
-      raise NotImplementedError
 
 class ProgressRequester(threading.Thread):
   """ Thread that asks SDK Worker for progress reports with a certain frequency.

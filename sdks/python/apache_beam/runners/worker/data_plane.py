@@ -340,7 +340,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
     if url not in self._data_channel_cache:
       with self._lock:
         if url not in self._data_channel_cache:
-          logging.info('Creating channel for %s', url)
+          logging.info('Creating client data channel for %s', url)
           # Options to have no limits (-1) on the size of the messages
           # received or sent over the data plane. The actual buffer size
           # is controlled in a layer above.
