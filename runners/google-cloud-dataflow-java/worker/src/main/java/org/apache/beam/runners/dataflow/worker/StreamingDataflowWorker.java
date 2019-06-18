@@ -65,6 +65,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.dataflow.CounterUpdateReceiver;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.internal.CustomSources;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
@@ -126,6 +127,7 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
@@ -459,6 +461,8 @@ public class StreamingDataflowWorker {
   private final ReaderRegistry readerRegistry = ReaderRegistry.defaultRegistry();
   private final SinkRegistry sinkRegistry = SinkRegistry.defaultRegistry();
 
+  private final Iterable<CounterUpdateReceiver> counterUpdateReceivers;
+
   /** Contains a few of the stage specific fields. E.g. metrics container registry, counters etc. */
   private static class StageInfo {
 
@@ -568,6 +572,7 @@ public class StreamingDataflowWorker {
     this.statusPages =
         WorkerStatusPages.create(
             DEFAULT_STATUS_PORT, memoryMonitor, sdkHarnessRegistry::sdkHarnessesAreHealthy);
+    this.counterUpdateReceivers = ReflectHelpers.loadServicesOrdered(CounterUpdateReceiver.class);
     if (windmillServiceEnabled) {
       this.debugCaptureManager =
           new DebugCapture.Manager(options, statusPages.getDebugCapturePages());
@@ -1858,6 +1863,8 @@ public class StreamingDataflowWorker {
           deltaCounters.extractModifiedDeltaUpdates(DataflowCounterUpdateExtractor.INSTANCE));
     }
 
+    publishCounterUpdates(counterUpdates);
+
     // Handle duplicate counters from different stages. Store all the counters in a multi-map and
     // send the counters that appear multiple times in separate RPCs. Same logical counter could
     // appear in multiple stages if a step runs in multiple stages (as with flatten-unzipped stages)
@@ -1924,6 +1931,16 @@ public class StreamingDataflowWorker {
           new WorkItemStatus()
               .setWorkItemId(WINDMILL_COUNTER_UPDATE_WORK_ID)
               .setCounterUpdates(counterUpdates));
+    }
+  }
+
+  private void publishCounterUpdates(List<CounterUpdate> updates) {
+    try {
+      for (CounterUpdateReceiver receiver : counterUpdateReceivers) {
+        receiver.receiverCounterUpdates(updates);
+      }
+    } catch (Exception e) {
+      LOG.error("Error publishing counter updates", e);
     }
   }
 
