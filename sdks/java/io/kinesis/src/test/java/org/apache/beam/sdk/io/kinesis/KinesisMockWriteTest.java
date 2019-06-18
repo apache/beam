@@ -131,20 +131,6 @@ public class KinesisMockWriteTest {
   }
 
   @Test
-  public void testNotExistedStream() {
-    Iterable<byte[]> data = ImmutableList.of("1".getBytes(StandardCharsets.UTF_8));
-    p.apply(Create.of(data))
-        .apply(
-            KinesisIO.write()
-                .withStreamName(STREAM)
-                .withPartitionKey(PARTITION_KEY)
-                .withAWSClientsProvider(new FakeKinesisProvider(false)));
-
-    thrown.expect(RuntimeException.class);
-    p.run().waitUntilFinish();
-  }
-
-  @Test
   public void testSetInvalidProperty() {
     Properties properties = new Properties();
     properties.setProperty("KinesisPort", "qwe");

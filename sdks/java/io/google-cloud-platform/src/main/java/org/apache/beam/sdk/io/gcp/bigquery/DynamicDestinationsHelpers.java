@@ -19,25 +19,38 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.BackOffUtils;
+import com.google.api.client.util.Sleeper;
+import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonTableRefToTableSpec;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Contains some useful helper instances of {@link DynamicDestinations}. */
 class DynamicDestinationsHelpers {
+  private static final Logger LOG = LoggerFactory.getLogger(DynamicDestinationsHelpers.class);
+
   /** Always returns a constant table destination. */
   static class ConstantTableDestinations<T> extends DynamicDestinations<T, TableDestination> {
     private final ValueProvider<String> tableSpec;
@@ -283,6 +296,83 @@ class DynamicDestinationsHelpers {
           .add("inner", inner)
           .add("schemaView", schemaView)
           .toString();
+    }
+  }
+
+  static <T, DestinationT> DynamicDestinations<T, DestinationT> matchTableDynamicDestinations(
+      DynamicDestinations<T, DestinationT> inner, BigQueryServices bqServices) {
+    return new MatchTableDynamicDestinations<>(inner, bqServices);
+  }
+
+  static class MatchTableDynamicDestinations<T, DestinationT>
+      extends DelegatingDynamicDestinations<T, DestinationT> {
+    private final BigQueryServices bqServices;
+
+    private MatchTableDynamicDestinations(
+        DynamicDestinations<T, DestinationT> inner, BigQueryServices bqServices) {
+      super(inner);
+      this.bqServices = bqServices;
+    }
+
+    private Table getBigQueryTable(TableReference tableReference) {
+      BackOff backoff =
+          BackOffAdapter.toGcpBackOff(
+              FluentBackoff.DEFAULT
+                  .withMaxRetries(3)
+                  .withInitialBackoff(Duration.standardSeconds(1))
+                  .withMaxBackoff(Duration.standardSeconds(2))
+                  .backoff());
+      try {
+        do {
+          try {
+            BigQueryOptions bqOptions = getPipelineOptions().as(BigQueryOptions.class);
+            return bqServices.getDatasetService(bqOptions).getTable(tableReference);
+          } catch (InterruptedException | IOException e) {
+            LOG.info("Failed to get BigQuery table " + tableReference);
+          }
+        } while (nextBackOff(Sleeper.DEFAULT, backoff));
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+      return null;
+    }
+
+    /** Identical to {@link BackOffUtils#next} but without checked IOException. */
+    private static boolean nextBackOff(Sleeper sleeper, BackOff backoff)
+        throws InterruptedException {
+      try {
+        return BackOffUtils.next(sleeper, backoff);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    /** Returns a {@link TableDestination} object for the destination. May not return null. */
+    @Override
+    public TableDestination getTable(DestinationT destination) {
+      TableDestination wrappedDestination = super.getTable(destination);
+      Table existingTable = getBigQueryTable(wrappedDestination.getTableReference());
+
+      if (existingTable == null) {
+        return wrappedDestination;
+      } else {
+        return new TableDestination(
+            wrappedDestination.getTableSpec(),
+            existingTable.getDescription(),
+            existingTable.getTimePartitioning());
+      }
+    }
+
+    /** Returns the table schema for the destination. May not return null. */
+    @Override
+    public TableSchema getSchema(DestinationT destination) {
+      TableDestination wrappedDestination = super.getTable(destination);
+      Table existingTable = getBigQueryTable(wrappedDestination.getTableReference());
+      if (existingTable == null) {
+        return super.getSchema(destination);
+      } else {
+        return existingTable.getSchema();
+      }
     }
   }
 }

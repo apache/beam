@@ -1481,3 +1481,106 @@ categories:
             l1: 'No'
             l2: pending model support
             l3: ''
+  - description: Additional common features not yet part of the Beam model
+    anchor: misc
+    color-b: 'aaa'
+    color-y: 'bbb'
+    color-p: 'ccc'
+    color-n: 'ddd'
+    rows:
+      - name: Drain
+        values:
+          - class: model
+            l1: 'Partially'
+            l2: 
+            l3: APIs and semantics for draining a pipeline are under discussion. This would cause incomplete aggregations to be emitted regardless of trigger and tagged with metadata indicating it is incomplated.
+          - class: dataflow
+            l1: 'Partially'
+            l2: 
+            l3: Dataflow has a native drain operation, but it does not work in the presence of event time timer loops. Final implemention pending model support.
+          - class: flink
+            l1: 'Partially'
+            l2: 
+            l3: Flink supports taking a "savepoint" of the pipeline and shutting the pipeline down after its completion.
+          - class: spark
+            l1: 
+            l2: 
+            l3: 
+          - class: apex
+            l1: 
+            l2: 
+            l3: 
+          - class: gearpump
+            l1: 
+            l2: 
+            l3: 
+          - class: mapreduce
+            l1: 
+            l2: 
+            l3: 
+          - class: jstorm
+            l1:
+            l2: 
+            l3: 
+          - class: ibmstreams
+            l1: 
+            l2: 
+            l3: 
+          - class: samza
+            l1: 
+            l2: 
+            l3: 
+          - class: nemo
+            l1: 
+            l2: 
+            l3:
+      - name: Checkpoint
+        values:
+          - class: model
+            l1: 'Partially'
+            l2: 
+            l3: APIs and semantics for saving a pipeline checkpoint are under discussion. This would be a runner-specific materialization of the pipeline state required to resume or duplicate the pipeline. 
+          - class: dataflow
+            l1: 'No'
+            l2: 
+            l3: 
+          - class: flink
+            l1: 'Partially'
+            l2: 
+            l3: Flink has a native savepoint capability.
+          - class: spark
+            l1: 'Partially'
+            l2: 
+            l3: Spark has a native savepoint capability.
+          - class: apex
+            l1: 
+            l2: 
+            l3: 
+          - class: gearpump
+            l1: 
+            l2: 
+            l3: 
+          - class: mapreduce
+            l1: 
+            l2: 
+            l3: 
+          - class: jstorm
+            l1: 
+            l2: 
+            l3: 
+          - class: ibmstreams
+            l1: 
+            l2: 
+            l3: 
+          - class: samza
+            l1: 'Partially'
+            l2: 
+            l3: Samza has a native checkpoint capability.
+          - class: nemo
+            l1: 
+            l2: 
+            l3: 
+          - class: jet
+            l1: 
+            l2: 
+            l3: 

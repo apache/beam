@@ -59,12 +59,6 @@ public class PipelineValidator {
           .put(getUrn(Composites.COMBINE_PER_KEY), PipelineValidator::validateCombine)
           .put(getUrn(Composites.COMBINE_GLOBALLY), PipelineValidator::validateCombine)
           // Nothing to validate for RESHUFFLE and WRITE_FILES
-          .put(getUrn(CombineComponents.COMBINE_PGBKCV), PipelineValidator::validateCombine)
-          .put(
-              getUrn(CombineComponents.COMBINE_MERGE_ACCUMULATORS),
-              PipelineValidator::validateCombine)
-          .put(
-              getUrn(CombineComponents.COMBINE_EXTRACT_OUTPUTS), PipelineValidator::validateCombine)
           .put(
               getUrn(CombineComponents.COMBINE_PER_KEY_PRECOMBINE),
               PipelineValidator::validateCombine)

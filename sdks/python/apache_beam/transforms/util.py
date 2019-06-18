@@ -63,8 +63,10 @@ __all__ = [
     'Distinct',
     'Keys',
     'KvSwap',
+    'Reify',
     'RemoveDuplicates',
     'Reshuffle',
+    'ToString',
     'Values',
     'WithKeys',
     'GroupIntoBatches'
@@ -90,16 +92,17 @@ class CoGroupByKey(PTransform):
                     'tag2': ... ,
                     ... })
 
-  For example, given:
+  For example, given::
 
       {'tag1': pc1, 'tag2': pc2, 333: pc3}
 
-  where:
+  where::
+
       pc1 = [(k1, v1)]
       pc2 = []
       pc3 = [(k1, v31), (k1, v32), (k2, v33)]
 
-  The output PCollection would be:
+  The output PCollection would be::
 
       [(k1, {'tag1': [v1], 'tag2': [], 333: [v31, v32]}),
        (k2, {'tag1': [], 'tag2': [], 333: [v33]})]
@@ -722,3 +725,123 @@ def _pardo_group_into_batches(batch_size, input_coder):
         count_state.clear()
   
   return _GroupIntoBatchesDoFn()
+
+
+class ToString(object):
+  """
+  PTransform for converting a PCollection element, KV or PCollection Iterable
+  to string.
+  """
+
+  class Kvs(PTransform):
+    """
+    Transforms each element of the PCollection to a string on the key followed
+    by the specific delimiter and the value.
+    """
+
+    def __init__(self, delimiter=None, **kwargs):
+      self.delimiter = delimiter or ","
+
+    def expand(self, pcoll):
+      input_type = typehints.KV[typehints.Any, typehints.Any]
+      output_type = str
+      return (pcoll | ('%s:KeyVaueToString' % self.label >> (Map(
+          lambda x: "{}{}{}".format(x[0], self.delimiter, x[1])))
+                       .with_input_types(input_type)
+                       .with_output_types(output_type)))
+
+  class Element(PTransform):
+    """
+    Transforms each element of the PCollection to a string.
+    """
+
+    def __init__(self, delimiter=None, **kwargs):
+      self.delimiter = delimiter or ","
+
+    def expand(self, pcoll):
+      input_type = T
+      output_type = str
+      return (pcoll | ('%s:ElementToString' % self.label >> (Map(
+          lambda x: str(x)))
+                       .with_input_types(input_type)
+                       .with_output_types(output_type)))
+
+  class Iterables(PTransform):
+    """
+    Transforms each item in the iterable of the input of PCollection to a
+    string. There is no trailing delimiter.
+    """
+
+    def __init__(self, delimiter=None, **kwargs):
+      self.delimiter = delimiter or ","
+
+    def expand(self, pcoll):
+      input_type = typehints.Iterable[typehints.Any]
+      output_type = str
+      return (pcoll | ('%s:IterablesToString' % self.label >> (
+          Map(lambda x: self.delimiter.join(str(_x) for _x in x)))
+                       .with_input_types(input_type)
+                       .with_output_types(output_type)))
+
+
+class Reify(object):
+  """PTransforms for converting between explicit and implicit form of various
+  Beam values."""
+
+  @typehints.with_input_types(T)
+  @typehints.with_output_types(T)
+  class Timestamp(PTransform):
+    """PTransform to wrap a value in a TimestampedValue with it's
+    associated timestamp."""
+
+    @staticmethod
+    def add_timestamp_info(element, timestamp=DoFn.TimestampParam):
+      yield TimestampedValue(element, timestamp)
+
+    def expand(self, pcoll):
+      return pcoll | ParDo(self.add_timestamp_info)
+
+  @typehints.with_input_types(T)
+  @typehints.with_output_types(T)
+  class Window(PTransform):
+    """PTransform to convert an element in a PCollection into a tuple of
+    (element, timestamp, window), wrapped in a TimestampedValue with it's
+    associated timestamp."""
+
+    @staticmethod
+    def add_window_info(element, timestamp=DoFn.TimestampParam,
+                        window=DoFn.WindowParam):
+      yield TimestampedValue((element, timestamp, window), timestamp)
+
+    def expand(self, pcoll):
+      return pcoll | ParDo(self.add_window_info)
+
+  @typehints.with_input_types(typehints.KV[K, V])
+  @typehints.with_output_types(typehints.KV[K, V])
+  class TimestampInValue(PTransform):
+    """PTransform to wrap the Value in a KV pair in a TimestampedValue with
+    the element's associated timestamp."""
+
+    @staticmethod
+    def add_timestamp_info(element, timestamp=DoFn.TimestampParam):
+      key, value = element
+      yield (key, TimestampedValue(value, timestamp))
+
+    def expand(self, pcoll):
+      return pcoll | ParDo(self.add_timestamp_info)
+
+  @typehints.with_input_types(typehints.KV[K, V])
+  @typehints.with_output_types(typehints.KV[K, V])
+  class WindowInValue(PTransform):
+    """PTransform to convert the Value in a KV pair into a tuple of
+    (value, timestamp, window), with the whole element being wrapped inside a
+    TimestampedValue."""
+
+    @staticmethod
+    def add_window_info(element, timestamp=DoFn.TimestampParam,
+                        window=DoFn.WindowParam):
+      key, value = element
+      yield TimestampedValue((key, (value, timestamp, window)), timestamp)
+
+    def expand(self, pcoll):
+      return pcoll | ParDo(self.add_window_info)

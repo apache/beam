@@ -120,6 +120,8 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
     def tests = [
         "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
         "apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest",
+        "apache_beam.io.gcp.bigquery_test:BigQueryStreamingInsertTransformIntegrationTests\
+.test_multiple_destinations_transform_streaming",
     ]
     def streamingTestOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
     def argMap = ["runner": "TestDirectRunner",
@@ -263,12 +265,12 @@ task hdfsIntegrationTest(dependsOn: 'installGcpTest') {
 task sparkValidatesRunner() {
   dependsOn 'createProcessWorker'
   dependsOn 'setupVirtualenv'
-  dependsOn ':beam-runners-spark-job-server:shadowJar'
+  dependsOn ':runners:spark:job-server:shadowJar'
   doLast {
-    def environment_config = "'{\"command\": \"${project(":beam-sdks-python:").buildDir.absolutePath}/sdk_worker.sh\"}'"
+    def environment_config = "'{\"command\": \"${project(":sdks:python:").buildDir.absolutePath}/sdk_worker.sh\"}'"
     def argMap = [
             "environment_type"    : "PROCESS",
-            "spark_job_server_jar": project(":beam-runners-spark-job-server:").shadowJar.archivePath,
+            "spark_job_server_jar": project(":runners:spark:job-server:").shadowJar.archivePath,
             "environment_config": environment_config,
     ]
     def argString = project.mapToArgString(argMap)

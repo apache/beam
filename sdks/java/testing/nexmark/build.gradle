@@ -17,8 +17,10 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-archivesBaseName = 'beam-sdks-java-nexmark'
-applyJavaNature(testShadowJar: true, exportJavadoc: false)
+applyJavaNature(
+    exportJavadoc: false,
+    archivesBaseName: 'beam-sdks-java-nexmark'
+)
 
 description = "Apache Beam :: SDKs :: Java :: Nexmark"
 
@@ -50,34 +52,33 @@ configurations {
 }
 
 dependencies {
-  shadow library.java.vendored_guava_20_0
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
-  shadow project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
-  shadow project(path: ":sdks:java:extensions:sql", configuration: "shadow")
-  shadow project(path: ":sdks:java:io:kafka", configuration: "shadow")
-  shadow project(path: ":sdks:java:testing:test-utils", configuration: "shadow")
-  shadow library.java.google_api_services_bigquery
-  shadow library.java.jackson_core
-  shadow library.java.jackson_annotations
-  shadow library.java.jackson_databind
-  shadow library.java.avro
-  shadow library.java.joda_time
-  shadow library.java.slf4j_api
-  shadow library.java.commons_lang3
-  shadow library.java.kafka_clients
-  shadow project(path: ":runners:direct-java", configuration: "shadow")
+  compile library.java.vendored_guava_20_0
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":sdks:java:io:google-cloud-platform")
+  compile project(":sdks:java:extensions:google-cloud-platform-core")
+  compile project(path: ":sdks:java:extensions:sql", configuration: "shadow")
+  compile project(":sdks:java:io:kafka")
+  compile project(":sdks:java:testing:test-utils")
+  compile library.java.google_api_services_bigquery
+  compile library.java.jackson_core
+  compile library.java.jackson_annotations
+  compile library.java.jackson_databind
+  compile library.java.avro
+  compile library.java.joda_time
+  compile library.java.slf4j_api
+  compile library.java.commons_lang3
+  compile library.java.kafka_clients
+  compile project(path: ":runners:direct-java", configuration: "shadow")
   provided library.java.junit
   provided library.java.hamcrest_core
-  shadow project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
-  shadowTestRuntimeClasspath library.java.slf4j_jdk14
-  shadowTest project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadowTest")
-  shadowTest project(path: ":sdks:java:testing:test-utils", configuration: "shadowTest")
+  testRuntimeClasspath library.java.slf4j_jdk14
+  testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
 
-  gradleRun project(path: project.path, configuration: "shadow")
-  gradleRun project(path: nexmarkRunnerDependency, configuration: "shadow")
+  gradleRun project(project.path)
+  gradleRun project(nexmarkRunnerDependency)
 
   // The Spark runner requires the user to provide a Spark dependency. For self-contained
   // runs with the Spark runner, we can provide such a dependency. This is deliberately phrased

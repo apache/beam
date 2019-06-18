@@ -31,9 +31,9 @@ evaluationDependsOn(":sdks:java:container")
 configurations { dataflowRunnerPreCommit }
 
 dependencies {
-  testRuntimeOnly project(path: ":examples:java", configuration: "shadow")
-  testRuntimeOnly project(path: ":examples:java", configuration: "shadowTest")
-  testRuntimeOnly project(path: ":runners:google-cloud-dataflow-java", configuration: "shadow")
+  testRuntimeOnly project(":examples:java")
+  testRuntimeOnly project(path: ":examples:java", configuration: "testRuntime")
+  testRuntimeOnly project(":runners:google-cloud-dataflow-java")
 }
 
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'

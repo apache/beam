@@ -17,22 +17,15 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
-
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableRefToJson;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,69 +36,41 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
 
   static <T> BigQueryTableSource<T> create(
       String stepUuid,
-      ValueProvider<TableReference> table,
+      BigQueryTableSourceDef tableDef,
       BigQueryServices bqServices,
       Coder<T> coder,
       SerializableFunction<SchemaAndRecord, T> parseFn) {
-    return new BigQueryTableSource<>(stepUuid, table, bqServices, coder, parseFn);
+    return new BigQueryTableSource<>(stepUuid, tableDef, bqServices, coder, parseFn);
   }
 
-  private final ValueProvider<String> jsonTable;
+  private final BigQueryTableSourceDef tableDef;
   private final AtomicReference<Long> tableSizeBytes;
 
   private BigQueryTableSource(
       String stepUuid,
-      ValueProvider<TableReference> table,
+      BigQueryTableSourceDef tableDef,
       BigQueryServices bqServices,
       Coder<T> coder,
       SerializableFunction<SchemaAndRecord, T> parseFn) {
     super(stepUuid, bqServices, coder, parseFn);
-    this.jsonTable = NestedValueProvider.of(checkNotNull(table, "table"), new TableRefToJson());
+    this.tableDef = tableDef;
     this.tableSizeBytes = new AtomicReference<>();
   }
 
   @Override
   protected TableReference getTableToExtract(BigQueryOptions bqOptions) throws IOException {
-    TableReference tableReference =
-        BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(), TableReference.class);
-    return setDefaultProjectIfAbsent(bqOptions, tableReference);
-  }
-
-  /**
-   * Sets the {@link TableReference#projectId} of the provided table reference to the id of the
-   * default project if the table reference does not have a project ID specified.
-   */
-  private TableReference setDefaultProjectIfAbsent(
-      BigQueryOptions bqOptions, TableReference tableReference) {
-    if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
-      checkState(
-          !Strings.isNullOrEmpty(bqOptions.getProject()),
-          "No project ID set in %s or %s, cannot construct a complete %s",
-          TableReference.class.getSimpleName(),
-          BigQueryOptions.class.getSimpleName(),
-          TableReference.class.getSimpleName());
-      LOG.info(
-          "Project ID not set in {}. Using default project from {}.",
-          TableReference.class.getSimpleName(),
-          BigQueryOptions.class.getSimpleName());
-      tableReference.setProjectId(bqOptions.getProject());
-    }
-    return tableReference;
+    return tableDef.getTableReference(bqOptions);
   }
 
   @Override
   public synchronized long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
     if (tableSizeBytes.get() == null) {
-      TableReference table =
-          setDefaultProjectIfAbsent(
-              options.as(BigQueryOptions.class),
-              BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(), TableReference.class));
-
-      Table tableRef =
-          bqServices.getDatasetService(options.as(BigQueryOptions.class)).getTable(table);
-      Long numBytes = tableRef.getNumBytes();
-      if (tableRef.getStreamingBuffer() != null) {
-        numBytes += tableRef.getStreamingBuffer().getEstimatedBytes().longValue();
+      BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+      TableReference tableRef = tableDef.getTableReference(bqOptions);
+      Table table = bqServices.getDatasetService(bqOptions).getTable(tableRef);
+      Long numBytes = table.getNumBytes();
+      if (table.getStreamingBuffer() != null) {
+        numBytes += table.getStreamingBuffer().getEstimatedBytes().longValue();
       }
 
       tableSizeBytes.compareAndSet(null, numBytes);
@@ -121,6 +86,6 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-    builder.add(DisplayData.item("table", jsonTable));
+    builder.add(DisplayData.item("table", tableDef.getJsonTable()));
   }
 }

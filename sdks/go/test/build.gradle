@@ -48,13 +48,29 @@ golang {
 }
 
 task flinkValidatesRunner {
-  dependsOn ":beam-sdks-go-test:build"
-  dependsOn ":beam-runners-flink_2.11-job-server:shadowJar"
+  dependsOn ":sdks:go:test:build"
+  dependsOn ":runners:flink:1.5:job-server:shadowJar"
   doLast {
     def options = [
             "--runner flink",
             "--parallel 1", // prevent memory overuse
-            "--flink_job_server_jar ${project(":beam-runners-flink_2.11-job-server:").shadowJar.archivePath}",
+            "--flink_job_server_jar ${project(":runners:flink:1.5:job-server").shadowJar.archivePath}",
+    ]
+    exec {
+      executable "sh"
+      args "-c", "./run_integration_tests.sh ${options.join(' ')}"
+    }
+  }
+}
+
+task sparkValidatesRunner {
+  dependsOn ":sdks:go:test:build"
+  dependsOn ":runners:spark:job-server:shadowJar"
+  doLast {
+    def options = [
+            "--runner spark",
+            "--parallel 1", // prevent memory overuse
+            "--spark_job_server_jar ${project(":runners:spark:job-server").shadowJar.archivePath}",
     ]
     exec {
       executable "sh"

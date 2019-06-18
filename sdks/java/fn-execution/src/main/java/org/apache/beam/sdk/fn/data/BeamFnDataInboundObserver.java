@@ -64,9 +64,9 @@ public class BeamFnDataInboundObserver<T>
       if (t.getData().isEmpty()) {
         LOG.debug(
             "Closing stream for instruction {} and "
-                + "target {} having consumed {} values {} bytes",
+                + "transform {} having consumed {} values {} bytes",
             t.getInstructionReference(),
-            t.getTarget(),
+            t.getPtransformId(),
             counter,
             byteCounter);
         readFuture.complete();

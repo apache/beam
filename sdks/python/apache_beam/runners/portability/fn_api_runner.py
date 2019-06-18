@@ -263,6 +263,14 @@ class FnApiRunner(runner.PipelineRunner):
   def run_pipeline(self, pipeline, options):
     MetricsEnvironment.set_metrics_supported(False)
     RuntimeValueProvider.set_runtime_options({})
+
+    # Setup "beam_fn_api" experiment options if lacked.
+    experiments = (options.view_as(pipeline_options.DebugOptions).experiments
+                   or [])
+    if not 'beam_fn_api' in experiments:
+      experiments.append('beam_fn_api')
+    options.view_as(pipeline_options.DebugOptions).experiments = experiments
+
     # This is sometimes needed if type checking is disabled
     # to enforce that the inputs (and outputs) of GroupByKey operations
     # are known to be KVs.
@@ -273,6 +281,10 @@ class FnApiRunner(runner.PipelineRunner):
         pipeline_options.DirectOptions).direct_runner_bundle_repeat
     self._profiler_factory = profiler.Profile.factory_from_options(
         options.view_as(pipeline_options.ProfilingOptions))
+
+    if 'use_sdf_bounded_source' in experiments:
+      pipeline.replace_all(DataflowRunner._SDF_PTRANSFORM_OVERRIDES)
+
     self._latest_run_result = self.run_via_runner_api(pipeline.to_runner_api(
         default_environment=self._default_environment))
     return self._latest_run_result
@@ -407,16 +419,14 @@ class FnApiRunner(runner.PipelineRunner):
                                   bundle_processor.DATA_OUTPUT_URN):
           pcoll_id = transform.spec.payload
           if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
-            target = transform.unique_name, only_element(transform.outputs)
             if pcoll_id == fn_api_runner_transforms.IMPULSE_BUFFER:
-              data_input[target] = [ENCODED_IMPULSE_VALUE]
+              data_input[transform.unique_name] = [ENCODED_IMPULSE_VALUE]
             else:
-              data_input[target] = pcoll_buffers[pcoll_id]
+              data_input[transform.unique_name] = pcoll_buffers[pcoll_id]
             coder_id = pipeline_components.pcollections[
                 only_element(transform.outputs.values())].coder_id
           elif transform.spec.urn == bundle_processor.DATA_OUTPUT_URN:
-            target = transform.unique_name, only_element(transform.inputs)
-            data_output[target] = pcoll_id
+            data_output[transform.unique_name] = pcoll_id
             coder_id = pipeline_components.pcollections[
                 only_element(transform.inputs.values())].coder_id
           else:
@@ -526,7 +536,7 @@ class FnApiRunner(runner.PipelineRunner):
       for read_id, proto in process_bundle_descriptor.transforms.items():
         if (proto.spec.urn == bundle_processor.DATA_INPUT_URN
             and input_pcoll in proto.outputs.values()):
-          return read_id, 'out'
+          return read_id
       raise RuntimeError(
           'No IO transform feeds %s' % ptransform_id)
 
@@ -559,7 +569,7 @@ class FnApiRunner(runner.PipelineRunner):
           for windowed_key_timer in timers_by_key_and_window.values():
             windowed_timer_coder_impl.encode_to_stream(
                 windowed_key_timer, out, True)
-          deferred_inputs[transform_id, 'out'] = [out.get()]
+          deferred_inputs[transform_id] = [out.get()]
           written_timers[:] = []
 
       # Queue any process-initiated delayed bundle applications.
@@ -595,14 +605,13 @@ class FnApiRunner(runner.PipelineRunner):
 
           # Decode and recode to split the encoded buffer by element index.
           all_elements = list(coder_impl.decode_all(b''.join(last_sent[
-              channel_split.ptransform_id, channel_split.input_id])))
+              channel_split.ptransform_id])))
           residual_elements = all_elements[
               channel_split.first_residual_element : prev_stops.get(
                   channel_split.ptransform_id, len(all_elements)) + 1]
           if residual_elements:
-            deferred_inputs[
-                channel_split.ptransform_id, channel_split.input_id].append(
-                    coder_impl.encode_all(residual_elements))
+            deferred_inputs[channel_split.ptransform_id].append(
+                coder_impl.encode_all(residual_elements))
           prev_stops[
               channel_split.ptransform_id] = channel_split.last_primary_element
 
@@ -1207,10 +1216,9 @@ class BundleManager(object):
 
     if not split_manager:
       # Write all the input data to the channel immediately.
-      for (transform_id, name), elements in inputs.items():
+      for transform_id, elements in inputs.items():
         data_out = self._controller.data_plane_handler.output_stream(
-            process_bundle_id, beam_fn_api_pb2.Target(
-                primitive_transform_reference=transform_id, name=name))
+            process_bundle_id, transform_id)
         for element_data in elements:
           data_out.write(element_data)
         data_out.close()
@@ -1229,7 +1237,7 @@ class BundleManager(object):
     with ProgressRequester(
         self._controller, process_bundle_id, self._progress_frequency):
       if split_manager:
-        (read_transform_id, name), buffer_data = only_element(inputs.items())
+        read_transform_id, buffer_data = only_element(inputs.items())
         num_elements = len(list(
             self._get_input_coder_impl(read_transform_id).decode_all(
                 b''.join(buffer_data))))
@@ -1244,9 +1252,7 @@ class BundleManager(object):
 
         # Send all the data.
         data_out = self._controller.data_plane_handler.output_stream(
-            process_bundle_id,
-            beam_fn_api_pb2.Target(
-                primitive_transform_reference=read_transform_id, name=name))
+            process_bundle_id, read_transform_id)
         data_out.write(b''.join(buffer_data))
         data_out.close()
 
@@ -1287,20 +1293,15 @@ class BundleManager(object):
             break
 
       # Gather all output data.
-      expected_targets = [
-          beam_fn_api_pb2.Target(primitive_transform_reference=transform_id,
-                                 name=output_name)
-          for (transform_id, output_name), _ in expected_outputs.items()]
-      logging.debug('Gather all output data from %s.', expected_targets)
+      logging.debug('Gather all output data from %s.', expected_outputs)
       for output in self._controller.data_plane_handler.input_elements(
           process_bundle_id,
-          expected_targets,
+          expected_outputs.keys(),
           abort_callback=lambda: (result_future.is_done()
                                   and result_future.get().error)):
-        target_tuple = (
-            output.target.primitive_transform_reference, output.target.name)
-        if target_tuple in expected_outputs:
-          self._get_buffer(expected_outputs[target_tuple]).append(output.data)
+        if output.ptransform_id in expected_outputs:
+          self._get_buffer(
+              expected_outputs[output.ptransform_id]).append(output.data)
 
       logging.debug('Wait for the bundle to finish.')
       result = result_future.get()
