@@ -27,11 +27,13 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.dataflow.worker.status.BaseStatusServlet;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Equivalence;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.RemovalCause;
@@ -316,11 +318,11 @@ public class WindmillStateCache implements StatusDataProvider {
 
     private static class NamespacedTag<T extends State> {
       private final StateNamespace namespace;
-      private final StateTag<T> tag;
+      private final Equivalence.Wrapper<StateTag> tag;
 
       NamespacedTag(StateNamespace namespace, StateTag<T> tag) {
         this.namespace = namespace;
-        this.tag = tag;
+        this.tag = StateTags.ID_EQUIVALENCE.wrap((StateTag) tag);
       }
 
       @Override
