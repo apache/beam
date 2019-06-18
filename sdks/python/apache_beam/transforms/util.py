@@ -696,7 +696,7 @@ class GroupIntoBatches(PTransform):
 
 def _pardo_group_into_batches(batch_size, input_coder):
   ELEMENT_STATE = BagStateSpec('values', input_coder)
-  COUNT_STATE = CombiningValueStateSpec('count', coders.VarIntCoder(), CountCombineFn())
+  COUNT_STATE = CombiningValueStateSpec('count', input_coder, CountCombineFn())
   EXPIRY_TIMER = TimerSpec('expiry', TimeDomain.WATERMARK)
 
   class _GroupIntoBatchesDoFn(DoFn):
@@ -707,7 +707,7 @@ def _pardo_group_into_batches(batch_size, input_coder):
                 count_state=DoFn.StateParam(COUNT_STATE), 
                 expiry_timer=DoFn.TimerParam(EXPIRY_TIMER)):
       # Allowed lateness not supported in Python SDK
-      # https://beam.apache.org/documentation/programming-guide/#watermarks-and-late-data
+      # https://beam.apache.org/documentation/programming-guide/#watermarks-and-late-data    
       expiry_timer.set(window.end)
       element_state.add(element)
       count_state.add(1)
@@ -720,7 +720,9 @@ def _pardo_group_into_batches(batch_size, input_coder):
     
     @on_timer(EXPIRY_TIMER)
     def expiry(self, element_state=DoFn.StateParam(ELEMENT_STATE), count_state=DoFn.StateParam(COUNT_STATE)):
-        yield [element for element in element_state.read()]
+      batch = [element for element in element_state.read()]
+      if batch:
+        yield batch
         element_state.clear()
         count_state.clear()
   

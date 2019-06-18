@@ -462,31 +462,36 @@ class GroupIntoBatchesTest(unittest.TestCase):
       data.append(("key", scientists[index]))
     return data
     
-  def test_in_global_window(self):
-    pipeline = TestPipeline()
-    collection = pipeline | beam.Create(GroupIntoBatchesTest._create_test_data()) | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE)
-    num_batches = collection | beam.combiners.Count.Globally()
-    assert_that(num_batches, equal_to([int(math.ceil(GroupIntoBatchesTest.NUM_ELEMENTS / GroupIntoBatchesTest.BATCH_SIZE))]))
-    pipeline.run()
-
-  # def test_in_streaming_mode(self):
-  #   timestamp_interval = 1
-  #   offset = itertools.count(0)
-  #   start_time = timestamp.Timestamp(0)
-  #   window_duration = 6
-  #   test_stream = (TestStream()
-  #                 .advance_watermark_to(start_time)
-  #                 .add_elements([TimestampedValue(x, next(offset) * timestamp_interval) for x in GroupIntoBatchesTest._create_test_data()])
-  #                 .advance_watermark_to(start_time + (window_duration - 1))
-  #                 .advance_watermark_to(start_time + (window_duration + 1))
-  #                 .advance_watermark_to(start_time + GroupIntoBatchesTest.NUM_ELEMENTS)
-  #                 .advance_watermark_to_infinity())
+  # def test_in_global_window(self):
   #   pipeline = TestPipeline()
-  #   collection = pipeline | test_stream | WindowInto(FixedWindows(window_duration)) | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE)
-  #   print collection
-  #   # assert_that(num_batches, equal_to([int(math.ceil(GroupIntoBatchesTest.NUM_ELEMENTS / GroupIntoBatchesTest.BATCH_SIZE))]))
-  #   result = pipeline.run()
-  #   result.wait_until_finish()
+  #   collection = pipeline | beam.Create(GroupIntoBatchesTest._create_test_data()) | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE)
+  #   num_batches = collection | beam.combiners.Count.Globally()
+  #   assert_that(num_batches, equal_to([int(math.ceil(GroupIntoBatchesTest.NUM_ELEMENTS / GroupIntoBatchesTest.BATCH_SIZE))]))
+  #   pipeline.run()
+
+  def test_in_streaming_mode(self):
+    timestamp_interval = 1
+    offset = itertools.count(0)
+    start_time = timestamp.Timestamp(0)
+    window_duration = 6
+    test_stream = (TestStream()
+                  .advance_watermark_to(start_time)
+                  .add_elements([TimestampedValue(x, next(offset) * timestamp_interval) for x in GroupIntoBatchesTest._create_test_data()])
+                  .advance_watermark_to(start_time + (window_duration - 1))
+                  .advance_watermark_to(start_time + (window_duration + 1))
+                  .advance_watermark_to(start_time + GroupIntoBatchesTest.NUM_ELEMENTS)
+                  .advance_watermark_to_infinity())
+    pipeline = TestPipeline()
+    collection = pipeline | test_stream | WindowInto(FixedWindows(window_duration)) | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE)
+    num_batches = collection | beam.combiners.Count.PerKey()
+    num_batches | beam.ParDo(PrintDoFn())
+    result = pipeline.run()
+    result.wait_until_finish()
+
+
+class PrintDoFn(beam.DoFn):
+  def process(self, element):
+    print element
 
 
 class ToStringTest(unittest.TestCase):
