@@ -17,27 +17,19 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
-import java.io.IOException;
 import java.io.Serializable;
-import java.math.BigInteger;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.extensions.sql.impl.BeamRowCountStatistics;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * {@code BigQueryTable} represent a BigQuery table as a target. This provider does not currently
@@ -47,23 +39,11 @@ import org.slf4j.LoggerFactory;
 class BigQueryTable extends BaseBeamTable implements Serializable {
   @VisibleForTesting final String bqLocation;
   private final ConversionOptions conversionOptions;
-  private BeamRowCountStatistics rowCountStatistics = null;
-  private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryTable.class);
 
   BigQueryTable(Table table, BigQueryUtils.ConversionOptions options) {
     super(table.getSchema());
     this.conversionOptions = options;
     this.bqLocation = table.getLocation();
-  }
-
-  @Override
-  public BeamRowCountStatistics getRowCount(PipelineOptions options) {
-
-    if (rowCountStatistics == null) {
-      rowCountStatistics = getRowCountFromBQ(options, bqLocation);
-    }
-
-    return rowCountStatistics;
   }
 
   @Override
@@ -91,24 +71,5 @@ class BigQueryTable extends BaseBeamTable implements Serializable {
             .withSchema(BigQueryUtils.toTableSchema(getSchema()))
             .withFormatFunction(BigQueryUtils.toTableRow())
             .to(bqLocation));
-  }
-
-  private static BeamRowCountStatistics getRowCountFromBQ(PipelineOptions o, String bqLocation) {
-    try {
-      BigInteger rowCount =
-          BigQueryHelpers.getNumRows(
-              o.as(BigQueryOptions.class), BigQueryHelpers.parseTableSpec(bqLocation));
-
-      if (rowCount == null) {
-        return BeamRowCountStatistics.UNKNOWN;
-      }
-
-      return BeamRowCountStatistics.createBoundedTableStatistics(rowCount);
-
-    } catch (IOException | InterruptedException e) {
-      LOGGER.warn("Could not get the row count for the table " + bqLocation, e);
-    }
-
-    return BeamRowCountStatistics.UNKNOWN;
   }
 }

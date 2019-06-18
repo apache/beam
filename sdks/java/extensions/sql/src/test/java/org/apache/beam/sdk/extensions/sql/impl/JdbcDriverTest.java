@@ -46,7 +46,6 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestUnboundedTable;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.Row;
@@ -198,7 +197,7 @@ public class JdbcDriverTest {
   @Test
   public void testSelectsFromExistingTable() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
-    Connection connection = JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());
+    Connection connection = JdbcDriver.connect(tableProvider);
 
     connection
         .createStatement()
@@ -220,7 +219,7 @@ public class JdbcDriverTest {
   @Test
   public void testTimestampWithDefaultTimezone() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
-    Connection connection = JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());
+    Connection connection = JdbcDriver.connect(tableProvider);
 
     // A table with one TIMESTAMP column
     Schema schema = Schema.builder().addDateTimeField("ts").build();
@@ -251,7 +250,7 @@ public class JdbcDriverTest {
   public void testTimestampWithNonzeroTimezone() throws Exception {
     Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Tokyo"), Locale.ROOT);
     TestTableProvider tableProvider = new TestTableProvider();
-    Connection connection = JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());
+    Connection connection = JdbcDriver.connect(tableProvider);
 
     // A table with one TIMESTAMP column
     Schema schema = Schema.builder().addDateTimeField("ts").build();
@@ -281,7 +280,7 @@ public class JdbcDriverTest {
   public void testTimestampWithZeroTimezone() throws Exception {
     Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"), Locale.ROOT);
     TestTableProvider tableProvider = new TestTableProvider();
-    Connection connection = JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());
+    Connection connection = JdbcDriver.connect(tableProvider);
 
     // A table with one TIMESTAMP column
     Schema schema = Schema.builder().addDateTimeField("ts").build();
@@ -310,7 +309,7 @@ public class JdbcDriverTest {
   @Test
   public void testSelectsFromExistingComplexTable() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
-    Connection connection = JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());
+    Connection connection = JdbcDriver.connect(tableProvider);
 
     connection
         .createStatement()
@@ -344,7 +343,7 @@ public class JdbcDriverTest {
   @Test
   public void testInsertIntoCreatedTable() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
-    Connection connection = JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());
+    Connection connection = JdbcDriver.connect(tableProvider);
 
     connection
         .createStatement()
@@ -370,8 +369,7 @@ public class JdbcDriverTest {
 
   @Test
   public void testInternalConnect_boundedTable() throws Exception {
-    CalciteConnection connection =
-        JdbcDriver.connect(BOUNDED_TABLE, PipelineOptionsFactory.create());
+    CalciteConnection connection = JdbcDriver.connect(BOUNDED_TABLE);
     Statement statement = connection.createStatement();
     ResultSet resultSet = statement.executeQuery("SELECT * FROM test");
     assertTrue(resultSet.next());
@@ -394,8 +392,7 @@ public class JdbcDriverTest {
                     .addRows(1, "second first")
                     .addRows(2, "second")));
 
-    CalciteConnection connection =
-        JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());
+    CalciteConnection connection = JdbcDriver.connect(tableProvider);
     Statement statement = connection.createStatement();
     ResultSet resultSet1 = statement.executeQuery("SELECT * FROM test LIMIT 5");
     assertTrue(resultSet1.next());
@@ -435,8 +432,7 @@ public class JdbcDriverTest {
                     .timestampColumnIndex(3)
                     .addRows(Duration.ZERO, 1, 1, 1, FIRST_DATE, 1, 2, 6, FIRST_DATE)));
 
-    CalciteConnection connection =
-        JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());
+    CalciteConnection connection = JdbcDriver.connect(tableProvider);
     Statement statement = connection.createStatement();
 
     ResultSet resultSet1 = statement.executeQuery("SELECT * FROM test LIMIT 1");
@@ -474,8 +470,7 @@ public class JdbcDriverTest {
 
   @Test
   public void testInternalConnect_setDirectRunner() throws Exception {
-    CalciteConnection connection =
-        JdbcDriver.connect(BOUNDED_TABLE, PipelineOptionsFactory.create());
+    CalciteConnection connection = JdbcDriver.connect(BOUNDED_TABLE);
     Statement statement = connection.createStatement();
     assertEquals(0, statement.executeUpdate("SET runner = direct"));
     assertTrue(statement.execute("SELECT * FROM test"));
@@ -485,8 +480,7 @@ public class JdbcDriverTest {
   public void testInternalConnect_setBogusRunner() throws Exception {
     thrown.expectMessage("Unknown 'runner' specified 'bogus'");
 
-    CalciteConnection connection =
-        JdbcDriver.connect(BOUNDED_TABLE, PipelineOptionsFactory.create());
+    CalciteConnection connection = JdbcDriver.connect(BOUNDED_TABLE);
     Statement statement = connection.createStatement();
     assertEquals(0, statement.executeUpdate("SET runner = bogus"));
     assertTrue(statement.execute("SELECT * FROM test"));
@@ -494,8 +488,7 @@ public class JdbcDriverTest {
 
   @Test
   public void testInternalConnect_resetAll() throws Exception {
-    CalciteConnection connection =
-        JdbcDriver.connect(BOUNDED_TABLE, PipelineOptionsFactory.create());
+    CalciteConnection connection = JdbcDriver.connect(BOUNDED_TABLE);
     Statement statement = connection.createStatement();
     assertEquals(0, statement.executeUpdate("SET runner = bogus"));
     assertEquals(0, statement.executeUpdate("RESET ALL"));
