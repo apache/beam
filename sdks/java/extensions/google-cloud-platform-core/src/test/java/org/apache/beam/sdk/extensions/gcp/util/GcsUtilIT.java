@@ -47,11 +47,12 @@ public class GcsUtilIT {
   public void testRewriteMultiPart() throws IOException {
     TestPipelineOptions options =
         TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
-    GcsOptions gcsOptions = options.as(GcsOptions.class);
-    // Setting the KMS key is necessary to trigger multi-part rewrites (gcpTempLocation is created
+    // Using a KMS key is necessary to trigger multi-part rewrites (bucket is created
     // with a bucket default key).
-    assertNotNull(gcsOptions.getDataflowKmsKey());
+    assertNotNull(options.getTempRootKms());
+    options.setTempLocation(options.getTempRootKms() + "/testRewriteMultiPart");
 
+    GcsOptions gcsOptions = options.as(GcsOptions.class);
     GcsUtil gcsUtil = gcsOptions.getGcsUtil();
     String srcFilename = "gs://dataflow-samples/wikipedia_edits/wiki_data-000000000000.json";
     String dstFilename =

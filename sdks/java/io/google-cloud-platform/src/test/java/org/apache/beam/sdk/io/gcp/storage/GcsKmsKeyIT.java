@@ -18,9 +18,8 @@
 package org.apache.beam.sdk.io.gcp.storage;
 
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertNotNull;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -66,14 +65,16 @@ public class GcsKmsKeyIT {
   /**
    * Tests writing to gcpTempLocation with --dataflowKmsKey set on the command line. Verifies that
    * resulting output uses specified key and is readable. Does not verify any temporary files.
+   *
+   * <p>This test verifies that GCS file copies work with CMEK-enabled files.
    */
   @Test
   public void testGcsWriteWithKmsKey() {
     TestPipelineOptions options =
         TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
+    assertNotNull(options.getTempRootKms());
+    options.setTempLocation(options.getTempRootKms() + "/testGcsWriteWithKmsKey");
     GcsOptions gcsOptions = options.as(GcsOptions.class);
-    final String expectedKmsKey = gcsOptions.getDataflowKmsKey();
-    assertThat(expectedKmsKey, notNullValue());
 
     ResourceId filenamePrefix =
         FileSystems.matchNewResource(gcsOptions.getGcpTempLocation(), true)
@@ -100,11 +101,7 @@ public class GcsKmsKeyIT {
       for (Metadata metadata : matchResult.metadata()) {
         String kmsKey =
             gcsUtil.getObject(GcsPath.fromUri(metadata.resourceId().toString())).getKmsKeyName();
-        // Returned kmsKey should have a version suffix.
-        assertThat(
-            metadata.resourceId().toString(),
-            kmsKey,
-            startsWith(expectedKmsKey + "/cryptoKeyVersions/"));
+        assertNotNull(kmsKey);
       }
     } catch (IOException e) {
       throw new AssertionError(e);
