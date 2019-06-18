@@ -255,6 +255,7 @@ public class PubsubJsonIT implements Serializable {
   }
 
   @Test
+  @Ignore("https://jira.apache.org/jira/browse/BEAM-7582")
   public void testSQLLimit() throws Exception {
     String createTableString =
         "CREATE EXTERNAL TABLE message (\n"
