@@ -25,7 +25,6 @@ import tempfile
 import time
 import unittest
 
-from apache_beam import coders
 from apache_beam.io import filesystems
 from apache_beam.runners.interactive import cache_manager as cache
 
@@ -53,8 +52,9 @@ class FileBasedCacheManagerTest(object):
     if os.path.exists(self.test_dir):
       shutil.rmtree(self.test_dir)
 
-  def mock_write_cache(self, pcoll_list, prefix, cache_label):
+  def mock_write_cache(self, pcoll_list, labels):
     """Cache the PCollection where cache.WriteCache would write to."""
+    prefix, _ = labels
     cache_path = filesystems.FileSystems.join(
         self.cache_manager._cache_dir, prefix)
     if not filesystems.FileSystems.exists(cache_path):
@@ -64,113 +64,109 @@ class FileBasedCacheManagerTest(object):
     # writes happen at the same timestamp.
     time.sleep(0.1)
 
-    cache_file = cache_label + '-1-of-2'
-    labels = [prefix, cache_label]
-
-    # Usually, the pcoder will be inferred from `pcoll.element_type`
-    pcoder = coders.registry.get_coder(object)
-    self.cache_manager.save_pcoder(pcoder, *labels)
-    sink = self.cache_manager.sink(*labels)
-
-    with open(self.cache_manager._path(prefix, cache_file), 'wb') as f:
-      for line in pcoll_list:
-        sink.write_record(f, line)
+    self.cache_manager.create(labels, if_exists="overwrite")
+    self.cache_manager.get(labels).write(pcoll_list)
 
   def test_exists(self):
     """Test that CacheManager can correctly tell if the cache exists or not."""
     prefix = 'full'
     cache_label = 'some-cache-label'
+    labels = prefix, cache_label
     cache_version_one = ['cache', 'version', 'one']
 
-    self.assertFalse(self.cache_manager.exists(prefix, cache_label))
-    self.mock_write_cache(cache_version_one, prefix, cache_label)
-    self.assertTrue(self.cache_manager.exists(prefix, cache_label))
+    self.assertFalse(self.cache_manager.exists(labels))
+    self.mock_write_cache(cache_version_one, labels)
+    self.assertTrue(self.cache_manager.exists(labels))
     self.cache_manager.cleanup()
-    self.assertFalse(self.cache_manager.exists(prefix, cache_label))
-    self.mock_write_cache(cache_version_one, prefix, cache_label)
-    self.assertTrue(self.cache_manager.exists(prefix, cache_label))
+    self.assertFalse(self.cache_manager.exists(labels))
+    self.mock_write_cache(cache_version_one, labels)
+    self.assertTrue(self.cache_manager.exists(labels))
 
   def test_read_basic(self):
     """Test the condition where the cache is read once after written once."""
     prefix = 'full'
     cache_label = 'some-cache-label'
+    labels = prefix, cache_label
     cache_version_one = ['cache', 'version', 'one']
 
-    self.mock_write_cache(cache_version_one, prefix, cache_label)
-    pcoll_list, version = self.cache_manager.read(prefix, cache_label)
+    self.mock_write_cache(cache_version_one, labels)
+    pcoll_list, version = self.cache_manager.read(labels)
     self.assertListEqual(pcoll_list, cache_version_one)
     self.assertEqual(version, 0)
     self.assertTrue(
-        self.cache_manager.is_latest_version(version, prefix, cache_label))
+        self.cache_manager.is_latest_version(version, (labels)))
 
   def test_read_version_update(self):
     """Tests if the version is properly updated after the files are updated."""
     prefix = 'full'
     cache_label = 'some-cache-label'
+    labels = prefix, cache_label
     cache_version_one = ['cache', 'version', 'one']
     cache_version_two = ['cache', 'version', 'two']
 
-    self.mock_write_cache(cache_version_one, prefix, cache_label)
-    pcoll_list, version = self.cache_manager.read(prefix, cache_label)
+    self.mock_write_cache(cache_version_one, labels)
+    pcoll_list, version = self.cache_manager.read(labels)
 
-    self.mock_write_cache(cache_version_two, prefix, cache_label)
+    self.mock_write_cache(cache_version_two, labels)
     self.assertFalse(
-        self.cache_manager.is_latest_version(version, prefix, cache_label))
+        self.cache_manager.is_latest_version(version, labels))
 
-    pcoll_list, version = self.cache_manager.read(prefix, cache_label)
+    pcoll_list, version = self.cache_manager.read(labels)
     self.assertListEqual(pcoll_list, cache_version_two)
     self.assertEqual(version, 1)
     self.assertTrue(
-        self.cache_manager.is_latest_version(version, prefix, cache_label))
+        self.cache_manager.is_latest_version(version, labels))
 
   def test_read_before_write(self):
     """Test the behavior when read() is called before WriteCache completes."""
     prefix = 'full'
     cache_label = 'some-cache-label'
+    labels = prefix, cache_label
 
-    self.assertFalse(self.cache_manager.exists(prefix, cache_label))
+    self.assertFalse(self.cache_manager.exists(labels))
 
-    pcoll_list, version = self.cache_manager.read(prefix, cache_label)
+    pcoll_list, version = self.cache_manager.read(labels)
     self.assertListEqual(pcoll_list, [])
     self.assertEqual(version, -1)
     self.assertTrue(
-        self.cache_manager.is_latest_version(version, prefix, cache_label))
+        self.cache_manager.is_latest_version(version, labels))
 
   def test_read_over_cleanup(self):
     """Test the behavior of read() over cache cleanup."""
     prefix = 'full'
     cache_label = 'some-cache-label'
+    labels = prefix, cache_label
     cache_version_one = ['cache', 'version', 'one']
     cache_version_two = ['cache', 'version', 'two']
 
     # The initial write and read.
-    self.mock_write_cache(cache_version_one, prefix, cache_label)
-    pcoll_list, version = self.cache_manager.read(prefix, cache_label)
+    self.mock_write_cache(cache_version_one, labels)
+    pcoll_list, version = self.cache_manager.read(labels)
 
     # Cache cleanup.
     self.cache_manager.cleanup()
     # Check that even if cache is evicted, the latest version stays the same.
     self.assertTrue(
-        self.cache_manager.is_latest_version(version, prefix, cache_label))
+        self.cache_manager.is_latest_version(version, labels))
 
-    pcoll_list, version = self.cache_manager.read(prefix, cache_label)
+    pcoll_list, version = self.cache_manager.read(labels)
     self.assertListEqual(pcoll_list, [])
     self.assertEqual(version, -1)
     self.assertFalse(
-        self.cache_manager.is_latest_version(version, prefix, cache_label))
+        self.cache_manager.is_latest_version(version, labels))
 
     # PCollection brought back to cache.
-    self.mock_write_cache(cache_version_two, prefix, cache_label)
+    self.mock_write_cache(cache_version_two, labels)
     self.assertFalse(
-        self.cache_manager.is_latest_version(version, prefix, cache_label))
+        self.cache_manager.is_latest_version(version, labels))
 
-    pcoll_list, version = self.cache_manager.read(prefix, cache_label)
+    pcoll_list, version = self.cache_manager.read(labels)
     self.assertListEqual(pcoll_list, cache_version_two)
     # Check that version continues from the previous value instead of starting
     # from 0 again.
     self.assertEqual(version, 1)
     self.assertTrue(
-        self.cache_manager.is_latest_version(version, prefix, cache_label))
+        self.cache_manager.is_latest_version(version, labels))
 
 
 class TextFileBasedCacheManagerTest(

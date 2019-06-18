@@ -23,22 +23,12 @@ import collections
 import datetime
 import os
 import tempfile
-import urllib
 
 import apache_beam as beam
-from apache_beam import coders
 from apache_beam.io import filesystems
-from apache_beam.io import textio
-from apache_beam.io import tfrecordio
+from apache_beam.runners.interactive.caching import TextBasedCache
+from apache_beam.runners.interactive.caching import TFRecordBasedCache
 from apache_beam.transforms import combiners
-
-try:                    # Python 3
-  unquote_to_bytes = urllib.parse.unquote_to_bytes
-  quote = urllib.parse.quote
-except AttributeError:  # Python 2
-  # pylint: disable=deprecated-urllib-function
-  unquote_to_bytes = urllib.unquote
-  quote = urllib.quote
 
 
 class CacheManager(object):
@@ -49,23 +39,23 @@ class CacheManager(object):
   derivation.
   """
 
-  def exists(self, *labels):
+  def exists(self, labels):
     """Returns if the PCollection cache exists."""
     raise NotImplementedError
 
-  def is_latest_version(self, version, *labels):
+  def is_latest_version(self, version, labels):
     """Returns if the given version number is the latest."""
-    return version == self._latest_version(*labels)
+    return version == self._latest_version(labels)
 
-  def _latest_version(self, *labels):
+  def _latest_version(self, labels):
     """Returns the latest version number of the PCollection cache."""
     raise NotImplementedError
 
-  def read(self, *labels):
+  def read(self, labels):
     """Return the PCollection as a list as well as the version number.
 
     Args:
-      *labels: List of labels for PCollection instance.
+      labels: List of labels for PCollection instance.
 
     Returns:
       Tuple[List[Any], int]: A tuple containing a list of items in the
@@ -78,31 +68,34 @@ class CacheManager(object):
     """
     raise NotImplementedError
 
-  def source(self, *labels):
-    """Returns a beam.io.Source that reads the PCollection cache."""
-    raise NotImplementedError
-
-  def sink(self, *labels):
-    """Returns a beam.io.Sink that writes the PCollection cache."""
-    raise NotImplementedError
-
-  def save_pcoder(self, pcoder, *labels):
-    """Saves pcoder for given PCollection.
-
-    Correct reading of PCollection from Cache requires PCoder to be known.
-    This method saves desired PCoder for PCollection that will subsequently
-    be used by sink(...), source(...), and, most importantly, read(...) method.
-    The latter must be able to read a PCollection written by Beam using
-    non-Beam IO.
+  def create(self, labels):
+    """Create a new cache instance and associate it with labels.
 
     Args:
-      pcoder: A PCoder to be used for reading and writing a PCollection.
-      *labels: List of labels for PCollection instance.
+      labels: List of labels uniquely identifying a cache.
+
+    Returns:
+      PCollectionCache: The created cache instance.
     """
     raise NotImplementedError
 
-  def load_pcoder(self, *labels):
-    """Returns previously saved PCoder for reading and writing PCollection."""
+  def get(self, labels):
+    """Return the cache instance associated with labels.
+
+    Args:
+      labels: List of labels uniquely identifying a cache.
+
+    Returns:
+      PCollectionCache: The cache associated with the given labels.
+    """
+    raise NotImplementedError
+
+  def remove(self, labels):
+    """Remove and clear the cache instance associated with labels.
+
+    Args:
+      labels: List of labels uniquely identifying a cache.
+    """
     raise NotImplementedError
 
   def cleanup(self):
@@ -114,8 +107,8 @@ class FileBasedCacheManager(CacheManager):
   """Maps PCollections to local temp files for materialization."""
 
   _available_formats = {
-      'text': (textio.ReadFromText, textio.WriteToText),
-      'tfrecord': (tfrecordio.ReadFromTFRecord, tfrecordio.WriteToTFRecord)
+      'text': TextBasedCache,
+      'tfrecord': TFRecordBasedCache,
   }
 
   def __init__(self, cache_dir=None, cache_format='text'):
@@ -130,73 +123,68 @@ class FileBasedCacheManager(CacheManager):
 
     if cache_format not in self._available_formats:
       raise ValueError("Unsupported cache format: '%s'." % cache_format)
-    self._reader_class, self._writer_class = self._available_formats[
-        cache_format]
-    self._default_pcoder = (
-        SafeFastPrimitivesCoder() if cache_format == 'text' else None)
+    self._cache_class = self._available_formats[cache_format]
+    self._cache_store = {}
 
-    # List of saved pcoders keyed by PCollection path. It is OK to keep this
-    # list in memory because once FileBasedCacheManager object is
-    # destroyed/re-created it loses the access to previously written cache
-    # objects anyways even if cache_dir already exists. In other words,
-    # it is not possible to resume execution of Beam pipeline from the
-    # saved cache if FileBasedCacheManager has been reset.
-    #
-    # However, if we are to implement better cache persistence, one needs
-    # to take care of keeping consistency between the cached PCollection
-    # and its PCoder type.
-    self._saved_pcoders = {}
+  def exists(self, labels):
+    return labels in self._cache_store
 
-  def exists(self, *labels):
-    return bool(self._match(*labels))
-
-  def _latest_version(self, *labels):
-    timestamp = 0
-    for path in self._match(*labels):
-      timestamp = max(timestamp, filesystems.FileSystems.last_updated(path))
+  def _latest_version(self, labels):
+    timestamp = self.get(labels).timestamp if self.exists(labels) else 0
     result = self._versions["-".join(labels)].get_version(timestamp)
     return result
 
-  def save_pcoder(self, pcoder, *labels):
-    self._saved_pcoders[self._path(*labels)] = pcoder
-
-  def load_pcoder(self, *labels):
-    return (self._default_pcoder if self._default_pcoder is not None else
-            self._saved_pcoders[self._path(*labels)])
-
-  def read(self, *labels):
-    if not self.exists(*labels):
+  def read(self, labels):
+    # TODO(ostrokach): This method is kept for backwards-compatibility.
+    # It should be removed in favor of `cache_manager.get(labels).read()`.
+    if not self.exists(labels):
       return [], -1
 
-    source = self.source(*labels)
-    range_tracker = source.get_range_tracker(None, None)
-    result = list(source.read(range_tracker))
-    version = self._latest_version(*labels)
+    cache = self.get(labels)
+    try:
+      result = list(cache.read())
+    except IOError:
+      return [], -1
+    version = self._latest_version(labels)
     return result, version
 
-  def source(self, *labels):
-    return self._reader_class(
-        self._glob_path(*labels), coder=self.load_pcoder(*labels))._source
+  def create(self, labels, if_exists="overwrite"):
+    if_exists_options = ["error", "append", "overwrite"]
+    if if_exists not in if_exists_options:
+      raise ValueError(
+          "if_exists must be one of: '{}'.".format(if_exists_options))
 
-  def sink(self, *labels):
-    return self._writer_class(
-        self._path(*labels), coder=self.load_pcoder(*labels))._sink
+    if self.exists(labels):
+      if if_exists == "error":
+        raise IOError(
+            "A cache with the labels '{}' already exists.".format(labels))
+      elif if_exists == "overwrite":
+        self.remove(labels)
+      elif if_exists == "append":
+        return self.get(labels)
+
+    cache_location = self._path(labels)
+    self._cache_store[labels] = self._cache_class(cache_location)
+    return self._cache_store[labels]
+
+  def get(self, labels):
+    return self._cache_store[labels]
+
+  def remove(self, labels):
+    if self.exists(labels):
+      self._cache_store.pop(labels).clear()
 
   def cleanup(self):
+    for key in list(self._cache_store):
+      self._cache_store.pop(key).clear()
     if filesystems.FileSystems.exists(self._cache_dir):
       filesystems.FileSystems.delete([self._cache_dir])
-    self._saved_pcoders = {}
 
-  def _glob_path(self, *labels):
-    return self._path(*labels) + '-*-of-*'
-
-  def _path(self, *labels):
-    return filesystems.FileSystems.join(self._cache_dir, *labels)
-
-  def _match(self, *labels):
-    match = filesystems.FileSystems.match([self._glob_path(*labels)])
-    assert len(match) == 1
-    return [metadata.path for metadata in match[0].metadata_list]
+  def _path(self, labels):
+    if isinstance(labels, (list, tuple)):
+      return filesystems.FileSystems.join(self._cache_dir, *labels)
+    else:
+      return filesystems.FileSystems.join(self._cache_dir, labels)
 
   class _CacheVersion(object):
     """This class keeps track of the timestamp and the corresponding version."""
@@ -228,8 +216,8 @@ class ReadCache(beam.PTransform):
 
   def expand(self, pbegin):
     # pylint: disable=expression-not-assigned
-    return pbegin | 'Read' >> beam.io.Read(
-        self._cache_manager.source('full', self._label))
+    return pbegin | 'Read' >> self._cache_manager.get(
+        ('full', self._label,)).reader()
 
 
 class WriteCache(beam.PTransform):
@@ -240,32 +228,16 @@ class WriteCache(beam.PTransform):
     self._sample = sample
     self._sample_size = sample_size
 
+    prefix = 'sample' if self._sample else 'full'
+    cache_manager.create((prefix, self._label,))
+
   def expand(self, pcoll):
     prefix = 'sample' if self._sample else 'full'
-
-    # We save pcoder that is necessary for proper reading of
-    # cached PCollection. _cache_manager.sink(...) call below
-    # should be using this saved pcoder.
-    self._cache_manager.save_pcoder(
-        coders.registry.get_coder(pcoll.element_type),
-        prefix, self._label)
 
     if self._sample:
       pcoll |= 'Sample' >> (
           combiners.Sample.FixedSizeGlobally(self._sample_size)
           | beam.FlatMap(lambda sample: sample))
     # pylint: disable=expression-not-assigned
-    return pcoll | 'Write' >> beam.io.Write(
-        self._cache_manager.sink(prefix, self._label))
-
-
-class SafeFastPrimitivesCoder(coders.Coder):
-  """This class add an quote/unquote step to escape special characters."""
-  # pylint: disable=deprecated-urllib-function
-
-  def encode(self, value):
-    return quote(coders.coders.FastPrimitivesCoder().encode(value)).encode(
-        'utf-8')
-
-  def decode(self, value):
-    return coders.coders.FastPrimitivesCoder().decode(unquote_to_bytes(value))
+    return pcoll | 'Write' >> self._cache_manager.get(
+        (prefix, self._label,)).writer()

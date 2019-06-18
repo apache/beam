@@ -210,17 +210,16 @@ class PipelineResult(beam.runners.runner.PipelineResult):
 
   def get(self, pcoll):
     cache_label = self._cache_label(pcoll)
-    if self._cache_manager.exists('full', cache_label):
-      pcoll_list, _ = self._cache_manager.read('full', cache_label)
-      return pcoll_list
+    if self._cache_manager.exists(('full', cache_label,)):
+      return list(self._cache_manager.get(('full', cache_label,)).read())
     else:
       self._runner._desired_cache_labels.add(cache_label)  # pylint: disable=protected-access
       raise ValueError('PCollection not available, please run the pipeline.')
 
   def sample(self, pcoll):
     cache_label = self._cache_label(pcoll)
-    if self._cache_manager.exists('sample', cache_label):
-      return self._cache_manager.read('sample', cache_label)
+    if self._cache_manager.exists(('sample', cache_label,)):
+      return list(self._cache_manager.get(('sample', cache_label,)).read())
     else:
       self._runner._desired_cache_labels.add(cache_label)  # pylint: disable=protected-access
       raise ValueError('PCollection not available, please run the pipeline.')

@@ -115,7 +115,7 @@ class PipelineAnalyzer(object):
                                         top_level_required_transforms)
 
       if not self._cache_manager.exists(
-          'sample', self._pipeline_info.cache_label(pcoll_id)):
+          ('sample', self._pipeline_info.cache_label(pcoll_id),)):
         self._insert_caching_transforms(pcoll_id,
                                         required_transforms,
                                         top_level_required_transforms,
@@ -215,7 +215,7 @@ class PipelineAnalyzer(object):
       self._analyzed_pcoll_ids.add(pcoll_id)
 
     cache_label = self._pipeline_info.cache_label(pcoll_id)
-    if self._cache_manager.exists('full', cache_label) and not leaf:
+    if self._cache_manager.exists(('full', cache_label,)) and not leaf:
       self._caches_used.add(pcoll_id)
 
       cache_label = self._pipeline_info.cache_label(pcoll_id)
