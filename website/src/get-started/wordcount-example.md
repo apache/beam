@@ -1320,7 +1320,7 @@ from apache_beam.transforms import window
 class AddTimestampFn(beam.DoFn):
 
   def process(self, element):
-    return window.TimestampedValue(element, timestamp_seconds)
+    return window.TimestampedValue(element, self.timestamp_seconds)
 ```
 
 ```go
