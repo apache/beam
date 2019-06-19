@@ -265,7 +265,7 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
         .of(PCollectionLists.getOnlyElement(inputs))
         .keyBy(getKeyExtractor(), getKeyType().orElse(null))
         .valueBy(v -> 1L, TypeDescriptors.longs())
-        .combineBy(Sums.ofLongs(), TypeDescriptors.longs())
+        .combineBy(Sums.ofLongs())
         .applyIf(
             getWindow().isPresent(),
             builder -> {

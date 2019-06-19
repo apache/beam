@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.util;
 import static org.junit.Assert.assertEquals;
 
 import java.util.stream.Stream;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
 import org.junit.Test;
 
 /** Test suite for @{link Sums}. */
@@ -27,21 +28,25 @@ public class SumsTest {
 
   @Test
   public void testSumOfInts() {
-    assertEquals(6, (int) Sums.ofInts().apply(Stream.of(1, 2, 3)));
+    assertEquals(6, (int) apply(Stream.of(1, 2, 3), Sums.ofInts()));
   }
 
   @Test
   public void testSumOfLongs() {
-    assertEquals(6L, (long) Sums.ofLongs().apply(Stream.of(1L, 2L, 3L)));
+    assertEquals(6L, (long) apply(Stream.of(1L, 2L, 3L), Sums.ofLongs()));
   }
 
   @Test
   public void testSumOfFloats() {
-    assertEquals(6f, (float) Sums.ofFloats().apply(Stream.of(1f, 2f, 3f)), 0.001);
+    assertEquals(6f, (float) apply(Stream.of(1f, 2f, 3f), Sums.ofFloats()), 0.001);
   }
 
   @Test
   public void testSumOfDoubles() {
-    assertEquals(6.0, (double) Sums.ofDoubles().apply(Stream.of(1.0, 2.0, 3.0)), 0.001);
+    assertEquals(6.0, (double) apply(Stream.of(1.0, 2.0, 3.0), Sums.ofDoubles()), 0.001);
+  }
+
+  private <T> T apply(Stream<T> stream, ReduceByKey.CombineFunctionWithIdentity<T> fn) {
+    return stream.reduce(fn.identity(), fn::apply);
   }
 }
