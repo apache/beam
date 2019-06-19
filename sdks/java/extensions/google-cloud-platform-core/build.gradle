@@ -59,10 +59,10 @@ dependencies {
 
 // Note that no runner is specified here, so tests running under this task should not be running
 // pipelines.
-task integrationTest(type: Test) {
+task integrationTestKms(type: Test) {
   group = "Verification"
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
-  def gcpTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+  def gcpTempRoot = project.findProperty('gcpTempRootKms') ?: 'gs://temp-storage-for-end-to-end-tests-cmek'
   def dataflowKmsKey = project.findProperty('dataflowKmsKey') ?: "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--project=${gcpProject}",
@@ -77,11 +77,13 @@ task integrationTest(type: Test) {
   maxParallelForks 4
   classpath = sourceSets.test.runtimeClasspath
   testClassesDirs = sourceSets.test.output.classesDirs
-  useJUnit { }
+  useJUnit {
+    includeCategories "org.apache.beam.sdk.testing.UsesKms"
+  }
 }
 
 task postCommit {
   group = "Verification"
   description = "Integration tests of GCP connectors using the DirectRunner."
-  dependsOn integrationTest
+  dependsOn integrationTestKms
 }
