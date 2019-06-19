@@ -34,6 +34,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
@@ -197,6 +198,26 @@ public class HadoopFileSystemTest {
                 .setSizeBytes("testDataA".getBytes(StandardCharsets.UTF_8).length)
                 .setLastModifiedMillis(lastModified("testFileA"))
                 .build()));
+  }
+
+  @Test
+  public void testMatchDirectory() throws Exception {
+    create("dir/file", "data".getBytes(StandardCharsets.UTF_8));
+    final MatchResult matchResult =
+        Iterables.getOnlyElement(
+            fileSystem.match(Collections.singletonList(testPath("dir").toString())));
+    assertThat(
+        matchResult,
+        equalTo(
+            MatchResult.create(
+                Status.OK,
+                ImmutableList.of(
+                    Metadata.builder()
+                        .setResourceId(testPath("dir"))
+                        .setIsReadSeekEfficient(true)
+                        .setSizeBytes(0L)
+                        .setLastModifiedMillis(lastModified("dir"))
+                        .build()))));
   }
 
   @Test
