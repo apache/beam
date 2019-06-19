@@ -27,10 +27,12 @@ import io
 import json
 import logging
 import os
+import pkg_resources
 import re
 import sys
 import tempfile
 import time
+import warnings
 from datetime import datetime
 
 from builtins import object
@@ -884,6 +886,18 @@ def _use_sdf_bounded_source(pipeline_options):
       'use_sdf_bounded_source' in debug_options.experiments)
 
 
+def _get_container_image_tag():
+  base_version = pkg_resources.parse_version(
+      beam_version.__version__).base_version
+  if base_version != beam_version.__version__:
+    warnings.warn(
+        "A non-standard version of Beam SDK detected: %s. "
+        "Dataflow runner will use container image tag %s. "
+        "This use case is not supported." % (
+            beam_version.__version__, base_version))
+  return base_version
+
+
 def get_default_container_image_for_current_sdk(job_type):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -936,7 +950,7 @@ def _get_required_container_version(job_type=None):
     else:
       return names.BEAM_CONTAINER_VERSION
   else:
-    return beam_version.__version__
+    return _get_container_image_tag()
 
 
 def get_runner_harness_container_image():
@@ -950,7 +964,7 @@ def get_runner_harness_container_image():
   # Pin runner harness for released versions of the SDK.
   if 'dev' not in beam_version.__version__:
     return (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + 'harness' + ':' +
-            beam_version.__version__)
+            _get_container_image_tag())
   # Don't pin runner harness for dev versions so that we can notice
   # potential incompatibility between runner and sdk harnesses.
   return None
