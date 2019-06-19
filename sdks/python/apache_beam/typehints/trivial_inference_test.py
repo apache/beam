@@ -235,6 +235,36 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(typehints.Any, lambda: A.m(A(), 3.0), depth=0)
     self.assertReturnType(float, lambda: A.m(A(), 3.0), depth=1)
 
+  # pylint: disable=eval-used
+  # TODO(udim): Remove eval() call once Python 2 support is removed from Beam.
+  @unittest.skipIf(sys.version_info < (3,), 'Python 3 only')
+  def testBuildListUnpack(self):
+    # Lambda uses BUILD_LIST_UNPACK opcode in Python 3.
+    # Uses eval() to hide Python 3 syntax from Python 2.
+    eval('''self.assertReturnType(typehints.List[int],
+                                  lambda _list: [*_list, *_list, *_list],
+                                  [typehints.List[int]])''')
+
+  # TODO(udim): Remove eval() call once Python 2 support is removed from Beam.
+  @unittest.skipIf(sys.version_info < (3,), 'Python 3 only')
+  def testBuildTupleUnpack(self):
+    # Lambda uses BUILD_TUPLE_UNPACK opcode in Python 3.
+    # Uses eval() to hide Python 3 syntax from Python 2.
+    eval('''self.assertReturnType(
+                typehints.Tuple[int, str, str],
+                lambda _list1, _list2: (*_list1, *_list2, *_list2),
+                [typehints.List[int], typehints.List[str]])''')
+  # pylint: enable=eval-used
+
+  def testBuildTupleUnpackWithCall(self):
+    # Lambda uses BUILD_TUPLE_UNPACK_WITH_CALL opcode in Python 3.6, 3.7.
+    def fn(x, *unused_args):
+      return x
+
+    self.assertReturnType(str,
+                          lambda x, _list: fn(x, *_list),
+                          [str, typehints.List[int]])
+
 
 if __name__ == '__main__':
   unittest.main()

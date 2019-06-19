@@ -458,10 +458,17 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
           pop_count = arg + 2
           return_type = Any
         elif opname == 'CALL_FUNCTION_EX':
-          # TODO(udim): Handle variable argument lists. Requires handling kwargs
-          #   first.
-          pop_count = (arg & 1) + 3
-          return_type = Any
+          has_kwargs = (arg & 1) == 1
+          pop_count = has_kwargs + 1
+          if has_kwargs:
+            # TODO(udim): Requires CALL_FUNCTION_KW implementation.
+            return_type = Any
+          else:
+            args_and_callable = state.stack[-1]
+            return_type = infer_return_type(args_and_callable[-1].value,
+                                            args_and_callable[:-1],
+                                            debug=debug,
+                                            depth=depth - 1)
         else:
           raise TypeInferenceError('unable to handle %s' % opname)
         state.stack[-pop_count:] = [return_type]

@@ -412,3 +412,32 @@ def make_closure(state, arg):
 
 def build_slice(state, arg):
   state.stack[-arg:] = [slice]  # a slice object
+
+
+def _unpack_lists(state, arg):
+  types = []
+  for _ in range(arg):
+    type_constraint = state.stack.pop()
+    if isinstance(type_constraint, typehints.IndexableTypeConstraint):
+      types.extend(type_constraint._inner_types())
+    else:
+      types.append(typehints.Any)
+  types.reverse()
+  return types
+
+
+def build_list_unpack(state, arg):
+  state.stack.append(List[Union[_unpack_lists(state, arg)]])
+
+
+def build_tuple_unpack(state, arg):
+  state.stack.append(Tuple[_unpack_lists(state, arg)])
+
+
+def build_tuple_unpack_with_call(state, arg):
+  args_and_callable = _unpack_lists(state, arg)
+  fn = state.stack.pop()
+  args_and_callable.append(fn)
+  # Note this opcode puts a regular tuple() on the stack. It is expected that
+  # it is immediately followed by CALL_FUNCTION_EX.
+  state.stack.append(args_and_callable)
