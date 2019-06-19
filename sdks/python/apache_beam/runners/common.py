@@ -485,7 +485,7 @@ class PerWindowInvoker(DoFnInvoker):
     self.restriction_tracker = None
     self.current_windowed_value = None
     self.bundle_finalizer_param = bundle_finalizer_param
-    self.key_param_required = False
+    self.is_key_param_required = False
     # Try to prepare all the arguments that can just be filled in
     # without any additional work. in the process function.
     # Also cache all the placeholders needed in the process function.
@@ -521,7 +521,7 @@ class PerWindowInvoker(DoFnInvoker):
       if d == core.DoFn.ElementParam:
         args_with_placeholders.append(ArgPlaceholder(d))
       elif d == core.DoFn.KeyParam:
-        self.key_param_required = True
+        self.is_key_param_required = True
         args_with_placeholders.append(ArgPlaceholder(d))
       elif d == core.DoFn.WindowParam:
         args_with_placeholders.append(ArgPlaceholder(d))
@@ -639,7 +639,7 @@ class PerWindowInvoker(DoFnInvoker):
     # stateful DoFn, we set during __init__ self.has_windowed_inputs to be
     # True. Therefore, windows will be exploded coming into this method, and
     # we can rely on the window variable being set above.
-    if self.user_state_context or self.key_param_required:
+    if self.user_state_context or self.is_key_param_required:
       try:
         key, unused_value = windowed_value.value
       except (TypeError, ValueError):
