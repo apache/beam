@@ -25,12 +25,14 @@ import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobStatus;
+import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.cloud.bigquery.storage.v1beta1.TableReferenceProto;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -539,6 +541,23 @@ public class BigQueryHelpers {
             e);
       }
     }
+  }
+
+  /**
+   * It returns the number of rows for a given table.
+   *
+   * @return The number of rows in the table or null if it cannot get any estimate.
+   */
+  @Nullable
+  public static BigInteger getNumRows(BigQueryOptions options, TableReference tableRef)
+      throws InterruptedException, IOException {
+
+    DatasetService datasetService = new BigQueryServicesImpl().getDatasetService(options);
+    Table table = datasetService.getTable(tableRef);
+    if (table == null) {
+      return null;
+    }
+    return table.getNumRows();
   }
 
   static String getDatasetLocation(

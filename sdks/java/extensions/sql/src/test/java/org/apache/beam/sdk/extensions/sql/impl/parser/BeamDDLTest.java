@@ -31,6 +31,7 @@ import org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.junit.Test;
 
@@ -167,7 +168,11 @@ public class BeamDDLTest {
     TestTableProvider rootProvider = new TestTableProvider();
     TestTableProvider testProvider = new TestTableProvider();
 
-    BeamSqlEnv env = BeamSqlEnv.builder(rootProvider).addSchema("test", testProvider).build();
+    BeamSqlEnv env =
+        BeamSqlEnv.builder(rootProvider)
+            .addSchema("test", testProvider)
+            .setPipelineOptions(PipelineOptionsFactory.create())
+            .build();
     assertNull(testProvider.getTables().get("person"));
     env.executeDdl("CREATE EXTERNAL TABLE test.person (id INT) TYPE text");
 
