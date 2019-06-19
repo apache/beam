@@ -244,6 +244,23 @@ public class PubsubIOTest {
   }
 
   @Test
+  public void testReadWithPubsubGrpcClientFactory() {
+    String topic = "projects/project/topics/topic";
+    PubsubIO.Read<String> read =
+        PubsubIO.readStrings()
+            .fromTopic(StaticValueProvider.of(topic))
+            .withClientFactory(PubsubGrpcClient.FACTORY)
+            .withTimestampAttribute("myTimestamp")
+            .withIdAttribute("myId");
+
+    DisplayData displayData = DisplayData.from(read);
+
+    assertThat(displayData, hasDisplayItem("topic", topic));
+    assertThat(displayData, hasDisplayItem("timestampAttribute", "myTimestamp"));
+    assertThat(displayData, hasDisplayItem("idAttribute", "myId"));
+  }
+
+  @Test
   public void testWriteDisplayData() {
     String topic = "projects/project/topics/topic";
     PubsubIO.Write<?> write =
@@ -434,5 +451,22 @@ public class PubsubIOTest {
                 .withClientFactory(clientFactory));
     PAssert.that(read).containsInAnyOrder(inputs);
     readPipeline.run();
+  }
+
+  @Test
+  public void testWriteWithPubsubGrpcClientFactory() {
+    String topic = "projects/project/topics/topic";
+    PubsubIO.Write<?> write =
+        PubsubIO.writeStrings()
+            .to(topic)
+            .withClientFactory(PubsubGrpcClient.FACTORY)
+            .withTimestampAttribute("myTimestamp")
+            .withIdAttribute("myId");
+
+    DisplayData displayData = DisplayData.from(write);
+
+    assertThat(displayData, hasDisplayItem("topic", topic));
+    assertThat(displayData, hasDisplayItem("timestampAttribute", "myTimestamp"));
+    assertThat(displayData, hasDisplayItem("idAttribute", "myId"));
   }
 }
