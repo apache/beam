@@ -93,6 +93,7 @@ cdef class PerWindowInvoker(DoFnInvoker):
   cdef WindowedValue current_windowed_value
   cdef bint is_key_param_required
 
+
 cdef class DoFnRunner(Receiver):
   cdef DoFnContext context
   cdef object step_name
