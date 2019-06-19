@@ -2023,17 +2023,22 @@ public class StreamingDataflowWorker {
         Queue<Work> queue = activeWork.get(key);
         Preconditions.checkNotNull(queue);
         Work completedWork = queue.poll();
-        Preconditions.checkNotNull(
-            completedWork,
-            "No active state for key %s, expected token %s",
-            key.toStringUtf8(),
-            workToken);
-        Preconditions.checkState(
-            completedWork.getWorkItem().getWorkToken() == workToken,
-            "Token mismatch for key %s: %s and %s",
-            key.toStringUtf8(),
-            completedWork.getWorkItem().getWorkToken(),
-            workToken);
+        // avoid Preconditions.checkNotNull and checkState here to prevent eagerly evaluating the
+        // format string parameters for the error message.
+        if (completedWork == null) {
+          throw new NullPointerException(
+              String.format(
+                  "No active state for key %s, expected token %s",
+                  TextFormat.escapeBytes(key), workToken));
+        }
+        if (completedWork.getWorkItem().getWorkToken() != workToken) {
+          throw new IllegalStateException(
+              String.format(
+                  "Token mismatch for key %s: %s and %s",
+                  TextFormat.escapeBytes(key),
+                  completedWork.getWorkItem().getWorkToken(),
+                  workToken));
+        }
         if (queue.peek() == null) {
           activeWork.remove(key);
           return;
