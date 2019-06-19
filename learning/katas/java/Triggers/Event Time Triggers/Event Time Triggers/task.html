@@ -59,7 +59,10 @@
   AfterWatermark.pastEndOfWindow()</a> trigger.
 </div>
 <div class="hint">
-  Set the allowed lateness to 0 with discarding accumulation mode.
+  Set the <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/Window.html#withAllowedLateness-org.joda.time.Duration-">
+  allowed lateness</a> to 0 with
+  <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/Window.html#discardingFiredPanes--">
+    discarding accumulation mode</a>.
 </div>
 <div class="hint">
   Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Combine.html#globally-org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn-">
