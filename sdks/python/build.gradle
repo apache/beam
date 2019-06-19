@@ -320,6 +320,7 @@ task postCommit() {
   dependsOn "directRunnerIT"
   dependsOn "hdfsIntegrationTest"
   dependsOn "postCommitIT"
+  dependsOn "mongodbioIT"
 }
 
 
@@ -429,4 +430,35 @@ project.task('crossLanguagePortableWordCount') {
 project.task('crossLanguageTests') {
   dependsOn "crossLanguagePythonJavaFlink"
   dependsOn "crossLanguagePortableWordCount"
+}
+
+project.task('mongodbioIT') {
+  dependsOn 'setupVirtualenv'
+
+  Random r = new Random()
+  def port = r.nextInt(1000) + 27017
+  def containerName = "mongoioit" + port
+
+  def options = [
+        "--mongo_uri=mongodb://localhost:" + port
+  ]
+
+  // Pull the latest mongodb docker image and run
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', "docker pull mongo && docker run --name ${containerName} -p ${port}:27017 -d mongo:latest"
+      }
+  }
+
+  doLast {
+      exec {
+        executable 'sh'
+        args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.io.mongodbio_it_test ${options.join(' ')}"
+      }
+      exec {
+        executable 'sh'
+        args '-c', "docker stop ${containerName} && docker rm ${containerName}"
+      }
+  }
 }
