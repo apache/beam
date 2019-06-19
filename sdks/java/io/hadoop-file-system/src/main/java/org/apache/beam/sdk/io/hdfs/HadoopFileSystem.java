@@ -89,23 +89,21 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
     ImmutableList.Builder<MatchResult> resultsBuilder = ImmutableList.builder();
     for (String spec : specs) {
       try {
-        Set<Metadata> metadata = new HashSet<>();
-
-        FileStatus[] fileStatuses = fileSystem.globStatus(new Path(spec));
-        if (fileStatuses != null) {
-          for (FileStatus fileStatus : fileStatuses) {
-            if (fileStatus.isFile()) {
+        final Set<Metadata> metadata = new HashSet<>();
+        if (spec.contains("**")) {
+          // recursive glob
+          int index = spec.indexOf("**");
+          metadata.addAll(
+              matchRecursiveGlob(spec.substring(0, index + 1), spec.substring(index + 1)));
+        } else {
+          // normal glob
+          final FileStatus[] fileStatuses = fileSystem.globStatus(new Path(spec));
+          if (fileStatuses != null) {
+            for (FileStatus fileStatus : fileStatuses) {
               metadata.add(toMetadata(fileStatus));
             }
           }
         }
-
-        if (spec.contains("**")) {
-          int index = spec.indexOf("**");
-          metadata.addAll(
-              matchRecursiveGlob(spec.substring(0, index + 1), spec.substring(index + 1)));
-        }
-
         if (metadata.isEmpty()) {
           resultsBuilder.add(MatchResult.create(Status.NOT_FOUND, Collections.emptyList()));
         } else {
