@@ -45,8 +45,8 @@ public class SchemaTranslation {
           .put(TypeName.BYTES, RunnerApi.Schema.AtomicType.BYTES)
           .build();
 
-  private static final String URN_BEAM_LOGICAL_DATETIME = "urn:beam:logical:datetime";
-  private static final String URN_BEAM_LOGICAL_DECIMAL = "urn:beam:logical:decimal";
+  private static final String URN_BEAM_LOGICAL_DATETIME = "beam:fieldtype:datetime";
+  private static final String URN_BEAM_LOGICAL_DECIMAL = "beam:fieldtype:decimal";
 
   public static RunnerApi.Schema toProto(Schema schema) {
     String uuid = schema.getUUID() != null ? schema.getUUID().toString() : "";
@@ -76,8 +76,8 @@ public class SchemaTranslation {
     RunnerApi.Schema.FieldType.Builder builder = RunnerApi.Schema.FieldType.newBuilder();
     switch (fieldType.getTypeName()) {
       case ROW:
-        fieldType.getRowSchema();
-        builder.setRowType(toProto(fieldType.getRowSchema()));
+        builder.setRowType(
+            RunnerApi.Schema.RowType.newBuilder().setSchema(toProto(fieldType.getRowSchema())));
         break;
 
       case ARRAY:
@@ -157,7 +157,7 @@ public class SchemaTranslation {
         fieldType = FieldType.of(typeName);
         break;
       case ROW_TYPE:
-        fieldType = FieldType.row(fromProto(protoFieldType.getRowType()));
+        fieldType = FieldType.row(fromProto(protoFieldType.getRowType().getSchema()));
         break;
       case ARRAY_TYPE:
         fieldType =
