@@ -48,7 +48,7 @@ public interface GearpumpPipelineOptions extends PipelineOptions {
       "Whether the pipeline will be run on a remote cluster. If false, it will be run on a EmbeddedCluster")
   void setRemote(Boolean remote);
 
-  @Default.Boolean(true)
+  @Default.Boolean(false)
   Boolean getRemote();
 
   void setClientContext(ClientContext clientContext);
