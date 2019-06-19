@@ -330,11 +330,12 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
   exclude '**/BigQueryIOReadIT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
   exclude '**/PubsubReadIT.class'
-  exclude '**/*KmsKeyIT.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
-  useJUnit { }
+  useJUnit {
+    excludeCategories "org.apache.beam.sdk.testing.UsesKms"
+  }
 }
 
 task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
@@ -343,19 +344,20 @@ task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
-          "--tempRoot=${dataflowPostCommitTempRoot}",
-          "--tempRootKms=${dataflowPostCommitTempRootKms}",
+          "--tempRoot=${dataflowPostCommitTempRootKms}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
           "--dataflowKmsKey=${dataflowKmsKey}",
   ])
 
-  include '**/*KmsKeyIT.class'
+  include '**/*IT.class'
   exclude '**/BigQueryKmsKeyIT.class'  // Only needs to run on direct runner.
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
-  useJUnit { }
+  useJUnit {
+    includeCategories "org.apache.beam.sdk.testing.UsesKms"
+  }
 }
 
 task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {

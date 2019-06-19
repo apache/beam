@@ -36,13 +36,13 @@ import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.FileChecksumMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.testing.UsesKms;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -52,18 +52,14 @@ import org.junit.runners.JUnit4;
 
 /** Integration test for GCS CMEK support. */
 @RunWith(JUnit4.class)
+@Category(UsesKms.class)
 public class GcsKmsKeyIT {
 
   private static final String INPUT_FILE = "gs://dataflow-samples/shakespeare/kinglear.txt";
   private static final String EXPECTED_CHECKSUM = "b9778bfac7fa8b934e42a322ef4bd4706b538fd0";
 
-  @BeforeClass
-  public static void setup() {
-    PipelineOptionsFactory.register(TestPipelineOptions.class);
-  }
-
   /**
-   * Tests writing to gcpTempLocation with --dataflowKmsKey set on the command line. Verifies that
+   * Tests writing to tempLocation with --dataflowKmsKey set on the command line. Verifies that
    * resulting output uses specified key and is readable. Does not verify any temporary files.
    *
    * <p>This test verifies that GCS file copies work with CMEK-enabled files.
@@ -72,8 +68,8 @@ public class GcsKmsKeyIT {
   public void testGcsWriteWithKmsKey() {
     TestPipelineOptions options =
         TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
-    assertNotNull(options.getTempRootKms());
-    options.setTempLocation(options.getTempRootKms() + "/testGcsWriteWithKmsKey");
+    assertNotNull(options.getTempRoot());
+    options.setTempLocation(options.getTempRoot() + "/testGcsWriteWithKmsKey");
     GcsOptions gcsOptions = options.as(GcsOptions.class);
 
     ResourceId filenamePrefix =

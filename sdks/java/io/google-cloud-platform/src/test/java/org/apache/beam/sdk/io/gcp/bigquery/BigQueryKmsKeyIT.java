@@ -30,10 +30,12 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.testing.UsesKms;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
@@ -46,6 +48,7 @@ import org.slf4j.LoggerFactory;
  * used.
  */
 @RunWith(JUnit4.class)
+@Category(UsesKms.class)
 public class BigQueryKmsKeyIT {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryKmsKeyIT.class);

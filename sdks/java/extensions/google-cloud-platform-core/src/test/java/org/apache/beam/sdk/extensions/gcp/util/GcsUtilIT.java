@@ -28,8 +28,10 @@ import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.testing.UsesKms;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -41,6 +43,7 @@ import org.junit.runners.JUnit4;
  * this test should only be run against single runner (such as DirectRunner).
  */
 @RunWith(JUnit4.class)
+@Category(UsesKms.class)
 public class GcsUtilIT {
   /** Tests a rewrite operation that requires multiple API calls (using a continuation token). */
   @Test
@@ -49,8 +52,8 @@ public class GcsUtilIT {
         TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
     // Using a KMS key is necessary to trigger multi-part rewrites (bucket is created
     // with a bucket default key).
-    assertNotNull(options.getTempRootKms());
-    options.setTempLocation(options.getTempRootKms() + "/testRewriteMultiPart");
+    assertNotNull(options.getTempRoot());
+    options.setTempLocation(options.getTempRoot() + "/testRewriteMultiPart");
 
     GcsOptions gcsOptions = options.as(GcsOptions.class);
     GcsUtil gcsUtil = gcsOptions.getGcsUtil();
