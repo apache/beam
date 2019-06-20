@@ -996,7 +996,7 @@ PUBSUB_TOPCI=&lt;existing pubsub topic&gt;
 <p>Launch:</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
-    -Pnexmark.runner=":beam-runners-google-cloud-dataflow" \
+    -Pnexmark.runner=":runners:google-cloud-dataflow-java" \
     -Pnexmark.args="
         --runner=DataflowRunner
         --suite=SMOKE

@@ -411,7 +411,7 @@ To run a basic Python wordcount (in batch mode) with embedded Flink or Spark:</p
   <li>Submit the wordcount pipeline to above endpoint: <code class="highlighter-rouge">./gradlew :sdks:python:portableWordCount -PjobEndpoint=localhost:8099 -PenvironmentType=LOOPBACK</code></li>
 </ol>
 
-<p>To run the pipeline in streaming mode (currently only supported on Flink): <code class="highlighter-rouge">./gradlew :beam-sdks-python:portableWordCount -PjobEndpoint=localhost:8099 -Pstreaming</code></p>
+<p>To run the pipeline in streaming mode (currently only supported on Flink): <code class="highlighter-rouge">./gradlew :sdks:python:portableWordCount -PjobEndpoint=localhost:8099 -Pstreaming</code></p>
 
 <p>Please see the <a href="/documentation/runners/flink/">Flink Runner page</a> for more information on
 how to run portable pipelines on top of Flink.</p>
