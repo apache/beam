@@ -25,11 +25,10 @@ from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Sink
 from apache_beam.io.iobase import Write
 from apache_beam.io.iobase import Writer
-from apache_beam.io.mongodbio import *
 from apache_beam.io.parquetio import *
+from apache_beam.io.range_trackers import *
 from apache_beam.io.textio import *
 from apache_beam.io.tfrecordio import *
-from apache_beam.io.range_trackers import *
 
 # Protect against environments where clientslibrary is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -40,3 +39,7 @@ try:
 except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position
+try:
+  from apache_beam.io.mongodbio import *
+except ImportError:
+  pass
