@@ -31,7 +31,7 @@ def tox_opts = "-c tox.ini --recreate"
 task setupVirtualenv {
   doLast {
     exec {
-      commandLine 'virtualenv', "${envdir}"
+      commandLine 'virtualenv', "--python=python2", "${envdir}"
     }
     exec {
       executable 'sh'
