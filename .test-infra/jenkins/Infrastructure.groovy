@@ -31,7 +31,7 @@ class Infrastructure {
       gradle {
         rootBuildScriptDir(common.checkoutDir)
         common.setGradleSwitches(delegate)
-        tasks(":beam-sdks-${sdkName}-container:docker")
+        tasks(":sdks:${sdkName}:container:docker")
         switches("-Pdocker-repository-root=${repositoryRoot}")
         switches("-Pdocker-tag=${dockerTag}")
       }

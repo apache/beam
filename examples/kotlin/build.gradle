@@ -79,7 +79,7 @@ dependencies {
     delegate.add(runner + "PreCommit", project(path: ":examples:kotlin", configuration: "testRuntime"))
   }
   // https://issues.apache.org/jira/browse/BEAM-3583
-  // apexRunnerPreCommit project(":beam-runners-apex")
+  // apexRunnerPreCommit project(":runners:apex")
   directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
   flinkRunnerPreCommit project(":runners:flink:1.5")
   // TODO: Make the netty version used configurable, we add netty-all 4.1.17.Final so it appears on the classpath

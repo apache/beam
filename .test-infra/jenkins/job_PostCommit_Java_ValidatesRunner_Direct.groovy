@@ -36,7 +36,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Direct'
     steps {
         gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':beam-runners-direct-java:validatesRunner')
+            tasks(':runners:direct-java:validatesRunner')
         }
     }
 
