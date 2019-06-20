@@ -45,7 +45,7 @@ user-customized execution environments ("custom containers").
 
 The portability API consists of a set of smaller contracts that
 isolate SDKs and runners for job submission, management and
-execution. These contracts use protobufs and gRPC for broad language
+execution. These contracts use protobufs and [gRPC](https://grpc.io) for broad language
 support.
 
  * **Job submission and management**: The _Runner API_ defines a
