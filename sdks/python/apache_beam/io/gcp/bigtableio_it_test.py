@@ -27,7 +27,6 @@ import time
 import unittest
 
 import apache_beam as beam
-from apache_beam.io import Read
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.runner import PipelineState
@@ -36,10 +35,10 @@ from apache_beam.transforms.combiners import Count
 
 try:
   from google.cloud.bigtable import enums, row, column_family, Client
-  from gcp.bigtableio import BigtableSource, WriteToBigTable
 except ImportError:
   Client = None
 
+import bigtableio
 
 class GenerateTestRows(beam.PTransform):
   """ A PTransform to generate dummy rows to write to a Bigtable Table.
@@ -67,9 +66,9 @@ class GenerateTestRows(beam.PTransform):
   def expand(self, pvalue):
     return (pvalue
             | beam.Create(self._generate())
-            | WriteToBigTable(project_id=self.beam_options['project_id'],
-                              instance_id=self.beam_options['instance_id'],
-                              table_id=self.beam_options['table_id']))
+            | bigtableio.WriteToBigTable(project_id=self.beam_options['project_id'],
+                                         instance_id=self.beam_options['instance_id'],
+                                         table_id=self.beam_options['table_id']))
 
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
 class BigtableIOTest(unittest.TestCase):
@@ -89,11 +88,11 @@ class BigtableIOTest(unittest.TestCase):
       logging.info('Table {} has been created!'.format(TABLE_ID))
 
   def test_bigtable_io(self):
-    print('Project ID: {}'.format(PROJECT_ID))
-    print('Instance ID:{}'.format(INSTANCE_ID))
-    print('Table ID:   {}'.format(TABLE_ID))
+    print 'Project ID: ', PROJECT_ID
+    print 'Instance ID:', INSTANCE_ID
+    print 'Table ID:   ', TABLE_ID
 
-    pipeline_options = PipelineOptions(PIPELINE_PARAMETERS)
+    pipeline_options = PipelineOptions(pipeline_parameters(job_name=make_job_name()))
     p = beam.Pipeline(options=pipeline_options)
     _ = (p | 'Write Test Rows' >> GenerateTestRows())
 
@@ -109,11 +108,13 @@ class BigtableIOTest(unittest.TestCase):
         logging.info('Number of Rows written: %d', read_counter.committed)
         assert read_counter.committed == ROW_COUNT
 
+    from apache_beam.transforms import core
+    pipeline_options = PipelineOptions(pipeline_parameters(job_name=make_job_name('read')))
     p = beam.Pipeline(options=pipeline_options)
     count = (p
-             | 'Read from Bigtable' >> Read(BigtableSource(project_id=PROJECT_ID,
-                                                           instance_id=INSTANCE_ID,
-                                                           table_id=TABLE_ID))
+             | 'Read from Bigtable' >> bigtableio.ReadFromBigTable(project_id=PROJECT_ID,
+                                                                   instance_id=INSTANCE_ID,
+                                                                   table_id=TABLE_ID)
              | 'Count Rows' >> Count.Globally())
     self.result = p.run()
     self.result.wait_until_finish()
@@ -156,20 +157,28 @@ if __name__ == '__main__':
   TABLE_ID = '{}-{}k-{}'.format(args.table, ROW_COUNT_K, TIME_STAMP)
   JOB_NAME = 'bigtableio-it-test-{}k-{}'.format(ROW_COUNT_K, TIME_STAMP)
 
-  PIPELINE_PARAMETERS = [
-    '--experiments={}'.format(args.experiments),
-    '--project={}'.format(PROJECT_ID),
-    '--job_name={}'.format(JOB_NAME),
-    '--disk_size_gb={}'.format(args.disk_size_gb),
-    '--region={}'.format(args.region),
-    '--runner={}'.format(args.runner),
-    '--autoscaling_algorithm={}'.format(args.autoscaling_algorithm),
-    '--num_workers={}'.format(NUM_WORKERS),
-    '--setup_file={}'.format(args.setup_file),
-    '--extra_package={}'.format(args.extra_package),
-    '--staging_location={}'.format(args.staging_location),
-    '--temp_location={}'.format(args.temp_location),
-  ]
+  def make_job_name(job_type='write'):
+    return 'bigtableio-it-test-{}-{}k-{}'.format(job_type, ROW_COUNT_K, TIME_STAMP)
+
+  def pipeline_parameters(experiments=args.experiments, project=PROJECT_ID, job_name='bigtableio-it-test',
+                          disk_size_gb=args.disk_size_gb, region=args.region, runner=args.runner,
+                          autoscaling_algorithm=args.autoscaling_algorithm, num_workers=NUM_WORKERS,
+                          setup_file=args.setup_file, extra_package=args.extra_package,
+                          staging_location=args.staging_location, temp_location=args.temp_location):
+    return [
+      '--experiments={}'.format(experiments),
+      '--project={}'.format(project),
+      '--job_name={}'.format(job_name),
+      '--disk_size_gb={}'.format(disk_size_gb),
+      '--region={}'.format(region),
+      '--runner={}'.format(runner),
+      '--autoscaling_algorithm={}'.format(autoscaling_algorithm),
+      '--num_workers={}'.format(num_workers),
+      '--setup_file={}'.format(setup_file),
+      '--extra_package={}'.format(extra_package),
+      '--staging_location={}'.format(staging_location),
+      '--temp_location={}'.format(temp_location),
+    ]
 
   logging.getLogger().setLevel(args.log_level)
 
