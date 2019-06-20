@@ -100,12 +100,15 @@ rat {
     "ownership/**/*",
     "**/OWNERS",
 
-    // FIXME add licencse header
+    // FIXME add license header
     "project-mappings",
     "deprecation-warning.txt",
 
     // Json doesn't support comments.
     "**/*.json",
+      
+    // Katas files
+    "learning/katas/*/IO/**/*.txt"
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -214,7 +217,8 @@ task python3PostCommit() {
 }
 
 task portablePythonPreCommit() {
-  dependsOn ":sdks:python:portablePreCommit"
+  dependsOn "sdks:python:portablePreCommitPy2"
+  dependsOn "sdks:python:test-suites:portable:py35:portablePreCommitPy35"
 }
 
 task websitePreCommit() {

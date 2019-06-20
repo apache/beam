@@ -232,4 +232,37 @@ public class WindmillStateCacheTest {
     assertEquals(
         new TestState("g3"), keyCache3.get(StateNamespaces.global(), new TestStateTag("tag3")));
   }
+
+  private static class TestStateTagWithBadEquality extends TestStateTag {
+    public TestStateTagWithBadEquality(String id) {
+      super(id);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      return this == other;
+    }
+
+    @Override
+    public int hashCode() {
+      return System.identityHashCode(this);
+    }
+  }
+
+  /**
+   * Verifies that caching works properly even when the StateTag does not properly implement
+   * equals() and hashCode()
+   */
+  @Test
+  public void testBadCoderEquality() throws Exception {
+    WindmillStateCache.ForKey keyCache1 =
+        cache.forComputation("comp1").forKey(ByteString.copyFromUtf8("key1"), STATE_FAMILY, 0L);
+
+    StateTag<TestState> tag = new TestStateTagWithBadEquality("tag1");
+    keyCache1.put(StateNamespaces.global(), tag, new TestState("g1"), 1);
+    assertEquals(new TestState("g1"), keyCache1.get(StateNamespaces.global(), tag));
+    assertEquals(
+        new TestState("g1"),
+        keyCache1.get(StateNamespaces.global(), new TestStateTagWithBadEquality("tag1")));
+  }
 }

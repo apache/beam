@@ -296,10 +296,11 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
       result = (p
                 | fileio.MatchFiles(FileSystems.join(dir, '*'))
                 | fileio.ReadMatches()
-                | beam.FlatMap(lambda f: f.read_utf8().strip().split('\n')))
+                | beam.FlatMap(lambda f: f.read_utf8().strip().split('\n'))
+                | beam.Map(json.loads))
 
       assert_that(result,
-                  equal_to([json.dumps(row) for row in self.SIMPLE_COLLECTION]))
+                  equal_to([row for row in self.SIMPLE_COLLECTION]))
 
   def test_write_to_different_file_types_some_spilling(self):
 
@@ -321,7 +322,8 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
       cncf_res = (p
                   | fileio.MatchFiles(FileSystems.join(dir, 'cncf*'))
                   | fileio.ReadMatches()
-                  | beam.FlatMap(lambda f: f.read_utf8().strip().split('\n')))
+                  | beam.FlatMap(lambda f: f.read_utf8().strip().split('\n'))
+                  | beam.Map(json.loads))
 
       apache_res = (p
                     | "MatchApache" >> fileio.MatchFiles(
@@ -331,7 +333,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
                         lambda rf: csv.reader(_get_file_reader(rf))))
 
       assert_that(cncf_res,
-                  equal_to([json.dumps(row)
+                  equal_to([row
                             for row in self.SIMPLE_COLLECTION
                             if row['foundation'] == 'cncf']),
                   label='verifyCNCF')
@@ -379,7 +381,6 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
     found_files = [m.path for m in leftovers[0].metadata_list]
     self.assertListEqual(found_files, [f2])
 
-  @unittest.skip('BEAM-7510 - test is flaky')
   def test_write_to_different_file_types(self):
 
     dir = self._new_tempdir()
@@ -399,7 +400,8 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
       cncf_res = (p
                   | fileio.MatchFiles(FileSystems.join(dir, 'cncf*'))
                   | fileio.ReadMatches()
-                  | beam.FlatMap(lambda f: f.read_utf8().strip().split('\n')))
+                  | beam.FlatMap(lambda f: f.read_utf8().strip().split('\n'))
+                  | beam.Map(json.loads))
 
       apache_res = (p
                     | "MatchApache" >> fileio.MatchFiles(
@@ -409,7 +411,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
                         lambda rf: csv.reader(_get_file_reader(rf))))
 
       assert_that(cncf_res,
-                  equal_to([json.dumps(row)
+                  equal_to([row
                             for row in self.SIMPLE_COLLECTION
                             if row['foundation'] == 'cncf']),
                   label='verifyCNCF')
@@ -435,7 +437,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
     # streaming mode.
     WriteFilesTest.all_records = []
 
-    dir = self._new_tempdir()
+    dir = '%s%s' % (self._new_tempdir(), os.sep)
 
     # Setting up the input (TestStream)
     ts = TestStream().advance_watermark_to(0)
@@ -447,6 +449,10 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
         # TODO(BEAM-3759): Add many firings per window after getting PaneInfo.
         ts.advance_processing_time(5)
         ts.advance_watermark_to(timestamp)
+
+    def no_colon_file_naming(*args):
+      file_name = fileio.destination_prefix_naming()(*args)
+      return file_name.replace(':', '_')
 
     # The pipeline that we are testing
     options = PipelineOptions()
@@ -465,6 +471,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
 
       _ = (res
            | beam.io.fileio.WriteToFiles(path=dir,
+                                         file_naming=no_colon_file_naming,
                                          max_writers_per_bundle=0)
            | beam.Map(lambda fr: FileSystems.join(dir, fr.file_name))
            | beam.ParDo(self.record_dofn()))
@@ -503,6 +510,10 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
           .add_elements([next(input), next(input)])
           .advance_watermark_to(40))
 
+    def no_colon_file_naming(*args):
+      file_name = fileio.destination_prefix_naming()(*args)
+      return file_name.replace(':', '_')
+
     with TestPipeline() as p:
       _ = (p
            | ts
@@ -513,7 +524,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
                sink=lambda dest: (
                    WriteFilesTest.CsvSink(WriteFilesTest.CSV_HEADERS)
                    if dest == 'apache' else WriteFilesTest.JsonSink()),
-               file_naming=fileio.destination_prefix_naming(),
+               file_naming=no_colon_file_naming,
                max_writers_per_bundle=0,
            ))
 
@@ -532,25 +543,25 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
                       stringmatches.matches_regexp(
                           FileSystems.join(
                               dir,
-                              'cncf-1970-01-01T00:00:00-1970-01-01T00:00:10--.*'
+                              'cncf-1970-01-01T00_00_00-1970-01-01T00_00_10--.*'
                           )
                       ),
                       stringmatches.matches_regexp(
                           FileSystems.join(
                               dir,
-                              'cncf-1970-01-01T00:00:10-1970-01-01T00:00:20--.*'
+                              'cncf-1970-01-01T00_00_10-1970-01-01T00_00_20--.*'
                           )
                       ),
                       stringmatches.matches_regexp(
                           FileSystems.join(
                               dir,
-                              'cncf-1970-01-01T00:00:20-1970-01-01T00:00:30--.*'
+                              'cncf-1970-01-01T00_00_20-1970-01-01T00_00_30--.*'
                           )
                       ),
                       stringmatches.matches_regexp(
                           FileSystems.join(
                               dir,
-                              'cncf-1970-01-01T00:00:30-1970-01-01T00:00:40--.*'
+                              'cncf-1970-01-01T00_00_30-1970-01-01T00_00_40--.*'
                           )
                       )
                   ]),
@@ -560,19 +571,19 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
                   matches_all([
                       stringmatches.matches_regexp(FileSystems.join(
                           dir,
-                          'apache-1970-01-01T00:00:00-1970-01-01T00:00:10--.*')
+                          'apache-1970-01-01T00_00_00-1970-01-01T00_00_10--.*')
                                                   ),
                       stringmatches.matches_regexp(FileSystems.join(
                           dir,
-                          'apache-1970-01-01T00:00:10-1970-01-01T00:00:20--.*')
+                          'apache-1970-01-01T00_00_10-1970-01-01T00_00_20--.*')
                                                   ),
                       stringmatches.matches_regexp(FileSystems.join(
                           dir,
-                          'apache-1970-01-01T00:00:20-1970-01-01T00:00:30--.*')
+                          'apache-1970-01-01T00_00_20-1970-01-01T00_00_30--.*')
                                                   ),
                       stringmatches.matches_regexp(FileSystems.join(
                           dir,
-                          'apache-1970-01-01T00:00:30-1970-01-01T00:00:40--.*')
+                          'apache-1970-01-01T00_00_30-1970-01-01T00_00_40--.*')
                                                   )
                   ]),
                   label='verifyApacheFiles')

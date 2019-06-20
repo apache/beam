@@ -18,18 +18,31 @@
 
 <html>
 <h2>Combine - Combine PerKey</h2>
-<p>After creating a keyed PCollection (for example, by using a GroupByKey transform), a common
-  pattern is to combine the collection of values associated with each key into a single, merged value.
-  This pattern of a GroupByKey followed by merging the collection of values is equivalent to
+<p>
+  After creating a keyed PCollection (for example, by using a GroupByKey transform), a common
+  pattern is to combine the collection of values associated with each key into a single, merged
+  value. This pattern of a GroupByKey followed by merging the collection of values is equivalent to
   Combine PerKey transform. The combine function you supply to Combine PerKey must be an associative
-  reduction function or a subclass of CombineFn.</p>
-<p>In this task, we are going to implement the sum of scores per player using
+  reduction function or a subclass of CombineFn.
+</p>
+<p>
+  <b>Kata:</b> Implement the sum of scores per player using
   <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.CombinePerKey">
     CombinePerKey</a>.
 </p>
 <br>
-<br>
-<div class='hint'>Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.CombinePerKey">CombinePerKey(CombineFn)</a>.</div>
-<div class='hint'>Extend the <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.CombineFn">CombineFn</a>
-  class that counts the sum of the number.</div>
+<div class="hint">
+  Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.CombinePerKey">
+  CombinePerKey(CombineFn)</a>.
+</div>
+<div class="hint">
+  Extend the
+  <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.CombineFn">
+    CombineFn</a> class that counts the sum of the number.
+</div>
+<div class="hint">
+  Refer to the Beam Programming Guide
+  <a href="https://beam.apache.org/documentation/programming-guide/#combining-values-in-a-keyed-pcollection">
+    "Combining values in a keyed PCollection"</a> section for more information.
+</div>
 </html>

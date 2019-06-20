@@ -417,8 +417,17 @@
       This is a false positive. Spotbugs does not recognize the use of try-with-resources, so it thinks that
       the connection is not correctly closed.
     -->
-    <Class name="org.apache.beam.sdk.io.jdbc.JdbcIO$ReadFn"/>
-    <Method name="processElement"/>
+    <Or>
+      <And>
+        <Class name="org.apache.beam.sdk.io.jdbc.JdbcIO$ReadFn"/>
+        <Method name="processElement"/>
+      </And>
+      <And>
+        <Class name="org.apache.beam.sdk.io.jdbc.JdbcIO$ReadRows"/>
+        <Method name="inferBeamSchema"/>
+      </And>
+    </Or>
+
     <Bug pattern="OBL_UNSATISFIED_OBLIGATION"/>
   </Match>
 </FindBugsFilter>

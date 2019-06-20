@@ -97,22 +97,6 @@ if __name__ == '__main__':
       # Skip until Spark runner supports metrics.
       raise unittest.SkipTest("BEAM-7219")
 
-    def test_pardo_state_only(self):
-      # Skip until Spark runner supports user state.
-      raise unittest.SkipTest("BEAM-7044")
-
-    def test_pardo_timers(self):
-      # Skip until Spark runner supports timers.
-      raise unittest.SkipTest("BEAM-7221")
-
-    def test_pardo_state_timers(self):
-      # Skip until Spark runner supports user state and timers.
-      raise unittest.SkipTest("BEAM-7044, BEAM-7221")
-
-    def test_windowed_pardo_state_timers(self):
-      # Skip until Spark runner supports user state and timers.
-      raise unittest.SkipTest("BEAM-7044, BEAM-7221")
-
     def test_sdf(self):
       # Skip until Spark runner supports SDF.
       raise unittest.SkipTest("BEAM-7222")

@@ -29,6 +29,7 @@ class CommonTestProperties {
         SPARK("SparkRunner"),
         FLINK("TestFlinkRunner"),
         DIRECT("DirectRunner"),
+        PORTABLE("PortableRunner")
 
         def RUNNER_DEPENDENCY_MAP = [
                 JAVA: [
@@ -40,6 +41,7 @@ class CommonTestProperties {
                 PYTHON: [
                         DATAFLOW: "TestDataflowRunner",
                         DIRECT: "DirectRunner",
+                        PORTABLE: "PortableRunner"
                 ]
         ]
 

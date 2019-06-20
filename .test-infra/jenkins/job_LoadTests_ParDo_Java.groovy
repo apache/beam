@@ -139,12 +139,7 @@ def commonLoadTestConfig = { jobType, isStreaming ->
 
 
 def batchLoadTestJob = { scope, triggeringContext ->
-    scope.description('Runs Java ParDo load tests on Dataflow runner in batch mode')
-    commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
-
-    for (testConfiguration in commonLoadTestConfig('batch', false)) {
-        loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
-    }
+    loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.JAVA, commonLoadTestConfig('batch', false), triggeringContext, "ParDo", "batch")
 }
 
 def streamingLoadTestJob = {scope, triggeringContext ->

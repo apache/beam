@@ -27,7 +27,6 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -123,6 +122,7 @@ public class BigQueryUtils {
               str ->
                   new DateTime(
                       (long) (Double.parseDouble(str) * 1000), ISOChronology.getInstanceUTC()))
+          .put(TypeName.BYTES, str -> BaseEncoding.base64().decode(str))
           .build();
 
   // TODO: BigQuery code should not be relying on Calcite metadata fields. If so, this belongs
@@ -371,10 +371,7 @@ public class BigQueryUtils {
         return fieldValue.toString();
 
       case BYTES:
-        ByteBuffer byteBuffer = (ByteBuffer) fieldValue;
-        byte[] bytes = new byte[byteBuffer.limit()];
-        byteBuffer.get(bytes);
-        return BaseEncoding.base64().encode(bytes);
+        return BaseEncoding.base64().encode((byte[]) fieldValue);
 
       default:
         return fieldValue;
@@ -444,12 +441,15 @@ public class BigQueryUtils {
     if (jsonBQValue instanceof List) {
       return ((List<Object>) jsonBQValue)
           .stream()
+              .map(v -> ((Map<String, Object>) v).get("v"))
               .map(v -> toBeamValue(fieldType.getCollectionElementType(), v))
               .collect(toList());
     }
 
-    if (jsonBQValue instanceof TableRow) {
-      return toBeamRow(fieldType.getRowSchema(), (TableRow) jsonBQValue);
+    if (jsonBQValue instanceof Map) {
+      TableRow tr = new TableRow();
+      tr.putAll((Map<String, Object>) jsonBQValue);
+      return toBeamRow(fieldType.getRowSchema(), tr);
     }
 
     throw new UnsupportedOperationException(

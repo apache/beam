@@ -228,6 +228,17 @@ class UnionHintTestCase(TypeHintTestCase):
                      "instead.",
                      e.exception.args[0])
 
+  def test_dict_union(self):
+    hint = Union[typehints.Dict[Any, int],
+                 typehints.Dict[Union[()], Union[()]]]
+    self.assertEqual(typehints.Dict[Any, int], hint)
+
+  def test_empty_union(self):
+    self.assertEqual(typehints.Union[()],
+                     typehints.Union[typehints.Union[()], typehints.Union[()]])
+    self.assertEqual(int,
+                     typehints.Union[typehints.Union[()], int])
+
 
 class OptionalHintTestCase(TypeHintTestCase):
 

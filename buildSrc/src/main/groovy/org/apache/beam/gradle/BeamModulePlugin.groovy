@@ -314,7 +314,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.14.0'
+    project.version = '2.15.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -424,6 +424,7 @@ class BeamModulePlugin implements Plugin<Project> {
         avro_tests                                  : "org.apache.avro:avro:1.8.2:tests",
         aws_java_sdk_cloudwatch                     : "com.amazonaws:aws-java-sdk-cloudwatch:$aws_java_sdk_version",
         aws_java_sdk_core                           : "com.amazonaws:aws-java-sdk-core:$aws_java_sdk_version",
+        aws_java_sdk_dynamodb                       : "com.amazonaws:aws-java-sdk-dynamodb:$aws_java_sdk_version",
         aws_java_sdk_kinesis                        : "com.amazonaws:aws-java-sdk-kinesis:$aws_java_sdk_version",
         aws_java_sdk_s3                             : "com.amazonaws:aws-java-sdk-s3:$aws_java_sdk_version",
         aws_java_sdk_sns                            : "com.amazonaws:aws-java-sdk-sns:$aws_java_sdk_version",
@@ -565,7 +566,6 @@ class BeamModulePlugin implements Plugin<Project> {
         url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease(project)
                 ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
                 : 'https://repository.apache.org/content/repositories/snapshots')
-
         // We attempt to find and load credentials from ~/.m2/settings.xml file that a user
         // has configured with the Apache release and snapshot staging credentials.
         // <settings>
@@ -1127,17 +1127,26 @@ class BeamModulePlugin implements Plugin<Project> {
                 def generateDependenciesFromConfiguration = { param ->
                   project.configurations."${param.configuration}".allDependencies.each {
                     def dependencyNode = dependenciesNode.appendNode('dependency')
+                    def appendClassifier = { dep ->
+                      dep.artifacts.each { art ->
+                        if (art.hasProperty('classifier')) {
+                          dependencyNode.appendNode('classifier', art.classifier)
+                        }
+                      }
+                    }
 
                     if (it instanceof ProjectDependency) {
                       dependencyNode.appendNode('groupId', it.getDependencyProject().mavenGroupId)
                       dependencyNode.appendNode('artifactId', it.getDependencyProject().archivesBaseName)
                       dependencyNode.appendNode('version', it.version)
                       dependencyNode.appendNode('scope', param.scope)
+                      appendClassifier(it)
                     } else {
                       dependencyNode.appendNode('groupId', it.group)
                       dependencyNode.appendNode('artifactId', it.name)
                       dependencyNode.appendNode('version', it.version)
                       dependencyNode.appendNode('scope', param.scope)
+                      appendClassifier(it)
                     }
 
                     // Start with any exclusions that were added via configuration exclude rules.
@@ -1281,22 +1290,22 @@ class BeamModulePlugin implements Plugin<Project> {
         /* include dependencies required by runners */
         //if (runner?.contains('dataflow')) {
         if (runner?.equalsIgnoreCase('dataflow')) {
-          testCompile it.project(path: ":runners:google-cloud-dataflow-java", configuration: 'testCompile')
-          shadow it.project(path: ":runners:google-cloud-dataflow-java:worker:legacy-worker", configuration: 'shadow')
+          testRuntime it.project(path: ":runners:google-cloud-dataflow-java", configuration: 'testRuntime')
+          testRuntime it.project(path: ":runners:google-cloud-dataflow-java:worker:legacy-worker", configuration: 'shadow')
         }
 
         if (runner?.equalsIgnoreCase('direct')) {
-          testCompile it.project(path: ":runners:direct-java", configuration: 'shadowTest')
+          testRuntime it.project(path: ":runners:direct-java", configuration: 'shadowTest')
         }
 
         if (runner?.equalsIgnoreCase('flink')) {
-          testCompile it.project(path: ":runners:flink:1.5", configuration: 'testCompile')
+          testRuntime it.project(path: ":runners:flink:1.5", configuration: 'testRuntime')
         }
 
         if (runner?.equalsIgnoreCase('spark')) {
-          testCompile it.project(path: ":runners:spark", configuration: 'testCompile')
-          testCompile project.library.java.spark_core
-          testCompile project.library.java.spark_streaming
+          testRuntime it.project(path: ":runners:spark", configuration: 'testRuntime')
+          testRuntime project.library.java.spark_core
+          testRuntime project.library.java.spark_streaming
 
           // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
           project.configurations.testRuntimeClasspath {
@@ -1306,13 +1315,13 @@ class BeamModulePlugin implements Plugin<Project> {
 
         /* include dependencies required by filesystems */
         if (filesystem?.equalsIgnoreCase('hdfs')) {
-          testCompile it.project(path: ":sdks:java:io:hadoop-file-system", configuration: 'testCompile')
+          testRuntime it.project(path: ":sdks:java:io:hadoop-file-system", configuration: 'testRuntime')
           testRuntime project.library.java.hadoop_client
         }
 
         /* include dependencies required by AWS S3 */
         if (filesystem?.equalsIgnoreCase('s3')) {
-          testCompile it.project(path: ":sdks:java:io:amazon-web-services", configuration: 'testCompile')
+          testRuntime it.project(path: ":sdks:java:io:amazon-web-services", configuration: 'testRuntime')
         }
       }
 
@@ -1417,7 +1426,6 @@ class BeamModulePlugin implements Plugin<Project> {
     /** ***********************************************************************************************/
 
     project.ext.applyGroovyNature = {
-      println "Applying groovy nature"
       project.apply plugin: "groovy"
 
       project.apply plugin: "com.diffplug.gradle.spotless"
@@ -1722,6 +1730,7 @@ class BeamModulePlugin implements Plugin<Project> {
               ])
               )
       def copiedSrcRoot = "${project.buildDir}/srcs"
+      def tarball = "apache-beam.tar.gz"
 
       project.configurations { distConfig }
 
@@ -1739,15 +1748,16 @@ class BeamModulePlugin implements Plugin<Project> {
             args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedSrcRoot}/sdks/python && python setup.py -q sdist --formats zip,gztar --dist-dir ${project.buildDir}"
           }
           def collection = project.fileTree("${project.buildDir}"){ include '**/*.tar.gz' exclude '**/apache-beam.tar.gz', 'srcs/**'}
-          println "sdist archive name: ${collection.singleFile}"
 
           // we need a fixed name for the artifact
-          project.copy { from collection.singleFile; into "${project.buildDir}"; rename { 'apache-beam.tar.gz' } }
+          project.copy { from collection.singleFile; into "${project.buildDir}"; rename { tarball } }
         }
+        inputs.files pythonSdkDeps
+        outputs.file "${project.buildDir}/${tarball}"
       }
 
       project.artifacts {
-        distConfig file: project.file("${project.buildDir}/apache-beam.tar.gz"), builtBy: project.sdist
+        distConfig file: project.file("${project.buildDir}/${tarball}"), builtBy: project.sdist
       }
 
       project.task('installGcpTest', dependsOn: 'setupVirtualenv') {
@@ -1846,6 +1856,61 @@ class BeamModulePlugin implements Plugin<Project> {
             }
           }
         }
+      }
+
+      def addPortableWordCountTask = { boolean isStreaming ->
+        project.task('portableWordCount' + (isStreaming ? 'Streaming' : 'Batch')) {
+          dependsOn = ['installGcpTest']
+          mustRunAfter = [
+            ':runners:flink:1.5:job-server-container:docker',
+            ':sdks:python:container:docker',
+            ':sdks:python:container:py3:docker'
+          ]
+          doLast {
+            // TODO: Figure out GCS credentials and use real GCS input and output.
+            def options = [
+              "--input=/etc/profile",
+              "--output=/tmp/py-wordcount-direct",
+              "--runner=PortableRunner",
+              "--experiments=worker_threads=100",
+              "--parallelism=2",
+              "--shutdown_sources_on_final_watermark",
+            ]
+            if (isStreaming)
+              options += [
+                "--streaming"
+              ]
+            else
+              // workaround for local file output in docker container
+              options += [
+                "--environment_cache_millis=10000"
+              ]
+            if (project.hasProperty("jobEndpoint"))
+              options += [
+                "--job_endpoint=${project.property('jobEndpoint')}"
+              ]
+            if (project.hasProperty("environmentType")) {
+              options += [
+                "--environment_type=${project.property('environmentType')}"
+              ]
+            }
+            if (project.hasProperty("environmentConfig")) {
+              options += [
+                "--environment_config=${project.property('environmentConfig')}"
+              ]
+            }
+            project.exec {
+              executable 'sh'
+              args '-c', ". ${project.ext.envdir}/bin/activate && python -m apache_beam.examples.wordcount ${options.join(' ')}"
+              // TODO: Check that the output file is generated and runs.
+            }
+          }
+        }
+      }
+      project.ext.addPortableWordCountTasks = {
+        ->
+        addPortableWordCountTask(false)
+        addPortableWordCountTask(true)
       }
     }
   }
