@@ -41,7 +41,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Gearpum
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-runners-gearpump:validatesRunner')
+      tasks(':runners:gearpump:validatesRunner')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }

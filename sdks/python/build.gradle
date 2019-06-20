@@ -243,7 +243,7 @@ task sparkValidatesRunner() {
     def argString = project.mapToArgString(argMap)
 
     // Optionally specify test function names separated by space e.g.:
-    // ./gradlew :beam-sdks-python:sparkValidatesRunner -Ptests="test_external_transforms test_read"
+    // ./gradlew :sdks:python:sparkValidatesRunner -Ptests="test_external_transforms test_read"
     // Otherwise run all test functions under SparkRunnerTest
     def tests = project.hasProperty('tests') ?
             project.property('tests').split().collect{ "SparkRunnerTest.$it" }.join(' ') : ''
