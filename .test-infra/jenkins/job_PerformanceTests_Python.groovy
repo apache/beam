@@ -66,7 +66,7 @@ def testConfigurations = [
         jobTriggerPhrase  : 'Run Python27 WordCountIT Performance Test',
         resultTable       : 'beam_performance.wordcount_py27_pkb_results',
         itClass           : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
-        itModule          : 'sdks/python',
+        itModule          : ':sdks:python',
         extraPipelineArgs : dataflowPipelineArgs + [
             input: 'gs://apache-beam-samples/input_small_files/ascii_sort_1MB_input.0000*', // 1Gb
             output: 'gs://temp-storage-for-end-to-end-tests/py-it-cloud/output',
@@ -81,7 +81,7 @@ def testConfigurations = [
         jobTriggerPhrase  : 'Run Python35 WordCountIT Performance Test',
         resultTable       : 'beam_performance.wordcount_py35_pkb_results',
         itClass           : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
-        itModule          : 'sdks/python/test-suites/dataflow/py35',
+        itModule          : ':sdks:python:test-suites:dataflow:py35',
         extraPipelineArgs : dataflowPipelineArgs + [
             input: 'gs://apache-beam-samples/input_small_files/ascii_sort_1MB_input.0000*', // 1Gb
             output: 'gs://temp-storage-for-end-to-end-tests/py-it-cloud/output',
@@ -96,7 +96,7 @@ def testConfigurations = [
         jobTriggerPhrase  : 'Run Python36 WordCountIT Performance Test',
         resultTable       : 'beam_performance.wordcount_py36_pkb_results',
         itClass           : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
-        itModule          : 'sdks/python/test-suites/dataflow/py36',
+        itModule          : ':sdks:python:test-suites:dataflow:py36',
         extraPipelineArgs : dataflowPipelineArgs + [
             input: 'gs://apache-beam-samples/input_small_files/ascii_sort_1MB_input.0000*', // 1Gb
             output: 'gs://temp-storage-for-end-to-end-tests/py-it-cloud/output',
@@ -111,7 +111,7 @@ def testConfigurations = [
         jobTriggerPhrase  : 'Run Python37 WordCountIT Performance Test',
         resultTable       : 'beam_performance.wordcount_py37_pkb_results',
         itClass           : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
-        itModule          : 'sdks/python/test-suites/dataflow/py37',
+        itModule          : ':sdks:python:test-suites:dataflow:py37',
         extraPipelineArgs : dataflowPipelineArgs + [
             input: 'gs://apache-beam-samples/input_small_files/ascii_sort_1MB_input.0000*', // 1Gb
             output: 'gs://temp-storage-for-end-to-end-tests/py-it-cloud/output',
@@ -176,8 +176,9 @@ private static String joinPipelineArgs(Map pipelineArgs) {
 
 // Get relative path of sdk location based on itModule if the location is not provided.
 private static String getSDKLocationFromModule(String pythonSDKLocation, String itModule) {
-  if (!pythonSDKLocation && itModule.startsWith("sdks/python")) {
-    return (itModule.substring("sdks/python".length()) + "/build/apache-beam.tar.gz").substring(1)
+  if (!pythonSDKLocation && itModule.startsWith(":sdks:python")) {
+    def projectPath = (itModule - ':sdks:python').replace(':', '/')
+    return (projectPath + "/build/apache-beam.tar.gz").substring(1)
   }
   return pythonSDKLocation
 }
