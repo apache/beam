@@ -444,16 +444,16 @@ class GroupIntoBatchesTest(unittest.TestCase):
   @staticmethod
   def _create_test_data():
     scientists = [
-      "Einstein",
-      "Darwin",
-      "Copernicus",
-      "Pasteur",
-      "Curie",
-      "Faraday",
-      "Newton",
-      "Bohr",
-      "Galilei",
-      "Maxwell"
+        "Einstein",
+        "Darwin",
+        "Copernicus",
+        "Pasteur",
+        "Curie",
+        "Faraday",
+        "Newton",
+        "Bohr",
+        "Galilei",
+        "Maxwell"
     ]
 
     data = []
@@ -461,14 +461,16 @@ class GroupIntoBatchesTest(unittest.TestCase):
       index = i % len(scientists)
       data.append(("key", scientists[index]))
     return data
-    
+
   def test_in_global_window(self):
     pipeline = TestPipeline()
-    collection = pipeline | beam.Create(GroupIntoBatchesTest._create_test_data()) \
+    collection = pipeline \
+                 | beam.Create(GroupIntoBatchesTest._create_test_data()) \
                  | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE)
     num_batches = collection | beam.combiners.Count.Globally()
     assert_that(num_batches,
-                equal_to([int(math.ceil(GroupIntoBatchesTest.NUM_ELEMENTS / GroupIntoBatchesTest.BATCH_SIZE))]))
+                equal_to([int(math.ceil(GroupIntoBatchesTest.NUM_ELEMENTS /
+                                        GroupIntoBatchesTest.BATCH_SIZE))]))
     pipeline.run()
 
   def test_in_streaming_mode(self):
@@ -477,29 +479,35 @@ class GroupIntoBatchesTest(unittest.TestCase):
     start_time = timestamp.Timestamp(0)
     window_duration = 6
     test_stream = (TestStream()
-                  .advance_watermark_to(start_time)
-                  .add_elements([TimestampedValue(x, next(offset) * timestamp_interval)
-                                 for x in GroupIntoBatchesTest._create_test_data()])
-                  .advance_watermark_to(start_time + (window_duration - 1))
-                  .advance_watermark_to(start_time + (window_duration + 1))
-                  .advance_watermark_to(start_time + GroupIntoBatchesTest.NUM_ELEMENTS)
-                  .advance_watermark_to_infinity())
+                   .advance_watermark_to(start_time)
+                   .add_elements(
+                       [TimestampedValue(x, next(offset) * timestamp_interval)
+                        for x in GroupIntoBatchesTest._create_test_data()])
+                   .advance_watermark_to(start_time + (window_duration - 1))
+                   .advance_watermark_to(start_time + (window_duration + 1))
+                   .advance_watermark_to(start_time +
+                                         GroupIntoBatchesTest.NUM_ELEMENTS)
+                   .advance_watermark_to_infinity())
     pipeline = TestPipeline()
-    #  window duration is 6 and batch size is 5, so output batch size should de 5 (flush because of batchSize reached)
+    #  window duration is 6 and batch size is 5, so output batch size should be
+    #  5 (flush because of batchSize reached)
     expected_0 = 5
-    # there is only one element left in the window so batch size should be 1 (flush because of end of window reached)
+    # there is only one element left in the window so batch size should be 1
+    # (flush because of end of window reached)
     expected_1 = 1
-    #  collection is 10 elements, there is only 4 left, so batch size should be 4 (flush because end of collection
-    #  reached)
+    #  collection is 10 elements, there is only 4 left, so batch size should be
+    #  4 (flush because end of collection reached)
     expected_2 = 4
 
-    collection = pipeline | test_stream | WindowInto(FixedWindows(window_duration)) \
+    collection = pipeline | test_stream \
+                 | WindowInto(FixedWindows(window_duration)) \
                  | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE)
     num_elements_in_batches = collection | beam.Map(len)
 
     result = pipeline.run()
     result.wait_until_finish()
-    assert_that(num_elements_in_batches, equal_to([expected_0, expected_1, expected_2]))
+    assert_that(num_elements_in_batches,
+                equal_to([expected_0, expected_1, expected_2]))
 
 
 class ToStringTest(unittest.TestCase):
