@@ -30,6 +30,7 @@ import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -141,6 +142,34 @@ import org.slf4j.LoggerFactory;
  *   <li>[{@code project_id}]:[{@code dataset_id}].[{@code table_id}]
  *   <li>[{@code dataset_id}].[{@code table_id}]
  * </ul>
+ *
+ * <h3>BigQuery Concepts</h3>
+ *
+ * <p>Tables have rows ({@link TableRow}) and each row has cells ({@link TableCell}). A table has a
+ * schema ({@link TableSchema}), which in turn describes the schema of each cell ({@link
+ * TableFieldSchema}). The terms field and cell are used interchangeably.
+ *
+ * <p>{@link TableSchema}: describes the schema (types and order) for values in each row. It has one
+ * attribute, ‘fields’, which is list of {@link TableFieldSchema} objects.
+ *
+ * <p>{@link TableFieldSchema}: describes the schema (type, name) for one field. It has several
+ * attributes, including 'name' and 'type'. Common values for the type attribute are: 'STRING',
+ * 'INTEGER', 'FLOAT', 'BOOLEAN', 'NUMERIC', 'GEOGRAPHY'. All possible values are described at: <a
+ * href="https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types">
+ * https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types</a>
+ *
+ * <p>{@link TableRow}: Holds all values in a table row. Has one attribute, 'f', which is a list of
+ * {@link TableCell} instances.
+ *
+ * <p>{@link TableCell}: Holds the value for one cell (or field). Has one attribute, 'v', which is
+ * the value of the table cell.
+ *
+ * <p>As of Beam 2.7.0, the NUMERIC data type is supported. This data type supports high-precision
+ * decimal numbers (precision of 38 digits, scale of 9 digits). The GEOGRAPHY data type works with
+ * Well-Known Text (See <a href="https://en.wikipedia.org/wiki/Well-known_text">
+ * https://en.wikipedia.org/wiki/Well-known_text</a>) format for reading and writing to BigQuery.
+ * BigQuery IO requires values of BYTES datatype to be encoded using base64 encoding when writing to
+ * BigQuery. When bytes are read from BigQuery they are returned as base64-encoded strings.
  *
  * <h3>Reading</h3>
  *
