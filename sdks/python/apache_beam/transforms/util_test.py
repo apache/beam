@@ -20,12 +20,12 @@
 from __future__ import absolute_import
 from __future__ import division
 
-import math
+import itertools
 import logging
+import math
 import random
 import time
 import unittest
-import itertools
 from builtins import object
 from builtins import range
 
@@ -42,13 +42,13 @@ from apache_beam.testing.util import contains_in_any_order
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import util
 from apache_beam.transforms import window
+from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
-from apache_beam.transforms.window import FixedWindows
 from apache_beam.utils import timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 

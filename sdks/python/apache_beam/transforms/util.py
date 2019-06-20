@@ -31,11 +31,12 @@ from builtins import zip
 
 from future.utils import itervalues
 
-from apache_beam import typehints
 from apache_beam import coders
+from apache_beam import typehints
 from apache_beam.metrics import Metrics
 from apache_beam.portability import common_urns
 from apache_beam.transforms import window
+from apache_beam.transforms.combiners import CountCombineFn
 from apache_beam.transforms.core import CombinePerKey
 from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.core import FlatMap
@@ -46,14 +47,16 @@ from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import Windowing
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
-from apache_beam.transforms.combiners import CountCombineFn
+from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import AfterCount
+from apache_beam.transforms.userstate import BagStateSpec
+from apache_beam.transforms.userstate import CombiningValueStateSpec
+from apache_beam.transforms.userstate import TimerSpec
+from apache_beam.transforms.userstate import on_timer
 from apache_beam.transforms.window import NonMergingWindowFn
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
-from apache_beam.transforms.userstate import BagStateSpec, CombiningValueStateSpec, TimerSpec, on_timer
-from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
 
