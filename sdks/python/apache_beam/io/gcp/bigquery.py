@@ -224,6 +224,9 @@ high-precision decimal numbers (precision of 38 digits, scale of 9 digits).
 The GEOGRAPHY data type works with Well-Known Text (See
 https://en.wikipedia.org/wiki/Well-known_text) format for reading and writing
 to BigQuery.
+BigQuery IO requires values of BYTES datatype to be encoded using base64
+encoding when writing to BigQuery. When bytes are read from BigQuery they are
+returned as base64-encoded bytes.
 """
 
 from __future__ import absolute_import
