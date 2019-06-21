@@ -24,11 +24,13 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 
 import logging
+import os
 import time
 import uuid
 from builtins import range
 
 from google.api_core import exceptions
+from google.cloud import environment_vars
 from google.cloud.datastore import client
 
 from apache_beam.io.gcp.datastore.v1new import types
@@ -48,7 +50,9 @@ _RETRYABLE_DATASTORE_ERRORS = (
 def get_client(project, namespace):
   """Returns a Cloud Datastore client."""
   _client = client.Client(project=project, namespace=namespace)
-  _client.base_url = 'https://batch-datastore.googleapis.com'  # BEAM-1387
+  # Avoid overwriting user setting. BEAM-7608
+  if not os.environ.get(environment_vars.GCD_HOST, None):
+    _client.base_url = 'https://batch-datastore.googleapis.com'  # BEAM-1387
   return _client
 
 
