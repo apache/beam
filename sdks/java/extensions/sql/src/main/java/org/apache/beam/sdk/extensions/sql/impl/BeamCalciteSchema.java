@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.schema.Function;
@@ -48,24 +49,20 @@ public class BeamCalciteSchema implements Schema {
     return tableProvider;
   }
 
-  public Map<String, String> getPipelineOptions() {
-    return connection.getPipelineOptionsMap();
-  }
-
   public void setPipelineOption(String key, String value) {
-    Map<String, String> options = new HashMap<>(connection.getPipelineOptionsMap());
-    options.put(key, value);
-    connection.setPipelineOptionsMap(options);
+    connection.setPipelineOption(key, value);
   }
 
   public void removePipelineOption(String key) {
-    Map<String, String> options = new HashMap<>(connection.getPipelineOptionsMap());
-    options.remove(key);
-    connection.setPipelineOptionsMap(options);
+    connection.removePipelineOption(key);
   }
 
   public void removeAllPipelineOptions() {
-    connection.setPipelineOptionsMap(Collections.emptyMap());
+    connection.setPipelineOptionsFromMap(Collections.emptyMap());
+  }
+
+  public PipelineOptions getPipelineOptions() {
+    return connection.getPipelineOptions();
   }
 
   @Override
@@ -105,9 +102,7 @@ public class BeamCalciteSchema implements Schema {
       return null;
     }
     return new BeamCalciteTable(
-        tableProvider.buildBeamSqlTable(table),
-        getPipelineOptions(),
-        connection.getPipelineOptions());
+        tableProvider.buildBeamSqlTable(table), connection.getPipelineOptions());
   }
 
   @Override

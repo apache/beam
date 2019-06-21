@@ -114,8 +114,8 @@ public class BeamSqlEnv {
     return connection.createPrepareContext();
   }
 
-  public Map<String, String> getPipelineOptions() {
-    return connection.getPipelineOptionsMap();
+  public PipelineOptions getPipelineOptions() {
+    return connection.getPipelineOptions();
   }
 
   public String explain(String sqlString) throws ParseException {

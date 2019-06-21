@@ -21,7 +21,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -65,8 +64,7 @@ public class BeamSqlCli {
     if (env.isDdl(sqlString)) {
       env.executeDdl(sqlString);
     } else {
-      PipelineOptions options =
-          BeamEnumerableConverter.createPipelineOptions(env.getPipelineOptions());
+      PipelineOptions options = env.getPipelineOptions();
       options.setJobName("BeamPlanCreator");
       Pipeline pipeline = Pipeline.create(options);
       BeamSqlRelUtils.toPCollection(pipeline, env.parseQuery(sqlString));

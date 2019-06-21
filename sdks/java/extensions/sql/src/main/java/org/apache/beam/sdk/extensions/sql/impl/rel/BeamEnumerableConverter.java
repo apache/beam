@@ -43,9 +43,7 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsFilter;
-import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -111,7 +109,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(BeamEnumerableConverter.class.getClassLoader());
-      final PipelineOptions options = createPipelineOptions(node.getPipelineOptions());
+      final PipelineOptions options = node.getPipelineOptions();
       return toEnumerable(options, node);
     } finally {
       Thread.currentThread().setContextClassLoader(originalClassLoader);
@@ -122,22 +120,11 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(BeamEnumerableConverter.class.getClassLoader());
-      final PipelineOptions options = createPipelineOptions(node.getPipelineOptions());
+      final PipelineOptions options = node.getPipelineOptions();
       return toRowList(options, node);
     } finally {
       Thread.currentThread().setContextClassLoader(originalClassLoader);
     }
-  }
-
-  public static PipelineOptions createPipelineOptions(Map<String, String> map) {
-    final String[] args = new String[map.size()];
-    int i = 0;
-    for (Map.Entry<String, String> entry : map.entrySet()) {
-      args[i++] = "--" + entry.getKey() + "=" + entry.getValue();
-    }
-    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().create();
-    options.as(ApplicationNameOptions.class).setAppName("BeamSql");
-    return options;
   }
 
   static List<Row> toRowList(PipelineOptions options, BeamRelNode node) {

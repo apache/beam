@@ -350,7 +350,7 @@ public class PubsubJsonIT implements Serializable {
     }
 
     JdbcConnection connection = JdbcDriver.connect(inMemoryMetaStore, options);
-    connection.setPipelineOptionsMap(argsMap);
+    connection.setPipelineOptionsFromMap(argsMap);
     return connection;
   }
 

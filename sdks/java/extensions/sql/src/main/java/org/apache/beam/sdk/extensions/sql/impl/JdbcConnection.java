@@ -18,14 +18,15 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import java.sql.SQLException;
-import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PipelineOptionsReflectionSetter;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.schema.SchemaPlus;
@@ -44,12 +45,11 @@ public class JdbcConnection extends CalciteConnectionWrapper {
    */
   private static final String PIPELINE_OPTION_PREFIX = "beam.";
 
-  private Map<String, String> pipelineOptionsMap;
   private PipelineOptions pipelineOptions;
 
   private JdbcConnection(CalciteConnection connection) throws SQLException {
     super(connection);
-    this.pipelineOptionsMap = Collections.emptyMap();
+    pipelineOptions = PipelineOptionsFactory.create();
   }
 
   /**
@@ -65,7 +65,7 @@ public class JdbcConnection extends CalciteConnectionWrapper {
       }
 
       JdbcConnection jdbcConnection = new JdbcConnection(connection);
-      jdbcConnection.setPipelineOptionsMap(extractPipelineOptions(connection));
+      jdbcConnection.setPipelineOptions(extractPipelineOptions(connection));
       jdbcConnection.setSchema(
           connection.getSchema(), BeamCalciteSchemaFactory.fromInitialEmptySchema(jdbcConnection));
       return jdbcConnection;
@@ -78,24 +78,50 @@ public class JdbcConnection extends CalciteConnectionWrapper {
    * Reads the connection properties starting with {@link #PIPELINE_OPTION_PREFIX} and converts them
    * to a map of pipeline options.
    */
-  private static Map<String, String> extractPipelineOptions(CalciteConnection calciteConnection) {
-    return calciteConnection.getProperties().entrySet().stream()
-        .map(entry -> KV.of(entry.getKey().toString(), entry.getValue().toString()))
-        .filter(kv -> kv.getKey().startsWith(PIPELINE_OPTION_PREFIX))
-        .map(kv -> KV.of(kv.getKey().substring(PIPELINE_OPTION_PREFIX.length()), kv.getValue()))
-        .collect(Collectors.toMap(KV::getKey, KV::getValue));
+  private static PipelineOptions extractPipelineOptions(CalciteConnection calciteConnection) {
+    Map<String, String> map =
+        calciteConnection.getProperties().entrySet().stream()
+            .map(entry -> KV.of(entry.getKey().toString(), entry.getValue().toString()))
+            .filter(kv -> kv.getKey().startsWith(PIPELINE_OPTION_PREFIX))
+            .map(kv -> KV.of(kv.getKey().substring(PIPELINE_OPTION_PREFIX.length()), kv.getValue()))
+            .collect(Collectors.toMap(KV::getKey, KV::getValue));
+    return createPipelineOptionsFromMap(map);
   }
 
-  Map<String, String> getPipelineOptionsMap() {
-    return pipelineOptionsMap;
+  public static PipelineOptions createPipelineOptionsFromMap(Map<String, String> map) {
+    /*
+    This is similar to what happens in {@link BeamEnumerableConverter#toRowList}. We need to change the class loader in JDBC path.
+     */
+    final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+    try {
+      Thread.currentThread().setContextClassLoader(JdbcConnection.class.getClassLoader());
+      final String[] args = new String[map.size()];
+      int i = 0;
+      for (Map.Entry<String, String> entry : map.entrySet()) {
+        args[i++] = "--" + entry.getKey() + "=" + entry.getValue();
+      }
+      PipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().create();
+      options.as(ApplicationNameOptions.class).setAppName("BeamSql");
+      return options;
+    } finally {
+      Thread.currentThread().setContextClassLoader(originalClassLoader);
+    }
+  }
+
+  public void setPipelineOptionsFromMap(Map<String, String> pipelineOptionsMap) {
+    setPipelineOptions(createPipelineOptionsFromMap(pipelineOptionsMap));
   }
 
   /**
    * Only called from the {@link BeamCalciteSchema}. This is needed to enable the `{@code SET
    * pipelineOption = blah}` syntax
    */
-  public void setPipelineOptionsMap(Map<String, String> pipelineOptionsMap) {
-    this.pipelineOptionsMap = ImmutableMap.copyOf(pipelineOptionsMap);
+  public void setPipelineOption(String key, String value) {
+    PipelineOptionsReflectionSetter.setOption(pipelineOptions, key, value);
+  }
+
+  public void removePipelineOption(String key) {
+    PipelineOptionsReflectionSetter.removeOption(pipelineOptions, key);
   }
 
   public void setPipelineOptions(PipelineOptions pipelineOptions) {

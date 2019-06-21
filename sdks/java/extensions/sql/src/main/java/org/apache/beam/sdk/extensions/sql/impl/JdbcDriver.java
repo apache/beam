@@ -35,7 +35,9 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.calcite.avatica.AvaticaFactory;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalciteFactory;
+import org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.calcite.jdbc.Driver;
+import org.apache.calcite.linq4j.function.Function0;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelTraitDef;
@@ -111,6 +113,11 @@ public class JdbcDriver extends Driver {
   @Override
   protected String getConnectStringPrefix() {
     return CONNECT_STRING_PREFIX;
+  }
+
+  @Override
+  protected Function0<CalcitePrepare> createPrepareFactory() {
+    return super.createPrepareFactory();
   }
 
   /**

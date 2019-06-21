@@ -1579,7 +1579,7 @@ public class PipelineOptionsFactory {
    * <p>If strict parsing is enabled, unknown options or options that cannot be converted to the
    * expected java type using an {@link ObjectMapper} will be ignored.
    */
-  private static <T extends PipelineOptions> Map<String, Object> parseObjects(
+  static <T extends PipelineOptions> Map<String, Object> parseObjects(
       Class<T> klass, ListMultimap<String, String> options, boolean strictParsing) {
     Map<String, Method> propertyNamesToGetters = Maps.newHashMap();
     Cache cache = CACHE.get();
@@ -1689,6 +1689,8 @@ public class PipelineOptionsFactory {
     }
     return convertedOptions;
   }
+
+  static void parseObject(PipelineOptions options, String key, Object value) {}
 
   /**
    * Returns true if the given type is one of {@code SIMPLE_TYPES} or an enum, or if the given type

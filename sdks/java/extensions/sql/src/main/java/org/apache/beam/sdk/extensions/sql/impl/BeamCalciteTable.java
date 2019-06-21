@@ -19,15 +19,14 @@ package org.apache.beam.sdk.extensions.sql.impl;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSinkRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.calcite.adapter.java.AbstractQueryableTable;
 import org.apache.calcite.linq4j.QueryProvider;
 import org.apache.calcite.linq4j.Queryable;
@@ -49,23 +48,18 @@ import org.apache.calcite.schema.TranslatableTable;
 public class BeamCalciteTable extends AbstractQueryableTable
     implements ModifiableTable, TranslatableTable {
   private final BeamSqlTable beamTable;
-  // These two options should be unified.
-  // https://issues.apache.org/jira/projects/BEAM/issues/BEAM-7590
-  private final Map<String, String> pipelineOptionsMap;
   private PipelineOptions pipelineOptions;
 
-  BeamCalciteTable(
-      BeamSqlTable beamTable,
-      Map<String, String> pipelineOptionsMap,
-      PipelineOptions pipelineOptions) {
+  BeamCalciteTable(BeamSqlTable beamTable, PipelineOptions pipelineOptions) {
     super(Object[].class);
+
+    assert (pipelineOptions != null);
     this.beamTable = beamTable;
-    this.pipelineOptionsMap = pipelineOptionsMap;
     this.pipelineOptions = pipelineOptions;
   }
 
   public static BeamCalciteTable of(BeamSqlTable table) {
-    return new BeamCalciteTable(table, ImmutableMap.of(), null);
+    return new BeamCalciteTable(table, PipelineOptionsFactory.create());
   }
 
   @Override
@@ -74,11 +68,6 @@ public class BeamCalciteTable extends AbstractQueryableTable
   }
 
   private PipelineOptions getPipelineOptions() {
-    if (pipelineOptions != null) {
-      return pipelineOptions;
-    }
-
-    pipelineOptions = BeamEnumerableConverter.createPipelineOptions(pipelineOptionsMap);
     return pipelineOptions;
   }
 
@@ -102,7 +91,7 @@ public class BeamCalciteTable extends AbstractQueryableTable
 
   @Override
   public RelNode toRel(RelOptTable.ToRelContext context, RelOptTable relOptTable) {
-    return new BeamIOSourceRel(context.getCluster(), relOptTable, beamTable, pipelineOptionsMap);
+    return new BeamIOSourceRel(context.getCluster(), relOptTable, beamTable, getPipelineOptions());
   }
 
   @Override
@@ -136,6 +125,6 @@ public class BeamCalciteTable extends AbstractQueryableTable
         sourceExpressionList,
         flattened,
         beamTable,
-        pipelineOptionsMap);
+        getPipelineOptions());
   }
 }

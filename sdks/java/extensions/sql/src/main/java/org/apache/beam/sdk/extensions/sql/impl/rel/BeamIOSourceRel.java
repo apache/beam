@@ -19,8 +19,8 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -33,13 +33,13 @@ import org.apache.calcite.rel.core.TableScan;
 public class BeamIOSourceRel extends TableScan implements BeamRelNode {
 
   private final BeamSqlTable sqlTable;
-  private final Map<String, String> pipelineOptions;
+  private final PipelineOptions pipelineOptions;
 
   public BeamIOSourceRel(
       RelOptCluster cluster,
       RelOptTable table,
       BeamSqlTable sqlTable,
-      Map<String, String> pipelineOptions) {
+      PipelineOptions pipelineOptions) {
     super(cluster, cluster.traitSetOf(BeamLogicalConvention.INSTANCE), table);
     this.sqlTable = sqlTable;
     this.pipelineOptions = pipelineOptions;
@@ -73,7 +73,7 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
   }
 
   @Override
-  public Map<String, String> getPipelineOptions() {
+  public PipelineOptions getPipelineOptions() {
     return pipelineOptions;
   }
 }

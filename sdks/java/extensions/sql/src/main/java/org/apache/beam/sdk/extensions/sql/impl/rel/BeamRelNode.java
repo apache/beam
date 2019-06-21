@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.List;
-import java.util.Map;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -51,10 +51,10 @@ public interface BeamRelNode extends RelNode {
   PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform();
 
   /** Perform a DFS(Depth-First-Search) to find the PipelineOptions config. */
-  default Map<String, String> getPipelineOptions() {
-    Map<String, String> options = null;
+  default PipelineOptions getPipelineOptions() {
+    PipelineOptions options = null;
     for (RelNode input : getInputs()) {
-      Map<String, String> inputOptions = ((BeamRelNode) input).getPipelineOptions();
+      PipelineOptions inputOptions = ((BeamRelNode) input).getPipelineOptions();
       assert inputOptions != null;
       assert options == null || options == inputOptions;
       options = inputOptions;

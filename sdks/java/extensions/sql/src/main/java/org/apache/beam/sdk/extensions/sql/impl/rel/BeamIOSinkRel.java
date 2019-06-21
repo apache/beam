@@ -20,9 +20,9 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.List;
-import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIOSinkRule;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -42,7 +42,7 @@ public class BeamIOSinkRel extends TableModify
     implements BeamRelNode, RelStructuredTypeFlattener.SelfFlatteningRel {
 
   private final BeamSqlTable sqlTable;
-  private final Map<String, String> pipelineOptions;
+  private final PipelineOptions pipelineOptions;
   private boolean isFlattening = false;
 
   public BeamIOSinkRel(
@@ -55,7 +55,7 @@ public class BeamIOSinkRel extends TableModify
       List<RexNode> sourceExpressionList,
       boolean flattened,
       BeamSqlTable sqlTable,
-      Map<String, String> pipelineOptions) {
+      PipelineOptions pipelineOptions) {
     super(
         cluster,
         cluster.traitSetOf(BeamLogicalConvention.INSTANCE),
@@ -127,7 +127,7 @@ public class BeamIOSinkRel extends TableModify
   }
 
   @Override
-  public Map<String, String> getPipelineOptions() {
+  public PipelineOptions getPipelineOptions() {
     return pipelineOptions;
   }
 }

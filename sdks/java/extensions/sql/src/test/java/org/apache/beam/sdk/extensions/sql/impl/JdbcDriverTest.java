@@ -18,12 +18,13 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import static org.apache.beam.sdk.values.Row.toRow;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -39,13 +40,13 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestUnboundedTable;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.util.ReleaseInfo;
@@ -118,8 +119,8 @@ public class JdbcDriverTest {
     SchemaPlus rootSchema = ((CalciteConnection) connection).getRootSchema();
     BeamCalciteSchema beamSchema =
         (BeamCalciteSchema) CalciteSchema.from(rootSchema.getSubSchema("beam")).schema;
-    Map<String, String> pipelineOptions = beamSchema.getPipelineOptions();
-    assertThat(pipelineOptions.get("userAgent"), containsString("BeamSQL"));
+    PipelineOptions pipelineOptions = beamSchema.getPipelineOptions();
+    assertThat(pipelineOptions.getUserAgent(), containsString("BeamSQL"));
   }
 
   /** Tests that userAgent is set. */
@@ -129,7 +130,7 @@ public class JdbcDriverTest {
         (JdbcConnection) DriverManager.getConnection(JdbcDriver.CONNECT_STRING_PREFIX);
     BeamCalciteSchema schema = connection.getCurrentBeamSchema();
     assertThat(
-        schema.getPipelineOptions().get("userAgent"),
+        schema.getPipelineOptions().getUserAgent(),
         equalTo("BeamSQL/" + ReleaseInfo.getReleaseInfo().getVersion()));
   }
 
@@ -142,24 +143,21 @@ public class JdbcDriverTest {
     SchemaPlus rootSchema = ((CalciteConnection) connection).getRootSchema();
     BeamCalciteSchema beamSchema =
         (BeamCalciteSchema) CalciteSchema.from(rootSchema.getSubSchema("beam")).schema;
-    Map<String, String> pipelineOptions = beamSchema.getPipelineOptions();
-    assertThat(pipelineOptions.get("userAgent"), equalTo("Secret Agent"));
+    PipelineOptions pipelineOptions = beamSchema.getPipelineOptions();
+    assertThat(pipelineOptions.getUserAgent(), equalTo("Secret Agent"));
   }
 
   /** Tests that unknown pipeline options are passed verbatim from the JDBC URI. */
   @Test
   public void testDriverManager_pipelineOptionsPlumbing() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(allOf(containsString("foo"), containsString("PipelineOptions")));
     Connection connection =
         DriverManager.getConnection(
-            JdbcDriver.CONNECT_STRING_PREFIX
-                + "beam.foo=baz;beam.foobizzle=mahshizzle;other=smother");
+            JdbcDriver.CONNECT_STRING_PREFIX + "beam.foo=baz;beam.userAgent=Secret Agent");
     SchemaPlus rootSchema = ((CalciteConnection) connection).getRootSchema();
     BeamCalciteSchema beamSchema =
         (BeamCalciteSchema) CalciteSchema.from(rootSchema.getSubSchema("beam")).schema;
-    Map<String, String> pipelineOptions = beamSchema.getPipelineOptions();
-    assertThat(pipelineOptions.get("foo"), equalTo("baz"));
-    assertThat(pipelineOptions.get("foobizzle"), equalTo("mahshizzle"));
-    assertThat(pipelineOptions.get("other"), nullValue());
   }
 
   @Test
@@ -494,11 +492,12 @@ public class JdbcDriverTest {
 
   @Test
   public void testInternalConnect_resetAll() throws Exception {
-    CalciteConnection connection =
-        JdbcDriver.connect(BOUNDED_TABLE, PipelineOptionsFactory.create());
+    JdbcConnection connection = JdbcDriver.connect(BOUNDED_TABLE, PipelineOptionsFactory.create());
     Statement statement = connection.createStatement();
-    assertEquals(0, statement.executeUpdate("SET runner = bogus"));
+    assertEquals(0, statement.executeUpdate("SET jobName = something"));
+    assertEquals("something", connection.getPipelineOptions().getJobName());
     assertEquals(0, statement.executeUpdate("RESET ALL"));
+    assertNotEquals("something", connection.getPipelineOptions().getJobName());
     assertTrue(statement.execute("SELECT * FROM test"));
   }
 
