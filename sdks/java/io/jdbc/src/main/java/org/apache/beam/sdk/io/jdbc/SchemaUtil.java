@@ -43,8 +43,10 @@ import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.TimeZone;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -273,7 +275,7 @@ class SchemaUtil {
   /** Convert SQL date type to Beam DateTime. */
   private static ResultSetFieldExtractor createDateExtractor() {
     return (rs, i) -> {
-      Date date = rs.getDate(i);
+      Date date = rs.getDate(i, Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
       if (date == null) {
         return null;
       }
@@ -285,7 +287,7 @@ class SchemaUtil {
   /** Convert SQL time type to Beam DateTime. */
   private static ResultSetFieldExtractor createTimeExtractor() {
     return (rs, i) -> {
-      Time time = rs.getTime(i);
+      Time time = rs.getTime(i, Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
       if (time == null) {
         return null;
       }
@@ -298,7 +300,7 @@ class SchemaUtil {
   /** Convert SQL timestamp type to Beam DateTime. */
   private static ResultSetFieldExtractor createTimestampExtractor() {
     return (rs, i) -> {
-      Timestamp ts = rs.getTimestamp(i);
+      Timestamp ts = rs.getTimestamp(i, Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
       if (ts == null) {
         return null;
       }
