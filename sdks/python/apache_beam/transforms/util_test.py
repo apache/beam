@@ -20,7 +20,9 @@
 from __future__ import absolute_import
 from __future__ import division
 
+import itertools
 import logging
+import math
 import random
 import time
 import unittest
@@ -28,16 +30,19 @@ from builtins import object
 from builtins import range
 
 import apache_beam as beam
+from apache_beam import WindowInto
 from apache_beam.coders import coders
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import TestWindowedValue
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import contains_in_any_order
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import util
 from apache_beam.transforms import window
+from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import IntervalWindow
@@ -430,6 +435,79 @@ class WithKeysTest(unittest.TestCase):
       pc = p | beam.Create(self.l)
       with_keys = pc | util.WithKeys(lambda x: x*x)
     assert_that(with_keys, equal_to([(1, 1), (4, 2), (9, 3)]))
+
+
+class GroupIntoBatchesTest(unittest.TestCase):
+  NUM_ELEMENTS = 10
+  BATCH_SIZE = 5
+
+  @staticmethod
+  def _create_test_data():
+    scientists = [
+        "Einstein",
+        "Darwin",
+        "Copernicus",
+        "Pasteur",
+        "Curie",
+        "Faraday",
+        "Newton",
+        "Bohr",
+        "Galilei",
+        "Maxwell"
+    ]
+
+    data = []
+    for i in range(GroupIntoBatchesTest.NUM_ELEMENTS):
+      index = i % len(scientists)
+      data.append(("key", scientists[index]))
+    return data
+
+  def test_in_global_window(self):
+    pipeline = TestPipeline()
+    collection = pipeline \
+                 | beam.Create(GroupIntoBatchesTest._create_test_data()) \
+                 | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE)
+    num_batches = collection | beam.combiners.Count.Globally()
+    assert_that(num_batches,
+                equal_to([int(math.ceil(GroupIntoBatchesTest.NUM_ELEMENTS /
+                                        GroupIntoBatchesTest.BATCH_SIZE))]))
+    pipeline.run()
+
+  def test_in_streaming_mode(self):
+    timestamp_interval = 1
+    offset = itertools.count(0)
+    start_time = timestamp.Timestamp(0)
+    window_duration = 6
+    test_stream = (TestStream()
+                   .advance_watermark_to(start_time)
+                   .add_elements(
+                       [TimestampedValue(x, next(offset) * timestamp_interval)
+                        for x in GroupIntoBatchesTest._create_test_data()])
+                   .advance_watermark_to(start_time + (window_duration - 1))
+                   .advance_watermark_to(start_time + (window_duration + 1))
+                   .advance_watermark_to(start_time +
+                                         GroupIntoBatchesTest.NUM_ELEMENTS)
+                   .advance_watermark_to_infinity())
+    pipeline = TestPipeline()
+    #  window duration is 6 and batch size is 5, so output batch size should be
+    #  5 (flush because of batchSize reached)
+    expected_0 = 5
+    # there is only one element left in the window so batch size should be 1
+    # (flush because of end of window reached)
+    expected_1 = 1
+    #  collection is 10 elements, there is only 4 left, so batch size should be
+    #  4 (flush because end of collection reached)
+    expected_2 = 4
+
+    collection = pipeline | test_stream \
+                 | WindowInto(FixedWindows(window_duration)) \
+                 | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE)
+    num_elements_in_batches = collection | beam.Map(len)
+
+    result = pipeline.run()
+    result.wait_until_finish()
+    assert_that(num_elements_in_batches,
+                equal_to([expected_0, expected_1, expected_2]))
 
 
 class ToStringTest(unittest.TestCase):
