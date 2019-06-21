@@ -122,6 +122,7 @@ def main(unused_argv):
     semi_persistent_directory = None
 
   logging.info('semi_persistent_directory: %s', semi_persistent_directory)
+  _worker_id = os.environ.get('WORKER_ID', None)
 
   try:
     _load_main_session(semi_persistent_directory)
@@ -141,6 +142,7 @@ def main(unused_argv):
     SdkHarness(
         control_address=service_descriptor.url,
         worker_count=_get_worker_count(sdk_pipeline_options),
+        worker_id=_worker_id,
         profiler_factory=profiler.Profile.factory_from_options(
             sdk_pipeline_options.view_as(pipeline_options.ProfilingOptions))
     ).run()
