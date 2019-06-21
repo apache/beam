@@ -684,7 +684,22 @@ def WithKeys(pcoll, k):
 @experimental()
 @typehints.with_input_types(typehints.KV[K, V])
 class GroupIntoBatches(PTransform):
+  """PTransform that batches the input into desired batch size. Elements are
+  buffered until they are equal to batch size provided in the argument at which
+  point they are output to the output Pcollection.
+
+  Windows are preserved (batches will contain elements from the same window)
+
+  GroupIntoBatches is experimental. Its use case will depend on the runner if
+  it has support of States and Timers.
+  """
+
   def __init__(self, batch_size):
+    """Create a new GroupIntoBatches with batch size.
+
+    Arguments:
+      batch_size: (required) How many elements should be in a batch
+    """
     warnings.warn('Use of GroupIntoBatches transform requires State/Timer '
                   'support from the runner')
     self.batch_size = batch_size
