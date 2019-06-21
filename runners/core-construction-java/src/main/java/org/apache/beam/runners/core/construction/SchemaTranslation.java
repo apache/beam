@@ -19,7 +19,7 @@ package org.apache.beam.runners.core.construction;
 
 import java.util.Map;
 import java.util.UUID;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -32,27 +32,27 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 /** Utility methods for translating schemas. */
 public class SchemaTranslation {
 
-  private static final BiMap<TypeName, RunnerApi.Schema.AtomicType> ATOMIC_TYPE_MAPPING =
-      ImmutableBiMap.<TypeName, RunnerApi.Schema.AtomicType>builder()
-          .put(TypeName.BYTE, RunnerApi.Schema.AtomicType.BYTE)
-          .put(TypeName.INT16, RunnerApi.Schema.AtomicType.INT16)
-          .put(TypeName.INT32, RunnerApi.Schema.AtomicType.INT32)
-          .put(TypeName.INT64, RunnerApi.Schema.AtomicType.INT64)
-          .put(TypeName.FLOAT, RunnerApi.Schema.AtomicType.FLOAT)
-          .put(TypeName.DOUBLE, RunnerApi.Schema.AtomicType.DOUBLE)
-          .put(TypeName.STRING, RunnerApi.Schema.AtomicType.STRING)
-          .put(TypeName.BOOLEAN, RunnerApi.Schema.AtomicType.BOOLEAN)
-          .put(TypeName.BYTES, RunnerApi.Schema.AtomicType.BYTES)
+  private static final BiMap<TypeName, SchemaApi.AtomicType> ATOMIC_TYPE_MAPPING =
+      ImmutableBiMap.<TypeName, SchemaApi.AtomicType>builder()
+          .put(TypeName.BYTE, SchemaApi.AtomicType.BYTE)
+          .put(TypeName.INT16, SchemaApi.AtomicType.INT16)
+          .put(TypeName.INT32, SchemaApi.AtomicType.INT32)
+          .put(TypeName.INT64, SchemaApi.AtomicType.INT64)
+          .put(TypeName.FLOAT, SchemaApi.AtomicType.FLOAT)
+          .put(TypeName.DOUBLE, SchemaApi.AtomicType.DOUBLE)
+          .put(TypeName.STRING, SchemaApi.AtomicType.STRING)
+          .put(TypeName.BOOLEAN, SchemaApi.AtomicType.BOOLEAN)
+          .put(TypeName.BYTES, SchemaApi.AtomicType.BYTES)
           .build();
 
   private static final String URN_BEAM_LOGICAL_DATETIME = "beam:fieldtype:datetime";
   private static final String URN_BEAM_LOGICAL_DECIMAL = "beam:fieldtype:decimal";
 
-  public static RunnerApi.Schema toProto(Schema schema) {
+  public static SchemaApi.Schema toProto(Schema schema) {
     String uuid = schema.getUUID() != null ? schema.getUUID().toString() : "";
-    RunnerApi.Schema.Builder builder = RunnerApi.Schema.newBuilder().setId(uuid);
+    SchemaApi.Schema.Builder builder = SchemaApi.Schema.newBuilder().setId(uuid);
     for (Field field : schema.getFields()) {
-      RunnerApi.Schema.Field protoField =
+      SchemaApi.Field protoField =
           toProto(
               field,
               schema.indexOf(field.getName()),
@@ -62,8 +62,8 @@ public class SchemaTranslation {
     return builder.build();
   }
 
-  private static RunnerApi.Schema.Field toProto(Field field, int fieldId, int position) {
-    return RunnerApi.Schema.Field.newBuilder()
+  private static SchemaApi.Field toProto(Field field, int fieldId, int position) {
+    return SchemaApi.Field.newBuilder()
         .setName(field.getName())
         .setDescription(field.getDescription())
         .setType(toProto(field.getType()))
@@ -72,23 +72,23 @@ public class SchemaTranslation {
         .build();
   }
 
-  private static RunnerApi.Schema.FieldType toProto(FieldType fieldType) {
-    RunnerApi.Schema.FieldType.Builder builder = RunnerApi.Schema.FieldType.newBuilder();
+  private static SchemaApi.FieldType toProto(FieldType fieldType) {
+    SchemaApi.FieldType.Builder builder = SchemaApi.FieldType.newBuilder();
     switch (fieldType.getTypeName()) {
       case ROW:
         builder.setRowType(
-            RunnerApi.Schema.RowType.newBuilder().setSchema(toProto(fieldType.getRowSchema())));
+            SchemaApi.RowType.newBuilder().setSchema(toProto(fieldType.getRowSchema())));
         break;
 
       case ARRAY:
         builder.setArrayType(
-            RunnerApi.Schema.ArrayType.newBuilder()
+            SchemaApi.ArrayType.newBuilder()
                 .setElementType(toProto(fieldType.getCollectionElementType())));
         break;
 
       case MAP:
         builder.setMapType(
-            RunnerApi.Schema.MapType.newBuilder()
+            SchemaApi.MapType.newBuilder()
                 .setKeyType(toProto(fieldType.getMapKeyType()))
                 .setValueType(toProto(fieldType.getMapValueType()))
                 .build());
@@ -97,7 +97,7 @@ public class SchemaTranslation {
       case LOGICAL_TYPE:
         LogicalType logicalType = fieldType.getLogicalType();
         builder.setLogicalType(
-            RunnerApi.Schema.LogicalType.newBuilder()
+            SchemaApi.LogicalType.newBuilder()
                 .setUrn(logicalType.getIdentifier())
                 .setArgs(logicalType.getArgument())
                 .setRepresentation(toProto(logicalType.getBaseType()))
@@ -107,14 +107,14 @@ public class SchemaTranslation {
         // but not yet in Java. (BEAM-7554)
       case DATETIME:
         builder.setLogicalType(
-            RunnerApi.Schema.LogicalType.newBuilder()
+            SchemaApi.LogicalType.newBuilder()
                 .setUrn(URN_BEAM_LOGICAL_DATETIME)
                 .setRepresentation(toProto(FieldType.INT64))
                 .build());
         break;
       case DECIMAL:
         builder.setLogicalType(
-            RunnerApi.Schema.LogicalType.newBuilder()
+            SchemaApi.LogicalType.newBuilder()
                 .setUrn(URN_BEAM_LOGICAL_DECIMAL)
                 .setRepresentation(toProto(FieldType.BYTES))
                 .build());
@@ -127,10 +127,10 @@ public class SchemaTranslation {
     return builder.build();
   }
 
-  public static Schema fromProto(RunnerApi.Schema protoSchema) {
+  public static Schema fromProto(SchemaApi.Schema protoSchema) {
     Schema.Builder builder = Schema.builder();
     Map<String, Integer> encodingLocationMap = Maps.newHashMap();
-    for (RunnerApi.Schema.Field protoField : protoSchema.getFieldsList()) {
+    for (SchemaApi.Field protoField : protoSchema.getFieldsList()) {
       Field field = fieldFromProto(protoField);
       builder.addField(field);
       encodingLocationMap.put(protoField.getName(), protoField.getEncodingPosition());
@@ -144,12 +144,12 @@ public class SchemaTranslation {
     return schema;
   }
 
-  private static Field fieldFromProto(RunnerApi.Schema.Field protoField) {
+  private static Field fieldFromProto(SchemaApi.Field protoField) {
     return Field.of(protoField.getName(), fieldTypeFromProto(protoField.getType()))
         .withDescription(protoField.getDescription());
   }
 
-  private static FieldType fieldTypeFromProto(RunnerApi.Schema.FieldType protoFieldType) {
+  private static FieldType fieldTypeFromProto(SchemaApi.FieldType protoFieldType) {
     FieldType fieldType;
     switch (protoFieldType.getTypeInfoCase()) {
       case ATOMIC_TYPE:
