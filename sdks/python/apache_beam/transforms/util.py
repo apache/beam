@@ -25,6 +25,7 @@ import collections
 import contextlib
 import random
 import time
+import warnings
 from builtins import object
 from builtins import range
 from builtins import zip
@@ -682,17 +683,12 @@ def WithKeys(pcoll, k):
 @typehints.with_input_types(typehints.KV[K, V])
 class GroupIntoBatches(PTransform):
   def __init__(self, batch_size):
+    warnings.warn('Use of GroupIntoBatches transform requires State/Timer '
+                  'support from the runner')
     self.batch_size = batch_size
-
-  @staticmethod
-  def of_size(batch_size):
-    return GroupIntoBatches(batch_size)
 
   def expand(self, pcoll):
     input_coder = coders.registry.get_coder(pcoll)
-    if not input_coder.is_kv_coder():
-      raise ValueError('coder specified in the input \
-      PCollection is not a KvCoder')
     return pcoll | ParDo(_pardo_group_into_batches(
         self.batch_size, input_coder))
 
