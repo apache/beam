@@ -60,6 +60,7 @@ from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
+from apache_beam.utils.annotations import experimental
 
 __all__ = [
     'BatchElements',
@@ -680,6 +681,7 @@ def WithKeys(pcoll, k):
   return pcoll | Map(lambda v: (k, v))
 
 
+@experimental()
 @typehints.with_input_types(typehints.KV[K, V])
 class GroupIntoBatches(PTransform):
   def __init__(self, batch_size):
