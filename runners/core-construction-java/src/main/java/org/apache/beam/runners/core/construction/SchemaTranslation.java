@@ -25,26 +25,10 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableBiMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 
 /** Utility methods for translating schemas. */
 public class SchemaTranslation {
-
-  private static final BiMap<TypeName, SchemaApi.AtomicType> ATOMIC_TYPE_MAPPING =
-      ImmutableBiMap.<TypeName, SchemaApi.AtomicType>builder()
-          .put(TypeName.BYTE, SchemaApi.AtomicType.BYTE)
-          .put(TypeName.INT16, SchemaApi.AtomicType.INT16)
-          .put(TypeName.INT32, SchemaApi.AtomicType.INT32)
-          .put(TypeName.INT64, SchemaApi.AtomicType.INT64)
-          .put(TypeName.FLOAT, SchemaApi.AtomicType.FLOAT)
-          .put(TypeName.DOUBLE, SchemaApi.AtomicType.DOUBLE)
-          .put(TypeName.STRING, SchemaApi.AtomicType.STRING)
-          .put(TypeName.BOOLEAN, SchemaApi.AtomicType.BOOLEAN)
-          .put(TypeName.BYTES, SchemaApi.AtomicType.BYTES)
-          .build();
-
   private static final String URN_BEAM_LOGICAL_DATETIME = "beam:fieldtype:datetime";
   private static final String URN_BEAM_LOGICAL_DECIMAL = "beam:fieldtype:decimal";
 
@@ -119,8 +103,32 @@ public class SchemaTranslation {
                 .setRepresentation(toProto(FieldType.BYTES))
                 .build());
         break;
-      default:
-        builder.setAtomicType(ATOMIC_TYPE_MAPPING.get(fieldType.getTypeName()));
+      case BYTE:
+        builder.setAtomicType(SchemaApi.AtomicType.BYTE);
+        break;
+      case INT16:
+        builder.setAtomicType(SchemaApi.AtomicType.INT16);
+        break;
+      case INT32:
+        builder.setAtomicType(SchemaApi.AtomicType.INT32);
+        break;
+      case INT64:
+        builder.setAtomicType(SchemaApi.AtomicType.INT64);
+        break;
+      case FLOAT:
+        builder.setAtomicType(SchemaApi.AtomicType.FLOAT);
+        break;
+      case DOUBLE:
+        builder.setAtomicType(SchemaApi.AtomicType.DOUBLE);
+        break;
+      case STRING:
+        builder.setAtomicType(SchemaApi.AtomicType.STRING);
+        break;
+      case BOOLEAN:
+        builder.setAtomicType(SchemaApi.AtomicType.BOOLEAN);
+        break;
+      case BYTES:
+        builder.setAtomicType(SchemaApi.AtomicType.BYTES);
         break;
     }
     builder.setNullable(fieldType.getNullable());
@@ -150,46 +158,66 @@ public class SchemaTranslation {
   }
 
   private static FieldType fieldTypeFromProto(SchemaApi.FieldType protoFieldType) {
-    FieldType fieldType;
+    FieldType fieldType = fieldTypeFromProtoWithoutNullable(protoFieldType);
+
+    if (protoFieldType.getNullable()) {
+      fieldType = fieldType.withNullable(true);
+    }
+
+    return fieldType;
+  }
+
+  private static FieldType fieldTypeFromProtoWithoutNullable(SchemaApi.FieldType protoFieldType) {
     switch (protoFieldType.getTypeInfoCase()) {
       case ATOMIC_TYPE:
-        TypeName typeName = ATOMIC_TYPE_MAPPING.inverse().get(protoFieldType.getAtomicType());
-        fieldType = FieldType.of(typeName);
-        break;
+        switch (protoFieldType.getAtomicType()) {
+          case BYTE:
+            return FieldType.of(TypeName.BYTE);
+          case INT16:
+            return FieldType.of(TypeName.INT16);
+          case INT32:
+            return FieldType.of(TypeName.INT32);
+          case INT64:
+            return FieldType.of(TypeName.INT64);
+          case FLOAT:
+            return FieldType.of(TypeName.FLOAT);
+          case DOUBLE:
+            return FieldType.of(TypeName.DOUBLE);
+          case STRING:
+            return FieldType.of(TypeName.STRING);
+          case BOOLEAN:
+            return FieldType.of(TypeName.BOOLEAN);
+          case BYTES:
+            return FieldType.of(TypeName.BYTES);
+          case UNSPECIFIED:
+            throw new IllegalArgumentException("Encountered UNSPECIFIED AtomicType");
+          default:
+            throw new IllegalArgumentException(
+                "Encountered unknown AtomicType: " + protoFieldType.getAtomicType());
+        }
       case ROW_TYPE:
-        fieldType = FieldType.row(fromProto(protoFieldType.getRowType().getSchema()));
-        break;
+        return FieldType.row(fromProto(protoFieldType.getRowType().getSchema()));
       case ARRAY_TYPE:
-        fieldType =
-            FieldType.array(fieldTypeFromProto(protoFieldType.getArrayType().getElementType()));
-        break;
+        return FieldType.array(fieldTypeFromProto(protoFieldType.getArrayType().getElementType()));
       case MAP_TYPE:
-        fieldType =
-            FieldType.map(
-                fieldTypeFromProto(protoFieldType.getMapType().getKeyType()),
-                fieldTypeFromProto(protoFieldType.getMapType().getValueType()));
-        break;
+        return FieldType.map(
+            fieldTypeFromProto(protoFieldType.getMapType().getKeyType()),
+            fieldTypeFromProto(protoFieldType.getMapType().getValueType()));
       case LOGICAL_TYPE:
         // Special-case for DATETIME and DECIMAL which are logical types in portable representation,
         // but not yet in Java. (BEAM-7554)
         String urn = protoFieldType.getLogicalType().getUrn();
         if (urn.equals(URN_BEAM_LOGICAL_DATETIME)) {
-          fieldType = FieldType.DATETIME;
+          return FieldType.DATETIME;
         } else if (urn.equals(URN_BEAM_LOGICAL_DECIMAL)) {
-          fieldType = FieldType.DECIMAL;
+          return FieldType.DECIMAL;
         } else {
           // TODO: Look up logical type class by URN.
           throw new IllegalArgumentException("Decoding logical types is not yet supported.");
         }
-        break;
       default:
         throw new IllegalArgumentException(
             "Unexpected type_info: " + protoFieldType.getTypeInfoCase());
     }
-
-    if (protoFieldType.getNullable()) {
-      fieldType = fieldType.withNullable(true);
-    }
-    return fieldType;
   }
 }
