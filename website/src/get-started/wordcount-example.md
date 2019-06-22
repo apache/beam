@@ -1267,12 +1267,7 @@ each element in the `PCollection`.
 ```
 
 ```py
-import apache_beam as beam
-from apache_beam.transforms import window
-...
-...
 beam.Map(AddTimestampFn(timestamp_seconds))
-...
 ```
 
 ```go
@@ -1313,14 +1308,16 @@ static class AddTimestampFn extends DoFn<String, String> {
 ```
 
 ```py
-import apache_beam as beam
-from apache_beam.transforms import window
-...
-...
 class AddTimestampFn(beam.DoFn):
+  
+  def __init__(self, min_timestamp, max_timestamp):
+     self.min_timestamp = min_timestamp
+     self.max_timestamp = max_timestamp
 
   def process(self, element):
-    return window.TimestampedValue(element, self.timestamp_seconds)
+    return window.TimestampedValue(
+       element,
+       random.randint(self.min_timestamp, self.max_timestamp))
 ```
 
 ```go
@@ -1356,10 +1353,6 @@ PCollection<String> windowedWords = input
 ```
 
 ```py
-import apache_beam as beam
-from apache_beam.transforms import window
-...
-...
 windowed_words = input | beam.WindowInto(window.FixedWindows(60 * window_size_minutes))
 ```
 
@@ -1378,10 +1371,19 @@ PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.Cou
 ```
 
 ```py
-import apache_beam as beam
-from apache_beam.transforms import window
-...
-...
+class CountWordsFn(Dofn):
+   def __init__(self):
+     self.words_counter = Metrics.counter(self.__class__, 'words')
+   
+   def process(self, element):
+     words = element.split()
+     self.words_counter.inc(len(words))   
+
+class CountWords(PTransform):
+
+    def expand(self, pcoll):
+      return pcoll |  FlatMap(CountWordsFN())
+
 word_counts = windowed_words | beam.Map(WordCount()) 
 ```
 
