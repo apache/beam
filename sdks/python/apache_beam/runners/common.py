@@ -304,7 +304,8 @@ class DoFnSignature(object):
     return self._is_stateful_dofn
 
   def has_timers(self):
-    return bool(self.timer_methods)
+    _, all_timer_specs = userstate.get_dofn_specs(self.do_fn)
+    return bool(all_timer_specs)
 
 
 class DoFnInvoker(object):
@@ -669,7 +670,9 @@ class PerWindowInvoker(DoFnInvoker):
       if kwargs_for_process is None:
         kwargs_for_process = additional_kwargs
       else:
-        kwargs_for_process.update(additional_args)
+        for key in additional_kwargs:
+          kwargs_for_process[key] = additional_kwargs[key]
+
     if kwargs_for_process:
       output_processor.process_outputs(
           windowed_value,
