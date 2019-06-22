@@ -1235,7 +1235,15 @@ public static void main(String[] args) throws IOException {
 ```
 
 ```py
-# This feature is not yet available in the Beam SDK for Python.
+def main(arvg=None):
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--input-file',
+                      dest='input_file',
+                      default='/Users/home/words-example.txt')
+  known_args, pipeline_args = parser.parse_known_args(argv)
+  pipeline_options = PipelineOptions(pipeline_args)
+  p = beam.Pipeline(options=pipeline_options)
+  lines  = p | 'read' >> ReadFromText(known_args.input_file)
 ```
 
 ```go
