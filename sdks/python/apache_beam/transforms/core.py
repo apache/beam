@@ -434,7 +434,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
   DoFnProcessParams = [ElementParam, SideInputParam, TimestampParam,
                        WindowParam, WatermarkReporterParam, PaneInfoParam,
-                       BundleFinalizerParam, KeyParam]
+                       BundleFinalizerParam, KeyParam, StateParam, TimerParam]
 
   RestrictionParam = _RestrictionDoFnParam
 
