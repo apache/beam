@@ -425,7 +425,6 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   BundleFinalizerParam = _BundleFinalizerParam
   KeyParam = _DoFnParam('KeyParam')
 
-
   # Parameters to access state and timers.  Not restricted to use only in the
   # .process() method. Usage: DoFn.StateParam(state_spec),
   # DoFn.TimerParam(timer_spec), DoFn.TimestampParam, DoFn.WindowParam,
@@ -435,7 +434,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
   DoFnProcessParams = [BundleFinalizerParam, ElementParam, KeyParam,
                        PaneInfoParam, SideInputParam, StateParam,
-                       TimerParam, TimestampParam, WindowParam, 
+                       TimerParam, TimestampParam, WindowParam,
                        WatermarkReporterParam]
 
   RestrictionParam = _RestrictionDoFnParam
