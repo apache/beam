@@ -525,6 +525,7 @@ class UnionHint(CompositeTypeHint):
 
     # Flatten nested Union's and duplicated repeated type hints.
     params = set()
+    dict_union = None
     for t in type_params:
       validate_composite_type_param(
           t, error_msg_prefix='All parameters to a Union hint'
@@ -532,8 +533,17 @@ class UnionHint(CompositeTypeHint):
 
       if isinstance(t, self.UnionConstraint):
         params |= t.union_types
+      elif isinstance(t, DictConstraint):
+        if dict_union is None:
+          dict_union = t
+        else:
+          dict_union.key_type = Union[dict_union.key_type, t.key_type]
+          dict_union.value_type = Union[dict_union.value_type, t.value_type]
       else:
         params.add(t)
+
+    if dict_union is not None:
+      params.add(dict_union)
 
     if Any in params:
       return Any

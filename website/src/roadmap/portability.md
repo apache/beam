@@ -45,7 +45,7 @@ user-customized execution environments ("custom containers").
 
 The portability API consists of a set of smaller contracts that
 isolate SDKs and runners for job submission, management and
-execution. These contracts use protobufs and gRPC for broad language
+execution. These contracts use protobufs and [gRPC](https://grpc.io) for broad language
 support.
 
  * **Job submission and management**: The _Runner API_ defines a
@@ -161,7 +161,7 @@ To run a basic Python wordcount (in batch mode) with embedded Flink or Spark:
  * Or start the Spark portable JobService endpoint: `./gradlew :runners:spark:job-server:runShadow`
 3. Submit the wordcount pipeline to above endpoint: `./gradlew :sdks:python:portableWordCount -PjobEndpoint=localhost:8099 -PenvironmentType=LOOPBACK`
 
-To run the pipeline in streaming mode (currently only supported on Flink): `./gradlew :beam-sdks-python:portableWordCount -PjobEndpoint=localhost:8099 -Pstreaming`
+To run the pipeline in streaming mode (currently only supported on Flink): `./gradlew :sdks:python:portableWordCount -PjobEndpoint=localhost:8099 -Pstreaming`
 
 Please see the [Flink Runner page]({{ site.baseurl }}/documentation/runners/flink/) for more information on
 how to run portable pipelines on top of Flink.

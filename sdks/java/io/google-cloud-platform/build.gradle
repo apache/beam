@@ -21,64 +21,58 @@ import groovy.json.JsonOutput
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   enableSpotbugs: false,
-  // Override the default shading configuration to exclude everything since
-  // Bigtable needs to expose Guava types.
-  shadowClosure: {
-    dependencies {
-      exclude(dependency(".*:.*"))
-    }
-  })
+)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
 ext.summary = "IO library to read and write Google Cloud Platform systems from Beam."
 
 dependencies {
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
-  shadow project(path: ":sdks:java:extensions:protobuf", configuration: "shadow")
-  shadow library.java.guava
-  shadow library.java.jackson_databind
-  shadow library.java.grpc_core
-  shadow library.java.google_api_services_bigquery
-  shadow library.java.gax_grpc
-  shadow library.java.google_cloud_core_grpc
-  shadow library.java.google_api_services_pubsub
-  shadow library.java.grpc_google_cloud_pubsub_v1
-  shadow library.java.proto_google_cloud_pubsub_v1
-  shadow library.java.bigdataoss_util
-  shadow library.java.datastore_v1_proto_client
-  shadow library.java.datastore_v1_protos
-  shadow library.java.grpc_auth
-  shadow library.java.grpc_netty
-  shadow library.java.netty_handler
-  shadow library.java.grpc_stub
-  shadow library.java.joda_time
-  shadow library.java.google_cloud_bigquery_storage
-  shadow library.java.google_cloud_bigquery_storage_proto
-  shadow library.java.google_cloud_core
-  shadow library.java.google_cloud_spanner
-  shadow library.java.bigtable_protos
-  shadow library.java.bigtable_client_core
-  shadow library.java.google_api_client
-  shadow library.java.google_http_client
-  shadow library.java.google_http_client_jackson2
-  shadow library.java.google_auth_library_credentials
-  shadow library.java.google_auth_library_oauth2_http
-  shadow library.java.slf4j_api
-  shadow library.java.protobuf_java
-  shadow library.java.avro
-  shadow library.java.proto_google_cloud_spanner_admin_database_v1
-  shadow library.java.proto_google_common_protos
-  shadow library.java.grpc_all
-  shadow library.java.netty_tcnative_boringssl_static
-  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
-  shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadowTest")
-  shadowTest project(path: ":runners:direct-java", configuration: "shadow")
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.hamcrest_library
-  shadowTest library.java.mockito_core
-  shadowTest library.java.junit
-  shadowTest library.java.powermock
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":sdks:java:extensions:google-cloud-platform-core")
+  compile project(":sdks:java:extensions:protobuf")
+  compile library.java.guava
+  compile library.java.jackson_databind
+  compile library.java.grpc_core
+  compile library.java.google_api_services_bigquery
+  compile library.java.gax_grpc
+  compile library.java.google_cloud_core_grpc
+  compile library.java.google_api_services_pubsub
+  compile library.java.grpc_google_cloud_pubsub_v1
+  compile library.java.proto_google_cloud_pubsub_v1
+  compile library.java.bigdataoss_util
+  compile library.java.datastore_v1_proto_client
+  compile library.java.datastore_v1_protos
+  compile library.java.grpc_auth
+  compile library.java.grpc_netty
+  compile library.java.netty_handler
+  compile library.java.grpc_stub
+  compile library.java.joda_time
+  compile library.java.google_cloud_bigquery_storage
+  compile library.java.google_cloud_bigquery_storage_proto
+  compile library.java.google_cloud_core
+  compile library.java.google_cloud_spanner
+  compile library.java.bigtable_protos
+  compile library.java.bigtable_client_core
+  compile library.java.google_api_client
+  compile library.java.google_http_client
+  compile library.java.google_http_client_jackson2
+  compile library.java.google_auth_library_credentials
+  compile library.java.google_auth_library_oauth2_http
+  compile library.java.slf4j_api
+  compile library.java.protobuf_java
+  compile library.java.avro
+  compile library.java.proto_google_cloud_spanner_admin_database_v1
+  compile library.java.proto_google_common_protos
+  compile library.java.grpc_all
+  compile library.java.netty_tcnative_boringssl_static
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
+  testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  testCompile library.java.mockito_core
+  testCompile library.java.junit
+  testCompile library.java.powermock
   testRuntimeOnly library.java.slf4j_jdk14
 }
 
@@ -104,17 +98,18 @@ task integrationTest(type: Test) {
   exclude '**/BigQueryIOStorageReadIT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
   exclude '**/BigQueryToTableIT.class'
-  exclude '**/*KmsKeyIT.class'
   maxParallelForks 4
   classpath = sourceSets.test.runtimeClasspath
   testClassesDirs = sourceSets.test.output.classesDirs
-  useJUnit { }
+  useJUnit {
+    excludeCategories "org.apache.beam.sdk.testing.UsesKms"
+  }
 }
 
 task integrationTestKms(type: Test) {
   group = "Verification"
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
-  def gcpTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+  def gcpTempRoot = project.findProperty('gcpTempRootKms') ?: 'gs://temp-storage-for-end-to-end-tests-cmek'
   def dataflowKmsKey = project.findProperty('dataflowKmsKey') ?: "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=DirectRunner",
@@ -126,11 +121,13 @@ task integrationTestKms(type: Test) {
   // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
   outputs.upToDateWhen { false }
 
-  include '**/*KmsKeyIT.class'
+  include '**/*IT.class'
   maxParallelForks 4
   classpath = sourceSets.test.runtimeClasspath
   testClassesDirs = sourceSets.test.output.classesDirs
-  useJUnit { }
+  useJUnit {
+    includeCategories "org.apache.beam.sdk.testing.UsesKms"
+  }
 }
 
 task postCommit {

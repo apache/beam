@@ -220,7 +220,7 @@ def streamingLoadTestJob = { scope, triggeringContext ->
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
   for (testConfiguration in loadTestConfigurations('streaming', true)) {
-      testConfiguration.jobProperties << [inputWindowDurationSec: 1200]
+    testConfiguration.jobProperties << [inputWindowDurationSec: 1200]
     loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
   }
 }
@@ -240,12 +240,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
 
 
 def batchLoadTestJob = { scope, triggeringContext ->
-    scope.description('Runs Java GBK load tests on Dataflow runner in batch mode')
-    commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
-
-    for (testConfiguration in loadTestConfigurations('batch', false)) {
-        loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
-    }
+    loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.JAVA, loadTestConfigurations('batch', false), triggeringContext, "GBK", "batch")
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Java_GBK_Dataflow_Batch', 'H 14 * * *', this) {

@@ -23,9 +23,7 @@ from __future__ import absolute_import
 import base64
 import datetime
 import logging
-import os
 import random
-import sys
 import time
 import unittest
 
@@ -194,10 +192,6 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         'No encryption configuration found: %s' % table)
     self.assertEqual(kms_key, table.encryptionConfiguration.kmsKeyName)
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-6769')
   @attr('IT')
   def test_big_query_new_types(self):
     expected_checksum = test_utils.compute_hash(NEW_TYPES_OUTPUT_EXPECTED)

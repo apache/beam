@@ -103,8 +103,7 @@ public class CoderRegistry {
           Boolean.class, CoderProviders.fromStaticMethods(Boolean.class, BooleanCoder.class));
       builder.put(Byte.class, CoderProviders.fromStaticMethods(Byte.class, ByteCoder.class));
       builder.put(BitSet.class, CoderProviders.fromStaticMethods(BitSet.class, BitSetCoder.class));
-      builder.put(
-          FloatCoder.class, CoderProviders.fromStaticMethods(Float.class, FloatCoder.class));
+      builder.put(Float.class, CoderProviders.fromStaticMethods(Float.class, FloatCoder.class));
       builder.put(Double.class, CoderProviders.fromStaticMethods(Double.class, DoubleCoder.class));
       builder.put(
           Instant.class, CoderProviders.fromStaticMethods(Instant.class, InstantCoder.class));

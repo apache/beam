@@ -24,6 +24,7 @@ import json
 import logging
 import os
 import subprocess
+import sys
 import threading
 import time
 from concurrent import futures
@@ -85,9 +86,26 @@ class PortableRunner(runner.PipelineRunner):
   @staticmethod
   def default_docker_image():
     if 'USER' in os.environ:
+      if sys.version_info[0] == 2:
+        version_suffix = ''
+      elif sys.version_info[0:2] == (3, 5):
+        version_suffix = '3'
+      else:
+        version_suffix = '3'
+        # TODO(BEAM-7474): Use an image which has correct Python minor version.
+        logging.warning('Make sure that locally built Python SDK docker image '
+                        'has Python %d.%d interpreter. See also: BEAM-7474.' % (
+                            sys.version_info[0], sys.version_info[1]))
+
       # Perhaps also test if this was built?
-      logging.info('Using latest locally built Python SDK docker image.')
-      return os.environ['USER'] + '-docker-apache.bintray.io/beam/python:latest'
+      image = ('{user}-docker-apache.bintray.io/beam/python'
+               '{version_suffix}:latest'.format(
+                   user=os.environ['USER'],
+                   version_suffix=version_suffix))
+      logging.info(
+          'Using latest locally built Python SDK docker image: %s.' % image)
+      return image
+
     else:
       logging.warning('Could not find a Python SDK docker image.')
       return 'unknown'

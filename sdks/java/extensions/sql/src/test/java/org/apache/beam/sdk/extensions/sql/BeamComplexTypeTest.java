@@ -165,6 +165,19 @@ public class BeamComplexTypeTest {
   }
 
   @Test
+  public void testArrayConstructor() {
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(readOnlyTableProvider);
+    PCollection<Row> stream =
+        BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery("SELECT ARRAY[1, 2, 3] f_arr"));
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addArrayField("f_arr", FieldType.INT32).build())
+                .addValue(Arrays.asList(1, 2, 3))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+  }
+
+  @Test
   public void testRowWithArray() {
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(readOnlyTableProvider);
     PCollection<Row> stream =

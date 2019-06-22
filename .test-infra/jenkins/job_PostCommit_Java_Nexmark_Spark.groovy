@@ -36,9 +36,9 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
     shell('echo *** RUN NEXMARK IN BATCH MODE USING SPARK RUNNER ***')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-sdks-java-nexmark:run')
+      tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":beam-runners-spark"' +
+      switches('-Pnexmark.runner=":runners:spark"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=SparkRunner',
@@ -51,9 +51,9 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
     shell('echo *** RUN NEXMARK SQL IN BATCH MODE USING SPARK RUNNER ***')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-sdks-java-nexmark:run')
+      tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":beam-runners-spark"' +
+      switches('-Pnexmark.runner=":runners:spark"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=SparkRunner',

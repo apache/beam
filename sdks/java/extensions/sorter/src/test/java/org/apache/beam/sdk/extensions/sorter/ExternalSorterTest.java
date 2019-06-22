@@ -25,19 +25,29 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Arrays;
+import java.util.Collection;
+import org.apache.beam.sdk.extensions.sorter.ExternalSorter.Options.SorterType;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for Sorter. */
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 public class ExternalSorterTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   private static Path tmpLocation;
+
+  public ExternalSorterTest(SorterType sorterType) {
+    this.sorterType = sorterType;
+  }
+
+  private final SorterType sorterType;
 
   @BeforeClass
   public static void setupTempDir() throws IOException {
@@ -64,32 +74,46 @@ public class ExternalSorterTest {
         });
   }
 
+  @Parameters
+  public static Collection<SorterType[]> data() {
+    return Arrays.asList(
+        new SorterType[] {SorterType.HADOOP}, new SorterType[] {SorterType.NATIVE});
+  }
+
   @Test
   public void testEmpty() throws Exception {
     SorterTestUtils.testEmpty(
         ExternalSorter.create(
-            new ExternalSorter.Options().setTempLocation(tmpLocation.toString())));
+            new ExternalSorter.Options()
+                .setTempLocation(tmpLocation.toString())
+                .setSorterType(sorterType)));
   }
 
   @Test
   public void testSingleElement() throws Exception {
     SorterTestUtils.testSingleElement(
         ExternalSorter.create(
-            new ExternalSorter.Options().setTempLocation(tmpLocation.toString())));
+            new ExternalSorter.Options()
+                .setTempLocation(tmpLocation.toString())
+                .setSorterType(sorterType)));
   }
 
   @Test
   public void testEmptyKeyValueElement() throws Exception {
     SorterTestUtils.testEmptyKeyValueElement(
         ExternalSorter.create(
-            new ExternalSorter.Options().setTempLocation(tmpLocation.toString())));
+            new ExternalSorter.Options()
+                .setTempLocation(tmpLocation.toString())
+                .setSorterType(sorterType)));
   }
 
   @Test
   public void testMultipleIterations() throws Exception {
     SorterTestUtils.testMultipleIterations(
         ExternalSorter.create(
-            new ExternalSorter.Options().setTempLocation(tmpLocation.toString())));
+            new ExternalSorter.Options()
+                .setTempLocation(tmpLocation.toString())
+                .setSorterType(sorterType)));
   }
 
   @Test
@@ -97,7 +121,9 @@ public class ExternalSorterTest {
     SorterTestUtils.testRandom(
         () ->
             ExternalSorter.create(
-                new ExternalSorter.Options().setTempLocation(tmpLocation.toString())),
+                new ExternalSorter.Options()
+                    .setTempLocation(tmpLocation.toString())
+                    .setSorterType(sorterType)),
         1,
         1000000);
   }
@@ -105,7 +131,10 @@ public class ExternalSorterTest {
   @Test
   public void testAddAfterSort() throws Exception {
     SorterTestUtils.testAddAfterSort(
-        ExternalSorter.create(new ExternalSorter.Options().setTempLocation(tmpLocation.toString())),
+        ExternalSorter.create(
+            new ExternalSorter.Options()
+                .setTempLocation(tmpLocation.toString())
+                .setSorterType(sorterType)),
         thrown);
     fail();
   }
@@ -113,7 +142,10 @@ public class ExternalSorterTest {
   @Test
   public void testSortTwice() throws Exception {
     SorterTestUtils.testSortTwice(
-        ExternalSorter.create(new ExternalSorter.Options().setTempLocation(tmpLocation.toString())),
+        ExternalSorter.create(
+            new ExternalSorter.Options()
+                .setTempLocation(tmpLocation.toString())
+                .setSorterType(sorterType)),
         thrown);
     fail();
   }
@@ -122,7 +154,7 @@ public class ExternalSorterTest {
   public void testNegativeMemory() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("memoryMB must be greater than zero");
-    ExternalSorter.Options options = new ExternalSorter.Options();
+    ExternalSorter.Options options = new ExternalSorter.Options().setSorterType(sorterType);
     options.setMemoryMB(-1);
   }
 
@@ -130,7 +162,7 @@ public class ExternalSorterTest {
   public void testZeroMemory() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("memoryMB must be greater than zero");
-    ExternalSorter.Options options = new ExternalSorter.Options();
+    ExternalSorter.Options options = new ExternalSorter.Options().setSorterType(sorterType);
     options.setMemoryMB(0);
   }
 
@@ -138,7 +170,7 @@ public class ExternalSorterTest {
   public void testMemoryTooLarge() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("memoryMB must be less than 2048");
-    ExternalSorter.Options options = new ExternalSorter.Options();
+    ExternalSorter.Options options = new ExternalSorter.Options().setSorterType(sorterType);
     options.setMemoryMB(2048);
   }
 }

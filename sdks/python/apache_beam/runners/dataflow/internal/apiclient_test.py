@@ -304,6 +304,21 @@ class UtilTest(unittest.TestCase):
     self.assertIn(override, env.proto.experiments)
 
   @mock.patch('apache_beam.runners.dataflow.internal.apiclient.'
+              'beam_version.__version__', '2.2.0.rc1')
+  def test_harness_override_uses_base_version_in_rc_releases(self):
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp', '--streaming'])
+    override = ''.join(
+        ['runner_harness_container_image=',
+         names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY,
+         '/harness:2.2.0'])
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
+    self.assertIn(override, env.proto.experiments)
+
+  @mock.patch('apache_beam.runners.dataflow.internal.apiclient.'
               'beam_version.__version__', '2.2.0.dev')
   def test_harness_override_absent_in_unreleased_sdk(self):
     pipeline_options = PipelineOptions(
@@ -420,6 +435,57 @@ class UtilTest(unittest.TestCase):
            '/python%d%d:2.2.0' % (sys.version_info[0],
                                   sys.version_info[1])))
 
+  @mock.patch('apache_beam.runners.dataflow.internal.apiclient.'
+              'beam_version.__version__', '2.2.0.rc1')
+  def test_worker_harness_image_tag_matches_base_sdk_version_of_an_rc(self):
+    # streaming, fnapi pipeline.
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp', '--streaming'])
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
+    if sys.version_info[0] == 2:
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python-fnapi:2.2.0'))
+    elif sys.version_info[0:2] == (3, 5):
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python3-fnapi:2.2.0'))
+    else:
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python%d%d-fnapi:2.2.0' % (sys.version_info[0],
+                                        sys.version_info[1])))
+
+    # batch, legacy pipeline.
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp'])
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
+    if sys.version_info[0] == 2:
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python:2.2.0'))
+    elif sys.version_info[0:2] == (3, 5):
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python3:2.2.0'))
+    else:
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python%d%d:2.2.0' % (sys.version_info[0],
+                                  sys.version_info[1])))
+
   def test_worker_harness_override_takes_precedence_over_sdk_defaults(self):
     # streaming, fnapi pipeline.
     pipeline_options = PipelineOptions(
@@ -479,7 +545,7 @@ class UtilTest(unittest.TestCase):
          '--experiments', 'beam_fn_api'])
     environment = apiclient.Environment(
         [], pipeline_options, 1, FAKE_PIPELINE_URL)
-    self.assertIn("use_multiple_sdk_containers", environment.proto.experiments)
+    self.assertIn('use_multiple_sdk_containers', environment.proto.experiments)
 
     pipeline_options = PipelineOptions(
         ['--project', 'test_project', '--job_name', 'test_job_name',
@@ -488,7 +554,7 @@ class UtilTest(unittest.TestCase):
          '--experiments', 'use_multiple_sdk_containers'])
     environment = apiclient.Environment(
         [], pipeline_options, 1, FAKE_PIPELINE_URL)
-    self.assertIn("use_multiple_sdk_containers", environment.proto.experiments)
+    self.assertIn('use_multiple_sdk_containers', environment.proto.experiments)
 
     pipeline_options = PipelineOptions(
         ['--project', 'test_project', '--job_name', 'test_job_name',
@@ -498,7 +564,7 @@ class UtilTest(unittest.TestCase):
     environment = apiclient.Environment(
         [], pipeline_options, 1, FAKE_PIPELINE_URL)
     self.assertNotIn(
-        "use_multiple_sdk_containers", environment.proto.experiments)
+        'use_multiple_sdk_containers', environment.proto.experiments)
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',

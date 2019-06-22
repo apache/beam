@@ -21,15 +21,15 @@ plugins { id 'org.apache.beam.module' }
 // We specifically enumerate all the projects that we depend on since
 // the list is used in both defining the included set for the uber jar
 // and also the set of project level dependencies.
-def dependOnProjects = [":model:pipeline", ":model:fn-execution", ":sdks:java:core",
-                        ":sdks:java:fn-execution",
+def dependOnShadedProjects = [":model:pipeline", ":model:fn-execution", ":sdks:java:core"]
+def dependOnProjects = [":sdks:java:fn-execution",
                         ":sdks:java:extensions:google-cloud-platform-core",
                         ":runners:core-java", ":runners:core-construction-java"]
 
 applyJavaNature(
   validateShadowJar: false,
   testShadowJar: true,
-  shadowClosure: DEFAULT_SHADOW_CLOSURE <<
+  shadowClosure:
   // Create an uber jar without repackaging for the SDK harness
   // TODO: We have been releasing this in the past, consider not
   // releasing it since its typically bad practice to release 'all'
@@ -49,8 +49,11 @@ description = "Apache Beam :: SDKs :: Java :: Harness"
 ext.summary = "This contains the SDK Fn Harness for Beam Java"
 
 dependencies {
-  dependOnProjects.each {
+  dependOnShadedProjects.each {
     compile project(path: it, configuration: "shadow")
+  }
+  dependOnProjects.each {
+    compile project(it)
   }
   compile library.java.jackson_databind
   shadow library.java.vendored_guava_20_0

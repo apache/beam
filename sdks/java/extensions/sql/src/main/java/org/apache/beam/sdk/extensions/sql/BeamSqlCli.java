@@ -25,6 +25,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
 /** {@link BeamSqlCli} provides methods to execute Beam SQL with an interactive client. */
 @Experimental
@@ -34,15 +35,17 @@ public class BeamSqlCli {
   private MetaStore metaStore;
 
   public BeamSqlCli metaStore(MetaStore metaStore) {
-    return metaStore(metaStore, false);
+    return metaStore(metaStore, false, PipelineOptionsFactory.create());
   }
 
-  public BeamSqlCli metaStore(MetaStore metaStore, boolean autoLoadUdfUdaf) {
+  public BeamSqlCli metaStore(
+      MetaStore metaStore, boolean autoLoadUdfUdaf, PipelineOptions pipelineOptions) {
     this.metaStore = metaStore;
     BeamSqlEnv.BeamSqlEnvBuilder builder = BeamSqlEnv.builder(metaStore);
     if (autoLoadUdfUdaf) {
       builder.autoLoadUserDefinedFunctions();
     }
+    builder.setPipelineOptions(pipelineOptions);
     this.env = builder.build();
     return this;
   }

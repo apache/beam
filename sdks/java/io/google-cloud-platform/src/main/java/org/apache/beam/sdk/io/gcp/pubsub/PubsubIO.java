@@ -28,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
@@ -609,6 +610,9 @@ public class PubsubIO {
     abstract ValueProvider<PubsubTopic> getTopicProvider();
 
     @Nullable
+    abstract PubsubClient.PubsubClientFactory getPubsubClientFactory();
+
+    @Nullable
     abstract ValueProvider<PubsubSubscription> getSubscriptionProvider();
 
     /** The name of the message attribute to read timestamps from. */
@@ -636,8 +640,6 @@ public class PubsubIO {
     @Nullable
     abstract SerializableFunction<Row, T> getFromRowFn();
 
-    abstract PubsubClient.PubsubClientFactory getPubsubClientFactory();
-
     @Nullable
     abstract Clock getClock();
 
@@ -648,6 +650,8 @@ public class PubsubIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setTopicProvider(ValueProvider<PubsubTopic> topic);
+
+      abstract Builder<T> setPubsubClientFactory(PubsubClient.PubsubClientFactory clientFactory);
 
       abstract Builder<T> setSubscriptionProvider(ValueProvider<PubsubSubscription> subscription);
 
@@ -666,8 +670,6 @@ public class PubsubIO {
       abstract Builder<T> setFromRowFn(@Nullable SerializableFunction<Row, T> fromRowFn);
 
       abstract Builder<T> setNeedsAttributes(boolean needsAttributes);
-
-      abstract Builder<T> setPubsubClientFactory(PubsubClient.PubsubClientFactory clientFactory);
 
       abstract Builder<T> setClock(@Nullable Clock clock);
 
@@ -726,6 +728,16 @@ public class PubsubIO {
     }
 
     /**
+     * The default client to write to Pub/Sub is the {@link PubsubJsonClient}, created by the {@link
+     * PubsubJsonClient.PubsubJsonClientFactory}. This function allows to change the Pub/Sub client
+     * by providing another {@link PubsubClient.PubsubClientFactory} like the {@link
+     * PubsubGrpcClientFactory}.
+     */
+    public Read<T> withClientFactory(PubsubClient.PubsubClientFactory factory) {
+      return toBuilder().setPubsubClientFactory(factory).build();
+    }
+
+    /**
      * When reading from Cloud Pub/Sub where record timestamps are provided as Pub/Sub message
      * attributes, specifies the name of the attribute that contains the timestamp.
      *
@@ -776,18 +788,8 @@ public class PubsubIO {
      * output type T must be registered or set on the output via {@link
      * PCollection#setCoder(Coder)}.
      */
-    private Read<T> withCoderAndParseFn(Coder<T> coder, SimpleFunction<PubsubMessage, T> parseFn) {
+    public Read<T> withCoderAndParseFn(Coder<T> coder, SimpleFunction<PubsubMessage, T> parseFn) {
       return toBuilder().setCoder(coder).setParseFn(parseFn).build();
-    }
-
-    @VisibleForTesting
-    /**
-     * Set's the PubsubClientFactory.
-     *
-     * <p>Only for use by unit tests.
-     */
-    Read<T> withClientFactory(PubsubClient.PubsubClientFactory clientFactory) {
-      return toBuilder().setPubsubClientFactory(clientFactory).build();
     }
 
     @VisibleForTesting
@@ -824,7 +826,7 @@ public class PubsubIO {
       PubsubUnboundedSource source =
           new PubsubUnboundedSource(
               getClock(),
-              getPubsubClientFactory(),
+              Optional.ofNullable(getPubsubClientFactory()).orElse(FACTORY),
               null /* always get project from runtime PipelineOptions */,
               topicPath,
               subscriptionPath,
@@ -862,6 +864,9 @@ public class PubsubIO {
     @Nullable
     abstract ValueProvider<PubsubTopic> getTopicProvider();
 
+    @Nullable
+    abstract PubsubClient.PubsubClientFactory getPubsubClientFactory();
+
     /** the batch size for bulk submissions to pubsub. */
     @Nullable
     abstract Integer getMaxBatchSize();
@@ -887,6 +892,8 @@ public class PubsubIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setTopicProvider(ValueProvider<PubsubTopic> topicProvider);
+
+      abstract Builder<T> setPubsubClientFactory(PubsubClient.PubsubClientFactory factory);
 
       abstract Builder<T> setMaxBatchSize(Integer batchSize);
 
@@ -916,6 +923,16 @@ public class PubsubIO {
       return toBuilder()
           .setTopicProvider(NestedValueProvider.of(topic, new TopicTranslator()))
           .build();
+    }
+
+    /**
+     * The default client to write to Pub/Sub is the {@link PubsubJsonClient}, created by the {@link
+     * PubsubJsonClient.PubsubJsonClientFactory}. This function allows to change the Pub/Sub client
+     * by providing another {@link PubsubClient.PubsubClientFactory} like the {@link
+     * PubsubGrpcClientFactory}.
+     */
+    public Write<T> withClientFactory(PubsubClient.PubsubClientFactory factory) {
+      return toBuilder().setPubsubClientFactory(factory).build();
     }
 
     /**
@@ -996,7 +1013,7 @@ public class PubsubIO {
               .apply(MapElements.via(getFormatFn()))
               .apply(
                   new PubsubUnboundedSink(
-                      FACTORY,
+                      Optional.ofNullable(getPubsubClientFactory()).orElse(FACTORY),
                       NestedValueProvider.of(getTopicProvider(), new TopicPathTranslator()),
                       getTimestampAttribute(),
                       getIdAttribute(),
@@ -1046,8 +1063,10 @@ public class PubsubIO {
 
         // NOTE: idAttribute is ignored.
         this.pubsubClient =
-            FACTORY.newClient(
-                getTimestampAttribute(), null, c.getPipelineOptions().as(PubsubOptions.class));
+            Optional.ofNullable(getPubsubClientFactory())
+                .orElse(FACTORY)
+                .newClient(
+                    getTimestampAttribute(), null, c.getPipelineOptions().as(PubsubOptions.class));
       }
 
       @ProcessElement

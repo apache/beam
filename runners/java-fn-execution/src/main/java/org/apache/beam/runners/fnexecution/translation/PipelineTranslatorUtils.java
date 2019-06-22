@@ -21,19 +21,31 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.function.BiConsumer;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.runners.core.InMemoryTimerInternals;
+import org.apache.beam.runners.core.StateNamespace;
+import org.apache.beam.runners.core.StateNamespaces;
+import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
+import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableBiMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.joda.time.Instant;
 
 /** Utilities for pipeline translation. */
 public final class PipelineTranslatorUtils {
@@ -88,5 +100,51 @@ public final class PipelineTranslatorUtils {
     // Assume that all PCollections are consumed at some point in the pipeline.
     return pCollecctions.stream()
         .anyMatch(pc -> pc.getIsBounded() == RunnerApi.IsBounded.Enum.UNBOUNDED);
+  }
+
+  /**
+   * Fires all timers which are ready to be fired. This is done in a loop because timers may itself
+   * schedule timers.
+   */
+  public static void fireEligibleTimers(
+      InMemoryTimerInternals timerInternals,
+      BiConsumer<String, WindowedValue> timerConsumer,
+      Object currentTimerKey) {
+
+    boolean hasFired;
+    do {
+      hasFired = false;
+      TimerInternals.TimerData timer;
+
+      while ((timer = timerInternals.removeNextEventTimer()) != null) {
+        hasFired = true;
+        fireTimer(timer, timerConsumer, currentTimerKey);
+      }
+      while ((timer = timerInternals.removeNextProcessingTimer()) != null) {
+        hasFired = true;
+        fireTimer(timer, timerConsumer, currentTimerKey);
+      }
+      while ((timer = timerInternals.removeNextSynchronizedProcessingTimer()) != null) {
+        hasFired = true;
+        fireTimer(timer, timerConsumer, currentTimerKey);
+      }
+    } while (hasFired);
+  }
+
+  private static void fireTimer(
+      TimerInternals.TimerData timer,
+      BiConsumer<String, WindowedValue> timerConsumer,
+      Object currentTimerKey) {
+    StateNamespace namespace = timer.getNamespace();
+    Preconditions.checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
+    BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
+    Instant timestamp = timer.getTimestamp();
+    WindowedValue<KV<Object, Timer>> timerValue =
+        WindowedValue.of(
+            KV.of(currentTimerKey, Timer.of(timestamp, new byte[0])),
+            timestamp,
+            Collections.singleton(window),
+            PaneInfo.NO_FIRING);
+    timerConsumer.accept(timer.getTimerId(), timerValue);
   }
 }

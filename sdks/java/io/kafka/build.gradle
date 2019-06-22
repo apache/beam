@@ -23,22 +23,22 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Kafka"
 ext.summary = "Library to read Kafka topics."
 
 dependencies {
-  shadow library.java.vendored_guava_20_0
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.vendored_guava_20_0
+  compile project(path: ":sdks:java:core", configuration: "shadow")
   // Get back to "provided" since 2.14
   provided library.java.kafka_clients
-  shadow library.java.slf4j_api
-  shadow library.java.joda_time
-  shadow library.java.jackson_annotations
-  shadow library.java.jackson_databind
-  shadow "org.springframework:spring-expression:4.3.18.RELEASE"
+  compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile library.java.jackson_annotations
+  compile library.java.jackson_databind
+  compile "org.springframework:spring-expression:4.3.18.RELEASE"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   // For testing Cross-language transforms
-  testCompile project(path: ":runners:core-construction-java", configuration: "shadow")
+  testCompile project(":runners:core-construction-java")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompile library.java.powermock
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(path: ":runners:direct-java")
+  testRuntimeOnly project(":runners:direct-java")
 }

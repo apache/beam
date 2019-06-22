@@ -373,6 +373,9 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
 
+    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls([
+        mock.call()])
+
   def test_read_strings_success(self, mock_pubsub):
     data = u'🤷 ¯\\_(ツ)_/¯'
     data_encoded = data.encode('utf-8')
@@ -394,6 +397,9 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
 
+    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls([
+        mock.call()])
+
   def test_read_data_success(self, mock_pubsub):
     data_encoded = u'🤷 ¯\\_(ツ)_/¯'.encode('utf-8')
     ack_id = 'ack_id'
@@ -411,6 +417,9 @@ class TestReadFromPubSub(unittest.TestCase):
     p.run()
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
+
+    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls([
+        mock.call()])
 
   def test_read_messages_timestamp_attribute_milli_success(self, mock_pubsub):
     data = b'data'
@@ -442,6 +451,9 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
 
+    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls([
+        mock.call()])
+
   def test_read_messages_timestamp_attribute_rfc3339_success(self, mock_pubsub):
     data = b'data'
     attributes = {'time': '2018-03-12T13:37:01.234567Z'}
@@ -471,6 +483,9 @@ class TestReadFromPubSub(unittest.TestCase):
     p.run()
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
+
+    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls([
+        mock.call()])
 
   def test_read_messages_timestamp_attribute_missing(self, mock_pubsub):
     data = b'data'
@@ -503,6 +518,9 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
 
+    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls([
+        mock.call()])
+
   def test_read_messages_timestamp_attribute_fail_parse(self, mock_pubsub):
     data = b'data'
     attributes = {'time': '1337 unparseable'}
@@ -525,6 +543,9 @@ class TestReadFromPubSub(unittest.TestCase):
     with self.assertRaisesRegexp(ValueError, r'parse'):
       p.run()
     mock_pubsub.return_value.acknowledge.assert_not_called()
+
+    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls([
+        mock.call()])
 
   def test_read_message_id_label_unsupported(self, unused_mock_pubsub):
     # id_label is unsupported in DirectRunner.

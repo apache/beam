@@ -251,34 +251,29 @@ message StandardPTransforms {
   }
   // Payload for all of these: CombinePayload
   enum CombineComponents {
-    // TODO(BEAM-6199): Remove these old URNs.
-    COMBINE_PGBKCV = 0 [(beam_urn) = "beam:transform:combine_pgbkcv:v1"];
-    COMBINE_MERGE_ACCUMULATORS = 1 [(beam_urn) = "beam:transform:combine_merge_accumulators:v1"];
-    COMBINE_EXTRACT_OUTPUTS = 2 [(beam_urn) = "beam:transform:combine_extract_outputs:v1"];
-
     // Represents the Pre-Combine part of a lifted Combine Per Key, as described
     // in the following document:
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.ta0g6ase8z07
     // Payload: CombinePayload
-    COMBINE_PER_KEY_PRECOMBINE = 3 [(beam_urn) = "beam:transform:combine_per_key_precombine:v1"];
+    COMBINE_PER_KEY_PRECOMBINE = 0 [(beam_urn) = "beam:transform:combine_per_key_precombine:v1"];
 
     // Represents the Merge Accumulators part of a lifted Combine Per Key, as
     // described in the following document:
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.jco9rvatld5m
     // Payload: CombinePayload
-    COMBINE_PER_KEY_MERGE_ACCUMULATORS = 4 [(beam_urn) = "beam:transform:combine_per_key_merge_accumulators:v1"];
+    COMBINE_PER_KEY_MERGE_ACCUMULATORS = 1 [(beam_urn) = "beam:transform:combine_per_key_merge_accumulators:v1"];
 
     // Represents the Extract Outputs part of a lifted Combine Per Key, as
     // described in the following document:
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.i9i6p8gtl6ku
     // Payload: CombinePayload
-    COMBINE_PER_KEY_EXTRACT_OUTPUTS = 5 [(beam_urn) = "beam:transform:combine_per_key_extract_outputs:v1"];
+    COMBINE_PER_KEY_EXTRACT_OUTPUTS = 2 [(beam_urn) = "beam:transform:combine_per_key_extract_outputs:v1"];
 
     // Represents the Combine Grouped Values transform, as described in the
     // following document:
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.aj86ew4v1wk
     // Payload: CombinePayload
-    COMBINE_GROUPED_VALUES = 6 [(beam_urn) = "beam:transform:combine_grouped_values:v1"];
+    COMBINE_GROUPED_VALUES = 3 [(beam_urn) = "beam:transform:combine_grouped_values:v1"];
   }
   // Payload for all of these: ParDoPayload containing the user's SDF
   enum SplittableParDoComponents {
@@ -545,8 +540,8 @@ message Coder {
   // may be a cross-language agreed-upon format, or it may be a "custom coder"
   // that can only be used by a particular SDK. It does not include component
   // coders, as it is beneficial for these to be comprehensible to a runner
-  // regardless of whether the binary format is agree-upon.
-  SdkFunctionSpec spec = 1;
+  // regardless of whether the binary format is agreed-upon.
+  FunctionSpec spec = 1;
 
   // (Optional) If this coder is parametric, such as ListCoder(VarIntCoder),
   // this is a list of the components. In order for encodings to be identical,

@@ -18,10 +18,21 @@
 
 <html>
 <h2>ParDo OneToMany</h2>
-<p>For this task, please write a ParDo that maps each input sentence into words tokenized by whitespace (" ").</p>
+<p>
+  <b>Kata:</b> Please write a ParDo that maps each input sentence into words tokenized by
+  whitespace (" ").
+</p>
 <br>
-<br>
-<div class='hint'>Hint: You can call DoFn.ProcessContext.output(..) multiple times in a
-  <a href="https://beam.apache.org/releases/javadoc/2.11.0/org/apache/beam/sdk/transforms/ParDo.html">ParDo</a>.
+<div class="hint">
+  You can call <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.OutputReceiver.html">
+  OutputReceiver</a> multiple times in a
+  <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ParDo.html">
+  ParDo</a>.
+</div>
+<div class="hint">
+  If you're using Beam version before v2.5.0, you can call
+  <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.WindowedContext.html#output-OutputT-">
+  DoFn.ProcessContext.output(..)</a> multiple times in a
+  <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ParDo.html">ParDo</a>.
 </div>
 </html>

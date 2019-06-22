@@ -420,9 +420,11 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   SideInputParam = _DoFnParam('SideInputParam')
   TimestampParam = _DoFnParam('TimestampParam')
   WindowParam = _DoFnParam('WindowParam')
+  PaneInfoParam = _DoFnParam('PaneInfoParam')
   WatermarkReporterParam = _DoFnParam('WatermarkReporterParam')
   BundleFinalizerParam = _BundleFinalizerParam
   KeyParam = _DoFnParam('KeyParam')
+
 
   # Parameters to access state and timers.  Not restricted to use only in the
   # .process() method. Usage: DoFn.StateParam(state_spec),
@@ -432,8 +434,9 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   TimerParam = _TimerDoFnParam
 
   DoFnProcessParams = [BundleFinalizerParam, ElementParam, KeyParam,
-                       SideInputParam, StateParam, TimerParam, TimestampParam,
-                       WindowParam, WatermarkReporterParam]
+                       PaneInfoParam, SideInputParam, StateParam,
+                       TimerParam, TimestampParam, WindowParam, 
+                       WatermarkReporterParam]
 
   RestrictionParam = _RestrictionDoFnParam
 
@@ -2068,11 +2071,15 @@ class WindowInto(ParDo):
       new_windows = self.windowing.windowfn.assign(context)
       yield WindowedValue(element, context.timestamp, new_windows)
 
-  def __init__(self, windowfn, **kwargs):
+  def __init__(self,
+               windowfn,
+               trigger=None,
+               accumulation_mode=None,
+               timestamp_combiner=None):
     """Initializes a WindowInto transform.
 
     Args:
-      windowfn: Function to be used for windowing
+      windowfn (Windowing, WindowFn): Function to be used for windowing.
       trigger: (optional) Trigger used for windowing, or None for default.
       accumulation_mode: (optional) Accumulation mode used for windowing,
           required for non-trivial triggers.
@@ -2083,19 +2090,14 @@ class WindowInto(ParDo):
       # Overlay windowing with kwargs.
       windowing = windowfn
       windowfn = windowing.windowfn
-      # Use windowing to fill in defaults for kwargs.
-      kwargs = dict(dict(
-          trigger=windowing.triggerfn,
-          accumulation_mode=windowing.accumulation_mode,
-          timestamp_combiner=windowing.timestamp_combiner), **kwargs)
-    # Use kwargs to simulate keyword-only arguments.
-    triggerfn = kwargs.pop('trigger', None)
-    accumulation_mode = kwargs.pop('accumulation_mode', None)
-    timestamp_combiner = kwargs.pop('timestamp_combiner', None)
-    if kwargs:
-      raise ValueError('Unexpected keyword arguments: %s' % list(kwargs))
+
+      # Use windowing to fill in defaults for the extra arguments.
+      trigger = trigger or windowing.triggerfn
+      accumulation_mode = accumulation_mode or windowing.accumulation_mode
+      timestamp_combiner = timestamp_combiner or windowing.timestamp_combiner
+
     self.windowing = Windowing(
-        windowfn, triggerfn, accumulation_mode, timestamp_combiner)
+        windowfn, trigger, accumulation_mode, timestamp_combiner)
     super(WindowInto, self).__init__(self.WindowIntoFn(self.windowing))
 
   def get_windowing(self, unused_inputs):

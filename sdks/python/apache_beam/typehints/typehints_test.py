@@ -228,6 +228,17 @@ class UnionHintTestCase(TypeHintTestCase):
                      "instead.",
                      e.exception.args[0])
 
+  def test_dict_union(self):
+    hint = Union[typehints.Dict[Any, int],
+                 typehints.Dict[Union[()], Union[()]]]
+    self.assertEqual(typehints.Dict[Any, int], hint)
+
+  def test_empty_union(self):
+    self.assertEqual(typehints.Union[()],
+                     typehints.Union[typehints.Union[()], typehints.Union[()]])
+    self.assertEqual(int,
+                     typehints.Union[typehints.Union[()], int])
+
 
 class OptionalHintTestCase(TypeHintTestCase):
 
@@ -1070,35 +1081,35 @@ class DecoratorHelpers(TypeHintTestCase):
 
   def test_getcallargs_forhints_builtins(self):
     if sys.version_info.major < 3:
-      self.assertEquals(
+      self.assertEqual(
           {'_': str,
            '__unknown__varargs': Tuple[Any, ...],
            '__unknown__keywords': typehints.Dict[Any, Any]},
           getcallargs_forhints(str.upper, str))
-      self.assertEquals(
+      self.assertEqual(
           {'_': str,
            '__unknown__varargs': Tuple[Any, ...],
            '__unknown__keywords': typehints.Dict[Any, Any]},
           getcallargs_forhints(str.strip, str, str))
-      self.assertEquals(
+      self.assertEqual(
           {'_': str,
            '__unknown__varargs': Tuple[Any, ...],
            '__unknown__keywords': typehints.Dict[Any, Any]},
           getcallargs_forhints(str.join, str, list))
     elif sys.version_info.minor < 7:
       # Signatures for builtins are not supported in 3.5 and 3.6.
-      self.assertEquals({}, getcallargs_forhints(str.upper, str))
-      self.assertEquals({}, getcallargs_forhints(str.strip, str, str))
-      self.assertEquals({}, getcallargs_forhints(str.join, str, list))
+      self.assertEqual({}, getcallargs_forhints(str.upper, str))
+      self.assertEqual({}, getcallargs_forhints(str.strip, str, str))
+      self.assertEqual({}, getcallargs_forhints(str.join, str, list))
     else:
-      self.assertEquals(
+      self.assertEqual(
           {'self': str},
           getcallargs_forhints(str.upper, str))
       # str.strip has an optional second argument.
-      self.assertEquals({'self': str, 'chars': Any},
-                        getcallargs_forhints(str.strip, str))
-      self.assertEquals({'self': str, 'iterable': list},
-                        getcallargs_forhints(str.join, str, list))
+      self.assertEqual({'self': str, 'chars': Any},
+                       getcallargs_forhints(str.strip, str))
+      self.assertEqual({'self': str, 'iterable': list},
+                       getcallargs_forhints(str.join, str, list))
 
 
 class TestCoerceToKvType(TypeHintTestCase):

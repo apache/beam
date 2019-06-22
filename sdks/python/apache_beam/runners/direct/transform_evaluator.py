@@ -448,13 +448,6 @@ class _PubSubReadEvaluator(_TransformEvaluator):
   def _read_from_pubsub(self, timestamp_attribute):
     from apache_beam.io.gcp.pubsub import PubsubMessage
     from google.cloud import pubsub
-    # Because of the AutoAck, we are not able to reread messages if this
-    # evaluator fails with an exception before emitting a bundle. However,
-    # the DirectRunner currently doesn't retry work items anyway, so the
-    # pipeline would enter an inconsistent state on any error.
-    sub_client = pubsub.SubscriberClient()
-    response = sub_client.pull(self._sub_name, max_messages=10,
-                               return_immediately=True)
 
     def _get_element(message):
       parsed_message = PubsubMessage._from_message(message)
@@ -474,10 +467,20 @@ class _PubSubReadEvaluator(_TransformEvaluator):
 
       return timestamp, parsed_message
 
-    results = [_get_element(rm.message) for rm in response.received_messages]
-    ack_ids = [rm.ack_id for rm in response.received_messages]
-    if ack_ids:
-      sub_client.acknowledge(self._sub_name, ack_ids)
+    # Because of the AutoAck, we are not able to reread messages if this
+    # evaluator fails with an exception before emitting a bundle. However,
+    # the DirectRunner currently doesn't retry work items anyway, so the
+    # pipeline would enter an inconsistent state on any error.
+    sub_client = pubsub.SubscriberClient()
+    try:
+      response = sub_client.pull(self._sub_name, max_messages=10,
+                                 return_immediately=True)
+      results = [_get_element(rm.message) for rm in response.received_messages]
+      ack_ids = [rm.ack_id for rm in response.received_messages]
+      if ack_ids:
+        sub_client.acknowledge(self._sub_name, ack_ids)
+    finally:
+      sub_client.api.transport.channel.close()
 
     return results
 

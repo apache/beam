@@ -95,9 +95,14 @@ class DataflowRunner(PipelineRunner):
   # Imported here to avoid circular dependencies.
   # TODO: Remove the apache_beam.pipeline dependency in CreatePTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import CreatePTransformOverride
+  from apache_beam.runners.dataflow.ptransform_overrides import ReadPTransformOverride
 
   _PTRANSFORM_OVERRIDES = [
       CreatePTransformOverride(),
+  ]
+
+  _SDF_PTRANSFORM_OVERRIDES = [
+      ReadPTransformOverride(),
   ]
 
   def __init__(self, cache=None):
@@ -372,6 +377,8 @@ class DataflowRunner(PipelineRunner):
     # done before Runner API serialization, since the new proto needs to contain
     # any added PTransforms.
     pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
+    if apiclient._use_sdf_bounded_source(options):
+      pipeline.replace_all(DataflowRunner._SDF_PTRANSFORM_OVERRIDES)
 
     # Snapshot the pipeline in a portable proto.
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
@@ -655,6 +662,9 @@ class DataflowRunner(PipelineRunner):
     if (not isinstance(transform, beam.io.WriteToBigQuery)
         or 'use_beam_bq_sink' in experiments):
       return self.apply_PTransform(transform, pcoll, options)
+    if transform.schema == beam.io.gcp.bigquery.SCHEMA_AUTODETECT:
+      raise RuntimeError(
+          'Schema auto-detection is not supported on the native sink')
     standard_options = options.view_as(StandardOptions)
     if standard_options.streaming:
       if (transform.write_disposition ==
@@ -663,12 +673,15 @@ class DataflowRunner(PipelineRunner):
       return self.apply_PTransform(transform, pcoll, options)
     else:
       from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
+      schema = None
+      if transform.schema:
+        schema = parse_table_schema_from_json(json.dumps(transform.schema))
       return pcoll  | 'WriteToBigQuery' >> beam.io.Write(
           beam.io.BigQuerySink(
               transform.table_reference.tableId,
               transform.table_reference.datasetId,
               transform.table_reference.projectId,
-              parse_table_schema_from_json(json.dumps(transform.schema)),
+              schema,
               transform.create_disposition,
               transform.write_disposition,
               kms_key=transform.kms_key))

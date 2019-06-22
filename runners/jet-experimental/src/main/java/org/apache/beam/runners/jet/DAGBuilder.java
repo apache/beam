@@ -57,7 +57,7 @@ public class DAGBuilder {
   private int vertexId = 0;
 
   DAGBuilder(JetPipelineOptions options) {
-    this.localParallelism = options.getJetLocalParallelism();
+    this.localParallelism = options.getJetDefaultParallelism();
   }
 
   DAG getDag() {
@@ -170,15 +170,14 @@ public class DAGBuilder {
         String pCollId,
         boolean sideInputEdge) {
       try {
-        boolean carriesKeyedValues = Utils.isKeyedValueCoder(coder);
         Edge edge =
             Edge.from(sourceVertex, getNextFreeOrdinal(sourceVertex, false))
                 .to(destinationVertex, getNextFreeOrdinal(destinationVertex, true));
-        edge = carriesKeyedValues ? edge.distributed() : edge;
+        edge = edge.distributed();
         if (sideInputEdge) {
           edge = edge.broadcast();
         } else {
-          edge = carriesKeyedValues ? edge.partitioned(new PartitionedKeyExtractor(coder)) : edge;
+          edge = edge.partitioned(new PartitionedKeyExtractor(coder));
         }
         dag.edge(edge);
 
@@ -205,15 +204,23 @@ public class DAGBuilder {
     private final WindowedValue.WindowedValueCoder<KV<K, V>> coder;
 
     PartitionedKeyExtractor(Coder coder) {
-      this.coder = (WindowedValue.WindowedValueCoder<KV<K, V>>) coder;
+      this.coder =
+          Utils.isKeyedValueCoder(coder)
+              ? (WindowedValue.WindowedValueCoder<KV<K, V>>) coder
+              : null;
     }
 
     @Override
     public Object applyEx(byte[] b) throws Exception {
-      WindowedValue<KV<K, V>> windowedValue =
-          CoderUtils.decodeFromByteArray(coder, b); // todo: decoding twice....
-      KvCoder<K, V> kvCoder = (KvCoder<K, V>) coder.getValueCoder();
-      return CoderUtils.encodeToByteArray(kvCoder.getKeyCoder(), windowedValue.getValue().getKey());
+      if (coder == null) {
+        return "ALL";
+      } else {
+        WindowedValue<KV<K, V>> windowedValue =
+            CoderUtils.decodeFromByteArray(coder, b); // todo: decoding twice....
+        KvCoder<K, V> kvCoder = (KvCoder<K, V>) coder.getValueCoder();
+        return CoderUtils.encodeToByteArray(
+            kvCoder.getKeyCoder(), windowedValue.getValue().getKey());
+      }
     }
   }
 }

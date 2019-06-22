@@ -33,6 +33,8 @@ class LoadTest(unittest.TestCase):
         'numRecords': options.get('num_records'),
         'keySizeBytes': options.get('key_size'),
         'valueSizeBytes': options.get('value_size'),
+        'hotKeyFraction': options.get('hot_key_fraction', 0),
+        'numHotKeys': options.get('num_hot_keys', 0),
         'bundleSizeDistribution': {
             'type': options.get(
                 'bundle_size_distribution_type', 'const'
@@ -47,6 +49,7 @@ class LoadTest(unittest.TestCase):
   def setUp(self):
     self.pipeline = TestPipeline()
     self.input_options = json.loads(self.pipeline.get_option('input_options'))
+    self.project_id = self.pipeline.get_option('project')
 
     self.publish_to_big_query = self.pipeline.get_option('publish_to_big_query')
     self.metrics_namespace = self.pipeline.get_option('metrics_table')

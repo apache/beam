@@ -669,7 +669,11 @@ public class AvroUtils {
                 .fromBytes(byteBuffer.duplicate(), type.type, logicalType);
         return convertDecimal(bigDecimal, fieldType);
       } else if (logicalType instanceof LogicalTypes.TimestampMillis) {
-        return convertDateTimeStrict((Long) value, fieldType);
+        if (value instanceof ReadableInstant) {
+          return convertDateTimeStrict(((ReadableInstant) value).getMillis(), fieldType);
+        } else {
+          return convertDateTimeStrict((Long) value, fieldType);
+        }
       }
     }
 

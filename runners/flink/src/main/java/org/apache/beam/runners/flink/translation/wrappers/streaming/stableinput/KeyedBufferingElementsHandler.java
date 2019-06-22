@@ -31,27 +31,29 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 public class KeyedBufferingElementsHandler implements BufferingElementsHandler {
 
   static KeyedBufferingElementsHandler create(
-      KeyedStateBackend backend, ListStateDescriptor<BufferedElement> stateDescriptor) {
+      KeyedStateBackend backend, ListStateDescriptor<BufferedElement> stateDescriptor)
+      throws Exception {
     return new KeyedBufferingElementsHandler(backend, stateDescriptor);
   }
 
-  private final KeyedStateBackend backend;
-  private final ListStateDescriptor<BufferedElement> stateDescriptor;
+  private final KeyedStateBackend<Object> backend;
+  private final String stateName;
+  private final ListState<BufferedElement> state;
 
   private KeyedBufferingElementsHandler(
-      KeyedStateBackend backend, ListStateDescriptor<BufferedElement> stateDescriptor) {
+      KeyedStateBackend<Object> backend, ListStateDescriptor<BufferedElement> stateDescriptor)
+      throws Exception {
     this.backend = backend;
-    this.stateDescriptor = stateDescriptor;
+    this.stateName = stateDescriptor.getName();
+    // Eagerly retrieve the state to work around https://jira.apache.org/jira/browse/FLINK-12653
+    this.state =
+        backend.getPartitionedState(
+            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
   }
 
   @Override
   public void buffer(BufferedElement element) {
     try {
-      ListState<BufferedElement> state =
-          (ListState<BufferedElement>)
-              backend.getPartitionedState(
-                  VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
-
       // assumes state backend is already keyed
       state.add(element);
     } catch (Exception e) {
@@ -62,19 +64,11 @@ public class KeyedBufferingElementsHandler implements BufferingElementsHandler {
   @Override
   public Stream<BufferedElement> getElements() {
     return backend
-        .getKeys(stateDescriptor.getName(), VoidNamespace.INSTANCE)
+        .getKeys(stateName, VoidNamespace.INSTANCE)
         .flatMap(
             key -> {
               try {
                 backend.setCurrentKey(key);
-
-                ListState<BufferedElement> state =
-                    (ListState<BufferedElement>)
-                        backend.getPartitionedState(
-                            VoidNamespace.INSTANCE,
-                            VoidNamespaceSerializer.INSTANCE,
-                            stateDescriptor);
-
                 return StreamSupport.stream(state.get().spliterator(), false);
               } catch (Exception e) {
                 throw new RuntimeException(
@@ -85,21 +79,10 @@ public class KeyedBufferingElementsHandler implements BufferingElementsHandler {
 
   @Override
   public void clear() {
-    List keys =
-        (List)
-            backend
-                .getKeys(stateDescriptor.getName(), VoidNamespace.INSTANCE)
-                .collect(Collectors.toList());
-
+    List keys = backend.getKeys(stateName, VoidNamespace.INSTANCE).collect(Collectors.toList());
     try {
       for (Object key : keys) {
         backend.setCurrentKey(key);
-
-        ListState<BufferedElement> state =
-            (ListState<BufferedElement>)
-                backend.getPartitionedState(
-                    VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
-
         state.clear();
       }
     } catch (Exception e) {

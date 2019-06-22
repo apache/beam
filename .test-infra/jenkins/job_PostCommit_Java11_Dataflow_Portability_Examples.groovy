@@ -33,7 +33,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java11_Examples_Dataflow_Por
     steps {
         gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':beam-runners-google-cloud-dataflow-java-examples:verifyPortabilityApi')
+            tasks(':runners:google-cloud-dataflow-java:examples:verifyPortabilityApi')
             switches ('-Pdockerfile=Dockerfile-java11')
 
             // Increase parallel worker threads above processor limit since most time is

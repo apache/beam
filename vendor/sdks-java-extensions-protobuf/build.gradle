@@ -19,7 +19,7 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
     exportJavadoc: false,
-    shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+    shadowClosure: {
     dependencies {
         include(dependency('com.google.guava:guava:20.0'))
         include(dependency('com.google.protobuf:protobuf-java:3.5.1'))

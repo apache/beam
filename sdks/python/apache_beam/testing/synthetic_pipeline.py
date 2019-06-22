@@ -46,6 +46,8 @@ from apache_beam.io import WriteToText
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 from apache_beam.io import restriction_trackers
+from apache_beam.io.restriction_trackers import OffsetRange
+from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -60,7 +62,7 @@ except ImportError:
 def parse_byte_size(s):
   suffixes = 'BKMGTP'
   if s[-1] in suffixes:
-    return int(float(s[:-1]) * 1024**suffixes.index(s[-1]))
+    return int(float(s[:-1]) * 1024 ** suffixes.index(s[-1]))
 
   return int(s)
 
@@ -76,10 +78,34 @@ def rotate_key(element):
   return key[-1:] + key[:-1], value
 
 
+def initial_splitting_zipf(start_position, stop_position,
+                           desired_num_bundles, distribution_parameter,
+                           num_total_records=None):
+  """Split the given range (defined by start_position, stop_position) into
+     desired_num_bundles using zipf with the given distribution_parameter.
+  """
+  if not num_total_records:
+    num_total_records = stop_position - start_position
+  samples = np.random.zipf(distribution_parameter, desired_num_bundles)
+  total = sum(samples)
+  relative_bundle_sizes = [(float(sample) / total) for sample in samples]
+  bundle_ranges = []
+  start = start_position
+  index = 0
+  while start < stop_position:
+    if index == desired_num_bundles - 1:
+      bundle_ranges.append((start, stop_position))
+      break
+    stop = start + int(num_total_records * relative_bundle_sizes[index])
+    bundle_ranges.append((start, stop))
+    start = stop
+    index += 1
+  return bundle_ranges
+
+
 class SyntheticStep(beam.DoFn):
   """A DoFn of which behavior can be controlled through prespecified parameters.
   """
-
   def __init__(self, per_element_delay_sec=0, per_bundle_delay_sec=0,
                output_records_per_input_record=1, output_filter_ratio=0):
     if per_element_delay_sec and per_element_delay_sec < 1e-3:
@@ -116,6 +142,137 @@ class SyntheticStep(beam.DoFn):
         yield element
 
 
+class NonLiquidShardingOffsetRangeTracker(OffsetRestrictionTracker):
+  """An OffsetRangeTracker that doesn't allow splitting. """
+
+  def try_split(self, split_offset):
+    pass  # Don't split.
+
+  def checkpoint(self):
+    pass # Don't split.
+
+
+class SyntheticSDFStepRestrictionProvider(RestrictionProvider):
+  """A `RestrictionProvider` for SyntheticSDFStep.
+
+  An initial_restriction and split that operate on num_records and ignores
+  source description (element). Splits into initial_splitting_num_bundles.
+  Returns size_estimate_override as restriction size, if set. Otherwise uses
+  element size.
+
+  If initial_splitting_uneven_chunks, produces uneven chunks.
+
+  """
+
+  def __init__(self, num_records, initial_splitting_num_bundles,
+               initial_splitting_uneven_chunks, disable_liquid_sharding,
+               size_estimate_override):
+    self._num_records = num_records
+    self._initial_splitting_num_bundles = initial_splitting_num_bundles
+    self._initial_splitting_uneven_chunks = initial_splitting_uneven_chunks
+    self._disable_liquid_sharding = disable_liquid_sharding
+    self._size_estimate_override = size_estimate_override
+
+  def initial_restriction(self, element):
+    return (0, self._num_records)
+
+  def create_tracker(self, restriction):
+    if self._disable_liquid_sharding:
+      return NonLiquidShardingOffsetRangeTracker(restriction[0],
+                                                 restriction[1])
+    else:
+      return OffsetRestrictionTracker(restriction[0], restriction[1])
+
+  def split(self, element, restriction):
+    elems = restriction[1] - restriction[0]
+    if (self._initial_splitting_uneven_chunks and
+        self._initial_splitting_num_bundles > 1 and elems > 1):
+      return initial_splitting_zipf(restriction[0], restriction[1],
+                                    self._initial_splitting_num_bundles, 3.0)
+    else:
+      offsets_per_split = max(1, (elems // self._initial_splitting_num_bundles))
+      result = list(
+          OffsetRange(restriction[0], restriction[1]).split(
+              offsets_per_split, offsets_per_split // 2))
+      return [(x.start, x.stop) for x in result]
+
+  def restriction_size(self, element, restriction):
+    if self._size_estimate_override is not None:
+      return self._size_estimate_override
+    element_size = len(element) if isinstance(element, str) else 1
+    return (restriction[1] - restriction[0]) * element_size
+
+
+def getSyntheticSDFStep(per_element_delay_sec=0,
+                        per_bundle_delay_sec=0,
+                        output_records_per_input_record=1,
+                        output_filter_ratio=0,
+                        initial_splitting_num_bundles=8,
+                        initial_splitting_uneven_chunks=False,
+                        disable_liquid_sharding=False,
+                        size_estimate_override=None,):
+  """A function which returns a SyntheticSDFStep with given parameters. """
+
+  class SyntheticSDFStep(beam.DoFn):
+    """A SplittableDoFn of which behavior can be controlled through prespecified
+       parameters.
+    """
+
+    def __init__(self, per_element_delay_sec_arg, per_bundle_delay_sec_arg,
+                 output_filter_ratio_arg, output_records_per_input_record_arg):
+      if per_element_delay_sec_arg:
+        per_element_delay_sec_arg = (
+            per_element_delay_sec_arg // output_records_per_input_record_arg)
+        if per_element_delay_sec_arg < 1e-3:
+          raise ValueError(
+              'Per element sleep time must be at least 1e-3 after being '
+              'divided among output elements.')
+      self._per_element_delay_sec = per_element_delay_sec_arg
+      self._per_bundle_delay_sec = per_bundle_delay_sec_arg
+      self._output_filter_ratio = output_filter_ratio_arg
+
+    def start_bundle(self):
+      self._start_time = time.time()
+
+    def finish_bundle(self):
+      # The target is for the enclosing stage to take as close to as possible
+      # the given number of seconds, so we only sleep enough to make up for
+      # overheads not incurred elsewhere.
+      to_sleep = self._per_bundle_delay_sec - (
+          time.time() - self._start_time)
+
+      # Ignoring sub-millisecond sleep times.
+      if to_sleep >= 1e-3:
+        time.sleep(to_sleep)
+
+    def process(self,
+                element,
+                restriction_tracker=beam.DoFn.RestrictionParam(
+                    SyntheticSDFStepRestrictionProvider(
+                        output_records_per_input_record,
+                        initial_splitting_num_bundles,
+                        initial_splitting_uneven_chunks,
+                        disable_liquid_sharding,
+                        size_estimate_override))):
+      filter_element = False
+      if self._output_filter_ratio > 0:
+        if np.random.random() < self._output_filter_ratio:
+          filter_element = True
+
+      for k in range(*restriction_tracker.current_restriction()):
+        if not restriction_tracker.try_claim(k):
+          return
+
+        if self._per_element_delay_sec:
+          time.sleep(self._per_element_delay_sec)
+
+        if not filter_element:
+          yield element
+
+  return SyntheticSDFStep(per_element_delay_sec, per_bundle_delay_sec,
+                          output_filter_ratio, output_records_per_input_record)
+
+
 class SyntheticSource(iobase.BoundedSource):
   """A custom source of a specified size.
   """
@@ -135,6 +292,9 @@ class SyntheticSource(iobase.BoundedSource):
 
     self._num_records = input_spec['numRecords']
     self._key_size = maybe_parse_byte_size(input_spec.get('keySizeBytes', 1))
+    self._hot_key_fraction = input_spec.get('hotKeyFraction', 0)
+    self._num_hot_keys = input_spec.get('numHotKeys', 0)
+
     self._value_size = maybe_parse_byte_size(
         input_spec.get('valueSizeBytes', 1))
     self._total_size = self.element_size * self._num_records
@@ -195,21 +355,9 @@ class SyntheticSource(iobase.BoundedSource):
     if self._initial_splitting == 'zipf':
       desired_num_bundles = self._initial_splitting_num_bundles or math.ceil(
           float(self.estimate_size()) / desired_bundle_size)
-      samples = np.random.zipf(self._initial_splitting_distribution_parameter,
-                               desired_num_bundles)
-      total = sum(samples)
-      relative_bundle_sizes = [(float(sample) / total) for sample in samples]
-      bundle_ranges = []
-      start = start_position
-      index = 0
-      while start < stop_position:
-        if index == desired_num_bundles - 1:
-          bundle_ranges.append((start, stop_position))
-          break
-        stop = start + int(self._num_records * relative_bundle_sizes[index])
-        bundle_ranges.append((start, stop))
-        start = stop
-        index += 1
+      bundle_ranges = initial_splitting_zipf(
+          start_position, stop_position, desired_num_bundles,
+          self._initial_splitting_distribution_parameter, self._num_records)
     else:
       if self._initial_splitting_num_bundles:
         bundle_size_in_elements = max(1, int(
@@ -238,13 +386,25 @@ class SyntheticSource(iobase.BoundedSource):
       tracker = range_trackers.UnsplittableRangeTracker(tracker)
     return tracker
 
+  def _gen_kv_pair(self, index):
+    r = np.random.RandomState(index)
+    rand = r.random_sample()
+
+    # Determines whether to generate hot key or not.
+    if rand < self._hot_key_fraction:
+      # Generate hot key.
+      # An integer is randomly selected from the range [0, numHotKeys-1]
+      # with equal probability.
+      r_hot = np.random.RandomState(index % self._num_hot_keys)
+      return r_hot.bytes(self._key_size), r.bytes(self._value_size)
+    else:
+      return r.bytes(self._key_size), r.bytes(self._value_size)
+
   def read(self, range_tracker):
     index = range_tracker.start_position()
     while range_tracker.try_claim(index):
-      r = np.random.RandomState(index)
-
       time.sleep(self._sleep_per_input_record_sec)
-      yield r.bytes(self._key_size), r.bytes(self._value_size)
+      yield self._gen_kv_pair(index)
       index += 1
 
   def default_output_coder(self):
@@ -262,7 +422,7 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
     {
       'key_size': 1,
       'value_size': 1,
-      'initial_splitting_num_bundles': 2,
+      'initial_splitting_num_bundles': 8,
       'initial_splitting_desired_bundle_size': 2,
       'sleep_per_input_record_sec': 0,
       'initial_splitting' : 'const'
@@ -334,7 +494,7 @@ class SyntheticSDFAsSource(beam.DoFn):
     {
       'key_size': 1,
       'value_size': 1,
-      'initial_splitting_num_bundles': 2,
+      'initial_splitting_num_bundles': 8,
       'initial_splitting_desired_bundle_size': 2,
       'sleep_per_input_record_sec': 0,
       'initial_splitting' : 'const'
@@ -450,6 +610,13 @@ def _parse_steps(json_str):
         for each input element to a step.
     (4) output_filter_ratio - the probability at which a step may filter out a
         given element by not producing any output for that element.
+    (5) splittable - if the step should be splittable.
+    (6) initial_splitting_num_bundles - number of bundles initial split if step
+        is splittable.
+    (7) initial_splitting_uneven_chunks - if the bundles should be
+        unevenly-sized
+    (8) disable_liquid_sharding - if liquid sharding should be disabled
+    (9) size_estimate_override - the size estimate or None to use default
   """
   all_steps = []
   json_data = json.loads(json_str)
@@ -467,6 +634,21 @@ def _parse_steps(json_str):
     steps['output_filter_ratio'] = (
         float(val['output_filter_ratio'])
         if 'output_filter_ratio' in val else 0)
+    steps['splittable'] = (
+        bool(val['splittable'])
+        if 'splittable' in val else False)
+    steps['initial_splitting_num_bundles'] = (
+        int(val['initial_splitting_num_bundles'])
+        if 'initial_splitting_num_bundles' in val else 8)
+    steps['initial_splitting_uneven_chunks'] = (
+        bool(val['initial_splitting_uneven_chunks'])
+        if 'initial_splitting_uneven_chunks' in val else False)
+    steps['disable_liquid_sharding'] = (
+        bool(val['disable_liquid_sharding'])
+        if 'disable_liquid_sharding' in val else False)
+    steps['size_estimate_override'] = (
+        int(val['size_estimate_override'])
+        if 'size_estimate_override' in val else None)
     all_steps.append(steps)
 
   return all_steps
@@ -496,7 +678,9 @@ def parse_args(args):
            '    Defaults to 0.'
            '(3) An integer "output_records_per_input_record". Defaults to 1.'
            '(4) A float "output_filter_ratio" in the range [0, 1] . '
-           '    Defaults to 0.')
+           '    Defaults to 0.'
+           '(5) A bool "splittable" that defaults to false.'
+           '(6) An integer "initial_splitting_num_bundles". Defaults to 8.')
 
   parser.add_argument(
       '--input',
@@ -595,14 +779,28 @@ def run(argv=None):
 
       new_pc_list = []
       for pc_no, pc in enumerate(pc_list):
-        new_pc = pc | 'SyntheticStep %d.%d' % (step_no, pc_no) >> beam.ParDo(
-            SyntheticStep(
-                per_element_delay_sec=steps['per_element_delay'],
-                per_bundle_delay_sec=steps['per_bundle_delay'],
-                output_records_per_input_record=
-                steps['output_records_per_input_record'],
-                output_filter_ratio=
-                steps['output_filter_ratio']))
+        if steps['splittable']:
+          step = getSyntheticSDFStep(
+              per_element_delay_sec=steps['per_element_delay'],
+              per_bundle_delay_sec=steps['per_bundle_delay'],
+              output_records_per_input_record=
+              steps['output_records_per_input_record'],
+              output_filter_ratio=steps['output_filter_ratio'],
+              initial_splitting_num_bundles=
+              steps['initial_splitting_num_bundles'],
+              initial_splitting_uneven_chunks=
+              steps['initial_splitting_uneven_chunks'],
+              disable_liquid_sharding=steps['disable_liquid_sharding'],
+              size_estimate_override=steps['size_estimate_override'])
+        else:
+          step = SyntheticStep(
+              per_element_delay_sec=steps['per_element_delay'],
+              per_bundle_delay_sec=steps['per_bundle_delay'],
+              output_records_per_input_record=
+              steps['output_records_per_input_record'],
+              output_filter_ratio=steps['output_filter_ratio'])
+        new_pc = pc | 'SyntheticStep %d.%d' % (
+            step_no, pc_no) >> beam.ParDo(step)
         new_pc_list.append(new_pc)
       pc_list = new_pc_list
 

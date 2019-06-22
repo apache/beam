@@ -74,6 +74,11 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --spark_job_server_jar)
+        SPARK_JOB_SERVER_JAR="$2"
+        shift # past argument
+        shift # past value
+        ;;
     --endpoint)
         ENDPOINT="$2"
         shift # past argument
@@ -135,7 +140,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
     DATAFLOW_WORKER_JAR=$(find ./runners/google-cloud-dataflow-java/worker/build/libs/beam-runners-google-cloud-dataflow-java-fn-api-worker-*.jar)
   fi
   echo "Using Dataflow worker jar: $DATAFLOW_WORKER_JAR"
-elif [[ "$RUNNER" == "flink" ]]; then
+elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" ]]; then
   if [[ -z "$ENDPOINT" ]]; then
     # Hacky python script to find a free port. Note there is a small chance the chosen port could
     # get taken before being claimed by the job server.
@@ -148,12 +153,20 @@ s.close()
     "
     JOB_PORT=$(python -c "$SOCKET_SCRIPT")
     ENDPOINT="localhost:$JOB_PORT"
-    echo "No endpoint specified; starting a new Flink job server on $ENDPOINT"
-    java \
-        -jar $FLINK_JOB_SERVER_JAR \
-        --flink-master-url [local] \
-        --job-port $JOB_PORT \
-        --artifact-port 0 &
+    echo "No endpoint specified; starting a new $RUNNER job server on $ENDPOINT"
+    if [[ "$RUNNER" == "flink" ]]; then
+      java \
+          -jar $FLINK_JOB_SERVER_JAR \
+          --flink-master-url [local] \
+          --job-port $JOB_PORT \
+          --artifact-port 0 &
+    else
+      java \
+          -jar $SPARK_JOB_SERVER_JAR \
+          --spark-master-url local \
+          --job-port $JOB_PORT \
+          --artifact-port 0 &
+    fi
   fi
 fi
 

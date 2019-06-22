@@ -113,6 +113,7 @@ REQUIRED_PACKAGES = [
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<=0.12.0',
     'mock>=1.0.1,<3.0.0',
+    'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<4',
     # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.
     'protobuf>=3.5.0.post1,<4',
@@ -125,7 +126,6 @@ REQUIRED_PACKAGES = [
     'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
     'pyyaml>=3.12,<4.0.0',
     'typing>=3.6.0,<3.7.0; python_version < "3.5.0"',
-    'mmh3>=2.5.1,<2.5.2',
     ]
 
 REQUIRED_TEST_PACKAGES = [
@@ -174,8 +174,8 @@ python_requires = '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*'
 
 if sys.version_info[0] == 3:
   warnings.warn(
-      'Python 3 support for the Apache Beam SDK is not yet fully supported. '
-      'You may encounter buggy behavior or missing features.')
+      'Some syntactic constructs of Python 3 are not yet fully supported by '
+      'Apache Beam.')
 
 setuptools.setup(
     name=PACKAGE_NAME,
@@ -219,6 +219,8 @@ setuptools.setup(
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
