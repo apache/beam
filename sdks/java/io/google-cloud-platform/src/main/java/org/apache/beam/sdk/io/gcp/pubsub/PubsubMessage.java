@@ -62,6 +62,7 @@ public class PubsubMessage {
   }
 
   /** Returns the messageId of the message. */
+  @Nullable
   public String getMessageId() {
     return messageId;
   }

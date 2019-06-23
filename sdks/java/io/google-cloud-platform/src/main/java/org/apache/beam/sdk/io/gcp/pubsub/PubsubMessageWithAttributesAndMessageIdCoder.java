@@ -49,11 +49,6 @@ public class PubsubMessageWithAttributesAndMessageIdCoder extends CustomCoder<Pu
 
   @Override
   public void encode(PubsubMessage value, OutputStream outStream) throws IOException {
-    encode(value, outStream, Context.NESTED);
-  }
-
-  public void encode(PubsubMessage value, OutputStream outStream, Context context)
-      throws IOException {
     PAYLOAD_CODER.encode(value.getPayload(), outStream);
     ATTRIBUTES_CODER.encode(value.getAttributeMap(), outStream);
     MESSAGE_ID_CODER.encode(value.getMessageId(), outStream);
@@ -61,11 +56,6 @@ public class PubsubMessageWithAttributesAndMessageIdCoder extends CustomCoder<Pu
 
   @Override
   public PubsubMessage decode(InputStream inStream) throws IOException {
-    return decode(inStream, Context.NESTED);
-  }
-
-  @Override
-  public PubsubMessage decode(InputStream inStream, Context context) throws IOException {
     byte[] payload = PAYLOAD_CODER.decode(inStream);
     Map<String, String> attributes = ATTRIBUTES_CODER.decode(inStream);
     String messageId = MESSAGE_ID_CODER.decode(inStream);

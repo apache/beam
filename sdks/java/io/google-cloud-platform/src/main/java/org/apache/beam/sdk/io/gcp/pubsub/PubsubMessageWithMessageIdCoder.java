@@ -41,23 +41,12 @@ public class PubsubMessageWithMessageIdCoder extends CustomCoder<PubsubMessage> 
 
   @Override
   public void encode(PubsubMessage value, OutputStream outStream) throws IOException {
-    encode(value, outStream, Context.NESTED);
-  }
-
-  @Override
-  public void encode(PubsubMessage value, OutputStream outStream, Context context)
-      throws IOException {
-    PAYLOAD_CODER.encode(value.getPayload(), outStream, context);
+    PAYLOAD_CODER.encode(value.getPayload(), outStream);
     MESSAGE_ID_CODER.encode(value.getMessageId(), outStream);
   }
 
   @Override
   public PubsubMessage decode(InputStream inStream) throws IOException {
-    return decode(inStream, Context.NESTED);
-  }
-
-  @Override
-  public PubsubMessage decode(InputStream inStream, Context context) throws IOException {
     byte[] payload = PAYLOAD_CODER.decode(inStream);
     String messageId = MESSAGE_ID_CODER.decode(inStream);
     return new PubsubMessage(payload, ImmutableMap.of(), messageId);
