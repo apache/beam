@@ -70,7 +70,7 @@ public class PubsubReadIT {
 
     PCollection<PubsubMessage> messages =
         pipeline.apply(
-            PubsubIO.readMessagesWithMessageId()
+            PubsubIO.readMessagesWithAttributesAndMessageId()
                 .fromTopic("projects/pubsub-public-data/topics/taxirides-realtime"));
 
     messages.apply(
@@ -78,14 +78,16 @@ public class PubsubReadIT {
         signal.signalSuccessWhen(
             messages.getCoder(),
             pubsubMessages ->
-                pubsubMessages.stream().noneMatch(m -> Strings.isNullOrEmpty(m.getMessageId()))));
+                pubsubMessages
+                    .parallelStream()
+                    .noneMatch(m -> Strings.isNullOrEmpty(m.getMessageId()))));
 
-    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(1));
     pipeline.apply(signal.signalStart());
     PipelineResult job = pipeline.run();
     start.get();
 
-    signal.waitForSuccess(Duration.standardSeconds(30));
+    signal.waitForSuccess(Duration.standardMinutes(3));
     // A runner may not support cancel
     try {
       job.cancel();
