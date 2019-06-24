@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
@@ -67,11 +68,16 @@ class SparkAbstractCombineFn implements Serializable {
   // ** DO NOT use combineContext directly inside this class, use ctxtForInput instead. **
   private transient SparkCombineContext combineContext;
 
+  @SuppressWarnings("unchecked")
   SparkCombineContext ctxtForInput(WindowedValue<?> input) {
+    return ctxForWindows((Collection) input.getWindows());
+  }
+
+  SparkCombineContext ctxForWindows(Collection<BoundedWindow> windows) {
     if (combineContext == null) {
       combineContext = new SparkCombineContext(options.get(), new SparkSideInputReader(sideInputs));
     }
-    return combineContext.forInput(input);
+    return combineContext.forInput(windows);
   }
 
   static <T> Iterable<WindowedValue<T>> sortByWindows(Iterable<WindowedValue<T>> iter) {
@@ -89,7 +95,7 @@ class SparkAbstractCombineFn implements Serializable {
   }
 
   /** An implementation of {@link CombineWithContext.Context} for the SparkRunner. */
-  private static class SparkCombineContext extends CombineWithContext.Context {
+  static class SparkCombineContext extends CombineWithContext.Context {
     private final PipelineOptions pipelineOptions;
     private final SideInputReader sideInputReader;
 
@@ -98,10 +104,10 @@ class SparkAbstractCombineFn implements Serializable {
       this.sideInputReader = sideInputReader;
     }
 
-    private WindowedValue<?> input = null;
+    Collection<? extends BoundedWindow> windows = null;
 
-    SparkCombineContext forInput(WindowedValue<?> input) {
-      this.input = input;
+    SparkCombineContext forInput(final Collection<? extends BoundedWindow> windows) {
+      this.windows = Objects.requireNonNull(windows);
       return this;
     }
 
@@ -112,13 +118,11 @@ class SparkAbstractCombineFn implements Serializable {
 
     @Override
     public <T> T sideInput(PCollectionView<T> view) {
-      checkNotNull(input, "Input in SparkCombineContext must not be null!");
       // validate element window.
-      final Collection<? extends BoundedWindow> elementWindows = input.getWindows();
       checkState(
-          elementWindows.size() == 1,
+          windows.size() == 1,
           "sideInput can only be called when the main " + "input element is in exactly one window");
-      return sideInputReader.get(view, elementWindows.iterator().next());
+      return sideInputReader.get(view, windows.iterator().next());
     }
   }
 }
