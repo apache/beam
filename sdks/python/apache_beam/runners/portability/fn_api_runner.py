@@ -139,23 +139,10 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
       self._state = self.DONE_STATE
 
 
-class _PartitionBuffer(object):
-  """This class is created to support partition(n) function."""
-  def __init__(self, inputs):
-    self._inputs = inputs
-
+class _ListBuffer(list):
+  """Used to support parititioning of a list."""
   def partition(self, n):
-    v = list(self._inputs.values())[0]
-    if isinstance(v, list):
-      return [self._inputs]
-    elif isinstance(v, _GroupingBuffer):
-      partitions = []
-      for name, input in self._inputs.items():
-        for part in input.partition(n):
-          partitions.append({name : part})
-      return partitions
-    else:
-      raise NotImplementedError(type(self._inputs))
+    return [self[k::n] for k in range(n)]
 
 
 class _GroupingBuffer(object):
@@ -166,7 +153,7 @@ class _GroupingBuffer(object):
     self._post_grouped_coder = post_grouped_coder
     self._table = collections.defaultdict(list)
     self._windowing = windowing
-    self._grouped_output = []
+    self._grouped_output = None
 
   def append(self, elements_data):
     if self._grouped_output:
@@ -184,8 +171,12 @@ class _GroupingBuffer(object):
           value if is_trivial_windowing
           else windowed_key_value.with_value(value))
 
-  def _output_ready(self):
-    if len(self._grouped_output) == 0:
+  def partition(self, n):
+    """ It is used to partition _GroupingBuffer to N parts. Once it is
+    partitioned, it would not be re-partitioned with diff N. Re-partition
+    is not supported now.
+    """
+    if not self._grouped_output:
       if self._windowing.is_default():
         globally_window = GlobalWindows.windowed_value(None).with_value
         windowed_key_values = lambda key, values: [
@@ -197,32 +188,27 @@ class _GroupingBuffer(object):
         #   May need to revise.
         trigger_driver = trigger.create_trigger_driver(self._windowing, True)
         windowed_key_values = trigger_driver.process_entire_key
-
-      key_coder_impl = self._key_coder.get_impl()
       coder_impl = self._post_grouped_coder.get_impl()
-      for encoded_key, windowed_values in self._table.items():
+      key_coder_impl = self._key_coder.get_impl()
+      self._grouped_output = [[] for _ in range(n)]
+      output_stream_list = []
+      for _ in range(n):
+        output_stream_list.append(create_OutputStream())
+      for idx, (encoded_key, windowed_values) in enumerate(self._table.items()):
         key = key_coder_impl.decode(encoded_key)
-        output_stream = create_OutputStream()
         for wkvs in windowed_key_values(key, windowed_values):
-          coder_impl.encode_to_stream(wkvs, output_stream, True)
-
-        self._grouped_output.append(output_stream.get())
+          coder_impl.encode_to_stream(wkvs, output_stream_list[idx % n], True)
+      for ix, output_stream in enumerate(output_stream_list):
+        self._grouped_output[ix] = [output_stream.get()]
       self._table = None
+    return self._grouped_output
 
   def __iter__(self):
-    self._output_ready()
-    return iter(self._grouped_output)
-
-  def partition(self, n):
-    self._output_ready()
-
-    n = min(n, len(self._grouped_output))
-    partitions = [[] for _ in range(n)]
-
-    for idx, out in enumerate(self._grouped_output):
-      partitions[idx % n].append(out)
-
-    return partitions
+    """ Since partition() returns a list of lists, add this __iter__ to return
+    a list to simplify code when we need to iterate through ALL elements of
+    _GroupingBuffer.
+    """
+    return itertools.chain(*self.partition(1))
 
 
 class _WindowGroupingBuffer(object):
@@ -268,13 +254,11 @@ class _WindowGroupingBuffer(object):
 
 
 class FnApiRunner(runner.PipelineRunner):
-  _num_workers = 1
 
   def __init__(
       self,
       default_environment=None,
       bundle_repeat=0,
-      num_workers=1,
       use_state_iterables=False,
       provision_info=None):
     """Creates a new Fn API Runner.
@@ -288,12 +272,12 @@ class FnApiRunner(runner.PipelineRunner):
       provision_info: provisioning info to make available to workers, or None
     """
     super(FnApiRunner, self).__init__()
-    FnApiRunner._num_workers = num_workers
     self._last_uid = -1
     self._default_environment = (
         default_environment
         or beam_runner_api_pb2.Environment(urn=python_urns.EMBEDDED_PYTHON))
     self._bundle_repeat = bundle_repeat
+    self._num_workers = 1
     self._progress_frequency = None
     self._profiler_factory = None
     self._use_state_iterables = use_state_iterables
@@ -322,8 +306,8 @@ class FnApiRunner(runner.PipelineRunner):
     pipeline.visit(DataflowRunner.group_by_key_input_visitor())
     self._bundle_repeat = self._bundle_repeat or options.view_as(
         pipeline_options.DirectOptions).direct_runner_bundle_repeat
-    FnApiRunner._num_workers = max(FnApiRunner._num_workers, options.view_as(
-        pipeline_options.DirectOptions).direct_num_workers)
+    self._num_workers = options.view_as(
+        pipeline_options.DirectOptions).direct_num_workers or self._num_workers
     self._profiler_factory = profiler.Profile.factory_from_options(
         options.view_as(pipeline_options.ProfilingOptions))
 
@@ -413,7 +397,7 @@ class FnApiRunner(runner.PipelineRunner):
 
     try:
       with self.maybe_profile():
-        pcoll_buffers = collections.defaultdict(list)
+        pcoll_buffers = collections.defaultdict(_ListBuffer)
         for stage in stages:
           stage_results = self._run_stage(
               worker_handler_manager.get_worker_handler,
@@ -463,7 +447,8 @@ class FnApiRunner(runner.PipelineRunner):
         controller.state.checkpoint()
         ParallelBundleManager(
             controller, lambda pcoll_id: [], get_input_coder_callable,
-            process_bundle_descriptor, self._progress_frequency, k
+            process_bundle_descriptor, self._progress_frequency, k,
+            num_workers=self._num_workers
         ).process_bundle(data_input, data_output)
       finally:
         controller.state.restore()
@@ -499,7 +484,7 @@ class FnApiRunner(runner.PipelineRunner):
         for windowed_key_timer in timers_by_key_and_window.values():
           windowed_timer_coder_impl.encode_to_stream(
               windowed_key_timer, out, True)
-        deferred_inputs[transform_id] = [out.get()]
+        deferred_inputs[transform_id] = _ListBuffer([out.get()])
         written_timers[:] = []
 
   def _add_residuals_and_channel_splits_to_deferred_inputs(
@@ -554,7 +539,7 @@ class FnApiRunner(runner.PipelineRunner):
         if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
           target = transform.unique_name, only_element(transform.outputs)
           if pcoll_id == fn_api_runner_transforms.IMPULSE_BUFFER:
-            data_input[target] = [ENCODED_IMPULSE_VALUE]
+            data_input[target] = _ListBuffer([ENCODED_IMPULSE_VALUE])
           else:
             data_input[target] = pcoll_buffers[pcoll_id]
           coder_id = pipeline_components.pcollections[
@@ -645,7 +630,7 @@ class FnApiRunner(runner.PipelineRunner):
       """Returns the buffer for a given (operation_type, PCollection ID).
 
       For grouping-typed operations, we produce a ``_GroupingBuffer``. For
-      others, we just use a list.
+      others, we produce a ``_ListBuffer``.
       """
       kind, name = split_buffer_id(buffer_id)
       if kind in ('materialize', 'timers'):
@@ -690,7 +675,7 @@ class FnApiRunner(runner.PipelineRunner):
 
     bundle_manager = ParallelBundleManager(
         controller, get_buffer, get_input_coder_impl, process_bundle_descriptor,
-        self._progress_frequency)
+        self._progress_frequency, num_workers=self._num_workers)
 
     result, splits = bundle_manager.process_bundle(data_input, data_output)
 
@@ -708,7 +693,7 @@ class FnApiRunner(runner.PipelineRunner):
     last_sent = data_input
 
     while True:
-      deferred_inputs = collections.defaultdict(list)
+      deferred_inputs = collections.defaultdict(_ListBuffer)
 
       self._collect_written_timers_and_add_to_deferred_inputs(
           context, pipeline_components, stage, get_buffer, deferred_inputs)
@@ -729,15 +714,15 @@ class FnApiRunner(runner.PipelineRunner):
         # The worker will be waiting on these inputs as well.
         for other_input in data_input:
           if other_input not in deferred_inputs:
-            deferred_inputs[other_input] = []
+            deferred_inputs[other_input] = _ListBuffer([])
         # TODO(robertwb): merge results
-        last_result, splits = ParallelBundleManager(
-            controller,
-            get_buffer,
-            get_input_coder_impl,
-            process_bundle_descriptor,
-            self._progress_frequency,
-            True).process_bundle(deferred_inputs, data_output)
+        bundle_manager._skip_registration = True
+        # We cannot split deferred_input until we include residual_roots to
+        # merged results. Without residual_roots, pipeline stops earlier and we
+        # may miss some data.
+        bundle_manager._num_workers = 1
+        last_result, splits = bundle_manager.process_bundle(
+            deferred_inputs, data_output)
         last_sent = deferred_inputs
         result = beam_fn_api_pb2.InstructionResponse(
             process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
@@ -783,7 +768,8 @@ class FnApiRunner(runner.PipelineRunner):
         pcoll_id = transform.spec.payload
         if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
           if pcoll_id == fn_api_runner_transforms.IMPULSE_BUFFER:
-            data_input[transform.unique_name] = [ENCODED_IMPULSE_VALUE]
+            data_input[transform.unique_name] = _ListBuffer(
+                [ENCODED_IMPULSE_VALUE])
           else:
             data_input[transform.unique_name] = pcoll_buffers[pcoll_id]
           coder_id = pipeline_components.pcollections[
@@ -1027,7 +1013,6 @@ class EmbeddedWorkerHandler(WorkerHandler):
     if not request.instruction_id:
       self._uid_counter += 1
       request.instruction_id = 'control_%s' % self._uid_counter
-
     response = self.worker.do_instruction(request)
     return ControlFuture(request.instruction_id, response)
 
@@ -1485,12 +1470,9 @@ class BundleManager(object):
         break
     return split_results
 
-  def process_bundle(self, inputs, expected_outputs, parallel_uid_counter=None):
+  def process_bundle(self, inputs, expected_outputs):
     # Unique id for the instruction processing this bundle.
-    if parallel_uid_counter:
-      BundleManager._uid_counter = parallel_uid_counter
-    else:
-      BundleManager._uid_counter += 1
+    BundleManager._uid_counter += 1
     process_bundle_id = 'bundle_%s' % BundleManager._uid_counter
 
     # Register the bundle descriptor, if needed - noop if already registered.
@@ -1500,7 +1482,8 @@ class BundleManager(object):
     if not split_manager:
       # If there is no split_manager, write all input data to the channel.
       for transform_id, elements in inputs.items():
-        self._send_input_to_worker(process_bundle_id, transform_id, elements)
+        self._send_input_to_worker(
+            process_bundle_id, transform_id, elements)
 
     # Check that the bundle was successfully registered.
     if registration_future and registration_future.get().error:
@@ -1518,8 +1501,8 @@ class BundleManager(object):
         self._controller, process_bundle_id, self._progress_frequency):
 
       if split_manager:
-        split_results = self._generate_splits_for_testing(
-            split_manager, inputs, process_bundle_id)
+        split_results = self._generate_splits_for_testing(split_manager, inputs,
+                                                          process_bundle_id)
 
       # Gather all output data.
       for output in self._controller.data_plane_handler.input_elements(
@@ -1550,28 +1533,31 @@ class BundleManager(object):
 
 
 class ParallelBundleManager(BundleManager):
-  _uid_counter = 0
+
+  def __init__(
+      self, controller, get_buffer, get_input_coder_impl, bundle_descriptor,
+      progress_frequency=None, skip_registration=False, **kwargs):
+    super(ParallelBundleManager, self).__init__(
+        controller, get_buffer, get_input_coder_impl, bundle_descriptor,
+        progress_frequency, skip_registration)
+    self._num_workers = kwargs.pop('num_workers', 1)
 
   def process_bundle(self, inputs, expected_outputs):
-    num_workers = FnApiRunner._num_workers
-    param_list = []
-
-    for part in _PartitionBuffer(inputs).partition(num_workers):
-      ParallelBundleManager._uid_counter += 1
-      param_list.append((part, expected_outputs,
-                         ParallelBundleManager._uid_counter))
+    part_inputs = [{} for _ in range(self._num_workers)]
+    for name, input in inputs.items():
+      for ix, part in enumerate(input.partition(self._num_workers)):
+        part_inputs[ix][name] = part
 
     merged_result = None
     split_result_list = []
-
-    with futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
-      for result, split_result in executor.map(lambda p: BundleManager(
+    with futures.ThreadPoolExecutor(max_workers=self._num_workers) as executor:
+      for result, split_result in executor.map(lambda part: BundleManager(
           self._controller, self._get_buffer, self._get_input_coder_impl,
           self._bundle_descriptor, self._progress_frequency,
-          self._registered).process_bundle(*p), param_list):
+          self._registered).process_bundle(part, expected_outputs),
+                                               list(filter(None, part_inputs))):
 
         split_result_list += split_result
-
         if merged_result is None:
           merged_result = result
         else:
