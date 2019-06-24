@@ -17,22 +17,36 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import java.util.Iterator;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.SortedMap;
+import java.util.TreeMap;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -43,6 +57,219 @@ import org.joda.time.Instant;
  * org.apache.beam.sdk.transforms.CombineWithContext.Context} for the SparkRunner.
  */
 public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstractCombineFn {
+
+  static class WindowedAccumulatorCoder<AccumT> extends Coder<WindowedAccumulator<AccumT>> {
+
+    static <T> WindowedAccumulatorCoder<T> of(
+        Coder<BoundedWindow> windowCoder, Coder<T> accumCoder) {
+      return new WindowedAccumulatorCoder<>(windowCoder, accumCoder);
+    }
+
+    private final @Nullable TypeDescriptor<?> windowDesc;
+    private final IterableCoder<WindowedValue<AccumT>> wrap;
+
+    WindowedAccumulatorCoder(Coder<? extends BoundedWindow> windowCoder, Coder<AccumT> accumCoder) {
+      this.wrap =
+          IterableCoder.of(WindowedValue.FullWindowedValueCoder.of(accumCoder, windowCoder));
+      windowDesc = windowCoder.getEncodedTypeDescriptor();
+    }
+
+    @Override
+    public void encode(WindowedAccumulator value, OutputStream outStream)
+        throws CoderException, IOException {
+      wrap.encode(value.map.values(), outStream);
+    }
+
+    @Override
+    public WindowedAccumulator decode(InputStream inStream) throws CoderException, IOException {
+      return WindowedAccumulator.from(
+          StreamSupport.stream(wrap.decode(inStream).spliterator(), false)
+              .collect(
+                  Collectors.toMap(
+                      w -> Iterables.getOnlyElement(w.getWindows()),
+                      Function.identity(),
+                      (a, b) -> a,
+                      () -> new TreeMap<>(asWindowComparator(windowDesc)))));
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return wrap.getComponents();
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {}
+  }
+
+  /** Accumulator of WindowedValues holding values for different windows. */
+  static class WindowedAccumulator<AccumT> {
+
+    static <T> WindowedAccumulator<T> create(@Nullable TypeDescriptor<BoundedWindow> windowType) {
+      return new WindowedAccumulator<>(windowType);
+    }
+
+    static <T> WindowedAccumulator<T> from(SortedMap<BoundedWindow, WindowedValue<T>> map) {
+      return new WindowedAccumulator<>(map);
+    }
+
+    final SortedMap<BoundedWindow, WindowedValue<AccumT>> map;
+
+    @SuppressWarnings("unchecked")
+    private WindowedAccumulator(@Nullable TypeDescriptor<?> windowType) {
+      Comparator<BoundedWindow> comparator = asWindowComparator(windowType);
+      this.map = new TreeMap<>(comparator);
+    }
+
+    private WindowedAccumulator(SortedMap<BoundedWindow, WindowedValue<AccumT>> map) {
+      this.map = map;
+    }
+
+    /** Add value with unexploded windows into the accumulator. */
+    <K, InputT> void add(
+        WindowedValue<KV<K, InputT>> value, SparkKeyedCombineFn<K, InputT, AccumT, ?> context)
+        throws Exception {
+      for (WindowedValue<KV<K, InputT>> v : value.explodeWindows()) {
+        SparkCombineContext ctx = context.ctxtForInput(v);
+        BoundedWindow window = Iterables.getOnlyElement(v.getWindows());
+        TimestampCombiner combiner = context.windowingStrategy.getTimestampCombiner();
+        Instant windowTimestamp =
+            combiner.assign(
+                window,
+                context.windowingStrategy.getWindowFn().getOutputTime(v.getTimestamp(), window));
+        map.compute(
+            window,
+            (w, windowAccumulator) -> {
+              final AccumT acc;
+              final Instant timestamp;
+              if (windowAccumulator == null) {
+                acc = context.combineFn.createAccumulator(ctx);
+                timestamp = windowTimestamp;
+              } else {
+                acc = windowAccumulator.getValue();
+                timestamp = windowAccumulator.getTimestamp();
+              }
+              AccumT result = context.combineFn.addInput(acc, v.getValue().getValue(), ctx);
+              Instant timestampCombined = combiner.combine(windowTimestamp, timestamp);
+              return WindowedValue.of(result, timestampCombined, window, PaneInfo.NO_FIRING);
+            });
+      }
+      mergeWindows(context);
+    }
+
+    /**
+     * Merge other acccumulator into this one.
+     *
+     * @param other the other accumulator to merge
+     */
+    void merge(WindowedAccumulator<AccumT> other, SparkKeyedCombineFn<?, ?, AccumT, ?> context)
+        throws Exception {
+      other.map.forEach(
+          (window, acc) -> {
+            WindowedValue<AccumT> thisAcc = this.map.get(window);
+            if (thisAcc == null) {
+              // just copy
+              this.map.put(window, acc);
+            } else {
+              // merge
+              this.map.put(
+                  window,
+                  WindowedValue.of(
+                      context.combineFn.mergeAccumulators(
+                          Lists.newArrayList(thisAcc.getValue(), acc.getValue()),
+                          context.ctxtForInput(acc)),
+                      context
+                          .windowingStrategy
+                          .getTimestampCombiner()
+                          .combine(acc.getTimestamp(), thisAcc.getTimestamp()),
+                      window,
+                      PaneInfo.NO_FIRING));
+            }
+          });
+      mergeWindows(context);
+    }
+
+    private void mergeWindows(SparkKeyedCombineFn<?, ?, AccumT, ?> fn) throws Exception {
+
+      if (fn.windowingStrategy.getWindowFn().isNonMerging()) {
+        return;
+      }
+
+      SparkCombineContext ctx = fn.ctxForWindows(this.map.keySet());
+
+      @SuppressWarnings("unchecked")
+      WindowFn<Object, BoundedWindow> windowFn = (WindowFn) fn.windowingStrategy.getWindowFn();
+      windowFn.mergeWindows(
+          asMergeContext(
+              windowFn,
+              (a, b) -> fn.combineFn.mergeAccumulators(Lists.newArrayList(a, b), ctx),
+              (toBeMerged, mergeResult) -> {
+                Instant mergedInstant =
+                    fn.windowingStrategy
+                        .getTimestampCombiner()
+                        .merge(
+                            mergeResult.getKey(),
+                            toBeMerged.stream()
+                                .map(w -> map.get(w).getTimestamp())
+                                .collect(Collectors.toList()));
+                toBeMerged.forEach(this.map::remove);
+                this.map.put(
+                    mergeResult.getKey(),
+                    WindowedValue.of(
+                        mergeResult.getValue(),
+                        mergedInstant,
+                        mergeResult.getKey(),
+                        PaneInfo.NO_FIRING));
+              },
+              map));
+    }
+
+    private WindowFn<Object, BoundedWindow>.MergeContext asMergeContext(
+        WindowFn<Object, BoundedWindow> windowFn,
+        BiFunction<AccumT, AccumT, AccumT> mergeFn,
+        BiConsumer<Collection<BoundedWindow>, KV<BoundedWindow, AccumT>> afterMerge,
+        SortedMap<BoundedWindow, WindowedValue<AccumT>> map) {
+
+      return windowFn.new MergeContext() {
+
+        @Override
+        public Collection<BoundedWindow> windows() {
+          return map.keySet();
+        }
+
+        @Override
+        public void merge(Collection<BoundedWindow> toBeMerged, BoundedWindow mergeResult) {
+          AccumT accumulator = null;
+          for (BoundedWindow w : toBeMerged) {
+            WindowedValue<AccumT> windowAccumulator = Objects.requireNonNull(map.get(w));
+            if (accumulator == null) {
+              accumulator = windowAccumulator.getValue();
+            } else {
+              accumulator = mergeFn.apply(accumulator, windowAccumulator.getValue());
+            }
+          }
+          afterMerge.accept(toBeMerged, KV.of(mergeResult, accumulator));
+        }
+      };
+    }
+
+    @Override
+    public String toString() {
+      return "WindowedAccumulator(" + this.map + ")";
+    }
+  }
+
+  private static Comparator<BoundedWindow> asWindowComparator(TypeDescriptor<?> windowType) {
+    final Comparator<BoundedWindow> comparator;
+    if (windowType != null
+        && StreamSupport.stream(windowType.getInterfaces().spliterator(), false)
+            .anyMatch(t -> t.isSubtypeOf(TypeDescriptor.of(Comparable.class)))) {
+      comparator = (Comparator) Comparator.naturalOrder();
+    } else {
+      comparator = Comparator.comparing(BoundedWindow::maxTimestamp);
+    }
+    return comparator;
+  }
+
   private final CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn;
 
   public SparkKeyedCombineFn(
@@ -65,85 +292,15 @@ public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstra
    *
    * <p>{@link org.apache.spark.rdd.PairRDDFunctions#combineByKey}.
    */
-  Iterable<WindowedValue<KV<K, AccumT>>> createCombiner(WindowedValue<KV<K, InputT>> wkvi) {
-    // sort exploded inputs.
-    Iterable<WindowedValue<KV<K, InputT>>> sortedInputs = sortByWindows(wkvi.explodeWindows());
-
-    TimestampCombiner timestampCombiner = windowingStrategy.getTimestampCombiner();
-    WindowFn<?, BoundedWindow> windowFn = windowingStrategy.getWindowFn();
-
-    // --- inputs iterator, by window order.
-    final Iterator<WindowedValue<KV<K, InputT>>> iterator = sortedInputs.iterator();
-    WindowedValue<KV<K, InputT>> currentInput = iterator.next();
-    BoundedWindow currentWindow = Iterables.getFirst(currentInput.getWindows(), null);
-
-    // first create the accumulator and accumulate first input.
-    K key = currentInput.getValue().getKey();
-    AccumT accumulator = combineFn.createAccumulator(ctxtForInput(currentInput));
-    accumulator =
-        combineFn.addInput(
-            accumulator, currentInput.getValue().getValue(), ctxtForInput(currentInput));
-
-    // keep track of the timestamps assigned by the TimestampCombiner.
-    Instant windowTimestamp =
-        timestampCombiner.assign(
-            currentWindow,
-            windowingStrategy
-                .getWindowFn()
-                .getOutputTime(currentInput.getTimestamp(), currentWindow));
-
-    // accumulate the next windows, or output.
-    List<WindowedValue<KV<K, AccumT>>> output = Lists.newArrayList();
-
-    // if merging, merge overlapping windows, e.g. Sessions.
-    final boolean merging = !windowingStrategy.getWindowFn().isNonMerging();
-
-    while (iterator.hasNext()) {
-      WindowedValue<KV<K, InputT>> nextValue = iterator.next();
-      BoundedWindow nextWindow = Iterables.getOnlyElement(nextValue.getWindows());
-
-      boolean mergingAndIntersecting =
-          merging && isIntersecting((IntervalWindow) currentWindow, (IntervalWindow) nextWindow);
-
-      if (mergingAndIntersecting || nextWindow.equals(currentWindow)) {
-        if (mergingAndIntersecting) {
-          // merge intersecting windows.
-          currentWindow = merge((IntervalWindow) currentWindow, (IntervalWindow) nextWindow);
-        }
-        // keep accumulating and carry on ;-)
-        accumulator =
-            combineFn.addInput(
-                accumulator, nextValue.getValue().getValue(), ctxtForInput(nextValue));
-        windowTimestamp =
-            timestampCombiner.combine(
-                windowTimestamp,
-                timestampCombiner.assign(
-                    currentWindow,
-                    windowFn.getOutputTime(nextValue.getTimestamp(), currentWindow)));
-      } else {
-        // moving to the next window, first add the current accumulation to output
-        // and initialize the accumulator.
-        output.add(
-            WindowedValue.of(
-                KV.of(key, accumulator), windowTimestamp, currentWindow, PaneInfo.NO_FIRING));
-        // re-init accumulator, window and timestamp.
-        accumulator = combineFn.createAccumulator(ctxtForInput(nextValue));
-        accumulator =
-            combineFn.addInput(
-                accumulator, nextValue.getValue().getValue(), ctxtForInput(nextValue));
-        currentWindow = nextWindow;
-        windowTimestamp =
-            timestampCombiner.assign(
-                currentWindow, windowFn.getOutputTime(nextValue.getTimestamp(), currentWindow));
-      }
+  WindowedAccumulator<AccumT> createCombiner(WindowedValue<KV<K, InputT>> value) {
+    try {
+      WindowedAccumulator accumulator =
+          new WindowedAccumulator(windowingStrategy.getWindowFn().getWindowTypeDescriptor());
+      accumulator.add(value, this);
+      return accumulator;
+    } catch (Exception ex) {
+      throw new IllegalStateException(ex);
     }
-
-    // add last accumulator to the output.
-    output.add(
-        WindowedValue.of(
-            KV.of(key, accumulator), windowTimestamp, currentWindow, PaneInfo.NO_FIRING));
-
-    return output;
   }
 
   /**
@@ -151,18 +308,14 @@ public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstra
    *
    * <p>{@link org.apache.spark.rdd.PairRDDFunctions#combineByKey}.
    */
-  Iterable<WindowedValue<KV<K, AccumT>>> mergeValue(
-      WindowedValue<KV<K, InputT>> wkvi, Iterable<WindowedValue<KV<K, AccumT>>> wkvas) {
-    // by calling createCombiner on the inputs and afterwards merging the accumulators,we avoid
-    // an explode&accumulate for the input that will result in poor O(n^2) performance:
-    // first sort the exploded input - O(nlogn).
-    // follow with an accumulators sort = O(mlogm).
-    // now for each (exploded) input, find a matching accumulator (if exists) to merge into, or
-    // create a new one - O(n*m).
-    // this results in - O(nlogn) + O(mlogm) + O(n*m) ~> O(n^2)
-    // instead, calling createCombiner will create accumulators from the input - O(nlogn) + O(n).
-    // now, calling mergeCombiners will finally result in - O((n+m)log(n+m)) + O(n+m) ~> O(nlogn).
-    return mergeCombiners(createCombiner(wkvi), wkvas);
+  WindowedAccumulator mergeValue(
+      WindowedAccumulator accumulator, WindowedValue<KV<K, InputT>> value) {
+    try {
+      accumulator.add(value, this);
+      return accumulator;
+    } catch (Exception ex) {
+      throw new IllegalStateException(ex);
+    }
   }
 
   /**
@@ -170,108 +323,24 @@ public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstra
    *
    * <p>{@link org.apache.spark.rdd.PairRDDFunctions#combineByKey}.
    */
-  Iterable<WindowedValue<KV<K, AccumT>>> mergeCombiners(
-      Iterable<WindowedValue<KV<K, AccumT>>> a1, Iterable<WindowedValue<KV<K, AccumT>>> a2) {
-    // concatenate accumulators.
-    Iterable<WindowedValue<KV<K, AccumT>>> accumulators = Iterables.concat(a1, a2);
-
-    // sort accumulators, no need to explode since inputs were exploded.
-    Iterable<WindowedValue<KV<K, AccumT>>> sortedAccumulators = sortByWindows(accumulators);
-
-    TimestampCombiner timestampCombiner = windowingStrategy.getTimestampCombiner();
-
-    // --- accumulators iterator, by window order.
-    final Iterator<WindowedValue<KV<K, AccumT>>> iterator = sortedAccumulators.iterator();
-
-    // get the first accumulator and assign it to the current window's accumulators.
-    WindowedValue<KV<K, AccumT>> currentValue = iterator.next();
-    K key = currentValue.getValue().getKey();
-    BoundedWindow currentWindow = Iterables.getFirst(currentValue.getWindows(), null);
-    List<AccumT> currentWindowAccumulators = Lists.newArrayList();
-    currentWindowAccumulators.add(currentValue.getValue().getValue());
-
-    // keep track of the timestamps assigned by the TimestampCombiner,
-    // in createCombiner we already merge the timestamps assigned
-    // to individual elements, here we will just merge them.
-    List<Instant> windowTimestamps = Lists.newArrayList();
-    windowTimestamps.add(currentValue.getTimestamp());
-
-    // accumulate the next windows, or output.
-    List<WindowedValue<KV<K, AccumT>>> output = Lists.newArrayList();
-
-    // if merging, merge overlapping windows, e.g. Sessions.
-    final boolean merging = !windowingStrategy.getWindowFn().isNonMerging();
-
-    while (iterator.hasNext()) {
-      WindowedValue<KV<K, AccumT>> nextValue = iterator.next();
-      BoundedWindow nextWindow = Iterables.getOnlyElement(nextValue.getWindows());
-
-      boolean mergingAndIntersecting =
-          merging && isIntersecting((IntervalWindow) currentWindow, (IntervalWindow) nextWindow);
-
-      if (mergingAndIntersecting || nextWindow.equals(currentWindow)) {
-        if (mergingAndIntersecting) {
-          // merge intersecting windows.
-          currentWindow = merge((IntervalWindow) currentWindow, (IntervalWindow) nextWindow);
-        }
-        // add to window accumulators.
-        currentWindowAccumulators.add(nextValue.getValue().getValue());
-        windowTimestamps.add(nextValue.getTimestamp());
-      } else {
-        // before moving to the next window,
-        // add the current accumulation to the output and initialize the accumulation.
-
-        // merge the timestamps of all accumulators to merge.
-        Instant mergedTimestamp = timestampCombiner.merge(currentWindow, windowTimestamps);
-
-        // merge accumulators.
-        // transforming a KV<K, Iterable<AccumT>> into a KV<K, Iterable<AccumT>>.
-        // for the (possibly merged) window.
-        Iterable<AccumT> accumsToMerge = Iterables.unmodifiableIterable(currentWindowAccumulators);
-        WindowedValue<KV<K, Iterable<AccumT>>> preMergeWindowedValue =
-            WindowedValue.of(
-                KV.of(key, accumsToMerge), mergedTimestamp, currentWindow, PaneInfo.NO_FIRING);
-        // applying the actual combiner onto the accumulators.
-        AccumT accumulated =
-            combineFn.mergeAccumulators(accumsToMerge, ctxtForInput(preMergeWindowedValue));
-        WindowedValue<KV<K, AccumT>> postMergeWindowedValue =
-            preMergeWindowedValue.withValue(KV.of(key, accumulated));
-        // emit the accumulated output.
-        output.add(postMergeWindowedValue);
-
-        // re-init accumulator, window and timestamps.
-        currentWindowAccumulators.clear();
-        currentWindowAccumulators.add(nextValue.getValue().getValue());
-        currentWindow = nextWindow;
-        windowTimestamps.clear();
-        windowTimestamps.add(nextValue.getTimestamp());
-      }
+  WindowedAccumulator<AccumT> mergeCombiners(
+      WindowedAccumulator<AccumT> ac1, WindowedAccumulator<AccumT> ac2) {
+    try {
+      ac1.merge(ac2, this);
+      return ac1;
+    } catch (Exception ex) {
+      throw new IllegalStateException(ex);
     }
-
-    // merge the last chunk of accumulators.
-    Instant mergedTimestamp = timestampCombiner.merge(currentWindow, windowTimestamps);
-    Iterable<AccumT> accumsToMerge = Iterables.unmodifiableIterable(currentWindowAccumulators);
-    WindowedValue<KV<K, Iterable<AccumT>>> preMergeWindowedValue =
-        WindowedValue.of(
-            KV.of(key, accumsToMerge), mergedTimestamp, currentWindow, PaneInfo.NO_FIRING);
-    AccumT accumulated =
-        combineFn.mergeAccumulators(accumsToMerge, ctxtForInput(preMergeWindowedValue));
-    WindowedValue<KV<K, AccumT>> postMergeWindowedValue =
-        preMergeWindowedValue.withValue(KV.of(key, accumulated));
-    output.add(postMergeWindowedValue);
-
-    return output;
   }
 
-  Iterable<WindowedValue<OutputT>> extractOutput(Iterable<WindowedValue<KV<K, AccumT>>> wkvas) {
-    return StreamSupport.stream(wkvas.spliterator(), false)
+  Iterable<WindowedValue<OutputT>> extractOutput(WindowedAccumulator<AccumT> accumulator) {
+    return accumulator.map.entrySet().stream()
         .map(
-            wkva -> {
-              if (wkva == null) {
-                return null;
-              }
-              AccumT accumulator = wkva.getValue().getValue();
-              return wkva.withValue(combineFn.extractOutput(accumulator, ctxtForInput(wkva)));
+            entry -> {
+              AccumT windowAcc = entry.getValue().getValue();
+              return entry
+                  .getValue()
+                  .withValue(combineFn.extractOutput(windowAcc, ctxtForInput(entry.getValue())));
             })
         .collect(Collectors.toList());
   }

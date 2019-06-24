@@ -25,11 +25,13 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
@@ -131,6 +133,34 @@ public class GroupCombineFunctions {
     return Iterables.isEmpty(result) ? Optional.absent() : Optional.of(result);
   }
 
+  public static <K, ValueT, AccumT>
+      JavaPairRDD<K, Iterable<WindowedValue<KV<K, AccumT>>>> combinePerKeyNonMerging(
+          JavaRDD<WindowedValue<KV<K, ValueT>>> rdd,
+          final SparkKeyedCombineFn<K, ValueT, AccumT, ?> sparkCombineFn,
+          final Coder<K> keyCoder,
+          final Coder<ValueT> valueCoder,
+          final Coder<AccumT> aCoder,
+          final WindowingStrategy<?, ?> windowingStrategy) {
+
+    Preconditions.checkArgument(windowingStrategy.getWindowFn().isNonMerging());
+    Coder<? extends BoundedWindow> windowCoder = windowingStrategy.getWindowFn().windowCoder();
+    final WindowedValue.FullWindowedValueCoder<KV<K, AccumT>> wkvaCoder =
+        WindowedValue.FullWindowedValueCoder.of(KvCoder.of(keyCoder, aCoder), windowCoder);
+    final IterableCoder<WindowedValue<KV<K, AccumT>>> iterAccumCoder = IterableCoder.of(wkvaCoder);
+
+    JavaPairRDD<GroupNonMergingWindowsFunctions.WindowedKey, ValueT> withWindow;
+    withWindow =
+        GroupNonMergingWindowsFunctions.bringWindowToKey(
+            rdd, keyCoder, windowCoder, e -> e, e -> e.getValue());
+    /*
+    return withWindow.combineByKey(
+        val -> combineFn.createCombiner(),
+        (acc, val) -> combineFn.addInput(acc, val, asContext(val)),
+        (acc1, acc2) -> combineFn.mergeAccumulators(Arrays.asList(acc1, acc2), asContext(acc1)));
+    */
+    throw new UnsupportedOperationException();
+  }
+
   /**
    * Apply a composite {@link org.apache.beam.sdk.transforms.Combine.PerKey} transformation.
    *
@@ -139,18 +169,19 @@ public class GroupCombineFunctions {
    * streaming, this will be called from within a serialized context (DStream's transform callback),
    * so passed arguments need to be Serializable.
    */
-  public static <K, InputT, AccumT>
-      JavaPairRDD<K, Iterable<WindowedValue<KV<K, AccumT>>>> combinePerKey(
-          JavaRDD<WindowedValue<KV<K, InputT>>> rdd,
-          final SparkKeyedCombineFn<K, InputT, AccumT, ?> sparkCombineFn,
+  public static <K, ValueT, AccumT>
+      JavaPairRDD<K, SparkKeyedCombineFn.WindowedAccumulator<AccumT>> combinePerKey(
+          JavaRDD<WindowedValue<KV<K, ValueT>>> rdd,
+          final SparkKeyedCombineFn<K, ValueT, AccumT, ?> sparkCombineFn,
           final Coder<K> keyCoder,
+          final Coder<ValueT> valueCoder,
           final Coder<AccumT> aCoder,
           final WindowingStrategy<?, ?> windowingStrategy) {
 
-    final WindowedValue.FullWindowedValueCoder<KV<K, AccumT>> wkvaCoder =
-        WindowedValue.FullWindowedValueCoder.of(
-            KvCoder.of(keyCoder, aCoder), windowingStrategy.getWindowFn().windowCoder());
-    final IterableCoder<WindowedValue<KV<K, AccumT>>> iterAccumCoder = IterableCoder.of(wkvaCoder);
+    @SuppressWarnings("unchecked")
+    Coder<BoundedWindow> windowCoder = (Coder) windowingStrategy.getWindowFn().windowCoder();
+    final SparkKeyedCombineFn.WindowedAccumulatorCoder<AccumT> waCoder =
+        SparkKeyedCombineFn.WindowedAccumulatorCoder.of(windowCoder, aCoder);
 
     // We need to duplicate K as both the key of the JavaPairRDD as well as inside the value,
     // since the functions passed to combineByKey don't receive the associated key of each
@@ -159,30 +190,29 @@ public class GroupCombineFunctions {
     // Once Spark provides a way to include keys in the arguments of combine/merge functions,
     // we won't need to duplicate the keys anymore.
     // Key has to bw windowed in order to group by window as well.
-    JavaPairRDD<ByteArray, WindowedValue<KV<K, InputT>>> inRddDuplicatedKeyPair =
+    JavaPairRDD<ByteArray, WindowedValue<KV<K, ValueT>>> inRddDuplicatedKeyPair =
         rdd.mapToPair(TranslationUtils.toPairByKeyInWindowedValue(keyCoder));
 
-    JavaPairRDD<ByteArray, ValueAndCoderLazySerializable<Iterable<WindowedValue<KV<K, AccumT>>>>>
+    JavaPairRDD<
+            ByteArray,
+            ValueAndCoderLazySerializable<SparkKeyedCombineFn.WindowedAccumulator<AccumT>>>
         accumulatedResult =
             inRddDuplicatedKeyPair.combineByKey(
                 input ->
-                    ValueAndCoderLazySerializable.of(
-                        sparkCombineFn.createCombiner(input), iterAccumCoder),
+                    ValueAndCoderLazySerializable.of(sparkCombineFn.createCombiner(input), waCoder),
                 (acc, input) ->
                     ValueAndCoderLazySerializable.of(
-                        sparkCombineFn.mergeValue(input, acc.getOrDecode(iterAccumCoder)),
-                        iterAccumCoder),
+                        sparkCombineFn.mergeValue(acc.getOrDecode(waCoder), input), waCoder),
                 (acc1, acc2) ->
                     ValueAndCoderLazySerializable.of(
                         sparkCombineFn.mergeCombiners(
-                            acc1.getOrDecode(iterAccumCoder), acc2.getOrDecode(iterAccumCoder)),
-                        iterAccumCoder));
+                            acc1.getOrDecode(waCoder), acc2.getOrDecode(waCoder)),
+                        waCoder));
 
     return accumulatedResult.mapToPair(
         i ->
             new Tuple2<>(
-                CoderHelpers.fromByteArray(i._1.getValue(), keyCoder),
-                i._2.getOrDecode(iterAccumCoder)));
+                CoderHelpers.fromByteArray(i._1.getValue(), keyCoder), i._2.getOrDecode(waCoder)));
   }
 
   /** An implementation of {@link Reshuffle} for the Spark runner. */

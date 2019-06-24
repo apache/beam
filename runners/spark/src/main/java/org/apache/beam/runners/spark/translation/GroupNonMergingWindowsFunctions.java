@@ -24,6 +24,7 @@ import java.util.Objects;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -37,6 +38,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.PeekingI
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
 import org.apache.spark.HashPartitioner;
 import org.apache.spark.Partitioner;
+import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.joda.time.Instant;
 import scala.Tuple2;
@@ -62,34 +64,55 @@ public class GroupNonMergingWindowsFunctions {
     final Coder<W> windowCoder = windowingStrategy.getWindowFn().windowCoder();
     final WindowedValue.FullWindowedValueCoder<byte[]> windowedValueCoder =
         WindowedValue.getFullCoder(ByteArrayCoder.of(), windowCoder);
-    return rdd.flatMapToPair(
-            (WindowedValue<KV<K, V>> windowedValue) -> {
-              final byte[] keyBytes =
-                  CoderHelpers.toByteArray(windowedValue.getValue().getKey(), keyCoder);
-              final byte[] valueBytes =
-                  CoderHelpers.toByteArray(windowedValue.getValue().getValue(), valueCoder);
-              return Iterators.transform(
-                  windowedValue.explodeWindows().iterator(),
-                  item -> {
-                    Objects.requireNonNull(item, "Exploded window can not be null.");
-                    @SuppressWarnings("unchecked")
-                    final W window = (W) Iterables.getOnlyElement(item.getWindows());
-                    final byte[] windowBytes = CoderHelpers.toByteArray(window, windowCoder);
-                    final byte[] windowValueBytes =
-                        CoderHelpers.toByteArray(
-                            WindowedValue.of(
-                                valueBytes, item.getTimestamp(), window, item.getPane()),
-                            windowedValueCoder);
-                    final WindowedKey windowedKey = new WindowedKey(keyBytes, windowBytes);
-                    return new Tuple2<>(windowedKey, windowValueBytes);
-                  });
-            })
+    final SerializableFunction<V, byte[]> valueToBytes =
+        val -> CoderHelpers.toByteArray(val, valueCoder);
+    final SerializableFunction<WindowedValue<byte[]>, byte[]> toOutputBytes =
+        val -> {
+          final W window = (W) Iterables.getOnlyElement(val.getWindows());
+          return CoderHelpers.toByteArray(
+              WindowedValue.of(val.getValue(), val.getTimestamp(), window, val.getPane()),
+              windowedValueCoder);
+        };
+    JavaPairRDD<WindowedKey, byte[]> windowInKey =
+        bringWindowToKey(rdd, keyCoder, windowCoder, valueToBytes, toOutputBytes);
+    return windowInKey
         .repartitionAndSortWithinPartitions(getPartitioner(partitioner, rdd))
         .mapPartitions(
             it ->
                 new GroupByKeyIterator<>(
                     it, keyCoder, valueCoder, windowingStrategy, windowedValueCoder))
         .filter(Objects::nonNull); // filter last null element from GroupByKeyIterator
+  }
+
+  /** Creates pair RDD with key being a composite of original key and window. */
+  static <K, V1, V2, O, W extends BoundedWindow> JavaPairRDD<WindowedKey, O> bringWindowToKey(
+      JavaRDD<WindowedValue<KV<K, V1>>> rdd,
+      Coder<K> keyCoder,
+      Coder<W> windowCoder,
+      SerializableFunction<V1, V2> valueMapper,
+      SerializableFunction<WindowedValue<V2>, O> outputMapper) {
+    return rdd.flatMapToPair(
+        (WindowedValue<KV<K, V1>> windowedValue) -> {
+          final byte[] keyBytes =
+              CoderHelpers.toByteArray(windowedValue.getValue().getKey(), keyCoder);
+          return Iterators.transform(
+              windowedValue.explodeWindows().iterator(),
+              item -> {
+                Objects.requireNonNull(item, "Exploded window can not be null.");
+                @SuppressWarnings("unchecked")
+                final W window = (W) Iterables.getOnlyElement(item.getWindows());
+                final byte[] windowBytes = CoderHelpers.toByteArray(window, windowCoder);
+                WindowedValue<V2> intermediate =
+                    WindowedValue.of(
+                        valueMapper.apply(item.getValue().getValue()),
+                        item.getTimestamp(),
+                        window,
+                        item.getPane());
+                final O valueOut = outputMapper.apply(intermediate);
+                final WindowedKey windowedKey = new WindowedKey(keyBytes, windowBytes);
+                return new Tuple2<>(windowedKey, valueOut);
+              });
+        });
   }
 
   private static <K, V> Partitioner getPartitioner(
