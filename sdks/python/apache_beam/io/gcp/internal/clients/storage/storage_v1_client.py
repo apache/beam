@@ -51,7 +51,7 @@ class StorageV1(base_api.BaseApiClient):
     super(StorageV1, self).__init__(
         url, credentials=credentials,
         get_credentials=get_credentials, http=http, model=model,
-        log_request=log_request, log_response=log_response,
+        log_request=log_request, log_response=log_response, num_retries=20,
         credentials_args=credentials_args,
         default_global_params=default_global_params,
         additional_http_headers=additional_http_headers)
