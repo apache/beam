@@ -17,5 +17,52 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.parquet;
 
-public class ParquetTableProvider {
+import java.io.Serializable;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
+
+public class ParquetTableProvider extends InMemoryMetaTableProvider {
+  @Override
+  public String getTableType() {
+    return "parquet";
+  }
+
+  @Override
+  public BeamSqlTable buildBeamSqlTable(Table table) {
+    return null;
+  }
+
+  /** Read-side converter for {@link ParquetTable}. */
+  public static class GenericRecordReadConverter
+      extends PTransform<PCollection<GenericRecord>, PCollection<Row>> implements Serializable {
+
+    private static final Schema SCHEMA = Schema.builder().addStringField("line").build();
+
+    public GenericRecordReadConverter() {}
+
+    @Override
+    public PCollection<Row> expand(PCollection<GenericRecord> input) {
+      return input
+          .apply(
+              "GenericRecordsToRows",
+              ParDo.of(
+                  new DoFn<GenericRecord, Row>() {
+                    @ProcessElement
+                    public void processElement(ProcessContext c) {
+                      Row row = AvroUtils.toBeamRowStrict(c.element(), SCHEMA);
+                      c.output(row);
+                    }
+                  }))
+          .setRowSchema(SCHEMA);
+    }
+  }
 }

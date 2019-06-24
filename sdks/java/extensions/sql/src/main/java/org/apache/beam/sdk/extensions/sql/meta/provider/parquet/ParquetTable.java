@@ -17,37 +17,67 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.parquet;
 
+import java.io.Serializable;
+import org.apache.avro.SchemaBuilder;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
+import org.apache.beam.sdk.io.parquet.ParquetIO;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 
-import java.io.Serializable;
-
 public class ParquetTable extends BaseBeamTable implements Serializable {
-    private final String filePattern;
+  private final String filePattern;
 
-    public ParquetTable(
-        Schema schema,
-        String filePattern){
-        super(schema);
-        this.filePattern = filePattern;
-    }
+  private PTransform<PCollection<GenericRecord>, PCollection<Row>> readConverter;
 
-    @Override
-    public PCollection<Row> buildIOReader(PBegin begin) {
-        return null;
-    }
+  public ParquetTable(Schema schema, String filePattern) {
+    super(schema);
+    this.filePattern = filePattern;
+  }
 
-    @Override
-    public POutput buildIOWriter(PCollection<Row> input) {
-        return null;
-    }
+  @Override
+  public PCollection<Row> buildIOReader(PBegin begin) {
+    org.apache.avro.Schema sc =
+        SchemaBuilder.record("HandshakeRequest")
+            .namespace("org.apache.avro.ipc")
+            .fields()
+            .name("clientHash")
+            .type()
+            .fixed("MD5")
+            .size(16)
+            .noDefault()
+            .name("clientProtocol")
+            .type()
+            .nullable()
+            .stringType()
+            .noDefault()
+            .name("serverHash")
+            .type("MD5")
+            .noDefault()
+            .name("meta")
+            .type()
+            .nullable()
+            .map()
+            .values()
+            .bytesType()
+            .noDefault()
+            .endRecord();
+    return begin
+        .apply(ParquetIO.read(sc).from(filePattern))
+        .apply("GenericRecordToRow", readConverter);
+  }
 
-    @Override
-    public PCollection.IsBounded isBounded() {
-        return PCollection.IsBounded.BOUNDED;
-    }
+  @Override
+  public POutput buildIOWriter(PCollection<Row> input) {
+    return null;
+  }
+
+  @Override
+  public PCollection.IsBounded isBounded() {
+    return PCollection.IsBounded.BOUNDED;
+  }
 }
