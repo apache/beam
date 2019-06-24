@@ -751,14 +751,14 @@ class CountingSource(iobase.BoundedSource):
     return OffsetRangeTracker(start_position, stop_position)
 
   def read(self, range_tracker):
-    for i in range(self._count):
+    for i in range(range_tracker.start_position(),
+                   range_tracker.stop_position()):
       if not range_tracker.try_claim(i):
         return
       self.records_read.inc()
       yield i
 
-  def split(self, desired_bundle_size, start_position=None,
-            stop_position=None):
+  def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if start_position is None:
       start_position = 0
     if stop_position is None:
@@ -766,7 +766,7 @@ class CountingSource(iobase.BoundedSource):
 
     bundle_start = start_position
     while bundle_start < stop_position:
-      bundle_stop = max(stop_position, bundle_start + desired_bundle_size)
+      bundle_stop = min(stop_position, bundle_start + desired_bundle_size)
       yield iobase.SourceBundle(weight=(bundle_stop - bundle_start),
                                 source=self,
                                 start_position=bundle_start,
