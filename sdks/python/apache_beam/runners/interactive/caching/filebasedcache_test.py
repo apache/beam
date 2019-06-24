@@ -177,8 +177,8 @@ class FileBasedCacheTest(unittest.TestCase):
   def test_clear(self):
     """Test that `clear()` correctly cleans up files."""
     cache = self._cache_class(self.location)
-    self.assertEqual(len(cache._existing_file_paths()), 0)
+    self.assertEqual(len(cache._existing_file_paths), 0)
     _ = self.create_dummy_file(self.location)
-    self.assertEqual(len(cache._existing_file_paths()), 1)
+    self.assertEqual(len(cache._existing_file_paths), 1)
     cache.clear()
-    self.assertEqual(len(cache._existing_file_paths()), 0)
+    self.assertEqual(len(cache._existing_file_paths), 0)

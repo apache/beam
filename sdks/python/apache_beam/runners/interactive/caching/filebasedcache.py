@@ -58,7 +58,7 @@ class FileBasedCache(PCollectionCache):
       if if_exists == "overwrite":
         self.clear()
       elif if_exists == "error":
-        existing_files = self._existing_file_paths()
+        existing_files = self._existing_file_paths
         if existing_files:
           raise IOError("The following cache files already exist: {}.".format(
               existing_files))
@@ -71,7 +71,7 @@ class FileBasedCache(PCollectionCache):
   @property
   def timestamp(self):
     timestamp = 0
-    for path in self._existing_file_paths():
+    for path in self._existing_file_paths:
       timestamp = max(timestamp, FileSystems.last_updated(path))
     return timestamp
 
@@ -117,7 +117,7 @@ class FileBasedCache(PCollectionCache):
       writer._sink.close(handle)
 
   def clear(self):
-    FileSystems.delete(self._existing_file_paths())
+    FileSystems.delete(self._existing_file_paths)
     if not self._coder_was_provided and "coder" in self._writer_kwargs:
       del self._writer_kwargs["coder"]
 
@@ -129,6 +129,7 @@ class FileBasedCache(PCollectionCache):
   def _file_pattern(self):
     return self.location + '*'
 
+  @property
   def _existing_file_paths(self):
     match = FileSystems.match([self._file_pattern])
     assert len(match) == 1
