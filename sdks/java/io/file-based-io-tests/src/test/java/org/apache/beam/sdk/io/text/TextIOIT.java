@@ -39,8 +39,6 @@ import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
-import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
-import org.apache.beam.sdk.testutils.metrics.CountMonitor;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
@@ -121,11 +119,6 @@ public class TextIOIT {
             .apply(
                 "Collect write start time",
                 ParDo.of(new TimeMonitor<>(FILEIOIT_NAMESPACE, "startTime")))
-            .apply(
-                "Collect byte count", ParDo.of(new ByteMonitor<>(FILEIOIT_NAMESPACE, "byteCount")))
-            .apply(
-                "Collect element count",
-                ParDo.of(new CountMonitor<>(FILEIOIT_NAMESPACE, "itemCount")))
             .apply("Write content to files", write)
             .getPerDestinationOutputFilenames()
             .apply(Values.create())
@@ -195,18 +188,6 @@ public class TextIOIT {
           long readEndTime = reader.getEndTimeMetric("endTime");
           double runTime = (readEndTime - writeStartTime) / 1e3;
           return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
-        });
-
-    metricSuppliers.add(
-        (metricsReader -> {
-          double totalBytes = metricsReader.getCounterMetric("byteCount");
-          return NamedTestResult.create(uuid, timestamp, "byte_count", totalBytes);
-        }));
-
-    metricSuppliers.add(
-        reader -> {
-          double totalBytes = reader.getCounterMetric("itemCount");
-          return NamedTestResult.create(uuid, timestamp, "item_count", totalBytes);
         });
 
     if (gatherGcsPerformanceMetrics) {
