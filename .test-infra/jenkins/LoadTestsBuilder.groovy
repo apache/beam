@@ -58,9 +58,9 @@ class LoadTestsBuilder {
 
   private static String getGradleTaskName(SDK sdk) {
     if (sdk == SDK.JAVA) {
-      return ':beam:sdks:java:load-tests:run'
+      return ':sdks:java:testing:load-tests:run'
     } else if (sdk == SDK.PYTHON) {
-      return ':sdks:python:apache_beam:testing:load-tests:run'
+      return ':sdks:python:apache_beam:testing:load_tests:run'
     } else {
       throw new RuntimeException("No task name defined for SDK: $SDK")
     }
