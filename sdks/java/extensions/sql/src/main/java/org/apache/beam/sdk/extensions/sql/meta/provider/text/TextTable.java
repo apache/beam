@@ -17,9 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
+import java.io.IOException;
+import java.math.BigInteger;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.extensions.sql.impl.BeamRowCountStatistics;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.TextRowCountEstimator;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
@@ -27,6 +32,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.commons.csv.CSVFormat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link TextTable} is a {@link org.apache.beam.sdk.extensions.sql.BeamSqlTable} that reads text
@@ -41,7 +48,11 @@ public class TextTable extends BaseBeamTable {
 
   private final PTransform<PCollection<String>, PCollection<Row>> readConverter;
   private final PTransform<PCollection<Row>, PCollection<String>> writeConverter;
+  private static final TextRowCountEstimator.SamplingStrategy DEFAULT_SAMPLING_STRATEGY =
+      new TextRowCountEstimator.LimitNumberOfTotalBytes(1024 * 1024L);
   private final String filePattern;
+  private BeamRowCountStatistics rowCountStatistics = null;
+  private static final Logger LOGGER = LoggerFactory.getLogger(TextTable.class);
 
   /** Text table with the specified read and write transforms. */
   public TextTable(
@@ -57,6 +68,31 @@ public class TextTable extends BaseBeamTable {
 
   public String getFilePattern() {
     return filePattern;
+  }
+
+  @Override
+  public BeamRowCountStatistics getRowCount(PipelineOptions options) {
+    if (rowCountStatistics == null) {
+      rowCountStatistics = getTextRowEstimate(options, getFilePattern());
+    }
+
+    return rowCountStatistics;
+  }
+
+  private static BeamRowCountStatistics getTextRowEstimate(
+      PipelineOptions options, String filePattern) {
+    TextRowCountEstimator textRowCountEstimator =
+        TextRowCountEstimator.builder()
+            .setFilePattern(filePattern)
+            .setSamplingStrategy(DEFAULT_SAMPLING_STRATEGY)
+            .build();
+    try {
+      Long rows = textRowCountEstimator.estimateRowCount(options);
+      return BeamRowCountStatistics.createBoundedTableStatistics(BigInteger.valueOf(rows));
+    } catch (IOException | TextRowCountEstimator.NoEstimationException e) {
+      LOGGER.warn("Could not get the row count for the text table " + filePattern, e);
+    }
+    return BeamRowCountStatistics.UNKNOWN;
   }
 
   @Override
