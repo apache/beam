@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.testutils.metrics;
 
-import jdk.nashorn.internal.ir.debug.ObjectSizeCalculator;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.values.KV;
 
 /**
  * Monitor that records the number of bytes flowing through a PCollection.
@@ -29,7 +29,7 @@ import org.apache.beam.sdk.transforms.DoFn;
  * flew through this DoFn. Such information can be then collected and written out and queried using
  * {@link org.apache.beam.sdk.testutils.metrics.MetricsReader}.
  */
-public class ByteMonitor<T> extends DoFn<T, T> {
+public class ByteMonitor extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> {
 
   private Counter totalBytes;
 
@@ -39,7 +39,7 @@ public class ByteMonitor<T> extends DoFn<T, T> {
 
   @ProcessElement
   public void processElement(ProcessContext c) {
-    totalBytes.inc(ObjectSizeCalculator.getObjectSize(c.element()));
+    totalBytes.inc(c.element().getKey().length + c.element().getValue().length);
     c.output(c.element());
   }
 }
