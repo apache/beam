@@ -45,7 +45,7 @@ JOB_ID="chicago-taxi-tfdv-$(date +%Y%m%d-%H%M%S)"
 JOB_OUTPUT_PATH=${GCS_BUCKET}/${JOB_ID}/chicago_taxi_output
 TEMP_PATH=${GCS_BUCKET}/${JOB_ID}/tmp/
 GCP_PROJECT=$(gcloud config list --format 'value(core.project)' 2>/dev/null)
-MAX_ROWS=2000
+MAX_ROWS=100000
 JOB_OUTPUT_PATH=${GCS_BUCKET}/${JOB_ID}/chicago_taxi_output
 TFT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/tft_output
 EVAL_RESULT_DIR=${TFT_OUTPUT_PATH}/eval_result_dir
@@ -124,13 +124,11 @@ python preprocess.py \
   --runner ${RUNNER} \
   --max_rows ${MAX_ROWS} \
   --publish_to_big_query=true \
-  --metrics_dataset='chicago_taxi_metrics' \
+  --metrics_dataset='beam_performance' \
   --metrics_table='chicago_taxi_preprocess' \
   --sdk_location=${SDK_LOCATION} \
   --metric_reporting_project ${GCP_PROJECT} \
   --setup_file ./setup.py
-
-
 
 #Train ML engine
 TRAINER_JOB_ID="chicago_taxi_trainer_$(date +%Y%m%d_%H%M%S)"
@@ -140,7 +138,9 @@ WORKING_DIR=${TRAIN_OUTPUT_PATH}/working_dir
 MODEL_DIR=${TRAIN_OUTPUT_PATH}/model_dir
 # Inputs
 TRAIN_FILE=${TFT_OUTPUT_PATH}/train_transformed-*
-TF_VERSION=1.12
+TF_VERSION=1.13
+#workaround for boto in virtualenv, required for the gsutil commands to work:
+export BOTO_CONFIG=/dev/null
 # Start clean, but don't fail if the path does not exist yet.
 gsutil rm ${TRAIN_OUTPUT_PATH} || true
 # Options
@@ -149,6 +149,7 @@ EVAL_STEPS=1000
 # Force a small eval so that the Estimator.train_and_eval() can be used to
 # save the model with its standard paths.
 EVAL_FILE=${TFT_OUTPUT_PATH}/train_transformed-*
+echo Training the model
 gcloud ml-engine jobs submit training ${TRAINER_JOB_ID} \
                                     --stream-logs \
                                     --job-dir ${MODEL_DIR} \
@@ -159,7 +160,7 @@ gcloud ml-engine jobs submit training ${TRAINER_JOB_ID} \
                                     -- \
                                     --train-files ${TRAIN_FILE} \
                                     --train-steps ${TRAIN_STEPS} \
-                                    --eval-files ${EVAL_FILE} \
+                                   --eval-files ${EVAL_FILE} \
                                     --eval-steps ${EVAL_STEPS} \
                                     --output-dir ${WORKING_DIR} \
                                     --schema-file ${SCHEMA_PATH} \
@@ -175,7 +176,6 @@ python process_tfma.py \
   --big_query_table bigquery-public-data.chicago_taxi_trips.taxi_trips \
   --schema_file ${SCHEMA_PATH} \
   --eval_model_dir ${LAST_EVAL_MODEL_DIR} \
-  --eval_result_dir ${EVAL_RESULT_DIR} \
   --project ${GCP_PROJECT} \
   --region us-central1 \
   --temp_location ${GCS_BUCKET}/${JOB_ID}/tmp/ \

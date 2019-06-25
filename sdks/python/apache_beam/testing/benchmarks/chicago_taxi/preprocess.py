@@ -12,27 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Preprocessor applying tf.transform to the chicago_taxi data."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 import argparse
 import os
 
-import apache_beam as beam
-from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
-from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
-
 import tensorflow as tf
 import tensorflow_transform as transform
 import tensorflow_transform.beam as tft_beam
-
 from tensorflow_transform.coders import example_proto_coder
-from tensorflow_transform.tf_metadata import dataset_metadata
-from tensorflow_transform.tf_metadata import dataset_schema
+from tensorflow_transform.tf_metadata import dataset_metadata, dataset_schema
+
+import apache_beam as beam
+from apache_beam.testing.load_tests.load_test_metrics_utils import (
+    MeasureTime, MetricsReader)
 from trainer import taxi
 
 namespace = 'NAMESPACE_PREPROCESS'
+
 
 def _fill_in_missing(x):
   """Replace missing values in a SparseTensor.
@@ -186,10 +183,8 @@ def transform_data(input_handle,
     metrics_monitor.publish_metrics(result)
 
 
-
 def main():
   tf.logging.set_verbosity(tf.logging.INFO)
-
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--input',

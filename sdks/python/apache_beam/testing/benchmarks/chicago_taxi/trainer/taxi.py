@@ -130,10 +130,16 @@ def make_sql(table_name, max_rows=None, for_eval=False):
   """
   if for_eval:
     # 1/3 of the dataset used for eval
-    where_clause = 'WHERE MOD(FARM_FINGERPRINT(unique_key), 3) = 0'
+    where_clause = 'WHERE MOD(FARM_FINGERPRINT(unique_key), 3) = 0 ' \
+                   'AND pickup_latitude is not null AND pickup_longitude ' \
+                   'is not null AND dropoff_latitude is not null ' \
+                   'AND dropoff_longitude is not null'
   else:
     # 2/3 of the dataset used for training
-    where_clause = 'WHERE MOD(FARM_FINGERPRINT(unique_key), 3) > 0'
+    where_clause = 'WHERE MOD(FARM_FINGERPRINT(unique_key), 3) > 0 ' \
+                   'AND pickup_latitude is not null AND pickup_longitude ' \
+                   'is not null AND dropoff_latitude is not null ' \
+                   'AND dropoff_longitude is not null'
 
   limit_clause = ''
   if max_rows:
