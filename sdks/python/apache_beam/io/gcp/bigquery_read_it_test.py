@@ -132,6 +132,47 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
     self.bigquery_client.insert_rows(
         self.project, self.dataset_id, table_name, table_data)
 
+  def create_table_none_values(self, table_name):
+    table_schema = bigquery.TableSchema()
+    table_field = bigquery.TableFieldSchema()
+    table_field.name = 'number'
+    table_field.type = 'INTEGER'
+    table_schema.fields.append(table_field)
+    table_field = bigquery.TableFieldSchema()
+    table_field.name = 'str'
+    table_field.type = 'STRING'
+    table_schema.fields.append(table_field)
+    table_field = bigquery.TableFieldSchema()
+    table_field.name = 'bytes'
+    table_field.type = 'BYTES'
+    table_schema.fields.append(table_field)
+    table_field = bigquery.TableFieldSchema()
+    table_field.name = 'date'
+    table_field.type = 'DATE'
+    table_schema.fields.append(table_field)
+    table_field = bigquery.TableFieldSchema()
+    table_field.name = 'time'
+    table_field.type = 'TIME'
+    table_schema.fields.append(table_field)
+    table = bigquery.Table(
+        tableReference=bigquery.TableReference(
+            projectId=self.project,
+            datasetId=self.dataset_id,
+            tableId=table_name),
+        schema=table_schema)
+    request = bigquery.BigqueryTablesInsertRequest(
+        projectId=self.project, datasetId=self.dataset_id, table=table)
+    self.bigquery_client.client.tables.Insert(request)
+    table_data = [
+        {'number': 5},
+        {'str': 'abc'},
+        {'bytes': base64.b64encode(b'\xab\xac\xad').decode('utf-8')},
+        {'date': '2000-01-01'},
+        {'time': '00:00:00'}
+    ]
+    self.bigquery_client.insert_rows(
+        self.project, self.dataset_id, table_name, table_data)
+
   @attr('IT')
   def test_big_query_read(self):
     table_name = 'python_write_table'
@@ -169,6 +210,32 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
     with beam.Pipeline(argv=args) as p:
       result = (p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
           query='SELECT bytes, date, time FROM `%s`' % table_id,
+          use_standard_sql=True)))
+      assert_that(result, equal_to(expected_data))
+
+  @attr('IT')
+  def test_big_query_read_none_values(self):
+    table_name = 'python_none_values'
+    self.create_table_none_values(table_name)
+    table_id = '{}.{}'.format(self.dataset_id, table_name)
+
+    args = self.test_pipeline.get_full_options_as_args()
+
+    expected_data = [
+        {'number': 5, 'str': None, 'bytes': None, 'date': None, 'time': None},
+        {'number': None, 'str': 'abc', 'bytes': None, 'date': None,
+         'time': None},
+        {'number': None, 'str': None, 'time': None, 'bytes':
+         base64.b64encode(b'\xab\xac\xad'), 'date': None},
+        {'number': None, 'str': None, 'bytes': None, 'date': '2000-01-01',
+         'time': None},
+        {'number': None, 'str': None, 'bytes': None, 'date': None,
+         'time': '00:00:00'}
+    ]
+
+    with beam.Pipeline(argv=args) as p:
+      result = (p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
+          query='SELECT number, str, bytes, date, time FROM `%s`' % table_id,
           use_standard_sql=True)))
       assert_that(result, equal_to(expected_data))
 
