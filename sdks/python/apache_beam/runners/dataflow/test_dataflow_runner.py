@@ -22,6 +22,7 @@ from __future__ import print_function
 
 import logging
 import time
+import warnings
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -43,6 +44,7 @@ class TestDataflowRunner(DataflowRunner):
     test_options = options.view_as(TestOptions)
     on_success_matcher = test_options.on_success_matcher
     wait_duration = test_options.wait_until_finish_duration
+    warnings.warn('wait duration {}'.format(wait_duration))
     is_streaming = options.view_as(StandardOptions).streaming
 
     # [BEAM-1889] Do not send this to remote workers also, there is no need to
@@ -57,10 +59,11 @@ class TestDataflowRunner(DataflowRunner):
       print('Found: %s.' % self.build_console_url(options))
 
     try:
+      warnings.warn('Start running')
       self.wait_until_in_state(PipelineState.RUNNING)
 
       if is_streaming and not wait_duration:
-        logging.warning('Waiting indefinitely for streaming job.')
+        warnings.warn('Waiting indefinitely for streaming job.')
       self.result.wait_until_finish(duration=wait_duration)
 
       if on_success_matcher:
@@ -68,6 +71,7 @@ class TestDataflowRunner(DataflowRunner):
         hc_assert_that(self.result, pickler.loads(on_success_matcher))
     finally:
       if not self.result.is_in_terminal_state():
+        warnings.warn('Cancel failed job')
         self.result.cancel()
         self.wait_until_in_state(PipelineState.CANCELLED)
 
@@ -85,6 +89,7 @@ class TestDataflowRunner(DataflowRunner):
   def wait_until_in_state(self, expected_state, timeout=WAIT_IN_STATE_TIMEOUT):
     """Wait until Dataflow pipeline enters a certain state."""
     if not self.result.has_job:
+      warnings.warn('Failed to get the Dataflow job id.')
       raise IOError('Failed to get the Dataflow job id.')
 
     start_time = time.time()
@@ -94,6 +99,10 @@ class TestDataflowRunner(DataflowRunner):
         return job_state
       time.sleep(5)
 
+    warnings.warn('Timeout after %d seconds while waiting for job %s '
+                       'enters expected state %s. Current state is %s.' %
+                       (timeout, self.result.job_id(),
+                        expected_state, self.result.state))
     raise RuntimeError('Timeout after %d seconds while waiting for job %s '
                        'enters expected state %s. Current state is %s.' %
                        (timeout, self.result.job_id(),
