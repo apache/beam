@@ -19,9 +19,12 @@ package org.apache.beam.runners.spark.translation;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -46,7 +49,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 /** * Test suite for {@link SparkCombineFn}. */
-public class SparkKeyedCombineFnTest {
+public class SparkCombineFnTest {
 
   final SerializablePipelineOptions opts =
       new SerializablePipelineOptions(PipelineOptionsFactory.create());
@@ -61,34 +64,41 @@ public class SparkKeyedCombineFnTest {
 
   @Test
   public void testGlobalWindowCombineFn() throws Exception {
-    SparkCombineFn<KV<String, Integer>, Integer, Long, Long> sparkCombineFn = SparkCombineFn.keyed(
-        combineFn, opts, Collections.emptyMap(), WindowingStrategy.globalDefault());
+    SparkCombineFn<KV<String, Integer>, Integer, Long, Long> sparkCombineFn =
+        SparkCombineFn.keyed(
+            combineFn, opts, Collections.emptyMap(), WindowingStrategy.globalDefault());
 
     WindowedValue<KV<String, Integer>> first = input("key", 1, Instant.now());
     WindowedValue<KV<String, Integer>> second = input("key", 2, Instant.now());
     WindowedValue<KV<String, Integer>> third = input("key", 3, Instant.now());
-    SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> c1 = sparkCombineFn.createCombiner(first);
-    SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> c2 = sparkCombineFn.createCombiner(third);
+    SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> c1 =
+        sparkCombineFn.createCombiner(first);
+    SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> c2 =
+        sparkCombineFn.createCombiner(third);
     sparkCombineFn.mergeValue(c1, second);
-    SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> c3 = sparkCombineFn.mergeCombiners(c1, c2);
+    SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> c3 =
+        sparkCombineFn.mergeCombiners(c1, c2);
     assertEquals(6, (long) Iterables.getOnlyElement(sparkCombineFn.extractOutput(c3)).getValue());
   }
 
   @Test
   public void testGlobalCombineFn() throws Exception {
-    SparkCombineFn<Integer, Integer, Long, Long> sparkCombineFn = SparkCombineFn.globally(
-        combineFn, opts, Collections.emptyMap(), WindowingStrategy.globalDefault());
+    SparkCombineFn<Integer, Integer, Long, Long> sparkCombineFn =
+        SparkCombineFn.globally(
+            combineFn, opts, Collections.emptyMap(), WindowingStrategy.globalDefault());
 
     WindowedValue<Integer> first = inputValue(1, Instant.now());
     WindowedValue<Integer> second = inputValue(2, Instant.now());
     WindowedValue<Integer> third = inputValue(3, Instant.now());
-    SparkCombineFn.WindowedAccumulator<Integer, Integer, Long, ?> c1 = sparkCombineFn.createCombiner(first);
-    SparkCombineFn.WindowedAccumulator<Integer, Integer, Long, ?> c2 = sparkCombineFn.createCombiner(third);
+    SparkCombineFn.WindowedAccumulator<Integer, Integer, Long, ?> c1 =
+        sparkCombineFn.createCombiner(first);
+    SparkCombineFn.WindowedAccumulator<Integer, Integer, Long, ?> c2 =
+        sparkCombineFn.createCombiner(third);
     sparkCombineFn.mergeValue(c1, second);
-    SparkCombineFn.WindowedAccumulator<Integer, Integer, Long, ?> c3 = sparkCombineFn.mergeCombiners(c1, c2);
+    SparkCombineFn.WindowedAccumulator<Integer, Integer, Long, ?> c3 =
+        sparkCombineFn.mergeCombiners(c1, c2);
     assertEquals(6, (long) Iterables.getOnlyElement(sparkCombineFn.extractOutput(c3)).getValue());
   }
-
 
   @Test
   public void testSessionCombineFn() throws Exception {
@@ -105,10 +115,13 @@ public class SparkKeyedCombineFnTest {
         input("key", 2, now.plus(1000), strategy.getWindowFn());
     WindowedValue<KV<String, Integer>> third =
         input("key", 3, now.plus(500), strategy.getWindowFn());
-    SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> c1 = sparkCombineFn.createCombiner(first);
-    SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> c2 = sparkCombineFn.createCombiner(third);
+    SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> c1 =
+        sparkCombineFn.createCombiner(first);
+    SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> c2 =
+        sparkCombineFn.createCombiner(third);
     sparkCombineFn.mergeValue(c1, second);
-    SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> c3 = sparkCombineFn.mergeCombiners(c1, c2);
+    SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> c3 =
+        sparkCombineFn.mergeCombiners(c1, c2);
     Iterable<WindowedValue<Long>> output = sparkCombineFn.extractOutput(c3);
     assertEquals(2, Iterables.size(output));
     List<String> format =
@@ -119,12 +132,17 @@ public class SparkKeyedCombineFnTest {
   }
 
   @Test
-  public void testSlidingCombineFn() throws Exception {
+  public void testSlidingCombineFnNonMerging() throws Exception {
     WindowingStrategy<Object, IntervalWindow> strategy =
         WindowingStrategy.of(SlidingWindows.of(Duration.millis(3000)).every(Duration.millis(1000)));
 
     SparkCombineFn<KV<String, Integer>, Integer, Long, Long> sparkCombineFn =
-        SparkCombineFn.keyed(combineFn, opts, Collections.emptyMap(), strategy);
+        SparkCombineFn.keyed(
+            combineFn,
+            opts,
+            Collections.emptyMap(),
+            strategy,
+            SparkCombineFn.WindowedAccumulator.Type.NON_MERGING);
 
     Instant now = Instant.ofEpochMilli(0);
     WindowedValue<KV<String, Integer>> first =
@@ -133,10 +151,13 @@ public class SparkKeyedCombineFnTest {
         input("key", 2, now.plus(1500), strategy.getWindowFn());
     WindowedValue<KV<String, Integer>> third =
         input("key", 3, now.plus(500), strategy.getWindowFn());
-    SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> c1 = sparkCombineFn.createCombiner(first);
-    SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> c2 = sparkCombineFn.createCombiner(third);
+    SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> c1 =
+        sparkCombineFn.createCombiner(first);
+    SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> c2 =
+        sparkCombineFn.createCombiner(third);
     sparkCombineFn.mergeValue(c1, second);
-    SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> c3 = sparkCombineFn.mergeCombiners(c1, c2);
+    SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> c3 =
+        sparkCombineFn.mergeCombiners(c1, c2);
     Iterable<WindowedValue<Long>> output = sparkCombineFn.extractOutput(c3);
     assertEquals(7, Iterables.size(output));
     List<String> format =
@@ -146,6 +167,56 @@ public class SparkKeyedCombineFnTest {
     assertUnorderedEquals(
         Lists.newArrayList("3:999", "5:1999", "5:2999", "2:3999", "1:5999", "1:6999", "1:7999"),
         format);
+  }
+
+  @Test
+  public void testSlidingCombineFnExplode() throws Exception {
+    WindowingStrategy<Object, IntervalWindow> strategy =
+        WindowingStrategy.of(SlidingWindows.of(Duration.millis(3000)).every(Duration.millis(1000)));
+
+    SparkCombineFn<KV<String, Integer>, Integer, Long, Long> sparkCombineFn =
+        SparkCombineFn.keyed(
+            combineFn,
+            opts,
+            Collections.emptyMap(),
+            strategy,
+            SparkCombineFn.WindowedAccumulator.Type.EXPLODE_WINDOWS);
+
+    Instant now = Instant.ofEpochMilli(0);
+    WindowedValue<KV<String, Integer>> first =
+        input("key", 1, now.plus(5000), strategy.getWindowFn());
+    WindowedValue<KV<String, Integer>> second =
+        input("key", 2, now.plus(1500), strategy.getWindowFn());
+    WindowedValue<KV<String, Integer>> third =
+        input("key", 3, now.plus(500), strategy.getWindowFn());
+
+    Map<KV<String, BoundedWindow>, List<WindowedValue<KV<String, Integer>>>> groupByKeyAndWindow;
+    groupByKeyAndWindow =
+        Stream.of(first, second, third)
+            .flatMap(e -> StreamSupport.stream(e.explodeWindows().spliterator(), false))
+            .collect(
+                Collectors.groupingBy(
+                    e -> KV.of(e.getValue().getKey(), Iterables.getOnlyElement(e.getWindows()))));
+
+    List<String> result = new ArrayList<>();
+    for (Map.Entry<KV<String, BoundedWindow>, List<WindowedValue<KV<String, Integer>>>> e :
+        groupByKeyAndWindow.entrySet()) {
+
+      SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> combiner = null;
+      for (WindowedValue<KV<String, Integer>> v : e.getValue()) {
+        if (combiner == null) {
+          combiner = sparkCombineFn.createCombiner(v);
+        } else {
+          combiner.add(v, sparkCombineFn);
+        }
+      }
+      WindowedValue<Long> combined = Iterables.getOnlyElement(combiner.extractOutput());
+      result.add(combined.getValue() + ":" + combined.getTimestamp().getMillis());
+    }
+
+    assertUnorderedEquals(
+        Lists.newArrayList("3:999", "5:1999", "5:2999", "2:3999", "1:5999", "1:6999", "1:7999"),
+        result);
   }
 
   private static Combine.CombineFn<Integer, Long, Long> getSumFn() {
@@ -158,7 +229,6 @@ public class SparkKeyedCombineFnTest {
 
       @Override
       public Long addInput(Long mutableAccumulator, Integer input) {
-        System.err.println("Summing " + mutableAccumulator + ", " + input);
         return mutableAccumulator + input;
       }
 
@@ -174,8 +244,7 @@ public class SparkKeyedCombineFnTest {
     };
   }
 
-  private <K, V> WindowedValue<KV<K, V>> input(K key, V value, Instant timestamp)
-      throws Exception {
+  private <K, V> WindowedValue<KV<K, V>> input(K key, V value, Instant timestamp) throws Exception {
 
     return input(key, value, timestamp, WindowingStrategy.globalDefault().getWindowFn());
   }
@@ -190,19 +259,20 @@ public class SparkKeyedCombineFnTest {
     return inputValue(value, timestamp, WindowingStrategy.globalDefault().getWindowFn());
   }
 
-  private <V> WindowedValue<V> inputValue(
-      V value, Instant timestamp, WindowFn<?, ?> windowFn) throws Exception {
+  private <V> WindowedValue<V> inputValue(V value, Instant timestamp, WindowFn<?, ?> windowFn)
+      throws Exception {
 
     @SuppressWarnings("unchecked")
     WindowFn<V, BoundedWindow> cast = (WindowFn<V, BoundedWindow>) windowFn;
     return WindowedValue.of(
-        value, timestamp, cast.assignWindows(assignContext(cast, value, timestamp)), PaneInfo.NO_FIRING);
+        value,
+        timestamp,
+        cast.assignWindows(assignContext(cast, value, timestamp)),
+        PaneInfo.NO_FIRING);
   }
 
   <V> WindowFn<V, BoundedWindow>.AssignContext assignContext(
-      WindowFn<V, BoundedWindow> windowFn,
-      V value,
-      Instant timestamp) {
+      WindowFn<V, BoundedWindow> windowFn, V value, Instant timestamp) {
     return windowFn.new AssignContext() {
       @Override
       public V element() {
