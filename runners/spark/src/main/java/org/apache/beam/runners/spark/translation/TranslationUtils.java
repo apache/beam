@@ -19,6 +19,7 @@ package org.apache.beam.runners.spark.translation;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -86,17 +87,21 @@ public final class TranslationUtils {
    */
   public static class CombineGroupedValues<K, InputT, OutputT>
       implements Function<WindowedValue<KV<K, Iterable<InputT>>>, WindowedValue<KV<K, OutputT>>> {
-    private final SparkKeyedCombineFn<K, InputT, ?, OutputT> fn;
+    private final SparkCombineFn<KV<K, InputT>, InputT, ?, OutputT> fn;
 
-    public CombineGroupedValues(SparkKeyedCombineFn<K, InputT, ?, OutputT> fn) {
+    public CombineGroupedValues(SparkCombineFn<KV<K, InputT>, InputT, ?, OutputT> fn) {
       this.fn = fn;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public WindowedValue<KV<K, OutputT>> call(WindowedValue<KV<K, Iterable<InputT>>> windowedKv)
         throws Exception {
       return WindowedValue.of(
-          KV.of(windowedKv.getValue().getKey(), fn.apply(windowedKv)),
+          KV.of(
+              windowedKv.getValue().getKey(),
+              fn.getCombineFn()
+                  .apply(windowedKv.getValue().getValue(), fn.ctxForWindows((Collection) windowedKv.getWindows()))),
           windowedKv.getTimestamp(),
           windowedKv.getWindows(),
           windowedKv.getPane());

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import java.util.Collection;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
@@ -102,42 +101,41 @@ public class GroupCombineFunctions {
   }
 
   /** Apply a composite {@link org.apache.beam.sdk.transforms.Combine.Globally} transformation. */
-  public static <InputT, AccumT> Optional<Iterable<WindowedValue<AccumT>>> combineGlobally(
-      JavaRDD<WindowedValue<InputT>> rdd,
-      final SparkKeyedCombineFn<?, InputT, AccumT, ?> sparkCombineFn,
-      final Coder<AccumT> aCoder,
-      final WindowingStrategy<?, ?> windowingStrategy) {
+  public static <InputT, OutputT, AccumT>
+      SparkCombineFn.WindowedAccumulator<InputT, InputT, AccumT, ?> combineGlobally(
+          JavaRDD<WindowedValue<InputT>> rdd,
+          final SparkCombineFn<InputT, InputT, AccumT, OutputT> sparkCombineFn,
+          final Coder<AccumT> aCoder,
+          final WindowingStrategy<?, ?> windowingStrategy) {
 
     @SuppressWarnings("unchecked")
-    Coder<BoundedWindow> windowCoder = (Coder) windowingStrategy.getWindowFn().windowCoder();
-    final SparkKeyedCombineFn.WindowedAccumulatorCoder<AccumT> waCoder =
-        SparkKeyedCombineFn.WindowedAccumulatorCoder.of(windowCoder, aCoder, windowingStrategy);
+    final Coder<BoundedWindow> windowCoder = (Coder) windowingStrategy.getWindowFn().windowCoder();
+    final SparkCombineFn.WindowedAccumulatorCoder<InputT, InputT, AccumT> waCoder =
+        sparkCombineFn.accumulatorCoder(windowCoder, aCoder, windowingStrategy);
 
-    ValueAndCoderLazySerializable<SparkKeyedCombineFn.WindowedAccumulator<AccumT, ?>> accumulatedResult =
-        rdd.aggregate(
-            ValueAndCoderLazySerializable.of(
-                SparkKeyedCombineFn.WindowedAccumulator.create(windowingStrategy), waCoder),
-            (ab, ib) -> {
-              SparkKeyedCombineFn.WindowedAccumulator<AccumT, ?> merged =
-                  sparkCombineFn.mergeValue(ab.getOrDecode(waCoder), ib);
-              return ValueAndCoderLazySerializable.of(merged, waCoder);
-            },
-            (a1b, a2b) -> {
-              SparkKeyedCombineFn.WindowedAccumulator<AccumT, ?> merged =
-                  sparkCombineFn.mergeCombiners(
-                      a1b.getOrDecode(waCoder), a2b.getOrDecode(waCoder));
-              return ValueAndCoderLazySerializable.of(merged, waCoder);
-            });
+    ValueAndCoderLazySerializable<SparkCombineFn.WindowedAccumulator<InputT, InputT, AccumT, ?>>
+        accumulatedResult =
+            rdd.aggregate(
+                ValueAndCoderLazySerializable.of(sparkCombineFn.createCombiner(), waCoder),
+                (ab, ib) -> {
+                  SparkCombineFn.WindowedAccumulator<InputT, InputT, AccumT, ?> merged =
+                      sparkCombineFn.mergeValue(ab.getOrDecode(waCoder), ib);
+                  return ValueAndCoderLazySerializable.of(merged, waCoder);
+                },
+                (a1b, a2b) -> {
+                  SparkCombineFn.WindowedAccumulator<InputT, InputT, AccumT, ?> merged =
+                      sparkCombineFn.mergeCombiners(
+                          a1b.getOrDecode(waCoder), a2b.getOrDecode(waCoder));
+                  return ValueAndCoderLazySerializable.of(merged, waCoder);
+                });
 
-    final Collection<WindowedValue<AccumT>> result = accumulatedResult.getOrDecode(waCoder).extractOutput();
-
-    return Iterables.isEmpty(result) ? Optional.absent() : Optional.of(result);
+    return accumulatedResult.getOrDecode(waCoder);
   }
 
   public static <K, ValueT, AccumT>
       JavaPairRDD<K, Iterable<WindowedValue<KV<K, AccumT>>>> combinePerKeyNonMerging(
           JavaRDD<WindowedValue<KV<K, ValueT>>> rdd,
-          final SparkKeyedCombineFn<K, ValueT, AccumT, ?> sparkCombineFn,
+          final SparkCombineFn<K, ValueT, AccumT, ?> sparkCombineFn,
           final Coder<K> keyCoder,
           final Coder<ValueT> valueCoder,
           final Coder<AccumT> aCoder,
@@ -170,19 +168,19 @@ public class GroupCombineFunctions {
    * streaming, this will be called from within a serialized context (DStream's transform callback),
    * so passed arguments need to be Serializable.
    */
-  public static <K, ValueT, AccumT>
-      JavaPairRDD<K, SparkKeyedCombineFn.WindowedAccumulator<AccumT, ?>> combinePerKey(
-          JavaRDD<WindowedValue<KV<K, ValueT>>> rdd,
-          final SparkKeyedCombineFn<K, ValueT, AccumT, ?> sparkCombineFn,
+  public static <K, V, AccumT>
+      JavaPairRDD<K, SparkCombineFn.WindowedAccumulator<KV<K, V>, V, AccumT, ?>> combinePerKey(
+          JavaRDD<WindowedValue<KV<K, V>>> rdd,
+          final SparkCombineFn<KV<K, V>, V, AccumT, ?> sparkCombineFn,
           final Coder<K> keyCoder,
-          final Coder<ValueT> valueCoder,
+          final Coder<V> valueCoder,
           final Coder<AccumT> aCoder,
           final WindowingStrategy<?, ?> windowingStrategy) {
 
     @SuppressWarnings("unchecked")
     Coder<BoundedWindow> windowCoder = (Coder) windowingStrategy.getWindowFn().windowCoder();
-    final SparkKeyedCombineFn.WindowedAccumulatorCoder<AccumT> waCoder =
-        SparkKeyedCombineFn.WindowedAccumulatorCoder.of(windowCoder, aCoder, windowingStrategy);
+    final SparkCombineFn.WindowedAccumulatorCoder<KV<K, V>, V, AccumT> waCoder =
+        sparkCombineFn.accumulatorCoder(windowCoder, aCoder, windowingStrategy);
 
     // We need to duplicate K as both the key of the JavaPairRDD as well as inside the value,
     // since the functions passed to combineByKey don't receive the associated key of each
@@ -191,12 +189,13 @@ public class GroupCombineFunctions {
     // Once Spark provides a way to include keys in the arguments of combine/merge functions,
     // we won't need to duplicate the keys anymore.
     // Key has to bw windowed in order to group by window as well.
-    JavaPairRDD<ByteArray, WindowedValue<KV<K, ValueT>>> inRddDuplicatedKeyPair =
+    JavaPairRDD<ByteArray, WindowedValue<KV<K, V>>> inRddDuplicatedKeyPair =
         rdd.mapToPair(TranslationUtils.toPairByKeyInWindowedValue(keyCoder));
 
     JavaPairRDD<
             ByteArray,
-            ValueAndCoderLazySerializable<SparkKeyedCombineFn.WindowedAccumulator<AccumT, ?>>>
+            ValueAndCoderLazySerializable<
+                SparkCombineFn.WindowedAccumulator<KV<K, V>, V, AccumT, ?>>>
         accumulatedResult =
             inRddDuplicatedKeyPair.combineByKey(
                 input ->
