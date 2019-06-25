@@ -57,6 +57,7 @@ This is a collection of documents that may or may not be up to date.
 - Support of @RequiresStableInput annotation [[doc](https://docs.google.com/document/d/117yRKbbcEdm3eIKB_26BHOJGmHSZl1YNoF0RqWGtqAM)], [[mail](https://lists.apache.org/thread.html/ae3c838df060e47148439d1dad818d5e927b2a25ff00cc4153221dff@%3Cdev.beam.apache.org%3E)]
 - [PROPOSAL] @onwindowexpiration [[mail](https://lists.apache.org/thread.html/1dab7f17c97378e665928b11116cbd887dc7be93390ab26c593ee49a@%3Cdev.beam.apache.org%3E)]
 - AutoValue Coding and Row Support [[doc](https://docs.google.com/document/d/1ucoik4WzUDfilqIz3I1AuMHc1J8DE6iv7gaUCDI42BI)] 
+- HyperLogLog++ Integration with Apache Beam [[doc](https://docs.google.com/document/d/1U5aXdC9lDSOqT6FPHRulp-EutYiQ9KeHpgu-19CIfEI)] 
 
 ### IO / Filesystem
 - IOChannelFactory Redesign [[doc](https://docs.google.com/document/d/11TdPyZ9_zmjokhNWM3Id-XJsVG3qel2lhdKTknmZ_7M)]
