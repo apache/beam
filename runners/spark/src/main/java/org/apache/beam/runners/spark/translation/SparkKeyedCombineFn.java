@@ -20,16 +20,16 @@ package org.apache.beam.runners.spark.translation;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
@@ -58,74 +58,141 @@ import org.joda.time.Instant;
  */
 public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstractCombineFn {
 
-  static class WindowedAccumulatorCoder<AccumT> extends Coder<WindowedAccumulator<AccumT>> {
-
-    static <T> WindowedAccumulatorCoder<T> of(
-        Coder<BoundedWindow> windowCoder, Coder<T> accumCoder) {
-      return new WindowedAccumulatorCoder<>(windowCoder, accumCoder);
-    }
-
-    private final @Nullable TypeDescriptor<?> windowDesc;
-    private final IterableCoder<WindowedValue<AccumT>> wrap;
-
-    WindowedAccumulatorCoder(Coder<? extends BoundedWindow> windowCoder, Coder<AccumT> accumCoder) {
-      this.wrap =
-          IterableCoder.of(WindowedValue.FullWindowedValueCoder.of(accumCoder, windowCoder));
-      windowDesc = windowCoder.getEncodedTypeDescriptor();
-    }
-
-    @Override
-    public void encode(WindowedAccumulator value, OutputStream outStream)
-        throws CoderException, IOException {
-      wrap.encode(value.map.values(), outStream);
-    }
-
-    @Override
-    public WindowedAccumulator decode(InputStream inStream) throws CoderException, IOException {
-      return WindowedAccumulator.from(
-          StreamSupport.stream(wrap.decode(inStream).spliterator(), false)
-              .collect(
-                  Collectors.toMap(
-                      w -> Iterables.getOnlyElement(w.getWindows()),
-                      Function.identity(),
-                      (a, b) -> a,
-                      () -> new TreeMap<>(asWindowComparator(windowDesc)))));
-    }
-
-    @Override
-    public List<? extends Coder<?>> getCoderArguments() {
-      return wrap.getComponents();
-    }
-
-    @Override
-    public void verifyDeterministic() throws NonDeterministicException {}
-  }
-
   /** Accumulator of WindowedValues holding values for different windows. */
-  static class WindowedAccumulator<AccumT> {
+  static interface WindowedAccumulator<AccumT, Impl extends WindowedAccumulator<AccumT, Impl>> {
 
-    static <T> WindowedAccumulator<T> create(@Nullable TypeDescriptor<BoundedWindow> windowType) {
-      return new WindowedAccumulator<>(windowType);
-    }
+    enum Type {
+      NON_MERGING,
+      MERGING,
+      SINGLE_WINDOW;
 
-    static <T> WindowedAccumulator<T> from(SortedMap<BoundedWindow, WindowedValue<T>> map) {
-      return new WindowedAccumulator<>(map);
-    }
-
-    final SortedMap<BoundedWindow, WindowedValue<AccumT>> map;
-
-    @SuppressWarnings("unchecked")
-    private WindowedAccumulator(@Nullable TypeDescriptor<?> windowType) {
-      Comparator<BoundedWindow> comparator = asWindowComparator(windowType);
-      this.map = new TreeMap<>(comparator);
-    }
-
-    private WindowedAccumulator(SortedMap<BoundedWindow, WindowedValue<AccumT>> map) {
-      this.map = map;
+      boolean isMapBased() {
+        return this == NON_MERGING || this == MERGING;
+      }
     }
 
     /** Add value with unexploded windows into the accumulator. */
     <K, InputT> void add(
+        WindowedValue<KV<K, InputT>> value, SparkKeyedCombineFn<K, InputT, AccumT, ?> context)
+        throws Exception;
+
+    /**
+     * Merge other acccumulator into this one.
+     *
+     * @param other the other accumulator to merge
+     */
+    void merge(Impl other, SparkKeyedCombineFn<?, ?, AccumT, ?> context) throws Exception;
+
+    /** Extract output. */
+    Collection<WindowedValue<AccumT>> extractOutput();
+
+    /** Create concrete accumulator for given type. */
+    static <AccumT> WindowedAccumulator<AccumT, ?> create(
+        WindowingStrategy<?, ?> windowingStrategy) {
+      Type type = getType(windowingStrategy);
+      @SuppressWarnings("unchecked")
+      TypeDescriptor<BoundedWindow> windowTypeDescriptor =
+          (TypeDescriptor<BoundedWindow>) windowingStrategy.getWindowFn().getWindowTypeDescriptor();
+      switch (type) {
+        case MERGING:
+          return MergingWindowedAccumulator.create(windowTypeDescriptor);
+        case NON_MERGING:
+          return NonMergingWindowedAccumulator.create();
+        case SINGLE_WINDOW:
+          return SingleWindowWindowedAccumulator.create();
+        default:
+          throw new IllegalArgumentException("Unknown type: " + type);
+      }
+    }
+
+    /** Create concrete accumulator for given type. */
+    static <AccumT> WindowedAccumulator<AccumT, ?> create(
+        Type type,
+        Iterable<WindowedValue<AccumT>> values,
+        @Nullable TypeDescriptor<BoundedWindow> windowType) {
+      switch (type) {
+        case MERGING:
+          return MergingWindowedAccumulator.from(values, windowType);
+        case NON_MERGING:
+          return NonMergingWindowedAccumulator.from(values);
+        case SINGLE_WINDOW:
+          return SingleWindowWindowedAccumulator.create();
+        default:
+          throw new IllegalArgumentException("Unknown type: " + type);
+      }
+    }
+  }
+
+  /**
+   * Accumulator for {@link WindowFn WindowFns} which create only single window per key, and
+   * therefore don't need any map to hold different windows per key.
+   *
+   * @param <AccumT> type of accumulator
+   */
+  static class SingleWindowWindowedAccumulator<AccumT>
+      implements WindowedAccumulator<AccumT, SingleWindowWindowedAccumulator<AccumT>> {
+
+    static <AccumT> SingleWindowWindowedAccumulator<AccumT> create() {
+      return new SingleWindowWindowedAccumulator<>();
+    }
+
+    WindowedValue<AccumT> windowAccumulator = null;
+
+    @Override
+    public <K, InputT> void add(
+        WindowedValue<KV<K, InputT>> value, SparkKeyedCombineFn<K, InputT, AccumT, ?> context)
+        throws Exception {
+      BoundedWindow window = Iterables.getOnlyElement(value.getWindows());
+      SparkCombineContext ctx = context.ctxtForInput(value);
+      TimestampCombiner combiner = context.windowingStrategy.getTimestampCombiner();
+      Instant windowTimestamp =
+          combiner.assign(
+              window,
+              context.windowingStrategy.getWindowFn().getOutputTime(value.getTimestamp(), window));
+      final AccumT acc;
+      final Instant timestamp;
+      if (windowAccumulator == null) {
+        acc = context.combineFn.createAccumulator(ctx);
+        timestamp = windowTimestamp;
+      } else {
+        acc = windowAccumulator.getValue();
+        timestamp = windowAccumulator.getTimestamp();
+      }
+      AccumT result = context.combineFn.addInput(acc, value.getValue().getValue(), ctx);
+      Instant timestampCombined = combiner.combine(windowTimestamp, timestamp);
+      windowAccumulator = WindowedValue.of(result, timestampCombined, window, PaneInfo.NO_FIRING);
+    }
+
+    @Override
+    public void merge(
+        SingleWindowWindowedAccumulator<AccumT> other,
+        SparkKeyedCombineFn<?, ?, AccumT, ?> context) {}
+
+    @Override
+    public Collection<WindowedValue<AccumT>> extractOutput() {
+      return Arrays.asList(windowAccumulator);
+    }
+  }
+
+  /**
+   * Abstract base class for {@link WindowedAccumulator WindowedAccumulators} which hold
+   * accumulators in map.
+   *
+   * @param <AccumT> type of accumulator
+   * @param <Impl> type of final subclass
+   */
+  abstract static class MapBasedWindowedAccumulator<
+          AccumT, Impl extends MapBasedWindowedAccumulator<AccumT, Impl>>
+      implements WindowedAccumulator<AccumT, Impl> {
+
+    final Map<BoundedWindow, WindowedValue<AccumT>> map;
+
+    MapBasedWindowedAccumulator(Map<BoundedWindow, WindowedValue<AccumT>> map) {
+      this.map = map;
+    }
+
+    @Override
+    public <K, InputT> void add(
         WindowedValue<KV<K, InputT>> value, SparkKeyedCombineFn<K, InputT, AccumT, ?> context)
         throws Exception {
       for (WindowedValue<KV<K, InputT>> v : value.explodeWindows()) {
@@ -156,13 +223,8 @@ public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstra
       mergeWindows(context);
     }
 
-    /**
-     * Merge other acccumulator into this one.
-     *
-     * @param other the other accumulator to merge
-     */
-    void merge(WindowedAccumulator<AccumT> other, SparkKeyedCombineFn<?, ?, AccumT, ?> context)
-        throws Exception {
+    @Override
+    public void merge(Impl other, SparkKeyedCombineFn<?, ?, AccumT, ?> context) throws Exception {
       other.map.forEach(
           (window, acc) -> {
             WindowedValue<AccumT> thisAcc = this.map.get(window);
@@ -188,11 +250,67 @@ public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstra
       mergeWindows(context);
     }
 
-    private void mergeWindows(SparkKeyedCombineFn<?, ?, AccumT, ?> fn) throws Exception {
+    @Override
+    public Collection<WindowedValue<AccumT>> extractOutput() {
+      return map.values();
+    }
 
-      if (fn.windowingStrategy.getWindowFn().isNonMerging()) {
-        return;
-      }
+    void mergeWindows(SparkKeyedCombineFn<?, ?, AccumT, ?> fn) throws Exception {}
+  }
+
+  /** Accumulator for non-merging windows. */
+  static class NonMergingWindowedAccumulator<AccumT>
+      extends MapBasedWindowedAccumulator<AccumT, NonMergingWindowedAccumulator<AccumT>> {
+
+    static <T> NonMergingWindowedAccumulator<T> create() {
+      return new NonMergingWindowedAccumulator<>();
+    }
+
+    static <T> NonMergingWindowedAccumulator<T> from(Iterable<WindowedValue<T>> values) {
+      return new NonMergingWindowedAccumulator<>(values);
+    }
+
+    @SuppressWarnings("unchecked")
+    private NonMergingWindowedAccumulator() {
+      super(new HashMap<>());
+    }
+
+    private NonMergingWindowedAccumulator(Iterable<WindowedValue<AccumT>> values) {
+      super(asMap(values, new HashMap<>()));
+    }
+  }
+
+  /**
+   * Accumulator for merging windows.
+   *
+   * @param <AccumT> type of accumulator
+   */
+  static class MergingWindowedAccumulator<AccumT>
+      extends MapBasedWindowedAccumulator<AccumT, MergingWindowedAccumulator<AccumT>> {
+
+    static <T> MergingWindowedAccumulator<T> create(
+        @Nullable TypeDescriptor<BoundedWindow> windowType) {
+      return new MergingWindowedAccumulator<>(windowType);
+    }
+
+    static <T> MergingWindowedAccumulator<T> from(
+        Iterable<WindowedValue<T>> values, @Nullable TypeDescriptor<BoundedWindow> windowType) {
+      return new MergingWindowedAccumulator<>(values, windowType);
+    }
+
+    @SuppressWarnings("unchecked")
+    private MergingWindowedAccumulator(@Nullable TypeDescriptor<?> windowType) {
+      super(new TreeMap<>(asWindowComparator(windowType)));
+    }
+
+    private MergingWindowedAccumulator(
+        Iterable<WindowedValue<AccumT>> values,
+        @Nullable TypeDescriptor<BoundedWindow> windowType) {
+      super(asMap(values, new TreeMap<>(asWindowComparator(windowType))));
+    }
+
+    @Override
+    void mergeWindows(SparkKeyedCombineFn<?, ?, AccumT, ?> fn) throws Exception {
 
       SparkCombineContext ctx = fn.ctxForWindows(this.map.keySet());
 
@@ -227,7 +345,7 @@ public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstra
         WindowFn<Object, BoundedWindow> windowFn,
         BiFunction<AccumT, AccumT, AccumT> mergeFn,
         BiConsumer<Collection<BoundedWindow>, KV<BoundedWindow, AccumT>> afterMerge,
-        SortedMap<BoundedWindow, WindowedValue<AccumT>> map) {
+        Map<BoundedWindow, WindowedValue<AccumT>> map) {
 
       return windowFn.new MergeContext() {
 
@@ -254,8 +372,68 @@ public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstra
 
     @Override
     public String toString() {
-      return "WindowedAccumulator(" + this.map + ")";
+      return "MergingWindowedAccumulator(" + this.map + ")";
     }
+  }
+
+  static class WindowedAccumulatorCoder<AccumT> extends Coder<WindowedAccumulator<AccumT, ?>> {
+
+    static <T> WindowedAccumulatorCoder<T> of(
+        Coder<BoundedWindow> windowCoder, Coder<T> accumCoder, WindowingStrategy windowingStrategy) {
+      return new WindowedAccumulatorCoder<>(windowCoder, accumCoder, getType(windowingStrategy));
+    }
+
+    private final @Nullable TypeDescriptor<BoundedWindow> windowDesc;
+    private final IterableCoder<WindowedValue<AccumT>> wrap;
+    private final Coder<WindowedValue<AccumT>> accumCoder;
+    private final WindowedAccumulator.Type type;
+
+    @SuppressWarnings("unchecked")
+    WindowedAccumulatorCoder(
+        Coder<? extends BoundedWindow> windowCoder,
+        Coder<AccumT> accumCoder,
+        WindowedAccumulator.Type type) {
+      this.accumCoder = WindowedValue.FullWindowedValueCoder.of(accumCoder, windowCoder);
+      this.wrap = IterableCoder.of(this.accumCoder);
+      windowDesc = (TypeDescriptor) windowCoder.getEncodedTypeDescriptor();
+      this.type = type;
+    }
+
+    @Override
+    public void encode(WindowedAccumulator<AccumT, ?> value, OutputStream outStream)
+        throws CoderException, IOException {
+      if (type.isMapBased()) {
+        wrap.encode(((MapBasedWindowedAccumulator<AccumT, ?>) value).map.values(), outStream);
+      } else {
+        accumCoder.encode(
+            ((SingleWindowWindowedAccumulator<AccumT>) value).windowAccumulator, outStream);
+      }
+    }
+
+    @Override
+    public WindowedAccumulator decode(InputStream inStream) throws CoderException, IOException {
+      if (type.isMapBased()) {
+        return WindowedAccumulator.create(type, wrap.decode(inStream), windowDesc);
+      }
+      return WindowedAccumulator.create(
+          type, Arrays.asList(accumCoder.decode(inStream)), windowDesc);
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return wrap.getComponents();
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {}
+  }
+
+  private static <T> Map<BoundedWindow, WindowedValue<T>> asMap(
+      Iterable<WindowedValue<T>> values, Map<BoundedWindow, WindowedValue<T>> res) {
+    for (WindowedValue<T> v : values) {
+      res.put(Iterables.getOnlyElement(v.getWindows()), v);
+    }
+    return res;
   }
 
   private static Comparator<BoundedWindow> asWindowComparator(TypeDescriptor<?> windowType) {
@@ -268,6 +446,17 @@ public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstra
       comparator = Comparator.comparing(BoundedWindow::maxTimestamp);
     }
     return comparator;
+  }
+
+  private static WindowedAccumulator.Type getType(WindowingStrategy<?, ?> windowingStrategy) {
+    if (windowingStrategy.getWindowFn().isNonMerging()) {
+      if (windowingStrategy.getWindowFn().assignsToOneWindow()) {
+        // FIXME: need to incorporate window in the key for this to  work
+        // return WindowedAccumulator.Type.SINGLE_WINDOW;
+      }
+      return WindowedAccumulator.Type.NON_MERGING;
+    }
+    return WindowedAccumulator.Type.MERGING;
   }
 
   private final CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn;
@@ -292,10 +481,9 @@ public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstra
    *
    * <p>{@link org.apache.spark.rdd.PairRDDFunctions#combineByKey}.
    */
-  WindowedAccumulator<AccumT> createCombiner(WindowedValue<KV<K, InputT>> value) {
+  WindowedAccumulator<AccumT, ?> createCombiner(WindowedValue<KV<K, InputT>> value) {
     try {
-      WindowedAccumulator accumulator =
-          new WindowedAccumulator(windowingStrategy.getWindowFn().getWindowTypeDescriptor());
+      WindowedAccumulator<AccumT, ?> accumulator = WindowedAccumulator.create(windowingStrategy);
       accumulator.add(value, this);
       return accumulator;
     } catch (Exception ex) {
@@ -323,8 +511,8 @@ public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstra
    *
    * <p>{@link org.apache.spark.rdd.PairRDDFunctions#combineByKey}.
    */
-  WindowedAccumulator<AccumT> mergeCombiners(
-      WindowedAccumulator<AccumT> ac1, WindowedAccumulator<AccumT> ac2) {
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  WindowedAccumulator<AccumT, ?> mergeCombiners(WindowedAccumulator ac1, WindowedAccumulator ac2) {
     try {
       ac1.merge(ac2, this);
       return ac1;
@@ -333,15 +521,12 @@ public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstra
     }
   }
 
-  Iterable<WindowedValue<OutputT>> extractOutput(WindowedAccumulator<AccumT> accumulator) {
-    return accumulator.map.entrySet().stream()
+  Iterable<WindowedValue<OutputT>> extractOutput(WindowedAccumulator<AccumT, ?> accumulator) {
+    return accumulator.extractOutput().stream()
         .map(
-            entry -> {
-              AccumT windowAcc = entry.getValue().getValue();
-              return entry
-                  .getValue()
-                  .withValue(combineFn.extractOutput(windowAcc, ctxtForInput(entry.getValue())));
-            })
+            windowAcc ->
+                windowAcc.withValue(
+                    combineFn.extractOutput(windowAcc.getValue(), ctxtForInput(windowAcc))))
         .collect(Collectors.toList());
   }
 }
