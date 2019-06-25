@@ -13,20 +13,18 @@
 # limitations under the License.
 """Runs a batch job for performing Tensorflow Model Analysis."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from trainer import taxi
-import apache_beam as beam
-from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
-from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
+from __future__ import absolute_import, division, print_function
 
-from tensorflow_model_analysis.evaluators import evaluator
-import tensorflow_model_analysis as tfma
 import argparse
-import tempfile
 
 import tensorflow as tf
+import tensorflow_model_analysis as tfma
+from tensorflow_model_analysis.evaluators import evaluator
+
+import apache_beam as beam
+from apache_beam.testing.load_tests.load_test_metrics_utils import (
+    MeasureTime, MetricsReader)
+from trainer import taxi
 
 
 def process_tfma(schema_file,
@@ -59,73 +57,73 @@ def process_tfma(schema_file,
   ValueError: if input_csv and big_query_table are not specified correctly.
   """
 
-if big_query_table is None:
-  raise ValueError(
-      '--big_query_table should be provided.')
+  if big_query_table is None:
+    raise ValueError(
+        '--big_query_table should be provided.')
 
-slice_spec = [
-    tfma.slicer.SingleSliceSpec(),
-    tfma.slicer.SingleSliceSpec(columns=['trip_start_hour'])
-]
-metrics_namespace = 'NAMESPACE_PROCESS_TFMA'
+  slice_spec = [
+      tfma.slicer.SingleSliceSpec(),
+      tfma.slicer.SingleSliceSpec(columns=['trip_start_hour'])
+  ]
+  metrics_namespace = 'NAMESPACE_PROCESS_TFMA'
 
-schema = taxi.read_schema(schema_file)
+  schema = taxi.read_schema(schema_file)
 
-eval_shared_model = tfma.default_eval_shared_model(
-    eval_saved_model_path=eval_model_dir,
-    add_metrics_callbacks=[
-        tfma.post_export_metrics.calibration_plot_and_prediction_histogram(),
-        tfma.post_export_metrics.auc_plots()
-    ])
+  eval_shared_model = tfma.default_eval_shared_model(
+      eval_saved_model_path=eval_model_dir,
+      add_metrics_callbacks=[
+          tfma.post_export_metrics.calibration_plot_and_prediction_histogram(),
+          tfma.post_export_metrics.auc_plots()
+      ])
 
-metrics_monitor = None
-if publish_to_bq:
-  metrics_monitor = MetricsReader(
-      project_name=project,
-      bq_table=metrics_table,
-      bq_dataset=metrics_dataset,
+  metrics_monitor = None
+  if publish_to_bq:
+    metrics_monitor = MetricsReader(
+        project_name=project,
+        bq_table=metrics_table,
+        bq_dataset=metrics_dataset,
+    )
+
+  pipeline = beam.Pipeline(argv=pipeline_args)
+
+  query = taxi.make_sql(big_query_table, max_eval_rows, for_eval=True)
+  raw_feature_spec = taxi.get_raw_feature_spec(schema)
+  raw_data = (
+      pipeline
+      | 'ReadBigQuery' >> beam.io.Read(
+          beam.io.BigQuerySource(query=query, use_standard_sql=True))
+      | 'Measure time: Start' >> beam.ParDo(MeasureTime(metrics_namespace))
+      | 'CleanData' >> beam.Map(lambda x: (
+          taxi.clean_raw_data_dict(x, raw_feature_spec))))
+
+  # Examples must be in clean tf-example format.
+  coder = taxi.make_proto_coder(schema)
+  # Prepare arguments for Extract, Evaluate and Write steps
+  extractors = tfma.default_extractors(
+      eval_shared_model=eval_shared_model,
+      slice_spec=slice_spec,
+      desired_batch_size=None,
+      materialize=False)
+
+  evaluators = tfma.default_evaluators(
+      eval_shared_model=eval_shared_model,
+      desired_batch_size=None,
+      num_bootstrap_samples=1)
+  _ = (
+      raw_data
+      | 'ToSerializedTFExample' >> beam.Map(coder.encode)
+      | 'Extract Results' >> tfma.InputsToExtracts()
+      | 'Extract and evaluate' >> tfma.ExtractAndEvaluate(
+          extractors=extractors,
+          evaluators=evaluators)
+      | 'Map Evaluations to PCollection' >> MapEvalToPCollection()
+      | 'Measure time: End' >> beam.ParDo(
+          MeasureTime(metrics_namespace))
   )
-
-pipeline = beam.Pipeline(argv=pipeline_args)
-assert big_query_table
-query = taxi.make_sql(big_query_table, max_eval_rows, for_eval=True)
-raw_feature_spec = taxi.get_raw_feature_spec(schema)
-raw_data = (
-    pipeline
-    | 'ReadBigQuery' >> beam.io.Read(
-        beam.io.BigQuerySource(query=query, use_standard_sql=True))
-    | 'Measure time: Start' >> beam.ParDo(MeasureTime(metrics_namespace))
-    | 'CleanData' >> beam.Map(lambda x: (
-        taxi.clean_raw_data_dict(x, raw_feature_spec))))
-
-# Examples must be in clean tf-example format.
-coder = taxi.make_proto_coder(schema)
-# Prepare arguments for Extract, Evaluate and Write steps
-extractors = tfma.default_extractors(
-    eval_shared_model=eval_shared_model,
-    slice_spec=slice_spec,
-    desired_batch_size=None,
-    materialize=False)
-
-evaluators = tfma.default_evaluators(
-    eval_shared_model=eval_shared_model,
-    desired_batch_size=None,
-    num_bootstrap_samples=1)
-_ = (
-    raw_data
-    | 'ToSerializedTFExample' >> beam.Map(coder.encode)
-    | 'Extract Results' >> tfma.InputsToExtracts()
-    | 'Extract and evaluate' >> tfma.ExtractAndEvaluate(
-        extractors=extractors,
-        evaluators=evaluators)
-    | 'Map Evaluations to PCollection' >> MapEvalToPCollection()
-    | 'Measure time: End' >> beam.ParDo(
-        MeasureTime(metrics_namespace))
-)
-result = pipeline.run()
-result.wait_until_finish()
-if metrics_monitor:
-  metrics_monitor.publish_metrics(result)
+  result = pipeline.run()
+  result.wait_until_finish()
+  if metrics_monitor:
+    metrics_monitor.publish_metrics(result)
 
 
 @beam.ptransform_fn
@@ -144,9 +142,6 @@ def main():
   parser.add_argument(
       '--eval_model_dir',
       help='Input path to the model which will be evaluated.')
-  parser.add_argument(
-      '--eval_result_dir',
-      help='Output directory in which the model analysis result is written.')
   parser.add_argument(
       '--big_query_table',
       help='BigQuery path to input examples which will be evaluated.')
@@ -180,13 +175,7 @@ def main():
 
   known_args, pipeline_args = parser.parse_known_args()
 
-  if known_args.eval_result_dir:
-    eval_result_dir = known_args.eval_result_dir
-  else:
-    eval_result_dir = tempfile.mkdtemp()
-
   process_tfma(
-      eval_result_dir,
       big_query_table=known_args.big_query_table,
       eval_model_dir=known_args.eval_model_dir,
       max_eval_rows=known_args.max_eval_rows,

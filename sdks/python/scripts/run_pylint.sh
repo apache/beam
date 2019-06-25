@@ -88,6 +88,11 @@ ISORT_EXCLUDED=(
   "fast_coders_test.py"
   "slow_coders_test.py"
   "vcfio.py"
+  "tfdv_analyze_and_validate.py"
+  "preprocess.py"
+  "model.py"
+  "taxi.py"
+  "process_tfma.py"
 )
 SKIP_PARAM=""
 for file in "${ISORT_EXCLUDED[@]}"; do
