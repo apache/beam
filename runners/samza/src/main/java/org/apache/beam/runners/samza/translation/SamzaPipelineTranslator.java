@@ -18,6 +18,7 @@
 package org.apache.beam.runners.samza.translation;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import java.util.HashMap;
@@ -53,6 +54,9 @@ public class SamzaPipelineTranslator {
   private SamzaPipelineTranslator() {}
 
   public static void translate(Pipeline pipeline, TranslationContext ctx) {
+    checkState(
+        ctx.getPipelineOptions().getMaxBundleSize() <= 1,
+        "bundling is not supported for non portable mode. Please disable bundling (by setting max bundle size to 1).");
     final TransformVisitorFn translateFn =
         new TransformVisitorFn() {
 
