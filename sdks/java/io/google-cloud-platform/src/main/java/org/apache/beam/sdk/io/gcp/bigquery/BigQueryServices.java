@@ -32,6 +32,8 @@ import com.google.cloud.bigquery.storage.v1beta1.Storage.CreateReadSessionReques
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsResponse;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamRequest;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamResponse;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
@@ -164,6 +166,19 @@ public interface BigQueryServices extends Serializable {
         throws IOException, InterruptedException;
   }
 
+  /**
+   * Container for reading data from streaming endpoints.
+   *
+   * <p>An implementation does not need to be thread-safe.
+   */
+  interface BigQueryServerStream<T> extends Iterable<T>, Serializable {
+    /**
+     * Cancels the stream, releasing any client- and server-side resources. This method may be
+     * called multiple times and from any thread.
+     */
+    void cancel();
+  }
+
   /** An interface representing a client object for making calls to the BigQuery Storage API. */
   @Experimental(Experimental.Kind.SOURCE_SINK)
   interface StorageClient extends AutoCloseable {
@@ -171,7 +186,9 @@ public interface BigQueryServices extends Serializable {
     ReadSession createReadSession(CreateReadSessionRequest request);
 
     /** Read rows in the context of a specific read stream. */
-    Iterable<ReadRowsResponse> readRows(ReadRowsRequest request);
+    BigQueryServerStream<ReadRowsResponse> readRows(ReadRowsRequest request);
+
+    SplitReadStreamResponse splitReadStream(SplitReadStreamRequest request);
 
     /**
      * Close the client object.
