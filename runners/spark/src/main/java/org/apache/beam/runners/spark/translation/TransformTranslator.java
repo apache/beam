@@ -310,7 +310,7 @@ public final class TransformTranslator {
         JavaRDD<WindowedValue<KV<K, InputT>>> inRdd =
             ((BoundedDataset<KV<K, InputT>>) context.borrowDataset(transform)).getRDD();
 
-        JavaPairRDD<K, SparkKeyedCombineFn.WindowedAccumulator<AccumT>> accumulatePerKey;
+        JavaPairRDD<K, SparkKeyedCombineFn.WindowedAccumulator<AccumT, ?>> accumulatePerKey;
         accumulatePerKey =
             GroupCombineFunctions.combinePerKey(
                 inRdd,
