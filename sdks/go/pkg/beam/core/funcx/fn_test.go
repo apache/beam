@@ -224,6 +224,157 @@ func TestNew(t *testing.T) {
 	}
 }
 
+func TestEmits(t *testing.T) {
+	tests := []struct {
+		Name   string
+		Params []FnParamKind
+		Pos    int
+		Num    int
+		Exists bool
+	}{
+		{
+			Name:   "no params",
+			Params: []FnParamKind{},
+			Pos:    -1,
+			Num:    0,
+			Exists: false,
+		},
+		{
+			Name:   "no emits",
+			Params: []FnParamKind{FnContext, FnEventTime, FnType, FnValue},
+			Pos:    -1,
+			Num:    0,
+			Exists: false,
+		},
+		{
+			Name:   "single emit",
+			Params: []FnParamKind{FnValue, FnEmit},
+			Pos:    1,
+			Num:    1,
+			Exists: true,
+		},
+		{
+			Name:   "multiple emits",
+			Params: []FnParamKind{FnValue, FnEmit, FnEmit, FnEmit},
+			Pos:    1,
+			Num:    3,
+			Exists: true,
+		},
+		{
+			Name:   "multiple emits 2",
+			Params: []FnParamKind{FnValue, FnEmit, FnEmit, FnEmit, FnValue},
+			Pos:    1,
+			Num:    3,
+			Exists: true,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.Name, func(t *testing.T) {
+			// Create a Fn with a filled params list.
+			params := make([]FnParam, len(test.Params))
+			for i, kind := range test.Params {
+				params[i].Kind = kind
+				params[i].T = nil
+			}
+			fn := new(Fn)
+			fn.Param = params
+
+			// Validate we get expected results for Emits function.
+			pos, num, exists := fn.Emits()
+			if exists != test.Exists {
+				t.Errorf("Emits() exists: got %v, want %v", exists, test.Exists)
+			}
+			if num != test.Num {
+				t.Errorf("Emits() num: got %v, want %v", num, test.Num)
+			}
+			if pos != test.Pos {
+				t.Errorf("Emits() pos: got %v, want %v", pos, test.Pos)
+			}
+		})
+	}
+}
+
+func TestInputs(t *testing.T) {
+	tests := []struct {
+		Name   string
+		Params []FnParamKind
+		Pos    int
+		Num    int
+		Exists bool
+	}{
+		{
+			Name:   "no params",
+			Params: []FnParamKind{},
+			Pos:    -1,
+			Num:    0,
+			Exists: false,
+		},
+		{
+			Name:   "no inputs",
+			Params: []FnParamKind{FnContext, FnEventTime, FnType, FnEmit},
+			Pos:    -1,
+			Num:    0,
+			Exists: false,
+		},
+		{
+			Name:   "no main input",
+			Params: []FnParamKind{FnContext, FnIter, FnReIter, FnEmit},
+			Pos:    -1,
+			Num:    0,
+			Exists: false,
+		},
+		{
+			Name:   "single input",
+			Params: []FnParamKind{FnContext, FnValue},
+			Pos:    1,
+			Num:    1,
+			Exists: true,
+		},
+		{
+			Name:   "multiple inputs",
+			Params: []FnParamKind{FnContext, FnValue, FnIter, FnReIter},
+			Pos:    1,
+			Num:    3,
+			Exists: true,
+		},
+		{
+			Name:   "multiple inputs 2",
+			Params: []FnParamKind{FnContext, FnValue, FnIter, FnValue, FnReIter, FnEmit},
+			Pos:    1,
+			Num:    4,
+			Exists: true,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.Name, func(t *testing.T) {
+			// Create a Fn with a filled params list.
+			params := make([]FnParam, len(test.Params))
+			for i, kind := range test.Params {
+				params[i].Kind = kind
+				params[i].T = nil
+			}
+			fn := new(Fn)
+			fn.Param = params
+
+			// Validate we get expected results for Inputs function.
+			pos, num, exists := fn.Inputs()
+			if exists != test.Exists {
+				t.Errorf("Inputs() exists: got %v, want %v", exists, test.Exists)
+			}
+			if num != test.Num {
+				t.Errorf("Inputs() num: got %v, want %v", num, test.Num)
+			}
+			if pos != test.Pos {
+				t.Errorf("Inputs() pos: got %v, want %v", pos, test.Pos)
+			}
+		})
+	}
+}
+
 func projectParamKind(u *Fn) []FnParamKind {
 	var ret []FnParamKind
 	for _, p := range u.Param {
