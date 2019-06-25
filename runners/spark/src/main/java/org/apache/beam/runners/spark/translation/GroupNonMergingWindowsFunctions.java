@@ -17,16 +17,16 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import java.io.Serializable;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Objects;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
@@ -35,6 +35,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Abstract
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.PeekingIterator;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Bytes;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
 import org.apache.spark.HashPartitioner;
 import org.apache.spark.Partitioner;
@@ -45,6 +46,19 @@ import scala.Tuple2;
 
 /** Functions for GroupByKey with Non-Merging windows translations to Spark. */
 public class GroupNonMergingWindowsFunctions {
+
+  /**
+   * Verify if given windowing strategy and coders are suitable for group by key and window
+   * optimization.
+   *
+   * @param windowingStrategy the windowing strategy
+   * @return {@code true} if group by key and window can be used
+   */
+  static boolean isEligibleForGroupByWindow(WindowingStrategy windowingStrategy) {
+    return windowingStrategy.getWindowFn().isNonMerging()
+        && windowingStrategy.getTimestampCombiner() == TimestampCombiner.END_OF_WINDOW
+        && windowingStrategy.getWindowFn().windowCoder().consistentWithEquals();
+  }
 
   /**
    * Creates composite key of K and W and group all values for that composite key with Spark's
@@ -62,37 +76,49 @@ public class GroupNonMergingWindowsFunctions {
           WindowingStrategy<?, W> windowingStrategy,
           Partitioner partitioner) {
     final Coder<W> windowCoder = windowingStrategy.getWindowFn().windowCoder();
-    final WindowedValue.FullWindowedValueCoder<byte[]> windowedValueCoder =
-        WindowedValue.getFullCoder(ByteArrayCoder.of(), windowCoder);
-    final SerializableFunction<V, byte[]> valueToBytes =
-        val -> CoderHelpers.toByteArray(val, valueCoder);
-    final SerializableFunction<WindowedValue<byte[]>, byte[]> toOutputBytes =
-        val -> {
-          final W window = (W) Iterables.getOnlyElement(val.getWindows());
-          return CoderHelpers.toByteArray(
-              WindowedValue.of(val.getValue(), val.getTimestamp(), window, val.getPane()),
-              windowedValueCoder);
-        };
-    JavaPairRDD<WindowedKey, byte[]> windowInKey =
-        bringWindowToKey(rdd, keyCoder, windowCoder, valueToBytes, toOutputBytes);
+    FullWindowedValueCoder<KV<K, V>> windowedKvCoder =
+        WindowedValue.FullWindowedValueCoder.of(KvCoder.of(keyCoder, valueCoder), windowCoder);
+    JavaPairRDD<ByteArray, byte[]> windowInKey =
+        bringWindowToKey(
+            rdd, keyCoder, windowCoder, wv -> CoderHelpers.toByteArray(wv, windowedKvCoder));
     return windowInKey
         .repartitionAndSortWithinPartitions(getPartitioner(partitioner, rdd))
         .mapPartitions(
-            it ->
-                new GroupByKeyIterator<>(
-                    it, keyCoder, valueCoder, windowingStrategy, windowedValueCoder))
+            it -> new GroupByKeyIterator<>(it, keyCoder, windowingStrategy, windowedKvCoder))
         .filter(Objects::nonNull); // filter last null element from GroupByKeyIterator
   }
 
+  static <K, V, W extends BoundedWindow>
+      JavaPairRDD<ByteArray, WindowedValue<KV<K, V>>> bringWindowToKey(
+          JavaRDD<WindowedValue<KV<K, V>>> rdd, Coder<K> keyCoder, Coder<W> windowCoder) {
+    return bringWindowToKey(rdd, keyCoder, windowCoder, e -> e);
+  }
+
   /** Creates pair RDD with key being a composite of original key and window. */
-  static <K, V1, V2, O, W extends BoundedWindow> JavaPairRDD<WindowedKey, O> bringWindowToKey(
-      JavaRDD<WindowedValue<KV<K, V1>>> rdd,
+  static <K, V, OutputT, W extends BoundedWindow> JavaPairRDD<ByteArray, OutputT> bringWindowToKey(
+      JavaRDD<WindowedValue<KV<K, V>>> rdd,
       Coder<K> keyCoder,
       Coder<W> windowCoder,
-      SerializableFunction<V1, V2> valueMapper,
-      SerializableFunction<WindowedValue<V2>, O> outputMapper) {
+      SerializableFunction<WindowedValue<KV<K, V>>, OutputT> mappingFn) {
+
+    /*
+    This fails some tests, but probably just makes visual some already existing errors.
+    Disabling for now.
+    try {
+      keyCoder.verifyDeterministic();
+      windowCoder.verifyDeterministic();
+      Preconditions.checkArgument(
+          keyCoder.consistentWithEquals() && windowCoder.consistentWithEquals(),
+          "Both keyCoder and windowCoder must be consistentWithEquals, got %s %s",
+          keyCoder.consistentWithEquals(),
+          windowCoder.consistentWithEquals());
+    } catch (Coder.NonDeterministicException ex) {
+      throw new IllegalArgumentException(
+          "Coder for both key " + keyCoder + " and " + windowCoder + " must be deterministic", ex);
+    }
+    */
     return rdd.flatMapToPair(
-        (WindowedValue<KV<K, V1>> windowedValue) -> {
+        (WindowedValue<KV<K, V>> windowedValue) -> {
           final byte[] keyBytes =
               CoderHelpers.toByteArray(windowedValue.getValue().getKey(), keyCoder);
           return Iterators.transform(
@@ -102,15 +128,10 @@ public class GroupNonMergingWindowsFunctions {
                 @SuppressWarnings("unchecked")
                 final W window = (W) Iterables.getOnlyElement(item.getWindows());
                 final byte[] windowBytes = CoderHelpers.toByteArray(window, windowCoder);
-                WindowedValue<V2> intermediate =
-                    WindowedValue.of(
-                        valueMapper.apply(item.getValue().getValue()),
-                        item.getTimestamp(),
-                        window,
-                        item.getPane());
-                final O valueOut = outputMapper.apply(intermediate);
-                final WindowedKey windowedKey = new WindowedKey(keyBytes, windowBytes);
-                return new Tuple2<>(windowedKey, valueOut);
+                WindowedValue<KV<K, V>> valueOut =
+                    WindowedValue.of(item.getValue(), item.getTimestamp(), window, item.getPane());
+                final ByteArray windowedKey = new ByteArray(Bytes.concat(keyBytes, windowBytes));
+                return new Tuple2<>(windowedKey, mappingFn.apply(valueOut));
               });
         });
   }
@@ -132,24 +153,23 @@ public class GroupNonMergingWindowsFunctions {
   static class GroupByKeyIterator<K, V, W extends BoundedWindow>
       implements Iterator<WindowedValue<KV<K, Iterable<V>>>> {
 
-    private final PeekingIterator<Tuple2<WindowedKey, byte[]>> inner;
+    private final PeekingIterator<Tuple2<ByteArray, byte[]>> inner;
     private final Coder<K> keyCoder;
-    private final Coder<V> valueCoder;
     private final WindowingStrategy<?, W> windowingStrategy;
-    private final FullWindowedValueCoder<byte[]> windowedValueCoder;
+    private final FullWindowedValueCoder<KV<K, V>> windowedValueCoder;
 
     private boolean hasNext = true;
-    private WindowedKey currentKey = null;
+    private ByteArray currentKey = null;
 
     GroupByKeyIterator(
-        Iterator<Tuple2<WindowedKey, byte[]>> inner,
+        Iterator<Tuple2<ByteArray, byte[]>> inner,
         Coder<K> keyCoder,
-        Coder<V> valueCoder,
         WindowingStrategy<?, W> windowingStrategy,
-        WindowedValue.FullWindowedValueCoder<byte[]> windowedValueCoder) {
+        WindowedValue.FullWindowedValueCoder<KV<K, V>> windowedValueCoder)
+        throws Coder.NonDeterministicException {
+
       this.inner = Iterators.peekingIterator(inner);
       this.keyCoder = keyCoder;
-      this.valueCoder = valueCoder;
       this.windowingStrategy = windowingStrategy;
       this.windowedValueCoder = windowedValueCoder;
     }
@@ -162,7 +182,7 @@ public class GroupNonMergingWindowsFunctions {
     @Override
     public WindowedValue<KV<K, Iterable<V>>> next() {
       while (inner.hasNext()) {
-        final WindowedKey nextKey = inner.peek()._1;
+        final ByteArray nextKey = inner.peek()._1;
         if (nextKey.equals(currentKey)) {
           // we still did not see all values for a given key
           inner.next();
@@ -179,23 +199,23 @@ public class GroupNonMergingWindowsFunctions {
 
     class ValueIterator implements Iterable<V> {
 
-      boolean usedAsIterable = false;
-      private final PeekingIterator<Tuple2<WindowedKey, byte[]>> inner;
-      private final WindowedKey currentKey;
+      boolean consumed = false;
+      private final PeekingIterator<Tuple2<ByteArray, byte[]>> inner;
+      private final ByteArray currentKey;
 
-      ValueIterator(PeekingIterator<Tuple2<WindowedKey, byte[]>> inner, WindowedKey currentKey) {
+      ValueIterator(PeekingIterator<Tuple2<ByteArray, byte[]>> inner, ByteArray currentKey) {
         this.inner = inner;
         this.currentKey = currentKey;
       }
 
       @Override
       public Iterator<V> iterator() {
-        if (usedAsIterable) {
+        if (consumed) {
           throw new IllegalStateException(
               "ValueIterator can't be iterated more than once,"
                   + "otherwise there could be data lost");
         }
-        usedAsIterable = true;
+        consumed = true;
         return new AbstractIterator<V>() {
           @Override
           protected V computeNext() {
@@ -209,16 +229,16 @@ public class GroupNonMergingWindowsFunctions {
     }
 
     private V decodeValue(byte[] windowedValueBytes) {
-      final WindowedValue<byte[]> windowedValue =
+      final WindowedValue<KV<K, V>> windowedValue =
           CoderHelpers.fromByteArray(windowedValueBytes, windowedValueCoder);
-      return CoderHelpers.fromByteArray(windowedValue.getValue(), valueCoder);
+      return windowedValue.getValue().getValue();
     }
 
-    private WindowedValue<KV<K, V>> decodeItem(Tuple2<WindowedKey, byte[]> item) {
-      final K key = CoderHelpers.fromByteArray(item._1.getKey(), keyCoder);
-      final WindowedValue<byte[]> windowedValue =
+    private WindowedValue<KV<K, V>> decodeItem(Tuple2<ByteArray, byte[]> item) {
+      final K key = CoderHelpers.fromByteArray(item._1.getValue(), keyCoder);
+      final WindowedValue<KV<K, V>> windowedValue =
           CoderHelpers.fromByteArray(item._2, windowedValueCoder);
-      final V value = CoderHelpers.fromByteArray(windowedValue.getValue(), valueCoder);
+      final V value = windowedValue.getValue().getValue();
       @SuppressWarnings("unchecked")
       final W window = (W) Iterables.getOnlyElement(windowedValue.getWindows());
       final Instant timestamp =
@@ -232,54 +252,6 @@ public class GroupNonMergingWindowsFunctions {
       // BEAM-7341: Elements produced by GbK are always ON_TIME and ONLY_FIRING
       return WindowedValue.of(
           KV.of(key, value), timestamp, window, PaneInfo.ON_TIME_AND_ONLY_FIRING);
-    }
-  }
-
-  /** Composite key of key and window for groupByKey transformation. */
-  public static class WindowedKey implements Comparable<WindowedKey>, Serializable {
-
-    private final byte[] key;
-    private final byte[] window;
-
-    WindowedKey(byte[] key, byte[] window) {
-      this.key = key;
-      this.window = window;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      WindowedKey that = (WindowedKey) o;
-      return Arrays.equals(key, that.key) && Arrays.equals(window, that.window);
-    }
-
-    @Override
-    public int hashCode() {
-      int result = Arrays.hashCode(key);
-      result = 31 * result + Arrays.hashCode(window);
-      return result;
-    }
-
-    byte[] getKey() {
-      return key;
-    }
-
-    byte[] getWindow() {
-      return window;
-    }
-
-    @Override
-    public int compareTo(WindowedKey o) {
-      int keyCompare = UnsignedBytes.lexicographicalComparator().compare(this.getKey(), o.getKey());
-      if (keyCompare == 0) {
-        return UnsignedBytes.lexicographicalComparator().compare(this.getWindow(), o.getWindow());
-      }
-      return keyCompare;
     }
   }
 }

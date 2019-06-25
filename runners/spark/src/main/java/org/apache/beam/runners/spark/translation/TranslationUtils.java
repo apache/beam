@@ -19,7 +19,6 @@ package org.apache.beam.runners.spark.translation;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -79,7 +78,7 @@ public final class TranslationUtils {
   }
 
   /**
-   * A SparkKeyedCombineFn function applied to grouped KVs.
+   * A SparkCombineFn function applied to grouped KVs.
    *
    * @param <K> Grouped key type.
    * @param <InputT> Grouped values type.
@@ -101,7 +100,7 @@ public final class TranslationUtils {
           KV.of(
               windowedKv.getValue().getKey(),
               fn.getCombineFn()
-                  .apply(windowedKv.getValue().getValue(), fn.ctxForWindows((Collection) windowedKv.getWindows()))),
+                  .apply(windowedKv.getValue().getValue(), fn.ctxtForValue(windowedKv))),
           windowedKv.getTimestamp(),
           windowedKv.getWindows(),
           windowedKv.getPane());

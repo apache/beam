@@ -52,7 +52,6 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
@@ -132,14 +131,12 @@ public final class TransformTranslator {
 
         JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupedByKey;
         Partitioner partitioner = getPartitioner(context);
-        if (windowingStrategy.getWindowFn().isNonMerging()
-            && windowingStrategy.getTimestampCombiner() == TimestampCombiner.END_OF_WINDOW) {
+        if (GroupNonMergingWindowsFunctions.isEligibleForGroupByWindow(windowingStrategy)) {
           // we can have a memory sensitive translation for non-merging windows
           groupedByKey =
               GroupNonMergingWindowsFunctions.groupByKeyAndWindow(
                   inRDD, keyCoder, coder.getValueCoder(), windowingStrategy, partitioner);
         } else {
-
           // --- group by key only.
           JavaRDD<KV<K, Iterable<WindowedValue<V>>>> groupedByKeyOnly =
               GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder, partitioner);
@@ -194,8 +191,7 @@ public final class TransformTranslator {
                         KV.of(
                             in.getValue().getKey(),
                             combineFn.apply(
-                                in.getValue().getValue(),
-                                sparkCombineFn.ctxForWindows((Collection) in.getWindows()))),
+                                in.getValue().getValue(), sparkCombineFn.ctxtForValue(in))),
                         in.getTimestamp(),
                         in.getWindows(),
                         in.getPane()));

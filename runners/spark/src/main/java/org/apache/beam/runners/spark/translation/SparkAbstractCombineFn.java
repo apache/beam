@@ -60,20 +60,20 @@ class SparkAbstractCombineFn implements Serializable {
     this.windowingStrategy = (WindowingStrategy<?, BoundedWindow>) windowingStrategy;
   }
 
-  // each Spark task should get it's own copy of this SparkKeyedCombineFn, and since Spark tasks
+  // each Spark task should get it's own copy of this SparkCombineFn, and since Spark tasks
   // are single-threaded, it is safe to reuse the context.
   // the combine context is not Serializable so we'll use lazy initialization.
   // ** DO NOT attempt to turn this into a Singleton as Spark may run multiple tasks in parallel
   // in the same JVM (Executor). **
-  // ** DO NOT use combineContext directly inside this class, use ctxtForInput instead. **
+  // ** DO NOT use combineContext directly inside this class, use ctxtForValue instead. **
   private transient SparkCombineContext combineContext;
 
   @SuppressWarnings("unchecked")
-  SparkCombineContext ctxtForInput(WindowedValue<?> input) {
-    return ctxForWindows((Collection) input.getWindows());
+  SparkCombineContext ctxtForValue(WindowedValue<?> input) {
+    return ctxtForWindows((Collection) input.getWindows());
   }
 
-  SparkCombineContext ctxForWindows(Collection<BoundedWindow> windows) {
+  SparkCombineContext ctxtForWindows(Collection<BoundedWindow> windows) {
     if (combineContext == null) {
       combineContext = new SparkCombineContext(options.get(), new SparkSideInputReader(sideInputs));
     }

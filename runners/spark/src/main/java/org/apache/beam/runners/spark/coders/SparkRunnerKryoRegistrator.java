@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import org.apache.beam.runners.spark.io.MicrobatchSource;
 import org.apache.beam.runners.spark.stateful.SparkGroupAlsoByWindowViaWindowSet.StateAndTimers;
-import org.apache.beam.runners.spark.translation.GroupNonMergingWindowsFunctions.WindowedKey;
 import org.apache.beam.runners.spark.translation.ValueAndCoderKryoSerializer;
 import org.apache.beam.runners.spark.translation.ValueAndCoderLazySerializable;
 import org.apache.beam.runners.spark.util.ByteArray;
@@ -59,7 +58,6 @@ public class SparkRunnerKryoRegistrator implements KryoRegistrator {
     kryo.register(PaneInfo.class);
     kryo.register(StateAndTimers.class);
     kryo.register(TupleTag.class);
-    kryo.register(WindowedKey.class);
     kryo.register(WrappedArray.ofRef.class);
 
     try {
