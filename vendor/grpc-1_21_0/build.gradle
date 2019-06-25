@@ -16,20 +16,21 @@
  * limitations under the License.
  */
 
+import org.apache.beam.gradle.GrpcVendoring
+
 plugins { id 'org.apache.beam.vendor-java' }
 
-description = "Apache Beam :: Vendored Dependencies :: Guava 20"
+description = "Apache Beam :: Vendored Dependencies :: gRPC :: 1.21.0"
 
 group = "org.apache.beam"
 version = "0.1"
 
 vendorJava(
-  dependencies: ["com.google.guava:guava:20.0"],
-  relocations: [
-    "com.google.common": "org.apache.beam.vendor.guava.v20_0.com.google.common",
-    "com.google.thirdparty": "org.apache.beam.vendor.guava.v20_0.com.google.thirdparty",
-  ],
+  dependencies: GrpcVendoring.dependencies(),
+  runtimeDependencies: GrpcVendoring.runtimeDependencies(),
+  relocations: GrpcVendoring.relocations(),
+  exclusions: GrpcVendoring.exclusions(),
+  artifactId: "beam-vendor-grpc-1_21_0",
   groupId: group,
-  artifactId: "beam-vendor-guava-20_0",
   version: version,
 )
