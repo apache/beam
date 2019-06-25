@@ -54,7 +54,7 @@ try:
 except ImportError:
   Client = None
 
-__all__ = ['ReadFromBigTable', 'WriteToBigTable', '_BigTableWriteFn', '_BigtableReadFn']
+__all__ = ['ReadFromBigTable', 'WriteToBigTable']
 
 
 class _BigTableWriteFn(beam.DoFn):

@@ -133,7 +133,7 @@ if __name__ == '__main__':
   parser.add_argument('--extra_package', type=str)
   parser.add_argument('--num_workers', type=int, default=10)
   parser.add_argument('--autoscaling_algorithm', type=str, default='NONE')
-  parser.add_argument('--experiments', type=str, default='beam_fn_api')
+  # parser.add_argument('--experiments', type=str, default='beam_fn_api') # Disabled for the integration test
   parser.add_argument('--runner', type=str, default='dataflow')
   parser.add_argument('--disk_size_gb', type=int, default=50)
   parser.add_argument('--row_count', type=int, default=10000)
