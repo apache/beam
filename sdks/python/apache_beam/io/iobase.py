@@ -1185,6 +1185,9 @@ class RestrictionTracker(object):
     """
     raise NotImplementedError
 
+  def current_watermark(self):
+    raise NotImplementedError
+
   def try_split(self, fraction_of_remainder):
     """Splits current restriction based on fraction_of_remainder.
 
@@ -1339,15 +1342,26 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
 
     Delegated RangeTracker guarantees synchronization safety.
     """
-    def __init__(self, range_tracker):
-      if not isinstance(range_tracker, RangeTracker):
+    def __init__(self, restriction):
+      if not isinstance(restriction, SourceBundle):
         raise ValueError('Initializing SDFBoundedSourceRestrictionTracker'
-                         'requires a RangeTracker')
-      self._delegate_range_tracker = range_tracker
+                         'requires a SourceBundle')
+      self._delegate_range_tracker = restriction.source.get_range_tracker(
+          restriction.start_position, restriction.stop_position)
+      self._source = restriction.source
+
+    def current_progress(self):
+      return RestrictionProgress(
+          fraction=self._delegate_range_tracker.fraction_consumed())
 
     def current_restriction(self):
-      return (self._delegate_range_tracker.start_position(),
-              self._delegate_range_tracker.stop_position())
+      start_pos = self._delegate_range_tracker.start_position()
+      stop_pos = self._delegate_range_tracker.stop_position()
+      return SourceBundle(
+          stop_pos - start_pos,
+          self._source,
+          start_pos,
+          stop_pos)
 
     def start_pos(self):
       return self._delegate_range_tracker.start_position()
@@ -1361,19 +1375,40 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
     def try_split(self, fraction_of_remainder):
       consumed_fraction = self._delegate_range_tracker.fraction_consumed()
       fraction = (consumed_fraction +
-                  (1 - consumed_fraction) * fraction_of_remainder)
+                  (1 - consumed_fraction) * (1 - fraction_of_remainder))
       position = self._delegate_range_tracker.position_at_fraction(fraction)
       # Need to stash current stop_pos before splitting since
       # range_tracker.split will update its stop_pos if splits
       # successfully.
       stop_pos = self.stop_pos()
-      split_pos, _ = self._delegate_range_tracker.try_split(position)
-      if split_pos:
-        return ((self._delegate_range_tracker.start_position(), split_pos),
-                (split_pos, stop_pos))
+      split_result = self._delegate_range_tracker.try_split(position)
+      if split_result:
+        split_pos, _ = split_result
+        primary_start = self._delegate_range_tracker.start_position()
+        primary_stop = split_pos
+        residual_start = split_pos
+        residual_stop = stop_pos
+        if split_pos:
+          return (SourceBundle(primary_stop - primary_start,
+                               self._source,
+                               primary_start,
+                               primary_stop),
+                  SourceBundle(residual_stop - residual_start,
+                               self._source,
+                               residual_start,
+                               residual_stop))
 
     def deferred_status(self):
       return None
+
+    def current_watermark(self):
+      return None
+
+    def get_delegate_range_tracker(self):
+      return self._delegate_range_tracker
+
+    def get_tracking_source(self):
+      return self._source
 
   class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
     """A `RestrictionProvider` that is used by SDF for `BoundedSource`."""
@@ -1391,9 +1426,7 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
                           range_tracker.stop_position())
 
     def create_tracker(self, restriction):
-      return _SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionTracker(
-          restriction.source.get_range_tracker(restriction.start_position,
-                                               restriction.stop_position))
+      return _SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionTracker(restriction)
 
     def split(self, element, restriction):
       # Invoke source.split to get initial splitting results.
@@ -1424,9 +1457,9 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
           restriction_tracker=core.DoFn.RestrictionParam(
               _SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionProvider(
                   source, chunk_size))):
-        start_pos, end_pos = restriction_tracker.current_restriction()
-        range_tracker = self.source.get_range_tracker(start_pos, end_pos)
-        return self.source.read(range_tracker)
+        for output in restriction_tracker.get_tracking_source().read(
+            restriction_tracker.get_delegate_range_tracker()):
+          yield output
 
     return SDFBoundedSourceDoFn(self.source)
 
