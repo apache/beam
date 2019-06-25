@@ -1380,17 +1380,15 @@ PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.Cou
 
 ```py
 class CountWordsFn(Dofn):
-   def __init__(self):
-     self.words_counter = Metrics.counter(self.__class__, 'words')
    
-   def process(self, element):
+  def process(self, element):
      words = element.split()
-     self.words_counter.inc(len(words))   
+     # your logic here to keep track of the word count.
 
 class CountWords(PTransform):
 
     def expand(self, pcoll):
-      return pcoll |  FlatMap(CountWordsFN())
+      return pcoll |  FlatMap(CountWordsFn())
 
 word_counts = windowed_words | beam.Map(WordCount()) 
 ```
