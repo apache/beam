@@ -38,7 +38,6 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -54,6 +53,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
 import org.joda.time.chrono.ISOChronology;
 
 /** Provides utility functions for working with Beam {@link Schema} types. */
@@ -291,9 +291,8 @@ class SchemaUtil {
       if (time == null) {
         return null;
       }
-      ZonedDateTime zdt =
-          ZonedDateTime.of(LocalDate.ofEpochDay(0), time.toLocalTime(), ZoneOffset.systemDefault());
-      return new DateTime(zdt.toInstant().toEpochMilli(), ISOChronology.getInstanceUTC());
+      return new DateTime(time.getTime(), ISOChronology.getInstanceUTC())
+          .withDate(new LocalDate(0L));
     };
   }
 
