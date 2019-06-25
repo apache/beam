@@ -39,7 +39,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Chicago_Taxi_Dataflow
         gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
             tasks(':sdks:python:dataflowChicagoTaxiExample')
-            switches('-PgcsRoot=gs://')
+            switches('-PgcsRoot=gs://apache_beam_testing')
             switches('-Prunner=DataflowRunner')
         }
     }

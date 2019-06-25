@@ -77,7 +77,7 @@ python tfdv_analyze_and_validate.py \
   --runner ${RUNNER} \
   --max_rows=${MAX_ROWS} \
   --publish_to_big_query=true \
-  --metrics_dataset='chicago_taxi_metrics' \
+  --metrics_dataset='beam_performance' \
   --metrics_table='tfdv_analyze' \
   --metric_reporting_project ${GCP_PROJECT} \
   --sdk_location=${SDK_LOCATION} \
@@ -102,8 +102,8 @@ python tfdv_analyze_and_validate.py \
   --runner ${RUNNER} \
   --max_rows=${MAX_ROWS} \
   --publish_to_big_query=true \
-  --metrics_dataset='chicago_taxi_metrics' \
-  --metrics_table='tfdv_validate' \
+  --metrics_dataset='beam_performance' \
+  --metrics_table='chicago_taxi_tfdv_validate' \
   --sdk_location=${SDK_LOCATION} \
   --metric_reporting_project ${GCP_PROJECT} \
   --setup_file ./setup.py
@@ -125,7 +125,7 @@ python preprocess.py \
   --max_rows ${MAX_ROWS} \
   --publish_to_big_query=true \
   --metrics_dataset='chicago_taxi_metrics' \
-  --metrics_table='preprocess' \
+  --metrics_table='chicago_taxi_preprocess' \
   --sdk_location=${SDK_LOCATION} \
   --metric_reporting_project ${GCP_PROJECT} \
   --setup_file ./setup.py
@@ -185,8 +185,8 @@ python process_tfma.py \
   --runner ${RUNNER} \
   --max_eval_rows=${MAX_ROWS} \
   --publish_to_big_query=true \
-  --metrics_dataset='chicago_taxi_metrics' \
-  --metrics_table='process_tfma' \
+  --metrics_dataset='beam_performance' \
+  --metrics_table='chicago_taxi_process_tfma' \
   --sdk_location=${SDK_LOCATION} \
   --metric_reporting_project ${GCP_PROJECT} \
   --setup_file ./setup.py

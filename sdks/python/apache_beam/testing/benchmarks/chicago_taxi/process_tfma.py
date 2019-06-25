@@ -169,7 +169,7 @@ def main():
       type=str)
   parser.add_argument(
       '--metrics_table',
-      help='BQ table',
+      help='BQ table for storing metrics',
       default=None,
       type=str)
   parser.add_argument(
