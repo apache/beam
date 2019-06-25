@@ -1488,7 +1488,15 @@ file:</p>
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># This feature is not yet available in the Beam SDK for Python.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">arvg</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+  <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--input-file'</span><span class="p">,</span>
+                      <span class="n">dest</span><span class="o">=</span><span class="s">'input_file'</span><span class="p">,</span>
+                      <span class="n">default</span><span class="o">=</span><span class="s">'/Users/home/words-example.txt'</span><span class="p">)</span>
+  <span class="n">known_args</span><span class="p">,</span> <span class="n">pipeline_args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_known_args</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+  <span class="n">pipeline_options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">pipeline_args</span><span class="p">)</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">pipeline_options</span><span class="p">)</span>
+  <span class="n">lines</span>  <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s">'read'</span> <span class="o">&gt;&gt;</span> <span class="n">ReadFromText</span><span class="p">(</span><span class="n">known_args</span><span class="o">.</span><span class="n">input_file</span><span class="p">)</span>
 </code></pre>
 </div>
 
@@ -1520,7 +1528,7 @@ each element in the <code class="highlighter-rouge">PCollection</code>.</p>
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># This feature is not yet available in the Beam SDK for Python.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">AddTimestampFn</span><span class="p">(</span><span class="n">timestamp_seconds</span><span class="p">))</span>
 </code></pre>
 </div>
 
@@ -1561,7 +1569,16 @@ timestamp sometime in a 2-hour period.</p>
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># This feature is not yet available in the Beam SDK for Python.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">AddTimestampFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+  
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">min_timestamp</span><span class="p">,</span> <span class="n">max_timestamp</span><span class="p">):</span>
+     <span class="bp">self</span><span class="o">.</span><span class="n">min_timestamp</span> <span class="o">=</span> <span class="n">min_timestamp</span>
+     <span class="bp">self</span><span class="o">.</span><span class="n">max_timestamp</span> <span class="o">=</span> <span class="n">max_timestamp</span>
+
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">window</span><span class="o">.</span><span class="n">TimestampedValue</span><span class="p">(</span>
+       <span class="n">element</span><span class="p">,</span>
+       <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">min_timestamp</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_timestamp</span><span class="p">))</span>
 </code></pre>
 </div>
 
@@ -1596,7 +1613,7 @@ defaults to 1 minute (you can change this with a command-line option).</p>
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># This feature is not yet available in the Beam SDK for Python.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">windowed_words</span> <span class="o">=</span> <span class="nb">input</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="mi">60</span> <span class="o">*</span> <span class="n">window_size_minutes</span><span class="p">))</span>
 </code></pre>
 </div>
 
@@ -1614,7 +1631,7 @@ PCollections over windowed PCollections as well.</p>
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># This feature is not yet available in the Beam SDK for Python.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">word_counts</span> <span class="o">=</span> <span class="n">windowed_words</span> <span class="o">|</span> <span class="n">CountWords</span><span class="p">()</span>
 </code></pre>
 </div>
 
