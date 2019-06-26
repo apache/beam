@@ -49,7 +49,8 @@
 #                      `--tests`, `--nologcapture`. More can be found in
 #                      https://nose.readthedocs.io/en/latest/man.html#options
 #     suite         -> Namespace for this run of tests. Required if running
-#                      under Jenkins.
+#                      under Jenkins. Used to differentiate runs of the same
+#                      tests with different interpreters/dependencies/etc.
 #
 # Example usages:
 #     - Run full set of PostCommit tests with default pipeline options:
@@ -161,7 +162,7 @@ if [[ "$JENKINS_HOME" != "" && "$SUITE" == "" ]]; then
     echo "Argument --suite is required in a Jenkins environment."
     exit 1
 fi
-XUNIT_FILE="build/nosetests-$SUITE.xml"
+XUNIT_FILE="nosetests-$SUITE.xml"
 
 set -o errexit
 
@@ -240,8 +241,8 @@ fi
 
 echo ">>> RUNNING integration tests with pipeline options: $PIPELINE_OPTS"
 echo ">>>   test options: $TEST_OPTS"
-# TODO(udim): Pass $SUITE once migrated to pytest. xunitmp doesn't support suite
-#   names.
+# TODO(BEAM-3713): Pass $SUITE once migrated to pytest. xunitmp doesn't support
+#   suite names.
 python setup.py nosetests \
   --test-pipeline-options="$PIPELINE_OPTS" \
   --with-xunitmp --xunitmp-file=$XUNIT_FILE \

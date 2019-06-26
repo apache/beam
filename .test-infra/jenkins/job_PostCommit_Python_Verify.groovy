@@ -29,6 +29,10 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Verify', 'Run Python 
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
+  publishers {
+    archiveJunit('**/nosetests*.xml')
+  }
+
   // Execute shell command to test Python SDK.
   steps {
     gradle {
