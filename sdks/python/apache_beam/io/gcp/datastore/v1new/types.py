@@ -25,6 +25,7 @@ from __future__ import absolute_import
 
 import copy
 
+from apache_beam.options.value_provider import ValueProvider
 from google.cloud.datastore import entity
 from google.cloud.datastore import key
 from google.cloud.datastore import query
@@ -75,6 +76,9 @@ class Query(object):
     ancestor_client_key = None
     if self.ancestor is not None:
       ancestor_client_key = self.ancestor.to_client_key()
+
+    self.filters = self._set_runtime_filters()
+
     return query.Query(
         client, kind=self.kind, project=self.project, namespace=self.namespace,
         ancestor=ancestor_client_key, filters=self.filters,
@@ -83,6 +87,31 @@ class Query(object):
 
   def clone(self):
     return copy.copy(self)
+
+  def _set_runtime_filters(self):
+    """
+    Extracts values from ValueProviders in `self.filters` if available
+    :param filters: sequence of tuple[str, str, str] or
+    sequence of tuple[ValueProvider, ValueProvider, ValueProvider]
+    :return: tuple[str, str, str]
+    """
+    runtime_filters = []
+    if not all(len(filter_tuple) == 3 for filter_tuple in self.filters):
+      raise TypeError('%s: filters must be a sequence of tuple[str, str, str])'
+                      ' or sequence of tuple[ValueProvider, ValueProvider, ValueProvider]);'
+                      ' got %r instead'
+                      % (self.__class__.__name__, self.filters))
+
+    for filter_type, filter_operator, filter_value in self.filters:
+      if isinstance(filter_type, ValueProvider):
+        filter_type = filter_type.get()
+      if isinstance(filter_operator, ValueProvider):
+        filter_operator = filter_operator.get()
+      if isinstance(filter_value, ValueProvider):
+        filter_value = filter_value.get()
+      runtime_filters.append((filter_type, filter_operator, filter_value))
+
+    return runtime_filters or ()
 
   def __repr__(self):
     return ('<Query(kind=%s, project=%s, namespace=%s, ancestor=%s, filters=%s,'
