@@ -137,12 +137,12 @@ class TypesTest(unittest.TestCase):
 
   def testRuntimeFilters(self):
     filter_list = [
-        [(StaticValueProvider('property_name'),  # Filter 1
-          StaticValueProvider('='),
-          StaticValueProvider('value'))],
-        [(StaticValueProvider('property_name'),  # Filter 2(1)
-          StaticValueProvider('='),
-          StaticValueProvider('value')),
+        [(StaticValueProvider(str, 'property_name'),  # Filter 1
+          StaticValueProvider(str, '='),
+          StaticValueProvider(str, 'value'))],
+        [(StaticValueProvider(str, 'property_name'),  # Filter 2(1)
+          StaticValueProvider(str, '='),
+          StaticValueProvider(str, 'value')),
          ('property_name', '=', 'value')],  # Filter 2(2)
         ()  # Filter 3
     ]

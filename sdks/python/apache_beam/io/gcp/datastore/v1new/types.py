@@ -97,8 +97,7 @@ class Query(object):
     """
     runtime_filters = []
     if not all(len(filter_tuple) == 3 for filter_tuple in self.filters):
-      raise TypeError('%s: filters must be a sequence of tuple[str, str, str])'
-                      ' or sequence of tuple[ValueProvider, ValueProvider, ValueProvider]);'
+      raise TypeError('%s: filters must be a sequence of tuple with length=3'
                       ' got %r instead'
                       % (self.__class__.__name__, self.filters))
 
