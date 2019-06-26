@@ -20,7 +20,7 @@ limitations under the License.
 
 # Python Streaming Pipelines
 
-Python streaming pipeline execution is experimentally available (with some
+Python streaming pipeline execution became available (with some
 [limitations](#unsupported-features)) starting with Beam SDK version 2.5.0.
 
 
