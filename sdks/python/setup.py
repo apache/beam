@@ -130,6 +130,7 @@ REQUIRED_PACKAGES = [
 
 REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
+    'nose_xunitmp>=0.4.1',
     'numpy>=1.14.3,<2',
     'pandas>=0.23.4,<0.24',
     'parameterized>=0.6.0,<0.7.0',

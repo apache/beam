@@ -1847,6 +1847,7 @@ class BeamModulePlugin implements Plugin<Project> {
               argMap["pipeline_opts"] = config.pipelineOptions
             if (config.kmsKeyName)
               argMap["kms_key_name"] = config.kmsKeyName
+            argMap["suite"] = "integrationTest-perf"
 
             def cmdArgs = project.mapToArgString(argMap)
             def runScriptsDir = "${pythonRootDir}/scripts"

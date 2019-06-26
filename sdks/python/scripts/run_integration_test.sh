@@ -48,6 +48,8 @@
 #                      during execution. Commonly used options like `--attr`,
 #                      `--tests`, `--nologcapture`. More can be found in
 #                      https://nose.readthedocs.io/en/latest/man.html#options
+#     suite         -> Namespace for this run of tests. Required if running
+#                      under Jenkins.
 #
 # Example usages:
 #     - Run full set of PostCommit tests with default pipeline options:
@@ -72,6 +74,7 @@ SLEEP_SECS=20
 STREAMING=false
 WORKER_JAR=""
 KMS_KEY_NAME="projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
+SUITE=""
 
 # Default test (nose) options.
 # Run WordCountIT.test_wordcount_it by default if no test options are
@@ -142,12 +145,23 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --suite)
+        SUITE="$2"
+        shift # past argument
+        shift # past value
+        ;;
     *)    # unknown option
         echo "Unknown option: $1"
         exit 1
         ;;
 esac
 done
+
+if [[ "$JENKINS_HOME" != "" && "$SUITE" == "" ]]; then
+    echo "Argument --suite is required in a Jenkins environment."
+    exit 1
+fi
+XUNIT_FILE="build/nosetests-$SUITE.xml"
 
 set -o errexit
 
@@ -226,6 +240,9 @@ fi
 
 echo ">>> RUNNING integration tests with pipeline options: $PIPELINE_OPTS"
 echo ">>>   test options: $TEST_OPTS"
+# TODO(udim): Pass $SUITE once migrated to pytest. xunitmp doesn't support suite
+#   names.
 python setup.py nosetests \
   --test-pipeline-options="$PIPELINE_OPTS" \
+  --with-xunitmp --xunitmp-file=$XUNIT_FILE \
   $TEST_OPTS
