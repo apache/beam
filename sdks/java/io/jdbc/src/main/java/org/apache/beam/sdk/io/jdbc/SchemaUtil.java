@@ -38,13 +38,14 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.TimeZone;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -52,6 +53,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
 import org.joda.time.chrono.ISOChronology;
 
 /** Provides utility functions for working with Beam {@link Schema} types. */
@@ -273,7 +275,7 @@ class SchemaUtil {
   /** Convert SQL date type to Beam DateTime. */
   private static ResultSetFieldExtractor createDateExtractor() {
     return (rs, i) -> {
-      Date date = rs.getDate(i);
+      Date date = rs.getDate(i, Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
       if (date == null) {
         return null;
       }
@@ -285,20 +287,19 @@ class SchemaUtil {
   /** Convert SQL time type to Beam DateTime. */
   private static ResultSetFieldExtractor createTimeExtractor() {
     return (rs, i) -> {
-      Time time = rs.getTime(i);
+      Time time = rs.getTime(i, Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
       if (time == null) {
         return null;
       }
-      ZonedDateTime zdt =
-          ZonedDateTime.of(LocalDate.ofEpochDay(0), time.toLocalTime(), ZoneOffset.systemDefault());
-      return new DateTime(zdt.toInstant().toEpochMilli(), ISOChronology.getInstanceUTC());
+      return new DateTime(time.getTime(), ISOChronology.getInstanceUTC())
+          .withDate(new LocalDate(0L));
     };
   }
 
   /** Convert SQL timestamp type to Beam DateTime. */
   private static ResultSetFieldExtractor createTimestampExtractor() {
     return (rs, i) -> {
-      Timestamp ts = rs.getTimestamp(i);
+      Timestamp ts = rs.getTimestamp(i, Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
       if (ts == null) {
         return null;
       }
