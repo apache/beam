@@ -27,7 +27,6 @@ from hamcrest.core.base_matcher import BaseMatcher
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.testing.test_utils import compute_hash
 from apache_beam.utils import retry
-from apache_beam.utils.timestamp import MAX_TIMESTAMP
 
 __all__ = ['BigqueryMatcher', 'BigQueryTableMatcher']
 
@@ -179,15 +178,15 @@ class BigqueryFullResultStreamingMatcher(BigqueryFullResultMatcher):
   A timeout can be specified.
   """
 
-  def __init__(self, project, query, data, timeout=MAX_TIMESTAMP):
+  DEFAULT_TIMEOUT = 5*60
+
+  def __init__(self, project, query, data, timeout=DEFAULT_TIMEOUT):
     super(BigqueryFullResultStreamingMatcher, self).__init__(
         project, query, data)
     self.timeout = timeout
 
   def _get_query_result(self, bigquery_client):
     start_time = time.time()
-    if self.timeout == MAX_TIMESTAMP:
-      logging.warning('Waiting indefinitely')
     while time.time() - start_time <= self.timeout:
       response = self._query_with_retry(bigquery_client)
       if len(response) >= len(self.expected_data):
