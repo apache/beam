@@ -336,7 +336,7 @@ public class TestPubsubSignal implements TestRule {
    * Stateful {@link DoFn} which caches the elements it sees and checks whether they satisfy the
    * predicate.
    *
-   * <p>When predicate is satisfied outputs "SUCCESS". If predicate throws execption, outputs
+   * <p>When predicate is satisfied outputs "SUCCESS". If predicate throws exception, outputs
    * "FAILURE".
    */
   static class StatefulPredicateCheck<T> extends DoFn<KV<String, ? extends T>, String> {

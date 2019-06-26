@@ -441,6 +441,7 @@ public class PubsubIO {
   private static <T> Read<T> read() {
     return new AutoValue_PubsubIO_Read.Builder<T>()
         .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .build();
   }
@@ -456,6 +457,7 @@ public class PubsubIO {
         .setCoder(PubsubMessagePayloadOnlyCoder.of())
         .setParseFn(new IdentityMessageFn())
         .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
         .build();
   }
 
@@ -470,6 +472,7 @@ public class PubsubIO {
         .setCoder(PubsubMessageWithMessageIdCoder.of())
         .setParseFn(new IdentityMessageFn())
         .setNeedsAttributes(false)
+        .setNeedsMessageId(true)
         .build();
   }
 
@@ -484,6 +487,7 @@ public class PubsubIO {
         .setCoder(PubsubMessageWithAttributesCoder.of())
         .setParseFn(new IdentityMessageFn())
         .setNeedsAttributes(true)
+        .setNeedsMessageId(false)
         .build();
   }
 
@@ -498,6 +502,7 @@ public class PubsubIO {
         .setCoder(PubsubMessageWithAttributesAndMessageIdCoder.of())
         .setParseFn(new IdentityMessageFn())
         .setNeedsAttributes(true)
+        .setNeedsMessageId(true)
         .build();
   }
 
@@ -508,6 +513,7 @@ public class PubsubIO {
   public static Read<String> readStrings() {
     return new AutoValue_PubsubIO_Read.Builder<String>()
         .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .setCoder(StringUtf8Coder.of())
         .setParseFn(new ParsePayloadAsUtf8())
@@ -525,6 +531,7 @@ public class PubsubIO {
     ProtoCoder<T> coder = ProtoCoder.of(messageClass);
     return new AutoValue_PubsubIO_Read.Builder<T>()
         .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .setCoder(coder)
         .setParseFn(new ParsePayloadUsingCoder<>(coder))
@@ -542,6 +549,7 @@ public class PubsubIO {
     AvroCoder<T> coder = AvroCoder.of(clazz);
     return new AutoValue_PubsubIO_Read.Builder<T>()
         .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .setCoder(coder)
         .setParseFn(new ParsePayloadUsingCoder<>(coder))
@@ -561,6 +569,7 @@ public class PubsubIO {
     AvroCoder<GenericRecord> coder = AvroCoder.of(GenericRecord.class, avroSchema);
     return new AutoValue_PubsubIO_Read.Builder<GenericRecord>()
         .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .setBeamSchema(schema)
         .setToRowFn(AvroUtils.getToRowFunction(GenericRecord.class, avroSchema))
@@ -586,6 +595,7 @@ public class PubsubIO {
     Schema schema = AvroUtils.getSchema(clazz, null);
     return new AutoValue_PubsubIO_Read.Builder<T>()
         .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .setBeamSchema(schema)
         .setToRowFn(AvroUtils.getToRowFunction(clazz, avroSchema))
@@ -673,6 +683,8 @@ public class PubsubIO {
 
     abstract boolean getNeedsAttributes();
 
+    abstract boolean getNeedsMessageId();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -698,6 +710,8 @@ public class PubsubIO {
       abstract Builder<T> setFromRowFn(@Nullable SerializableFunction<Row, T> fromRowFn);
 
       abstract Builder<T> setNeedsAttributes(boolean needsAttributes);
+
+      abstract Builder<T> setNeedsMessageId(boolean needsMessageId);
 
       abstract Builder<T> setClock(@Nullable Clock clock);
 
@@ -860,7 +874,8 @@ public class PubsubIO {
               subscriptionPath,
               getTimestampAttribute(),
               getIdAttribute(),
-              getNeedsAttributes());
+              getNeedsAttributes(),
+              getNeedsMessageId());
       PCollection<T> read = input.apply(source).apply(MapElements.via(getParseFn()));
       return (getBeamSchema() != null)
           ? read.setSchema(getBeamSchema(), getToRowFn(), getFromRowFn())
