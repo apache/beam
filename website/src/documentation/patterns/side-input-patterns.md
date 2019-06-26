@@ -22,11 +22,11 @@ limitations under the License.
 
 The samples on this page show you common Beam side input patterns. A side input is an additional input that your `DoFn` can access each time it processes an element in the input `PCollection`. For more information, see the [programming guide section on side inputs]({{ site.baseurl }}/documentation/programming-guide/#side-inputs).
 
-## Using global window side inputs in non-global windows
+## Slowly updating global window side inputs
 
 You can retrieve side inputs from global windows to use them in a pipeline job with non-global windows, like a `FixedWindow`.
 
-To use global window side inputs in pipelines with non-global windows:
+To slowly update global window side inputs in pipelines with non-global windows:
 
 1. Write a `DoFn` that periodically pulls data from a bounded source into a global window.
     
