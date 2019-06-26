@@ -25,10 +25,11 @@ from __future__ import absolute_import
 
 import copy
 
-from apache_beam.options.value_provider import ValueProvider
 from google.cloud.datastore import entity
 from google.cloud.datastore import key
 from google.cloud.datastore import query
+
+from apache_beam.options.value_provider import ValueProvider
 
 __all__ = ['Query', 'Key', 'Entity']
 
