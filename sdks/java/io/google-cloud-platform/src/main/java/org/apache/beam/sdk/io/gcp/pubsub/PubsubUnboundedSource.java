@@ -1083,9 +1083,15 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
     @Override
     public Coder<PubsubMessage> getOutputCoder() {
-      return outer.getNeedsAttributes()
-          ? PubsubMessageWithAttributesCoder.of()
-          : PubsubMessagePayloadOnlyCoder.of();
+      if (outer.getNeedsMessageId()) {
+        return outer.getNeedsAttributes()
+            ? PubsubMessageWithAttributesAndMessageIdCoder.of()
+            : PubsubMessageWithMessageIdCoder.of();
+      } else {
+        return outer.getNeedsAttributes()
+            ? PubsubMessageWithAttributesCoder.of()
+            : PubsubMessagePayloadOnlyCoder.of();
+      }
     }
 
     @Override
@@ -1188,6 +1194,9 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   /** Whether this source should load the attributes of the PubsubMessage, or only the payload. */
   private final boolean needsAttributes;
 
+  /** Whether this source should include the messageId from PubSub. */
+  private final boolean needsMessageId;
+
   @VisibleForTesting
   PubsubUnboundedSource(
       Clock clock,
@@ -1197,7 +1206,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       @Nullable ValueProvider<SubscriptionPath> subscription,
       @Nullable String timestampAttribute,
       @Nullable String idAttribute,
-      boolean needsAttributes) {
+      boolean needsAttributes,
+      boolean needsMessageId) {
     checkArgument(
         (topic == null) != (subscription == null),
         "Exactly one of topic and subscription must be given");
@@ -1209,6 +1219,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     this.timestampAttribute = timestampAttribute;
     this.idAttribute = idAttribute;
     this.needsAttributes = needsAttributes;
+    this.needsMessageId = needsMessageId;
   }
 
   /** Construct an unbounded source to consume from the Pubsub {@code subscription}. */
@@ -1228,7 +1239,52 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         subscription,
         timestampAttribute,
         idAttribute,
-        needsAttributes);
+        needsAttributes,
+        false);
+  }
+
+  /** Construct an unbounded source to consume from the Pubsub {@code subscription}. */
+  public PubsubUnboundedSource(
+      Clock clock,
+      PubsubClientFactory pubsubFactory,
+      @Nullable ValueProvider<ProjectPath> project,
+      @Nullable ValueProvider<TopicPath> topic,
+      @Nullable ValueProvider<SubscriptionPath> subscription,
+      @Nullable String timestampAttribute,
+      @Nullable String idAttribute,
+      boolean needsAttributes) {
+    this(
+        clock,
+        pubsubFactory,
+        project,
+        topic,
+        subscription,
+        timestampAttribute,
+        idAttribute,
+        needsAttributes,
+        false);
+  }
+
+  /** Construct an unbounded source to consume from the Pubsub {@code subscription}. */
+  public PubsubUnboundedSource(
+      PubsubClientFactory pubsubFactory,
+      @Nullable ValueProvider<ProjectPath> project,
+      @Nullable ValueProvider<TopicPath> topic,
+      @Nullable ValueProvider<SubscriptionPath> subscription,
+      @Nullable String timestampAttribute,
+      @Nullable String idAttribute,
+      boolean needsAttributes,
+      boolean needsMessageId) {
+    this(
+        null,
+        pubsubFactory,
+        project,
+        topic,
+        subscription,
+        timestampAttribute,
+        idAttribute,
+        needsAttributes,
+        needsMessageId);
   }
 
   /** Get the project path. */
@@ -1275,6 +1331,10 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
   public boolean getNeedsAttributes() {
     return needsAttributes;
+  }
+
+  public boolean getNeedsMessageId() {
+    return needsMessageId;
   }
 
   @Override
