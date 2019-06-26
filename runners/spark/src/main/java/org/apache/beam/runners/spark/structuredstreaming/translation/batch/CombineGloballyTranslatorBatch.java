@@ -17,18 +17,23 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.RowHelpers;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.spark.api.java.function.FlatMapFunction;
+import org.apache.spark.api.java.function.MapFunction;
+import org.apache.spark.api.java.function.MapPartitionsFunction;
 import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
+import org.apache.spark.sql.KeyValueGroupedDataset;
+import scala.Tuple2;
 
 /**
  * By default Combine.globally is translated as a composite transform that does a Pardo (to key the
@@ -54,12 +59,37 @@ class CombineGloballyTranslatorBatch<InputT, AccumT, OutputT>
     WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
     Dataset<WindowedValue<InputT>> inputDataset = context.getDataset(input);
 
-    Dataset<Row> combinedRowDataset =
-        inputDataset.agg(new AggregatorCombinerGlobally<>(combineFn, windowingStrategy).toColumn());
+    // applying a groupByKey avoids for some reason that the spark structured streaming fmwk
+    // casts data to Row which makes it impossible to deserialize without
+    // the coder shipped into the data. For performance reasons
+    // (avoid memory consumption and having to deserialize), we do not ship coder + data.
 
-    Dataset<Iterable<WindowedValue<OutputT>>> accumulatedDataset =
-        combinedRowDataset.map(
-            RowHelpers.extractObjectFromRowMapFunction(), EncoderHelpers.genericEncoder());
+    // We do not want to shuffle data during groupByKey, we cannot get the number of partitions for
+    // the input dataset without triggering a costly operation (conversion to rdd) so we cannot use spark Hashpartitioner
+    // so we apply a key to each input dataset partition and then trigger a GBK that should not shuffle data.
+
+    Dataset<Tuple2<Integer, WindowedValue<InputT>>> keyedDataset = inputDataset
+        .mapPartitions((MapPartitionsFunction<WindowedValue<InputT>, Tuple2<Integer, WindowedValue<InputT>>>) inputTIterator -> {
+          List<Tuple2<Integer, WindowedValue<InputT>>> result = new ArrayList<>();
+          Random random = new Random();
+          while (inputTIterator.hasNext()) {
+            result.add(Tuple2.apply(random.nextInt(), inputTIterator.next()));
+          }
+          return result.iterator();
+        }, EncoderHelpers.tuple2Encoder());
+
+    KeyValueGroupedDataset<Integer, Tuple2<Integer, WindowedValue<InputT>>> groupedDataset = keyedDataset
+        .groupByKey(
+            (MapFunction<Tuple2<Integer, WindowedValue<InputT>>, Integer>) value -> value._1(),
+            EncoderHelpers.windowedValueEncoder());
+
+    Dataset<Tuple2<Integer, Iterable<WindowedValue<OutputT>>>> combinedDataset = groupedDataset
+        .agg(new AggregatorCombinerGlobally<>(combineFn, windowingStrategy).toColumn());
+
+    Dataset<Iterable<WindowedValue<OutputT>>> accumulatedDataset = combinedDataset.map(
+        (MapFunction<Tuple2<Integer, Iterable<WindowedValue<OutputT>>>, Iterable<WindowedValue<OutputT>>>) value -> value._2,
+        EncoderHelpers.genericEncoder());
+
     Dataset<WindowedValue<OutputT>> outputDataset = accumulatedDataset.flatMap(
         (FlatMapFunction<Iterable<WindowedValue<OutputT>>, WindowedValue<OutputT>>)
             windowedValues -> windowedValues.iterator(), EncoderHelpers.windowedValueEncoder());
