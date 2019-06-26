@@ -45,7 +45,7 @@ public class ParquetTableProvider extends InMemoryMetaTableProvider {
   public static class GenericRecordReadConverter
       extends PTransform<PCollection<GenericRecord>, PCollection<Row>> implements Serializable {
 
-    private static final Schema SCHEMA = Schema.builder().addStringField("line").build();
+    private static final Schema SCHEMA = Schema.builder().addStringField("clientProtocol").build();
 
     public GenericRecordReadConverter() {}
 
