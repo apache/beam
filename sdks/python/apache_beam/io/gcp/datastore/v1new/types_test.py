@@ -144,7 +144,6 @@ class TypesTest(unittest.TestCase):
           StaticValueProvider(str, '='),
           StaticValueProvider(str, 'value')),
          ('property_name', '=', 'value')],  # Filter 2(2)
-        ()  # Filter 3
     ]
     for filters in filter_list:
       projection = ['f1', 'f2']
