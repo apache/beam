@@ -31,7 +31,6 @@ import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
-import org.apache.beam.runners.samza.util.PortablePipelineDotRenderer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,8 +51,6 @@ public class SamzaJobInvocation implements JobInvocation {
     // Fused pipeline proto.
     final RunnerApi.Pipeline fusedPipeline =
         GreedyPipelineFuser.fuse(originalPipeline).toPipeline();
-    LOG.info("Portable pipeline to run:");
-    LOG.info(PortablePipelineDotRenderer.toDotString(fusedPipeline));
     // the pipeline option coming from sdk will set the sdk specific runner which will break
     // serialization
     // so we need to reset the runner here to a valid Java runner
