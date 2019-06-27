@@ -141,11 +141,11 @@ class TypesTest(unittest.TestCase):
                        [StaticValueProvider(tuple,
                                             ('property_name', '=', 'value')),
                         ('property_name', '=', 'value')],
-                       ]
+                      ]
     self.expected_filters = [[('property_name', '=', 'value')],
                              [('property_name', '=', 'value'),
                               ('property_name', '=', 'value')],
-                             ]
+                            ]
 
     for vp_filter, exp_filter in zip(self.vp_filters, self.expected_filters):
       q = Query(kind='kind', project=self._PROJECT, namespace=self._NAMESPACE,
