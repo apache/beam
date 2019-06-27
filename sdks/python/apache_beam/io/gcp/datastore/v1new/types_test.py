@@ -135,35 +135,25 @@ class TypesTest(unittest.TestCase):
 
     logging.info('query: %s', q)  # Test __repr__()
 
-  def testRuntimeFilters(self):
-    filter_list = [
-        [(StaticValueProvider(str, 'property_name'),  # Filter 1
-          StaticValueProvider(str, '='),
-          StaticValueProvider(str, 'value'))],
-        [(StaticValueProvider(str, 'property_name'),  # Filter 2(1)
-          StaticValueProvider(str, '='),
-          StaticValueProvider(str, 'value')),
-         ('property_name', '=', 'value')],  # Filter 2(2)
-    ]
-    for filters in filter_list:
-      projection = ['f1', 'f2']
-      order = projection
-      distinct_on = projection
-      ancestor_key = Key(['kind', 'id'], project=self._PROJECT)
-      q = Query(kind='kind', project=self._PROJECT, namespace=self._NAMESPACE,
-                ancestor=ancestor_key, filters=filters, projection=projection,
-                order=order, distinct_on=distinct_on)
-      cq = q._to_client_query(self._test_client)
-      self.assertEqual(self._PROJECT, cq.project)
-      self.assertEqual(self._NAMESPACE, cq.namespace)
-      self.assertEqual('kind', cq.kind)
-      self.assertEqual(ancestor_key.to_client_key(), cq.ancestor)
-      self.assertEqual(filters, cq.filters)
-      self.assertEqual(projection, cq.projection)
-      self.assertEqual(order, cq.order)
-      self.assertEqual(distinct_on, cq.distinct_on)
+  def testValueProviderFilters(self):
+    self.vp_filters = [[StaticValueProvider(tuple,
+                                            ('property_name', '=', 'value'))],
+                       [StaticValueProvider(tuple,
+                                            ('property_name', '=', 'value')),
+                        ('property_name', '=', 'value')],
+                       ]
+    self.expected_filters = [[('property_name', '=', 'value')],
+                             [('property_name', '=', 'value'),
+                              ('property_name', '=', 'value')],
+                             ]
 
-      logging.info('query: %s', q)  # Test __repr__()
+    for vp_filter, exp_filter in zip(self.vp_filters, self.expected_filters):
+      q = Query(kind='kind', project=self._PROJECT, namespace=self._NAMESPACE,
+                filters=vp_filter)
+      cq = q._to_client_query(self._test_client)
+      self.assertEqual(exp_filter, cq.filters)
+
+      print('query: %s', q)  # Test __repr__()
 
   def testQueryEmptyNamespace(self):
     # Test that we can pass a namespace of None.
