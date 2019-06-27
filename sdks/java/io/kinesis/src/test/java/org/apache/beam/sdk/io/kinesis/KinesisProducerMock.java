@@ -26,8 +26,10 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.joda.time.DateTime;
 
 /** Simple mock implementation of {@link IKinesisProducer} for testing. */
@@ -35,14 +37,17 @@ public class KinesisProducerMock implements IKinesisProducer {
 
   private boolean isFailedFlush = false;
 
-  private List<UserRecord> addedRecords = new ArrayList<>();
+  private List<UserRecord> addedRecords = Collections.synchronizedList(new ArrayList<>());
 
   private KinesisServiceMock kinesisService = KinesisServiceMock.getInstance();
+
+  private AtomicInteger seqNumber = new AtomicInteger(0);
 
   public KinesisProducerMock() {}
 
   public KinesisProducerMock(KinesisProducerConfiguration config, boolean isFailedFlush) {
     this.isFailedFlush = isFailedFlush;
+    this.seqNumber.set(0);
   }
 
   @Override
@@ -57,9 +62,14 @@ public class KinesisProducerMock implements IKinesisProducer {
   }
 
   @Override
-  public ListenableFuture<UserRecordResult> addUserRecord(
+  public synchronized ListenableFuture<UserRecordResult> addUserRecord(
       String stream, String partitionKey, String explicitHashKey, ByteBuffer data) {
+    seqNumber.incrementAndGet();
     SettableFuture<UserRecordResult> f = SettableFuture.create();
+    f.set(
+        new UserRecordResult(
+            new ArrayList<>(), String.valueOf(seqNumber.get()), explicitHashKey, !isFailedFlush));
+
     if (kinesisService.getExistedStream().equals(stream)) {
       addedRecords.add(new UserRecord(stream, partitionKey, explicitHashKey, data));
     }
@@ -103,12 +113,7 @@ public class KinesisProducerMock implements IKinesisProducer {
   }
 
   @Override
-  public void flush() {
-    if (isFailedFlush) {
-      // don't flush
-      return;
-    }
-
+  public synchronized void flush() {
     DateTime arrival = DateTime.now();
     for (int i = 0; i < addedRecords.size(); i++) {
       UserRecord record = addedRecords.get(i);
@@ -120,8 +125,6 @@ public class KinesisProducerMock implements IKinesisProducer {
 
   @Override
   public synchronized void flushSync() {
-    if (getOutstandingRecordsCount() > 0) {
-      flush();
-    }
+    throw new RuntimeException("Not implemented");
   }
 }
