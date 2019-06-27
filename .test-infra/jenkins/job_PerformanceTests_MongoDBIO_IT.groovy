@@ -52,7 +52,7 @@ job(jobName) {
             benchmarks              : 'beam_integration_benchmark',
             beam_prebuilt           : 'false',
             beam_sdk                : 'java',
-            beam_it_module          : 'sdks/java/io/mongodb',
+            beam_it_module          : ':sdks:java:io:mongodb',
             beam_it_class           : 'org.apache.beam.sdk.io.mongodb.MongoDBIOIT',
             beam_it_options         : commonJobProperties.joinPipelineOptions(pipelineOptions),
             beam_kubernetes_scripts : commonJobProperties.makePathAbsolute('src/.test-infra/kubernetes/mongodb/load-balancer/mongo.yml'),
