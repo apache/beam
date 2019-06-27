@@ -133,6 +133,8 @@ class AggregatorCombinerGlobally<InputT, AccumT, OutputT, W extends BoundedWindo
       //each accumulator has only one window
       BoundedWindow accumulatorWindow = accumulator.getWindows().iterator().next();
       W mergedWindowForAccumulator = windowToMergeResult.get(accumulatorWindow);
+      mergedWindowForAccumulator = (mergedWindowForAccumulator == null) ? (W)accumulatorWindow : mergedWindowForAccumulator;
+
       if (mergedWindowToAccumulators.get(mergedWindowForAccumulator) == null){
         mergedWindowToAccumulators.put(mergedWindowForAccumulator, Collections.singletonList(accumulator));
       }
