@@ -47,7 +47,7 @@ if sys.version_info > (3,):
 # yapf: disable
 GENERIC_TEST_DATA = [
     #
-    ("empty_0", []),
+    # ("empty_0", []),
     ("none_0", [None]),
     ("none_1", [None, None, None]),
     ("strings_0", ["ABC"]),
@@ -106,7 +106,7 @@ DATAFRAME_TEST_DATA = [
 def read_through_pipeline(cache):
   """Read elements from cache using a Beam pipeline."""
   temp_dir = tempfile.mkdtemp()
-  temp_cache = SafeTextBasedCache(os.path.join(temp_dir, uuid.uuid1().hex))
+  temp_cache = SafeTextBasedCache(os.path.join(temp_dir, uuid.uuid4().hex))
   try:
     with TestPipeline() as p:
       _ = (p | "Read" >> cache.reader() | "Write" >> temp_cache.writer())

@@ -26,6 +26,7 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.runners.interactive.caching import PCollectionCache
 from apache_beam.runners.interactive.caching.datatype_inference import \
     infer_element_type
+from apache_beam.transforms import PTransform
 
 try:  # Python 3
   unquote_to_bytes = urllib.parse.unquote_to_bytes
@@ -48,25 +49,20 @@ __all__ = [
 
 class FileBasedCache(PCollectionCache):
 
-  def __init__(self, location, if_exists="error", **writer_kwargs):
+  def __init__(self, location, mode="error", **writer_kwargs):
     self.location = location
     self._writer_kwargs = writer_kwargs
     self._num_writes = 0
     self._coder_was_provided = "coder" in writer_kwargs
 
-    def check_if_exists():
-      if if_exists == "overwrite":
-        self.clear()
-      elif if_exists == "error":
-        existing_files = self._existing_file_paths
-        if existing_files:
-          raise IOError("The following cache files already exist: {}.".format(
-              existing_files))
-      else:
-        raise ValueError(
-            '`if_exists` must be set to either "error" or "overwrite".')
-
-    check_if_exists()
+    # TODO(ostrokach): Implement append mode.
+    if mode not in ['error', 'overwrite']:
+      raise ValueError("'mode' must be set to one of: ['error', 'overwrite'].")
+    if mode == "error" and self._existing_file_paths:
+      raise IOError("The following cache files already exist: {}.".format(
+          self._existing_file_paths))
+    if mode == "overwrite":
+      self.clear()
 
   @property
   def timestamp(self):
@@ -85,12 +81,11 @@ class FileBasedCache(PCollectionCache):
     return self._reader_class(self._file_pattern, **kwargs)
 
   def writer(self):
-    writer = self._writer_class(self._file_path_prefix, **self._writer_kwargs)
-
     if self._infer_coder:
-      writer.expand = patch_writer_expand(writer.expand, writer,
-                                          self._writer_kwargs)
-
+      writer = PatchedWriter(self._writer_class, (self._file_path_prefix,),
+                             self._writer_kwargs)
+    else:
+      writer = self._writer_class(self._file_path_prefix, **self._writer_kwargs)
     self._num_writes += 1
     return writer
 
@@ -101,13 +96,16 @@ class FileBasedCache(PCollectionCache):
       yield element
 
   def write(self, elements):
-    writer = self.writer()
     if self._infer_coder:
       # TODO(ostrokach): We might want to infer the element type from the first
       # N elements, rather than reading the entire iterator.
       elements = list(elements)
       element_type = infer_element_type(elements)
-      register_coder(writer, self._writer_kwargs, element_type)
+      coder = coders.registry.get_coder(element_type)
+      self._writer_kwargs["coder"] = coder
+      writer = self.writer()
+    else:
+      writer = self.writer()
     handle = writer._sink.open(self._file_path_prefix)
     try:
       for element in elements:
@@ -197,6 +195,27 @@ def patch_writer_expand(expand_fn, writer, writer_kwargs):
     return expand_fn(pcoll)
 
   return expand
+
+
+class PatchedWriter(PTransform):
+  """
+
+  .. note::
+    This function updates the 'writer_kwargs' dictionary by assigning to
+    the 'coder' key an instance of the inferred coder.
+  """
+
+  def __init__(self, writer_class, writer_args, writer_kwargs):
+    self._writer_class = writer_class
+    self._writer_args = writer_args
+    self._writer_kwargs = writer_kwargs
+
+  def expand(self, pcoll):
+    if "coder" not in self._writer_kwargs:
+      coder = coders.registry.get_coder(pcoll.element_type)
+      self._writer_kwargs["coder"] = coder
+    writer = self._writer_class(*self._writer_args, **self._writer_kwargs)
+    return pcoll | writer
 
 
 class SafeFastPrimitivesCoder(coders.Coder):

@@ -46,9 +46,9 @@ class FileBasedCacheTest(unittest.TestCase):
 
   def create_dummy_file(self, location):
     """Create a dummy file with `location` as the filepath prefix."""
-    filename = location + "-" + uuid.uuid1().hex
+    filename = location + "-" + uuid.uuid4().hex
     while FileSystems.exists(filename):
-      filename = location + "-" + uuid.uuid1().hex
+      filename = location + "-" + uuid.uuid4().hex
     with open(filename, "wb") as fout:
       fout.write(b"dummy data")
     return filename

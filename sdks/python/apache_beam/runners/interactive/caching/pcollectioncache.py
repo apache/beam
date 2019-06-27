@@ -53,7 +53,7 @@ class PCollectionCache(with_metaclass(abc.ABCMeta)):
 
   @abc.abstractmethod
   def __init__(self, location, **writer_kwargs):
-    """Initialize :class:`PCollectionCache`.
+    """Initialize PCollectionCache.
 
     Args:
       location (str): Location where the cache data should be stored.
@@ -81,8 +81,7 @@ class PCollectionCache(with_metaclass(abc.ABCMeta)):
       **reader_kwargs: Arguments to pass to the underlying reader class.
 
     Returns:
-      Union[FileBasedSource, NativeSource]: A source from which we can read
-          a PCollection.
+      A source from which we can read a PCollection.
     """
     raise NotImplementedError
 
@@ -91,8 +90,7 @@ class PCollectionCache(with_metaclass(abc.ABCMeta)):
     """Return a writer PTransform which can write a PCollection to cache.
 
     Returns:
-      Union[FileBasedSink, NativeSink]: A sink to which we can write
-          a PCollection.
+      A sink to which we can write a PCollection.
     """
     raise NotImplementedError
 
