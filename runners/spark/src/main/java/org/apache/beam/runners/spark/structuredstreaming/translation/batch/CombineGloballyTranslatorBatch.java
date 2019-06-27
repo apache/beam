@@ -81,7 +81,7 @@ class CombineGloballyTranslatorBatch<InputT, AccumT, OutputT>
     KeyValueGroupedDataset<Integer, Tuple2<Integer, WindowedValue<InputT>>> groupedDataset = keyedDataset
         .groupByKey(
             (MapFunction<Tuple2<Integer, WindowedValue<InputT>>, Integer>) value -> value._1(),
-            EncoderHelpers.windowedValueEncoder());
+            EncoderHelpers.genericEncoder());
 
     Dataset<Tuple2<Integer, Iterable<WindowedValue<OutputT>>>> combinedDataset = groupedDataset
         .agg(new AggregatorCombinerGlobally<>(combineFn, windowingStrategy).toColumn());
