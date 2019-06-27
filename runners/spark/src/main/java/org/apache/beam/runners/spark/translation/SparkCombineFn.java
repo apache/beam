@@ -20,11 +20,13 @@ package org.apache.beam.runners.spark.translation;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -34,11 +36,14 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
+import org.apache.beam.runners.spark.util.SparkSideInputReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -47,10 +52,12 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.spark.api.java.function.Function;
@@ -60,7 +67,7 @@ import org.joda.time.Instant;
  * A {@link org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn} with a {@link
  * org.apache.beam.sdk.transforms.CombineWithContext.Context} for the SparkRunner.
  */
-public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstractCombineFn {
+public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializable {
 
   /** Accumulator of WindowedValues holding values for different windows. */
   public interface WindowedAccumulator<
@@ -106,14 +113,16 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
     static <InputT, ValueT, AccumT> WindowedAccumulator<InputT, ValueT, AccumT, ?> create(
         SparkCombineFn<InputT, ValueT, AccumT, ?> context,
         Function<InputT, ValueT> toValue,
-        WindowingStrategy<?, ?> windowingStrategy) {
-      Type type = context.getType(windowingStrategy);
-      @SuppressWarnings("unchecked")
-      TypeDescriptor<BoundedWindow> windowTypeDescriptor =
-          (TypeDescriptor<BoundedWindow>) windowingStrategy.getWindowFn().getWindowTypeDescriptor();
+        WindowingStrategy<?, ?> windowingStrategy,
+        Comparator<BoundedWindow> windowComparator) {
+      return create(toValue, context.getType(windowingStrategy), windowComparator);
+    }
+
+    static <InputT, ValueT, AccumT> WindowedAccumulator<InputT, ValueT, AccumT, ?> create(
+        Function<InputT, ValueT> toValue, Type type, Comparator<BoundedWindow> windowComparator) {
       switch (type) {
         case MERGING:
-          return MergingWindowedAccumulator.create(toValue, windowTypeDescriptor);
+          return MergingWindowedAccumulator.create(toValue, windowComparator);
         case NON_MERGING:
           return NonMergingWindowedAccumulator.create(toValue);
         case SINGLE_WINDOW:
@@ -129,15 +138,19 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
         Function<InputT, ValueT> toValue,
         Type type,
         Iterable<WindowedValue<AccumT>> values,
-        @Nullable TypeDescriptor<BoundedWindow> windowType) {
+        Comparator<BoundedWindow> windowComparator) {
       switch (type) {
         case MERGING:
-          return MergingWindowedAccumulator.from(toValue, values, windowType);
+          return MergingWindowedAccumulator.from(toValue, values, windowComparator);
         case NON_MERGING:
           return NonMergingWindowedAccumulator.from(toValue, values);
         case SINGLE_WINDOW:
         case EXPLODE_WINDOWS:
-          return SingleWindowWindowedAccumulator.create(toValue, Iterables.getOnlyElement(values));
+          Iterator<WindowedValue<AccumT>> iter = values.iterator();
+          if (iter.hasNext()) {
+            return SingleWindowWindowedAccumulator.create(toValue, iter.next());
+          }
+          return SingleWindowWindowedAccumulator.create(toValue);
         default:
           throw new IllegalArgumentException("Unknown type: " + type);
       }
@@ -165,7 +178,9 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
     }
 
     final Function<InputT, ValueT> toValue;
-    WindowedValue<AccumT> windowAccumulator = null;
+    AccumT windowAccumulator = null;
+    Instant accTimestamp = null;
+    BoundedWindow accWindow = null;
 
     SingleWindowWindowedAccumulator(Function<InputT, ValueT> toValue) {
       this.toValue = toValue;
@@ -174,13 +189,18 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
     SingleWindowWindowedAccumulator(
         Function<InputT, ValueT> toValue, WindowedValue<AccumT> accumulator) {
       this.toValue = toValue;
-      this.windowAccumulator = accumulator;
+      this.windowAccumulator = accumulator.getValue();
+      this.accTimestamp =
+          accumulator.getTimestamp().equals(BoundedWindow.TIMESTAMP_MIN_VALUE)
+              ? null
+              : accumulator.getTimestamp();
+      this.accWindow = getWindow(accumulator);
     }
 
     @Override
     public void add(WindowedValue<InputT> value, SparkCombineFn<InputT, ValueT, AccumT, ?> context)
         throws Exception {
-      BoundedWindow window = Iterables.getOnlyElement(value.getWindows());
+      BoundedWindow window = getWindow(value);
       SparkCombineContext ctx = context.ctxtForValue(value);
       TimestampCombiner combiner = context.windowingStrategy.getTimestampCombiner();
       Instant windowTimestamp =
@@ -193,12 +213,14 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
         acc = context.combineFn.createAccumulator(ctx);
         timestamp = windowTimestamp;
       } else {
-        acc = windowAccumulator.getValue();
-        timestamp = windowAccumulator.getTimestamp();
+        acc = windowAccumulator;
+        timestamp = accTimestamp;
       }
       AccumT result = context.combineFn.addInput(acc, toValue(value), ctx);
       Instant timestampCombined = combiner.combine(windowTimestamp, timestamp);
-      windowAccumulator = WindowedValue.of(result, timestampCombined, window, PaneInfo.NO_FIRING);
+      windowAccumulator = result;
+      accTimestamp = timestampCombined;
+      accWindow = window;
     }
 
     @Override
@@ -206,32 +228,35 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
         SingleWindowWindowedAccumulator<InputT, ValueT, AccumT> other,
         SparkCombineFn<?, ?, AccumT, ?> context) {
       if (windowAccumulator != null && other.windowAccumulator != null) {
-        List<AccumT> accumulators =
-            Arrays.asList(windowAccumulator.getValue(), other.windowAccumulator.getValue());
+        List<AccumT> accumulators = Arrays.asList(windowAccumulator, other.windowAccumulator);
         AccumT merged =
             context.combineFn.mergeAccumulators(
-                accumulators, context.ctxtForValue(windowAccumulator));
+                accumulators, context.ctxtForWindows(Arrays.asList(accWindow)));
         Instant combined =
             context
                 .windowingStrategy
                 .getTimestampCombiner()
-                .combine(windowAccumulator.getTimestamp(), other.windowAccumulator.getTimestamp());
-        windowAccumulator =
-            WindowedValue.of(merged, combined, windowAccumulator.getWindows(), PaneInfo.NO_FIRING);
+                .combine(accTimestamp, other.accTimestamp);
+        windowAccumulator = merged;
+        accTimestamp = combined;
       } else if (windowAccumulator == null) {
         windowAccumulator = other.windowAccumulator;
+        accTimestamp = other.accTimestamp;
+        accWindow = other.accWindow;
       }
     }
 
     @Override
     public Collection<WindowedValue<AccumT>> extractOutput() {
       if (windowAccumulator != null) {
-        return Arrays.asList(windowAccumulator);
+        return Arrays.asList(
+            WindowedValue.of(
+                windowAccumulator, accTimestamp, accWindow, PaneInfo.ON_TIME_AND_ONLY_FIRING));
       }
       return Collections.emptyList();
     }
 
-    ValueT toValue(WindowedValue<InputT> input) {
+    private ValueT toValue(WindowedValue<InputT> input) {
       try {
         return toValue.call(input.getValue());
       } catch (Exception ex) {
@@ -273,7 +298,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
         throws Exception {
       for (WindowedValue<InputT> v : value.explodeWindows()) {
         SparkCombineContext ctx = context.ctxtForValue(v);
-        BoundedWindow window = Iterables.getOnlyElement(v.getWindows());
+        BoundedWindow window = getWindow(v);
         TimestampCombiner combiner = context.windowingStrategy.getTimestampCombiner();
         Instant windowTimestamp =
             combiner.assign(
@@ -379,28 +404,28 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
           InputT, ValueT, AccumT, MergingWindowedAccumulator<InputT, ValueT, AccumT>> {
 
     static <InputT, ValueT, AccumT> MergingWindowedAccumulator<InputT, ValueT, AccumT> create(
-        Function<InputT, ValueT> toValue, @Nullable TypeDescriptor<BoundedWindow> windowType) {
-      return new MergingWindowedAccumulator<>(toValue, windowType);
+        Function<InputT, ValueT> toValue, Comparator<BoundedWindow> windowComparator) {
+      return new MergingWindowedAccumulator<>(toValue, windowComparator);
     }
 
     static <InputT, ValueT, AccumT> MergingWindowedAccumulator<InputT, ValueT, AccumT> from(
         Function<InputT, ValueT> toValue,
         Iterable<WindowedValue<AccumT>> values,
-        @Nullable TypeDescriptor<BoundedWindow> windowType) {
-      return new MergingWindowedAccumulator<>(toValue, values, windowType);
+        Comparator<BoundedWindow> windowComparator) {
+      return new MergingWindowedAccumulator<>(toValue, values, windowComparator);
     }
 
     @SuppressWarnings("unchecked")
     private MergingWindowedAccumulator(
-        Function<InputT, ValueT> toValue, @Nullable TypeDescriptor<?> windowType) {
-      super(toValue, new TreeMap<>(asWindowComparator(windowType)));
+        Function<InputT, ValueT> toValue, Comparator<BoundedWindow> windowComparator) {
+      super(toValue, new TreeMap<>(windowComparator));
     }
 
     private MergingWindowedAccumulator(
         Function<InputT, ValueT> toValue,
         Iterable<WindowedValue<AccumT>> values,
-        @Nullable TypeDescriptor<BoundedWindow> windowType) {
-      super(toValue, asMap(values, new TreeMap<>(asWindowComparator(windowType))));
+        Comparator<BoundedWindow> windowComparator) {
+      super(toValue, asMap(values, new TreeMap<>(windowComparator)));
     }
 
     @Override
@@ -474,21 +499,23 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
       extends Coder<WindowedAccumulator<InputT, ValueT, AccumT, ?>> {
 
     private final Function<InputT, ValueT> toValue;
-    private final @Nullable TypeDescriptor<BoundedWindow> windowDesc;
     private final IterableCoder<WindowedValue<AccumT>> wrap;
     private final Coder<WindowedValue<AccumT>> accumCoder;
+    private final Comparator<BoundedWindow> windowComparator;
     private final WindowedAccumulator.Type type;
 
     @SuppressWarnings("unchecked")
     WindowedAccumulatorCoder(
         Function<InputT, ValueT> toValue,
         Coder<BoundedWindow> windowCoder,
+        Comparator<BoundedWindow> windowComparator,
         Coder<AccumT> accumCoder,
         WindowedAccumulator.Type type) {
+
       this.toValue = toValue;
       this.accumCoder = WindowedValue.FullWindowedValueCoder.of(accumCoder, windowCoder);
+      this.windowComparator = windowComparator;
       this.wrap = IterableCoder.of(this.accumCoder);
-      windowDesc = windowCoder.getEncodedTypeDescriptor();
       this.type = type;
     }
 
@@ -498,8 +525,17 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
       if (type.isMapBased()) {
         wrap.encode(((MapBasedWindowedAccumulator<?, ?, AccumT, ?>) value).map.values(), outStream);
       } else {
-        accumCoder.encode(
-            ((SingleWindowWindowedAccumulator<?, ?, AccumT>) value).windowAccumulator, outStream);
+        SingleWindowWindowedAccumulator<?, ?, AccumT> swwa =
+            (SingleWindowWindowedAccumulator<?, ?, AccumT>) value;
+        if (swwa.isEmpty()) {
+          outStream.write(0);
+        } else {
+          outStream.write(1);
+          accumCoder.encode(
+              WindowedValue.of(
+                  swwa.windowAccumulator, swwa.accTimestamp, swwa.accWindow, PaneInfo.NO_FIRING),
+              outStream);
+        }
       }
     }
 
@@ -507,10 +543,14 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
     public WindowedAccumulator<InputT, ValueT, AccumT, ?> decode(InputStream inStream)
         throws CoderException, IOException {
       if (type.isMapBased()) {
-        return WindowedAccumulator.create(toValue, type, wrap.decode(inStream), windowDesc);
+        return WindowedAccumulator.create(toValue, type, wrap.decode(inStream), windowComparator);
+      }
+      boolean empty = inStream.read() == 0;
+      if (empty) {
+        return WindowedAccumulator.create(toValue, type, windowComparator);
       }
       return WindowedAccumulator.create(
-          toValue, type, Arrays.asList(accumCoder.decode(inStream)), windowDesc);
+          toValue, type, Arrays.asList(accumCoder.decode(inStream)), windowComparator);
     }
 
     @Override
@@ -522,6 +562,38 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
     public void verifyDeterministic() throws NonDeterministicException {}
   }
 
+  /** An implementation of {@link CombineWithContext.Context} for the SparkRunner. */
+  static class SparkCombineContext extends CombineWithContext.Context {
+    private final PipelineOptions pipelineOptions;
+    private final SideInputReader sideInputReader;
+
+    SparkCombineContext(PipelineOptions pipelineOptions, SideInputReader sideInputReader) {
+      this.pipelineOptions = pipelineOptions;
+      this.sideInputReader = sideInputReader;
+    }
+
+    Collection<? extends BoundedWindow> windows = null;
+
+    SparkCombineContext forInput(final Collection<? extends BoundedWindow> windows) {
+      this.windows = Objects.requireNonNull(windows);
+      return this;
+    }
+
+    @Override
+    public PipelineOptions getPipelineOptions() {
+      return pipelineOptions;
+    }
+
+    @Override
+    public <T> T sideInput(PCollectionView<T> view) {
+      // validate element window.
+      Preconditions.checkState(
+          windows.size() == 1,
+          "sideInput can only be called when the main " + "input element is in exactly one window");
+      return sideInputReader.get(view, windows.iterator().next());
+    }
+  }
+
   @VisibleForTesting
   static <K, V, AccumT, OutputT> SparkCombineFn<KV<K, V>, V, AccumT, OutputT> keyed(
       CombineWithContext.CombineFnWithContext<V, AccumT, OutputT> combineFn,
@@ -530,7 +602,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
       WindowingStrategy<?, ?> windowingStrategy,
       WindowedAccumulator.Type nonMergingStrategy) {
     return new SparkCombineFn<>(
-        KV::getValue, combineFn, options, sideInputs, windowingStrategy, nonMergingStrategy);
+        false, KV::getValue, combineFn, options, sideInputs, windowingStrategy, nonMergingStrategy);
   }
 
   public static <K, V, AccumT, OutputT> SparkCombineFn<KV<K, V>, V, AccumT, OutputT> keyed(
@@ -538,7 +610,8 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
       SerializablePipelineOptions options,
       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
       WindowingStrategy<?, ?> windowingStrategy) {
-    return new SparkCombineFn<>(KV::getValue, combineFn, options, sideInputs, windowingStrategy);
+    return new SparkCombineFn<>(
+        false, KV::getValue, combineFn, options, sideInputs, windowingStrategy);
   }
 
   public static <InputT, AccumT, OutputT> SparkCombineFn<InputT, InputT, AccumT, OutputT> globally(
@@ -546,40 +619,65 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
       SerializablePipelineOptions options,
       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
       WindowingStrategy<?, ?> windowingStrategy) {
-    return new SparkCombineFn<>(e -> e, combineFn, options, sideInputs, windowingStrategy);
+    return new SparkCombineFn<>(true, e -> e, combineFn, options, sideInputs, windowingStrategy);
   }
 
   private static <T> Map<BoundedWindow, WindowedValue<T>> asMap(
       Iterable<WindowedValue<T>> values, Map<BoundedWindow, WindowedValue<T>> res) {
     for (WindowedValue<T> v : values) {
-      res.put(Iterables.getOnlyElement(v.getWindows()), v);
+      res.put(getWindow(v), v);
     }
     return res;
   }
 
-  private static Comparator<BoundedWindow> asWindowComparator(TypeDescriptor<?> windowType) {
+  /**
+   * Create comparator for given type descriptor. Note that the returned {@link Comparator} has to
+   * be {@link Serializable}.
+   */
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private static Comparator<BoundedWindow> asWindowComparator(
+      @Nullable TypeDescriptor<?> windowType) {
     final Comparator<BoundedWindow> comparator;
     if (windowType != null
         && StreamSupport.stream(windowType.getInterfaces().spliterator(), false)
             .anyMatch(t -> t.isSubtypeOf(TypeDescriptor.of(Comparable.class)))) {
       comparator = (Comparator) Comparator.naturalOrder();
     } else {
-      comparator = Comparator.comparing(BoundedWindow::maxTimestamp);
+      java.util.function.Function<BoundedWindow, Instant> keyExtractor =
+          (java.util.function.Function<BoundedWindow, Instant> & Serializable)
+              BoundedWindow::maxTimestamp;
+      comparator = Comparator.comparing(keyExtractor);
     }
     return comparator;
   }
 
+  private final boolean globalCombine;
+  private final SerializablePipelineOptions options;
+  private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
+  final WindowingStrategy<?, BoundedWindow> windowingStrategy;
+
   private final Function<InputT, ValueT> toValue;
   private final WindowedAccumulator.Type defaultNonMergingCombineStrategy;
   private final CombineWithContext.CombineFnWithContext<ValueT, AccumT, OutputT> combineFn;
+  private final Comparator<BoundedWindow> windowComparator;
 
-  public SparkCombineFn(
+  // each Spark task should get it's own copy of this SparkCombineFn, and since Spark tasks
+  // are single-threaded, it is safe to reuse the context.
+  // the combine context is not Serializable so we'll use lazy initialization.
+  // ** DO NOT attempt to turn this into a Singleton as Spark may run multiple tasks in parallel
+  // in the same JVM (Executor). **
+  // ** DO NOT use combineContext directly inside this class, use ctxtForValue instead. **
+  private transient SparkCombineContext combineContext;
+
+  SparkCombineFn(
+      boolean global,
       Function<InputT, ValueT> toValue,
       CombineWithContext.CombineFnWithContext<ValueT, AccumT, OutputT> combineFn,
       SerializablePipelineOptions options,
       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
       WindowingStrategy<?, ?> windowingStrategy) {
     this(
+        global,
         toValue,
         combineFn,
         options,
@@ -590,6 +688,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
 
   @VisibleForTesting
   SparkCombineFn(
+      boolean global,
       Function<InputT, ValueT> toValue,
       CombineWithContext.CombineFnWithContext<ValueT, AccumT, OutputT> combineFn,
       SerializablePipelineOptions options,
@@ -597,15 +696,24 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
       WindowingStrategy<?, ?> windowingStrategy,
       WindowedAccumulator.Type defaultNonMergingCombineStrategy) {
 
-    super(options, sideInputs, windowingStrategy);
+    this.globalCombine = global;
+    this.options = options;
+    this.sideInputs = sideInputs;
+    @SuppressWarnings("unchecked")
+    WindowingStrategy<?, BoundedWindow> castStrategy = (WindowingStrategy) windowingStrategy;
+    this.windowingStrategy = castStrategy;
     this.toValue = toValue;
     this.defaultNonMergingCombineStrategy = defaultNonMergingCombineStrategy;
     this.combineFn = combineFn;
+    @SuppressWarnings("unchecked")
+    TypeDescriptor<BoundedWindow> untyped =
+        (TypeDescriptor<BoundedWindow>) windowingStrategy.getWindowFn().getWindowTypeDescriptor();
+    this.windowComparator = asWindowComparator(untyped);
   }
 
   /** Create empty combiner. Implements Spark's zeroValue for aggregateFn. */
   WindowedAccumulator<InputT, ValueT, AccumT, ?> createCombiner() {
-    return WindowedAccumulator.create(this, toValue, windowingStrategy);
+    return WindowedAccumulator.create(this, toValue, windowingStrategy, windowComparator);
   }
 
   /**
@@ -616,7 +724,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
   WindowedAccumulator<InputT, ValueT, AccumT, ?> createCombiner(WindowedValue<InputT> value) {
     try {
       WindowedAccumulator<InputT, ValueT, AccumT, ?> accumulator =
-          WindowedAccumulator.create(this, toValue, windowingStrategy);
+          WindowedAccumulator.create(this, toValue, windowingStrategy, windowComparator);
       accumulator.add(value, this);
       return accumulator;
     } catch (Exception ex) {
@@ -670,7 +778,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
       Coder<AccumT> accumulatorCoder,
       WindowingStrategy<?, ?> windowingStrategy) {
     return new WindowedAccumulatorCoder<>(
-        toValue, windowCoder, accumulatorCoder, getType(windowingStrategy));
+        toValue, windowCoder, windowComparator, accumulatorCoder, getType(windowingStrategy));
   }
 
   CombineWithContext.CombineFnWithContext<ValueT, AccumT, OutputT> getCombineFn() {
@@ -683,6 +791,10 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
 
   private WindowedAccumulator.Type getType(WindowingStrategy<?, ?> windowingStrategy) {
     if (windowingStrategy.getWindowFn().isNonMerging()) {
+      if (globalCombine) {
+        /* global combine must use map-based accumulator to incorporate multiple windows */
+        return WindowedAccumulator.Type.NON_MERGING;
+      }
       if (windowingStrategy.getWindowFn().assignsToOneWindow()
           && GroupNonMergingWindowsFunctions.isEligibleForGroupByWindow(windowingStrategy)) {
         return WindowedAccumulator.Type.SINGLE_WINDOW;
@@ -690,5 +802,24 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> extends SparkAbstra
       return defaultNonMergingCombineStrategy;
     }
     return WindowedAccumulator.Type.MERGING;
+  }
+
+  private static BoundedWindow getWindow(WindowedValue<?> value) {
+    if (value.isSingleWindowedValue()) {
+      return ((WindowedValue.SingleWindowedValue) value).getWindow();
+    }
+    return Iterables.getOnlyElement(value.getWindows());
+  }
+
+  @SuppressWarnings("unchecked")
+  SparkCombineContext ctxtForValue(WindowedValue<?> input) {
+    return ctxtForWindows((Collection) input.getWindows());
+  }
+
+  SparkCombineContext ctxtForWindows(Collection<BoundedWindow> windows) {
+    if (combineContext == null) {
+      combineContext = new SparkCombineContext(options.get(), new SparkSideInputReader(sideInputs));
+    }
+    return combineContext.forInput(windows);
   }
 }

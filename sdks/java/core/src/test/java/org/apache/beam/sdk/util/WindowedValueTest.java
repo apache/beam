@@ -120,5 +120,25 @@ public class WindowedValueTest {
             WindowedValue.of("foo", now, futureWindow, pane),
             WindowedValue.of("foo", now, centerWindow, pane),
             WindowedValue.of("foo", now, pastWindow, pane)));
+
+    assertThat(value.isSingleWindowedValue(), equalTo(false));
+  }
+
+  @Test
+  public void testSingleWindowedValueInGlobalWindow() {
+    WindowedValue<Integer> value =
+        WindowedValue.of(1, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
+    assertThat(value.isSingleWindowedValue(), equalTo(true));
+    assertThat(
+        ((WindowedValue.SingleWindowedValue) value).getWindow(), equalTo(GlobalWindow.INSTANCE));
+  }
+
+  @Test
+  public void testSingleWindowedValueInFixedWindow() {
+    Instant now = Instant.now();
+    BoundedWindow w = new IntervalWindow(now, now.plus(1));
+    WindowedValue<Integer> value = WindowedValue.of(1, now, w, PaneInfo.NO_FIRING);
+    assertThat(value.isSingleWindowedValue(), equalTo(true));
+    assertThat(((WindowedValue.SingleWindowedValue) value).getWindow(), equalTo(w));
   }
 }

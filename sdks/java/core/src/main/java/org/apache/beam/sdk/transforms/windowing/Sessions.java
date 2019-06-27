@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
 
 /**
@@ -83,6 +84,11 @@ public class Sessions extends WindowFn<Object, IntervalWindow> {
               "%s is only compatible with %s.",
               Sessions.class.getSimpleName(), Sessions.class.getSimpleName()));
     }
+  }
+
+  @Override
+  public TypeDescriptor<IntervalWindow> getWindowTypeDescriptor() {
+    return TypeDescriptor.of(IntervalWindow.class);
   }
 
   @Override

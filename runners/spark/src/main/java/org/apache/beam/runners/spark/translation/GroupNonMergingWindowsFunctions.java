@@ -36,16 +36,19 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.PeekingIterator;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Bytes;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
 import org.apache.spark.HashPartitioner;
 import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 /** Functions for GroupByKey with Non-Merging windows translations to Spark. */
 public class GroupNonMergingWindowsFunctions {
+
+  private static final Logger LOG = LoggerFactory.getLogger(GroupNonMergingWindowsFunctions.class);
 
   /**
    * Verify if given windowing strategy and coders are suitable for group by key and window
@@ -54,7 +57,7 @@ public class GroupNonMergingWindowsFunctions {
    * @param windowingStrategy the windowing strategy
    * @return {@code true} if group by key and window can be used
    */
-  static boolean isEligibleForGroupByWindow(WindowingStrategy windowingStrategy) {
+  static boolean isEligibleForGroupByWindow(WindowingStrategy<?, ?> windowingStrategy) {
     return windowingStrategy.getWindowFn().isNonMerging()
         && windowingStrategy.getTimestampCombiner() == TimestampCombiner.END_OF_WINDOW
         && windowingStrategy.getWindowFn().windowCoder().consistentWithEquals();
@@ -101,22 +104,14 @@ public class GroupNonMergingWindowsFunctions {
       Coder<W> windowCoder,
       SerializableFunction<WindowedValue<KV<K, V>>, OutputT> mappingFn) {
 
-    /*
-    This fails some tests, but probably just makes visual some already existing errors.
-    Disabling for now.
-    try {
-      keyCoder.verifyDeterministic();
-      windowCoder.verifyDeterministic();
-      Preconditions.checkArgument(
-          keyCoder.consistentWithEquals() && windowCoder.consistentWithEquals(),
-          "Both keyCoder and windowCoder must be consistentWithEquals, got %s %s",
-          keyCoder.consistentWithEquals(),
-          windowCoder.consistentWithEquals());
-    } catch (Coder.NonDeterministicException ex) {
-      throw new IllegalArgumentException(
-          "Coder for both key " + keyCoder + " and " + windowCoder + " must be deterministic", ex);
+    if (!isKeyAndWindowCoderConsistentWithEquals(keyCoder, windowCoder)) {
+      LOG.warn(
+          "Either coder {} or {} is not consistent with equals. "
+              + "That might cause issues on some runners.",
+          keyCoder,
+          windowCoder);
     }
-    */
+
     return rdd.flatMapToPair(
         (WindowedValue<KV<K, V>> windowedValue) -> {
           final byte[] keyBytes =
@@ -134,6 +129,18 @@ public class GroupNonMergingWindowsFunctions {
                 return new Tuple2<>(windowedKey, mappingFn.apply(valueOut));
               });
         });
+  }
+
+  private static boolean isKeyAndWindowCoderConsistentWithEquals(
+      Coder<?> keyCoder, Coder<?> windowCoder) {
+    try {
+      keyCoder.verifyDeterministic();
+      windowCoder.verifyDeterministic();
+      return keyCoder.consistentWithEquals() && windowCoder.consistentWithEquals();
+    } catch (Coder.NonDeterministicException ex) {
+      throw new IllegalArgumentException(
+          "Coder for both key " + keyCoder + " and " + windowCoder + " must be deterministic", ex);
+    }
   }
 
   private static <K, V> Partitioner getPartitioner(
