@@ -816,13 +816,8 @@ class BeamModulePlugin implements Plugin<Project> {
           project.sourceSets.each { sourceSet ->
             targetFiles += sourceSet.allJava
           }
-          target targetFiles.matching {
-            include '**/*.java'
-            exclude '**/archetype-resources/src/**'
-            exclude '**/build/generated/**'
-            exclude '**/build/generated-src/**'
-            exclude '**/build/generated-*-avro-*/**'
-          }
+
+          target targetFiles.matching { include 'src/*/java/**/*.java' }
         }
       }
 
