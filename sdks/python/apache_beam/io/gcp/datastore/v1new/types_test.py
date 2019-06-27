@@ -153,7 +153,7 @@ class TypesTest(unittest.TestCase):
       cq = q._to_client_query(self._test_client)
       self.assertEqual(exp_filter, cq.filters)
 
-      print('query: %s', q)  # Test __repr__()
+      logging.info('query: %s', q)  # Test __repr__()
 
   def testQueryEmptyNamespace(self):
     # Test that we can pass a namespace of None.
