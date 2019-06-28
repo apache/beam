@@ -32,15 +32,16 @@ import org.apache.beam.sdk.values.Row;
 public class ParquetTable extends BaseBeamTable implements Serializable {
   private final String filePattern;
 
-  private PTransform<PCollection<GenericRecord>, PCollection<Row>> readConverter;
-
-  public ParquetTable(Schema schema, String filePattern) {
-    super(schema);
+  public ParquetTable(Schema beamSchema, String filePattern) {
+    super(beamSchema);
     this.filePattern = filePattern;
   }
 
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
+    PTransform<PCollection<GenericRecord>, PCollection<Row>> readConverter =
+        GenericRecordReadConverter.builder().beamSchema(schema).build();
+
     return begin
         .apply(ParquetIO.read(AvroUtils.toAvroSchema(schema)).from(filePattern))
         .apply("GenericRecordToRow", readConverter);
@@ -48,7 +49,7 @@ public class ParquetTable extends BaseBeamTable implements Serializable {
 
   @Override
   public POutput buildIOWriter(PCollection<Row> input) {
-    return null;
+    throw new UnsupportedOperationException("Writing to a Pubsub topic is not supported");
   }
 
   @Override

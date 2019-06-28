@@ -72,8 +72,7 @@ public class GenericRecordToRowTest implements Serializable {
 
     PAssert.that(rows)
         .containsInAnyOrder(
-            Row.withSchema(payloadSchema).addValues("Bob", Integer.valueOf(256), "red", 2.4).build()
-            );
+            Row.withSchema(payloadSchema).addValues("Bob", 256, "red", 2.4).build());
     pipeline.run();
   }
 }

@@ -17,10 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.parquet;
 
+import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 
+@AutoService(TableProvider.class)
 public class ParquetTableProvider extends InMemoryMetaTableProvider {
   @Override
   public String getTableType() {
@@ -29,6 +32,6 @@ public class ParquetTableProvider extends InMemoryMetaTableProvider {
 
   @Override
   public BeamSqlTable buildBeamSqlTable(Table table) {
-    return null;
+    return new ParquetTable(table.getSchema(), table.getLocation());
   }
 }
