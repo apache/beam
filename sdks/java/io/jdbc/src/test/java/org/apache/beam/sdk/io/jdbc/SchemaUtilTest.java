@@ -306,13 +306,16 @@ public class SchemaUtilTest {
 
   @Test
   public void testSchemaFieldComparator() {
-    assertTrue(SchemaUtil.compareSchemaField(
+    assertTrue(
+        SchemaUtil.compareSchemaField(
             Schema.Field.of("name", Schema.FieldType.STRING),
             Schema.Field.of("name", Schema.FieldType.STRING)));
-    assertFalse(SchemaUtil.compareSchemaField(
+    assertFalse(
+        SchemaUtil.compareSchemaField(
             Schema.Field.of("name", Schema.FieldType.STRING),
             Schema.Field.of("anotherName", Schema.FieldType.STRING)));
-    assertFalse(SchemaUtil.compareSchemaField(
+    assertFalse(
+        SchemaUtil.compareSchemaField(
             Schema.Field.of("name", Schema.FieldType.STRING),
             Schema.Field.of("name", Schema.FieldType.INT64)));
   }
@@ -321,20 +324,22 @@ public class SchemaUtilTest {
   public void testSchemaFieldTypeComparator() {
     assertTrue(SchemaUtil.compareSchemaFieldType(Schema.FieldType.STRING, Schema.FieldType.STRING));
     assertFalse(SchemaUtil.compareSchemaFieldType(Schema.FieldType.STRING, Schema.FieldType.INT16));
-    assertTrue(SchemaUtil.compareSchemaFieldType(
+    assertTrue(
+        SchemaUtil.compareSchemaFieldType(
             LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255),
             LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255)));
-    assertFalse(SchemaUtil.compareSchemaFieldType(
+    assertFalse(
+        SchemaUtil.compareSchemaFieldType(
             LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255),
             LogicalTypes.fixedLengthBytes(JDBCType.BIT, 255)));
-    assertTrue(SchemaUtil.compareSchemaFieldType(
-            Schema.FieldType.STRING,
-            LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255)));
-    assertFalse(SchemaUtil.compareSchemaFieldType(
-            Schema.FieldType.INT16,
-            LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255)));
-    assertTrue(SchemaUtil.compareSchemaFieldType(
-            LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255),
-            Schema.FieldType.STRING));
+    assertTrue(
+        SchemaUtil.compareSchemaFieldType(
+            Schema.FieldType.STRING, LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255)));
+    assertFalse(
+        SchemaUtil.compareSchemaFieldType(
+            Schema.FieldType.INT16, LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255)));
+    assertTrue(
+        SchemaUtil.compareSchemaFieldType(
+            LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255), Schema.FieldType.STRING));
   }
 }

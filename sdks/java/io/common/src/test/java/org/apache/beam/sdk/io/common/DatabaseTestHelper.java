@@ -47,7 +47,8 @@ public class DatabaseTestHelper {
     }
   }
 
-  public static void createTableForRowWithSchema(DataSource dataSource, String tableName) throws SQLException {
+  public static void createTableForRowWithSchema(DataSource dataSource, String tableName)
+      throws SQLException {
     try (Connection connection = dataSource.getConnection()) {
       try (Statement statement = connection.createStatement()) {
         statement.execute(String.format("create table %s (name VARCHAR(500), id INT)", tableName));
@@ -78,7 +79,8 @@ public class DatabaseTestHelper {
         options.getPostgresDatabaseName());
   }
 
-  public static void createTableWithStatement(DataSource dataSource, String stmt) throws SQLException {
+  public static void createTableWithStatement(DataSource dataSource, String stmt)
+      throws SQLException {
     try (Connection connection = dataSource.getConnection()) {
       try (Statement statement = connection.createStatement()) {
         statement.execute(stmt);

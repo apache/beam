@@ -17,50 +17,28 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
-import org.apache.beam.sdk.io.common.DatabaseTestHelper;
-import org.apache.beam.sdk.io.common.NetworkTestHelper;
+import static org.junit.Assert.assertEquals;
+
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.values.Row;
-import org.apache.derby.drda.NetworkServerControl;
-import org.apache.derby.jdbc.ClientDataSource;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.math.BigDecimal;
-import java.net.InetAddress;
-import java.nio.charset.Charset;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.util.stream.IntStream;
 
 /** Test JdbcUtil. */
 @RunWith(JUnit4.class)
 public class JdbcUtilTest {
 
-    @Test
-    public void testGetPreparedStatementSetCaller() throws Exception {
-        Schema wantSchema = Schema.builder()
-                .addField("col1", Schema.FieldType.INT64)
-                .addField("col2", Schema.FieldType.INT64)
-                .addField("col3", Schema.FieldType.INT64)
-                .build();
+  @Test
+  public void testGetPreparedStatementSetCaller() throws Exception {
+    Schema wantSchema =
+        Schema.builder()
+            .addField("col1", Schema.FieldType.INT64)
+            .addField("col2", Schema.FieldType.INT64)
+            .addField("col3", Schema.FieldType.INT64)
+            .build();
 
-        String generatedStmt = JdbcUtil.generateStatement("test_table", wantSchema.getFields());
-        String expectedStmt = "INSERT INTO test_table(col1, col2, col3) VALUES(?, ?, ?)";
-        assertEquals(expectedStmt, generatedStmt);
-    }
+    String generatedStmt = JdbcUtil.generateStatement("test_table", wantSchema.getFields());
+    String expectedStmt = "INSERT INTO test_table(col1, col2, col3) VALUES(?, ?, ?)";
+    assertEquals(expectedStmt, generatedStmt);
+  }
 }
