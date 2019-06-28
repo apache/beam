@@ -341,20 +341,22 @@ class SchemaUtil {
   }
 
   /**
-   * compares two fields. Does not compare nullability of field types
+   * compares two fields. Does not compare nullability of field types.
    *
    * @param a field 1
    * @param b field 2
    * @return TRUE if fields are equal. Otherwise FALSE
    */
   public static boolean compareSchemaField(Schema.Field a, Schema.Field b) {
-    if (!a.getName().equalsIgnoreCase(b.getName())) return false;
+    if (!a.getName().equalsIgnoreCase(b.getName())) {
+      return false;
+    }
 
     return compareSchemaFieldType(a.getType(), b.getType());
   }
 
   /**
-   * checks nullability for fields
+   * checks nullability for fields.
    *
    * @param fields
    * @return TRUE if any field is not nullable
@@ -364,21 +366,22 @@ class SchemaUtil {
   }
 
   /**
-   * compares two FieldType. Does not compare nullability
+   * compares two FieldType. Does not compare nullability.
    *
    * @param a FieldType 1
    * @param b FieldType 2
    * @return TRUE if FieldType are equal. Otherwise FALSE
    */
   public static boolean compareSchemaFieldType(Schema.FieldType a, Schema.FieldType b) {
-    if (a.getTypeName().equals(b.getTypeName()))
+    if (a.getTypeName().equals(b.getTypeName())) {
       return !a.getTypeName().equals(Schema.TypeName.LOGICAL_TYPE)
           || compareSchemaFieldType(
               a.getLogicalType().getBaseType(), b.getLogicalType().getBaseType());
-    else if (a.getTypeName().isLogicalType())
+    } else if (a.getTypeName().isLogicalType()) {
       return a.getLogicalType().getBaseType().getTypeName().equals(b.getTypeName());
-    else if (b.getTypeName().isLogicalType())
+    } else if (b.getTypeName().isLogicalType()) {
       return b.getLogicalType().getBaseType().getTypeName().equals(a.getTypeName());
+    }
     return false;
   }
 

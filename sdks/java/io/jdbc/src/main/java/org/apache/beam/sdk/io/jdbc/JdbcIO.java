@@ -1022,8 +1022,9 @@ public class JdbcIO {
             "Error while determining columns from table: " + inner.getTable(), e);
       }
 
-      if (tableSchema.getFieldCount() < schema.getFieldCount())
+      if (tableSchema.getFieldCount() < schema.getFieldCount()) {
         throw new RuntimeException("Input schema has more fields than actual table.");
+      }
 
       // filter out missing fields from output table
       List<Schema.Field> missingFields =
@@ -1035,8 +1036,9 @@ public class JdbcIO {
               .collect(Collectors.toList());
 
       // allow insert only if missing fields are nullable
-      if (checkNullabilityForFields(missingFields))
+      if (checkNullabilityForFields(missingFields)) {
         throw new RuntimeException("Non nullable fields are not allowed without schema.");
+      }
 
       List<SchemaUtil.FieldWithIndex> tableFilteredFields =
           tableSchema.getFields().stream()
@@ -1046,16 +1048,17 @@ public class JdbcIO {
                         schema.getFields().stream()
                             .filter((f) -> SchemaUtil.compareSchemaField(tableField, f))
                             .findFirst();
-                    if (optionalSchemaField.isPresent())
-                      return SchemaUtil.FieldWithIndex.of(
-                          tableField, schema.getFields().indexOf(optionalSchemaField.get()));
-                    else return null;
+                    return (optionalSchemaField.isPresent())
+                        ? SchemaUtil.FieldWithIndex.of(
+                            tableField, schema.getFields().indexOf(optionalSchemaField.get()))
+                        : null;
                   })
               .filter(Objects::nonNull)
               .collect(Collectors.toList());
 
-      if (tableFilteredFields.size() != schema.getFieldCount())
+      if (tableFilteredFields.size() != schema.getFieldCount()) {
         throw new RuntimeException("Provided schema doesn't match with database schema.");
+      }
 
       return tableFilteredFields;
     }
@@ -1105,7 +1108,7 @@ public class JdbcIO {
     }
   }
 
-  /** Interface implemented by functions that sets prepared statement data */
+  /** Interface implemented by functions that sets prepared statement data. */
   @FunctionalInterface
   interface PreparedStatementSetCaller extends Serializable {
     void set(

@@ -810,23 +810,33 @@ public class JdbcIOTest implements Serializable {
 
   private static Object dummyFieldValue(Schema.FieldType fieldType) {
     long epochMilli = 1558719710000L;
-    if (fieldType.equals(Schema.FieldType.STRING)) return "string value";
-    else if (fieldType.equals(Schema.FieldType.INT32)) return 100;
-    else if (fieldType.equals(Schema.FieldType.DOUBLE)) return 20.5D;
-    else if (fieldType.equals(Schema.FieldType.BOOLEAN)) return Boolean.TRUE;
-    else if (fieldType.equals(Schema.FieldType.INT16)) return Short.MAX_VALUE;
-    else if (fieldType.equals(Schema.FieldType.INT64)) return Long.MAX_VALUE;
-    else if (fieldType.equals(Schema.FieldType.FLOAT)) return 15.5F;
-    else if (fieldType.equals(Schema.FieldType.DECIMAL)) return BigDecimal.ONE;
-    else if (fieldType.equals(LogicalTypes.JDBC_DATE_TYPE))
+    if (fieldType.equals(Schema.FieldType.STRING)) {
+      return "string value";
+    } else if (fieldType.equals(Schema.FieldType.INT32)) {
+      return 100;
+    } else if (fieldType.equals(Schema.FieldType.DOUBLE)) {
+      return 20.5D;
+    } else if (fieldType.equals(Schema.FieldType.BOOLEAN)) {
+      return Boolean.TRUE;
+    } else if (fieldType.equals(Schema.FieldType.INT16)) {
+      return Short.MAX_VALUE;
+    } else if (fieldType.equals(Schema.FieldType.INT64)) {
+      return Long.MAX_VALUE;
+    } else if (fieldType.equals(Schema.FieldType.FLOAT)) {
+      return 15.5F;
+    } else if (fieldType.equals(Schema.FieldType.DECIMAL)) {
+      return BigDecimal.ONE;
+    } else if (fieldType.equals(LogicalTypes.JDBC_DATE_TYPE)) {
       return new DateTime(epochMilli, ISOChronology.getInstanceUTC()).withTimeAtStartOfDay();
-    else if (fieldType.equals(LogicalTypes.JDBC_TIME_TYPE))
+    } else if (fieldType.equals(LogicalTypes.JDBC_TIME_TYPE)) {
       return new DateTime(epochMilli, ISOChronology.getInstanceUTC()).withDate(new LocalDate(0L));
-    else if (fieldType.equals(LogicalTypes.JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE))
+    } else if (fieldType.equals(LogicalTypes.JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE)) {
       return new DateTime(epochMilli, ISOChronology.getInstanceUTC());
-    else if (fieldType.equals(Schema.FieldType.DATETIME))
+    } else if (fieldType.equals(Schema.FieldType.DATETIME)) {
       return new DateTime(epochMilli, ISOChronology.getInstanceUTC());
-    else return null;
+    } else {
+      return null;
+    }
   }
 
   @Test
