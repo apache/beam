@@ -165,6 +165,7 @@ class ApproximateUniqueTest(unittest.TestCase):
     test_input = [4, 34, 29, 46, 80, 66, 51, 81, 31, 9, 26, 36, 10, 41, 90, 35,
                   33, 19, 88, 86, 28, 93, 38, 76, 15, 87, 12, 39, 84, 13, 32,
                   49, 65, 100, 16, 27, 23, 30, 96, 54]
+
     actual_count = len(set(test_input))
 
     pipeline = TestPipeline()

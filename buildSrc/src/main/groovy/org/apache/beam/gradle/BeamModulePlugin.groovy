@@ -816,13 +816,8 @@ class BeamModulePlugin implements Plugin<Project> {
           project.sourceSets.each { sourceSet ->
             targetFiles += sourceSet.allJava
           }
-          target targetFiles.matching {
-            include '**/*.java'
-            exclude '**/archetype-resources/src/**'
-            exclude '**/build/generated/**'
-            exclude '**/build/generated-src/**'
-            exclude '**/build/generated-*-avro-*/**'
-          }
+
+          target targetFiles.matching { include 'src/*/java/**/*.java' }
         }
       }
 
@@ -1529,7 +1524,7 @@ class BeamModulePlugin implements Plugin<Project> {
               enableSpotbugs: false,
               archivesBaseName: configuration.archivesBaseName,
               shadowJarValidationExcludes: it.shadowJarValidationExcludes,
-              shadowClosure: GrpcVendoring.shadowClosure() << {
+              shadowClosure: GrpcVendoringOld.shadowClosure() << {
                 // We perform all the code relocations but don't include
                 // any of the actual dependencies since they will be supplied
                 // by org.apache.beam:beam-vendor-grpc-v1p13p1:0.1
@@ -1569,7 +1564,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      project.dependencies GrpcVendoring.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_13_1 }
+      project.dependencies GrpcVendoringOld.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_13_1 }
     }
 
     /** ***********************************************************************************************/

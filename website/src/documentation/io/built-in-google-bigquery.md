@@ -163,6 +163,43 @@ table that you want to write to, unless you specify a [create
 disposition](#create-disposition) of `CREATE_NEVER`. [Creating a table
 schema](#creating-a-table-schema) covers schemas in more detail.
 
+### Data types
+
+BigQuery supports the following data types: STRING, BYTES, INTEGER, FLOAT,
+NUMERIC, BOOLEAN, TIMESTAMP, DATE, TIME, DATETIME and GEOGRAPHY.
+All possible values are described at [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types](https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types).
+BigQueryIO allows you to use all of these data types. The following example
+shows the correct format for data types used when reading from and writing to
+BigQuery:
+
+```java
+{% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:BigQueryDataTypes
+%}```
+```py
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_bigqueryio_data_types
+%}```
+
+<!-- Java specific -->
+
+{:.language-java}
+As of Beam 2.7.0, the NUMERIC data type is supported. This data type supports
+high-precision decimal numbers (precision of 38 digits, scale of 9 digits).
+The GEOGRAPHY data type works with Well-Known Text (See [https://en.wikipedia.org/wiki/Well-known_text](https://en.wikipedia.org/wiki/Well-known_text)
+format for reading and writing to BigQuery.
+BigQuery IO requires values of BYTES datatype to be encoded using base64
+encoding when writing to BigQuery. When bytes are read from BigQuery they are
+returned as base64-encoded strings.
+
+<!-- Python specific -->
+
+{:.language-py}
+As of Beam 2.7.0, the NUMERIC data type is supported. This data type supports
+high-precision decimal numbers (precision of 38 digits, scale of 9 digits).
+The GEOGRAPHY data type works with Well-Known Text (See [https://en.wikipedia.org/wiki/Well-known_text](https://en.wikipedia.org/wiki/Well-known_text)
+format for reading and writing to BigQuery.
+BigQuery IO requires values of BYTES datatype to be encoded using base64
+encoding when writing to BigQuery. When bytes are read from BigQuery they are
+returned as base64-encoded bytes.
 
 ## Reading from BigQuery
 

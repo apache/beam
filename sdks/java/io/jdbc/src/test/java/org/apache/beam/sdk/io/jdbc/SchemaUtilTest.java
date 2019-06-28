@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.jdbc;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -128,7 +129,7 @@ public class SchemaUtilTest {
   }
 
   @Test
-  public void testBeamRowMapper_array() throws Exception {
+  public void testBeamRowMapperArray() throws Exception {
     ResultSet mockArrayElementsResultSet = mock(ResultSet.class);
     when(mockArrayElementsResultSet.next()).thenReturn(true, true, true, false);
     when(mockArrayElementsResultSet.getInt(eq(1))).thenReturn(10, 20, 30);
@@ -151,7 +152,7 @@ public class SchemaUtilTest {
   }
 
   @Test
-  public void testBeamRowMapper_primitiveTypes() throws Exception {
+  public void testBeamRowMapperPrimitiveTypes() throws Exception {
     ResultSet mockResultSet = mock(ResultSet.class);
     when(mockResultSet.getLong(eq(1))).thenReturn(42L);
     when(mockResultSet.getBytes(eq(2))).thenReturn("binary".getBytes(Charset.forName("UTF-8")));
@@ -221,14 +222,14 @@ public class SchemaUtilTest {
   }
 
   @Test
-  public void testBeamRowMapper_datetime() throws Exception {
+  public void testBeamRowMapperDateTime() throws Exception {
     long epochMilli = 1558719710000L;
 
     ResultSet mockResultSet = mock(ResultSet.class);
-    when(mockResultSet.getDate(eq(1))).thenReturn(new Date(epochMilli));
-    when(mockResultSet.getTime(eq(2))).thenReturn(new Time(epochMilli));
-    when(mockResultSet.getTimestamp(eq(3))).thenReturn(new Timestamp(epochMilli));
-    when(mockResultSet.getTimestamp(eq(4))).thenReturn(new Timestamp(epochMilli));
+    when(mockResultSet.getDate(eq(1), any())).thenReturn(new Date(epochMilli));
+    when(mockResultSet.getTime(eq(2), any())).thenReturn(new Time(epochMilli));
+    when(mockResultSet.getTimestamp(eq(3), any())).thenReturn(new Timestamp(epochMilli));
+    when(mockResultSet.getTimestamp(eq(4), any())).thenReturn(new Timestamp(epochMilli));
 
     Schema wantSchema =
         Schema.builder()
