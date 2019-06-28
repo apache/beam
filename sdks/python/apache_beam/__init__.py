@@ -81,8 +81,8 @@ import warnings
 
 if sys.version_info[0] == 3:
   warnings.warn(
-      'Running the Apache Beam SDK on Python 3 is not yet fully supported. '
-      'You may encounter buggy behavior or missing features.')
+      'Some syntactic constructs of Python 3 are not yet fully supported by '
+      'Apache Beam.')
 elif sys.version_info[0] == 2 and sys.version_info[1] == 7:
   pass
 else:
