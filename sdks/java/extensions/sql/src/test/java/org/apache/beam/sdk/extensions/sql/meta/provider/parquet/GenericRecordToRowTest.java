@@ -19,9 +19,8 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.parquet;
 
 import java.io.Serializable;
 import org.apache.avro.Schema;
-import org.apache.avro.SchemaBuilder;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -34,36 +33,47 @@ import org.junit.Test;
 public class GenericRecordToRowTest implements Serializable {
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
-  private static final Schema sc =
-      SchemaBuilder.record("HandshakeRequest")
-          .namespace("org.apache.avro.ipc")
-          .fields()
-          .name("clientProtocol")
-          .type()
-          .nullable()
-          .stringType()
-          .noDefault()
-          .endRecord();
-
   org.apache.beam.sdk.schemas.Schema payloadSchema =
       org.apache.beam.sdk.schemas.Schema.builder()
-          .addNullableField("clientProtocol", org.apache.beam.sdk.schemas.Schema.FieldType.STRING)
+          .addField("name", org.apache.beam.sdk.schemas.Schema.FieldType.STRING)
+          .addField("favorite_number", org.apache.beam.sdk.schemas.Schema.FieldType.INT32)
+          .addField("favorite_color", org.apache.beam.sdk.schemas.Schema.FieldType.STRING)
+          .addField("price", org.apache.beam.sdk.schemas.Schema.FieldType.DOUBLE)
           .build();
-
-  GenericRecord g1 = new GenericRecordBuilder(sc).set("clientProtocol", "http").build();
-  GenericRecord g2 = new GenericRecordBuilder(sc).set("clientProtocol", "ftp").build();
 
   @Test
   public void testConvertsGenericRecordToRow() {
+    String schemaString =
+        "{\"namespace\": \"example.avro\",\n"
+            + " \"type\": \"record\",\n"
+            + " \"name\": \"User\",\n"
+            + " \"fields\": [\n"
+            + "     {\"name\": \"name\", \"type\": \"string\"},\n"
+            + "     {\"name\": \"favorite_number\", \"type\": \"int\"},\n"
+            + "     {\"name\": \"favorite_color\", \"type\": \"string\"},\n"
+            + "     {\"name\": \"price\", \"type\": \"double\"}\n"
+            + " ]\n"
+            + "}";
+    Schema schema = (new Schema.Parser()).parse(schemaString);
+
+    GenericRecord before = new GenericData.Record(schema);
+    before.put("name", "Bob");
+    before.put("favorite_number", 256);
+    before.put("favorite_color", "red");
+    before.put("price", 2.4);
+
+    AvroCoder<GenericRecord> coder = AvroCoder.of(schema);
+
     PCollection<Row> rows =
         pipeline
-            .apply("create PCollection<GenericRecord>", Create.of(g1, g2).withCoder(AvroCoder.of(sc)))
-            .apply("convert", new ParquetTableProvider.GenericRecordReadConverter());
+            .apply("create PCollection<GenericRecord>", Create.of(before).withCoder(coder))
+            .apply(
+                "convert", GenericRecordReadConverter.builder().beamSchema(payloadSchema).build());
 
-    PAssert.that(rows).containsInAnyOrder(
-            Row.withSchema(payloadSchema).addValues("ftp").build(),
-            Row.withSchema(payloadSchema).addValues("http").build()
-    );
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            Row.withSchema(payloadSchema).addValues("Bob", Integer.valueOf(256), "red", 2.4).build()
+            );
     pipeline.run();
   }
 }

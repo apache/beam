@@ -17,42 +17,47 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.parquet;
 
+import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
-import org.apache.beam.sdk.io.parquet.ParquetIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 
-public class ParquetTable extends BaseBeamTable implements Serializable {
-  private final String filePattern;
+@AutoValue
+public abstract class GenericRecordReadConverter
+    extends PTransform<PCollection<GenericRecord>, PCollection<Row>> implements Serializable {
 
-  private PTransform<PCollection<GenericRecord>, PCollection<Row>> readConverter;
+  public abstract Schema beamSchema();
 
-  public ParquetTable(Schema schema, String filePattern) {
-    super(schema);
-    this.filePattern = filePattern;
+  public static Builder builder() {
+    return new AutoValue_GenericRecordReadConverter.Builder();
   }
 
   @Override
-  public PCollection<Row> buildIOReader(PBegin begin) {
-    return begin
-        .apply(ParquetIO.read(AvroUtils.toAvroSchema(schema)).from(filePattern))
-        .apply("GenericRecordToRow", readConverter);
+  public PCollection<Row> expand(PCollection<GenericRecord> input) {
+    return input
+        .apply(
+            "GenericRecordsToRows",
+            ParDo.of(
+                new DoFn<GenericRecord, Row>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    Row row = AvroUtils.toBeamRowStrict(c.element(), beamSchema());
+                    c.output(row);
+                  }
+                }))
+        .setRowSchema(beamSchema());
   }
 
-  @Override
-  public POutput buildIOWriter(PCollection<Row> input) {
-    return null;
-  }
+  @AutoValue.Builder
+  abstract static class Builder {
+    public abstract Builder beamSchema(Schema beamSchema);
 
-  @Override
-  public PCollection.IsBounded isBounded() {
-    return PCollection.IsBounded.BOUNDED;
+    public abstract GenericRecordReadConverter build();
   }
 }
