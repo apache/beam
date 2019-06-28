@@ -56,9 +56,9 @@ public class WindmillStateCache implements StatusDataProvider {
   private static final int INITIAL_HASH_MAP_CAPACITY = 4;
   // Overhead of each hash map entry.
   private static final int HASH_MAP_ENTRY_OVERHEAD = 16;
-  // Overhead of each cache entry.  Two longs, plus a hash table.
+  // Overhead of each cache entry.  Three longs, plus a hash table.
   private static final int PER_CACHE_ENTRY_OVERHEAD =
-      16 + HASH_MAP_ENTRY_OVERHEAD * INITIAL_HASH_MAP_CAPACITY;
+      24 + HASH_MAP_ENTRY_OVERHEAD * INITIAL_HASH_MAP_CAPACITY;
 
   private Cache<StateId, StateCacheEntry> stateCache;
   private HashMultimap<ComputationKey, StateId> keyIndex =
@@ -114,8 +114,8 @@ public class WindmillStateCache implements StatusDataProvider {
     }
 
     /** Returns a per-computation, per-key view of the state cache. */
-    public ForKey forKey(ByteString key, String stateFamily, long cacheToken) {
-      return new ForKey(computation, key, stateFamily, cacheToken);
+    public ForKey forKey(ByteString key, String stateFamily, long cacheToken, long workToken) {
+      return new ForKey(computation, key, stateFamily, cacheToken, workToken);
     }
   }
 
@@ -124,24 +124,36 @@ public class WindmillStateCache implements StatusDataProvider {
     private final String computation;
     private final ByteString key;
     private final String stateFamily;
+    // Cache token must be consistent for the key for the cache to be valid.
     private final long cacheToken;
 
-    private ForKey(String computation, ByteString key, String stateFamily, long cacheToken) {
+    // The work token for processing must be greater than the last work token.  As work items are
+    // increasing for a key, a less-than or equal to work token indicates that the current token is
+    // for stale processing. We don't use the cache so that fetches performed will fail with a no
+    // longer valid work token.
+    private final long workToken;
+
+    private ForKey(
+        String computation, ByteString key, String stateFamily, long cacheToken, long workToken) {
       this.computation = computation;
       this.key = key;
       this.stateFamily = stateFamily;
       this.cacheToken = cacheToken;
+      this.workToken = workToken;
     }
 
     public <T extends State> T get(StateNamespace namespace, StateTag<T> address) {
       return WindmillStateCache.this.get(
-          computation, key, stateFamily, cacheToken, namespace, address);
+          computation, key, stateFamily, cacheToken, workToken, namespace, address);
     }
 
+    // Note that once a value has been put for a given workToken, get calls with that same workToken
+    // will fail. This is ok as we only put entries when we are building the commit and will no
+    // longer be performing gets for the same work token.
     public <T extends State> void put(
         StateNamespace namespace, StateTag<T> address, T value, long weight) {
       WindmillStateCache.this.put(
-          computation, key, stateFamily, cacheToken, namespace, address, value, weight);
+          computation, key, stateFamily, cacheToken, workToken, namespace, address, value, weight);
     }
   }
 
@@ -154,7 +166,8 @@ public class WindmillStateCache implements StatusDataProvider {
       String computation,
       ByteString processingKey,
       String stateFamily,
-      long token,
+      long cacheToken,
+      long workToken,
       StateNamespace namespace,
       StateTag<T> address) {
     StateId id = new StateId(computation, processingKey, stateFamily, namespace);
@@ -162,8 +175,12 @@ public class WindmillStateCache implements StatusDataProvider {
     if (entry == null) {
       return null;
     }
-    if (entry.getToken() != token) {
+    if (entry.getCacheToken() != cacheToken) {
       stateCache.invalidate(id);
+      return null;
+    }
+    if (workToken <= entry.getLastWorkToken()) {
+      // We don't used the cached item but we don't invalidate it.
       return null;
     }
     return entry.get(namespace, address);
@@ -173,7 +190,8 @@ public class WindmillStateCache implements StatusDataProvider {
       String computation,
       ByteString processingKey,
       String stateFamily,
-      long token,
+      long cacheToken,
+      long workToken,
       StateNamespace namespace,
       StateTag<T> address,
       T value,
@@ -185,11 +203,12 @@ public class WindmillStateCache implements StatusDataProvider {
         keyIndex.put(id.getComputationKey(), id);
       }
     }
-    if (entry == null || entry.getToken() != token) {
-      entry = new StateCacheEntry(token);
+    if (entry == null || entry.getCacheToken() != cacheToken) {
+      entry = new StateCacheEntry(cacheToken);
       this.displayedWeight += (int) id.getWeight();
       this.displayedWeight += (int) entry.getWeight();
     }
+    entry.setLastWorkToken(workToken);
     this.displayedWeight += (int) entry.put(namespace, address, value, weight);
     // Always add back to the cache to update the weight.
     stateCache.put(id, entry);
@@ -266,18 +285,24 @@ public class WindmillStateCache implements StatusDataProvider {
   }
 
   /**
-   * Entry in the state cache that stores a map of values and a token representing the validity of
-   * the values.
+   * Entry in the state cache that stores a map of values, a cache token representing the validity
+   * of the values, and a work token that is increasing to ensure sequential processing.
    */
   private static class StateCacheEntry implements Weighted {
-    private final long token;
+    private final long cacheToken;
+    private long lastWorkToken;
     private final Map<NamespacedTag<?>, WeightedValue<?>> values;
     private long weight;
 
-    public StateCacheEntry(long token) {
+    public StateCacheEntry(long cacheToken) {
       this.values = new HashMap<>(INITIAL_HASH_MAP_CAPACITY);
-      this.token = token;
+      this.cacheToken = cacheToken;
+      this.lastWorkToken = Long.MIN_VALUE;
       this.weight = 0;
+    }
+
+    public void setLastWorkToken(long workToken) {
+      this.lastWorkToken = workToken;
     }
 
     @SuppressWarnings("unchecked")
@@ -312,8 +337,12 @@ public class WindmillStateCache implements StatusDataProvider {
       return weight + PER_CACHE_ENTRY_OVERHEAD;
     }
 
-    public long getToken() {
-      return token;
+    public long getCacheToken() {
+      return cacheToken;
+    }
+
+    public long getLastWorkToken() {
+      return lastWorkToken;
     }
 
     private static class NamespacedTag<T extends State> {
