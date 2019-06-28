@@ -20,15 +20,12 @@ package org.apache.beam.sdk.io.rabbitmq;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.Envelope;
-import com.rabbitmq.client.LongString;
 import com.rabbitmq.client.MessageProperties;
 import com.rabbitmq.client.QueueingConsumer;
-import com.rabbitmq.client.QueueingConsumer.Delivery;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URISyntaxException;
@@ -36,9 +33,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
@@ -459,7 +454,6 @@ public class RabbitMqIO {
         if (delivery == null) {
           return false;
         }
-        delivery = serializableDeliveryOf(delivery);
         if (source.spec.useCorrelationId()) {
           String correlationId = delivery.getProperties().getCorrelationId();
           if (correlationId == null) {
@@ -481,68 +475,6 @@ public class RabbitMqIO {
         throw new IOException(e);
       }
       return true;
-    }
-
-    /**
-     * ake delivery serializable by cloning all non-serializable values into serializable ones. If
-     * it is not possible, initial delivery is returned and error message is logged
-     *
-     * @param processed
-     * @return
-     */
-    private Delivery serializableDeliveryOf(Delivery processed) {
-      // All content of envelope is serializable, so no problem there
-      Envelope envelope = processed.getEnvelope();
-      // in basicproperties, there may be LongString, which are *not* serializable
-      BasicProperties properties = processed.getProperties();
-      BasicProperties nextProperties =
-          new BasicProperties.Builder()
-              .appId(properties.getAppId())
-              .clusterId(properties.getClusterId())
-              .contentEncoding(properties.getContentEncoding())
-              .contentType(properties.getContentType())
-              .correlationId(properties.getCorrelationId())
-              .deliveryMode(properties.getDeliveryMode())
-              .expiration(properties.getExpiration())
-              .headers(serializableHeaders(properties.getHeaders()))
-              .messageId(properties.getMessageId())
-              .priority(properties.getPriority())
-              .replyTo(properties.getReplyTo())
-              .timestamp(properties.getTimestamp())
-              .type(properties.getType())
-              .userId(properties.getUserId())
-              .build();
-      return new Delivery(envelope, nextProperties, processed.getBody());
-    }
-
-    private Map<String, Object> serializableHeaders(Map<String, Object> headers) {
-      Map<String, Object> returned = new HashMap<>();
-      if (headers != null) {
-        for (Map.Entry<String, Object> h : headers.entrySet()) {
-          Object value = h.getValue();
-          if (!(value instanceof Serializable)) {
-            try {
-              if (value instanceof LongString) {
-                LongString longString = (LongString) value;
-                byte[] bytes = longString.getBytes();
-                String s = new String(bytes, "UTF-8");
-                value = s;
-              } else {
-                throw new RuntimeException(
-                    String.format("no transformation defined for %s", value));
-              }
-            } catch (Throwable t) {
-              throw new UnsupportedOperationException(
-                  String.format(
-                      "can't make unserializable value %s a serializable value (which is mandatory for Apache Beam dataflow implementation)",
-                      value),
-                  t);
-            }
-          }
-          returned.put(h.getKey(), value);
-        }
-      }
-      return returned;
     }
 
     @Override
