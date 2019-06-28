@@ -345,11 +345,7 @@ public class RabbitMqIO {
     @Override
     public void finalizeCheckpoint() throws IOException {
       for (Long sessionId : sessionIds) {
-        try {
-          channel.basicAck(sessionId, false);
-        } catch (IOException e) {
-          channel.basicNack(sessionId, false, true);
-        }
+        channel.basicAck(sessionId, false);
       }
       channel.txCommit();
       oldestTimestamp = Instant.now();
