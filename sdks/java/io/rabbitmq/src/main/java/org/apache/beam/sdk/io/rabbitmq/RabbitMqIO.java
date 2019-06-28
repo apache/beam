@@ -76,9 +76,7 @@ import org.joda.time.Instant;
  * <p>It's also possible to read from an exchange (providing the exchange type and routing key)
  * instead of directly from a queue:
  *
- * <pre>
- * {
- * 	&#64;code
+ * <pre>{@code
  * 	PCollection<RabbitMqMessage> messages = pipeline.apply(RabbitMqIO.read()
  * 			.withUri("amqp://user:password@localhost:5672").withExchange("EXCHANGE", "fanout", "QUEUE"));
  * }
