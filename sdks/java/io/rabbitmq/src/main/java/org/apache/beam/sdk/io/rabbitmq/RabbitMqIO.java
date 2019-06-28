@@ -25,7 +25,6 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.MessageProperties;
 import com.rabbitmq.client.QueueingConsumer;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URISyntaxException;
@@ -74,8 +73,7 @@ import org.joda.time.Instant;
  * <pre>{@code
  * 	PCollection<RabbitMqMessage> messages = pipeline.apply(RabbitMqIO.read()
  * 			.withUri("amqp://user:password@localhost:5672").withExchange("EXCHANGE", "fanout", "QUEUE"));
- * }
- * </pre>
+ * }</pre>
  *
  * <h3>Publishing messages to RabbitMQ server</h3>
  *
