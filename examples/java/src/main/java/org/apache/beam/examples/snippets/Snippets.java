@@ -23,6 +23,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -145,6 +146,24 @@ public class Snippets {
               .setDatasetId("samples")
               .setTableId("weather_stations");
       // [END BigQueryTableSpecObject]
+    }
+
+    {
+      // [START BigQueryDataTypes]
+      TableRow row = new TableRow();
+      row.set("string", "abc");
+      byte[] rawbytes = {(byte) 0xab, (byte) 0xac};
+      row.set("bytes", new String(Base64.getEncoder().encodeToString(rawbytes)));
+      row.set("integer", 5);
+      row.set("float", 0.5);
+      row.set("numeric", 5);
+      row.set("boolean", true);
+      row.set("timestamp", "2018-12-31 12:44:31.744957 UTC");
+      row.set("date", "2018-12-31");
+      row.set("time", "12:44:31");
+      row.set("datetime", "2019-06-11T14:44:31");
+      row.set("geography", "POINT(30 10)");
+      // [END BigQueryDataTypes]
     }
 
     {
