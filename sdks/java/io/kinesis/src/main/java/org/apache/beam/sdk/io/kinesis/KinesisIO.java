@@ -592,18 +592,18 @@ public final class KinesisIO {
       private static final int MAX_NUM_FAILURES = 10;
 
       private final KinesisIO.Write spec;
-      private static transient IKinesisProducer producer = null;
+      private static transient IKinesisProducer producer;
       private transient KinesisPartitioner partitioner;
       private transient LinkedBlockingDeque<KinesisWriteException> failures;
       private transient List<Future<UserRecordResult>> putFutures;
 
-      public KinesisWriterFn(KinesisIO.Write spec) {
+      KinesisWriterFn(KinesisIO.Write spec) {
         this.spec = spec;
         initKinesisProducer();
       }
 
       @Setup
-      public void setup() throws Exception {
+      public void setup() {
         // Use custom partitioner if it exists
         if (spec.getPartitioner() != null) {
           partitioner = spec.getPartitioner();
@@ -617,7 +617,7 @@ public final class KinesisIO {
         failures = new LinkedBlockingDeque<>(MAX_NUM_FAILURES);
       }
 
-      private void initKinesisProducer() {
+      private synchronized void initKinesisProducer() {
         // Init producer config
         Properties props = spec.getProducerProperties();
         if (props == null) {
@@ -648,7 +648,7 @@ public final class KinesisIO {
        * the KPL</a>
        */
       @ProcessElement
-      public void processElement(ProcessContext c) throws Exception {
+      public void processElement(ProcessContext c) {
         ByteBuffer data = ByteBuffer.wrap(c.element());
         String partitionKey = spec.getPartitionKey();
         String explicitHashKey = null;
@@ -718,21 +718,20 @@ public final class KinesisIO {
       }
 
       /** If any write has asynchronously failed, fail the bundle with a useful error. */
-      private void checkForFailures(String message)
-          throws IOException, InterruptedException, ExecutionException {
+      private void checkForFailures(String message) throws IOException {
         if (failures.isEmpty()) {
           return;
         }
 
         StringBuilder logEntry = new StringBuilder();
-        logEntry.append(message).append("\n");
+        logEntry.append(message).append(System.lineSeparator());
 
         int i = 0;
         while (!failures.isEmpty()) {
           i++;
           KinesisWriteException exc = failures.remove();
 
-          logEntry.append("\n").append(exc.getMessage());
+          logEntry.append(System.lineSeparator()).append(exc.getMessage());
           Throwable cause = exc.getCause();
           if (cause != null) {
             logEntry.append(": ").append(cause.getMessage());
@@ -742,13 +741,12 @@ public final class KinesisIO {
                   ((UserRecordFailedException) cause).getResult().getAttempts();
               for (Attempt attempt : attempts) {
                 if (attempt.getErrorMessage() != null) {
-                  logEntry.append("\n").append(attempt.getErrorMessage());
+                  logEntry.append(System.lineSeparator()).append(attempt.getErrorMessage());
                 }
               }
             }
           }
         }
-        failures.clear();
 
         String errorMessage =
             String.format(

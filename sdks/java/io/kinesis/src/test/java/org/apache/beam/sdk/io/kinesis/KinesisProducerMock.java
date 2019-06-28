@@ -53,12 +53,12 @@ public class KinesisProducerMock implements IKinesisProducer {
   @Override
   public ListenableFuture<UserRecordResult> addUserRecord(
       String stream, String partitionKey, ByteBuffer data) {
-    throw new RuntimeException("Not implemented");
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
   public ListenableFuture<UserRecordResult> addUserRecord(UserRecord userRecord) {
-    throw new RuntimeException("Not implemented");
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
@@ -84,24 +84,24 @@ public class KinesisProducerMock implements IKinesisProducer {
   @Override
   public List<Metric> getMetrics(String metricName, int windowSeconds)
       throws InterruptedException, ExecutionException {
-    throw new RuntimeException("Not implemented");
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
   public List<Metric> getMetrics(String metricName)
       throws InterruptedException, ExecutionException {
-    throw new RuntimeException("Not implemented");
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
   public List<Metric> getMetrics() throws InterruptedException, ExecutionException {
-    throw new RuntimeException("Not implemented");
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
   public List<Metric> getMetrics(int windowSeconds)
       throws InterruptedException, ExecutionException {
-    throw new RuntimeException("Not implemented");
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
@@ -109,7 +109,7 @@ public class KinesisProducerMock implements IKinesisProducer {
 
   @Override
   public void flush(String stream) {
-    throw new RuntimeException("Not implemented");
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
@@ -125,6 +125,6 @@ public class KinesisProducerMock implements IKinesisProducer {
 
   @Override
   public synchronized void flushSync() {
-    throw new RuntimeException("Not implemented");
+    throw new UnsupportedOperationException("Not implemented");
   }
 }
