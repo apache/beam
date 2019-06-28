@@ -382,6 +382,7 @@
       <li><a href="#table-names">Table names</a></li>
       <li><a href="#table-rows">Table rows</a></li>
       <li><a href="#schemas">Schemas</a></li>
+      <li><a href="#data-types">Data types</a></li>
     </ul>
   </li>
   <li><a href="#reading-from-bigquery">Reading from BigQuery</a>
@@ -581,6 +582,66 @@ in the table.</p>
 table that you want to write to, unless you specify a <a href="#create-disposition">create
 disposition</a> of <code class="highlighter-rouge">CREATE_NEVER</code>. <a href="#creating-a-table-schema">Creating a table
 schema</a> covers schemas in more detail.</p>
+
+<h3 id="data-types">Data types</h3>
+
+<p>BigQuery supports the following data types: STRING, BYTES, INTEGER, FLOAT,
+NUMERIC, BOOLEAN, TIMESTAMP, DATE, TIME, DATETIME and GEOGRAPHY.
+All possible values are described at <a href="https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types">https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types</a>.
+BigQueryIO allows you to use all of these data types. The following example
+shows the correct format for data types used when reading from and writing to
+BigQuery:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">TableRow</span> <span class="n">row</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TableRow</span><span class="o">();</span>
+<span class="n">row</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"string"</span><span class="o">,</span> <span class="s">"abc"</span><span class="o">);</span>
+<span class="kt">byte</span><span class="o">[]</span> <span class="n">rawbytes</span> <span class="o">=</span> <span class="o">{(</span><span class="kt">byte</span><span class="o">)</span> <span class="mh">0xab</span><span class="o">,</span> <span class="o">(</span><span class="kt">byte</span><span class="o">)</span> <span class="mh">0xac</span><span class="o">};</span>
+<span class="n">row</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"bytes"</span><span class="o">,</span> <span class="k">new</span> <span class="n">String</span><span class="o">(</span><span class="n">Base64</span><span class="o">.</span><span class="na">getEncoder</span><span class="o">().</span><span class="na">encodeToString</span><span class="o">(</span><span class="n">rawbytes</span><span class="o">)));</span>
+<span class="n">row</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"integer"</span><span class="o">,</span> <span class="mi">5</span><span class="o">);</span>
+<span class="n">row</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"float"</span><span class="o">,</span> <span class="mf">0.5</span><span class="o">);</span>
+<span class="n">row</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"numeric"</span><span class="o">,</span> <span class="mi">5</span><span class="o">);</span>
+<span class="n">row</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"boolean"</span><span class="o">,</span> <span class="kc">true</span><span class="o">);</span>
+<span class="n">row</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"timestamp"</span><span class="o">,</span> <span class="s">"2018-12-31 12:44:31.744957 UTC"</span><span class="o">);</span>
+<span class="n">row</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"date"</span><span class="o">,</span> <span class="s">"2018-12-31"</span><span class="o">);</span>
+<span class="n">row</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"time"</span><span class="o">,</span> <span class="s">"12:44:31"</span><span class="o">);</span>
+<span class="n">row</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"datetime"</span><span class="o">,</span> <span class="s">"2019-06-11T14:44:31"</span><span class="o">);</span>
+<span class="n">row</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"geography"</span><span class="o">,</span> <span class="s">"POINT(30 10)"</span><span class="o">);</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">bigquery_data</span> <span class="o">=</span> <span class="p">[{</span>
+    <span class="s">'string'</span><span class="p">:</span> <span class="s">'abc'</span><span class="p">,</span>
+    <span class="s">'bytes'</span><span class="p">:</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">b</span><span class="s">'</span><span class="se">\xab\xac</span><span class="s">'</span><span class="p">),</span>
+    <span class="s">'integer'</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="s">'float'</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+    <span class="s">'numeric'</span><span class="p">:</span> <span class="n">Decimal</span><span class="p">(</span><span class="s">'5'</span><span class="p">),</span>
+    <span class="s">'boolean'</span><span class="p">:</span> <span class="bp">True</span><span class="p">,</span>
+    <span class="s">'timestamp'</span><span class="p">:</span> <span class="s">'2018-12-31 12:44:31.744957 UTC'</span><span class="p">,</span>
+    <span class="s">'date'</span><span class="p">:</span> <span class="s">'2018-12-31'</span><span class="p">,</span>
+    <span class="s">'time'</span><span class="p">:</span> <span class="s">'12:44:31'</span><span class="p">,</span>
+    <span class="s">'datetime'</span><span class="p">:</span> <span class="s">'2018-12-31T12:44:31'</span><span class="p">,</span>
+    <span class="s">'geography'</span><span class="p">:</span> <span class="s">'POINT(30 10)'</span>
+<span class="p">}]</span>
+</code></pre>
+</div>
+
+<!-- Java specific -->
+
+<p class="language-java">As of Beam 2.7.0, the NUMERIC data type is supported. This data type supports
+high-precision decimal numbers (precision of 38 digits, scale of 9 digits).
+The GEOGRAPHY data type works with Well-Known Text (See <a href="https://en.wikipedia.org/wiki/Well-known_text">https://en.wikipedia.org/wiki/Well-known_text</a>
+format for reading and writing to BigQuery.
+BigQuery IO requires values of BYTES datatype to be encoded using base64
+encoding when writing to BigQuery. When bytes are read from BigQuery they are
+returned as base64-encoded strings.</p>
+
+<!-- Python specific -->
+
+<p class="language-py">As of Beam 2.7.0, the NUMERIC data type is supported. This data type supports
+high-precision decimal numbers (precision of 38 digits, scale of 9 digits).
+The GEOGRAPHY data type works with Well-Known Text (See <a href="https://en.wikipedia.org/wiki/Well-known_text">https://en.wikipedia.org/wiki/Well-known_text</a>
+format for reading and writing to BigQuery.
+BigQuery IO requires values of BYTES datatype to be encoded using base64
+encoding when writing to BigQuery. When bytes are read from BigQuery they are
+returned as base64-encoded bytes.</p>
 
 <h2 id="reading-from-bigquery">Reading from BigQuery</h2>
 
