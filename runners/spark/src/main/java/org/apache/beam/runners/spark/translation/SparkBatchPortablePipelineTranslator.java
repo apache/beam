@@ -21,6 +21,7 @@ import static org.apache.beam.runners.fnexecution.translation.PipelineTranslator
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getWindowingStrategy;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.instantiateCoder;
 
+import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -33,6 +34,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.core.construction.NativeTransforms;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -108,6 +110,9 @@ public class SparkBatchPortablePipelineTranslator {
     translatorMap.put(
         PTransformTranslation.READ_TRANSFORM_URN,
         SparkBatchPortablePipelineTranslator::translateRead);
+    translatorMap.put(
+        PTransformTranslation.RESHUFFLE_URN,
+        SparkBatchPortablePipelineTranslator::translateReshuffle);
     this.urnToTransformTranslator = translatorMap.build();
   }
 
@@ -384,6 +389,25 @@ public class SparkBatchPortablePipelineTranslator {
     context.pushDataset(getOutputId(transformNode), new BoundedDataset<>(input));
   }
 
+  private static <K, V> void translateReshuffle(
+      PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkTranslationContext context) {
+    String inputId = getInputId(transformNode);
+    JavaRDD<WindowedValue<KV<K, V>>> inRDD =
+        ((BoundedDataset<KV<K, V>>) context.popDataset(inputId)).getRDD();
+    RunnerApi.Components components = pipeline.getComponents();
+    WindowingStrategy windowingStrategy = getWindowingStrategy(inputId, components);
+    WindowedValueCoder<KV<K, V>> windowedCoder = getWindowedValueCoder(inputId, components);
+    KvCoder<K, V> coder = (KvCoder<K, V>) windowedCoder.getValueCoder();
+    final WindowFn windowFn = windowingStrategy.getWindowFn();
+    final Coder<K> keyCoder = coder.getKeyCoder();
+    final WindowedValue.WindowedValueCoder<V> wvCoder =
+        WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
+
+    JavaRDD<WindowedValue<KV<K, V>>> reshuffled =
+        GroupCombineFunctions.reshuffle(inRDD, keyCoder, wvCoder);
+    context.pushDataset(getOutputId(transformNode), new BoundedDataset<>(reshuffled));
+  }
+
   @Nullable
   private static Partitioner getPartitioner(SparkTranslationContext context) {
     Long bundleSize =
@@ -417,5 +441,15 @@ public class SparkBatchPortablePipelineTranslator {
 
   private static String getExecutableStageIntermediateId(PTransformNode transformNode) {
     return transformNode.getId();
+  }
+
+  /** Predicate to determine whether a URN is a Spark native transform. */
+  @AutoService(NativeTransforms.IsNativeTransform.class)
+  public static class IsSparkNativeTransform implements NativeTransforms.IsNativeTransform {
+    @Override
+    public boolean test(RunnerApi.PTransform pTransform) {
+      return PTransformTranslation.RESHUFFLE_URN.equals(
+          PTransformTranslation.urnForTransformOrNull(pTransform));
+    }
   }
 }
