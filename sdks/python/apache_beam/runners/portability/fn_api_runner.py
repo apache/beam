@@ -124,8 +124,9 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
       future = None
     else:
       if not item.instruction_id:
-        self._uid_counter += 1
-        item.instruction_id = 'control_%s' % self._uid_counter
+        with self._lock:
+          self._uid_counter += 1
+          item.instruction_id = 'control_%s' % self._uid_counter
       future = ControlFuture(item.instruction_id)
       self._futures_by_id[item.instruction_id] = future
     self._push_queue.put(item)
@@ -716,11 +717,11 @@ class FnApiRunner(runner.PipelineRunner):
           if other_input not in deferred_inputs:
             deferred_inputs[other_input] = _ListBuffer([])
         # TODO(robertwb): merge results
-        bundle_manager._skip_registration = True
         # We cannot split deferred_input until we include residual_roots to
         # merged results. Without residual_roots, pipeline stops earlier and we
         # may miss some data.
         bundle_manager._num_workers = 1
+        bundle_manager._skip_registration = True
         last_result, splits = bundle_manager.process_bundle(
             deferred_inputs, data_output)
         last_sent = deferred_inputs
@@ -1352,6 +1353,7 @@ class BundleManager(object):
   """
 
   _uid_counter = 0
+  _lock = threading.Lock()
 
   def __init__(
       self, controller, get_buffer, get_input_coder_impl, bundle_descriptor,
@@ -1472,8 +1474,9 @@ class BundleManager(object):
 
   def process_bundle(self, inputs, expected_outputs):
     # Unique id for the instruction processing this bundle.
-    BundleManager._uid_counter += 1
-    process_bundle_id = 'bundle_%s' % BundleManager._uid_counter
+    with BundleManager._lock:
+      BundleManager._uid_counter += 1
+      process_bundle_id = 'bundle_%s' % BundleManager._uid_counter
 
     # Register the bundle descriptor, if needed - noop if already registered.
     registration_future = self._register_bundle_descriptor()
@@ -1555,7 +1558,7 @@ class ParallelBundleManager(BundleManager):
           self._controller, self._get_buffer, self._get_input_coder_impl,
           self._bundle_descriptor, self._progress_frequency,
           self._registered).process_bundle(part, expected_outputs),
-                                               list(filter(None, part_inputs))):
+                                               part_inputs):
 
         split_result_list += split_result
         if merged_result is None:
