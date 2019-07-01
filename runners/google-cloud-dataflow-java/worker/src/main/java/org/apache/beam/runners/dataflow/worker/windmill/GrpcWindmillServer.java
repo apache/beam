@@ -404,7 +404,10 @@ public class GrpcWindmillServer extends WindmillServerStub {
       } catch (StatusRuntimeException e) {
         try {
           if (++rpcErrors % 20 == 0) {
-            LOG.warn("Many exceptions calling gRPC. Last exception: {}", e);
+            LOG.warn(
+                "Many exceptions calling gRPC. Last exception: {} with status {}",
+                e,
+                e.getStatus());
           }
           if (!BackOffUtils.next(Sleeper.DEFAULT, backoff)) {
             throw new WindmillServerStub.RpcException(e);
@@ -699,20 +702,22 @@ public class GrpcWindmillServer extends WindmillServerStub {
           }
         }
         if (t != null) {
+          Status status = null;
+          if (t instanceof StatusRuntimeException) {
+            status = ((StatusRuntimeException) t).getStatus();
+          }
           if (errorCount.incrementAndGet() % logEveryNStreamFailures == 0) {
             LOG.warn(
-                "{} streaming Windmill RPC errors for a stream, last was: {}",
+                "{} streaming Windmill RPC errors for a stream, last was: {} with status {}",
                 errorCount.get(),
-                t.toString());
+                t.toString(),
+                status);
           }
           // If the stream was stopped due to a resource exhausted error then we are throttled.
-          if (t instanceof StatusRuntimeException) {
-            StatusRuntimeException statusExc = (StatusRuntimeException) t;
-            if (statusExc.getStatus() != null
-                && statusExc.getStatus().getCode() == Status.Code.RESOURCE_EXHAUSTED) {
-              startThrottleTimer();
-            }
+          if (status != null && status.getCode() == Status.Code.RESOURCE_EXHAUSTED) {
+            startThrottleTimer();
           }
+
           try {
             long sleep = backoff.nextBackOffMillis();
             sleepUntil.set(Instant.now().getMillis() + sleep);
@@ -732,11 +737,6 @@ public class GrpcWindmillServer extends WindmillServerStub {
       // Synchronization of close and onCompleted necessary for correct retry logic in onNewStream.
       clientClosed.set(true);
       requestObserver.onCompleted();
-    }
-
-    @Override
-    public final void awaitTermination() throws InterruptedException {
-      finishLatch.await();
     }
 
     @Override
@@ -1072,24 +1072,22 @@ public class GrpcWindmillServer extends WindmillServerStub {
         batch.byteSize += request.byteSize;
       }
       if (responsibleForSend) {
-        // Wait for the previous batch to be sent if one existed.
         if (waitForSendLatch == null) {
           // If there was not a previous batch wait a little while to improve
           // batching.
           Thread.sleep(1);
-          synchronized (batches) {
-            Verify.verify(batch == batches.peekFirst());
-            batch.finalized = true;
-          }
         } else {
           waitForSendLatch.await();
+        }
+        // Finalize the batch so that no additional requests will be added.  Leave the batch in the
+        // queue so that a subsequent batch will wait for it's completion.
+        synchronized (batches) {
+          Verify.verify(batch == batches.peekFirst());
+          batch.finalized = true;
         }
         sendBatch(batch.requests);
         synchronized (batches) {
           Verify.verify(batch == batches.pollFirst());
-          if (!batches.isEmpty()) {
-            batches.getFirst().finalized = true;
-          }
         }
         // Notify all waiters with requests in this batch as well as the sender
         // of the next batch (if one exists).

@@ -31,7 +31,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.joda.time.Instant;
 
 /**
  * {@link PTransform} and {@link Combine.CombineFn} for computing the latest element in a {@link
@@ -163,19 +162,7 @@ public class Latest {
       Coder<T> inputCoder = input.getCoder();
 
       return input
-          .apply(
-              "Reify Timestamps",
-              ParDo.of(
-                  new DoFn<T, TimestampedValue<T>>() {
-                    @ProcessElement
-                    public void processElement(
-                        @Element T element,
-                        @Timestamp Instant timestamp,
-                        OutputReceiver<TimestampedValue<T>> r) {
-                      r.output(TimestampedValue.of(element, timestamp));
-                    }
-                  }))
-          .setCoder(TimestampedValue.TimestampedValueCoder.of(inputCoder))
+          .apply("Reify Timestamps", Reify.timestamps())
           .apply("Latest Value", Combine.globally(new LatestFn<>()))
           .setCoder(NullableCoder.of(inputCoder));
     }
@@ -195,25 +182,7 @@ public class Latest {
       @SuppressWarnings("unchecked")
       KvCoder<K, V> inputCoder = (KvCoder) input.getCoder();
       return input
-          .apply(
-              "Reify Timestamps",
-              ParDo.of(
-                  new DoFn<KV<K, V>, KV<K, TimestampedValue<V>>>() {
-                    @ProcessElement
-                    public void processElement(
-                        @Element KV<K, V> element,
-                        @Timestamp Instant timestamp,
-                        OutputReceiver<KV<K, TimestampedValue<V>>> r) {
-                      r.output(
-                          KV.of(
-                              element.getKey(),
-                              TimestampedValue.of(element.getValue(), timestamp)));
-                    }
-                  }))
-          .setCoder(
-              KvCoder.of(
-                  inputCoder.getKeyCoder(),
-                  TimestampedValue.TimestampedValueCoder.of(inputCoder.getValueCoder())))
+          .apply("Reify Timestamps", Reify.timestampsInValue())
           .apply("Latest Value", Combine.perKey(new LatestFn<>()))
           .setCoder(inputCoder);
     }

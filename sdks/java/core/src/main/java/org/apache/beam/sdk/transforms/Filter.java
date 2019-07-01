@@ -51,6 +51,12 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
     return new Filter<>(predicate);
   }
 
+  /** Binary compatibility adapter for {@link #by(ProcessFunction)}. */
+  public static <T, PredicateT extends SerializableFunction<T, Boolean>> Filter<T> by(
+      PredicateT predicate) {
+    return by((ProcessFunction<T, Boolean>) predicate);
+  }
+
   /**
    * Returns a {@code PTransform} that takes an input {@link PCollection} and returns a {@link
    * PCollection} with elements that are less than a given value, based on the elements' natural

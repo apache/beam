@@ -204,7 +204,7 @@ class TestScripts {
        String path = System.getenv("PATH");
        // Set the path on jenkins executors to use a recent maven
        // MAVEN_HOME is not set on some executors, so default to 3.5.2
-       String maven_home = System.getenv("MAVEN_HOME") ?: '/home/jenkins/tools/maven/apache-maven-3.5.2'
+       String maven_home = System.getenv("MAVEN_HOME") ?: '/home/jenkins/tools/maven/apache-maven-3.5.4'
        println "Using maven ${maven_home}"
        def mvnPath = "${maven_home}/bin"
        def setPath = "export PATH=${mvnPath}:${path} && "

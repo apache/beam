@@ -124,7 +124,7 @@ message PTransform {
   // For some special composite transforms, the payload is also officially
   // defined:
   //
-  //  - when the URN is "urn:beam:transforms:combine" it is a CombinePayload
+  //  - when the URN is "beam:transforms:combine" it is a CombinePayload
   //
   FunctionSpec spec = 1;
 
@@ -170,7 +170,7 @@ message StandardPTransforms {
     // Represents Beam's parallel do operation.
     // Payload: ParDoPayload.
     // TODO(BEAM-3595): Change this to beam:transform:pardo:v1.
-    PAR_DO = 0 [(beam_urn) = "urn:beam:transform:pardo:v1"];
+    PAR_DO = 0 [(beam_urn) = "beam:transform:pardo:v1"];
 
     // Represents Beam's flatten operation.
     // Payload: None.
@@ -189,7 +189,7 @@ message StandardPTransforms {
 
     // Represents the TestStream.
     // Payload: TestStreamPayload
-    TEST_STREAM = 5 [(beam_urn) = "urn:beam:transform:teststream:v1"];
+    TEST_STREAM = 5 [(beam_urn) = "beam:transform:teststream:v1"];
 
     // Represents mapping of main input window onto side input window.
     //
@@ -251,34 +251,29 @@ message StandardPTransforms {
   }
   // Payload for all of these: CombinePayload
   enum CombineComponents {
-    // TODO(BEAM-6199): Remove these old URNs.
-    COMBINE_PGBKCV = 0 [(beam_urn) = "beam:transform:combine_pgbkcv:v1"];
-    COMBINE_MERGE_ACCUMULATORS = 1 [(beam_urn) = "beam:transform:combine_merge_accumulators:v1"];
-    COMBINE_EXTRACT_OUTPUTS = 2 [(beam_urn) = "beam:transform:combine_extract_outputs:v1"];
-
     // Represents the Pre-Combine part of a lifted Combine Per Key, as described
     // in the following document:
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.ta0g6ase8z07
     // Payload: CombinePayload
-    COMBINE_PER_KEY_PRECOMBINE = 3 [(beam_urn) = "beam:transform:combine_per_key_precombine:v1"];
+    COMBINE_PER_KEY_PRECOMBINE = 0 [(beam_urn) = "beam:transform:combine_per_key_precombine:v1"];
 
     // Represents the Merge Accumulators part of a lifted Combine Per Key, as
     // described in the following document:
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.jco9rvatld5m
     // Payload: CombinePayload
-    COMBINE_PER_KEY_MERGE_ACCUMULATORS = 4 [(beam_urn) = "beam:transform:combine_per_key_merge_accumulators:v1"];
+    COMBINE_PER_KEY_MERGE_ACCUMULATORS = 1 [(beam_urn) = "beam:transform:combine_per_key_merge_accumulators:v1"];
 
     // Represents the Extract Outputs part of a lifted Combine Per Key, as
     // described in the following document:
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.i9i6p8gtl6ku
     // Payload: CombinePayload
-    COMBINE_PER_KEY_EXTRACT_OUTPUTS = 5 [(beam_urn) = "beam:transform:combine_per_key_extract_outputs:v1"];
+    COMBINE_PER_KEY_EXTRACT_OUTPUTS = 2 [(beam_urn) = "beam:transform:combine_per_key_extract_outputs:v1"];
 
     // Represents the Combine Grouped Values transform, as described in the
     // following document:
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.aj86ew4v1wk
     // Payload: CombinePayload
-    COMBINE_GROUPED_VALUES = 6 [(beam_urn) = "beam:transform:combine_grouped_values:v1"];
+    COMBINE_GROUPED_VALUES = 3 [(beam_urn) = "beam:transform:combine_grouped_values:v1"];
   }
   // Payload for all of these: ParDoPayload containing the user's SDF
   enum SplittableParDoComponents {
@@ -303,6 +298,21 @@ message StandardPTransforms {
     // and restrictions.
     // Input: KV(element, restriction); output: DoFn's output.
     PROCESS_ELEMENTS = 3 [(beam_urn) = "beam:transform:sdf_process_elements:v1"];
+
+    // Splits the restriction of each element/restriction pair and returns the
+    // resulting splits, with a corresponding floating point size estimations
+    // for each.
+    // A reasonable value for size is the number of bytes expected to be
+    // produced by this (element, restriction) pair.
+    // Input: KV(element, restriction)
+    // Output: KV(KV(element, restriction), size))
+    SPLIT_AND_SIZE_RESTRICTIONS = 4 [(beam_urn) = "beam:transform:sdf_split_and_size_restrictions:v1"];
+
+    // Like PROCESS_ELEMENTS, but accepts the sized output produced by
+    // SPLIT_RESTRICTION_WITH_SIZING.
+    // Input: KV(KV(element, restriction), size); output: DoFn's output.
+    PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS = 5 [(beam_urn) = "beam:transform:sdf_process_sized_element_and_restrictions:v1"];
+
   }
 }
 
@@ -530,8 +540,8 @@ message Coder {
   // may be a cross-language agreed-upon format, or it may be a "custom coder"
   // that can only be used by a particular SDK. It does not include component
   // coders, as it is beneficial for these to be comprehensible to a runner
-  // regardless of whether the binary format is agree-upon.
-  SdkFunctionSpec spec = 1;
+  // regardless of whether the binary format is agreed-upon.
+  FunctionSpec spec = 1;
 
   // (Optional) If this coder is parametric, such as ListCoder(VarIntCoder),
   // this is a list of the components. In order for encodings to be identical,
@@ -544,11 +554,20 @@ message StandardCoders {
     // Components: None
     BYTES = 0 [(beam_urn) = "beam:coder:bytes:v1"];
 
+    // Components: None
+    STRING_UTF8 = 10 [(beam_urn) = "beam:coder:string_utf8:v1"];
+
     // Components: The key and value coder, in that order.
     KV = 1 [(beam_urn) = "beam:coder:kv:v1"];
 
+    // Variable length Encodes a 64-bit integer.
     // Components: None
     VARINT = 2 [(beam_urn) = "beam:coder:varint:v1"];
+
+    // Encodes the floating point value as a big-endian 64-bit integer
+    // according to the IEEE 754 double format bit layout.
+    // Components: None
+    DOUBLE = 11 [(beam_urn) = "beam:coder:double:v1"];
 
     // Encodes an iterable of elements.
     //
@@ -624,6 +643,63 @@ message StandardCoders {
     // Experimental.
     STATE_BACKED_ITERABLE = 9 [(beam_urn) = "beam:coder:state_backed_iterable:v1"];
   }
+}
+
+// Experimental: A representation of a Beam Schema.
+message Schema {
+  enum AtomicType {
+    UNSPECIFIED = 0;
+    BYTE = 1;
+    INT16 = 2;
+    INT32 = 3;
+    INT64 = 4;
+    FLOAT = 5;
+    DOUBLE = 6;
+    STRING = 7;
+    BOOLEAN = 8;
+    BYTES = 9;
+  }
+
+  message ArrayType {
+    FieldType element_type = 1;
+  }
+
+  message MapType {
+    FieldType key_type = 1;
+    FieldType value_type = 2;
+  }
+
+  message RowType {
+    Schema schema = 1;
+  }
+
+  message LogicalType {
+    string urn = 1;
+    string args = 2;
+    FieldType representation = 3;
+  }
+
+  message FieldType {
+    bool nullable = 1;
+    oneof type_info {
+      AtomicType atomic_type = 2;
+      ArrayType array_type = 3;
+      MapType map_type = 4;
+      RowType row_type = 5;
+      LogicalType logical_type = 6;
+    }
+  }
+
+  message Field {
+    string name = 1;
+    string description = 2;
+    FieldType type = 3;
+    int32 id = 4;
+    int32 encoding_position = 5;
+  }
+
+  repeated Field fields = 1;
+  string id = 2;
 }
 
 // A windowing strategy describes the window function, triggering, allowed
@@ -927,7 +1003,7 @@ message SideInput {
   // interface for accessing a side input.
   //
   // The only access pattern intended for Beam, because of its superior
-  // performance possibilities, is "urn:beam:sideinput:multimap" (or some such
+  // performance possibilities, is "beam:sideinput:multimap" (or some such
   // URN)
   FunctionSpec access_pattern = 1;
 
@@ -950,15 +1026,14 @@ message SideInput {
 // An environment for executing UDFs. By default, an SDK container URL, but
 // can also be a process forked by a command, or an externally managed process.
 message Environment {
-  // Deprecated. Tracked in BEAM-5433
-  string url = 1;
-
   // (Required) The URN of the payload
   string urn = 2;
 
   // (Optional) The data specifying any parameters to the URN. If
   // the URN does not require any arguments, this may be omitted.
   bytes payload = 3;
+
+  reserved 1;
 }
 
 message StandardEnvironments {
@@ -1048,12 +1123,12 @@ extend google.protobuf.EnumValueOptions {
 // one should bear in mind:
 //
 // 1. The runner understands the URN. For example, it might be
-//    a well-known URN like "urn:beam:transform:Top" or
-//    "urn:beam:windowfn:FixedWindows" with
+//    a well-known URN like "beam:transform:Top" or
+//    "beam:windowfn:FixedWindows" with
 //    an agreed-upon payload (e.g. a number or duration,
 //    respectively).
 // 2. The runner does not understand the URN. It might be an
-//    SDK specific URN such as "urn:beam:dofn:javasdk:1.0"
+//    SDK specific URN such as "beam:dofn:javasdk:1.0"
 //    that indicates to the SDK what the payload is,
 //    such as a serialized Java DoFn from a particular
 //    version of the Beam Java SDK. The payload will often

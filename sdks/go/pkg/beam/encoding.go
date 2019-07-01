@@ -23,18 +23,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
-// EncodeType encodes a type as a string. Unless registered, the decoded type
-// is only guaranteed to the isomorphic to the input and with no methods.
-func EncodeType(t reflect.Type) (string, error) {
-	return graphx.EncodeType(t)
-}
-
-// DecodeType decodes a type. Unless registered, the decoded type
-// is only guaranteed to the isomorphic to the input and with no methods.
-func DecodeType(data string) (reflect.Type, error) {
-	return graphx.DecodeType(data)
-}
-
 // EncodedType is a serialization wrapper around a type for convenience.
 type EncodedType struct {
 	// T is the type to preserve across serialization.
@@ -43,7 +31,7 @@ type EncodedType struct {
 
 // MarshalJSON returns the JSON encoding this value.
 func (w EncodedType) MarshalJSON() ([]byte, error) {
-	str, err := EncodeType(w.T)
+	str, err := graphx.EncodeType(w.T)
 	if err != nil {
 		return nil, err
 	}
@@ -56,26 +44,12 @@ func (w *EncodedType) UnmarshalJSON(buf []byte) error {
 	if err := json.Unmarshal(buf, &s); err != nil {
 		return err
 	}
-	t, err := DecodeType(s)
+	t, err := graphx.DecodeType(s)
 	if err != nil {
 		return err
 	}
 	w.T = t
 	return nil
-}
-
-// EncodeFunc encodes a function and parameter types as a string. The function
-// symbol must be resolvable via the runtime.GlobalSymbolResolver. The types must
-// be encodable.
-func EncodeFunc(fn reflectx.Func) (string, error) {
-	return graphx.EncodeFn(fn)
-}
-
-// DecodeFunc encodes a function as a string. The function symbol must be
-// resolvable via the runtime.GlobalSymbolResolver. The parameter types must
-// be encodable.
-func DecodeFunc(data string) (reflectx.Func, error) {
-	return graphx.DecodeFn(data)
 }
 
 // EncodedFunc is a serialization wrapper around a function for convenience.
@@ -86,7 +60,7 @@ type EncodedFunc struct {
 
 // MarshalJSON returns the JSON encoding this value.
 func (w EncodedFunc) MarshalJSON() ([]byte, error) {
-	str, err := EncodeFunc(w.Fn)
+	str, err := graphx.EncodeFn(w.Fn)
 	if err != nil {
 		return nil, err
 	}
@@ -99,19 +73,12 @@ func (w *EncodedFunc) UnmarshalJSON(buf []byte) error {
 	if err := json.Unmarshal(buf, &s); err != nil {
 		return err
 	}
-	fn, err := DecodeFunc(s)
+	fn, err := graphx.DecodeFn(s)
 	if err != nil {
 		return err
 	}
 	w.Fn = fn
 	return nil
-}
-
-// EncodeCoder encodes a coder as a string. Any custom coder function
-// symbol must be resolvable via the runtime.GlobalSymbolResolver. The types must
-// be encodable.
-func EncodeCoder(c Coder) (string, error) {
-	return graphx.EncodeCoder(c.coder)
 }
 
 // DecodeCoder decodes a coder. Any custom coder function symbol must be
@@ -132,7 +99,7 @@ type EncodedCoder struct {
 
 // MarshalJSON returns the JSON encoding this value.
 func (w EncodedCoder) MarshalJSON() ([]byte, error) {
-	str, err := EncodeCoder(w.Coder)
+	str, err := graphx.EncodeCoder(w.Coder.coder)
 	if err != nil {
 		return nil, err
 	}
@@ -145,10 +112,10 @@ func (w *EncodedCoder) UnmarshalJSON(buf []byte) error {
 	if err := json.Unmarshal(buf, &s); err != nil {
 		return err
 	}
-	c, err := DecodeCoder(s)
+	c, err := graphx.DecodeCoder(s)
 	if err != nil {
 		return err
 	}
-	w.Coder = c
+	w.Coder = Coder{coder: c}
 	return nil
 }

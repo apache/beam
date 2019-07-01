@@ -17,12 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +34,9 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateType;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -118,6 +118,17 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     }
   }
 
+  public static List<Row> toRowList(BeamRelNode node) {
+    final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+    try {
+      Thread.currentThread().setContextClassLoader(BeamEnumerableConverter.class.getClassLoader());
+      final PipelineOptions options = createPipelineOptions(node.getPipelineOptions());
+      return toRowList(options, node);
+    } finally {
+      Thread.currentThread().setContextClassLoader(originalClassLoader);
+    }
+  }
+
   public static PipelineOptions createPipelineOptions(Map<String, String> map) {
     final String[] args = new String[map.size()];
     int i = 0;
@@ -129,21 +140,29 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     return options;
   }
 
+  static List<Row> toRowList(PipelineOptions options, BeamRelNode node) {
+    if (node instanceof BeamIOSinkRel) {
+      throw new UnsupportedOperationException("Does not support BeamIOSinkRel in toRowList.");
+    } else if (isLimitQuery(node)) {
+      throw new UnsupportedOperationException("Does not support queries with LIMIT in toRowList.");
+    }
+    return collectRows(options, node).stream().collect(Collectors.toList());
+  }
+
   static Enumerable<Object> toEnumerable(PipelineOptions options, BeamRelNode node) {
     if (node instanceof BeamIOSinkRel) {
       return count(options, node);
     } else if (isLimitQuery(node)) {
       return limitCollect(options, node);
     }
-
-    return collect(options, node);
+    return Linq4j.asEnumerable(rowToAvaticaAndUnboxValues((collectRows(options, node))));
   }
 
   private static PipelineResult limitRun(
       PipelineOptions options,
       BeamRelNode node,
       DoFn<Row, Void> doFn,
-      Queue<Object[]> values,
+      Queue<Row> values,
       int limitCount) {
     options.as(DirectOptions.class).setBlockOnRun(false);
     Pipeline pipeline = Pipeline.create(options);
@@ -174,33 +193,36 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     return result;
   }
 
-  private static Enumerable<Object> collect(PipelineOptions options, BeamRelNode node) {
+  private static void runCollector(PipelineOptions options, BeamRelNode node) {
+    Pipeline pipeline = Pipeline.create(options);
+    PCollection<Row> resultCollection = BeamSqlRelUtils.toPCollection(pipeline, node);
+    resultCollection.apply(ParDo.of(new Collector()));
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+  }
+
+  private static Queue<Row> collectRows(PipelineOptions options, BeamRelNode node) {
     long id = options.getOptionsId();
-    Queue<Object[]> values = new ConcurrentLinkedQueue<>();
+    Queue<Row> values = new ConcurrentLinkedQueue<>();
 
     checkArgument(
         options
             .getRunner()
             .getCanonicalName()
             .equals("org.apache.beam.runners.direct.DirectRunner"),
-        "SELECT without INSERT is only supported in DirectRunner in SQL Shell.");
+        "collectRowList is only available in direct runner.");
 
     Collector.globalValues.put(id, values);
 
-    Pipeline pipeline = Pipeline.create(options);
-    PCollection<Row> resultCollection = BeamSqlRelUtils.toPCollection(pipeline, node);
-    resultCollection.apply(ParDo.of(new Collector()));
-    PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    runCollector(options, node);
 
     Collector.globalValues.remove(id);
-
-    return Linq4j.asEnumerable(unboxValues(values));
+    return values;
   }
 
   private static Enumerable<Object> limitCollect(PipelineOptions options, BeamRelNode node) {
     long id = options.getOptionsId();
-    ConcurrentLinkedQueue<Object[]> values = new ConcurrentLinkedQueue<>();
+    ConcurrentLinkedQueue<Row> values = new ConcurrentLinkedQueue<>();
 
     checkArgument(
         options
@@ -220,15 +242,15 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       values.remove();
     }
 
-    return Linq4j.asEnumerable(unboxValues(values));
+    return Linq4j.asEnumerable(rowToAvaticaAndUnboxValues(values));
   }
 
   private static class Collector extends DoFn<Row, Void> {
 
     // This will only work on the direct runner.
-    private static final Map<Long, Queue<Object[]>> globalValues = new ConcurrentHashMap<>();
+    private static final Map<Long, Queue<Row>> globalValues = new ConcurrentHashMap<>();
 
-    @Nullable private volatile Queue<Object[]> values;
+    @Nullable private volatile Queue<Row> values;
 
     @StartBundle
     public void startBundle(StartBundleContext context) {
@@ -238,14 +260,15 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
     @ProcessElement
     public void processElement(ProcessContext context) {
-      values.add(rowToAvatica(context.element()));
+      values.add(context.element());
     }
   }
 
-  private static List<Object> unboxValues(Queue<Object[]> values) {
+  private static List<Object> rowToAvaticaAndUnboxValues(Queue<Row> values) {
     return values.stream()
         .map(
-            objects -> {
+            row -> {
+              Object[] objects = rowToAvatica(row);
               if (objects.length == 1) {
                 // if objects.length == 1, that means input Row contains only 1 column/element,
                 // then an Object instead of Object[] should be returned because of
@@ -270,18 +293,24 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   }
 
   private static Object fieldToAvatica(Schema.FieldType type, Object beamValue) {
+    if (beamValue == null) {
+      return null;
+    }
+
     switch (type.getTypeName()) {
-      case DATETIME:
-        if (Arrays.equals(type.getMetadata(), CalciteUtils.TIMESTAMP.getMetadata())) {
-          return ((ReadableInstant) beamValue).getMillis();
-        } else if (Arrays.equals(type.getMetadata(), CalciteUtils.TIME.getMetadata())) {
+      case LOGICAL_TYPE:
+        String logicalId = type.getLogicalType().getIdentifier();
+        if (logicalId.equals(TimeType.IDENTIFIER)) {
           return (int) ((ReadableInstant) beamValue).getMillis();
-        } else if (Arrays.equals(type.getMetadata(), CalciteUtils.DATE.getMetadata())) {
+        } else if (logicalId.equals(DateType.IDENTIFIER)) {
           return (int) (((ReadableInstant) beamValue).getMillis() / MILLIS_PER_DAY);
+        } else if (logicalId.equals(CharType.IDENTIFIER)) {
+          return beamValue;
         } else {
-          throw new IllegalArgumentException(
-              "Unknown DateTime type " + new String(type.getMetadata(), UTF_8));
+          throw new IllegalArgumentException("Unknown DateTime type " + logicalId);
         }
+      case DATETIME:
+        return ((ReadableInstant) beamValue).getMillis();
       case BYTE:
       case INT16:
       case INT32:
@@ -291,6 +320,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       case DOUBLE:
       case STRING:
       case BOOLEAN:
+      case BYTES:
         return beamValue;
       case ARRAY:
         return ((List<?>) beamValue)

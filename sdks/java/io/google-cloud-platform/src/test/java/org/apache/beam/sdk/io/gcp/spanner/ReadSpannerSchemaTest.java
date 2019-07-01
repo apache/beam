@@ -36,9 +36,12 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.mockito.ArgumentMatcher;
 
 /** A test of {@link ReadSpannerSchemaTest}. */
+@RunWith(JUnit4.class)
 public class ReadSpannerSchemaTest {
 
   @Rule public final transient ExpectedException thrown = ExpectedException.none();

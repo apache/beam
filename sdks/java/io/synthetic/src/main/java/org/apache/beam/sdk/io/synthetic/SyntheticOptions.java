@@ -150,7 +150,7 @@ public class SyntheticOptions implements Serializable {
   @JsonProperty public double largeKeySizeBytes = 1000;
 
   /** The seed is used for generating a hash function implementing the 128-bit murmur3 algorithm. */
-  @JsonIgnore public int seed;
+  @JsonIgnore public int seed = 1;
 
   /**
    * The hash function is used to generate seeds that are fed into the random number generators and

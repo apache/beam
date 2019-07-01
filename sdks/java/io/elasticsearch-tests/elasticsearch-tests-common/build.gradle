@@ -16,8 +16,10 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+    archivesBaseName: 'beam-sdks-java-io-elasticsearch-tests-common'
+)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: Common"
 ext.summary = "Common test classes for ElasticsearchIO"
@@ -32,18 +34,18 @@ dependencies {
   testCompile "org.apache.httpcomponents:httpcore:4.4.10"
   testCompile "org.apache.httpcomponents:httpclient:4.5.6"
 
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-elasticsearch", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
+  testCompile project(path: ":sdks:java:core", configuration: "shadow")
+  testCompile project(":sdks:java:io:elasticsearch")
+  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile library.java.slf4j_api
   testCompile "net.java.dev.jna:jna:$jna_version"
   testCompile "org.apache.logging.log4j:log4j-api:$log4j_version"
   testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  testCompile library.java.slf4j_jdk14
   testCompile library.java.commons_io_1x
   testCompile library.java.junit
   testCompile "org.elasticsearch.client:elasticsearch-rest-client:6.4.0"
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(":runners:direct-java")
 }

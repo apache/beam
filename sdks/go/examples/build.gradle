@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyGoNature()
 
 description = "Apache Beam :: SDKs :: Go :: Examples"
@@ -30,20 +30,20 @@ def getLocalPlatform = {
 // Figure out why the golang plugin does not add a build dependency between projects.
 // Without the line below, we get spurious errors about not being able to resolve
 // "./github.com/apache/beam/sdks/go"
-resolveBuildDependencies.dependsOn ":beam-sdks-go:build"
+resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
 
 dependencies {
   golang {
     // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
     // TODO(herohde): get the pkg subdirectory only, if possible. We spend mins pulling cmd/beamctl deps.
-    build name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-go').projectDir
-    test name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-go').projectDir
+    build name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
+    test name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
   }
 }
 
 golang {
   packagePath = 'github.com/apache/beam/sdks/go/examples'
-  build {
+  goBuild {
     // We always want to build linux-amd64 in addition to the user host platform
     // so we can submit this as the remote binary used within the Go container.
     //

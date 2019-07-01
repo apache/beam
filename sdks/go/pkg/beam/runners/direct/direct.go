@@ -19,7 +19,6 @@ package direct
 
 import (
 	"context"
-	"fmt"
 	"path"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
@@ -27,7 +26,10 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
+	"github.com/apache/beam/sdks/go/pkg/beam/runners/vet"
 )
 
 func init() {
@@ -45,13 +47,21 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	log.Info(ctx, "Pipeline:")
 	log.Info(ctx, p)
 
+	if *jobopts.Strict {
+		log.Info(ctx, "Strict mode enabled, applying additional validation.")
+		if err := vet.Execute(ctx, p); err != nil {
+			return errors.Wrap(err, "strictness check failed")
+		}
+		log.Info(ctx, "Strict mode validation passed.")
+	}
+
 	edges, _, err := p.Build()
 	if err != nil {
-		return fmt.Errorf("invalid pipeline: %v", err)
+		return errors.Wrap(err, "invalid pipeline")
 	}
 	plan, err := Compile(edges)
 	if err != nil {
-		return fmt.Errorf("translation failed: %v", err)
+		return errors.Wrap(err, "translation failed")
 	}
 	log.Info(ctx, plan)
 
@@ -220,8 +230,13 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 	var u exec.Node
 	switch edge.Op {
 	case graph.ParDo:
-		pardo := &exec.ParDo{UID: b.idgen.New(), Fn: edge.DoFn, Inbound: edge.Input, Out: out}
-		pardo.PID = path.Base(pardo.Fn.Name())
+		pardo := &exec.ParDo{
+			UID:     b.idgen.New(),
+			Fn:      edge.DoFn,
+			Inbound: edge.Input,
+			Out:     out,
+			PID:     path.Base(edge.DoFn.Name()),
+		}
 		if len(edge.Input) == 1 {
 			u = pardo
 			break
@@ -249,7 +264,13 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 	case graph.Combine:
 		usesKey := typex.IsKV(edge.Input[0].Type)
 
-		u = &exec.Combine{UID: b.idgen.New(), Fn: edge.CombineFn, UsesKey: usesKey, Out: out[0]}
+		u = &exec.Combine{
+			UID:     b.idgen.New(),
+			Fn:      edge.CombineFn,
+			UsesKey: usesKey,
+			Out:     out[0],
+			PID:     path.Base(edge.CombineFn.Name()),
+		}
 
 	case graph.CoGBK:
 		u = &CoGBK{UID: b.idgen.New(), Edge: edge, Out: out[0]}
@@ -283,7 +304,7 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 		u = &exec.WindowInto{UID: b.idgen.New(), Fn: edge.WindowFn, Out: out[0]}
 
 	default:
-		return nil, fmt.Errorf("unexpected edge: %v", edge)
+		return nil, errors.Errorf("unexpected edge: %v", edge)
 	}
 
 	b.links[id] = u

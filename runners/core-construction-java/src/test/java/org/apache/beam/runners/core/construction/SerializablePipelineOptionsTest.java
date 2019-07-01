@@ -85,4 +85,18 @@ public class SerializablePipelineOptionsTest {
     assertEquals("new second", second.get().as(MyOptions.class).getFoo());
     assertEquals("new secondCopy", secondCopy.get().as(MyOptions.class).getFoo());
   }
+
+  @Test
+  public void equalityTest() {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    SerializablePipelineOptions serializablePipelineOptions =
+        new SerializablePipelineOptions(options);
+    String json = serializablePipelineOptions.toString();
+    SerializablePipelineOptions serializablePipelineOptions2 =
+        new SerializablePipelineOptions(json);
+    assertEquals(
+        "SerializablePipelineOptions created from options and from json differ",
+        serializablePipelineOptions,
+        serializablePipelineOptions2);
+  }
 }

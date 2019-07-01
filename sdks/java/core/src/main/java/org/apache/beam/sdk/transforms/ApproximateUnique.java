@@ -144,7 +144,7 @@ public class ApproximateUnique {
    *
    * @param <T> the type of the elements in the input {@code PCollection}
    */
-  static class Globally<T> extends PTransform<PCollection<T>, PCollection<Long>> {
+  public static final class Globally<T> extends PTransform<PCollection<T>, PCollection<Long>> {
 
     /**
      * The number of entries in the statistical sample; the higher this number, the more accurate
@@ -200,7 +200,8 @@ public class ApproximateUnique {
    * @param <K> the type of the keys in the input and output {@code PCollection}s
    * @param <V> the type of the values in the input {@code PCollection}
    */
-  static class PerKey<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Long>>> {
+  public static final class PerKey<K, V>
+      extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Long>>> {
 
     /**
      * The number of entries in the statistical sample; the higher this number, the more accurate

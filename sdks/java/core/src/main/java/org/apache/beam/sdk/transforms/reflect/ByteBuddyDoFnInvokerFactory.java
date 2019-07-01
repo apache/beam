@@ -34,6 +34,7 @@ import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.description.type.TypeList;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
@@ -46,11 +47,12 @@ import net.bytebuddy.implementation.Implementation.Context;
 import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
+import net.bytebuddy.implementation.bytecode.StackManipulation.Compound;
 import net.bytebuddy.implementation.bytecode.Throw;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
 import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
-import net.bytebuddy.implementation.bytecode.constant.NullConstant;
+import net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
 import net.bytebuddy.implementation.bytecode.constant.TextConstant;
 import net.bytebuddy.implementation.bytecode.member.FieldAccess;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
@@ -76,7 +78,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputRece
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PaneInfoParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RowParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StartBundleContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TaggedOutputReceiverParameter;
@@ -88,6 +90,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Primitives;
 
 /** Dynamically generates a {@link DoFnInvoker} instances for invoking a {@link DoFn}. */
 public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
@@ -96,10 +99,10 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String FINISH_BUNDLE_CONTEXT_PARAMETER_METHOD = "finishBundleContext";
   public static final String PROCESS_CONTEXT_PARAMETER_METHOD = "processContext";
   public static final String ELEMENT_PARAMETER_METHOD = "element";
-  public static final String ROW_PARAMETER_METHOD = "asRow";
+  public static final String SCHEMA_ELEMENT_PARAMETER_METHOD = "schemaElement";
   public static final String TIMESTAMP_PARAMETER_METHOD = "timestamp";
-  public static final String TIME_DOMAIN_PARAMETER_METHOD = "timeDomain";
   public static final String OUTPUT_ROW_RECEIVER_METHOD = "outputRowReceiver";
+  public static final String TIME_DOMAIN_PARAMETER_METHOD = "timeDomain";
   public static final String OUTPUT_PARAMETER_METHOD = "outputReceiver";
   public static final String TAGGED_OUTPUT_PARAMETER_METHOD = "taggedOutputReceiver";
   public static final String ON_TIMER_CONTEXT_PARAMETER_METHOD = "onTimerContext";
@@ -430,7 +433,8 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     public DoFnMethodDelegation(TypeDescription doFnType, Method targetMethod) {
       this.doFnType = doFnType;
       this.targetMethod = new MethodDescription.ForLoadedMethod(targetMethod);
-      targetHasReturn = !TypeDescription.VOID.equals(this.targetMethod.getReturnType().asErasure());
+      this.targetHasReturn =
+          !TypeDescription.VOID.equals(this.targetMethod.getReturnType().asErasure());
     }
 
     @Override
@@ -662,15 +666,30 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
           }
 
           @Override
-          public StackManipulation dispatch(RowParameter p) {
-            StackManipulation parameter =
-                (p.fieldAccessId() == null)
-                    ? NullConstant.INSTANCE
-                    : new TextConstant(p.fieldAccessId());
-            return new StackManipulation.Compound(
-                parameter,
-                MethodInvocation.invoke(
-                    getExtraContextFactoryMethodDescription(ROW_PARAMETER_METHOD, String.class)));
+          public StackManipulation dispatch(SchemaElementParameter p) {
+            ForLoadedType elementType = new ForLoadedType(p.elementT().getRawType());
+            ForLoadedType castType =
+                elementType.isPrimitive()
+                    ? new ForLoadedType(Primitives.wrap(p.elementT().getRawType()))
+                    : elementType;
+
+            StackManipulation stackManipulation =
+                new StackManipulation.Compound(
+                    IntegerConstant.forValue(p.index()),
+                    MethodInvocation.invoke(
+                        getExtraContextFactoryMethodDescription(
+                            SCHEMA_ELEMENT_PARAMETER_METHOD, int.class)),
+                    TypeCasting.to(castType));
+            if (elementType.isPrimitive()) {
+              stackManipulation =
+                  new Compound(
+                      stackManipulation,
+                      Assigner.DEFAULT.assign(
+                          elementType.asBoxed().asGenericType(),
+                          elementType.asUnboxed().asGenericType(),
+                          Typing.STATIC));
+            }
+            return stackManipulation;
           }
 
           @Override

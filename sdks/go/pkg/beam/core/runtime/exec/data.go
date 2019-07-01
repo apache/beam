@@ -26,24 +26,16 @@ type Port struct {
 	URL string
 }
 
-// Target represents the static target of external operations.
-type Target struct {
-	// ID is the transform ID.
-	ID string
-	// Name is a local name in the context of the transform.
-	Name string
-}
-
 // StreamID represents the static information needed to identify
 // a data stream. Dynamic information, notably bundleID, is provided
 // implicitly by the managers.
 type StreamID struct {
-	Port   Port
-	Target Target
+	Port         Port
+	PtransformID string
 }
 
 func (id StreamID) String() string {
-	return fmt.Sprintf("S[%v:%v@%v]", id.Target.ID, id.Target.Name, id.Port.URL)
+	return fmt.Sprintf("S[%v@%v]", id.PtransformID, id.Port.URL)
 }
 
 // DataContext holds connectors to various data connections, incl. state and side input.
@@ -64,7 +56,7 @@ type DataManager interface {
 // SideInputReader is the interface for reading side input data.
 type SideInputReader interface {
 	// Open opens a byte stream for reading iterable side input.
-	Open(ctx context.Context, id StreamID, key, w []byte) (io.ReadCloser, error)
+	Open(ctx context.Context, id StreamID, sideInputID string, key, w []byte) (io.ReadCloser, error)
 }
 
 // TODO(herohde) 7/20/2018: user state management

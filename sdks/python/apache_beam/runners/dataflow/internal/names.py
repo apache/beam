@@ -38,10 +38,10 @@ SERIALIZED_SOURCE_KEY = 'serialized_source'
 
 # Update this version to the next version whenever there is a change that will
 # require changes to legacy Dataflow worker execution environment.
-BEAM_CONTAINER_VERSION = 'beam-master-20190201'
+BEAM_CONTAINER_VERSION = 'beam-master-20190605'
 # Update this version to the next version whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
-BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20190201'
+BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20190605'
 
 # TODO(BEAM-5939): Remove these shared names once Dataflow worker is updated.
 PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
@@ -78,13 +78,14 @@ class PropertyNames(object):
   Property strings as they are expected in the CloudWorkflow protos."""
   BIGQUERY_CREATE_DISPOSITION = 'create_disposition'
   BIGQUERY_DATASET = 'dataset'
-  BIGQUERY_QUERY = 'bigquery_query'
-  BIGQUERY_USE_LEGACY_SQL = 'bigquery_use_legacy_sql'
-  BIGQUERY_FLATTEN_RESULTS = 'bigquery_flatten_results'
   BIGQUERY_EXPORT_FORMAT = 'bigquery_export_format'
-  BIGQUERY_TABLE = 'table'
+  BIGQUERY_FLATTEN_RESULTS = 'bigquery_flatten_results'
+  BIGQUERY_KMS_KEY = 'bigquery_kms_key'
   BIGQUERY_PROJECT = 'project'
+  BIGQUERY_QUERY = 'bigquery_query'
   BIGQUERY_SCHEMA = 'schema'
+  BIGQUERY_TABLE = 'table'
+  BIGQUERY_USE_LEGACY_SQL = 'bigquery_use_legacy_sql'
   BIGQUERY_WRITE_DISPOSITION = 'write_disposition'
   DISPLAY_DATA = 'display_data'
   ELEMENT = 'element'
@@ -108,6 +109,7 @@ class PropertyNames(object):
   PUBSUB_SUBSCRIPTION = 'pubsub_subscription'
   PUBSUB_TIMESTAMP_ATTRIBUTE = 'pubsub_timestamp_label'
   PUBSUB_TOPIC = 'pubsub_topic'
+  RESTRICTION_ENCODING = 'restriction_encoding'
   SERIALIZED_FN = 'serialized_fn'
   SHARD_NAME_TEMPLATE = 'shard_template'
   SOURCE_STEP_INPUT = 'custom_source_step_input'

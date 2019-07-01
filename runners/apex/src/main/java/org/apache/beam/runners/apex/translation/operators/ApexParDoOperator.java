@@ -70,6 +70,7 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -125,11 +126,15 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
   @Bind(JavaSerializer.class)
   private final Map<TupleTag<?>, Coder<?>> outputCoders;
 
+  @Bind(JavaSerializer.class)
+  private final DoFnSchemaInformation doFnSchemaInformation;
+
   private StateInternalsProxy<?> currentKeyStateInternals;
   private final ApexTimerInternals<Object> currentKeyTimerInternals;
 
   private final StateInternals sideInputStateInternals;
   private final ValueAndCoderKryoSerializable<List<WindowedValue<InputT>>> pushedBack;
+
   private LongMin pushedBackWatermark = new LongMin();
   private long currentInputWatermark = Long.MIN_VALUE;
   private long currentOutputWatermark = currentInputWatermark;
@@ -140,6 +145,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
       additionalOutputPortMapping = Maps.newHashMapWithExpectedSize(5);
   private transient DoFnInvoker<InputT, OutputT> doFnInvoker;
 
+  /** Constructor. */
   public ApexParDoOperator(
       ApexPipelineOptions pipelineOptions,
       DoFn<InputT, OutputT> doFn,
@@ -149,6 +155,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
       List<PCollectionView<?>> sideInputs,
       Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
+      DoFnSchemaInformation doFnSchemaInformation,
       ApexStateBackend stateBackend) {
     this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
     this.doFn = doFn;
@@ -178,6 +185,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
     TimerInternals.TimerDataCoder timerCoder =
         TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
     this.currentKeyTimerInternals = new ApexTimerInternals<>(timerCoder);
+    this.doFnSchemaInformation = doFnSchemaInformation;
 
     if (doFn instanceof ProcessFn) {
       // we know that it is keyed on byte[]
@@ -210,6 +218,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
     this.inputCoder = null;
     this.outputCoders = Collections.emptyMap();
     this.currentKeyTimerInternals = null;
+    this.doFnSchemaInformation = null;
   }
 
   public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>> input =
@@ -466,7 +475,8 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
             stepContext,
             inputCoder,
             outputCoders,
-            windowingStrategy);
+            windowingStrategy,
+            doFnSchemaInformation);
 
     doFnInvoker = DoFnInvokers.invokerFor(doFn);
     doFnInvoker.invokeSetup();

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature(exportJavadoc: false)
 
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples"
@@ -44,6 +44,7 @@ processResources {
     'maven-jar-plugin.version': dependencies.create(project.library.maven.maven_jar_plugin).getVersion(),
     'maven-shade-plugin.version': dependencies.create(project.library.maven.maven_shade_plugin).getVersion(),
     'maven-surefire-plugin.version': dependencies.create(project.library.maven.maven_surefire_plugin).getVersion(),
+    'flink.artifact.name': 'beam-runners-flink-'.concat(project(":runners:flink:1.8").getName()),
   ]
 }
 
@@ -52,12 +53,12 @@ processResources {
  * the following projects are evaluated before we evaluate this project. This is because
  * we are attempting to reference the "sourceSets.{main|test}.allSource" directly.
  */
-evaluationDependsOn(':beam-examples-java')
+evaluationDependsOn(':examples:java')
 
 task generateSources(type: Exec) {
   inputs.file './generate-sources.sh'
-  inputs.files project(':beam-examples-java').sourceSets.main.allSource
-  inputs.files project(':beam-examples-java').sourceSets.test.allSource
+  inputs.files project(':examples:java').sourceSets.main.allSource
+  inputs.files project(':examples:java').sourceSets.test.allSource
   outputs.dir('src/main/resources/archetype-resources/src')  
   commandLine './generate-sources.sh'
 }
@@ -69,5 +70,5 @@ sourceSets {
 }
 
 dependencies {
-  shadow project(path: ":beam-examples-java", configuration: "shadow")
+  compile project(":examples:java")
 }

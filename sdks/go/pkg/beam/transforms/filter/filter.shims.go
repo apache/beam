@@ -36,28 +36,28 @@ func init() {
 	runtime.RegisterFunction(mapFn)
 	runtime.RegisterType(reflect.TypeOf((*filterFn)(nil)).Elem())
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*filterFn)(nil)).Elem(), wrapMakerFilterFn)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.T,func(typex.T)) ())(nil)).Elem(), funcMakerTypex۰TEmitTypex۰TГ)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.T,func(*int) bool) (typex.T))(nil)).Elem(), funcMakerTypex۰TIterIntГTypex۰T)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.T) (typex.T,int))(nil)).Elem(), funcMakerTypex۰TГTypex۰TInt)
-	reflectx.RegisterFunc(reflect.TypeOf((*func() ())(nil)).Elem(), funcMakerГ)
-	exec.RegisterEmitter(reflect.TypeOf((*func(typex.T) ())(nil)).Elem(), emitMakerTypex۰T)
-	exec.RegisterInput(reflect.TypeOf((*func(*int) (bool))(nil)).Elem(), iterMakerInt)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.T, func(typex.T)))(nil)).Elem(), funcMakerTypex۰TEmitTypex۰TГ)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.T, func(*int) bool) typex.T)(nil)).Elem(), funcMakerTypex۰TIterIntГTypex۰T)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.T) (typex.T, int))(nil)).Elem(), funcMakerTypex۰TГTypex۰TInt)
+	reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), funcMakerГ)
+	exec.RegisterEmitter(reflect.TypeOf((*func(typex.T))(nil)).Elem(), emitMakerTypex۰T)
+	exec.RegisterInput(reflect.TypeOf((*func(*int) bool)(nil)).Elem(), iterMakerInt)
 }
 
 func wrapMakerFilterFn(fn interface{}) map[string]reflectx.Func {
 	dfn := fn.(*filterFn)
 	return map[string]reflectx.Func{
 		"ProcessElement": reflectx.MakeFunc(func(a0 typex.T, a1 func(typex.T)) { dfn.ProcessElement(a0, a1) }),
-		"Setup": reflectx.MakeFunc(func() { dfn.Setup() }),
+		"Setup":          reflectx.MakeFunc(func() { dfn.Setup() }),
 	}
 }
 
 type callerTypex۰TEmitTypex۰TГ struct {
-	fn func(typex.T,func(typex.T)) ()
+	fn func(typex.T, func(typex.T))
 }
 
 func funcMakerTypex۰TEmitTypex۰TГ(fn interface{}) reflectx.Func {
-	f := fn.(func(typex.T,func(typex.T)) ())
+	f := fn.(func(typex.T, func(typex.T)))
 	return &callerTypex۰TEmitTypex۰TГ{fn: f}
 }
 
@@ -74,16 +74,16 @@ func (c *callerTypex۰TEmitTypex۰TГ) Call(args []interface{}) []interface{} {
 	return []interface{}{}
 }
 
-func (c *callerTypex۰TEmitTypex۰TГ) Call2x0(arg0, arg1 interface{}) () {
+func (c *callerTypex۰TEmitTypex۰TГ) Call2x0(arg0, arg1 interface{}) {
 	c.fn(arg0.(typex.T), arg1.(func(typex.T)))
 }
 
 type callerTypex۰TIterIntГTypex۰T struct {
-	fn func(typex.T,func(*int) bool) (typex.T)
+	fn func(typex.T, func(*int) bool) typex.T
 }
 
 func funcMakerTypex۰TIterIntГTypex۰T(fn interface{}) reflectx.Func {
-	f := fn.(func(typex.T,func(*int) bool) (typex.T))
+	f := fn.(func(typex.T, func(*int) bool) typex.T)
 	return &callerTypex۰TIterIntГTypex۰T{fn: f}
 }
 
@@ -100,16 +100,16 @@ func (c *callerTypex۰TIterIntГTypex۰T) Call(args []interface{}) []interface{}
 	return []interface{}{out0}
 }
 
-func (c *callerTypex۰TIterIntГTypex۰T) Call2x1(arg0, arg1 interface{}) (interface{}) {
+func (c *callerTypex۰TIterIntГTypex۰T) Call2x1(arg0, arg1 interface{}) interface{} {
 	return c.fn(arg0.(typex.T), arg1.(func(*int) bool))
 }
 
 type callerTypex۰TГTypex۰TInt struct {
-	fn func(typex.T) (typex.T,int)
+	fn func(typex.T) (typex.T, int)
 }
 
 func funcMakerTypex۰TГTypex۰TInt(fn interface{}) reflectx.Func {
-	f := fn.(func(typex.T) (typex.T,int))
+	f := fn.(func(typex.T) (typex.T, int))
 	return &callerTypex۰TГTypex۰TInt{fn: f}
 }
 
@@ -131,11 +131,11 @@ func (c *callerTypex۰TГTypex۰TInt) Call1x2(arg0 interface{}) (interface{}, in
 }
 
 type callerГ struct {
-	fn func() ()
+	fn func()
 }
 
 func funcMakerГ(fn interface{}) reflectx.Func {
-	f := fn.(func() ())
+	f := fn.(func())
 	return &callerГ{fn: f}
 }
 
@@ -152,17 +152,18 @@ func (c *callerГ) Call(args []interface{}) []interface{} {
 	return []interface{}{}
 }
 
-func (c *callerГ) Call0x0() () {
+func (c *callerГ) Call0x0() {
 	c.fn()
 }
 
 type emitNative struct {
-	n     exec.ElementProcessor
-	fn    interface{}
+	n  exec.ElementProcessor
+	fn interface{}
 
-	ctx context.Context
-	ws  []typex.Window
-	et  typex.EventTime
+	ctx   context.Context
+	ws    []typex.Window
+	et    typex.EventTime
+	value exec.FullValue
 }
 
 func (e *emitNative) Init(ctx context.Context, ws []typex.Window, et typex.EventTime) error {
@@ -183,15 +184,15 @@ func emitMakerTypex۰T(n exec.ElementProcessor) exec.ReusableEmitter {
 }
 
 func (e *emitNative) invokeTypex۰T(val typex.T) {
-	value := exec.FullValue{Windows: e.ws, Timestamp: e.et, Elm: val}
-	if err := e.n.ProcessElement(e.ctx, value); err != nil {
+	e.value = exec.FullValue{Windows: e.ws, Timestamp: e.et, Elm: val}
+	if err := e.n.ProcessElement(e.ctx, &e.value); err != nil {
 		panic(err)
 	}
 }
 
 type iterNative struct {
-	s     exec.ReStream
-	fn    interface{}
+	s  exec.ReStream
+	fn interface{}
 
 	// cur is the "current" stream, if any.
 	cur exec.Stream
@@ -235,6 +236,5 @@ func (v *iterNative) readInt(value *int) bool {
 	*value = elm.Elm.(int)
 	return true
 }
-
 
 // DO NOT MODIFY: GENERATED CODE

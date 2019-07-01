@@ -300,7 +300,7 @@ public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row
 
                   @ProcessElement
                   public void process(
-                      @FieldAccess("filterFields") Row input, OutputReceiver<Row> r) {
+                      @FieldAccess("filterFields") @Element Row input, OutputReceiver<Row> r) {
                     Row output = castRow(input, inputSchema, outputSchema());
                     r.output(output);
                   }

@@ -43,6 +43,8 @@ Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/prog
     <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/xml/src/main/java/org/apache/beam/sdk/io/xml/XmlIO.java">XmlIO</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/tika/src/main/java/org/apache/beam/sdk/io/tika/TikaIO.java">TikaIO</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/parquet/src/main/java/org/apache/beam/sdk/io/parquet/ParquetIO.java">ParquetIO</a></p>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/rabbitmq/src/main/java/org/apache/beam/sdk/io/rabbitmq/RabbitMqIO.java">RabbitMqIO</a></p>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/amazon-web-services/src/main/java/org/apache/beam/sdk/io/aws/sqs/SqsIO.java">SqsIO</a></p>
   </td>
   <td>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/kinesis">Amazon Kinesis</a></p>
@@ -54,7 +56,7 @@ Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/prog
   </td>
   <td>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/cassandra">Apache Cassandra</a></p>
-    <p><a href="{{site.baseurl}}/documentation/io/built-in/hadoop/">Apache Hadoop InputFormat</a></p>
+    <p><a href="{{site.baseurl}}/documentation/io/built-in/hadoop/">Apache Hadoop Input/Output Format</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/hbase">Apache HBase</a></p>
     <p><a href="{{site.baseurl}}/documentation/io/built-in/hcatalog">Apache Hive (HCatalog)</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/kudu">Apache Kudu</a></p>
@@ -70,22 +72,33 @@ Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/prog
   </td>
 </tr>
 <tr>
-  <td>Python</td>
+  <td>Python/Batch</td>
   <td>
-    <p>Beam Python supports Google Cloud Storage and local filesystems.</p>
+    <p>Beam Python supports Apache HDFS, Google Cloud Storage, and local filesystems.</p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/avroio.py">avroio</a></p>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/parquetio.py">parquetio</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/textio.py">textio</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/tfrecordio.py">tfrecordio</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/vcfio.py">vcfio</a></p>
   </td>
   <td>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/pubsub.py">Google Cloud Pub/Sub</a></p>
   </td>
   <td>
     <p><a href="{{site.baseurl}}/documentation/io/built-in/google-bigquery/">Google BigQuery</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/io/gcp/datastore">Google Cloud Datastore</a></p>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/bigtableio.py">Google Cloud Bigtable</a> (Write)</p>
   </td>
-
+</tr>
+<tr>
+  <td>Python/Streaming</td>
+  <td>
+  </td>
+  <td>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/pubsub.py">Google Cloud Pub/Sub</a></p>
+  </td>
+  <td>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/bigquery.py">Google BigQuery (sink only)</a></p>
+  </td>
 </tr>
 </table>
 
@@ -96,10 +109,6 @@ This table contains I/O transforms that are currently planned or in-progress. St
 <table class="table table-bordered">
   <tr>
     <th>Name</th><th>Language</th><th>JIRA</th>
-  </tr>
-  <tr>
-    <td>Apache HDFS support</td><td>Python</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-3099">BEAM-3099</a></td>
   </tr>
   <tr>
     <td>Apache DistributedLog</td><td>Java</td>
@@ -130,15 +139,7 @@ This table contains I/O transforms that are currently planned or in-progress. St
     <td><a href="https://issues.apache.org/jira/browse/BEAM-1857">BEAM-1857</a></td>
   </tr>
   <tr>
-    <td>RabbitMQ</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-1240">BEAM-1240</a></td>
-  </tr>
-  <tr>
     <td>RestIO</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-1946">BEAM-1946</a></td>
-  </tr>
-  <tr>
-    <td>Amazon SQS</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-4828">BEAM-4828</a></td>
   </tr>
 </table>

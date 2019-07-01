@@ -194,7 +194,7 @@ class TestStream(PTransform):
     return self
 
   def advance_watermark_to_infinity(self):
-    """Advance the watermark to the end of time."""
+    """Advance the watermark to the end of time, completing this TestStream."""
     self.advance_watermark_to(timestamp.MAX_TIMESTAMP)
     return self
 

@@ -17,12 +17,12 @@ package harness
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"sync"
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 )
@@ -54,7 +54,7 @@ func (s *ScopedDataManager) OpenRead(ctx context.Context, id exec.StreamID) (io.
 	if err != nil {
 		return nil, err
 	}
-	return ch.OpenRead(ctx, id.Target, s.instID), nil
+	return ch.OpenRead(ctx, id.PtransformID, s.instID), nil
 }
 
 func (s *ScopedDataManager) OpenWrite(ctx context.Context, id exec.StreamID) (io.WriteCloser, error) {
@@ -62,14 +62,14 @@ func (s *ScopedDataManager) OpenWrite(ctx context.Context, id exec.StreamID) (io
 	if err != nil {
 		return nil, err
 	}
-	return ch.OpenWrite(ctx, id.Target, s.instID), nil
+	return ch.OpenWrite(ctx, id.PtransformID, s.instID), nil
 }
 
 func (s *ScopedDataManager) open(ctx context.Context, port exec.Port) (*DataChannel, error) {
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
-		return nil, fmt.Errorf("instruction %v no longer processing", s.instID)
+		return nil, errors.Errorf("instruction %v no longer processing", s.instID)
 	}
 	local := s.mgr
 	s.mu.Unlock()
@@ -118,8 +118,8 @@ func (m *DataChannelManager) Open(ctx context.Context, port exec.Port) (*DataCha
 
 // clientID identifies a client of a connected channel.
 type clientID struct {
-	target exec.Target
-	instID string
+	ptransformID string
+	instID       string
 }
 
 // This is a reduced version of the full gRPC interface to help with testing.
@@ -147,12 +147,12 @@ type DataChannel struct {
 func newDataChannel(ctx context.Context, port exec.Port) (*DataChannel, error) {
 	cc, err := dial(ctx, port.URL, 15*time.Second)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect: %v", err)
+		return nil, errors.Wrap(err, "failed to connect")
 	}
 	client, err := pb.NewBeamFnDataClient(cc).Data(ctx)
 	if err != nil {
 		cc.Close()
-		return nil, fmt.Errorf("failed to connect to data service: %v", err)
+		return nil, errors.Wrap(err, "failed to connect to data service")
 	}
 	return makeDataChannel(ctx, port.URL, client), nil
 }
@@ -169,12 +169,12 @@ func makeDataChannel(ctx context.Context, id string, client dataClient) *DataCha
 	return ret
 }
 
-func (c *DataChannel) OpenRead(ctx context.Context, target exec.Target, instID string) io.ReadCloser {
-	return c.makeReader(ctx, clientID{target: target, instID: instID})
+func (c *DataChannel) OpenRead(ctx context.Context, ptransformID string, instID string) io.ReadCloser {
+	return c.makeReader(ctx, clientID{ptransformID: ptransformID, instID: instID})
 }
 
-func (c *DataChannel) OpenWrite(ctx context.Context, target exec.Target, instID string) io.WriteCloser {
-	return c.makeWriter(ctx, clientID{target: target, instID: instID})
+func (c *DataChannel) OpenWrite(ctx context.Context, ptransformID string, instID string) io.WriteCloser {
+	return c.makeWriter(ctx, clientID{ptransformID: ptransformID, instID: instID})
 }
 
 func (c *DataChannel) read(ctx context.Context) {
@@ -187,7 +187,7 @@ func (c *DataChannel) read(ctx context.Context) {
 				log.Warnf(ctx, "DataChannel %v closed", c.id)
 				return
 			}
-			panic(fmt.Errorf("channel %v bad: %v", c.id, err))
+			panic(errors.Wrapf(err, "channel %v bad", c.id))
 		}
 
 		recordStreamReceive(msg)
@@ -197,7 +197,7 @@ func (c *DataChannel) read(ctx context.Context) {
 		// to reduce lock contention.
 
 		for _, elm := range msg.GetData() {
-			id := clientID{target: exec.Target{ID: elm.GetTarget().PrimitiveTransformReference, Name: elm.GetTarget().GetName()}, instID: elm.GetInstructionReference()}
+			id := clientID{ptransformID: elm.PtransformId, instID: elm.GetInstructionReference()}
 
 			// log.Printf("Chan read (%v): %v\n", sid, elm.GetData())
 
@@ -329,12 +329,11 @@ func (w *dataWriter) Close() error {
 	w.ch.mu.Lock()
 	defer w.ch.mu.Unlock()
 	delete(w.ch.writers, w.id)
-	target := &pb.Target{PrimitiveTransformReference: w.id.target.ID, Name: w.id.target.Name}
 	msg := &pb.Elements{
 		Data: []*pb.Elements_Data{
 			{
 				InstructionReference: w.id.instID,
-				Target:               target,
+				PtransformId:         w.id.ptransformID,
 				// Empty data == sentinel
 			},
 		},
@@ -354,12 +353,11 @@ func (w *dataWriter) Flush() error {
 		return nil
 	}
 
-	target := &pb.Target{PrimitiveTransformReference: w.id.target.ID, Name: w.id.target.Name}
 	msg := &pb.Elements{
 		Data: []*pb.Elements_Data{
 			{
 				InstructionReference: w.id.instID,
-				Target:               target,
+				PtransformId:         w.id.ptransformID,
 				Data:                 w.buf,
 			},
 		},
@@ -374,7 +372,7 @@ func (w *dataWriter) Write(p []byte) (n int, err error) {
 		l := len(w.buf)
 		// We can't fit this message into the buffer. We need to flush the buffer
 		if err := w.Flush(); err != nil {
-			return 0, fmt.Errorf("datamgr.go: error flushing buffer of length %d: %v", l, err)
+			return 0, errors.Wrapf(err, "datamgr.go: error flushing buffer of length %d", l)
 		}
 	}
 

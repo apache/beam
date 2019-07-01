@@ -36,7 +36,7 @@ public interface Collector<T> extends Environment {
 
   /**
    * Returns {@link Context} view of the collector. Since {@link Collector} usually share the same
-   * methods as {@link Context} it can be safely casted.
+   * methods as {@link Context} it can be safely cast.
    *
    * @return this instance as a context class
    */

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl;
 import static org.apache.calcite.config.CalciteConnectionProperty.SCHEMA_FACTORY;
 import static org.codehaus.commons.compiler.CompilerFactoryFactory.getDefaultCompilerFactory;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -100,6 +101,8 @@ public class JdbcDriver extends Driver {
     INSTANCE.register();
   }
 
+  public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
   @Override
   protected AvaticaFactory createFactory() {
     return JdbcFactory.wrap((CalciteFactory) super.createFactory());
@@ -141,7 +144,7 @@ public class JdbcDriver extends Driver {
    * not this path. The CLI ends up using the schema factory that populates the default schema with
    * all table providers it can find. See {@link BeamCalciteSchemaFactory}.
    */
-  public static JdbcConnection connect(TableProvider tableProvider) {
+  public static JdbcConnection connect(TableProvider tableProvider, PipelineOptions options) {
     try {
       Properties properties = new Properties();
       properties.setProperty(
@@ -149,6 +152,7 @@ public class JdbcDriver extends Driver {
       JdbcConnection connection =
           (JdbcConnection) INSTANCE.connect(CONNECT_STRING_PREFIX, properties);
       connection.setSchema(TOP_LEVEL_BEAM_SCHEMA, tableProvider);
+      connection.setPipelineOptions(options);
       return connection;
     } catch (SQLException e) {
       throw new RuntimeException(e);

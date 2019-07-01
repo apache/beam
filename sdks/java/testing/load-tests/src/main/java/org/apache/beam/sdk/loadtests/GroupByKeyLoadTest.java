@@ -22,9 +22,9 @@ import static java.lang.String.format;
 import java.io.IOException;
 import java.util.Optional;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
-import org.apache.beam.sdk.loadtests.metrics.ByteMonitor;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -46,7 +46,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>To run it manually, use the following command:
  *
  * <pre>
- *    ./gradlew :beam-sdks-java-load-tests:run -PloadTest.args='
+ *    ./gradlew :sdks:java:testing:load-tests:run -PloadTest.args='
  *      --fanout=1
  *      --iterations=1
  *      --sourceOptions={"numRecords":1000,...}

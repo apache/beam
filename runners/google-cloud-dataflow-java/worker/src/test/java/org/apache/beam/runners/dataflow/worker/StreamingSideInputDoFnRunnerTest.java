@@ -49,6 +49,7 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -406,7 +407,8 @@ public class StreamingSideInputDoFnRunnerTest {
             stepContext,
             null,
             Collections.emptyMap(),
-            WindowingStrategy.of(windowFn));
+            WindowingStrategy.of(windowFn),
+            DoFnSchemaInformation.create());
     return new StreamingSideInputDoFnRunner<>(simpleDoFnRunner, sideInputFetcher);
   }
 

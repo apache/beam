@@ -109,9 +109,9 @@ public class Filter<InputT> extends Operator<InputT> implements CompositeOperato
     @Override
     public <T> ByBuilder<T> of(PCollection<T> input) {
       @SuppressWarnings("unchecked")
-      final Builder<T> casted = (Builder) this;
-      casted.input = requireNonNull(input);
-      return casted;
+      final Builder<T> cast = (Builder) this;
+      cast.input = requireNonNull(input);
+      return cast;
     }
 
     @Override

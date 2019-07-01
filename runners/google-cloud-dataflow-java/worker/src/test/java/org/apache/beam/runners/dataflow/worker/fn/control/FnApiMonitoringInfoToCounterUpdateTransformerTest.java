@@ -22,10 +22,10 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -33,9 +33,8 @@ import org.mockito.MockitoAnnotations;
 
 public class FnApiMonitoringInfoToCounterUpdateTransformerTest {
 
-  @Mock private UserMonitoringInfoToCounterUpdateTransformer mockUserCounterTransformer;
-
-  @Mock private UserMonitoringInfoToCounterUpdateTransformer mockGenericTransformer1;
+  @Mock private UserMonitoringInfoToCounterUpdateTransformer mockTransformer2;
+  @Mock private UserMonitoringInfoToCounterUpdateTransformer mockTransformer1;
 
   @Before
   public void setUp() {
@@ -43,21 +42,23 @@ public class FnApiMonitoringInfoToCounterUpdateTransformerTest {
   }
 
   @Test
-  public void testTransformUtilizesUserCounterTransformerForUserCounters() {
-    Map<String, MonitoringInfoToCounterUpdateTransformer> genericTransformers =
-        Collections.EMPTY_MAP;
+  public void testTransformUtilizesRelevantCounterTransformer() {
+    Map<String, MonitoringInfoToCounterUpdateTransformer> genericTransformers = new HashMap<>();
+
+    final String validUrn = "urn1";
+    genericTransformers.put(validUrn, mockTransformer1);
+    genericTransformers.put("any:other:urn", mockTransformer2);
+
     FnApiMonitoringInfoToCounterUpdateTransformer testObject =
-        new FnApiMonitoringInfoToCounterUpdateTransformer(
-            mockUserCounterTransformer, genericTransformers);
+        new FnApiMonitoringInfoToCounterUpdateTransformer(genericTransformers);
 
     CounterUpdate expectedResult = new CounterUpdate();
-    when(mockUserCounterTransformer.transform(any())).thenReturn(expectedResult);
-    when(mockUserCounterTransformer.getSupportedUrnPrefix()).thenReturn("user:prefix:");
+    when(mockTransformer1.transform(any())).thenReturn(expectedResult);
 
     MonitoringInfo monitoringInfo =
         MonitoringInfo.newBuilder()
-            .setUrn("user:prefix:anyNamespace:anyName")
-            .putLabels("PTRANSFORM", "anyValue")
+            .setUrn(validUrn)
+            .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyValue")
             .build();
 
     CounterUpdate result = testObject.transform(monitoringInfo);
@@ -66,25 +67,25 @@ public class FnApiMonitoringInfoToCounterUpdateTransformerTest {
   }
 
   @Test
-  public void testTransformUtilizesRelevantCounterTransformerForNonUserCounters() {
+  public void testTransformReturnsNullOnUnknownUrn() {
     Map<String, MonitoringInfoToCounterUpdateTransformer> genericTransformers = new HashMap<>();
-    final String validUrn = "urn1";
-    genericTransformers.put(validUrn, mockGenericTransformer1);
 
-    when(mockUserCounterTransformer.getSupportedUrnPrefix()).thenReturn("invalid:prefix:");
+    genericTransformers.put("beam:metric:user", mockTransformer2);
 
     FnApiMonitoringInfoToCounterUpdateTransformer testObject =
-        new FnApiMonitoringInfoToCounterUpdateTransformer(
-            mockUserCounterTransformer, genericTransformers);
+        new FnApiMonitoringInfoToCounterUpdateTransformer(genericTransformers);
 
     CounterUpdate expectedResult = new CounterUpdate();
-    when(mockGenericTransformer1.transform(any())).thenReturn(expectedResult);
+    when(mockTransformer1.transform(any())).thenReturn(expectedResult);
 
     MonitoringInfo monitoringInfo =
-        MonitoringInfo.newBuilder().setUrn(validUrn).putLabels("PTRANSFORM", "anyValue").build();
+        MonitoringInfo.newBuilder()
+            .setUrn("any:other:urn")
+            .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyValue")
+            .build();
 
     CounterUpdate result = testObject.transform(monitoringInfo);
 
-    assertSame(expectedResult, result);
+    assertSame(null, result);
   }
 }

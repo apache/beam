@@ -1,6 +1,6 @@
 ---
 layout: section
-title: "Apache Hadoop InputFormat IO"
+title: "Apache Hadoop Input/Output Format IO"
 section_menu: section-menu/documentation.html
 permalink: /documentation/io/built-in/hadoop/
 ---
@@ -18,11 +18,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Hadoop InputFormat IO
+# Hadoop Input/Output Format IO
 
-A `HadoopInputFormatIO` is a transform for reading data from any source that implements Hadoop's `InputFormat`. For example, Cassandra, Elasticsearch, HBase, Redis, Postgres, etc.
+> **IMPORTANT!** Previous implementation of Hadoop Input Format IO, called `HadoopInputFormatIO`, is deprecated starting from *Apache Beam 2.10*. Please, use current `HadoopFormatIO` which supports both `InputFormat` and `OutputFormat`.
 
-`HadoopInputFormatIO` allows you to connect to many data sources that do not yet have a Beam IO transform. However, `HadoopInputFormatIO` has to make several performance trade-offs in connecting to `InputFormat`. So, if there is another Beam IO transform for connecting specifically to your data source of choice, we recommend you use that one.
+A `HadoopFormatIO` is a transform for reading data from any source or writing data to any sink that implements Hadoop's `InputFormat` or `OurputFormat` accordingly. For example, Cassandra, Elasticsearch, HBase, Redis, Postgres, etc.
+
+`HadoopFormatIO` allows you to connect to many data sources/sinks that do not yet have a Beam IO transform. However, `HadoopFormatIO` has to make several performance trade-offs in connecting to `InputFormat` or `OutputFormat`. So, if there is another Beam IO transform for connecting specifically to your data source/sink of choice, we recommend you use that one.
+
+  
+
+### Reading using HadoopFormatIO
 
 You will need to pass a Hadoop `Configuration` with parameters specifying how the read will occur. Many properties of the `Configuration` are optional and some are required for certain `InputFormat` classes, but the following properties must be set for all `InputFormat` classes:
 
@@ -41,7 +47,7 @@ myHadoopConfiguration.setClass("value.class", InputFormatValueClass, Object.clas
 ```
 
 ```py
-  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+  # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
 ```
 
 You will need to check if the `Key` and `Value` classes output by the `InputFormat` have a Beam `Coder` available. If not, you can use `withKeyTranslation` or `withValueTranslation` to specify a method transforming instances of those classes into another class that is supported by a Beam `Coder`. These settings are optional and you don't need to specify translation for both key and value.
@@ -63,21 +69,19 @@ new SimpleFunction<InputFormatValueClass, MyValueClass>() {
 ```
 
 ```py
-  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+  # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
 ```
-
-### Reading using Hadoop InputFormat IO
 
 #### Read data only with Hadoop configuration.
 
 ```java
 p.apply("read",
-  HadoopInputFormatIO.<InputFormatKeyClass, InputFormatKeyClass>read()
+  HadoopFormatIO.<InputFormatKeyClass, InputFormatKeyClass>read()
   .withConfiguration(myHadoopConfiguration);
 ```
 
 ```py
-  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+  # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
 ```
 
 #### Read data with configuration and key translation
@@ -86,13 +90,13 @@ For example, a Beam `Coder` is not available for `Key` class, so key translation
 
 ```java
 p.apply("read",
-  HadoopInputFormatIO.<MyKeyClass, InputFormatKeyClass>read()
+  HadoopFormatIO.<MyKeyClass, InputFormatKeyClass>read()
   .withConfiguration(myHadoopConfiguration)
   .withKeyTranslation(myOutputKeyType);
 ```
 
 ```py
-  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+  # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
 ```
 
 #### Read data with configuration and value translation
@@ -101,13 +105,13 @@ For example, a Beam `Coder` is not available for `Value` class, so value transla
 
 ```java
 p.apply("read",
-  HadoopInputFormatIO.<InputFormatKeyClass, MyValueClass>read()
+  HadoopFormatIO.<InputFormatKeyClass, MyValueClass>read()
   .withConfiguration(myHadoopConfiguration)
   .withValueTranslation(myOutputValueType);
 ```
 
 ```py
-  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+  # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
 ```
 
 #### Read data with configuration, value translation and key translation
@@ -116,14 +120,14 @@ For example, Beam Coders are not available for both `Key` class and `Value` clas
 
 ```java
 p.apply("read",
-  HadoopInputFormatIO.<MyKeyClass, MyValueClass>read()
+  HadoopFormatIO.<MyKeyClass, MyValueClass>read()
   .withConfiguration(myHadoopConfiguration)
   .withKeyTranslation(myOutputKeyType)
   .withValueTranslation(myOutputValueType);
 ```
 
 ```py
-  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+  # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
 ```
 
 # Examples for specific InputFormats
@@ -145,7 +149,7 @@ cassandraConf.setClass("mapreduce.job.inputformat.class", org.apache.cassandra.h
 ```
 
 ```py
-  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+  # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
 ```
 
 Call Read transform as follows:
@@ -153,13 +157,13 @@ Call Read transform as follows:
 ```java
 PCollection<KV<Long, String>> cassandraData =
   p.apply("read",
-  HadoopInputFormatIO.<Long, String>read()
+  HadoopFormatIO.<Long, String>read()
   .withConfiguration(cassandraConf)
   .withValueTranslation(cassandraOutputValueType);
 ```
 
 ```py
-  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+  # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
 ```
 
 The `CqlInputFormat` key class is `java.lang.Long` `Long`, which has a Beam `Coder`. The `CqlInputFormat` value class is `com.datastax.driver.core.Row` `Row`, which does not have a Beam `Coder`. Rather than write a new coder, you can provide your own translation method, as follows:
@@ -174,7 +178,7 @@ SimpleFunction<Row, String> cassandraOutputValueType = SimpleFunction<Row, Strin
 ```
 
 ```py
-  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+  # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
 ```
 
 ### Elasticsearch - EsInputFormat
@@ -192,18 +196,18 @@ elasticSearchConf.setClass("mapreduce.job.inputformat.class", org.elasticsearch.
 ```
 
 ```py
-  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+  # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
 ```
 
 Call Read transform as follows:
 
 ```java
 PCollection<KV<Text, LinkedMapWritable>> elasticData = p.apply("read",
-  HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(elasticSearchConf));
+  HadoopFormatIO.<Text, LinkedMapWritable>read().withConfiguration(elasticSearchConf));
 ```
 
 ```py
-  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+  # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
 ```
 
 The `org.elasticsearch.hadoop.mr.EsInputFormat`'s `EsInputFormat` key class is `org.apache.hadoop.io.Text` `Text`, and its value class is `org.elasticsearch.hadoop.mr.LinkedMapWritable` `LinkedMapWritable`. Both key and value classes have Beam Coders.
@@ -223,7 +227,7 @@ org.apache.hive.hcatalog.mapreduce.HCatInputFormat.setInput(hcatConf, "my_databa
 ```
 
 ```py
-  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+  # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
 ```
 
 Call Read transform as follows:
@@ -231,19 +235,19 @@ Call Read transform as follows:
 ```java
 PCollection<KV<Long, HCatRecord>> hcatData =
   p.apply("read",
-  HadoopInputFormatIO.<Long, HCatRecord>read()
+  HadoopFormatIO.<Long, HCatRecord>read()
   .withConfiguration(hcatConf);
 ```
 
 ```py
-  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+  # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
 ```
 
 ### Amazon DynamoDB - DynamoDBInputFormat
 
 To read data from Amazon DynamoDB, use `org.apache.hadoop.dynamodb.read.DynamoDBInputFormat`.
-DynamoDBInputFormat implements the older `org.apache.hadoop.mapred.InputFormat` interface and to make it compatible with HadoopInputFormatIO which uses the newer abstract class `org.apache.hadoop.mapreduce.InputFormat`,
-a wrapper API is required which acts as an adapter between HadoopInputFormatIO and DynamoDBInputFormat (or in general any InputFormat implementing `org.apache.hadoop.mapred.InputFormat`)
+DynamoDBInputFormat implements the older `org.apache.hadoop.mapred.InputFormat` interface and to make it compatible with HadoopFormatIO which uses the newer abstract class `org.apache.hadoop.mapreduce.InputFormat`,
+a wrapper API is required which acts as an adapter between HadoopFormatIO and DynamoDBInputFormat (or in general any InputFormat implementing `org.apache.hadoop.mapred.InputFormat`)
 The below example uses one such available wrapper API - <https://github.com/twitter/elephant-bird/blob/master/core/src/main/java/com/twitter/elephantbird/mapreduce/input/MapReduceInputFormatWrapper.java>
 
 
@@ -266,7 +270,7 @@ dynamoDBConf.set(DynamoDBConstants.DYNAMODB_SECRET_KEY_CONF, "aws_secret_key");
 ```
 
 ```py
-  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+  # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
 ```
 
 Call Read transform as follows:
@@ -274,12 +278,12 @@ Call Read transform as follows:
 ```java
 PCollection<Text, DynamoDBItemWritable> dynamoDBData =
   p.apply("read",
-  HadoopInputFormatIO.<Text, DynamoDBItemWritable>read()
+  HadoopFormatIO.<Text, DynamoDBItemWritable>read()
   .withConfiguration(dynamoDBConf);
 ```
 
 ```py
-  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+  # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
 ```
 
 ### Apache HBase - TableSnapshotInputFormat
@@ -303,7 +307,7 @@ try (
 ```
 
 ```py
-  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+  # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
 ```
 
 A `TableSnapshotInputFormat` is configured as follows:
@@ -333,7 +337,7 @@ hbaseConf = job.getConfiguration(); // extract the modified clone
 ```
 
 ```py
-  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+  # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
 ```
 
 Call Read transform as follows:
@@ -341,10 +345,89 @@ Call Read transform as follows:
 ```java
 PCollection<ImmutableBytesWritable, Result> hbaseSnapshotData =
   p.apply("read",
-  HadoopInputFormatIO.<ImmutableBytesWritable, Result>read()
+  HadoopFormatIO.<ImmutableBytesWritable, Result>read()
   .withConfiguration(hbaseConf);
 ```
 
 ```py
-  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+  # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
+```
+
+### Writing using HadoopFormatIO
+
+You will need to pass a Hadoop `Configuration` with parameters specifying how the write will occur. Many properties of the `Configuration` are optional, and some are required for certain `OutputFormat` classes, but the following properties must be set for all `OutputFormat`s:
+ 
+- `mapreduce.job.id` - The identifier of the write job. E.g.: end timestamp of window.
+- `mapreduce.job.outputformat.class` - The `OutputFormat` class used to connect to your data sink of choice.
+- `mapreduce.job.output.key.class` - The key class passed to the `OutputFormat` in `mapreduce.job.outputformat.class`.
+- `mapreduce.job.output.value.class` - The value class passed to the `OutputFormat` in `mapreduce.job.outputformat.class`.
+- `mapreduce.job.reduces` - Number of reduce tasks. Value is equal to number of write tasks which will be genarated. This property is not required for `Write.PartitionedWriterBuilder#withoutPartitioning()` write.
+- `mapreduce.job.partitioner.class` - Hadoop partitioner class which will be used for distributing of records among partitions. This property is not required for `Write.PartitionedWriterBuilder#withoutPartitioning()` write.
+
+_Note_: All mentioned values have appropriate constants. E.g.: `HadoopFormatIO.OUTPUT_FORMAT_CLASS_ATTR`.
+
+For example:
+```java
+Configuration myHadoopConfiguration = new Configuration(false);
+// Set Hadoop OutputFormat, key and value class in configuration
+myHadoopConfiguration.setClass("mapreduce.job.outputformat.class",
+   MyDbOutputFormatClass, OutputFormat.class);
+myHadoopConfiguration.setClass("mapreduce.job.output.key.class",
+   MyDbOutputFormatKeyClass, Object.class);
+myHadoopConfiguration.setClass("mapreduce.job.output.value.class",
+   MyDbOutputFormatValueClass, Object.class);
+myHadoopConfiguration.setClass("mapreduce.job.partitioner.class",
+   MyPartitionerClass, Object.class);
+myHadoopConfiguration.setInt("mapreduce.job.reduces", 2);
+```
+
+```py
+  # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
+```
+
+You will need to set `OutputFormat` key and value class (i.e. "mapreduce.job.output.key.class" and "mapreduce.job.output.value.class") in Hadoop `Configuration` which are equal to `KeyT` and `ValueT`. If you set different `OutputFormat` key or value class than `OutputFormat`'s actual key or value class then, it will throw `IllegalArgumentException`.
+
+#### Batch writing ####
+
+```java
+// Data which will we want to write
+PCollection<KV<Text, LongWritable>> boundedWordsCount = ...
+
+// Hadoop configuration for write
+// We have partitioned write, so Partitioner and reducers count have to be set - see withPartitioning() javadoc
+Configuration myHadoopConfiguration = ...
+// Path to directory with locks
+String locksDirPath = ...;
+
+boundedWordsCount.apply(
+    "writeBatch",
+    HadoopFormatIO.<Text, LongWritable>write()
+        .withConfiguration(myHadoopConfiguration)
+        .withPartitioning()
+        .withExternalSynchronization(new HDFSSynchronization(locksDirPath)));
+```
+
+```py
+  # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
+```
+
+#### Stream writing ####
+
+```java
+// Data which will we want to write
+PCollection<KV<Text, LongWritable>> unboundedWordsCount = ...;
+
+// Transformation which transforms data of one window into one hadoop configuration
+PTransform<PCollection<? extends KV<Text, LongWritable>>, PCollectionView<Configuration>>
+  configTransform = ...;
+
+unboundedWordsCount.apply(
+  "writeStream",
+  HadoopFormatIO.<Text, LongWritable>write()
+      .withConfigurationTransform(configTransform)
+      .withExternalSynchronization(new HDFSSynchronization(locksDirPath)));
+```
+
+```py
+  # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
 ```

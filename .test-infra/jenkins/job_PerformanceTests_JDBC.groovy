@@ -39,7 +39,9 @@ job(jobName) {
             tempRoot       : 'gs://temp-storage-for-perf-tests',
             project        : 'apache-beam-testing',
             postgresPort   : '5432',
-            numberOfRecords: '5000000'
+            numberOfRecords: '5000000',
+            bigQueryDataset: 'beam_performance',
+            bigQueryTable  : 'jdbcioit_results',
     ]
 
     String namespace = commonJobProperties.getKubernetesNamespace(jobName)
@@ -51,7 +53,7 @@ job(jobName) {
             benchmarks              : 'beam_integration_benchmark',
             beam_prebuilt           : 'false',
             beam_sdk                : 'java',
-            beam_it_module          : 'sdks/java/io/jdbc',
+            beam_it_module          : ':sdks:java:io:jdbc',
             beam_it_class           : 'org.apache.beam.sdk.io.jdbc.JdbcIOIT',
             beam_it_options         : commonJobProperties.joinPipelineOptions(pipelineOptions),
             beam_kubernetes_scripts : commonJobProperties.makePathAbsolute('src/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml'),

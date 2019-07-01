@@ -21,17 +21,19 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"sort"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 //go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
 //go:generate starcgen --package=top --identifiers=combineFn
+//go:generate go fmt
 
 var (
 	sig = funcx.MakePredicate(beam.TType, beam.TType) // (T, T) -> bool
@@ -52,20 +54,19 @@ func Largest(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.P
 	t := beam.ValidateNonCompositeType(col)
 	validate(t, n, less)
 
-	return beam.Combine(s, newCombineFn(less, n, t, false), col)
+	return beam.Combine(s, newCombineFn(less, n, t.Type(), false), col)
 }
 
 // LargestPerKey returns the largest N values for each key of a PCollection<KV<K,T>>.
 // The order is defined by the comparator, less : T x T -> bool. It returns a
-// single-element PCollection<KV<K,[]T>> with a slice of the N largest elements for
-// each key.
+// PCollection<KV<K,[]T>> with a slice of the N largest elements for each key.
 func LargestPerKey(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
 	s = s.Scope(fmt.Sprintf("top.LargestPerKey(%v)", n))
 
 	_, t := beam.ValidateKVType(col)
 	validate(t, n, less)
 
-	return beam.CombinePerKey(s, newCombineFn(less, n, t, false), col)
+	return beam.CombinePerKey(s, newCombineFn(less, n, t.Type(), false), col)
 }
 
 // Smallest returns the smallest N elements of a PCollection<T>. The order is
@@ -83,20 +84,19 @@ func Smallest(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.
 	t := beam.ValidateNonCompositeType(col)
 	validate(t, n, less)
 
-	return beam.Combine(s, newCombineFn(less, n, t, true), col)
+	return beam.Combine(s, newCombineFn(less, n, t.Type(), true), col)
 }
 
 // SmallestPerKey returns the smallest N values for each key of a PCollection<KV<K,T>>.
 // The order is defined by the comparator, less : T x T -> bool. It returns a
-// single-element PCollection<KV<K,[]T>> with a slice of the N smallest elements for
-// each key.
+// PCollection<KV<K,[]T>> with a slice of the N smallest elements for each key.
 func SmallestPerKey(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
 	s = s.Scope(fmt.Sprintf("top.SmallestPerKey(%v)", n))
 
 	_, t := beam.ValidateKVType(col)
 	validate(t, n, less)
 
-	return beam.Combine(s, newCombineFn(less, n, t, true), col)
+	return beam.Combine(s, newCombineFn(less, n, t.Type(), true), col)
 }
 
 func validate(t typex.FullType, n int, less interface{}) {
@@ -106,16 +106,21 @@ func validate(t typex.FullType, n int, less interface{}) {
 	funcx.MustSatisfy(less, funcx.Replace(sig, beam.TType, t.Type()))
 }
 
-func newCombineFn(less interface{}, n int, t typex.FullType, reversed bool) *combineFn {
-	coder := beam.NewCoder(t)
-	return &combineFn{Less: beam.EncodedFunc{Fn: reflectx.MakeFunc(less)}, N: n, Coder: beam.EncodedCoder{Coder: coder}, Reversed: reversed}
+func newCombineFn(less interface{}, n int, t reflect.Type, reversed bool) *combineFn {
+	fn := &combineFn{Less: beam.EncodedFunc{Fn: reflectx.MakeFunc(less)}, N: n, Type: beam.EncodedType{T: t}, Reversed: reversed}
+	// Running SetupFn at pipeline construction helps validate the
+	// combineFn, and simplify testing.
+	fn.Setup()
+	return fn
 }
 
 // TODO(herohde) 5/25/2017: use a heap instead of a sorted slice.
 
 type accum struct {
-	coder beam.Coder
-	data  [][]byte
+	enc beam.ElementEncoder
+	dec beam.ElementDecoder
+
+	data [][]byte
 	// list stores the elements of type A in order. It has at most size N.
 	list []interface{}
 }
@@ -131,29 +136,27 @@ func (a *accum) unmarshal() error {
 	if a.data == nil {
 		return nil
 	}
-	dec := exec.MakeElementDecoder(beam.UnwrapCoder(a.coder))
 	for _, val := range a.data {
-		fv, err := dec.Decode(bytes.NewBuffer(val))
+		element, err := a.dec.Decode(bytes.NewBuffer(val))
 		if err != nil {
-			return fmt.Errorf("top.accum: error unmarshal: %v", err)
+			return errors.WithContextf(err, "top.accum: unmarshalling")
 		}
-		a.list = append(a.list, fv.Elm)
+		a.list = append(a.list, element)
 	}
 	a.data = nil
 	return nil
 }
 
-// MarshalJSON uses the hook into the JSON encoder library to
+// MarshalJSON uses the hook into the JSON encoder library to encode the accumulator.
 func (a accum) MarshalJSON() ([]byte, error) {
-	if !a.coder.IsValid() {
-		return nil, fmt.Errorf("top.accum: element coder unspecified")
+	if a.enc == nil {
+		return nil, errors.Errorf("top.accum: element encoder unspecified")
 	}
-	enc := exec.MakeElementEncoder(beam.UnwrapCoder(a.coder))
 	var values [][]byte
 	for _, value := range a.list {
 		var buf bytes.Buffer
-		if err := enc.Encode(exec.FullValue{Elm: value}, &buf); err != nil {
-			return nil, fmt.Errorf("top.accum: marshalling of %v failed: %v", value, err)
+		if err := a.enc.Encode(value, &buf); err != nil {
+			return nil, errors.WithContextf(err, "top.accum: marshalling %v", value)
 		}
 		values = append(values, buf.Bytes())
 	}
@@ -171,14 +174,21 @@ type combineFn struct {
 	Reversed bool `json:"reversed"`
 	// N is the number of elements to keep.
 	N int `json:"n"`
-	// Coder is the element coder for the underlying type, A.
-	Coder beam.EncodedCoder `json:"coder"`
+	// Type is the element type A
+	Type beam.EncodedType `json:"type"`
 
+	enc  beam.ElementEncoder
+	dec  beam.ElementDecoder
 	less reflectx.Func2x1
 }
 
+func (f *combineFn) Setup() {
+	f.enc = beam.NewElementEncoder(f.Type.T)
+	f.dec = beam.NewElementDecoder(f.Type.T)
+}
+
 func (f *combineFn) CreateAccumulator() accum {
-	return accum{coder: f.Coder.Coder}
+	return accum{enc: f.enc, dec: f.dec}
 }
 
 func (f *combineFn) AddInput(a accum, val beam.T) accum {
@@ -187,8 +197,8 @@ func (f *combineFn) AddInput(a accum, val beam.T) accum {
 }
 
 func (f *combineFn) MergeAccumulators(a, b accum) accum {
-	a.coder = f.Coder.Coder
-	b.coder = f.Coder.Coder
+	a.enc, a.dec = f.enc, f.dec
+	b.enc, b.dec = f.enc, f.dec
 	if err := a.unmarshal(); err != nil {
 		panic(err)
 	}
@@ -225,5 +235,5 @@ func (f *combineFn) trim(ret []interface{}) accum {
 	if len(ret) > f.N {
 		ret = ret[:f.N]
 	}
-	return accum{coder: f.Coder.Coder, list: ret}
+	return accum{enc: f.enc, dec: f.dec, list: ret}
 }

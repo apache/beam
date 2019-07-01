@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Distinct;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.KV;
@@ -75,12 +76,14 @@ public class DistinctTest extends AbstractOperatorTest {
           @Override
           protected PCollection<Integer> getOutput(PCollection<KV<Integer, Long>> input) {
             input = AssignEventTime.of(input).using(KV::getValue).output();
-            return Distinct.of(input)
-                .mapped(KV::getKey)
-                .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
-                .triggeredBy(DefaultTrigger.of())
-                .discardingFiredPanes()
-                .output();
+            PCollection<KV<Integer, Long>> distinct =
+                Distinct.of(input)
+                    .projected(KV::getKey)
+                    .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
+                    .triggeredBy(DefaultTrigger.of())
+                    .discardingFiredPanes()
+                    .output();
+            return MapElements.of(distinct).using(KV::getKey).output();
           }
 
           @Override
@@ -114,12 +117,14 @@ public class DistinctTest extends AbstractOperatorTest {
           @Override
           protected PCollection<Integer> getOutput(PCollection<KV<Integer, Long>> input) {
             input = AssignEventTime.of(input).using(KV::getValue).output();
-            return Distinct.of(input)
-                .mapped(KV::getKey)
-                .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
-                .triggeredBy(DefaultTrigger.of())
-                .discardingFiredPanes()
-                .output();
+            PCollection<KV<Integer, Long>> distinct =
+                Distinct.of(input)
+                    .projected(KV::getKey)
+                    .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
+                    .triggeredBy(DefaultTrigger.of())
+                    .discardingFiredPanes()
+                    .output();
+            return MapElements.of(distinct).using(KV::getKey).output();
           }
 
           @Override
@@ -136,10 +141,87 @@ public class DistinctTest extends AbstractOperatorTest {
         });
   }
 
-  private List<KV<Integer, Long>> asTimedList(long step, Integer... values) {
-    final List<KV<Integer, Long>> ret = new ArrayList<>(values.length);
+  @Test
+  public void testSimpleDuplicatesWithStreamStrategyOldest() {
+    execute(
+        new AbstractTestCase<KV<String, Long>, String>() {
+
+          @Override
+          public List<String> getUnorderedOutput() {
+            return Arrays.asList("2", "1", "3");
+          }
+
+          @Override
+          protected PCollection<String> getOutput(PCollection<KV<String, Long>> input) {
+            input = AssignEventTime.of(input).using(KV::getValue).output();
+            PCollection<KV<String, Long>> distinct =
+                Distinct.of(input)
+                    .projected(
+                        in -> in.getKey().substring(0, 1),
+                        Distinct.SelectionPolicy.OLDEST,
+                        TypeDescriptors.strings())
+                    .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
+                    .triggeredBy(DefaultTrigger.of())
+                    .discardingFiredPanes()
+                    .output();
+            return MapElements.of(distinct).using(KV::getKey).output();
+          }
+
+          @Override
+          protected List<KV<String, Long>> getInput() {
+            return asTimedList(100, "1", "2", "3", "3.", "2.", "1.");
+          }
+
+          @Override
+          protected TypeDescriptor<KV<String, Long>> getInputType() {
+            return TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.longs());
+          }
+        });
+  }
+
+  @Test
+  public void testSimpleDuplicatesWithStreamStrategyNewest() {
+    execute(
+        new AbstractTestCase<KV<String, Long>, String>() {
+
+          @Override
+          public List<String> getUnorderedOutput() {
+            return Arrays.asList("2.", "1.", "3.");
+          }
+
+          @Override
+          protected PCollection<String> getOutput(PCollection<KV<String, Long>> input) {
+            input = AssignEventTime.of(input).using(KV::getValue).output();
+            PCollection<KV<String, Long>> distinct =
+                Distinct.of(input)
+                    .projected(
+                        in -> in.getKey().substring(0, 1),
+                        Distinct.SelectionPolicy.NEWEST,
+                        TypeDescriptors.strings())
+                    .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
+                    .triggeredBy(DefaultTrigger.of())
+                    .discardingFiredPanes()
+                    .output();
+            return MapElements.of(distinct).using(KV::getKey).output();
+          }
+
+          @Override
+          protected List<KV<String, Long>> getInput() {
+            return asTimedList(100, "1", "2", "3", "3.", "2.", "1.");
+          }
+
+          @Override
+          protected TypeDescriptor<KV<String, Long>> getInputType() {
+            return TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.longs());
+          }
+        });
+  }
+
+  @SafeVarargs
+  final <T> List<KV<T, Long>> asTimedList(long step, T... values) {
+    final List<KV<T, Long>> ret = new ArrayList<>(values.length);
     long i = step;
-    for (Integer v : values) {
+    for (T v : values) {
       ret.add(KV.of(v, i));
       i += step;
     }

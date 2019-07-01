@@ -36,6 +36,7 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesSchema;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
@@ -53,8 +54,12 @@ import org.hamcrest.Matcher;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Test for {@link Group}. */
+@RunWith(JUnit4.class)
+@Category(UsesSchema.class)
 public class GroupTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
@@ -216,22 +221,16 @@ public class GroupTest implements Serializable {
                     new OuterPOJO(new POJO("key2", 2L, "value4"))))
             .apply(Group.byFieldNames("inner.field1", "inner.field2"));
 
-    Schema selectedSchema =
-        Schema.builder().addStringField("field1").addInt64Field("field2").build();
-    Schema keySchema = Schema.builder().addRowField("inner", selectedSchema).build();
+    Schema keySchema = Schema.builder().addStringField("field1").addInt64Field("field2").build();
     List<KV<Row, Collection<OuterPOJO>>> expected =
         ImmutableList.of(
             KV.of(
-                Row.withSchema(keySchema)
-                    .addValue(Row.withSchema(selectedSchema).addValues("key1", 1L).build())
-                    .build(),
+                Row.withSchema(keySchema).addValues("key1", 1L).build(),
                 ImmutableList.of(
                     new OuterPOJO(new POJO("key1", 1L, "value1")),
                     new OuterPOJO(new POJO("key1", 1L, "value2")))),
             KV.of(
-                Row.withSchema(keySchema)
-                    .addValue(Row.withSchema(selectedSchema).addValues("key2", 2L).build())
-                    .build(),
+                Row.withSchema(keySchema).addValues("key2", 2L).build(),
                 ImmutableList.of(
                     new OuterPOJO(new POJO("key2", 2L, "value3")),
                     new OuterPOJO(new POJO("key2", 2L, "value4")))));
@@ -535,8 +534,7 @@ public class GroupTest implements Serializable {
                     .aggregateField("inner.field3", Sum.ofIntegers(), "field3_sum")
                     .aggregateField("inner.field1", Top.largestLongsFn(1), "field1_top"));
 
-    Schema innerKeySchema = Schema.builder().addInt64Field("field2").build();
-    Schema keySchema = Schema.builder().addRowField("inner", innerKeySchema).build();
+    Schema keySchema = Schema.builder().addInt64Field("field2").build();
     Schema valueSchema =
         Schema.builder()
             .addInt64Field("field1_sum")
@@ -547,14 +545,10 @@ public class GroupTest implements Serializable {
     List<KV<Row, Row>> expected =
         ImmutableList.of(
             KV.of(
-                Row.withSchema(keySchema)
-                    .addValue(Row.withSchema(innerKeySchema).addValue(1L).build())
-                    .build(),
+                Row.withSchema(keySchema).addValue(1L).build(),
                 Row.withSchema(valueSchema).addValue(3L).addValue(5).addArray(2L).build()),
             KV.of(
-                Row.withSchema(keySchema)
-                    .addValue(Row.withSchema(innerKeySchema).addValue(2L).build())
-                    .build(),
+                Row.withSchema(keySchema).addValue(2L).build(),
                 Row.withSchema(valueSchema).addValue(7L).addValue(9).addArray(4L).build()));
     PAssert.that(aggregations).satisfies(actual -> containsKvs(expected, actual));
 

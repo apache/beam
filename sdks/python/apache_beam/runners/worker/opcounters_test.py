@@ -98,9 +98,9 @@ class OperationCountersTest(unittest.TestCase):
     self.assertEqual(expected_elements, opcounts.element_counter.value())
     if expected_size is not None:
       if math.isnan(expected_size):
-        self.assertTrue(math.isnan(opcounts.mean_byte_counter.value()))
+        self.assertTrue(math.isnan(opcounts.mean_byte_counter.value()[0]))
       else:
-        self.assertEqual(expected_size, opcounts.mean_byte_counter.value())
+        self.assertEqual(expected_size, opcounts.mean_byte_counter.value()[0])
 
   def test_update_int(self):
     opcounts = OperationCounters(CounterFactory(), 'some-name',

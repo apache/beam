@@ -16,22 +16,22 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: XML"
 ext.summary = "IO to read and write XML files."
 
 dependencies {
-  shadow library.java.vendored_guava_20_0
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow library.java.stax2_api
-  shadow library.java.woodstox_core_asl
-  shadowTest library.java.jaxb_api
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
+  compile library.java.vendored_guava_20_0
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.stax2_api
+  compile library.java.woodstox_core_asl
+  testCompile library.java.jaxb_api
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.junit
-  testCompile library.java.slf4j_jdk14
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(":runners:direct-java")
 }

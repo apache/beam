@@ -20,12 +20,12 @@ package dot
 import (
 	"bytes"
 	"context"
-	"errors"
 	"flag"
 	"io/ioutil"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	dotlib "github.com/apache/beam/sdks/go/pkg/beam/core/util/dot"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 func init() {

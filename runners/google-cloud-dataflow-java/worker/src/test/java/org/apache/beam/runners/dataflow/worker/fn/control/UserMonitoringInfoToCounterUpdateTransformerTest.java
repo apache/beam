@@ -27,7 +27,8 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
@@ -77,8 +78,10 @@ public class UserMonitoringInfoToCounterUpdateTransformerTest {
     Map<String, DataflowStepContext> stepContextMapping = new HashMap<>();
     MonitoringInfo monitoringInfo =
         MonitoringInfo.newBuilder()
-            .setUrn("beam:metric:user:anyNamespace:anyName")
-            .putLabels("PTRANSFORM", "anyValue")
+            .setUrn("beam:metric:user")
+            .putLabels(MonitoringInfoConstants.Labels.NAME, "anyName")
+            .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, "anyNamespace")
+            .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyValue")
             .build();
     UserMonitoringInfoToCounterUpdateTransformer testObject =
         new UserMonitoringInfoToCounterUpdateTransformer(mockSpecValidator, stepContextMapping);
@@ -97,8 +100,10 @@ public class UserMonitoringInfoToCounterUpdateTransformerTest {
 
     MonitoringInfo monitoringInfo =
         MonitoringInfo.newBuilder()
-            .setUrn("beam:metric:user:anyNamespace:anyName")
-            .putLabels("PTRANSFORM", "anyValue")
+            .setUrn("beam:metric:user")
+            .putLabels(MonitoringInfoConstants.Labels.NAME, "anyName")
+            .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, "anyNamespace")
+            .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyValue")
             .build();
     UserMonitoringInfoToCounterUpdateTransformer testObject =
         new UserMonitoringInfoToCounterUpdateTransformer(mockSpecValidator, stepContextMapping);

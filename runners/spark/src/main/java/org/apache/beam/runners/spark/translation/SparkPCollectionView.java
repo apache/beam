@@ -26,16 +26,19 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 /** SparkPCollectionView is used to pass serialized views to lambdas. */
 public class SparkPCollectionView implements Serializable {
 
+  private static final Logger LOG = LoggerFactory.getLogger(SparkPCollectionView.class);
   // Holds the view --> broadcast mapping. Transient so it will be null from resume
   private transient volatile Map<PCollectionView<?>, SideInputBroadcast> broadcastHelperMap = null;
 
   // Holds the Actual data of the views in serialize form
-  private Map<PCollectionView<?>, Tuple2<byte[], Coder<Iterable<WindowedValue<?>>>>> pviews =
+  private final Map<PCollectionView<?>, Tuple2<byte[], Coder<Iterable<WindowedValue<?>>>>> pviews =
       new LinkedHashMap<>();
 
   // Driver only - during evaluation stage
@@ -85,6 +88,13 @@ public class SparkPCollectionView implements Serializable {
       PCollectionView<?> view, JavaSparkContext context) {
     Tuple2<byte[], Coder<Iterable<WindowedValue<?>>>> tuple2 = pviews.get(view);
     SideInputBroadcast helper = SideInputBroadcast.create(tuple2._1, tuple2._2);
+    String pCollectionName =
+        view.getPCollection() != null ? view.getPCollection().getName() : "UNKNOWN";
+    LOG.debug(
+        "Broadcasting [size={}B] view {} from pCollection {}",
+        helper.getBroadcastSizeEstimate(),
+        view,
+        pCollectionName);
     helper.broadcast(context);
     broadcastHelperMap.put(view, helper);
     return helper;

@@ -46,6 +46,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -94,7 +95,8 @@ class SplittableProcessFnFactory {
               KvCoder.of(doFnInfo.getInputCoder(), restrictionCoder),
               doFnInfo.getWindowingStrategy().getWindowFn().windowCoder()),
           doFnInfo.getOutputCoders(),
-          doFnInfo.getMainOutput());
+          doFnInfo.getMainOutput(),
+          doFnInfo.getDoFnSchemaInformation());
     }
   }
 
@@ -118,7 +120,8 @@ class SplittableProcessFnFactory {
         WindowingStrategy<?, ?> windowingStrategy,
         DataflowExecutionContext.DataflowStepContext stepContext,
         DataflowExecutionContext.DataflowStepContext userStepContext,
-        OutputManager outputManager) {
+        OutputManager outputManager,
+        DoFnSchemaInformation doFnSchemaInformation) {
       ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
           (ProcessFn<InputT, OutputT, RestrictionT, TrackerT>) fn;
       processFn.setStateInternalsFactory(key -> (StateInternals) stepContext.stateInternals());
@@ -166,7 +169,8 @@ class SplittableProcessFnFactory {
               userStepContext,
               inputCoder,
               outputCoders,
-              processFn.getInputWindowingStrategy());
+              processFn.getInputWindowingStrategy(),
+              doFnSchemaInformation);
       DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> fnRunner =
           new DataflowProcessFnRunner<>(simpleRunner);
       boolean hasStreamingSideInput =

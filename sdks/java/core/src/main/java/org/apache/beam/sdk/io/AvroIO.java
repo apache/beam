@@ -74,8 +74,9 @@ import org.joda.time.Duration;
  * <p>To read a {@link PCollection} from one or more Avro files with the same schema known at
  * pipeline construction time, use {@link #read}, using {@link AvroIO.Read#from} to specify the
  * filename or filepattern to read from. If the filepatterns to be read are themselves in a {@link
- * PCollection}, apply {@link #readAll}. If the schema is unknown at pipeline construction time, use
- * {@link #parseGenericRecords} or {@link #parseAllGenericRecords}.
+ * PCollection} you can use {@link FileIO} to match them and {@link TextIO#readFiles} to read them.
+ * If the schema is unknown at pipeline construction time, use {@link #parseGenericRecords} or
+ * {@link #parseFilesGenericRecords}.
  *
  * <p>Many configuration options below apply to several or all of these transforms.
  *
@@ -83,12 +84,15 @@ import org.joda.time.Duration;
  *
  * <h3>Filepattern expansion and watching</h3>
  *
- * <p>By default, {@link #read} prohibits filepatterns that match no files, and {@link #readAll}
- * allows them in case the filepattern contains a glob wildcard character. Use {@link
- * Read#withEmptyMatchTreatment} to configure this behavior.
+ * <p>By default, the filepatterns are expanded only once. {@link Read#watchForNewFiles} or the
+ * combination of {@link FileIO.Match#continuously(Duration, TerminationCondition)} and {@link
+ * AvroIO#readFiles(Class)} allow streaming of new files matching the filepattern(s).
  *
- * <p>By default, the filepatterns are expanded only once. {@link Read#watchForNewFiles} allows
- * streaming of new files matching the filepattern(s).
+ * <p>By default, {@link #read} prohibits filepatterns that match no files, and {@link
+ * AvroIO#readFiles(Class)} allows them in case the filepattern contains a glob wildcard character.
+ * Use {@link Read#withEmptyMatchTreatment} or {@link
+ * FileIO.Match#withEmptyMatchTreatment(EmptyMatchTreatment)} plus {@link AvroIO#readFiles(Class)}
+ * to configure this behavior.
  *
  * <h3>Reading records of a known schema</h3>
  *
@@ -96,8 +100,8 @@ import org.joda.time.Duration;
  * {@link GenericRecord GenericRecords}, use {@link #readGenericRecords(Schema)} which takes a
  * {@link Schema} object, or {@link #readGenericRecords(String)} which takes an Avro schema in a
  * JSON-encoded string form. An exception will be thrown if a record doesn't match the specified
- * schema. Likewise, to read a {@link PCollection} of filepatterns, apply {@link
- * #readAllGenericRecords}.
+ * schema. Likewise, to read a {@link PCollection} of filepatterns, apply {@link FileIO} matching
+ * plus {@link #readFilesGenericRecords}.
  *
  * <p>For example:
  *
@@ -120,8 +124,8 @@ import org.joda.time.Duration;
  * <p>To read records from files whose schema is unknown at pipeline construction time or differs
  * between files, use {@link #parseGenericRecords} - in this case, you will need to specify a
  * parsing function for converting each {@link GenericRecord} into a value of your custom type.
- * Likewise, to read a {@link PCollection} of filepatterns with unknown schema, use {@link
- * #parseAllGenericRecords}.
+ * Likewise, to read a {@link PCollection} of filepatterns with unknown schema, use {@link FileIO}
+ * matching plus {@link #parseFilesGenericRecords(SerializableFunction)}.
  *
  * <p>For example:
  *
@@ -145,10 +149,18 @@ import org.joda.time.Duration;
  * PCollection<String> filepatterns = p.apply(...);
  * PCollection<AvroAutoGenClass> records =
  *     filepatterns.apply(AvroIO.read(AvroAutoGenClass.class));
+ * PCollection<AvroAutoGenClass> records =
+ *     filepatterns
+ *         .apply(FileIO.matchAll())
+ *         .apply(FileIO.readMatches())
+ *         .apply(AvroIO.readFiles(AvroAutoGenClass.class));
  * PCollection<GenericRecord> genericRecords =
  *     filepatterns.apply(AvroIO.readGenericRecords(schema));
  * PCollection<Foo> records =
- *     filepatterns.apply(AvroIO.parseAllGenericRecords(new SerializableFunction...);
+ *     filepatterns
+ *         .apply(FileIO.matchAll())
+ *         .apply(FileIO.readMatches())
+ *         .apply(AvroIO.parseFilesGenericRecords(new SerializableFunction...);
  * }</pre>
  *
  * <h3>Streaming new files matching a filepattern</h3>
@@ -283,17 +295,37 @@ public class AvroIO {
         .build();
   }
 
-  /** Like {@link #read}, but reads each filepattern in the input {@link PCollection}. */
+  /**
+   * Like {@link #read}, but reads each file in a {@link PCollection} of {@link
+   * FileIO.ReadableFile}, returned by {@link FileIO#readMatches}.
+   *
+   * <p>You can read {@link GenericRecord} by using {@code #readFiles(GenericRecord.class)} or
+   * {@code #readFiles(new Schema.Parser().parse(schema))} if the schema is a String.
+   */
+  public static <T> ReadFiles<T> readFiles(Class<T> recordClass) {
+    return new AutoValue_AvroIO_ReadFiles.Builder<T>()
+        .setRecordClass(recordClass)
+        .setSchema(ReflectData.get().getSchema(recordClass))
+        .setInferBeamSchema(false)
+        .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
+        .build();
+  }
+
+  /**
+   * Like {@link #read}, but reads each filepattern in the input {@link PCollection}.
+   *
+   * @deprecated You can achieve The functionality of {@link #readAll} using {@link FileIO} matching
+   *     plus {@link #readFiles(Class)}. This is the preferred method to make composition explicit.
+   *     {@link ReadAll} will not receive upgrades and will be removed in a future version of Beam.
+   */
+  @Deprecated
   public static <T> ReadAll<T> readAll(Class<T> recordClass) {
     return new AutoValue_AvroIO_ReadAll.Builder<T>()
         .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
         .setRecordClass(recordClass)
         .setSchema(ReflectData.get().getSchema(recordClass))
         .setInferBeamSchema(false)
-        // 64MB is a reasonable value that allows to amortize the cost of opening files,
-        // but is not so large as to exhaust a typical runner's maximum amount of output per
-        // ProcessElement call.
-        .setDesiredBundleSizeBytes(64 * 1024 * 1024L)
+        .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
         .build();
   }
 
@@ -309,16 +341,35 @@ public class AvroIO {
   }
 
   /**
-   * Like {@link #readGenericRecords(Schema)}, but reads each filepattern in the input {@link
-   * PCollection}.
+   * Like {@link #readGenericRecords(Schema)}, but for a {@link PCollection} of {@link
+   * FileIO.ReadableFile}, for example, returned by {@link FileIO#readMatches}.
    */
+  public static ReadFiles<GenericRecord> readFilesGenericRecords(Schema schema) {
+    return new AutoValue_AvroIO_ReadFiles.Builder<GenericRecord>()
+        .setRecordClass(GenericRecord.class)
+        .setSchema(schema)
+        .setInferBeamSchema(false)
+        .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
+        .build();
+  }
+
+  /**
+   * Like {@link #readGenericRecords(Schema)}, but for a {@link PCollection} of {@link
+   * FileIO.ReadableFile}, for example, returned by {@link FileIO#readMatches}.
+   *
+   * @deprecated You can achieve The functionality of {@link #readAllGenericRecords(Schema)} using
+   *     {@link FileIO} matching plus {@link #readGenericRecords(Schema)}. This is the preferred
+   *     method to make composition explicit. {@link ReadAll} will not receive upgrades and will be
+   *     removed in a future version of Beam.
+   */
+  @Deprecated
   public static ReadAll<GenericRecord> readAllGenericRecords(Schema schema) {
     return new AutoValue_AvroIO_ReadAll.Builder<GenericRecord>()
         .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
         .setRecordClass(GenericRecord.class)
         .setSchema(schema)
         .setInferBeamSchema(false)
-        .setDesiredBundleSizeBytes(64 * 1024 * 1024L)
+        .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
         .build();
   }
 
@@ -330,10 +381,21 @@ public class AvroIO {
     return readGenericRecords(new Schema.Parser().parse(schema));
   }
 
+  /** Like {@link #readGenericRecords(String)}, but for {@link FileIO.ReadableFile} collections. */
+  public static ReadFiles<GenericRecord> readFilesGenericRecords(String schema) {
+    return readFilesGenericRecords(new Schema.Parser().parse(schema));
+  }
+
   /**
    * Like {@link #readGenericRecords(String)}, but reads each filepattern in the input {@link
    * PCollection}.
+   *
+   * @deprecated You can achieve The functionality of {@link #readAllGenericRecords(String)} using
+   *     {@link FileIO} matching plus {@link #readGenericRecords(String)}. This is the preferred
+   *     method to make composition explicit. {@link ReadAll} will not receive upgrades and will be
+   *     removed in a future version of Beam.
    */
+  @Deprecated
   public static ReadAll<GenericRecord> readAllGenericRecords(String schema) {
     return readAllGenericRecords(new Schema.Parser().parse(schema));
   }
@@ -351,15 +413,34 @@ public class AvroIO {
   }
 
   /**
+   * Like {@link #parseGenericRecords(SerializableFunction)}, but reads each {@link
+   * FileIO.ReadableFile} in the input {@link PCollection}.
+   */
+  public static <T> ParseFiles<T> parseFilesGenericRecords(
+      SerializableFunction<GenericRecord, T> parseFn) {
+    return new AutoValue_AvroIO_ParseFiles.Builder<T>()
+        .setParseFn(parseFn)
+        .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
+        .build();
+  }
+
+  /**
    * Like {@link #parseGenericRecords(SerializableFunction)}, but reads each filepattern in the
    * input {@link PCollection}.
+   *
+   * @deprecated You can achieve The functionality of {@link
+   *     #parseAllGenericRecords(SerializableFunction)} using {@link FileIO} matching plus {@link
+   *     #parseFilesGenericRecords(SerializableFunction)} ()}. This is the preferred method to make
+   *     composition explicit. {@link ParseAll} will not receive upgrades and will be removed in a
+   *     future version of Beam.
    */
+  @Deprecated
   public static <T> ParseAll<T> parseAllGenericRecords(
       SerializableFunction<GenericRecord, T> parseFn) {
     return new AutoValue_AvroIO_ParseAll.Builder<T>()
         .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
         .setParseFn(parseFn)
-        .setDesiredBundleSizeBytes(64 * 1024 * 1024L)
+        .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
         .build();
   }
 
@@ -431,7 +512,8 @@ public class AvroIO {
         .setNumShards(0)
         .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
         .setMetadata(ImmutableMap.of())
-        .setWindowedWrites(false);
+        .setWindowedWrites(false)
+        .setNoSpilling(false);
   }
 
   private static <T> PCollection<T> setBeamSchema(
@@ -446,6 +528,12 @@ public class AvroIO {
     }
     return pc;
   }
+
+  /**
+   * 64MB is a reasonable value that allows to amortize the cost of opening files, but is not so
+   * large as to exhaust a typical runner's maximum amount of output per ProcessElement call.
+   */
+  private static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024L;
 
   /** Implementation of {@link #read} and {@link #readGenericRecords}. */
   @AutoValue
@@ -509,11 +597,6 @@ public class AvroIO {
       return withMatchConfiguration(getMatchConfiguration().withEmptyMatchTreatment(treatment));
     }
 
-    @Experimental(Kind.SCHEMAS)
-    public Read<T> withBeamSchemas(boolean withBeamSchemas) {
-      return toBuilder().setInferBeamSchema(withBeamSchemas).build();
-    }
-
     /**
      * Continuously watches for new files matching the filepattern, polling it at the given
      * interval, until the given termination condition is reached. The returned {@link PCollection}
@@ -541,6 +624,11 @@ public class AvroIO {
       return toBuilder().setHintMatchesManyFiles(true).build();
     }
 
+    @Experimental(Kind.SCHEMAS)
+    public Read<T> withBeamSchemas(boolean withBeamSchemas) {
+      return toBuilder().setInferBeamSchema(withBeamSchemas).build();
+    }
+
     @Override
     @SuppressWarnings("unchecked")
     public PCollection<T> expand(PBegin input) {
@@ -559,22 +647,30 @@ public class AvroIO {
                         getSchema())));
         return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
       }
-      // All other cases go through ReadAll.
 
-      ReadAll<T> readAll =
+      // All other cases go through FileIO + ReadFiles
+      ReadFiles<T> readFiles =
           (getRecordClass() == GenericRecord.class)
-              ? (ReadAll<T>) readAllGenericRecords(getSchema())
-              : readAll(getRecordClass());
-      readAll = readAll.withMatchConfiguration(getMatchConfiguration());
+              ? (ReadFiles<T>) readFilesGenericRecords(getSchema())
+              : readFiles(getRecordClass());
       return input
           .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
-          .apply("Via ReadAll", readAll);
+          .apply("Match All", FileIO.matchAll().withConfiguration(getMatchConfiguration()))
+          .apply(
+              "Read Matches",
+              FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
+          .apply("Via ReadFiles", readFiles);
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
+          .add(
+              DisplayData.item("inferBeamSchema", getInferBeamSchema())
+                  .withLabel("Infer Beam Schema"))
+          .addIfNotNull(DisplayData.item("schema", String.valueOf(getSchema())))
+          .addIfNotNull(DisplayData.item("recordClass", getRecordClass()).withLabel("Record Class"))
           .addIfNotNull(
               DisplayData.item("filePattern", getFilepattern()).withLabel("Input File Pattern"))
           .include("matchConfiguration", getMatchConfiguration());
@@ -596,7 +692,83 @@ public class AvroIO {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  /** Implementation of {@link #readAll}. */
+  /** Implementation of {@link #readFiles}. */
+  @AutoValue
+  public abstract static class ReadFiles<T>
+      extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<T>> {
+    @Nullable
+    abstract Class<T> getRecordClass();
+
+    @Nullable
+    abstract Schema getSchema();
+
+    abstract long getDesiredBundleSizeBytes();
+
+    abstract boolean getInferBeamSchema();
+
+    abstract Builder<T> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> setRecordClass(Class<T> recordClass);
+
+      abstract Builder<T> setSchema(Schema schema);
+
+      abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
+
+      abstract Builder<T> setInferBeamSchema(boolean infer);
+
+      abstract ReadFiles<T> build();
+    }
+
+    @VisibleForTesting
+    ReadFiles<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
+      return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
+    }
+
+    /**
+     * If set to true, a Beam schema will be inferred from the AVRO schema. This allows the output
+     * to be used by SQL and by the schema-transform library.
+     */
+    @Experimental(Kind.SCHEMAS)
+    public ReadFiles<T> withBeamSchemas(boolean withBeamSchemas) {
+      return toBuilder().setInferBeamSchema(withBeamSchemas).build();
+    }
+
+    @Override
+    public PCollection<T> expand(PCollection<FileIO.ReadableFile> input) {
+      checkNotNull(getSchema(), "schema");
+      PCollection<T> read =
+          input.apply(
+              "Read all via FileBasedSource",
+              new ReadAllViaFileBasedSource<>(
+                  getDesiredBundleSizeBytes(),
+                  new CreateSourceFn<>(getRecordClass(), getSchema().toString()),
+                  AvroCoder.of(getRecordClass(), getSchema())));
+      return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+          .add(
+              DisplayData.item("inferBeamSchema", getInferBeamSchema())
+                  .withLabel("Infer Beam Schema"))
+          .addIfNotNull(DisplayData.item("schema", String.valueOf(getSchema())))
+          .addIfNotNull(
+              DisplayData.item("recordClass", getRecordClass()).withLabel("Record Class"));
+    }
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * Implementation of {@link #readAll}.
+   *
+   * @deprecated See {@link #readAll(Class)} for details.
+   */
+  @Deprecated
   @AutoValue
   public abstract static class ReadAll<T> extends PTransform<PCollection<String>, PCollection<T>> {
     abstract MatchConfiguration getMatchConfiguration();
@@ -667,19 +839,20 @@ public class AvroIO {
           input
               .apply(FileIO.matchAll().withConfiguration(getMatchConfiguration()))
               .apply(FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
-              .apply(
-                  "Read all via FileBasedSource",
-                  new ReadAllViaFileBasedSource<>(
-                      getDesiredBundleSizeBytes(),
-                      new CreateSourceFn<>(getRecordClass(), getSchema().toString()),
-                      AvroCoder.of(getRecordClass(), getSchema())));
+              .apply(readFiles(getRecordClass()));
       return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.include("matchConfiguration", getMatchConfiguration());
+      builder
+          .add(
+              DisplayData.item("inferBeamSchema", getInferBeamSchema())
+                  .withLabel("Infer Beam Schema"))
+          .addIfNotNull(DisplayData.item("schema", String.valueOf(getSchema())))
+          .addIfNotNull(DisplayData.item("recordClass", getRecordClass()).withLabel("Record Class"))
+          .include("matchConfiguration", getMatchConfiguration());
     }
   }
 
@@ -688,7 +861,7 @@ public class AvroIO {
     private final Class<T> recordClass;
     private final Supplier<Schema> schemaSupplier;
 
-    public CreateSourceFn(Class<T> recordClass, String jsonSchema) {
+    CreateSourceFn(Class<T> recordClass, String jsonSchema) {
       this.recordClass = recordClass;
       this.schemaSupplier = AvroUtils.serializableSchemaSupplier(jsonSchema);
     }
@@ -785,14 +958,15 @@ public class AvroIO {
             org.apache.beam.sdk.io.Read.from(
                 AvroSource.from(getFilepattern()).withParseFn(getParseFn(), coder)));
       }
-      // All other cases go through ParseAllGenericRecords.
+
+      // All other cases go through FileIO + ParseFilesGenericRecords.
       return input
           .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
+          .apply("Match All", FileIO.matchAll().withConfiguration(getMatchConfiguration()))
           .apply(
-              "Via ParseAll",
-              parseAllGenericRecords(getParseFn())
-                  .withCoder(coder)
-                  .withMatchConfiguration(getMatchConfiguration()));
+              "Read Matches",
+              FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
+          .apply("Via ParseFiles", parseFilesGenericRecords(getParseFn()).withCoder(coder));
     }
 
     private static <T> Coder<T> inferCoder(
@@ -825,7 +999,83 @@ public class AvroIO {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  /** Implementation of {@link #parseAllGenericRecords}. */
+  /** Implementation of {@link #parseFilesGenericRecords}. */
+  @AutoValue
+  public abstract static class ParseFiles<T>
+      extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<T>> {
+    abstract SerializableFunction<GenericRecord, T> getParseFn();
+
+    @Nullable
+    abstract Coder<T> getCoder();
+
+    abstract long getDesiredBundleSizeBytes();
+
+    abstract Builder<T> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> setParseFn(SerializableFunction<GenericRecord, T> parseFn);
+
+      abstract Builder<T> setCoder(Coder<T> coder);
+
+      abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
+
+      abstract ParseFiles<T> build();
+    }
+
+    /** Specifies the coder for the result of the {@code parseFn}. */
+    public ParseFiles<T> withCoder(Coder<T> coder) {
+      return toBuilder().setCoder(coder).build();
+    }
+
+    @VisibleForTesting
+    ParseFiles<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
+      return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
+    }
+
+    @Override
+    public PCollection<T> expand(PCollection<FileIO.ReadableFile> input) {
+      final Coder<T> coder =
+          Parse.inferCoder(getCoder(), getParseFn(), input.getPipeline().getCoderRegistry());
+      final SerializableFunction<GenericRecord, T> parseFn = getParseFn();
+      final SerializableFunction<String, FileBasedSource<T>> createSource =
+          new CreateParseSourceFn<>(parseFn, coder);
+      return input.apply(
+          "Parse Files via FileBasedSource",
+          new ReadAllViaFileBasedSource<>(getDesiredBundleSizeBytes(), createSource, coder));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("parseFn", getParseFn().getClass()).withLabel("Parse function"));
+    }
+
+    private static class CreateParseSourceFn<T>
+        implements SerializableFunction<String, FileBasedSource<T>> {
+      private final SerializableFunction<GenericRecord, T> parseFn;
+      private final Coder<T> coder;
+
+      CreateParseSourceFn(SerializableFunction<GenericRecord, T> parseFn, Coder<T> coder) {
+        this.parseFn = parseFn;
+        this.coder = coder;
+      }
+
+      @Override
+      public FileBasedSource<T> apply(String input) {
+        return AvroSource.from(input).withParseFn(parseFn, coder);
+      }
+    }
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * Implementation of {@link #parseAllGenericRecords}.
+   *
+   * @deprecated See {@link #parseAllGenericRecords(SerializableFunction)} for details.
+   */
+  @Deprecated
   @AutoValue
   public abstract static class ParseAll<T> extends PTransform<PCollection<String>, PCollection<T>> {
     abstract MatchConfiguration getMatchConfiguration();
@@ -882,17 +1132,12 @@ public class AvroIO {
 
     @Override
     public PCollection<T> expand(PCollection<String> input) {
-      final Coder<T> coder =
-          Parse.inferCoder(getCoder(), getParseFn(), input.getPipeline().getCoderRegistry());
-      final SerializableFunction<GenericRecord, T> parseFn = getParseFn();
-      final SerializableFunction<String, FileBasedSource<T>> createSource =
-          new CreateParseSourceFn<>(parseFn, coder);
       return input
           .apply(FileIO.matchAll().withConfiguration(getMatchConfiguration()))
           .apply(FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
           .apply(
               "Parse all via FileBasedSource",
-              new ReadAllViaFileBasedSource<>(getDesiredBundleSizeBytes(), createSource, coder));
+              parseFilesGenericRecords(getParseFn()).withCoder(getCoder()));
     }
 
     @Override
@@ -902,25 +1147,9 @@ public class AvroIO {
           .add(DisplayData.item("parseFn", getParseFn().getClass()).withLabel("Parse function"))
           .include("matchConfiguration", getMatchConfiguration());
     }
-
-    private static class CreateParseSourceFn<T>
-        implements SerializableFunction<String, FileBasedSource<T>> {
-      private final SerializableFunction<GenericRecord, T> parseFn;
-      private final Coder<T> coder;
-
-      public CreateParseSourceFn(SerializableFunction<GenericRecord, T> parseFn, Coder<T> coder) {
-        this.parseFn = parseFn;
-        this.coder = coder;
-      }
-
-      @Override
-      public FileBasedSource<T> apply(String input) {
-        return AvroSource.from(input).withParseFn(parseFn, coder);
-      }
-    }
   }
 
-  // ///////////////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////
 
   /** Implementation of {@link #write}. */
   @AutoValue
@@ -953,6 +1182,8 @@ public class AvroIO {
     abstract Schema getSchema();
 
     abstract boolean getWindowedWrites();
+
+    abstract boolean getNoSpilling();
 
     @Nullable
     abstract FilenamePolicy getFilenamePolicy();
@@ -994,6 +1225,8 @@ public class AvroIO {
       abstract Builder<UserT, DestinationT, OutputT> setSchema(Schema schema);
 
       abstract Builder<UserT, DestinationT, OutputT> setWindowedWrites(boolean windowedWrites);
+
+      abstract Builder<UserT, DestinationT, OutputT> setNoSpilling(boolean noSpilling);
 
       abstract Builder<UserT, DestinationT, OutputT> setFilenamePolicy(
           FilenamePolicy filenamePolicy);
@@ -1189,6 +1422,11 @@ public class AvroIO {
       return toBuilder().setWindowedWrites(true).build();
     }
 
+    /** See {@link WriteFiles#withNoSpilling()}. */
+    public TypedWrite<UserT, DestinationT, OutputT> withNoSpilling() {
+      return toBuilder().setNoSpilling(true).build();
+    }
+
     /** Writes to Avro file(s) compressed using specified codec. */
     public TypedWrite<UserT, DestinationT, OutputT> withCodec(CodecFactory codec) {
       return toBuilder().setCodec(new SerializableAvroCodecFactory(codec)).build();
@@ -1275,6 +1513,9 @@ public class AvroIO {
       if (getWindowedWrites()) {
         write = write.withWindowedWrites();
       }
+      if (getNoSpilling()) {
+        write = write.withNoSpilling();
+      }
       return input.apply("Write", write);
     }
 
@@ -1298,7 +1539,7 @@ public class AvroIO {
    * This class exists for backwards compatibility, and will be removed in Beam 3.0.
    */
   public static class Write<T> extends PTransform<PCollection<T>, PDone> {
-    @VisibleForTesting TypedWrite<T, ?, T> inner;
+    @VisibleForTesting final TypedWrite<T, ?, T> inner;
 
     Write(TypedWrite<T, ?, T> inner) {
       this.inner = inner;
@@ -1439,7 +1680,13 @@ public class AvroIO {
   }
   /////////////////////////////////////////////////////////////////////////////
 
-  /** Formats an element of a user type into a record with the given schema. */
+  /**
+   * Formats an element of a user type into a record with the given schema.
+   *
+   * @deprecated Users can achieve the same by providing this transform in a {@link
+   *     org.apache.beam.sdk.transforms.ParDo} before using write in AvroIO {@link #write(Class)}.
+   */
+  @Deprecated
   public interface RecordFormatter<ElementT> extends Serializable {
     GenericRecord formatRecord(ElementT element, Schema schema);
   }
@@ -1460,7 +1707,10 @@ public class AvroIO {
    * A {@link Sink} for use with {@link FileIO#write} and {@link FileIO#writeDynamic}, writing
    * elements by converting each one to a {@link GenericRecord} with a given (common) schema, like
    * {@link #writeCustomTypeToGenericRecords()}.
+   *
+   * @deprecated RecordFormatter will be removed in future versions.
    */
+  @Deprecated
   public static <ElementT> Sink<ElementT> sinkViaGenericRecords(
       Schema schema, RecordFormatter<ElementT> formatter) {
     return new AutoValue_AvroIO_Sink.Builder<ElementT>()
@@ -1474,7 +1724,9 @@ public class AvroIO {
   /** Implementation of {@link #sink} and {@link #sinkViaGenericRecords}. */
   @AutoValue
   public abstract static class Sink<ElementT> implements FileIO.Sink<ElementT> {
+    /** @deprecated RecordFormatter will be removed in future versions. */
     @Nullable
+    @Deprecated
     abstract RecordFormatter<ElementT> getRecordFormatter();
 
     @Nullable
@@ -1488,6 +1740,8 @@ public class AvroIO {
 
     @AutoValue.Builder
     abstract static class Builder<ElementT> {
+      /** @deprecated RecordFormatter will be removed in future versions. */
+      @Deprecated
       abstract Builder<ElementT> setRecordFormatter(RecordFormatter<ElementT> formatter);
 
       abstract Builder<ElementT> setJsonSchema(String jsonSchema);
@@ -1521,10 +1775,9 @@ public class AvroIO {
       this.schema = new Schema.Parser().parse(getJsonSchema());
       DataFileWriter<?> writer;
       if (getRecordFormatter() == null) {
-        writer = reflectWriter = new DataFileWriter<>(new ReflectDatumWriter<ElementT>(schema));
+        writer = reflectWriter = new DataFileWriter<>(new ReflectDatumWriter<>(schema));
       } else {
-        writer =
-            genericWriter = new DataFileWriter<>(new GenericDatumWriter<GenericRecord>(schema));
+        writer = genericWriter = new DataFileWriter<>(new GenericDatumWriter<>(schema));
       }
       writer.setCodec(getCodec().getCodec());
       for (Map.Entry<String, Object> entry : getMetadata().entrySet()) {

@@ -47,7 +47,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
-import org.apache.beam.sdk.fn.function.ThrowingConsumer;
+import org.apache.beam.sdk.function.ThrowingConsumer;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -69,13 +69,13 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link ProcessBundleHandler}. */
 @RunWith(JUnit4.class)
 public class ProcessBundleHandlerTest {
-  private static final String DATA_INPUT_URN = "urn:org.apache.beam:source:runner:0.1";
-  private static final String DATA_OUTPUT_URN = "urn:org.apache.beam:sink:runner:0.1";
+  private static final String DATA_INPUT_URN = "beam:source:runner:0.1";
+  private static final String DATA_OUTPUT_URN = "beam:sink:runner:0.1";
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Mock private BeamFnDataClient beamFnDataClient;
-  @Captor private ArgumentCaptor<ThrowingConsumer<WindowedValue<String>>> consumerCaptor;
+  @Captor private ArgumentCaptor<ThrowingConsumer<Exception, WindowedValue<String>>> consumerCaptor;
 
   @Before
   public void setUp() {

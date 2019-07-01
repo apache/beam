@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -38,7 +39,7 @@ import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RowParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
@@ -231,8 +232,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((PipelineOptionsParameter) this);
       } else if (this instanceof ElementParameter) {
         return cases.dispatch((ElementParameter) this);
-      } else if (this instanceof RowParameter) {
-        return cases.dispatch((RowParameter) this);
+      } else if (this instanceof SchemaElementParameter) {
+        return cases.dispatch((SchemaElementParameter) this);
       } else if (this instanceof TimestampParameter) {
         return cases.dispatch((TimestampParameter) this);
       } else if (this instanceof OutputReceiverParameter) {
@@ -259,7 +260,7 @@ public abstract class DoFnSignature {
 
       ResultT dispatch(ElementParameter p);
 
-      ResultT dispatch(RowParameter p);
+      ResultT dispatch(SchemaElementParameter p);
 
       ResultT dispatch(TimestampParameter p);
 
@@ -309,7 +310,7 @@ public abstract class DoFnSignature {
         }
 
         @Override
-        public ResultT dispatch(RowParameter p) {
+        public ResultT dispatch(SchemaElementParameter p) {
           return dispatchDefault(p);
         }
 
@@ -387,6 +388,8 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_TimeDomainParameter();
     private static final TaggedOutputReceiverParameter TAGGED_OUTPUT_RECEIVER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_TaggedOutputReceiverParameter();
+    private static final PipelineOptionsParameter PIPELINE_OPTIONS_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_PipelineOptionsParameter();
 
     /** Returns a {@link ProcessContextParameter}. */
     public static ProcessContextParameter processContext() {
@@ -397,8 +400,13 @@ public abstract class DoFnSignature {
       return new AutoValue_DoFnSignature_Parameter_ElementParameter(elementT);
     }
 
-    public static RowParameter rowParameter(@Nullable String id) {
-      return new AutoValue_DoFnSignature_Parameter_RowParameter(id);
+    public static SchemaElementParameter schemaElementParameter(
+        TypeDescriptor<?> elementT, @Nullable String fieldAccessString, int index) {
+      return new AutoValue_DoFnSignature_Parameter_SchemaElementParameter.Builder()
+          .setElementT(elementT)
+          .setFieldAccessString(fieldAccessString)
+          .setIndex(index)
+          .build();
     }
 
     public static TimestampParameter timestampParameter() {
@@ -433,7 +441,7 @@ public abstract class DoFnSignature {
 
     /** Returns a {@link PipelineOptionsParameter}. */
     public static PipelineOptionsParameter pipelineOptions() {
-      return new AutoValue_DoFnSignature_Parameter_PipelineOptionsParameter();
+      return PIPELINE_OPTIONS_PARAMETER;
     }
 
     /** Returns a {@link RestrictionTrackerParameter}. */
@@ -499,16 +507,33 @@ public abstract class DoFnSignature {
     }
 
     /**
-     * Descriptor for a {@link Parameter} of Row type.
-     *
-     * <p>All such descriptors are equal.
+     * Descriptor for a (@link Parameter} of type {@link DoFn.Element} where the type does not match
+     * the DoFn's input type. This implies that the input must have a schema that is compatible.
      */
     @AutoValue
-    public abstract static class RowParameter extends Parameter {
-      RowParameter() {}
+    public abstract static class SchemaElementParameter extends Parameter {
+      SchemaElementParameter() {}
+
+      public abstract TypeDescriptor<?> elementT();
 
       @Nullable
-      public abstract String fieldAccessId();
+      public abstract String fieldAccessString();
+
+      public abstract int index();
+
+      /** Builder class. */
+      @AutoValue.Builder
+      public abstract static class Builder {
+        public abstract Builder setElementT(TypeDescriptor<?> elementT);
+
+        public abstract Builder setFieldAccessString(@Nullable String fieldAccess);
+
+        public abstract Builder setIndex(int index);
+
+        public abstract SchemaElementParameter build();
+      }
+
+      public abstract Builder toBuilder();
     }
 
     /**
@@ -688,17 +713,12 @@ public abstract class DoFnSignature {
                   ::apply);
     }
 
-    /**
-     * Whether this {@link DoFn} reads a schema {@link PCollection} type as a {@link
-     * org.apache.beam.sdk.values.Row} object.
-     */
     @Nullable
-    public RowParameter getRowParameter() {
-      Optional<Parameter> parameter =
-          extraParameters().stream()
-              .filter(Predicates.instanceOf(RowParameter.class)::apply)
-              .findFirst();
-      return parameter.isPresent() ? ((RowParameter) parameter.get()) : null;
+    public List<SchemaElementParameter> getSchemaElementParameters() {
+      return extraParameters().stream()
+          .filter(Predicates.instanceOf(SchemaElementParameter.class)::apply)
+          .map(SchemaElementParameter.class::cast)
+          .collect(Collectors.toList());
     }
 
     /** The {@link OutputReceiverParameter} for a main output, or null if there is none. */

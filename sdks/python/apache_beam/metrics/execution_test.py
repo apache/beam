@@ -21,8 +21,56 @@ import unittest
 from builtins import range
 
 from apache_beam.metrics.cells import CellCommitState
+from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.metricbase import MetricName
+
+
+class TestMetricKey(unittest.TestCase):
+  def test_equality_for_key_with_labels(self):
+    test_labels = {'label1', 'value1'}
+    test_object = MetricKey(
+        'step', MetricName('namespace', 'name'), labels=test_labels)
+    same_labels = MetricKey(
+        'step', MetricName('namespace', 'name'), labels={'label1', 'value1'})
+    same_label_reference = MetricKey(
+        'step', MetricName('namespace', 'name'), labels=test_labels)
+    self.assertEqual(test_object, same_labels)
+    self.assertEqual(test_object, same_label_reference)
+    self.assertEqual(hash(test_object), hash(same_labels))
+    self.assertEqual(hash(test_object), hash(same_label_reference))
+
+  def test_inequality_for_key_with_labels(self):
+    test_labels = {'label1', 'value1'}
+    test_object = MetricKey(
+        'step', MetricName('namespace', 'name'), labels=test_labels)
+    no_labels = MetricKey('step', MetricName('namespace', 'name'))
+    diff_label_key = MetricKey(
+        'step', MetricName('namespace', 'name'), labels={'l1_diff', 'value1'})
+    diff_label_value = MetricKey(
+        'step', MetricName('namespace', 'name'), labels={'label1', 'v1_diff'})
+    self.assertNotEqual(test_object, no_labels)
+    self.assertNotEqual(test_object, diff_label_key)
+    self.assertNotEqual(test_object, diff_label_value)
+    self.assertNotEqual(hash(test_object), hash(no_labels))
+    self.assertNotEqual(hash(test_object), hash(diff_label_key))
+    self.assertNotEqual(hash(test_object), hash(diff_label_value))
+
+  def test_equality_for_key_with_no_labels(self):
+    test_object = MetricKey('step', MetricName('namespace', 'name'))
+    same = MetricKey('step', MetricName('namespace', 'name'))
+    self.assertEqual(test_object, same)
+    self.assertEqual(hash(test_object), hash(same))
+
+    diff_step = MetricKey('step_diff', MetricName('namespace', 'name'))
+    diff_namespace = MetricKey('step', MetricName('namespace_diff', 'name'))
+    diff_name = MetricKey('step', MetricName('namespace', 'name_diff'))
+    self.assertNotEqual(test_object, diff_step)
+    self.assertNotEqual(test_object, diff_namespace)
+    self.assertNotEqual(test_object, diff_name)
+    self.assertNotEqual(hash(test_object), hash(diff_step))
+    self.assertNotEqual(hash(test_object), hash(diff_namespace))
+    self.assertNotEqual(hash(test_object), hash(diff_name))
 
 
 class TestMetricsContainer(unittest.TestCase):

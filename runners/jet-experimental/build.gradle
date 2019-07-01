@@ -1,0 +1,106 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import groovy.json.JsonOutput
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature()
+
+description = "Apache Beam :: Runners :: Hazelcast Jet"
+
+evaluationDependsOn(":sdks:java:core")
+evaluationDependsOn(":runners:core-java")
+evaluationDependsOn(":runners:core-construction-java")
+
+project.ext {
+    jet_version = '3.0'
+    hazelcast_version = '3.12'
+}
+
+configurations {
+    needsRunner
+    validatesRunner
+}
+
+dependencies {
+    compile project(path: ":sdks:java:core", configuration: "shadow")
+    compile project(":runners:core-java")
+    compile "com.hazelcast.jet:hazelcast-jet:$jet_version"
+
+    testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+    testCompile project(path: ":runners:core-java", configuration: "testRuntime")
+    testCompile project(path: ":runners:core-construction-java", configuration: "testRuntime")
+    testCompile library.java.hamcrest_core
+    testCompile library.java.junit
+    testCompile "com.hazelcast.jet:hazelcast-jet-core:$jet_version:tests"
+    testCompile "com.hazelcast:hazelcast:$hazelcast_version:tests"
+    testCompile "com.hazelcast:hazelcast-client:$hazelcast_version:tests"
+
+    needsRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+    needsRunner project(path: ":runners:core-java", configuration: "testRuntime")
+    needsRunner project(path: ":runners:core-construction-java", configuration: "testRuntime")
+    needsRunner project(path: project.path, configuration: "testRuntime")
+
+    validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+    validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
+    validatesRunner project(path: ":runners:core-construction-java", configuration: "testRuntime")
+    validatesRunner project(path: project.path, configuration: "testRuntime")
+}
+
+task validatesRunnerBatch(type: Test) {
+    group = "Verification"
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson(["--runner=TestJetRunner"])
+
+    classpath = configurations.validatesRunner
+    testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+    useJUnit {
+        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
+        excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse' //impulse doesn't cooperate properly with Jet when multiple cluster members are used
+        exclude '**/SplittableDoFnTest.class' //Splittable DoFn functionality not yet in the runner
+    }
+
+    maxHeapSize = '4g'
+}
+
+task validatesRunner {
+    group = "Verification"
+    description "Validates Jet Runner"
+    dependsOn validatesRunnerBatch
+}
+
+task needsRunnerTests(type: Test) {
+    group = "Verification"
+    description = "Runs tests that require a runner to validate that piplines/transforms work correctly"
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson(["--runner=TestJetRunner"])
+
+    classpath = configurations.needsRunner
+    testClassesDirs += files(project(":runners:core-construction-java").sourceSets.test.output.classesDirs)
+    testClassesDirs += files(project(":runners:core-java").sourceSets.test.output.classesDirs)
+    testClassesDirs += files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+    useJUnit {
+        includeCategories "org.apache.beam.sdk.testing.NeedsRunner"
+        excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
+    }
+}
+
+task needsRunner {
+    group = "Verification"
+    description "Runs lower level tests with the Jet Runner"
+    dependsOn needsRunnerTests
+}

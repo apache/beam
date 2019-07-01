@@ -38,7 +38,7 @@ type FullValue struct {
 	Windows   []typex.Window
 }
 
-func (v FullValue) String() string {
+func (v *FullValue) String() string {
 	if v.Elm2 == nil {
 		return fmt.Sprintf("%v [@%v:%v]", v.Elm, v.Timestamp, v.Windows)
 	}
@@ -49,7 +49,7 @@ func (v FullValue) String() string {
 // prematurely closed.
 type Stream interface {
 	io.Closer
-	Read() (FullValue, error)
+	Read() (*FullValue, error)
 }
 
 // ReStream is re-iterable stream, i.e., a Stream factory.
@@ -80,13 +80,13 @@ func (s *FixedStream) Close() error {
 }
 
 // Read produces the next value in the stream.
-func (s *FixedStream) Read() (FullValue, error) {
+func (s *FixedStream) Read() (*FullValue, error) {
 	if s.Buf == nil || s.next == len(s.Buf) {
-		return FullValue{}, io.EOF
+		return nil, io.EOF
 	}
 	ret := s.Buf[s.next]
 	s.next++
-	return ret, nil
+	return &ret, nil
 }
 
 // TODO(herohde) 1/19/2018: type-specialize list and other conversions?
@@ -183,6 +183,6 @@ func ReadAll(rs ReStream) ([]FullValue, error) {
 			}
 			return nil, err
 		}
-		ret = append(ret, elm)
+		ret = append(ret, *elm)
 	}
 }

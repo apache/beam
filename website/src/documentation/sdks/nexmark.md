@@ -24,7 +24,7 @@ limitations under the License.
 
 Nexmark is a suite of pipelines inspired by the 'continuous data stream'
 queries in [Nexmark research
-paper](http://datalab.cs.pdx.edu/niagaraST/NEXMark/)
+paper](https://web.archive.org/web/20100620010601/http://datalab.cs.pdx.edu/niagaraST/NEXMark/)
 
 These are multiple queries over a three entities model representing on online
 auction system:
@@ -148,8 +148,8 @@ When running via Gradle, the following two parameters control the execution:
         The command line to pass to the Nexmark main program.
 
     -P nexmark.runner
-	The Gradle project name of the runner, such as ":beam-runners-direct-java" or
-	":beam-runners-flink. The project names can be found in the root
+	The Gradle project name of the runner, such as ":runners:direct-java" or
+	":runners:flink:1.5. The project names can be found in the root
         `settings.gradle`.
 
 Test data is deterministically synthesized on demand. The test
@@ -498,8 +498,8 @@ SMOKE suite can make sure there is nothing broken in the Nexmark suite.
 
 Batch Mode:
 
-    ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-direct-java" \
+    ./gradlew :sdks:java:testing:nexmark:run \
+        -Pnexmark.runner=":runners:direct-java" \
         -Pnexmark.args="
             --runner=DirectRunner
             --streaming=false
@@ -511,8 +511,8 @@ Batch Mode:
 
 Streaming Mode:
 
-    ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-direct-java" \
+    ./gradlew :sdks:java:testing:nexmark:run \
+        -Pnexmark.runner=":runners:direct-java" \
         -Pnexmark.args="
             --runner=DirectRunner
             --streaming=true
@@ -530,8 +530,8 @@ configure logging.
 
 Batch Mode:
 
-    ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-spark" \
+    ./gradlew :sdks:java:testing:nexmark:run \
+        -Pnexmark.runner=":runners:spark" \
         -Pnexmark.args="
             --runner=SparkRunner
             --suite=SMOKE
@@ -542,8 +542,8 @@ Batch Mode:
 
 Streaming Mode:
 
-    ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-spark" \
+    ./gradlew :sdks:java:testing:nexmark:run \
+        -Pnexmark.runner=":runners:spark" \
         -Pnexmark.args="
             --runner=SparkRunner
             --suite=SMOKE
@@ -556,8 +556,8 @@ Streaming Mode:
 
 Batch Mode:
 
-    ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-flink_2.11" \
+    ./gradlew :sdks:java:testing:nexmark:run \
+        -Pnexmark.runner=":runners:flink:1.5" \
         -Pnexmark.args="
             --runner=FlinkRunner
             --suite=SMOKE
@@ -569,8 +569,8 @@ Batch Mode:
 
 Streaming Mode:
 
-    ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-flink_2.11" \
+    ./gradlew :sdks:java:testing:nexmark:run \
+        -Pnexmark.runner=":runners:flink:1.5" \
         -Pnexmark.args="
             --runner=FlinkRunner
             --suite=SMOKE
@@ -584,8 +584,8 @@ Streaming Mode:
 
 Batch Mode:
 
-    ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-apex" \
+    ./gradlew :sdks:java:testing:nexmark:run \
+        -Pnexmark.runner=":runners:apex" \
         -Pnexmark.args="
             --runner=ApexRunner
             --suite=SMOKE
@@ -596,8 +596,8 @@ Batch Mode:
 
 Streaming Mode:
 
-    ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-apex" \
+    ./gradlew :sdks:java:testing:nexmark:run \
+        -Pnexmark.runner=":runners:apex" \
         -Pnexmark.args="
             --runner=ApexRunner
             --suite=SMOKE
@@ -617,8 +617,8 @@ Set these up first so the below command is valid
 
 Launch:
 
-    ./gradlew :beam-sdks-java-nexmark:run \
-        -Pnexmark.runner=":beam-runners-google-cloud-dataflow" \
+    ./gradlew :sdks:java:testing:nexmark:run \
+        -Pnexmark.runner=":runners:google-cloud-dataflow-java" \
         -Pnexmark.args="
             --runner=DataflowRunner
             --suite=SMOKE
@@ -659,7 +659,7 @@ Launch:
 
 Building package:
 
-    ./gradlew :beam-sdks-java-nexmark:assemble
+    ./gradlew :sdks:java:testing:nexmark:assemble
 
 Submit to the cluster:
 

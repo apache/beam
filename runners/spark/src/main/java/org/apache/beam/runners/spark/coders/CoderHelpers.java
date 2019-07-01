@@ -48,7 +48,7 @@ public final class CoderHelpers {
   public static <T> byte[] toByteArray(T value, Coder<T> coder) {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     try {
-      coder.encode(value, baos, new Coder.Context(true));
+      coder.encode(value, baos);
     } catch (IOException e) {
       throw new IllegalStateException("Error encoding value: " + value, e);
     }
@@ -82,7 +82,7 @@ public final class CoderHelpers {
   public static <T> T fromByteArray(byte[] serialized, Coder<T> coder) {
     ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
     try {
-      return coder.decode(bais, new Coder.Context(true));
+      return coder.decode(bais);
     } catch (IOException e) {
       throw new IllegalStateException("Error decoding bytes for coder: " + coder, e);
     }
@@ -142,19 +142,37 @@ public final class CoderHelpers {
   }
 
   /**
-   * A function wrapper for converting a byte array pair to a key-value pair.
+   * A function for converting a byte array pair to a key-value pair.
    *
-   * @param keyCoder Coder to deserialize keys.
-   * @param valueCoder Coder to deserialize values.
    * @param <K> The type of the key being deserialized.
    * @param <V> The type of the value being deserialized.
-   * @return A function that accepts a pair of byte arrays and returns a key-value pair.
    */
-  public static <K, V> PairFunction<Tuple2<ByteArray, byte[]>, K, V> fromByteFunction(
-      final Coder<K> keyCoder, final Coder<V> valueCoder) {
-    return tuple ->
-        new Tuple2<>(
-            fromByteArray(tuple._1().getValue(), keyCoder), fromByteArray(tuple._2(), valueCoder));
+  public static class FromByteFunction<K, V>
+      implements PairFunction<Tuple2<ByteArray, byte[]>, K, V>,
+          org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function<
+              Tuple2<ByteArray, byte[]>, Tuple2<K, V>> {
+    private final Coder<K> keyCoder;
+    private final Coder<V> valueCoder;
+
+    /**
+     * @param keyCoder Coder to deserialize keys.
+     * @param valueCoder Coder to deserialize values.
+     */
+    public FromByteFunction(final Coder<K> keyCoder, final Coder<V> valueCoder) {
+      this.keyCoder = keyCoder;
+      this.valueCoder = valueCoder;
+    }
+
+    @Override
+    public Tuple2<K, V> call(Tuple2<ByteArray, byte[]> tuple) {
+      return new Tuple2<>(
+          fromByteArray(tuple._1().getValue(), keyCoder), fromByteArray(tuple._2(), valueCoder));
+    }
+
+    @Override
+    public Tuple2<K, V> apply(Tuple2<ByteArray, byte[]> tuple) {
+      return call(tuple);
+    }
   }
 
   /**

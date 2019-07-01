@@ -22,8 +22,10 @@ import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -36,14 +38,48 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBiMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 
 /** {@link Schema} describes the fields in {@link Row}. */
 @Experimental(Kind.SCHEMAS)
 public class Schema implements Serializable {
+  // This is the metadata field used to store the logical type identifier.
+  private static final String LOGICAL_TYPE_IDENTIFIER = "SchemaLogicalTypeId";
+
+  private static final String LOGICAL_TYPE_ARGUMENT = "SchemaLogicalTypeArg";
+
+  // Helper class that adds proper equality checks to byte arrays.
+  static class ByteArrayWrapper implements Serializable {
+    final byte[] array;
+
+    private ByteArrayWrapper(byte[] array) {
+      this.array = array;
+    }
+
+    static ByteArrayWrapper wrap(byte[] array) {
+      return new ByteArrayWrapper(array);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (!(other instanceof ByteArrayWrapper)) {
+        return false;
+      }
+      return Arrays.equals(array, ((ByteArrayWrapper) other).array);
+    }
+
+    @Override
+    public int hashCode() {
+      return Arrays.hashCode(array);
+    }
+  }
   // A mapping between field names an indices.
   private final BiMap<String, Integer> fieldIndices = HashBiMap.create();
+  private Map<String, Integer> encodingPositions = Maps.newHashMap();
+
   private final List<Field> fields;
   // Cache the hashCode, so it doesn't have to be recomputed. Schema objects are immutable, so this
   // is correct.
@@ -139,6 +175,12 @@ public class Schema implements Serializable {
       return this;
     }
 
+    public <InputT, BaseT> Builder addLogicalTypeField(
+        String name, LogicalType<InputT, BaseT> logicalType) {
+      fields.add(Field.of(name, FieldType.logicalType(logicalType)));
+      return this;
+    }
+
     public Builder addArrayField(String name, FieldType collectionElementType) {
       fields.add(Field.of(name, FieldType.array(collectionElementType)));
       return this;
@@ -152,6 +194,10 @@ public class Schema implements Serializable {
     public Builder addMapField(String name, FieldType keyType, FieldType valueType) {
       fields.add(Field.of(name, FieldType.map(keyType, valueType)));
       return this;
+    }
+
+    public int getLastFieldId() {
+      return fields.size() - 1;
     }
 
     public Schema build() {
@@ -171,6 +217,7 @@ public class Schema implements Serializable {
         throw new IllegalArgumentException(
             "Duplicate field " + field.getName() + " added to schema");
       }
+      encodingPositions.put(field.getName(), index);
       fieldIndices.put(field.getName(), index++);
     }
     this.hashCode = Objects.hash(fieldIndices, fields);
@@ -183,6 +230,16 @@ public class Schema implements Serializable {
   /** Set this schema's UUID. All schemas with the same UUID must be guaranteed to be identical. */
   public void setUUID(UUID uuid) {
     this.uuid = uuid;
+  }
+
+  /** Gets the encoding positions for this schema. */
+  public Map<String, Integer> getEncodingPositions() {
+    return encodingPositions;
+  }
+
+  /** Sets the encoding positions for this schema. */
+  public void setEncodingPositions(Map<String, Integer> encodingPositions) {
+    this.encodingPositions = encodingPositions;
   }
 
   /** Get this schema's UUID. */
@@ -318,7 +375,8 @@ public class Schema implements Serializable {
     BYTES, // Byte array.
     ARRAY,
     MAP,
-    ROW; // The field is itself a nested row.
+    ROW, // The field is itself a nested row.
+    LOGICAL_TYPE;
 
     public static final Set<TypeName> NUMERIC_TYPES =
         ImmutableSet.of(BYTE, INT16, INT32, INT64, DECIMAL, FLOAT, DOUBLE);
@@ -329,7 +387,7 @@ public class Schema implements Serializable {
     public static final Set<TypeName> COMPOSITE_TYPES = ImmutableSet.of(ROW);
 
     public boolean isPrimitiveType() {
-      return !isCollectionType() && !isMapType() && !isCompositeType();
+      return !isCollectionType() && !isMapType() && !isCompositeType() && !isLogicalType();
     }
 
     public boolean isNumericType() {
@@ -356,10 +414,15 @@ public class Schema implements Serializable {
       return COMPOSITE_TYPES.contains(this);
     }
 
+    public boolean isLogicalType() {
+      return this.equals(LOGICAL_TYPE);
+    }
+
     public boolean isSubtypeOf(TypeName other) {
       return other.isSupertypeOf(this);
     }
 
+    /** Whether this is a super type of the another type. */
     public boolean isSupertypeOf(TypeName other) {
       if (this == other) {
         return true;
@@ -399,6 +462,50 @@ public class Schema implements Serializable {
   }
 
   /**
+   * A LogicalType allows users to define a custom schema type.
+   *
+   * <p>A LogicalType is a way to define a new type that can be stored in a schema field using an
+   * underlying FieldType as storage. A LogicalType must specify a base FieldType used to store the
+   * data by overriding the {@link #getBaseType()} method. Usually the FieldType returned will be
+   * one of the standard ones implemented by Schema. It is legal to return another LogicalType, but
+   * the storage types must eventually resolve to one of the standard Schema types; it is not
+   * allowed to have LogicalTypes reference each other recursively via getBaseType. The {@link
+   * #toBaseType} and {@link #toInputType} should convert back and forth between the Java type for
+   * the LogicalType (InputT) and the Java type appropriate for the underlying base type (BaseT).
+   *
+   * <p>{@link #getIdentifier} must define a globally unique identifier for this LogicalType. A
+   * LogicalType can optionally provide an identifying argument as well using {@link #getArgument}.
+   * An example is a LogicalType that represents a fixed-size byte array. The identifier
+   * "FixedBytes" uniquely identifies this LogicalType (or specifically, this class of
+   * LogicalTypes), while the argument returned will be the length of the fixed-size byte array. The
+   * combination of {@link #getIdentifier} and {@link #getArgument} must completely identify a
+   * LogicalType.
+   *
+   * <p>A LogicalType can be added to a schema using {@link Schema.Builder#addLogicalTypeField}.
+   *
+   * @param <InputT> The Java type used to set the type when using {@link Row.Builder#addValue}.
+   * @param <BaseT> The Java type for the underlying storage.
+   */
+  public interface LogicalType<InputT, BaseT> extends Serializable {
+    /** The unique identifier for this type. */
+    String getIdentifier();
+
+    /** An optional argument to configure the type. */
+    default String getArgument() {
+      return "";
+    }
+
+    /** The base {@link FieldType} used to store values of this type. */
+    FieldType getBaseType();
+
+    /** Convert the input Java type to one appropriate for the base {@link FieldType}. */
+    BaseT toBaseType(InputT input);
+
+    /** Convert the Java type used by the base {@link FieldType} to the input type. */
+    InputT toInputType(BaseT base);
+  }
+
+  /**
    * A descriptor of a single field type. This is a recursive descriptor, as nested types are
    * allowed.
    */
@@ -410,6 +517,10 @@ public class Schema implements Serializable {
 
     // Whether this type is nullable.
     public abstract Boolean getNullable();
+
+    // For logical types, return the implementing class.
+    @Nullable
+    public abstract LogicalType getLogicalType();
 
     // For container types (e.g. ARRAY), returns the type of the contained element.
     @Nullable
@@ -429,18 +540,27 @@ public class Schema implements Serializable {
 
     /** Returns optional extra metadata. */
     @SuppressWarnings("mutable")
-    @Nullable
-    public abstract byte[] getMetadata();
+    protected abstract Map<String, ByteArrayWrapper> getMetadata();
 
     abstract FieldType.Builder toBuilder();
 
+    /** Helper function for retrieving the concrete logical type subclass. */
+    public <LogicalTypeT> LogicalTypeT getLogicalType(Class<LogicalTypeT> logicalTypeClass) {
+      return logicalTypeClass.cast(getLogicalType());
+    }
+
     public static FieldType.Builder forTypeName(TypeName typeName) {
-      return new AutoValue_Schema_FieldType.Builder().setTypeName(typeName).setNullable(false);
+      return new AutoValue_Schema_FieldType.Builder()
+          .setTypeName(typeName)
+          .setNullable(false)
+          .setMetadata(Collections.emptyMap());
     }
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setTypeName(TypeName typeName);
+
+      abstract Builder setLogicalType(LogicalType logicalType);
 
       abstract Builder setCollectionElementType(@Nullable FieldType collectionElementType);
 
@@ -452,7 +572,7 @@ public class Schema implements Serializable {
 
       abstract Builder setRowSchema(@Nullable Schema rowSchema);
 
-      abstract Builder setMetadata(@Nullable byte[] metadata);
+      abstract Builder setMetadata(Map<String, ByteArrayWrapper> metadata);
 
       abstract FieldType build();
     }
@@ -500,6 +620,8 @@ public class Schema implements Serializable {
       return FieldType.forTypeName(TypeName.ARRAY).setCollectionElementType(elementType).build();
     }
 
+    /** @deprecated Set the nullability on the elementType instead */
+    @Deprecated
     public static final FieldType array(FieldType elementType, boolean nullable) {
       return FieldType.forTypeName(TypeName.ARRAY)
           .setCollectionElementType(elementType.withNullable(nullable))
@@ -514,6 +636,8 @@ public class Schema implements Serializable {
           .build();
     }
 
+    /** @deprecated Set the nullability on the valueType instead */
+    @Deprecated
     public static final FieldType map(
         FieldType keyType, FieldType valueType, boolean valueTypeNullable) {
       return FieldType.forTypeName(TypeName.MAP)
@@ -527,19 +651,50 @@ public class Schema implements Serializable {
       return FieldType.forTypeName(TypeName.ROW).setRowSchema(schema).build();
     }
 
-    /** Returns a copy of the descriptor with metadata set. */
-    public FieldType withMetadata(@Nullable byte[] metadata) {
-      return toBuilder().setMetadata(metadata).build();
+    /** Creates a logical type based on a primitive field type. */
+    public static final <InputT, BaseT> FieldType logicalType(
+        LogicalType<InputT, BaseT> logicalType) {
+      return FieldType.forTypeName(TypeName.LOGICAL_TYPE)
+          .setLogicalType(logicalType)
+          .build()
+          .withMetadata(LOGICAL_TYPE_IDENTIFIER, logicalType.getIdentifier())
+          .withMetadata(LOGICAL_TYPE_ARGUMENT, logicalType.getArgument());
     }
 
-    /** Returns a copy of the descriptor with metadata set. */
-    public FieldType withMetadata(String metadata) {
-      return toBuilder().setMetadata(metadata.getBytes(StandardCharsets.UTF_8)).build();
+    /** Set the metadata map for the type, overriding any existing metadata.. */
+    public FieldType withMetadata(Map<String, byte[]> metadata) {
+      Map<String, ByteArrayWrapper> wrapped =
+          metadata.entrySet().stream()
+              .collect(
+                  Collectors.toMap(Map.Entry::getKey, e -> ByteArrayWrapper.wrap(e.getValue())));
+      return toBuilder().setMetadata(wrapped).build();
     }
 
-    public String getMetadataString() {
-      if (getMetadata() != null) {
-        return new String(getMetadata(), StandardCharsets.UTF_8);
+    /** Returns a copy of the descriptor with metadata set for the given key. */
+    public FieldType withMetadata(String key, byte[] metadata) {
+      Map<String, ByteArrayWrapper> newMetadata =
+          ImmutableMap.<String, ByteArrayWrapper>builder()
+              .putAll(getMetadata())
+              .put(key, ByteArrayWrapper.wrap(metadata))
+              .build();
+      return toBuilder().setMetadata(newMetadata).build();
+    }
+
+    /** Returns a copy of the descriptor with metadata set for the given key. */
+    public FieldType withMetadata(String key, String metadata) {
+      return withMetadata(key, metadata.getBytes(StandardCharsets.UTF_8));
+    }
+
+    @Nullable
+    public byte[] getMetadata(String key) {
+      ByteArrayWrapper metadata = getMetadata().get(key);
+      return (metadata != null) ? metadata.array : null;
+    }
+
+    public String getMetadataString(String key) {
+      ByteArrayWrapper metadata = getMetadata().get(key);
+      if (metadata != null) {
+        return new String(metadata.array, StandardCharsets.UTF_8);
       } else {
         return "";
       }
@@ -554,6 +709,9 @@ public class Schema implements Serializable {
       if (!(o instanceof FieldType)) {
         return false;
       }
+      // Logical type not included here, since the logical type identifier is included in the
+      // metadata. The LogicalType class is cached in this object just for convenience.
+      // TODO: this is wrong, since LogicalTypes have metadata associated.
       FieldType other = (FieldType) o;
       return Objects.equals(getTypeName(), other.getTypeName())
           && Objects.equals(getNullable(), other.getNullable())
@@ -561,7 +719,7 @@ public class Schema implements Serializable {
           && Objects.equals(getMapKeyType(), other.getMapKeyType())
           && Objects.equals(getMapValueType(), other.getMapValueType())
           && Objects.equals(getRowSchema(), other.getRowSchema())
-          && Arrays.equals(getMetadata(), other.getMetadata());
+          && Objects.equals(getMetadata(), other.getMetadata());
     }
 
     /** Returns true if two FieldTypes are equal. */
@@ -569,7 +727,7 @@ public class Schema implements Serializable {
       if (!Objects.equals(getTypeName(), other.getTypeName())) {
         return false;
       }
-      if (!Arrays.equals(getMetadata(), other.getMetadata())) {
+      if (!Objects.equals(getMetadata(), other.getMetadata())) {
         return false;
       }
       if (getTypeName() == TypeName.ARRAY
@@ -601,7 +759,7 @@ public class Schema implements Serializable {
       if (!getTypeName().equals(other.getTypeName())) {
         return false;
       }
-      if (!Arrays.equals(getMetadata(), other.getMetadata())) {
+      if (!Objects.equals(getMetadata(), other.getMetadata())) {
         return false;
       }
 

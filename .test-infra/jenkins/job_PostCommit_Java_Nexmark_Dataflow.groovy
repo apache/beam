@@ -18,6 +18,7 @@
 
 import CommonJobProperties as commonJobProperties
 import CommonTestProperties.Runner
+import CommonTestProperties.SDK
 import CommonTestProperties.TriggeringContext
 import NexmarkBigqueryProperties
 import NexmarkBuilder as Nexmark
@@ -37,9 +38,9 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
     shell('echo *** RUN NEXMARK IN BATCH MODE USING DATAFLOW RUNNER ***')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-sdks-java-nexmark:run')
+      tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":beam-runners-google-cloud-dataflow-java"' +
+      switches('-Pnexmark.runner=":runners:google-cloud-dataflow-java"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
@@ -57,9 +58,9 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
     shell('echo *** RUN NEXMARK IN STREAMING MODE USING DATAFLOW RUNNER ***')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-sdks-java-nexmark:run')
+      tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":beam-runners-google-cloud-dataflow-java"' +
+      switches('-Pnexmark.runner=":runners:google-cloud-dataflow-java"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
@@ -77,9 +78,9 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
     shell('echo *** RUN NEXMARK IN SQL BATCH MODE USING DATAFLOW RUNNER ***')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-sdks-java-nexmark:run')
+      tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":beam-runners-google-cloud-dataflow-java"' +
+      switches('-Pnexmark.runner=":runners:google-cloud-dataflow-java"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
@@ -98,9 +99,9 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
     shell('echo *** RUN NEXMARK IN SQL STREAMING MODE USING DATAFLOW RUNNER ***')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-sdks-java-nexmark:run')
+      tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":beam-runners-google-cloud-dataflow-java"' +
+      switches('-Pnexmark.runner=":runners:google-cloud-dataflow-java"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
@@ -135,5 +136,5 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Da
           'enforceEncodability' : true,
           'enforceImmutability' : true
   ]
-  Nexmark.standardJob(delegate, Runner.DATAFLOW, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
+  Nexmark.standardJob(delegate, Runner.DATAFLOW, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
 }

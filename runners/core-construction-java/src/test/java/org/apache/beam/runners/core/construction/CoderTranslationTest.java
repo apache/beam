@@ -28,6 +28,7 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
+import org.apache.avro.SchemaBuilder;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -35,6 +36,7 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
@@ -62,6 +64,7 @@ public class CoderTranslationTest {
           .add(ByteArrayCoder.of())
           .add(KvCoder.of(VarLongCoder.of(), VarLongCoder.of()))
           .add(VarLongCoder.of())
+          .add(StringUtf8Coder.of())
           .add(IntervalWindowCoder.of())
           .add(IterableCoder.of(ByteArrayCoder.of()))
           .add(Timer.Coder.of(ByteArrayCoder.of()))
@@ -70,6 +73,7 @@ public class CoderTranslationTest {
           .add(
               FullWindowedValueCoder.of(
                   IterableCoder.of(VarLongCoder.of()), IntervalWindowCoder.of()))
+          .add(DoubleCoder.of())
           .build();
 
   /**
@@ -123,7 +127,9 @@ public class CoderTranslationTest {
               StringUtf8Coder.of(),
               SerializableCoder.of(Record.class),
               new RecordCoder(),
-              KvCoder.of(new RecordCoder(), AvroCoder.of(Record.class)))
+              KvCoder.of(
+                  new RecordCoder(),
+                  AvroCoder.of(SchemaBuilder.record("record").fields().endRecord())))
           .build();
     }
 
@@ -145,7 +151,7 @@ public class CoderTranslationTest {
       if (KNOWN_CODERS.contains(coder)) {
         for (RunnerApi.Coder encodedCoder : encodedComponents.getCodersMap().values()) {
           assertThat(
-              encodedCoder.getSpec().getSpec().getUrn(),
+              encodedCoder.getSpec().getUrn(),
               not(equalTo(CoderTranslation.JAVA_SERIALIZED_CODER_URN)));
         }
       }

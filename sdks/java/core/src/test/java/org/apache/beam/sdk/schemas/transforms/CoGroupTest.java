@@ -28,15 +28,16 @@ import org.apache.beam.sdk.TestUtils.KvMatcher;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.transforms.CoGroup.By;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesSchema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.hamcrest.BaseMatcher;
@@ -46,8 +47,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for {@link CoGroup}. */
+@RunWith(JUnit4.class)
+@Category(UsesSchema.class)
 public class CoGroupTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -183,10 +188,8 @@ public class CoGroupTest {
             .build();
 
     PCollection<KV<Row, Row>> joined =
-        PCollectionTuple.of(new TupleTag<>("pc1"), pc1)
-            .and(new TupleTag<>("pc2"), pc2)
-            .and(new TupleTag<>("pc3"), pc3)
-            .apply("CoGroup", CoGroup.byFieldNames("user", "country"));
+        PCollectionTuple.of("pc1", pc1, "pc2", pc2, "pc3", pc3)
+            .apply("CoGroup", CoGroup.join(By.fieldNames("user", "country")));
     List<KV<Row, Row>> expected =
         ImmutableList.of(
             KV.of(key1, key1Joined),
@@ -325,19 +328,13 @@ public class CoGroupTest {
                     Row.withSchema(CG_SCHEMA_3).addValues("user2", 24, "ar").build()))
             .build();
 
-    TupleTag<Row> pc1Tag = new TupleTag<>("pc1");
-    TupleTag<Row> pc2Tag = new TupleTag<>("pc2");
-    TupleTag<Row> pc3Tag = new TupleTag<>("pc3");
-
     PCollection<KV<Row, Row>> joined =
-        PCollectionTuple.of(pc1Tag, pc1)
-            .and(pc2Tag, pc2)
-            .and(pc3Tag, pc3)
+        PCollectionTuple.of("pc1", pc1, "pc2", pc2, "pc3", pc3)
             .apply(
                 "CoGroup",
-                CoGroup.byFieldNames(pc1Tag, "user", "country")
-                    .byFieldNames(pc2Tag, "user2", "country2")
-                    .byFieldNames(pc3Tag, "user3", "country3"));
+                CoGroup.join("pc1", By.fieldNames("user", "country"))
+                    .join("pc2", By.fieldNames("user2", "country2"))
+                    .join("pc3", By.fieldNames("user3", "country3")));
 
     List<KV<Row, Row>> expected =
         ImmutableList.of(
@@ -367,19 +364,14 @@ public class CoGroupTest {
     PCollection<Row> pc3 =
         pipeline.apply(
             "Create3", Create.of(Row.withSchema(CG_SCHEMA_3).addValues("user1", 17, "us").build()));
-    TupleTag<Row> pc1Tag = new TupleTag<>("pc1");
-    TupleTag<Row> pc2Tag = new TupleTag<>("pc2");
-    TupleTag<Row> pc3Tag = new TupleTag<>("pc3");
 
-    thrown.expect(IllegalStateException.class);
+    thrown.expect(IllegalArgumentException.class);
     PCollection<KV<Row, Row>> joined =
-        PCollectionTuple.of(pc1Tag, pc1)
-            .and(pc2Tag, pc2)
-            .and(pc3Tag, pc3)
+        PCollectionTuple.of("pc1", pc1, "pc2", pc2, "pc3", pc3)
             .apply(
                 "CoGroup",
-                CoGroup.byFieldNames(pc1Tag, "user", "country")
-                    .byFieldNames(pc2Tag, "user2", "country2"));
+                CoGroup.join("pc1", By.fieldNames("user", "country"))
+                    .join("pc2", By.fieldNames("user2", "country2")));
     pipeline.run();
   }
 
@@ -399,13 +391,294 @@ public class CoGroupTest {
                 Create.of(Row.withSchema(CG_SCHEMA_1).addValues("user1", 9, "us").build()))
             .setRowSchema(CG_SCHEMA_1);
 
-    TupleTag<Row> pc1Tag = new TupleTag<>("pc1");
-    TupleTag<Row> pc2Tag = new TupleTag<>("pc2");
     thrown.expect(IllegalStateException.class);
     PCollection<KV<Row, Row>> joined =
-        PCollectionTuple.of(pc1Tag, pc1)
-            .and(pc2Tag, pc2)
-            .apply("CoGroup", CoGroup.byFieldNames(pc1Tag, "user").byFieldNames(pc2Tag, "count"));
+        PCollectionTuple.of("pc1", pc1, "pc2", pc2)
+            .apply(
+                "CoGroup",
+                CoGroup.join("pc1", By.fieldNames("user")).join("pc2", By.fieldNames("count")));
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testInnerJoin() {
+    List<Row> pc1Rows =
+        Lists.newArrayList(
+            Row.withSchema(CG_SCHEMA_1).addValues("user1", 1, "us").build(),
+            Row.withSchema(CG_SCHEMA_1).addValues("user1", 2, "us").build(),
+            Row.withSchema(CG_SCHEMA_1).addValues("user1", 3, "il").build(),
+            Row.withSchema(CG_SCHEMA_1).addValues("user1", 4, "il").build(),
+            Row.withSchema(CG_SCHEMA_1).addValues("user2", 5, "fr").build(),
+            Row.withSchema(CG_SCHEMA_1).addValues("user2", 6, "fr").build(),
+            Row.withSchema(CG_SCHEMA_1).addValues("user2", 7, "ar").build(),
+            Row.withSchema(CG_SCHEMA_1).addValues("user2", 8, "ar").build());
+    List<Row> pc2Rows =
+        Lists.newArrayList(
+            Row.withSchema(CG_SCHEMA_2).addValues("user1", 9, "us").build(),
+            Row.withSchema(CG_SCHEMA_2).addValues("user1", 10, "us").build(),
+            Row.withSchema(CG_SCHEMA_2).addValues("user1", 11, "il").build(),
+            Row.withSchema(CG_SCHEMA_2).addValues("user1", 12, "il").build(),
+            Row.withSchema(CG_SCHEMA_2).addValues("user2", 13, "fr").build(),
+            Row.withSchema(CG_SCHEMA_2).addValues("user2", 14, "fr").build(),
+            Row.withSchema(CG_SCHEMA_2).addValues("user2", 15, "ar").build(),
+            Row.withSchema(CG_SCHEMA_2).addValues("user2", 16, "ar").build());
+    List<Row> pc3Rows =
+        Lists.newArrayList(
+            Row.withSchema(CG_SCHEMA_3).addValues("user1", 17, "us").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user1", 18, "us").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user1", 19, "il").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user1", 20, "il").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user2", 21, "fr").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user2", 22, "fr").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user2", 23, "ar").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user2", 24, "ar").build());
+
+    PCollection<Row> pc1 = pipeline.apply("Create1", Create.of(pc1Rows)).setRowSchema(CG_SCHEMA_1);
+    PCollection<Row> pc2 = pipeline.apply("Create2", Create.of(pc2Rows)).setRowSchema(CG_SCHEMA_2);
+    PCollection<Row> pc3 = pipeline.apply("Create3", Create.of(pc3Rows)).setRowSchema(CG_SCHEMA_3);
+
+    Schema expectedSchema =
+        Schema.builder()
+            .addRowField("pc1", CG_SCHEMA_1)
+            .addRowField("pc2", CG_SCHEMA_2)
+            .addRowField("pc3", CG_SCHEMA_3)
+            .build();
+
+    PCollection<Row> joined =
+        PCollectionTuple.of("pc1", pc1, "pc2", pc2, "pc3", pc3)
+            .apply(
+                "CoGroup",
+                CoGroup.join("pc1", By.fieldNames("user", "country"))
+                    .join("pc2", By.fieldNames("user2", "country2"))
+                    .join("pc3", By.fieldNames("user3", "country3"))
+                    .crossProductJoin());
+    assertEquals(expectedSchema, joined.getSchema());
+
+    List<Row> expectedJoinedRows =
+        JoinTestUtils.innerJoin(
+            pc1Rows,
+            pc2Rows,
+            pc3Rows,
+            new String[] {"user", "country"},
+            new String[] {"user2", "country2"},
+            new String[] {"user3", "country3"},
+            expectedSchema);
+
+    PAssert.that(joined).containsInAnyOrder(expectedJoinedRows);
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFullOuterJoin() {
+    List<Row> pc1Rows =
+        Lists.newArrayList(
+            Row.withSchema(CG_SCHEMA_1).addValues("user1", 1, "us").build(),
+            Row.withSchema(CG_SCHEMA_1).addValues("user1", 2, "us").build(),
+            Row.withSchema(CG_SCHEMA_1).addValues("user1", 3, "il").build(),
+            Row.withSchema(CG_SCHEMA_1).addValues("user1", 4, "il").build(),
+            Row.withSchema(CG_SCHEMA_1).addValues("user2", 5, "fr").build(),
+            Row.withSchema(CG_SCHEMA_1).addValues("user2", 6, "fr").build(),
+            Row.withSchema(CG_SCHEMA_1).addValues("user2", 7, "ar").build(),
+            Row.withSchema(CG_SCHEMA_1).addValues("user2", 8, "ar").build(),
+            Row.withSchema(CG_SCHEMA_1).addValues("user3", 7, "ar").build());
+
+    List<Row> pc2Rows =
+        Lists.newArrayList(
+            Row.withSchema(CG_SCHEMA_2).addValues("user1", 9, "us").build(),
+            Row.withSchema(CG_SCHEMA_2).addValues("user1", 10, "us").build(),
+            Row.withSchema(CG_SCHEMA_2).addValues("user1", 11, "il").build(),
+            Row.withSchema(CG_SCHEMA_2).addValues("user1", 12, "il").build(),
+            Row.withSchema(CG_SCHEMA_2).addValues("user2", 13, "fr").build(),
+            Row.withSchema(CG_SCHEMA_2).addValues("user2", 14, "fr").build(),
+            Row.withSchema(CG_SCHEMA_2).addValues("user2", 15, "ar").build(),
+            Row.withSchema(CG_SCHEMA_2).addValues("user2", 16, "ar").build(),
+            Row.withSchema(CG_SCHEMA_2).addValues("user2", 16, "es").build());
+
+    List<Row> pc3Rows =
+        Lists.newArrayList(
+            Row.withSchema(CG_SCHEMA_3).addValues("user1", 17, "us").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user1", 18, "us").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user1", 19, "il").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user1", 20, "il").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user2", 21, "fr").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user2", 22, "fr").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user2", 23, "ar").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user2", 24, "ar").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user27", 24, "se").build());
+
+    PCollection<Row> pc1 = pipeline.apply("Create1", Create.of(pc1Rows)).setRowSchema(CG_SCHEMA_1);
+    PCollection<Row> pc2 = pipeline.apply("Create2", Create.of(pc2Rows)).setRowSchema(CG_SCHEMA_2);
+    PCollection<Row> pc3 = pipeline.apply("Create3", Create.of(pc3Rows)).setRowSchema(CG_SCHEMA_3);
+
+    // Full outer join, so any field might be null.
+    Schema expectedSchema =
+        Schema.builder()
+            .addNullableField("pc1", FieldType.row(CG_SCHEMA_1))
+            .addNullableField("pc2", FieldType.row(CG_SCHEMA_2))
+            .addNullableField("pc3", FieldType.row(CG_SCHEMA_3))
+            .build();
+
+    PCollection<Row> joined =
+        PCollectionTuple.of("pc1", pc1, "pc2", pc2, "pc3", pc3)
+            .apply(
+                "CoGroup",
+                CoGroup.join("pc1", By.fieldNames("user", "country").withOptionalParticipation())
+                    .join("pc2", By.fieldNames("user2", "country2").withOptionalParticipation())
+                    .join("pc3", By.fieldNames("user3", "country3").withOptionalParticipation())
+                    .crossProductJoin());
+    assertEquals(expectedSchema, joined.getSchema());
+
+    List<Row> expectedJoinedRows =
+        JoinTestUtils.innerJoin(
+            pc1Rows,
+            pc2Rows,
+            pc3Rows,
+            new String[] {"user", "country"},
+            new String[] {"user2", "country2"},
+            new String[] {"user3", "country3"},
+            expectedSchema);
+    // Manually add the outer-join rows to the list of expected results.
+    expectedJoinedRows.add(
+        Row.withSchema(expectedSchema)
+            .addValues(Row.withSchema(CG_SCHEMA_1).addValues("user3", 7, "ar").build(), null, null)
+            .build());
+    expectedJoinedRows.add(
+        Row.withSchema(expectedSchema)
+            .addValues(null, Row.withSchema(CG_SCHEMA_2).addValues("user2", 16, "es").build(), null)
+            .build());
+    expectedJoinedRows.add(
+        Row.withSchema(expectedSchema)
+            .addValues(
+                null, null, Row.withSchema(CG_SCHEMA_3).addValues("user27", 24, "se").build())
+            .build());
+
+    PAssert.that(joined).containsInAnyOrder(expectedJoinedRows);
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testPartialOuterJoin() {
+    List<Row> pc1Rows =
+        Lists.newArrayList(
+            Row.withSchema(CG_SCHEMA_1).addValues("user1", 1, "us").build(),
+            Row.withSchema(CG_SCHEMA_1).addValues("user1", 2, "us").build(),
+            Row.withSchema(CG_SCHEMA_1).addValues("user1", 3, "il").build(),
+            Row.withSchema(CG_SCHEMA_1).addValues("user1", 4, "il").build(),
+            Row.withSchema(CG_SCHEMA_1).addValues("user2", 5, "fr").build(),
+            Row.withSchema(CG_SCHEMA_1).addValues("user2", 6, "fr").build(),
+            Row.withSchema(CG_SCHEMA_1).addValues("user2", 7, "ar").build(),
+            Row.withSchema(CG_SCHEMA_1).addValues("user2", 8, "ar").build());
+
+    List<Row> pc2Rows =
+        Lists.newArrayList(
+            Row.withSchema(CG_SCHEMA_2).addValues("user1", 9, "us").build(),
+            Row.withSchema(CG_SCHEMA_2).addValues("user1", 10, "us").build(),
+            Row.withSchema(CG_SCHEMA_2).addValues("user1", 11, "il").build(),
+            Row.withSchema(CG_SCHEMA_2).addValues("user1", 12, "il").build(),
+            Row.withSchema(CG_SCHEMA_2).addValues("user2", 13, "fr").build(),
+            Row.withSchema(CG_SCHEMA_2).addValues("user2", 14, "fr").build(),
+            Row.withSchema(CG_SCHEMA_2).addValues("user3", 7, "ar").build());
+
+    List<Row> pc3Rows =
+        Lists.newArrayList(
+            Row.withSchema(CG_SCHEMA_3).addValues("user1", 17, "us").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user1", 18, "us").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user1", 19, "il").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user1", 20, "il").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user2", 21, "fr").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user2", 22, "fr").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user2", 23, "ar").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user2", 24, "ar").build(),
+            Row.withSchema(CG_SCHEMA_3).addValues("user3", 25, "ar").build());
+
+    PCollection<Row> pc1 = pipeline.apply("Create1", Create.of(pc1Rows)).setRowSchema(CG_SCHEMA_1);
+    PCollection<Row> pc2 = pipeline.apply("Create2", Create.of(pc2Rows)).setRowSchema(CG_SCHEMA_2);
+    PCollection<Row> pc3 = pipeline.apply("Create3", Create.of(pc3Rows)).setRowSchema(CG_SCHEMA_3);
+
+    // Partial outer join. Missing entries in the "pc2" PCollection will be filled in with nulls,
+    // but not others.
+    Schema expectedSchema =
+        Schema.builder()
+            .addField("pc1", FieldType.row(CG_SCHEMA_1))
+            .addNullableField("pc2", FieldType.row(CG_SCHEMA_2))
+            .addField("pc3", FieldType.row(CG_SCHEMA_3))
+            .build();
+
+    PCollection<Row> joined =
+        PCollectionTuple.of("pc1", pc1, "pc2", pc2, "pc3", pc3)
+            .apply(
+                "CoGroup",
+                CoGroup.join("pc1", By.fieldNames("user", "country"))
+                    .join("pc2", By.fieldNames("user2", "country2").withOptionalParticipation())
+                    .join("pc3", By.fieldNames("user3", "country3"))
+                    .crossProductJoin());
+    assertEquals(expectedSchema, joined.getSchema());
+
+    List<Row> expectedJoinedRows =
+        JoinTestUtils.innerJoin(
+            pc1Rows,
+            pc2Rows,
+            pc3Rows,
+            new String[] {"user", "country"},
+            new String[] {"user2", "country2"},
+            new String[] {"user3", "country3"},
+            expectedSchema);
+
+    // Manually add the outer-join rows to the list of expected results. Missing results from the
+    // middle (pc2) PCollection are filled in with nulls. Missing events from other PCollections
+    // are not. Events with key ("user2", "ar) show up in pc1 and pc3 but not in pc2, so we expect
+    // the outer join to still produce those rows, with nulls for pc2. Events with key
+    // ("user3", "ar) however show up in in p2 and pc3, but not in pc1; since pc1 is marked for
+    // full participation (no outer join), these events should not be included in the join.
+    expectedJoinedRows.add(
+        Row.withSchema(expectedSchema)
+            .addValues(
+                Row.withSchema(CG_SCHEMA_1).addValues("user2", 7, "ar").build(),
+                null,
+                Row.withSchema(CG_SCHEMA_3).addValues("user2", 23, "ar").build())
+            .build());
+    expectedJoinedRows.add(
+        Row.withSchema(expectedSchema)
+            .addValues(
+                Row.withSchema(CG_SCHEMA_1).addValues("user2", 7, "ar").build(),
+                null,
+                Row.withSchema(CG_SCHEMA_3).addValues("user2", 24, "ar").build())
+            .build());
+    expectedJoinedRows.add(
+        Row.withSchema(expectedSchema)
+            .addValues(
+                Row.withSchema(CG_SCHEMA_1).addValues("user2", 8, "ar").build(),
+                null,
+                Row.withSchema(CG_SCHEMA_3).addValues("user2", 23, "ar").build())
+            .build());
+    expectedJoinedRows.add(
+        Row.withSchema(expectedSchema)
+            .addValues(
+                Row.withSchema(CG_SCHEMA_1).addValues("user2", 8, "ar").build(),
+                null,
+                Row.withSchema(CG_SCHEMA_3).addValues("user2", 24, "ar").build())
+            .build());
+
+    PAssert.that(joined).containsInAnyOrder(expectedJoinedRows);
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testUnmatchedTags() {
+    PCollection<Row> pc1 = pipeline.apply("Create1", Create.empty(CG_SCHEMA_1));
+    PCollection<Row> pc2 = pipeline.apply("Create2", Create.empty(CG_SCHEMA_2));
+
+    thrown.expect(IllegalArgumentException.class);
+
+    PCollectionTuple.of("pc1", pc1, "pc2", pc2)
+        .apply(
+            CoGroup.join("pc1", By.fieldNames("user"))
+                .join("pc3", By.fieldNames("user3"))
+                .crossProductJoin());
     pipeline.run();
   }
 

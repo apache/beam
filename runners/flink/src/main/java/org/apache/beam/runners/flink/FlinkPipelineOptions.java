@@ -28,7 +28,7 @@ import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
-/** Options which can be used to configure a Flink PipelineRunner. */
+/** Options which can be used to configure a Flink PortablePipelineRunner. */
 public interface FlinkPipelineOptions
     extends PipelineOptions, ApplicationNameOptions, StreamingOptions {
 
@@ -235,4 +235,16 @@ public interface FlinkPipelineOptions
   Boolean getAllowNonRestoredState();
 
   void setAllowNonRestoredState(Boolean allowNonRestoredState);
+
+  @Description(
+      "Flag indicating whether auto-balance sharding for WriteFiles transform should be enabled. "
+          + "This might prove useful in streaming use-case, where pipeline needs to write quite many events "
+          + "into files, typically divided into N shards. Default behavior on Flink would be, that some workers "
+          + "will receive more shards to take care of than others. This cause workers to go out of balance in "
+          + "terms of processing backlog and memory usage. Enabling this feature will make shards to be spread "
+          + "evenly among available workers in improve throughput and memory usage stability.")
+  @Default.Boolean(false)
+  Boolean isAutoBalanceWriteFilesShardingEnabled();
+
+  void setAutoBalanceWriteFilesShardingEnabled(Boolean autoBalanceWriteFilesShardingEnabled);
 }

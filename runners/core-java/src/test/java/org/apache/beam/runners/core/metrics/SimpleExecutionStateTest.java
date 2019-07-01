@@ -18,10 +18,12 @@
 package org.apache.beam.runners.core.metrics;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.Assert.assertEquals;
 
 import java.util.HashMap;
+import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -36,7 +38,7 @@ public class SimpleExecutionStateTest {
     HashMap<String, String> labelsMetadata = new HashMap<String, String>();
     labelsMetadata.put("k1", "v1");
     labelsMetadata.put("k2", "v2");
-    SimpleExecutionState testObject = new SimpleExecutionState(stateName, labelsMetadata);
+    SimpleExecutionState testObject = new SimpleExecutionState(stateName, null, labelsMetadata);
 
     assertEquals(testObject.getStateName(), stateName);
     assertEquals(2, testObject.getLabels().size());
@@ -45,12 +47,37 @@ public class SimpleExecutionStateTest {
   }
 
   @Test
-  public void testtakeSampleIncrementsTotal() {
-    SimpleExecutionState testObject = new SimpleExecutionState("myState", null);
+  public void testTakeSampleIncrementsTotal() {
+    SimpleExecutionState testObject = new SimpleExecutionState("myState", null, null);
     assertEquals(0, testObject.getTotalMillis());
     testObject.takeSample(10);
     assertEquals(10, testObject.getTotalMillis());
     testObject.takeSample(5);
     assertEquals(15, testObject.getTotalMillis());
+  }
+
+  @Test
+  public void testGetLullReturnsARelevantMessageWithStepName() {
+    HashMap<String, String> labelsMetadata = new HashMap<String, String>();
+    labelsMetadata.put(MonitoringInfoConstants.Labels.PTRANSFORM, "myPTransform");
+    SimpleExecutionState testObject = new SimpleExecutionState("myState", null, labelsMetadata);
+    String message = testObject.getLullMessage(new Thread(), Duration.millis(100_000));
+    assertThat(message, containsString("myState"));
+    assertThat(message, containsString("myPTransform"));
+  }
+
+  @Test
+  public void testGetLullReturnsARelevantMessageWithoutStepNameWithNullLabels() {
+    SimpleExecutionState testObject = new SimpleExecutionState("myState", null, null);
+    String message = testObject.getLullMessage(new Thread(), Duration.millis(100_000));
+    assertThat(message, containsString("myState"));
+  }
+
+  @Test
+  public void testGetLullReturnsARelevantMessageWithoutStepName() {
+    HashMap<String, String> labelsMetadata = new HashMap<String, String>();
+    SimpleExecutionState testObject = new SimpleExecutionState("myState", null, labelsMetadata);
+    String message = testObject.getLullMessage(new Thread(), Duration.millis(100_000));
+    assertThat(message, containsString("myState"));
   }
 }

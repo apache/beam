@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import json
+import sys
 import unittest
 from builtins import object
 from builtins import range
@@ -29,14 +30,15 @@ import mock
 
 import apache_beam as beam
 import apache_beam.transforms as ptransform
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import Pipeline
+from apache_beam.portability import common_urns
 from apache_beam.pvalue import PCollection
 from apache_beam.runners import DataflowRunner
 from apache_beam.runners import TestDataflowRunner
 from apache_beam.runners import create_runner
-from apache_beam.runners.dataflow import dataflow_runner
 from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRuntimeException
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
@@ -59,14 +61,15 @@ except ImportError:
 
 @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
 class DataflowRunnerTest(unittest.TestCase):
-  default_properties = [
-      '--dataflow_endpoint=ignored',
-      '--job_name=test-job',
-      '--project=test-project',
-      '--staging_location=ignored',
-      '--temp_location=/dev/null',
-      '--no_auth=True',
-      '--dry_run=True']
+  def setUp(self):
+    self.default_properties = [
+        '--dataflow_endpoint=ignored',
+        '--job_name=test-job',
+        '--project=test-project',
+        '--staging_location=ignored',
+        '--temp_location=/dev/null',
+        '--no_auth=True',
+        '--dry_run=True']
 
   @mock.patch('time.sleep', return_value=None)
   def test_wait_until_finish(self, patched_time_sleep):
@@ -385,8 +388,86 @@ class DataflowRunnerTest(unittest.TestCase):
     self.assertEqual(2, len(applied_transform.side_inputs))
     for side_input in applied_transform.side_inputs:
       self.assertEqual(
-          dataflow_runner._DataflowSideInput.DATAFLOW_MULTIMAP_URN,
+          common_urns.side_inputs.MULTIMAP.urn,
           side_input._side_input_data().access_pattern)
+
+  def test_min_cpu_platform_flag_is_propagated_to_experiments(self):
+    remote_runner = DataflowRunner()
+    self.default_properties.append('--min_cpu_platform=Intel Haswell')
+
+    p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
+    p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
+    p.run()
+    self.assertIn('min_cpu_platform=Intel Haswell',
+                  remote_runner.job.options.view_as(DebugOptions).experiments)
+
+  def test_streaming_engine_flag_adds_windmill_experiments(self):
+    remote_runner = DataflowRunner()
+    self.default_properties.append('--streaming')
+    self.default_properties.append('--enable_streaming_engine')
+    self.default_properties.append('--experiment=some_other_experiment')
+
+    p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
+    p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
+    p.run()
+
+    experiments_for_job = (
+        remote_runner.job.options.view_as(DebugOptions).experiments)
+    self.assertIn('enable_streaming_engine', experiments_for_job)
+    self.assertIn('enable_windmill_service', experiments_for_job)
+    self.assertIn('some_other_experiment', experiments_for_job)
+
+  def test_dataflow_worker_jar_flag_non_fnapi_noop(self):
+    remote_runner = DataflowRunner()
+    self.default_properties.append('--experiment=some_other_experiment')
+    self.default_properties.append('--dataflow_worker_jar=test.jar')
+
+    p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
+    p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
+    p.run()
+
+    experiments_for_job = (
+        remote_runner.job.options.view_as(DebugOptions).experiments)
+    self.assertIn('some_other_experiment', experiments_for_job)
+    self.assertNotIn('use_staged_dataflow_worker_jar', experiments_for_job)
+
+  def test_dataflow_worker_jar_flag_adds_use_staged_worker_jar_experiment(self):
+    remote_runner = DataflowRunner()
+    self.default_properties.append('--experiment=beam_fn_api')
+    self.default_properties.append('--dataflow_worker_jar=test.jar')
+
+    p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
+    p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
+    p.run()
+
+    experiments_for_job = (
+        remote_runner.job.options.view_as(DebugOptions).experiments)
+    self.assertIn('beam_fn_api', experiments_for_job)
+    self.assertIn('use_staged_dataflow_worker_jar', experiments_for_job)
+
+  def test_use_fastavro_experiment_is_added_on_py3_and_onwards(self):
+    remote_runner = DataflowRunner()
+
+    p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
+    p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
+    p.run()
+
+    self.assertEqual(
+        sys.version_info[0] > 2,
+        remote_runner.job.options.view_as(DebugOptions).lookup_experiment(
+            'use_fastavro', False))
+
+  def test_use_fastavro_experiment_is_not_added_when_use_avro_is_present(self):
+    remote_runner = DataflowRunner()
+    self.default_properties.append('--experiment=use_avro')
+
+    p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
+    p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
+    p.run()
+
+    debug_options = remote_runner.job.options.view_as(DebugOptions)
+
+    self.assertFalse(debug_options.lookup_experiment('use_fastavro', False))
 
 
 if __name__ == '__main__':

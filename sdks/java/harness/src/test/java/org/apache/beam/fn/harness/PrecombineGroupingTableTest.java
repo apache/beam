@@ -20,7 +20,8 @@ package org.apache.beam.fn.harness;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.isIn;
+import static org.hamcrest.Matchers.in;
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -199,7 +200,7 @@ public class PrecombineGroupingTableTest {
     int initialCalls = underlying.calls;
     for (int k = 500; k < 1500; k++) {
       long size = sizes.get(k % sizes.size());
-      assertThat(estimator.estimateSize(size), anyOf(isIn(sizes), between(250L, 350L)));
+      assertThat(estimator.estimateSize(size), anyOf(is(in(sizes)), between(250L, 350L)));
     }
     assertThat(underlying.calls - initialCalls, between(180, 220));
     // Sample some more to let things settle down.
@@ -210,7 +211,7 @@ public class PrecombineGroupingTableTest {
     initialCalls = underlying.calls;
     for (int k = 3000; k < 4000; k++) {
       long size = sizes.get(k % sizes.size());
-      assertThat(estimator.estimateSize(size), anyOf(isIn(sizes), between(250L, 350L)));
+      assertThat(estimator.estimateSize(size), anyOf(is(in(sizes)), between(250L, 350L)));
     }
     assertThat(underlying.calls - initialCalls, between(90, 110));
   }

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
@@ -76,5 +77,22 @@ public class GaugeCell implements Gauge, MetricCell<GaugeData> {
   @Override
   public MetricName getName() {
     return name;
+  }
+
+  @Override
+  public boolean equals(Object object) {
+    if (object instanceof GaugeCell) {
+      GaugeCell gaugeCell = (GaugeCell) object;
+      return Objects.equals(dirty, gaugeCell.dirty)
+          && Objects.equals(gaugeValue.get(), gaugeCell.gaugeValue.get())
+          && Objects.equals(name, gaugeCell.name);
+    }
+
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(dirty, gaugeValue.get(), name);
   }
 }

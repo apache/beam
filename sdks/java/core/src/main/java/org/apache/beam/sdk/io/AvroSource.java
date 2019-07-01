@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.io.FileBasedSource.Mode.SINGLE_FILE_OR_SUBRANGE;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
@@ -215,6 +216,15 @@ public class AvroSource<T> extends BlockBasedSource<T> {
         readGenericRecordsWithSchema(null /* will need to be specified in withSchema */));
   }
 
+  public static AvroSource<GenericRecord> from(Metadata metadata) {
+    return new AvroSource<>(
+        metadata,
+        DEFAULT_MIN_BUNDLE_SIZE,
+        0,
+        metadata.sizeBytes(),
+        readGenericRecordsWithSchema(null /* will need to be specified in withSchema */));
+  }
+
   /** Like {@link #from(ValueProvider)}. */
   public static AvroSource<GenericRecord> from(String fileNameOrPattern) {
     return from(ValueProvider.StaticValueProvider.of(fileNameOrPattern));
@@ -244,6 +254,14 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   /** Reads files containing records of the given class. */
   public <X> AvroSource<X> withSchema(Class<X> clazz) {
     checkArgument(clazz != null, "clazz can not be null");
+    if (getMode() == SINGLE_FILE_OR_SUBRANGE) {
+      return new AvroSource<>(
+          getSingleFileMetadata(),
+          getMinBundleSize(),
+          getStartOffset(),
+          getEndOffset(),
+          readGeneratedClasses(clazz));
+    }
     return new AvroSource<>(
         getFileOrPatternSpecProvider(),
         getEmptyMatchTreatment(),
@@ -259,6 +277,14 @@ public class AvroSource<T> extends BlockBasedSource<T> {
       SerializableFunction<GenericRecord, X> parseFn, Coder<X> coder) {
     checkArgument(parseFn != null, "parseFn can not be null");
     checkArgument(coder != null, "coder can not be null");
+    if (getMode() == SINGLE_FILE_OR_SUBRANGE) {
+      return new AvroSource<>(
+          getSingleFileMetadata(),
+          getMinBundleSize(),
+          getStartOffset(),
+          getEndOffset(),
+          parseGenericRecords(parseFn, coder));
+    }
     return new AvroSource<>(
         getFileOrPatternSpecProvider(),
         getEmptyMatchTreatment(),
@@ -271,6 +297,10 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    * minBundleSize} and its use.
    */
   public AvroSource<T> withMinBundleSize(long minBundleSize) {
+    if (getMode() == SINGLE_FILE_OR_SUBRANGE) {
+      return new AvroSource<>(
+          getSingleFileMetadata(), minBundleSize, getStartOffset(), getEndOffset(), mode);
+    }
     return new AvroSource<>(
         getFileOrPatternSpecProvider(), getEmptyMatchTreatment(), minBundleSize, mode);
   }

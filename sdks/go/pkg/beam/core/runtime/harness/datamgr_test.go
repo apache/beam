@@ -22,7 +22,6 @@ import (
 	"log"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 )
 
@@ -38,10 +37,7 @@ func (f *fakeClient) Recv() (*pb.Elements, error) {
 	elemData := pb.Elements_Data{
 		InstructionReference: "inst_ref",
 		Data:                 data,
-		Target: &pb.Target{
-			PrimitiveTransformReference: "ptr",
-			Name: "instruction_name",
-		},
+		PtransformId:         "ptr",
 	}
 
 	msg := pb.Elements{}
@@ -82,7 +78,7 @@ func TestDataChannelTerminateOnClose(t *testing.T) {
 	client := &fakeClient{t: t, done: done}
 	c := makeDataChannel(context.Background(), "id", client)
 
-	r := c.OpenRead(context.Background(), exec.Target{ID: "ptr", Name: "instruction_name"}, "inst_ref")
+	r := c.OpenRead(context.Background(), "ptr", "inst_ref")
 	var read = make([]byte, 4)
 
 	// We don't read up all the buffered data, but immediately close the reader.

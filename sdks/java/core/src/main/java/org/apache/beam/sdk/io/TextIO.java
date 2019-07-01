@@ -71,7 +71,7 @@ import org.joda.time.Duration;
  * <p>To read a {@link PCollection} from one or more text files, use {@code TextIO.read()} to
  * instantiate a transform and use {@link TextIO.Read#from(String)} to specify the path of the
  * file(s) to be read. Alternatively, if the filenames to be read are themselves in a {@link
- * PCollection}, apply {@link TextIO#readAll()} or {@link TextIO#readFiles}.
+ * PCollection} you can use {@link FileIO} to match them and {@link TextIO#readFiles} to read them.
  *
  * <p>{@link #read} returns a {@link PCollection} of {@link String Strings}, each corresponding to
  * one line of an input UTF-8 text file (split into lines delimited by '\n', '\r', or '\r\n', or
@@ -79,13 +79,15 @@ import org.joda.time.Duration;
  *
  * <h3>Filepattern expansion and watching</h3>
  *
- * <p>By default, the filepatterns are expanded only once. {@link Read#watchForNewFiles} and {@link
- * ReadAll#watchForNewFiles} allow streaming of new files matching the filepattern(s).
+ * <p>By default, the filepatterns are expanded only once. {@link Read#watchForNewFiles} or the
+ * combination of {@link FileIO.Match#continuously(Duration, TerminationCondition)} and {@link
+ * #readFiles()} allow streaming of new files matching the filepattern(s).
  *
- * <p>By default, {@link #read} prohibits filepatterns that match no files, and {@link #readAll}
+ * <p>By default, {@link #read} prohibits filepatterns that match no files, and {@link #readFiles()}
  * allows them in case the filepattern contains a glob wildcard character. Use {@link
- * TextIO.Read#withEmptyMatchTreatment} and {@link TextIO.ReadAll#withEmptyMatchTreatment} to
- * configure this behavior.
+ * Read#withEmptyMatchTreatment} or {@link
+ * FileIO.Match#withEmptyMatchTreatment(EmptyMatchTreatment)} plus {@link #readFiles()} to configure
+ * this behavior.
  *
  * <p>Example 1: reading a file or filepattern.
  *
@@ -106,7 +108,11 @@ import org.joda.time.Duration;
  * PCollection<String> filenames = ...;
  *
  * // Read all files in the collection.
- * PCollection<String> lines = filenames.apply(TextIO.readAll());
+ * PCollection<String> lines =
+ *     filenames
+ *         .apply(FileIO.matchAll())
+ *         .apply(FileIO.readMatches())
+ *         .apply(TextIO.readFiles());
  * }</pre>
  *
  * <p>Example 3: streaming new files matching a filepattern.
@@ -174,6 +180,8 @@ import org.joda.time.Duration;
  * DynamicDestinations} interface for advanced features via {@link Write#to(DynamicDestinations)}.
  */
 public class TextIO {
+  private static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024L;
+
   /**
    * A {@link PTransform} that reads from one or more text files and returns a bounded {@link
    * PCollection} containing one element for each line of the input files.
@@ -195,7 +203,13 @@ public class TextIO {
    * filepattern is expanded once at the moment it is processed, rather than watched for new files
    * matching the filepattern to appear. Likewise, every file is read once, rather than watched for
    * new entries.
+   *
+   * @deprecated You can achieve The functionality of {@link #readAll()} using {@link FileIO}
+   *     matching plus {@link #readFiles()}. This is the preferred method to make composition
+   *     explicit. {@link ReadAll} will not receive upgrades and will be removed in a future version
+   *     of Beam.
    */
+  @Deprecated
   public static ReadAll readAll() {
     return new AutoValue_TextIO_ReadAll.Builder()
         .setCompression(Compression.AUTO)
@@ -212,7 +226,7 @@ public class TextIO {
         // 64MB is a reasonable value that allows to amortize the cost of opening files,
         // but is not so large as to exhaust a typical runner's maximum amount of output per
         // ProcessElement call.
-        .setDesiredBundleSizeBytes(64 * 1024 * 1024L)
+        .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
         .build();
   }
 
@@ -252,6 +266,7 @@ public class TextIO {
         .setWritableByteChannelFactory(FileBasedSink.CompressionType.UNCOMPRESSED)
         .setWindowedWrites(false)
         .setNumShards(0)
+        .setNoSpilling(false)
         .build();
   }
 
@@ -385,15 +400,17 @@ public class TextIO {
       if (getMatchConfiguration().getWatchInterval() == null && !getHintMatchesManyFiles()) {
         return input.apply("Read", org.apache.beam.sdk.io.Read.from(getSource()));
       }
-      // All other cases go through ReadAll.
+
+      // All other cases go through FileIO + ReadFiles
       return input
           .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
+          .apply("Match All", FileIO.matchAll().withConfiguration(getMatchConfiguration()))
           .apply(
-              "Via ReadAll",
-              readAll()
+              "Read Matches",
+              FileIO.readMatches()
                   .withCompression(getCompression())
-                  .withMatchConfiguration(getMatchConfiguration())
-                  .withDelimiter(getDelimiter()));
+                  .withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
+          .apply("Via ReadFiles", readFiles().withDelimiter(getDelimiter()));
     }
 
     // Helper to create a source specific to the requested compression type.
@@ -423,7 +440,12 @@ public class TextIO {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  /** Implementation of {@link #readAll}. */
+  /**
+   * Implementation of {@link #readAll}.
+   *
+   * @deprecated See {@link #readAll()} for details.
+   */
+  @Deprecated
   @AutoValue
   public abstract static class ReadAll
       extends PTransform<PCollection<String>, PCollection<String>> {
@@ -499,7 +521,6 @@ public class TextIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-
       builder
           .add(
               DisplayData.item("compressionType", getCompression().toString())
@@ -550,6 +571,14 @@ public class TextIO {
               getDesiredBundleSizeBytes(),
               new CreateTextSourceFn(getDelimiter()),
               StringUtf8Coder.of()));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.addIfNotNull(
+          DisplayData.item("delimiter", Arrays.toString(getDelimiter()))
+              .withLabel("Custom delimiter to split records"));
     }
 
     private static class CreateTextSourceFn
@@ -629,6 +658,9 @@ public class TextIO {
     /** Whether to write windowed output files. */
     abstract boolean getWindowedWrites();
 
+    /** Whether to skip the spilling of data caused by having maxNumWritersPerBundle. */
+    abstract boolean getNoSpilling();
+
     /**
      * The {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink}. Default is
      * {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
@@ -672,6 +704,8 @@ public class TextIO {
       abstract Builder<UserT, DestinationT> setNumShards(int numShards);
 
       abstract Builder<UserT, DestinationT> setWindowedWrites(boolean windowedWrites);
+
+      abstract Builder<UserT, DestinationT> setNoSpilling(boolean noSpilling);
 
       abstract Builder<UserT, DestinationT> setWritableByteChannelFactory(
           WritableByteChannelFactory writableByteChannelFactory);
@@ -899,6 +933,11 @@ public class TextIO {
       return toBuilder().setWindowedWrites(true).build();
     }
 
+    /** See {@link WriteFiles#withNoSpilling()}. */
+    public TypedWrite<UserT, DestinationT> withNoSpilling() {
+      return toBuilder().setNoSpilling(true).build();
+    }
+
     private DynamicDestinations<UserT, DestinationT, String> resolveDynamicDestinations() {
       DynamicDestinations<UserT, DestinationT, String> dynamicDestinations =
           getDynamicDestinations();
@@ -980,6 +1019,9 @@ public class TextIO {
       }
       if (getWindowedWrites()) {
         write = write.withWindowedWrites();
+      }
+      if (getNoSpilling()) {
+        write = write.withNoSpilling();
       }
       return input.apply("WriteFiles", write);
     }
@@ -1145,6 +1187,11 @@ public class TextIO {
       return new Write(inner.withWindowedWrites());
     }
 
+    /** See {@link TypedWrite#withNoSpilling}. */
+    public Write withNoSpilling() {
+      return new Write(inner.withNoSpilling());
+    }
+
     /**
      * Specify that output filenames are wanted.
      *
@@ -1191,7 +1238,10 @@ public class TextIO {
     /** @see Compression#ZIP */
     ZIP(Compression.ZIP),
 
-    /** @see Compression#ZIP */
+    /** @see Compression#ZSTD */
+    ZSTD(Compression.ZSTD),
+
+    /** @see Compression#DEFLATE */
     DEFLATE(Compression.DEFLATE);
 
     private final Compression canonical;

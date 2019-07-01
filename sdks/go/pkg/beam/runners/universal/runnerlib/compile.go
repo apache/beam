@@ -29,6 +29,7 @@ import (
 
 	"sync/atomic"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
@@ -68,7 +69,7 @@ func BuildWorkerBinary(ctx context.Context, filename string) error {
 		program = file
 	}
 	if !strings.HasSuffix(program, ".go") {
-		return fmt.Errorf("could not detect user main")
+		return errors.New("could not detect user main")
 	}
 
 	log.Infof(ctx, "Cross-compiling %v as %v", program, filename)
@@ -79,7 +80,7 @@ func BuildWorkerBinary(ctx context.Context, filename string) error {
 	cmd := exec.Command(build[0], build[1:]...)
 	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64")
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to cross-compile %v: %v\n%v", program, err, string(out))
+		return errors.Errorf("failed to cross-compile %v: %v\n%v", program, err, string(out))
 	}
 	return nil
 }

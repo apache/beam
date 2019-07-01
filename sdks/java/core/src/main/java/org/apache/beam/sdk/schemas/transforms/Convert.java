@@ -17,15 +17,17 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.schemas.NoSuchSchemaException;
-import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.schemas.utils.ConvertHelpers;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -70,7 +72,9 @@ public class Convert {
    *
    * <p>This function allows converting between two types as long as the two types have
    * <i>compatible</i> schemas. Two schemas are said to be <i>compatible</i> if they recursively
-   * have fields with the same names, but possibly different orders.
+   * have fields with the same names, but possibly different orders. If the source schema can be
+   * unboxed to match the target schema (i.e. the source schema contains a single field that is
+   * compatible with the target schema), then conversion also succeeds.
    */
   public static <InputT, OutputT> PTransform<PCollection<InputT>, PCollection<OutputT>> to(
       Class<OutputT> clazz) {
@@ -82,7 +86,9 @@ public class Convert {
    *
    * <p>This function allows converting between two types as long as the two types have
    * <i>compatible</i> schemas. Two schemas are said to be <i>compatible</i> if they recursively
-   * have fields with the same names, but possibly different orders.
+   * have fields with the same names, but possibly different orders. If the source schema can be
+   * unboxed to match the target schema (i.e. the source schema contains a single field that is
+   * compatible with the target schema), then conversion also succeeds.
    */
   public static <InputT, OutputT> PTransform<PCollection<InputT>, PCollection<OutputT>> to(
       TypeDescriptor<OutputT> typeDescriptor) {
@@ -97,6 +103,18 @@ public class Convert {
       this.outputTypeDescriptor = outputTypeDescriptor;
     }
 
+    @Nullable
+    private static Schema getBoxedNestedSchema(Schema schema) {
+      if (schema.getFieldCount() != 1) {
+        return null;
+      }
+      FieldType fieldType = schema.getField(0).getType();
+      if (!fieldType.getTypeName().isCompositeType()) {
+        return null;
+      }
+      return fieldType.getRowSchema();
+    }
+
     @Override
     @SuppressWarnings("unchecked")
     public PCollection<OutputT> expand(PCollection<InputT> input) {
@@ -104,54 +122,48 @@ public class Convert {
         throw new RuntimeException("Convert requires a schema on the input.");
       }
 
-      final SchemaCoder<OutputT> outputSchemaCoder;
-      boolean toRow = outputTypeDescriptor.equals(TypeDescriptor.of(Row.class));
-      if (toRow) {
-        // If the output is of type Row, then just forward the schema of the input type to the
-        // output.
-        outputSchemaCoder =
-            (SchemaCoder<OutputT>)
-                SchemaCoder.of(
-                    input.getSchema(),
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity());
+      SchemaRegistry registry = input.getPipeline().getSchemaRegistry();
+      ConvertHelpers.ConvertedSchemaInformation<OutputT> converted =
+          ConvertHelpers.getConvertedSchemaInformation(
+              input.getSchema(), outputTypeDescriptor, registry);
+      boolean unbox = converted.unboxedType != null;
+      PCollection<OutputT> output;
+      if (converted.outputSchemaCoder != null) {
+        output =
+            input.apply(
+                ParDo.of(
+                    new DoFn<InputT, OutputT>() {
+                      @ProcessElement
+                      public void processElement(@Element Row row, OutputReceiver<OutputT> o) {
+                        // Read the row, potentially unboxing if necessary.
+                        Object input = unbox ? row.getValue(0) : row;
+                        // The output has a schema, so we need to convert to the appropriate type.
+                        o.output(
+                            converted.outputSchemaCoder.getFromRowFunction().apply((Row) input));
+                      }
+                    }));
+        output =
+            output.setSchema(
+                converted.outputSchemaCoder.getSchema(),
+                converted.outputSchemaCoder.getToRowFunction(),
+                converted.outputSchemaCoder.getFromRowFunction());
       } else {
-        // Otherwise, try to find a schema for the output type in the schema registry.
-        SchemaRegistry registry = input.getPipeline().getSchemaRegistry();
-        try {
-          outputSchemaCoder =
-              SchemaCoder.of(
-                  registry.getSchema(outputTypeDescriptor),
-                  registry.getToRowFunction(outputTypeDescriptor),
-                  registry.getFromRowFunction(outputTypeDescriptor));
-          // assert matches input schema.
-          // TODO: Properly handle nullable.
-          if (!outputSchemaCoder.getSchema().assignableToIgnoreNullable(input.getSchema())) {
-            throw new RuntimeException(
-                "Cannot convert between types that don't have equivalent schemas."
-                    + " input schema: "
-                    + input.getSchema()
-                    + " output schema: "
-                    + outputSchemaCoder.getSchema());
-          }
-        } catch (NoSuchSchemaException e) {
-          throw new RuntimeException("No schema registered for " + outputTypeDescriptor);
-        }
-      }
+        SerializableFunction<?, OutputT> convertPrimitive =
+            ConvertHelpers.getConvertPrimitive(converted.unboxedType, outputTypeDescriptor);
+        output =
+            input.apply(
+                ParDo.of(
+                    new DoFn<InputT, OutputT>() {
+                      @ProcessElement
+                      public void processElement(@Element Row row, OutputReceiver<OutputT> o) {
+                        o.output(convertPrimitive.apply(row.getValue(0)));
+                      }
+                    }));
 
-      return input
-          .apply(
-              ParDo.of(
-                  new DoFn<InputT, OutputT>() {
-                    @ProcessElement
-                    public void processElement(@Element Row row, OutputReceiver<OutputT> o) {
-                      o.output(outputSchemaCoder.getFromRowFunction().apply(row));
-                    }
-                  }))
-          .setSchema(
-              outputSchemaCoder.getSchema(),
-              outputSchemaCoder.getToRowFunction(),
-              outputSchemaCoder.getFromRowFunction());
+        output.setTypeDescriptor(outputTypeDescriptor);
+        // TODO: Support boxing in Convert (e.g. Long -> Row with Schema { Long }).
+      }
+      return output;
     }
   }
 }

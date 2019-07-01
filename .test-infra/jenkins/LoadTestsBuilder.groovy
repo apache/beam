@@ -18,26 +18,68 @@
 
 import CommonJobProperties as commonJobProperties
 import CommonTestProperties.Runner
+import CommonTestProperties.SDK
+import CommonTestProperties.TriggeringContext
 
 class LoadTestsBuilder {
+  static void loadTests(scope, CommonTestProperties.SDK sdk, List testConfigurations, TriggeringContext triggeringContext, String test, String mode){
+    scope.description("Runs ${sdk.toString().toLowerCase().capitalize()} ${test} load tests in ${mode} mode")
 
-    static void loadTest(context, String title, Runner runner, Map<String, Object> options, String mainClass) {
-        options.put('runner', runner.option)
+    commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
-        context.steps {
-            shell("echo *** ${title} ***")
-            gradle {
-                rootBuildScriptDir(commonJobProperties.checkoutDir)
-                tasks(':beam-sdks-java-load-tests:run')
-                commonJobProperties.setGradleSwitches(delegate)
-                switches("-PloadTest.mainClass=\"${mainClass}\"")
-                switches("-Prunner=${runner.dependency}")
-                switches("-PloadTest.args=\"${parseOptions(options)}\"")
-            }
-        }
+    for (testConfiguration in testConfigurations) {
+        loadTest(scope, testConfiguration.title, testConfiguration.runner, sdk, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
+    }
+  }
+
+
+  static void loadTest(context, String title, Runner runner, SDK sdk, Map<String, ?> options, String mainClass, TriggeringContext triggeringContext) {
+    options.put('runner', runner.option)
+
+    String datasetKey = 'bigQueryDataset'
+    String datasetValue = options.get(datasetKey)
+
+    if (datasetValue) {
+      options.put(datasetKey, setContextualDatasetName(datasetValue, triggeringContext))
     }
 
-    private static String parseOptions(Map<String, Object> options) {
-        options.collect { "--${it.key}=${it.value.toString()}".replace('\"', '\\"') }.join(' ')
+    context.steps {
+      shell("echo *** ${title} ***")
+      gradle {
+        rootBuildScriptDir(commonJobProperties.checkoutDir)
+        tasks(getGradleTaskName(sdk))
+        commonJobProperties.setGradleSwitches(delegate)
+        switches("-PloadTest.mainClass=\"${mainClass}\"")
+        switches("-Prunner=${runner.getDepenedencyBySDK(sdk)}")
+        switches("-PloadTest.args=\"${parseOptions(options)}\"")
+      }
     }
+  }
+
+  private static String getGradleTaskName(SDK sdk) {
+    if (sdk == SDK.JAVA) {
+      return ':sdks:java:testing:load-tests:run'
+    } else if (sdk == SDK.PYTHON) {
+      return ':sdks:python:apache_beam:testing:load_tests:run'
+    } else {
+      throw new RuntimeException("No task name defined for SDK: $SDK")
+    }
+  }
+
+  private static String parseOptions(Map<String, ?> options) {
+    options.collect {
+      "--${it.key}=$it.value".replace('\"', '\\\"').replace('\'', '\\\'')
+    }.join(' ')
+  }
+
+  private static String setContextualDatasetName(String baseName, TriggeringContext triggeringContext) {
+    if (triggeringContext == TriggeringContext.PR) {
+      return baseName + '_PRs'
+    } else {
+      return baseName
+    }
+  }
 }
+
+
+

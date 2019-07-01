@@ -619,10 +619,10 @@ class Pipeline(object):
           default_environment=default_environment)
     elif default_environment is not None:
       raise ValueError(
-          'Only one of context or default_environment may be specificed.')
+          'Only one of context or default_environment may be specified.')
 
-    # The RunnerAPI spec requires certain transforms to have KV inputs
-    # (and corresponding outputs).
+    # The RunnerAPI spec requires certain transforms and side-inputs to have KV
+    # inputs (and corresponding outputs).
     # Currently we only upgrade to KV pairs.  If there is a need for more
     # general shapes, potential conflicts will have to be resolved.
     # We also only handle single-input, and (for fixing the output) single
@@ -632,8 +632,9 @@ class Pipeline(object):
         self.visit_transform(transform_node)
 
       def visit_transform(self, transform_node):
-        if (transform_node.transform
-            and transform_node.transform.runner_api_requires_keyed_input()):
+        if not transform_node.transform:
+          return
+        if transform_node.transform.runner_api_requires_keyed_input():
           pcoll = transform_node.inputs[0]
           pcoll.element_type = typehints.coerce_to_kv_type(
               pcoll.element_type, transform_node.full_label)
@@ -642,6 +643,11 @@ class Pipeline(object):
             output, = transform_node.outputs.values()
             output.element_type = transform_node.transform.infer_output_type(
                 pcoll.element_type)
+        for side_input in transform_node.transform.side_inputs:
+          if side_input.requires_keyed_input():
+            side_input.pvalue.element_type = typehints.coerce_to_kv_type(
+                side_input.pvalue.element_type, transform_node.full_label,
+                side_input_producer=side_input.pvalue.producer.full_label)
 
     self.visit(ForceKvInputTypes())
 
@@ -659,11 +665,13 @@ class Pipeline(object):
       return proto
 
   @staticmethod
-  def from_runner_api(proto, runner, options, return_context=False):
+  def from_runner_api(proto, runner, options, return_context=False,
+                      allow_proto_holders=False):
     """For internal use only; no backwards-compatibility guarantees."""
     p = Pipeline(runner=runner, options=options)
     from apache_beam.runners import pipeline_context
-    context = pipeline_context.PipelineContext(proto.components)
+    context = pipeline_context.PipelineContext(
+        proto.components, allow_proto_holders=allow_proto_holders)
     root_transform_id, = proto.root_transform_ids
     p.transforms_stack = [
         context.transforms.get_by_id(root_transform_id)]
@@ -860,15 +868,17 @@ class AppliedPTransform(object):
         return None
       else:
         return transform.to_runner_api(context, has_parts=bool(self.parts))
+    # Iterate over inputs and outputs by sorted key order, so that ids are
+    # consistently generated for multiple runs of the same pipeline.
     return beam_runner_api_pb2.PTransform(
         unique_name=self.full_label,
         spec=transform_to_runner_api(self.transform, context),
         subtransforms=[context.transforms.get_id(part, label=part.full_label)
                        for part in self.parts],
         inputs={tag: context.pcollections.get_id(pc)
-                for tag, pc in self.named_inputs().items()},
+                for tag, pc in sorted(self.named_inputs().items())},
         outputs={str(tag): context.pcollections.get_id(out)
-                 for tag, out in self.named_outputs().items()},
+                 for tag, out in sorted(self.named_outputs().items())},
         # TODO(BEAM-115): display_data
         display_data=None)
 

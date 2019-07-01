@@ -36,7 +36,7 @@ func (d *Discard) StartBundle(ctx context.Context, id string, data DataContext) 
 	return nil
 }
 
-func (d *Discard) ProcessElement(ctx context.Context, value FullValue, values ...ReStream) error {
+func (d *Discard) ProcessElement(ctx context.Context, value *FullValue, values ...ReStream) error {
 	return nil
 }
 

@@ -90,49 +90,41 @@ class DataChannelTest(unittest.TestCase):
     self._data_channel_test_one_direction(client, server)
 
   def _data_channel_test_one_direction(self, from_channel, to_channel):
-    def send(instruction_id, target, data):
-      stream = from_channel.output_stream(instruction_id, target)
+    def send(instruction_id, transform_id, data):
+      stream = from_channel.output_stream(instruction_id, transform_id)
       stream.write(data)
       stream.close()
-    target_1 = beam_fn_api_pb2.Target(
-        primitive_transform_reference='1',
-        name='out')
-    target_2 = beam_fn_api_pb2.Target(
-        primitive_transform_reference='2',
-        name='out')
+    transform_1 = '1'
+    transform_2 = '2'
 
     # Single write.
-    send('0', target_1, b'abc')
+    send('0', transform_1, b'abc')
     self.assertEqual(
-        list(to_channel.input_elements('0', [target_1])),
+        list(to_channel.input_elements('0', [transform_1])),
         [beam_fn_api_pb2.Elements.Data(
             instruction_reference='0',
-            target=target_1,
+            ptransform_id=transform_1,
             data=b'abc')])
 
     # Multiple interleaved writes to multiple instructions.
-    target_2 = beam_fn_api_pb2.Target(
-        primitive_transform_reference='2',
-        name='out')
-
-    send('1', target_1, b'abc')
-    send('2', target_1, b'def')
+    send('1', transform_1, b'abc')
+    send('2', transform_1, b'def')
     self.assertEqual(
-        list(to_channel.input_elements('1', [target_1])),
+        list(to_channel.input_elements('1', [transform_1])),
         [beam_fn_api_pb2.Elements.Data(
             instruction_reference='1',
-            target=target_1,
+            ptransform_id=transform_1,
             data=b'abc')])
-    send('2', target_2, b'ghi')
+    send('2', transform_2, b'ghi')
     self.assertEqual(
-        list(to_channel.input_elements('2', [target_1, target_2])),
+        list(to_channel.input_elements('2', [transform_1, transform_2])),
         [beam_fn_api_pb2.Elements.Data(
             instruction_reference='2',
-            target=target_1,
+            ptransform_id=transform_1,
             data=b'def'),
          beam_fn_api_pb2.Elements.Data(
              instruction_reference='2',
-             target=target_2,
+             ptransform_id=transform_2,
              data=b'ghi')])
 
 

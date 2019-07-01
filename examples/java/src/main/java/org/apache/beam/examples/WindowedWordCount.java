@@ -117,7 +117,7 @@ public class WindowedWordCount {
       /*
        * Concept #2: Set the data element with that timestamp.
        */
-      receiver.outputWithTimestamp(element, new Instant(randomTimestamp));
+      receiver.outputWithTimestamp(element, randomTimestamp);
     }
   }
 

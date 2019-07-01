@@ -214,7 +214,10 @@ public class DataflowWorkerLoggingInitializer {
   }
 
   @VisibleForTesting
-  public static void reset() {
+  public static synchronized void reset() {
+    if (!initialized) {
+      return;
+    }
     configuredLoggers = Lists.newArrayList();
     System.setOut(originalStdOut);
     System.setErr(originalStdErr);

@@ -20,10 +20,6 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import argparse
-import logging
-import sys
-import time
 import traceback
 
 from apache_beam import pipeline as beam_pipeline
@@ -43,7 +39,7 @@ class ExpansionServiceServicer(
     self._options = options or beam_pipeline.PipelineOptions(
         environment_type=python_urns.EMBEDDED_PYTHON)
 
-  def Expand(self, request):
+  def Expand(self, request, context):
     try:
       pipeline = beam_pipeline.Pipeline(options=self._options)
 
@@ -98,21 +94,3 @@ class ExpansionServiceServicer(
     except Exception:  # pylint: disable=broad-except
       return beam_expansion_api_pb2.ExpansionResponse(
           error=traceback.format_exc())
-
-
-def main(unused_argv):
-  parser = argparse.ArgumentParser()
-  parser.add_argument('-p', '--port',
-                      type=int,
-                      help='port on which to serve the job api')
-  options = parser.parse_args()
-  expansion_servicer = ExpansionServiceServicer()
-  port = expansion_servicer.start_grpc_server(options.port)
-  while True:
-    logging.info('Listening for expansion requests at %d', port)
-    time.sleep(300)
-
-
-if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.INFO)
-  main(sys.argv)
