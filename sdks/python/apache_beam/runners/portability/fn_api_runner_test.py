@@ -781,7 +781,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
 
 # These tests are kept in a separate group so that they are
-# not ran in he FnApiRunnerTestWithBundleRepeat which repeats
+# not ran in the FnApiRunnerTestWithBundleRepeat which repeats
 # bundle processing. This breaks the byte sampling metrics as
 # it makes the probability of sampling far too small
 # upon repeating bundle processing due to unncessarily incrementing
@@ -1176,6 +1176,25 @@ class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
                 payload=b'2')))
 
 
+class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
+
+  def create_pipeline(self):
+    from apache_beam.options.pipeline_options import PipelineOptions
+    pipeline_options = PipelineOptions(['--direct_num_workers', '2'])
+    p = beam.Pipeline(
+        runner=fn_api_runner.FnApiRunner(
+            default_environment=beam_runner_api_pb2.Environment(
+                urn=python_urns.EMBEDDED_PYTHON_GRPC)),
+        options=pipeline_options)
+    return p
+
+  def test_metrics(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_sdf_with_sdf_initiated_checkpointing(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+
 class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
 
   def create_pipeline(self):
@@ -1492,6 +1511,31 @@ class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
 
   def restriction_size(self, element, restriction):
     return restriction[1] - restriction[0]
+
+
+class FnApiRunnerTestWithMultiWorkers(FnApiRunnerSplitTest):
+
+  def create_pipeline(self):
+    from apache_beam.options.pipeline_options import PipelineOptions
+    pipeline_options = PipelineOptions(['--direct_num_workers', '2'])
+    p = beam.Pipeline(
+        runner=fn_api_runner.FnApiRunner(
+            default_environment=beam_runner_api_pb2.Environment(
+                urn=python_urns.EMBEDDED_PYTHON_GRPC)),
+        options=pipeline_options)
+    return p
+
+  def test_checkpoint(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_checkpoint_sdf(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_split_half(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_split_crazy_sdf(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
 
 
 if __name__ == '__main__':
