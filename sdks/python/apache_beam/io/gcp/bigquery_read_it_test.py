@@ -23,7 +23,9 @@ import logging
 import random
 import time
 import unittest
+from decimal import Decimal
 
+from future.utils import iteritems
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
@@ -99,6 +101,14 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
   def create_table_new_types(self, table_name):
     table_schema = bigquery.TableSchema()
     table_field = bigquery.TableFieldSchema()
+    table_field.name = 'float'
+    table_field.type = 'FLOAT'
+    table_schema.fields.append(table_field)
+    table_field = bigquery.TableFieldSchema()
+    table_field.name = 'numeric'
+    table_field.type = 'NUMERIC'
+    table_schema.fields.append(table_field)
+    table_field = bigquery.TableFieldSchema()
     table_field.name = 'bytes'
     table_field.type = 'BYTES'
     table_schema.fields.append(table_field)
@@ -110,6 +120,18 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
     table_field.name = 'time'
     table_field.type = 'TIME'
     table_schema.fields.append(table_field)
+    table_field = bigquery.TableFieldSchema()
+    table_field.name = 'datetime'
+    table_field.type = 'DATETIME'
+    table_schema.fields.append(table_field)
+    table_field = bigquery.TableFieldSchema()
+    table_field.name = 'timestamp'
+    table_field.type = 'TIMESTAMP'
+    table_schema.fields.append(table_field)
+    table_field = bigquery.TableFieldSchema()
+    table_field.name = 'geo'
+    table_field.type = 'GEOGRAPHY'
+    table_schema.fields.append(table_field)
     table = bigquery.Table(
         tableReference=bigquery.TableReference(
             projectId=self.project,
@@ -119,57 +141,18 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=self.project, datasetId=self.dataset_id, table=table)
     self.bigquery_client.client.tables.Insert(request)
-    table_data = [
-        {'bytes': b'xyw', 'date': '2011-01-01', 'time': '23:59:59.999999'},
-        {'bytes': b'abc', 'date': '2000-01-01', 'time': '00:00:00'},
-        {'bytes': b'\xe4\xbd\xa0\xe5\xa5\xbd', 'date': '3000-12-31',
-         'time': '23:59:59'},
-        {'bytes': b'\xab\xac\xad', 'date': '2000-01-01', 'time': '00:00:00'}
-    ]
-    # bigquery client expects base64 encoded bytes
-    for row in table_data:
-      row['bytes'] = base64.b64encode(row['bytes']).decode('utf-8')
-    self.bigquery_client.insert_rows(
-        self.project, self.dataset_id, table_name, table_data)
+    row_data = {
+        'float': 0.33, 'numeric': Decimal('10'), 'bytes':
+        base64.b64encode(b'\xab\xac').decode('utf-8'), 'date': '3000-12-31',
+        'time': '23:59:59', 'datetime': '2018-12-31T12:44:31',
+        'timestamp': '2018-12-31 12:44:31.744957 UTC', 'geo': 'POINT(30 10)'
+    }
 
-  def create_table_none_values(self, table_name):
-    table_schema = bigquery.TableSchema()
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'number'
-    table_field.type = 'INTEGER'
-    table_schema.fields.append(table_field)
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'str'
-    table_field.type = 'STRING'
-    table_schema.fields.append(table_field)
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'bytes'
-    table_field.type = 'BYTES'
-    table_schema.fields.append(table_field)
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'date'
-    table_field.type = 'DATE'
-    table_schema.fields.append(table_field)
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'time'
-    table_field.type = 'TIME'
-    table_schema.fields.append(table_field)
-    table = bigquery.Table(
-        tableReference=bigquery.TableReference(
-            projectId=self.project,
-            datasetId=self.dataset_id,
-            tableId=table_name),
-        schema=table_schema)
-    request = bigquery.BigqueryTablesInsertRequest(
-        projectId=self.project, datasetId=self.dataset_id, table=table)
-    self.bigquery_client.client.tables.Insert(request)
-    table_data = [
-        {'number': 5},
-        {'str': 'abc'},
-        {'bytes': base64.b64encode(b'\xab\xac\xad').decode('utf-8')},
-        {'date': '2000-01-01'},
-        {'time': '00:00:00'}
-    ]
+    table_data = [row_data]
+    # add rows with only one key value pair and None values for all other keys
+    for key, value in iteritems(row_data):
+      table_data.append({key: value})
+
     self.bigquery_client.insert_rows(
         self.project, self.dataset_id, table_name, table_data)
 
@@ -190,52 +173,31 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
 
   @attr('IT')
   def test_big_query_read_new_types(self):
-    table_name = 'python_new_types_table'
+    table_name = 'python_new_types'
     self.create_table_new_types(table_name)
     table_id = '{}.{}'.format(self.dataset_id, table_name)
 
     args = self.test_pipeline.get_full_options_as_args()
 
-    expected_data = [
-        {'bytes': b'xyw', 'date': '2011-01-01', 'time': '23:59:59.999999'},
-        {'bytes': b'abc', 'date': '2000-01-01', 'time': '00:00:00'},
-        {'bytes': b'\xe4\xbd\xa0\xe5\xa5\xbd', 'date': '3000-12-31',
-         'time': '23:59:59'},
-        {'bytes': b'\xab\xac\xad', 'date': '2000-01-01', 'time': '00:00:00'}
-    ]
-    # bigquery io returns bytes as base64 encoded values
-    for row in expected_data:
-      row['bytes'] = base64.b64encode(row['bytes'])
+    expected_row = {
+        'float': 0.33, 'numeric': Decimal('10'), 'bytes':
+        base64.b64encode(b'\xab\xac'), 'date': '3000-12-31',
+        'time': '23:59:59', 'datetime': '2018-12-31T12:44:31',
+        'timestamp': '2018-12-31 12:44:31.744957 UTC', 'geo': 'POINT(30 10)'
+    }
+
+    expected_data = [expected_row]
+
+    # add rows with only one key value pair and None values for all other keys
+    for key, value in iteritems(expected_row):
+      row = {k: None for k in expected_row}
+      row[key] = value
+      expected_data.append(row)
 
     with beam.Pipeline(argv=args) as p:
       result = (p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
-          query='SELECT bytes, date, time FROM `%s`' % table_id,
-          use_standard_sql=True)))
-      assert_that(result, equal_to(expected_data))
-
-  @attr('IT')
-  def test_big_query_read_none_values(self):
-    table_name = 'python_none_values'
-    self.create_table_none_values(table_name)
-    table_id = '{}.{}'.format(self.dataset_id, table_name)
-
-    args = self.test_pipeline.get_full_options_as_args()
-
-    expected_data = [
-        {'number': 5, 'str': None, 'bytes': None, 'date': None, 'time': None},
-        {'number': None, 'str': 'abc', 'bytes': None, 'date': None,
-         'time': None},
-        {'number': None, 'str': None, 'time': None, 'bytes':
-         base64.b64encode(b'\xab\xac\xad'), 'date': None},
-        {'number': None, 'str': None, 'bytes': None, 'date': '2000-01-01',
-         'time': None},
-        {'number': None, 'str': None, 'bytes': None, 'date': None,
-         'time': '00:00:00'}
-    ]
-
-    with beam.Pipeline(argv=args) as p:
-      result = (p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
-          query='SELECT number, str, bytes, date, time FROM `%s`' % table_id,
+          query='SELECT float, numeric, bytes, date, time, datetime,'
+                'timestamp, geo FROM `%s`' % table_id,
           use_standard_sql=True)))
       assert_that(result, equal_to(expected_data))
 

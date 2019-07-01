@@ -24,8 +24,11 @@ import logging
 import random
 import time
 import unittest
+from decimal import Decimal
 
 import hamcrest as hc
+import pytz
+from future.utils import iteritems
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
@@ -164,34 +167,50 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     table_name = 'python_new_types_table'
     table_id = '{}.{}'.format(self.dataset_id, table_name)
 
-    input_data = [
-        {'bytes': b'xyw', 'date': '2011-01-01', 'time': '23:59:59.999999'},
-        {'bytes': b'abc', 'date': '2000-01-01', 'time': '00:00:00'},
-        {'bytes': b'\xe4\xbd\xa0\xe5\xa5\xbd', 'date': '3000-12-31',
-         'time': '23:59:59'},
-        {'bytes': b'\xab\xac\xad', 'date': '2000-01-01', 'time': '00:00:00'}
-    ]
-    # bigquery io expects bytes to be base64 encoded values
-    for row in input_data:
-      row['bytes'] = base64.b64encode(row['bytes'])
+    row_data = {
+        'float': 0.33, 'numeric': Decimal('10'), 'bytes':
+        base64.b64encode(b'\xab\xac').decode('utf-8'), 'date': '3000-12-31',
+        'time': '23:59:59', 'datetime': '2018-12-31T12:44:31',
+        'timestamp': '2018-12-31 12:44:31.744957 UTC', 'geo': 'POINT(30 10)'
+    }
+
+    input_data = [row_data]
+    # add rows with only one key value pair and None values for all other keys
+    for key, value in iteritems(row_data):
+      input_data.append({key: value})
 
     table_schema = {"fields": [
+        {"name": "float", "type": "FLOAT"},
+        {"name": "numeric", "type": "NUMERIC"},
         {"name": "bytes", "type": "BYTES"},
         {"name": "date", "type": "DATE"},
-        {"name": "time", "type": "TIME"}]}
+        {"name": "time", "type": "TIME"},
+        {"name": "datetime", "type": "DATETIME"},
+        {"name": "timestamp", "type": "TIMESTAMP"},
+        {"name": "geo", "type": "GEOGRAPHY"}
+    ]}
+
+    expected_row = (0.33, Decimal('10'), b'\xab\xac',
+                    datetime.date(3000, 12, 31), datetime.time(23, 59, 59),
+                    datetime.datetime(2018, 12, 31, 12, 44, 31),
+                    datetime.datetime(2018, 12, 31, 12, 44, 31, 744957,
+                                      tzinfo=pytz.utc), 'POINT(30 10)',
+                   )
+
+    expected_data = [expected_row]
+
+    # add rows with only one key value pair and None values for all other keys
+    for i, value in enumerate(expected_row):
+      row = [None]*len(expected_row)
+      row[i] = value
+      expected_data.append(tuple(row))
 
     pipeline_verifiers = [
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT bytes, date, time FROM %s" % table_id,
-            data=[(b'xyw', datetime.date(2011, 1, 1),
-                   datetime.time(23, 59, 59, 999999), ),
-                  (b'abc', datetime.date(2000, 1, 1),
-                   datetime.time(0, 0, 0), ),
-                  (b'\xe4\xbd\xa0\xe5\xa5\xbd', datetime.date(3000, 12, 31),
-                   datetime.time(23, 59, 59), ),
-                  (b'\xab\xac\xad', datetime.date(2000, 1, 1),
-                   datetime.time(0, 0, 0), )])]
+            query='SELECT float, numeric, bytes, date, time, datetime,'
+                  'timestamp, geo FROM %s' % table_id,
+            data=expected_data)]
 
     args = self.test_pipeline.get_full_options_as_args(
         on_success_matcher=hc.all_of(*pipeline_verifiers))

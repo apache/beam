@@ -144,7 +144,18 @@ class BigqueryFullResultMatcher(BaseMatcher):
     self.actual_data = response
 
     # Verify result
-    return sorted(self.expected_data) == sorted(self.actual_data)
+    try:
+      return sorted(self.expected_data) == sorted(self.actual_data)
+    # Fall back to slower method which works for different types on Python 3.
+    except TypeError:
+      for element in self.actual_data:
+        try:
+          self.expected_data.remove(element)
+        except ValueError:
+          return False
+      if self.expected_data:
+        return False
+    return True
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
