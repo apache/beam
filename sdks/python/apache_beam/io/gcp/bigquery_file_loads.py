@@ -65,22 +65,26 @@ def _generate_load_job_name():
   return 'beam_load_%s_%s' % (datetime_component, random.randint(0, 100))
 
 
-def file_prefix_generator(with_validation=True):
-  def _generate_file_prefix(pipeline_gcs_location):
+def file_prefix_generator(with_validation=True,
+                          pipeline_gcs_location=None,
+                          temp_location=None):
+  def _generate_file_prefix(unused_elm):
     # If a gcs location is provided to the pipeline, then we shall use that.
     # Otherwise, we shall use the temp_location from pipeline options.
-    gcs_base = str(pipeline_gcs_location or
-                   vp.RuntimeValueProvider.get_value('temp_location', str, ''))
+    gcs_base = pipeline_gcs_location.get()
+    if not gcs_base:
+      gcs_base = temp_location
 
     # This will fail at pipeline execution time, but will fail early, as this
     # step doesn't have any dependencies (and thus will be one of the first
     # stages to be run).
     if with_validation and (not gcs_base or not gcs_base.startswith('gs://')):
-      raise ValueError('Invalid GCS location.\n'
+      raise ValueError('Invalid GCS location: %r.\n'
                        'Writing to BigQuery with FILE_LOADS method requires a '
                        'GCS location to be provided to write files to be loaded'
                        ' loaded into BigQuery. Please provide a GCS bucket, or '
-                       'pass method="STREAMING_INSERTS" to WriteToBigQuery.')
+                       'pass method="STREAMING_INSERTS" to WriteToBigQuery.'
+                       % gcs_base)
 
     prefix_uuid = _bq_uuid()
     return fs.FileSystems.join(gcs_base, 'bq_load', prefix_uuid)
@@ -328,10 +332,12 @@ class TriggerLoadJobs(beam.DoFn):
                create_disposition=None,
                write_disposition=None,
                test_client=None,
-               temporary_tables=False):
+               temporary_tables=False,
+               additional_bq_parameters=None):
     self.schema = schema
     self.test_client = test_client
     self.temporary_tables = temporary_tables
+    self.additional_bq_parameters = additional_bq_parameters or {}
     if self.temporary_tables:
       # If we are loading into temporary tables, we rely on the default create
       # and write dispositions, which mean that a new table will be created.
@@ -344,26 +350,30 @@ class TriggerLoadJobs(beam.DoFn):
   def display_data(self):
     result = {'create_disposition': str(self.create_disposition),
               'write_disposition': str(self.write_disposition)}
-    if self.schema is not None:
-      result['schema'] = str(self.schema)
-    else:
-      result['schema'] = 'AUTODETECT'
+    result['schema'] = str(self.schema)
 
     return result
 
   def start_bundle(self):
     self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
 
-  def process(self, element, load_job_name_prefix):
+  def process(self, element, load_job_name_prefix, *schema_side_inputs):
     destination = element[0]
     files = iter(element[1])
 
     if callable(self.schema):
-      schema = self.schema(destination)
+      schema = self.schema(destination, *schema_side_inputs)
     elif isinstance(self.schema, vp.ValueProvider):
       schema = self.schema.get()
     else:
       schema = self.schema
+
+    if callable(self.additional_bq_parameters):
+      additional_parameters = self.additional_bq_parameters(destination)
+    elif isinstance(self.additional_bq_parameters, vp.ValueProvider):
+      additional_parameters = self.additional_bq_parameters.get()
+    else:
+      additional_parameters = self.additional_bq_parameters
 
     job_count = 0
     batch_of_files = list(itertools.islice(files, _MAXIMUM_SOURCE_URIS))
@@ -383,7 +393,7 @@ class TriggerLoadJobs(beam.DoFn):
                                  table_reference.datasetId,
                                  table_reference.tableId)),
           job_count)
-      logging.debug("Batch of files has %s files. Job name is %s",
+      logging.debug('Batch of files has %s files. Job name is %s.',
                     len(batch_of_files), job_name)
 
       if self.temporary_tables:
@@ -391,13 +401,16 @@ class TriggerLoadJobs(beam.DoFn):
         table_reference.tableId = job_name
         yield pvalue.TaggedOutput(TriggerLoadJobs.TEMP_TABLES, table_reference)
 
-      logging.info("Triggering job %s to load data to BigQuery table %s.",
-                   job_name, table_reference)
+      logging.info('Triggering job %s to load data to BigQuery table %s.'
+                   'Schema: %s. Additional parameters: %s',
+                   job_name, table_reference,
+                   schema, additional_parameters)
       job_reference = self.bq_wrapper.perform_load_job(
           table_reference, batch_of_files, job_name,
           schema=schema,
           write_disposition=self.write_disposition,
-          create_disposition=self.create_disposition)
+          create_disposition=self.create_disposition,
+          additional_load_parameters=additional_parameters)
       yield (destination, job_reference)
 
       # Prepare to trigger the next job
@@ -487,6 +500,9 @@ class BigQueryBatchFileLoads(beam.PTransform):
       coder=None,
       max_file_size=None,
       max_files_per_bundle=None,
+      additional_bq_parameters=None,
+      table_side_inputs=None,
+      schema_side_inputs=None,
       test_client=None,
       validate=True):
     self.destination = destination
@@ -495,7 +511,15 @@ class BigQueryBatchFileLoads(beam.PTransform):
     self.max_file_size = max_file_size or _DEFAULT_MAX_FILE_SIZE
     self.max_files_per_bundle = (max_files_per_bundle or
                                  _DEFAULT_MAX_WRITERS_PER_BUNDLE)
-    self._custom_gcs_temp_location = custom_gcs_temp_location
+    if (isinstance(custom_gcs_temp_location, str)
+        or custom_gcs_temp_location is None):
+      self._custom_gcs_temp_location = vp.StaticValueProvider(
+          str, custom_gcs_temp_location or '')
+    elif isinstance(custom_gcs_temp_location, vp.ValueProvider):
+      self._custom_gcs_temp_location = custom_gcs_temp_location
+    else:
+      raise ValueError('custom_gcs_temp_location must be str or ValueProvider')
+
     self.test_client = test_client
     self.schema = schema
     self.coder = coder or bigquery_tools.RowAsDictJsonCoder()
@@ -506,27 +530,31 @@ class BigQueryBatchFileLoads(beam.PTransform):
     # job to run - and thus we avoid using temporary tables
     self.temp_tables = True if callable(destination) else False
 
+    self.additional_bq_parameters = additional_bq_parameters or {}
+    self.table_side_inputs = table_side_inputs or ()
+    self.schema_side_inputs = schema_side_inputs or ()
+
     self._validate = validate
     if self._validate:
       self.verify()
 
   def verify(self):
-    if (isinstance(self._custom_gcs_temp_location, str) and
-        not self._custom_gcs_temp_location.startswith('gs://')):
+    if (isinstance(self._custom_gcs_temp_location.get(),
+                   vp.StaticValueProvider) and
+        not self._custom_gcs_temp_location.get().startswith('gs://')):
       # Only fail if the custom location is provided, and it is not a GCS
       # location.
-      raise ValueError('Invalid GCS location.\n'
+      raise ValueError('Invalid GCS location: %r.\n'
                        'Writing to BigQuery with FILE_LOADS method requires a '
                        'GCS location to be provided to write files to be '
                        'loaded into BigQuery. Please provide a GCS bucket, or '
-                       'pass method="STREAMING_INSERTS" to WriteToBigQuery.')
+                       'pass method="STREAMING_INSERTS" to WriteToBigQuery.'
+                       % self._custom_gcs_temp_location.get())
 
   def expand(self, pcoll):
     p = pcoll.pipeline
 
-    self._custom_gcs_temp_location = (
-        self._custom_gcs_temp_location
-        or p.options.view_as(GoogleCloudOptions).temp_location)
+    temp_location = p.options.view_as(GoogleCloudOptions).temp_location
 
     load_job_name_pcv = pvalue.AsSingleton(
         p
@@ -535,16 +563,17 @@ class BigQueryBatchFileLoads(beam.PTransform):
 
     file_prefix_pcv = pvalue.AsSingleton(
         p
-        | "CreateFilePrefixView" >> beam.Create(
-            [self._custom_gcs_temp_location])
+        | "CreateFilePrefixView" >> beam.Create([''])
         | "GenerateFilePrefix" >> beam.Map(
-            file_prefix_generator(self._validate)))
+            file_prefix_generator(self._validate,
+                                  self._custom_gcs_temp_location,
+                                  temp_location)))
 
     outputs = (
         pcoll
         | "ApplyGlobalWindow" >> beam.WindowInto(beam.window.GlobalWindows())
         | "AppendDestination" >> beam.ParDo(bigquery_tools.AppendDestinationsFn(
-            self.destination))
+            self.destination), *self.table_side_inputs)
         | beam.ParDo(
             WriteRecordsToFile(max_files_per_bundle=self.max_files_per_bundle,
                                max_file_size=self.max_file_size,
@@ -585,12 +614,15 @@ class BigQueryBatchFileLoads(beam.PTransform):
     # some of the load jobs would fail but not other.
     # If any of them fails, then copy jobs are not triggered.
     trigger_loads_outputs = (
-        grouped_files_pc | beam.ParDo(TriggerLoadJobs(
-            schema=self.schema,
-            write_disposition=self.write_disposition,
-            create_disposition=self.create_disposition,
-            test_client=self.test_client,
-            temporary_tables=self.temp_tables), load_job_name_pcv).with_outputs(
+        grouped_files_pc | beam.ParDo(
+            TriggerLoadJobs(
+                schema=self.schema,
+                write_disposition=self.write_disposition,
+                create_disposition=self.create_disposition,
+                test_client=self.test_client,
+                temporary_tables=self.temp_tables,
+                additional_bq_parameters=self.additional_bq_parameters),
+            load_job_name_pcv, *self.schema_side_inputs).with_outputs(
                 TriggerLoadJobs.TEMP_TABLES, main='main')
     )
 

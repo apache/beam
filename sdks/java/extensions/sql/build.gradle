@@ -27,14 +27,25 @@ applyJavaNature(
   disableLintWarnings: ['dep-ann'],
   testShadowJar: true,
   enableStrictDependencies: true,
-  shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+  shadowClosure: {
     dependencies {
+      include(dependency(library.java.guava))
       include(dependency(library.java.protobuf_java))
       include(dependency(library.java.protobuf_java_util))
       include(dependency("org.apache.calcite:.*"))
       include(dependency("org.apache.calcite.avatica:.*"))
       include(dependency("org.codehaus.janino:.*"))
     }
+    // guava uses the com.google.common and com.google.thirdparty package namespaces
+    relocate("com.google.common", project.getJavaRelocatedPath("com.google.common")) {
+      // com.google.common is too generic, need to exclude guava-testlib
+      exclude "com.google.common.collect.testing.**"
+      exclude "com.google.common.escape.testing.**"
+      exclude "com.google.common.testing.**"
+      exclude "com.google.common.util.concurrent.testing.**"
+    }
+    relocate "com.google.thirdparty", project.getJavaRelocatedPath("com.google.thirdparty")
+
     relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
     relocate "org.apache.calcite", getJavaRelocatedPath("org.apache.calcite")
 
@@ -59,7 +70,7 @@ configurations {
 }
 
 def calcite_version = "1.19.0"
-def avatica_version = "1.13.0"
+def avatica_version = "1.15.0"
 
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
@@ -71,8 +82,8 @@ dependencies {
   compile "org.apache.calcite:calcite-core:$calcite_version"
   compile "org.apache.calcite:calcite-linq4j:$calcite_version"
   compile "org.apache.calcite.avatica:avatica-core:$avatica_version"
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-extensions-join-library", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(":sdks:java:extensions:join-library")
   shadow library.java.slf4j_api
   shadow library.java.commons_codec
   shadow library.java.commons_csv
@@ -82,16 +93,16 @@ dependencies {
   shadow library.java.joda_time
   shadow "com.alibaba:fastjson:1.2.49"
   shadow "com.jayway.jsonpath:json-path:2.4.0"
-  shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
-  provided project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
-  provided project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  shadow project(path: ":runners:direct-java", configuration: "shadow")
+  provided project(":sdks:java:io:kafka")
+  provided project(":sdks:java:io:google-cloud-platform")
   provided library.java.kafka_clients
-  shadowTest library.java.slf4j_jdk14
   shadowTest library.java.junit
   shadowTest library.java.hamcrest_core
   shadowTest library.java.hamcrest_library
   shadowTest library.java.mockito_core
   shadowTest library.java.quickcheck_core
+  shadowTestRuntimeClasspath library.java.slf4j_jdk14
 
   // Dependencies that we don't directly reference
   permitUnusedDeclared "com.jayway.jsonpath:json-path:2.4.0"
@@ -190,11 +201,11 @@ task integrationTest(type: Test) {
 
   include '**/*IT.class'
   maxParallelForks 4
-  classpath = project(":beam-sdks-java-extensions-sql")
+  classpath = project(":sdks:java:extensions:sql")
           .sourceSets
           .test
           .runtimeClasspath
-  testClassesDirs = files(project(":beam-sdks-java-extensions-sql").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":sdks:java:extensions:sql").sourceSets.test.output.classesDirs)
   useJUnit { }
 }
 

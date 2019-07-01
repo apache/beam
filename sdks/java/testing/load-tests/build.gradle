@@ -17,7 +17,10 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(exportJavadoc: false)
+applyJavaNature(
+    archivesBaseName: 'beam-sdks-java-load-tests',
+    exportJavadoc: false
+)
 
 description = "Apache Beam :: SDKs :: Java :: Load Tests"
 
@@ -33,10 +36,10 @@ def loadTestArgsProperty = "loadTest.args"
 def runnerProperty = "runner"
 def runnerDependency = (project.hasProperty(runnerProperty)
         ? project.getProperty(runnerProperty)
-        : ":beam-runners-direct-java")
+        : ":runners:direct-java")
 
-def shouldProvideSpark = ":beam-runners-spark".equals(runnerDependency)
-def isDataflowRunner = ":beam-runners-google-cloud-dataflow-java".equals(runnerDependency)
+def shouldProvideSpark = ":runners:spark".equals(runnerDependency)
+def isDataflowRunner = ":runners:google-cloud-dataflow-java".equals(runnerDependency)
 
 if (isDataflowRunner) {
   /*
@@ -44,7 +47,7 @@ if (isDataflowRunner) {
    * the following projects are evaluated before we evaluate this project. This is because
    * we are attempting to reference a property from the project directly.
    */
-  evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-legacy-worker")
+  evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
 }
 
 configurations {
@@ -55,22 +58,22 @@ configurations {
 }
 
 dependencies {
-  shadow library.java.kafka_clients
+  compile library.java.kafka_clients
 
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-io-synthetic", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-test-utils", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-io-kinesis", configuration: "shadow")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(path: ":runners:direct-java", configuration: "shadow")
+  compile project(":sdks:java:io:synthetic")
+  compile project(":sdks:java:testing:test-utils")
+  compile project(":sdks:java:io:google-cloud-platform")
+  compile project(":sdks:java:io:kafka")
+  compile project(":sdks:java:io:kinesis")
 
-  gradleRun project(path: project.path, configuration: "shadow")
-  gradleRun project(path: runnerDependency, configuration: "shadow")
+  gradleRun project(project.path)
+  gradleRun project(runnerDependency)
 
   // The Spark runner requires the user to provide a Spark dependency. For self-contained
   // runs with the Spark runner, we can provide such a dependency. This is deliberately phrased
-  // to not hardcode any runner other than :beam-runners-direct-java
+  // to not hardcode any runner other than :runners:direct-java
   if (shouldProvideSpark) {
     gradleRun library.java.spark_streaming
     gradleRun library.java.spark_core, {
@@ -90,9 +93,9 @@ task run(type: JavaExec) {
   def loadTestArgs = project.findProperty(loadTestArgsProperty) ?: ""
 
   if (isDataflowRunner) {
-    dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
+    dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
 
-    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
     // Provide job with a customizable worker jar.
     // With legacy worker jar, containerImage is set to empty (i.e. to use the internal build).
     // More context and discussions can be found in PR#6694.

@@ -22,10 +22,10 @@ applyJavaNature()
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Join library"
 
 dependencies {
-  shadow library.java.vendored_guava_20_0
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  compile library.java.vendored_guava_20_0
+  compile project(path: ":sdks:java:core", configuration: "shadow")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.junit
-  testRuntimeOnly project(path: ":beam-runners-direct-java")
+  testRuntimeOnly project(":runners:direct-java")
 }

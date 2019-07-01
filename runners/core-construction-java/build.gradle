@@ -33,22 +33,23 @@ test {
 }
 
 dependencies {
-  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
-  shadow project(path: ":beam-model-job-management", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow library.java.vendored_grpc_1_13_1
-  shadow library.java.vendored_guava_20_0
-  shadow library.java.jackson_core
-  shadow library.java.jackson_databind
-  shadow library.java.joda_time
-  shadow library.java.slf4j_api
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.hamcrest_library
-  shadowTest library.java.junit
-  shadowTest library.java.mockito_core
-  shadowTest library.java.jackson_annotations
-  shadowTest library.java.jackson_dataformat_yaml
-  shadowTest project(path: ":beam-model-fn-execution", configuration: "shadow")
+  compile project(path: ":model:pipeline", configuration: "shadow")
+  compile project(path: ":model:job-management", configuration: "shadow")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.vendored_grpc_1_13_1
+  compile library.java.vendored_guava_20_0
+  compile library.java.jackson_core
+  compile library.java.jackson_databind
+  compile library.java.joda_time
+  compile library.java.slf4j_api
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  testCompile library.java.junit
+  testCompile library.java.mockito_core
+  testCompile library.java.jackson_annotations
+  testCompile library.java.jackson_dataformat_yaml
+  testCompile project(path: ":model:fn-execution", configuration: "shadow")
+  testRuntimeOnly library.java.slf4j_jdk14
 }
 
 task runExpansionService (type: JavaExec) {
@@ -64,7 +65,7 @@ task runTestExpansionService (type: JavaExec) {
 }
 
 task buildTestExpansionServiceJar(type: Jar) {
-  dependsOn = [shadowJar, shadowTestJar]
+  dependsOn = [jar, testJar]
   appendix = "testExpansionService"
   // Use zip64 mode to avoid "Archive contains more than 65535 entries".
   zip64 = true

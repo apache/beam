@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.PrintWriter;
@@ -24,6 +25,7 @@ import java.io.Serializable;
 import java.io.StringWriter;
 import java.net.InetAddress;
 import java.sql.Connection;
+import java.sql.JDBCType;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -38,14 +40,19 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.io.common.TestRow;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.commons.dbcp2.PoolingDataSource;
 import org.apache.derby.drda.NetworkServerControl;
 import org.apache.derby.jdbc.ClientDataSource;
@@ -65,8 +72,8 @@ import org.slf4j.LoggerFactory;
 public class JdbcIOTest implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(JdbcIOTest.class);
-  public static final int EXPECTED_ROW_COUNT = 1000;
-  public static final String BACKOFF_TABLE = "UT_WRITE_BACKOFF";
+  private static final int EXPECTED_ROW_COUNT = 1000;
+  private static final String BACKOFF_TABLE = "UT_WRITE_BACKOFF";
 
   private static NetworkServerControl derbyServer;
   private static ClientDataSource dataSource;
@@ -145,16 +152,18 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
-  public void testDataSourceConfigurationDataSourceWithoutPool() throws Exception {
-    JdbcIO.DataSourceConfiguration config =
-        JdbcIO.DataSourceConfiguration.create(dataSource, false);
-    assertTrue(config.buildDatasource() instanceof ClientDataSource);
+  public void testDataSourceConfigurationDataSourceWithoutPool() {
+    assertTrue(
+        JdbcIO.DataSourceConfiguration.create(dataSource).buildDatasource()
+            instanceof ClientDataSource);
   }
 
   @Test
-  public void testDataSourceConfigurationDataSourceWithPool() throws Exception {
-    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(dataSource, true);
-    assertTrue(config.buildDatasource() instanceof PoolingDataSource);
+  public void testDataSourceConfigurationDataSourceWithPool() {
+    assertTrue(
+        JdbcIO.PoolableDataSourceProvider.of(JdbcIO.DataSourceConfiguration.create(dataSource))
+                .apply(null)
+            instanceof PoolingDataSource);
   }
 
   @Test
@@ -231,7 +240,7 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
-  public void testRead() throws Exception {
+  public void testRead() {
     PCollection<TestRow> rows =
         pipeline.apply(
             JdbcIO.<TestRow>read()
@@ -251,7 +260,7 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
-  public void testReadWithSingleStringParameter() throws Exception {
+  public void testReadWithSingleStringParameter() {
     PCollection<TestRow> rows =
         pipeline.apply(
             JdbcIO.<TestRow>read()
@@ -266,6 +275,67 @@ public class JdbcIOTest implements Serializable {
 
     Iterable<TestRow> expectedValues = Collections.singletonList(TestRow.fromSeed(1));
     PAssert.that(rows).containsInAnyOrder(expectedValues);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadRows() {
+    SerializableFunction<Void, DataSource> dataSourceProvider = ignored -> dataSource;
+    PCollection<Row> rows =
+        pipeline.apply(
+            JdbcIO.readRows()
+                .withDataSourceProviderFn(dataSourceProvider)
+                .withQuery(String.format("select name,id from %s where name = ?", readTableName))
+                .withStatementPreparator(
+                    preparedStatement ->
+                        preparedStatement.setString(1, TestRow.getNameForSeed(1))));
+
+    Schema expectedSchema =
+        Schema.of(
+            Schema.Field.of("NAME", LogicalTypes.variableLengthString(JDBCType.VARCHAR, 500))
+                .withNullable(true),
+            Schema.Field.of("ID", Schema.FieldType.INT32).withNullable(true));
+
+    assertEquals(expectedSchema, rows.getSchema());
+
+    PCollection<Row> output = rows.apply(Select.fieldNames("NAME", "ID"));
+    PAssert.that(output)
+        .containsInAnyOrder(
+            ImmutableList.of(Row.withSchema(expectedSchema).addValues("Testval1", 1).build()));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithSchema() {
+    SerializableFunction<Void, DataSource> dataSourceProvider = ignored -> dataSource;
+    JdbcIO.RowMapper<RowWithSchema> rowMapper =
+        rs -> new RowWithSchema(rs.getString("NAME"), rs.getInt("ID"));
+    pipeline.getSchemaRegistry().registerJavaBean(RowWithSchema.class);
+
+    PCollection<RowWithSchema> rows =
+        pipeline.apply(
+            JdbcIO.<RowWithSchema>read()
+                .withDataSourceProviderFn(dataSourceProvider)
+                .withQuery(String.format("select name,id from %s where name = ?", readTableName))
+                .withRowMapper(rowMapper)
+                .withCoder(SerializableCoder.of(RowWithSchema.class))
+                .withStatementPreparator(
+                    preparedStatement ->
+                        preparedStatement.setString(1, TestRow.getNameForSeed(1))));
+
+    Schema expectedSchema =
+        Schema.of(
+            Schema.Field.of("name", Schema.FieldType.STRING),
+            Schema.Field.of("id", Schema.FieldType.INT32));
+
+    assertEquals(expectedSchema, rows.getSchema());
+
+    PCollection<Row> output = rows.apply(Select.fieldNames("name", "id"));
+    PAssert.that(output)
+        .containsInAnyOrder(
+            ImmutableList.of(Row.withSchema(expectedSchema).addValues("Testval1", 1).build()));
 
     pipeline.run();
   }
@@ -421,7 +491,7 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
-  public void testWriteWithEmptyPCollection() throws Exception {
+  public void testWriteWithEmptyPCollection() {
     pipeline
         .apply(Create.empty(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of())))
         .apply(

@@ -21,7 +21,7 @@
 # This script is useful to run single or a set of Python integration tests
 # manually or through Gradle. Note, this script doesn't setup python
 # environment which is required before running tests. Use Gradle task
-# `beam-sdks-python:integrationTests` to do both together.
+# `:sdks:python:integrationTests` to do both together.
 #
 # In order to run test with customer options, use following commandline flags:
 #
@@ -153,27 +153,29 @@ set -o errexit
 
 
 ###########################################################################
+
+# Check that the script is running in a known directory.
+if [[ $PWD != *sdks/python* ]]; then
+  echo 'Unable to locate Apache Beam Python SDK root directory'
+  exit 1
+fi
+
+# Go to the Apache Beam Python SDK root
+if [[ $PWD != *sdks/python ]]; then
+  cd $(pwd | sed 's/sdks\/python.*/sdks\/python/')
+fi
+
+
+###########################################################################
 # Build pipeline options if not provided in --pipeline_opts from commandline
 
 if [[ -z $PIPELINE_OPTS ]]; then
 
-  # Check that the script is running in a known directory.
-  if [[ $PWD != *sdks/python* ]]; then
-    echo 'Unable to locate Apache Beam Python SDK root directory'
-    exit 1
-  fi
-
-  # Go to the Apache Beam Python SDK root
-  if [[ $PWD != *sdks/python ]]; then
-    cd $(pwd | sed 's/sdks\/python.*/sdks\/python/')
-  fi
-
-  # Create a tarball if not exists
+  # Get tar ball path
   if [[ $(find ${SDK_LOCATION} 2> /dev/null) ]]; then
-    SDK_LOCATION=$(find ${SDK_LOCATION})
+    SDK_LOCATION=$(find ${SDK_LOCATION} | tail -n1)
   else
-    python setup.py -q sdist
-    SDK_LOCATION=$(ls dist/apache-beam-*.tar.gz | tail -n1)
+    echo "[WARNING] Could not find SDK tarball in SDK_LOCATION: $SDK_LOCATION."
   fi
 
   # Install test dependencies for ValidatesRunner tests.

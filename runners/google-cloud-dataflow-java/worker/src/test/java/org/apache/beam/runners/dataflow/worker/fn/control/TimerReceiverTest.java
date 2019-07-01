@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
 import java.util.HashMap;
@@ -29,7 +30,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.FnHarness;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.StateInternals;
@@ -234,7 +234,7 @@ public class TimerReceiverTest implements Serializable {
     Object windowedTimer = WindowedValue.valueInGlobalWindow(timer);
 
     // Simulate the SDK Harness sending a timer element to the Runner Harness.
-    org.junit.Assert.assertTrue(timerReceiver.receive(timerOutputPCollection, windowedTimer));
+    assertTrue(timerReceiver.receive(timerOutputPCollection, windowedTimer));
 
     // Expect that we get a timer element when we finish.
     Object expected =
@@ -352,9 +352,9 @@ public class TimerReceiverTest implements Serializable {
     Object windowedTimer2 = WindowedValue.valueInGlobalWindow(timer2);
 
     // Simulate the SDK Harness sending a timer element to the Runner Harness.
-    org.junit.Assert.assertTrue(
+    assertTrue(
         timerReceiver.receive(timerSpecMap.get(timerId1).outputCollectionId(), windowedTimer1));
-    org.junit.Assert.assertTrue(
+    assertTrue(
         timerReceiver.receive(timerSpecMap.get(timerId2).outputCollectionId(), windowedTimer2));
 
     // Expect that we get a timer element when we finish.
@@ -419,22 +419,22 @@ public class TimerReceiverTest implements Serializable {
         StateRequestHandler stateRequestHandler,
         BundleProgressHandler progressHandler)
         throws Exception {
-      ImmutableMap.Builder<BeamFnApi.Target, RemoteOutputReceiver<?>> outputReceivers =
+      ImmutableMap.Builder<String, RemoteOutputReceiver<?>> outputReceivers =
           ImmutableMap.builder();
-      for (Map.Entry<BeamFnApi.Target, Coder<WindowedValue<?>>> targetCoder :
-          processBundleDescriptor.getOutputTargetCoders().entrySet()) {
-        BeamFnApi.Target target = targetCoder.getKey();
-        Coder<WindowedValue<?>> coder = targetCoder.getValue();
+      for (Map.Entry<String, Coder<WindowedValue<?>>> remoteOutputCoder :
+          processBundleDescriptor.getRemoteOutputCoders().entrySet()) {
         String bundleOutputPCollection =
             Iterables.getOnlyElement(
                 processBundleDescriptor
                     .getProcessBundleDescriptor()
-                    .getTransformsOrThrow(target.getPrimitiveTransformReference())
+                    .getTransformsOrThrow(remoteOutputCoder.getKey())
                     .getInputsMap()
                     .values());
         FnDataReceiver<WindowedValue<?>> outputReceiver =
             outputReceiverFactory.create(bundleOutputPCollection);
-        outputReceivers.put(target, RemoteOutputReceiver.of(coder, outputReceiver));
+        outputReceivers.put(
+            remoteOutputCoder.getKey(),
+            RemoteOutputReceiver.of(remoteOutputCoder.getValue(), outputReceiver));
       }
       return processor.newBundle(outputReceivers.build(), stateRequestHandler, progressHandler);
     }
@@ -492,10 +492,10 @@ public class TimerReceiverTest implements Serializable {
     }
   }
 
-  private KV<byte[], org.apache.beam.runners.core.construction.Timer<byte[]>> timerBytes(
+  private KV<String, org.apache.beam.runners.core.construction.Timer<byte[]>> timerBytes(
       String key, long timestampOffset) throws CoderException {
     return KV.of(
-        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), key),
+        key,
         org.apache.beam.runners.core.construction.Timer.of(
             BoundedWindow.TIMESTAMP_MIN_VALUE.plus(timestampOffset),
             CoderUtils.encodeToByteArray(VoidCoder.of(), null, Coder.Context.NESTED)));

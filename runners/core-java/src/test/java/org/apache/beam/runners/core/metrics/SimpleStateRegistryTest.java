@@ -61,20 +61,20 @@ public class SimpleStateRegistryTest {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.START_BUNDLE_MSECS);
     builder.setInt64Value(0);
-    builder.setPTransformLabel(testPTransformId);
+    builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
     matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
     // Check for execution time metrics for the testPTransformId
     builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.PROCESS_BUNDLE_MSECS);
     builder.setInt64Value(0);
-    builder.setPTransformLabel(testPTransformId);
+    builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
     matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
     builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.FINISH_BUNDLE_MSECS);
     builder.setInt64Value(0);
-    builder.setPTransformLabel(testPTransformId);
+    builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
     matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
     for (Matcher<MonitoringInfo> matcher : matchers) {

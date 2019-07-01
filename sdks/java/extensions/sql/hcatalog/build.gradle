@@ -26,13 +26,13 @@ def hive_version = "2.1.0"
 def netty_version = "4.1.30.Final"
 
 dependencies {
-  provided project(path: ":beam-sdks-java-extensions-sql", configuration: "shadow")
-  provided project(path: ":beam-sdks-java-io-hcatalog", configuration: "shadow")
+  provided project(path: ":sdks:java:extensions:sql", configuration: "shadow")
+  provided project(":sdks:java:io:hcatalog")
 
   // Needed for HCatalogTableProvider tests,
   // they use HCat* types
-  shadowTest "io.netty:netty-all:$netty_version"
-  shadowTest("org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version") {
+  testCompile "io.netty:netty-all:$netty_version"
+  testCompile("org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version") {
     // Hive brings full Calcite 1.6 + Avatica with JDBC driver which
     // gets registered and gets started instead of ours
     exclude group: "org.apache.calcite", module:"calcite-avatica"

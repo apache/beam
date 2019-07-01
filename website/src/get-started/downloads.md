@@ -90,17 +90,31 @@ versions denoted `0.x.y`.
 
 ## Releases
 
+### 2.13.0 (2019-05-21)
+Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.13.0/apache-beam-2.13.0-source-release.zip).
+[SHA-512](https://www.apache.org/dist/beam/2.13.0/apache-beam-2.13.0-source-release.zip.sha512).
+[signature](https://www.apache.org/dist/beam/2.13.0/apache-beam-2.13.0-source-release.zip.asc).
+
+[Release notes](https://jira.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12345166).
+
+### 2.12.0 (2019-04-25)
+Official [source code download](http://archive.apache.org/dyn/closer.cgi/beam/2.12.0/apache-beam-2.12.0-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.12.0/apache-beam-2.12.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.12.0/apache-beam-2.12.0-source-release.zip.asc).
+
+[Release notes](https://jira.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12344944).
+
 ### 2.11.0 (2019-02-26)
-Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.11.0/apache-beam-2.11.0-source-release.zip).
-[SHA-512](https://www.apache.org/dist/beam/2.11.0/apache-beam-2.11.0-source-release.zip.sha512).
-[signature](https://www.apache.org/dist/beam/2.11.0/apache-beam-2.11.0-source-release.zip.asc).
+Official [source code download](http://archive.apache.org/dyn/closer.cgi/beam/2.11.0/apache-beam-2.11.0-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.11.0/apache-beam-2.11.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.11.0/apache-beam-2.11.0-source-release.zip.asc).
 
 [Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12344775).
 
 ### 2.10.0 (2019-02-01)
-Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.10.0/apache-beam-2.10.0-source-release.zip).
-[SHA-512](https://www.apache.org/dist/beam/2.10.0/apache-beam-2.10.0-source-release.zip.sha512).
-[signature](https://www.apache.org/dist/beam/2.10.0/apache-beam-2.10.0-source-release.zip.asc).
+Official [source code download](http://archive.apache.org/dyn/closer.cgi/beam/2.10.0/apache-beam-2.10.0-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.10.0/apache-beam-2.10.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.10.0/apache-beam-2.10.0-source-release.zip.asc).
 
 [Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12344540).
 

@@ -68,8 +68,10 @@ class CodersTest(unittest.TestCase):
                    if isinstance(c, type) and issubclass(c, coders.Coder) and
                    'Base' not in c.__name__)
     standard -= set([coders.Coder,
+                     coders.DeterministicProtoCoder,
                      coders.FastCoder,
                      coders.ProtoCoder,
+                     coders.RunnerAPICoderHolder,
                      coders.ToStringCoder])
     assert not standard - cls.seen, standard - cls.seen
     assert not standard - cls.seen_nested, standard - cls.seen_nested

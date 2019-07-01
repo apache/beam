@@ -27,10 +27,12 @@ import io
 import json
 import logging
 import os
+import pkg_resources
 import re
 import sys
 import tempfile
 import time
+import warnings
 from datetime import datetime
 
 from builtins import object
@@ -116,7 +118,7 @@ class Step(object):
       ValueError: if the tag does not exist within outputs.
     """
     outputs = self._get_outputs()
-    if tag is None:
+    if tag is None or len(outputs) == 1:
       return outputs[0]
     else:
       name = '%s_%s' % (PropertyNames.OUT, tag)
@@ -150,6 +152,8 @@ class Environment(object):
     if self.google_cloud_options.service_account_email:
       self.proto.serviceAccountEmail = (
           self.google_cloud_options.service_account_email)
+    if self.google_cloud_options.dataflow_kms_key:
+      self.proto.serviceKmsKeyName = self.google_cloud_options.dataflow_kms_key
 
     self.proto.userAgent.additionalProperties.extend([
         dataflow.Environment.UserAgentValue.AdditionalProperty(
@@ -175,20 +179,20 @@ class Environment(object):
             key='major', value=to_json_value(environment_version))])
     # TODO: Use enumerated type instead of strings for job types.
     if job_type.startswith('FNAPI_'):
+      self.debug_options.experiments = self.debug_options.experiments or []
+      debug_options_experiments = self.debug_options.experiments
       runner_harness_override = (
           get_runner_harness_container_image())
-      self.debug_options.experiments = self.debug_options.experiments or []
       if runner_harness_override:
-        self.debug_options.experiments.append(
+        debug_options_experiments.append(
             'runner_harness_container_image=' + runner_harness_override)
-      # Add use_multiple_sdk_containers flag if its not already present. Do not
+      # Add use_multiple_sdk_containers flag if it's not already present. Do not
       # add the flag if 'no_use_multiple_sdk_containers' is present.
       # TODO: Cleanup use_multiple_sdk_containers once we deprecate Python SDK
       # till version 2.4.
-      debug_options_experiments = self.debug_options.experiments
       if ('use_multiple_sdk_containers' not in debug_options_experiments and
           'no_use_multiple_sdk_containers' not in debug_options_experiments):
-        self.debug_options.experiments.append('use_multiple_sdk_containers')
+        debug_options_experiments.append('use_multiple_sdk_containers')
     # FlexRS
     if self.google_cloud_options.flexrs_goal == 'COST_OPTIMIZED':
       self.proto.flexResourceSchedulingGoal = (
@@ -875,6 +879,25 @@ def _use_unified_worker(pipeline_options):
       'use_unified_worker' in debug_options.experiments)
 
 
+def _use_sdf_bounded_source(pipeline_options):
+  debug_options = pipeline_options.view_as(DebugOptions)
+  return _use_fnapi(pipeline_options) and (
+      debug_options.experiments and
+      'use_sdf_bounded_source' in debug_options.experiments)
+
+
+def _get_container_image_tag():
+  base_version = pkg_resources.parse_version(
+      beam_version.__version__).base_version
+  if base_version != beam_version.__version__:
+    warnings.warn(
+        "A non-standard version of Beam SDK detected: %s. "
+        "Dataflow runner will use container image tag %s. "
+        "This use case is not supported." % (
+            beam_version.__version__, base_version))
+  return base_version
+
+
 def get_default_container_image_for_current_sdk(job_type):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -927,7 +950,7 @@ def _get_required_container_version(job_type=None):
     else:
       return names.BEAM_CONTAINER_VERSION
   else:
-    return beam_version.__version__
+    return _get_container_image_tag()
 
 
 def get_runner_harness_container_image():
@@ -941,7 +964,7 @@ def get_runner_harness_container_image():
   # Pin runner harness for released versions of the SDK.
   if 'dev' not in beam_version.__version__:
     return (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + 'harness' + ':' +
-            beam_version.__version__)
+            _get_container_image_tag())
   # Don't pin runner harness for dev versions so that we can notice
   # potential incompatibility between runner and sdk harnesses.
   return None

@@ -35,54 +35,54 @@ class HttpClientTest(unittest.TestCase):
     with mock.patch.dict(os.environ, http_proxy='http://localhost:9000'):
       proxy_info = proxy_info_from_environment_var('http_proxy')
       expected = ProxyInfo(3, 'localhost', 9000)
-      self.assertEquals(str(expected), str(proxy_info))
+      self.assertEqual(str(expected), str(proxy_info))
 
   def test_proxy_from_env_https_with_port(self):
     with mock.patch.dict(os.environ, https_proxy='https://localhost:9000'):
       proxy_info = proxy_info_from_environment_var('https_proxy')
       expected = ProxyInfo(3, 'localhost', 9000)
-      self.assertEquals(str(expected), str(proxy_info))
+      self.assertEqual(str(expected), str(proxy_info))
 
   def test_proxy_from_env_http_without_port(self):
     with mock.patch.dict(os.environ, http_proxy='http://localhost'):
       proxy_info = proxy_info_from_environment_var('http_proxy')
       expected = ProxyInfo(3, 'localhost', 80)
-      self.assertEquals(str(expected), str(proxy_info))
+      self.assertEqual(str(expected), str(proxy_info))
 
   def test_proxy_from_env_https_without_port(self):
     with mock.patch.dict(os.environ, https_proxy='https://localhost'):
       proxy_info = proxy_info_from_environment_var('https_proxy')
       expected = ProxyInfo(3, 'localhost', 443)
-      self.assertEquals(str(expected), str(proxy_info))
+      self.assertEqual(str(expected), str(proxy_info))
 
   def test_proxy_from_env_http_without_method(self):
     with mock.patch.dict(os.environ, http_proxy='localhost:8000'):
       proxy_info = proxy_info_from_environment_var('http_proxy')
       expected = ProxyInfo(3, 'localhost', 8000)
-      self.assertEquals(str(expected), str(proxy_info))
+      self.assertEqual(str(expected), str(proxy_info))
 
   def test_proxy_from_env_https_without_method(self):
     with mock.patch.dict(os.environ, https_proxy='localhost:8000'):
       proxy_info = proxy_info_from_environment_var('https_proxy')
       expected = ProxyInfo(3, 'localhost', 8000)
-      self.assertEquals(str(expected), str(proxy_info))
+      self.assertEqual(str(expected), str(proxy_info))
 
   def test_proxy_from_env_http_without_port_without_method(self):
     with mock.patch.dict(os.environ, http_proxy='localhost'):
       proxy_info = proxy_info_from_environment_var('http_proxy')
       expected = ProxyInfo(3, 'localhost', 80)
-      self.assertEquals(str(expected), str(proxy_info))
+      self.assertEqual(str(expected), str(proxy_info))
 
   def test_proxy_from_env_https_without_port_without_method(self):
     with mock.patch.dict(os.environ, https_proxy='localhost'):
       proxy_info = proxy_info_from_environment_var('https_proxy')
       expected = ProxyInfo(3, 'localhost', 443)
-      self.assertEquals(str(expected), str(proxy_info))
+      self.assertEqual(str(expected), str(proxy_info))
 
   def test_proxy_from_env_invalid_var(self):
     proxy_info = proxy_info_from_environment_var('http_proxy_host')
     expected = None
-    self.assertEquals(str(expected), str(proxy_info))
+    self.assertEqual(str(expected), str(proxy_info))
 
   def test_proxy_from_env_wrong_method_in_var_name(self):
     with mock.patch.dict(os.environ, smtp_proxy='localhost'):
@@ -93,17 +93,17 @@ class HttpClientTest(unittest.TestCase):
     with mock.patch.dict(os.environ, http_proxy='smtp://localhost:8000'):
       proxy_info = proxy_info_from_environment_var('http_proxy')
       expected = ProxyInfo(3, 'smtp', 80) # wrong proxy info generated
-      self.assertEquals(str(expected), str(proxy_info))
+      self.assertEqual(str(expected), str(proxy_info))
 
   def test_get_new_http_proxy_info(self):
     with mock.patch.dict(os.environ, http_proxy='localhost'):
       http = get_new_http()
       expected = ProxyInfo(3, 'localhost', 80)
-      self.assertEquals(str(http.proxy_info), str(expected))
+      self.assertEqual(str(http.proxy_info), str(expected))
 
   def test_get_new_http_timeout(self):
     http = get_new_http()
-    self.assertEquals(http.timeout, DEFAULT_HTTP_TIMEOUT_SECONDS)
+    self.assertEqual(http.timeout, DEFAULT_HTTP_TIMEOUT_SECONDS)
 
 
 if __name__ == '__main__':

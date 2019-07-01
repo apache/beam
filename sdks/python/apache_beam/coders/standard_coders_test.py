@@ -22,6 +22,7 @@ from __future__ import print_function
 
 import json
 import logging
+import math
 import os.path
 import sys
 import unittest
@@ -37,8 +38,8 @@ from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import Timestamp
 
-STANDARD_CODERS_YAML = os.path.join(
-    os.path.dirname(__file__), '..', 'testing', 'data', 'standard_coders.yaml')
+STANDARD_CODERS_YAML = os.path.normpath(os.path.join(
+    os.path.dirname(__file__), '../portability/api/standard_coders.yaml'))
 
 
 def _load_test_cases(test_yaml):
@@ -48,10 +49,20 @@ def _load_test_cases(test_yaml):
   """
   if not os.path.exists(test_yaml):
     raise ValueError('Could not find the test spec: %s' % test_yaml)
-  for ix, spec in enumerate(yaml.load_all(open(test_yaml))):
-    spec['index'] = ix
-    name = spec.get('name', spec['coder']['urn'].split(':')[-2])
-    yield [name, spec]
+  with open(test_yaml, 'rb') as coder_spec:
+    for ix, spec in enumerate(yaml.load_all(coder_spec)):
+      spec['index'] = ix
+      name = spec.get('name', spec['coder']['urn'].split(':')[-2])
+      yield [name, spec]
+
+
+def parse_float(s):
+  x = float(s)
+  if math.isnan(x):
+    # In Windows, float('NaN') has opposite sign from other platforms.
+    # For the purpose of this test, we just need consistency.
+    x = abs(x)
+  return x
 
 
 class StandardCodersTest(unittest.TestCase):
@@ -76,8 +87,8 @@ class StandardCodersTest(unittest.TestCase):
       'beam:coder:timer:v1':
           lambda x, payload_parser: dict(
               payload=payload_parser(x['payload']),
-              timestamp=Timestamp(micros=x['timestamp'])),
-      'beam:coder:double:v1': lambda x: float(x),
+              timestamp=Timestamp(micros=x['timestamp'] * 1000)),
+      'beam:coder:double:v1': parse_float,
   }
 
   def test_standard_coders(self):
@@ -88,7 +99,6 @@ class StandardCodersTest(unittest.TestCase):
   def _run_standard_coder(self, name, spec):
     def assert_equal(actual, expected):
       """Handle nan values which self.assertEqual fails on."""
-      import math
       if (isinstance(actual, float)
           and isinstance(expected, float)
           and math.isnan(actual)
@@ -122,9 +132,8 @@ class StandardCodersTest(unittest.TestCase):
     component_ids = [context.coders.get_id(self.parse_coder(c))
                      for c in spec.get('components', ())]
     context.coders.put_proto(coder_id, beam_runner_api_pb2.Coder(
-        spec=beam_runner_api_pb2.SdkFunctionSpec(
-            spec=beam_runner_api_pb2.FunctionSpec(
-                urn=spec['urn'], payload=spec.get('payload'))),
+        spec=beam_runner_api_pb2.FunctionSpec(
+            urn=spec['urn'], payload=spec.get('payload')),
         component_coder_ids=component_ids))
     return context.coders.get_by_id(coder_id)
 

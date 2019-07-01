@@ -25,8 +25,11 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv.BeamSqlEnvBuilder;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -61,7 +64,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap
  * PCollection<Row> outputTableA = inputTableA.apply(
  *    SqlTransform
  *        .query(sql1)
- *        .registerUdf("MY_FUNC", MY_FUNC.class, "FUNC");
+ *        .addUdf("MY_FUNC", MY_FUNC.class, "FUNC");
  *
  * //run a JOIN with one table from TextIO, and one table from another query
  * PCollection<Row> outputTableB =
@@ -95,19 +98,29 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   @Override
   public PCollection<Row> expand(PInput input) {
-    BeamSqlEnv sqlEnv = BeamSqlEnv.readOnly(PCOLLECTION_NAME, toTableMap(input));
-    tableProviderMap().forEach(sqlEnv::addSchema);
+    BeamSqlEnvBuilder sqlEnvBuilder =
+        BeamSqlEnv.builder(new ReadOnlyTableProvider(PCOLLECTION_NAME, toTableMap(input)));
+
+    tableProviderMap().forEach(sqlEnvBuilder::addSchema);
+
     if (defaultTableProvider() != null) {
-      sqlEnv.setCurrentSchema(defaultTableProvider());
+      sqlEnvBuilder.setCurrentSchema(defaultTableProvider());
     }
 
     // TODO: validate duplicate functions.
-    sqlEnv.loadBeamBuiltinFunctions();
-    registerFunctions(sqlEnv);
+    sqlEnvBuilder.autoLoadBuiltinFunctions();
+    registerFunctions(sqlEnvBuilder);
+
     if (autoUdfUdafLoad()) {
-      sqlEnv.loadUdfUdafFromProvider();
+      sqlEnvBuilder.autoLoadUserDefinedFunctions();
     }
 
+    sqlEnvBuilder.setQueryPlannerClassName(
+        input.getPipeline().getOptions().as(BeamSqlPipelineOptions.class).getPlannerName());
+
+    sqlEnvBuilder.setPipelineOptions(input.getPipeline().getOptions());
+
+    BeamSqlEnv sqlEnv = sqlEnvBuilder.build();
     return BeamSqlRelUtils.toPCollection(input.getPipeline(), sqlEnv.parseQuery(queryString()));
   }
 
@@ -130,11 +143,11 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     return tables.build();
   }
 
-  private void registerFunctions(BeamSqlEnv sqlEnv) {
+  private void registerFunctions(BeamSqlEnvBuilder sqlEnvBuilder) {
     udfDefinitions()
-        .forEach(udf -> sqlEnv.registerUdf(udf.udfName(), udf.clazz(), udf.methodName()));
+        .forEach(udf -> sqlEnvBuilder.addUdf(udf.udfName(), udf.clazz(), udf.methodName()));
 
-    udafDefinitions().forEach(udaf -> sqlEnv.registerUdaf(udaf.udafName(), udaf.combineFn()));
+    udafDefinitions().forEach(udaf -> sqlEnvBuilder.addUdaf(udaf.udafName(), udaf.combineFn()));
   }
 
   /**

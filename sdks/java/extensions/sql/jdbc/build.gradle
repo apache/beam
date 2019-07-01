@@ -31,12 +31,12 @@ configurations {
 }
 
 dependencies {
-  compile project(path: ":beam-sdks-java-extensions-sql", configuration: "shadow")
+  compile project(path: ":sdks:java:extensions:sql", configuration: "shadow")
   compile "jline:jline:2.14.6"
   compile "sqlline:sqlline:1.4.0"
   compile library.java.slf4j_jdk14
   compile library.java.guava
-  testCompile project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
@@ -66,7 +66,7 @@ test {
   }
 }
 
-task shadowJarTest(type: Test, dependsOn: ":beam-sdks-java-extensions-sql-jdbc:shadowJar") {
+task shadowJarTest(type: Test, dependsOn: ":sdks:java:extensions:sql:jdbc:shadowJar") {
   group = "Verification"
 
   // Disable Gradle cache (it should not be used because the IT's won't run).
@@ -96,8 +96,8 @@ task endToEndTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
 
   include '**/*IT.class'
-  classpath = project(":beam-sdks-java-extensions-sql-jdbc").sourceSets.test.runtimeClasspath
-  testClassesDirs = files(project(":beam-sdks-java-extensions-sql-jdbc").sourceSets.test.output.classesDirs)
+  classpath = project(":sdks:java:extensions:sql:jdbc").sourceSets.test.runtimeClasspath
+  testClassesDirs = files(project(":sdks:java:extensions:sql:jdbc").sourceSets.test.output.classesDirs)
   useJUnit { }
 }
 

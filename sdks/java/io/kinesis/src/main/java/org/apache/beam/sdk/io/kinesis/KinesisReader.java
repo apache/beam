@@ -38,7 +38,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   private final SimplifiedKinesisClient kinesis;
   private final KinesisSource source;
   private final CheckpointGenerator initialCheckpointGenerator;
-  private final KinesisWatermark watermark;
+  private final WatermarkPolicyFactory watermarkPolicyFactory;
   private final Duration upToDateThreshold;
   private final Duration backlogBytesCheckThreshold;
   private CustomOptional<KinesisRecord> currentRecord = CustomOptional.absent();
@@ -50,12 +50,13 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
       SimplifiedKinesisClient kinesis,
       CheckpointGenerator initialCheckpointGenerator,
       KinesisSource source,
+      WatermarkPolicyFactory watermarkPolicyFactory,
       Duration upToDateThreshold) {
     this(
         kinesis,
         initialCheckpointGenerator,
         source,
-        new KinesisWatermark(),
+        watermarkPolicyFactory,
         upToDateThreshold,
         Duration.standardSeconds(30));
   }
@@ -64,13 +65,13 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
       SimplifiedKinesisClient kinesis,
       CheckpointGenerator initialCheckpointGenerator,
       KinesisSource source,
-      KinesisWatermark watermark,
+      WatermarkPolicyFactory watermarkPolicyFactory,
       Duration upToDateThreshold,
       Duration backlogBytesCheckThreshold) {
     this.kinesis = checkNotNull(kinesis, "kinesis");
     this.initialCheckpointGenerator =
         checkNotNull(initialCheckpointGenerator, "initialCheckpointGenerator");
-    this.watermark = watermark;
+    this.watermarkPolicyFactory = watermarkPolicyFactory;
     this.source = source;
     this.upToDateThreshold = upToDateThreshold;
     this.backlogBytesCheckThreshold = backlogBytesCheckThreshold;
@@ -95,12 +96,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   @Override
   public boolean advance() throws IOException {
     currentRecord = shardReadersPool.nextRecord();
-    if (currentRecord.isPresent()) {
-      Instant approximateArrivalTimestamp = currentRecord.get().getApproximateArrivalTimestamp();
-      watermark.update(approximateArrivalTimestamp);
-      return true;
-    }
-    return false;
+    return currentRecord.isPresent();
   }
 
   @Override
@@ -131,7 +127,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 
   @Override
   public Instant getWatermark() {
-    return watermark.getCurrent(shardReadersPool::allShardsUpToDate);
+    return shardReadersPool.getWatermark();
   }
 
   @Override
@@ -173,6 +169,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   }
 
   ShardReadersPool createShardReadersPool() throws TransientKinesisException {
-    return new ShardReadersPool(kinesis, initialCheckpointGenerator.generate(kinesis));
+    return new ShardReadersPool(
+        kinesis, initialCheckpointGenerator.generate(kinesis), watermarkPolicyFactory);
   }
 }

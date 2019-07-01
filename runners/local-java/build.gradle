@@ -17,7 +17,10 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature()
+
+applyJavaNature(
+    archivesBaseName: 'beam-runners-local-java-core'
+)
 
 description = "Apache Beam :: Runners :: Local Java Core"
 
@@ -28,9 +31,9 @@ dependencies {
    * but should not be used within this library to execute any UDFs.
    * TODO: Add an APISurfaceTest to force this to be the case, if possible.
   */
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow library.java.joda_time
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.hamcrest_library
-  shadowTest library.java.junit
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.joda_time
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  testCompile library.java.junit
 }

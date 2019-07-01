@@ -274,7 +274,7 @@ Since `performanceTest` task involved running PerfkitBenchmarker, we can't use i
 Example usage on Cloud Dataflow runner: 
 
 ```
-./gradlew integrationTest -p sdks/java/io/hadoop-input-format -DintegrationTestPipelineOptions='["--project=GOOGLE_CLOUD_PROJECT", "--tempRoot=GOOGLE_STORAGE_BUCKET", "--numberOfRecords=1000", "--postgresPort=5432", "--postgresServerName=SERVER_NAME", "--postgresUsername=postgres", "--postgresPassword=PASSWORD", "--postgresDatabaseName=postgres", "--postgresSsl=false", "--runner=TestDataflowRunner"]' -DintegrationTestRunner=dataflow --tests=org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOIT
+./gradlew integrationTest -p sdks/java/io/hadoop-format -DintegrationTestPipelineOptions='["--project=GOOGLE_CLOUD_PROJECT", "--tempRoot=GOOGLE_STORAGE_BUCKET", "--numberOfRecords=1000", "--postgresPort=5432", "--postgresServerName=SERVER_NAME", "--postgresUsername=postgres", "--postgresPassword=PASSWORD", "--postgresDatabaseName=postgres", "--postgresSsl=false", "--runner=TestDataflowRunner"]' -DintegrationTestRunner=dataflow --tests=org.apache.beam.sdk.io.hadoop.format.HadoopFormatIOIT
 ```
 
 Example usage on HDFS filesystem and Direct runner: 
@@ -364,9 +364,9 @@ Thanks to [ghprb](https://github.com/janinko/ghprb) plugin it is possible to run
      </td>
     </tr>
     <tr>
-     <td>HadoopInputFormatIOIT
+     <td>HadoopFormatIOIT
      </td>
-     <td>Run Java HadoopInputFormatIO Performance Test
+     <td>Run Java HadoopFormatIO Performance Test
      </td>
     </tr>
     <tr>
@@ -439,7 +439,7 @@ If you modified/added new Jenkins job definitions in your Pull Request, run the 
 
 We measure the performance of IOITs by gathering test execution times from Jenkins jobs that run periodically. The consequent results are stored in a database (BigQuery), therefore we can display them in a form of plots. 
 
-The dashboard gathering all the results is available here: [Performance Testing Dashboard](https://apache-beam-testing.appspot.com/explore?dashboard=5755685136498688)
+The dashboard gathering all the results is available here: [Performance Testing Dashboard](https://s.apache.org/io-test-dashboards)
 
 ### Implementing Integration Tests {#implementing-integration-tests}
 
@@ -454,7 +454,7 @@ These three pieces are discussed in detail below.
 
 These are the conventions used by integration testing code:
 *   **Your test should use pipeline options to receive connection information.**
-    *   For Java, there is a shared pipeline options object in the io/common directory. This means that if there are two tests for the same data store (e.g. for `Elasticsearch` and the `HadoopInputFormatIO` tests), those tests share the same pipeline options.
+    *   For Java, there is a shared pipeline options object in the io/common directory. This means that if there are two tests for the same data store (e.g. for `Elasticsearch` and the `HadoopFormatIO` tests), those tests share the same pipeline options.
 *   **Generate test data programmatically and parameterize the amount of data used for testing.**
     *   For Java, `CountingInput` + `TestRow` can be combined to generate deterministic test data at any scale.
 *   **Use a write then read style for your tests.**
@@ -756,7 +756,7 @@ You can do this by:
 1.  Creating two Kubernetes scripts: one for a small instance of the data store, and one for a large instance.
 1.  Having your test take a pipeline option that decides whether to generate a small or large amount of test data (where small and large are sizes appropriate to your data store)
 
-An example of this is [HadoopInputFormatIO](https://github.com/apache/beam/tree/master/sdks/java/io/hadoop-input-format)'s tests.
+An example of this is [HadoopFormatIO](https://github.com/apache/beam/tree/master/sdks/java/io/hadoop-format)'s tests.
 
 <!--
 # Next steps

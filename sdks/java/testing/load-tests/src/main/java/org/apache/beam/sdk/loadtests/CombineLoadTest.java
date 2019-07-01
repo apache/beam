@@ -54,7 +54,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
  * <p>To run it manually, use the following command:
  *
  * <pre>
- *    ./gradlew :beam-sdks-java-load-tests:run -PloadTest.args='
+ *    ./gradlew :sdks:java:testing:load-tests:run -PloadTest.args='
  *      --fanout=1
  *      --perKeyCombinerType=TOP_LARGEST
  *      --topCount=10
@@ -67,7 +67,8 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
 
   private static final String METRICS_NAMESPACE = "combine";
 
-  private enum CombinerType {
+  /** Enumerates per-key combiners available in the test. */
+  public enum CombinerType {
     TOP_LARGEST,
     MEAN,
     SUM,
@@ -75,7 +76,7 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
   }
 
   /** Pipeline options specific for this test. */
-  interface Options extends LoadTestOptions {
+  public interface Options extends LoadTestOptions {
 
     @Description("Number consequent of ParDo operations (SyntheticSteps) to be performed.")
     @Default.Integer(1)
@@ -91,14 +92,20 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
 
     @Description("Per key combiner type.")
     @Default.Enum("MEAN")
-    CombinerType getPerKeyCombinerType();
+    CombinerType getPerKeyCombiner();
 
-    void setPerKeyCombinerType(CombinerType combinerType);
+    void setPerKeyCombiner(CombinerType combinerType);
 
     @Description("Number of top results to combine (if applicable).")
     Integer getTopCount();
 
     void setTopCount(Integer topCount);
+
+    @Description("Number of reiterations over the values to perform.")
+    @Default.Integer(1)
+    Integer getIterations();
+
+    void setIterations(Integer iterations);
   }
 
   private CombineLoadTest(String[] args) throws IOException {
@@ -124,13 +131,13 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
     for (int i = 0; i < options.getFanout(); i++) {
       applyStepIfPresent(input, format("Step: %d", i), syntheticStep)
           .apply(format("Convert to Long: %d", i), MapElements.via(new ByteValueToLong()))
-          .apply(format("Combine: %d", i), getPerKeyCombiner(options.getPerKeyCombinerType()))
+          .apply(format("Combine: %d", i), getPerKeyCombiner(options.getPerKeyCombiner()))
           .apply(
               "Collect end time metric", ParDo.of(new TimeMonitor<>(METRICS_NAMESPACE, "runtime")));
     }
   }
 
-  private PTransform<PCollection<KV<byte[], Long>>, ? extends PCollection> getPerKeyCombiner(
+  public PTransform<PCollection<KV<byte[], Long>>, ? extends PCollection> getPerKeyCombiner(
       CombinerType combinerType) {
     switch (combinerType) {
       case MEAN:

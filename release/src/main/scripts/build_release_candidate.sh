@@ -230,7 +230,7 @@ if [[ $confirmation = "y" ]]; then
   git clone ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
   git checkout ${RELEASE_BRANCH}
-  ./gradlew :beam-sdks-java-javadoc:aggregateJavadoc
+  ./gradlew :sdks:java:javadoc:aggregateJavadoc
   GENERATE_JAVADOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}/${BEAM_ROOT_DIR}/sdks/java/javadoc/build/docs/javadoc/
 
   echo "------------------Updating Release Docs---------------------"
@@ -290,4 +290,5 @@ echo "  - add new release download links like commit: "
 echo "    https://github.com/apache/beam-site/commit/29394625ce54f0c5584c3db730d3eb6bf365a80c#diff-abdcc989e94369c2324cf64b66659eda"
 echo "  - update last release download links from release to archive like commit: "
 echo "    https://github.com/apache/beam-site/commit/6b9bdb31324d5c0250a79224507da0ea7ae8ccbf#diff-abdcc989e94369c2324cf64b66659eda"
-echo "3.Start the review-and-vote thread on the dev@ mailing list."
+echo "3.You need to build Python Wheels."
+echo "4.Start the review-and-vote thread on the dev@ mailing list."

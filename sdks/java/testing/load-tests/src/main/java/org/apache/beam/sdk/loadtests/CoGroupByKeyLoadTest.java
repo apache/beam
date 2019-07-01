@@ -51,7 +51,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * <p>To run it manually, use the following command:
  *
  * <pre>
- *    ./gradlew :beam-sdks-java-load-tests:run -PloadTest.args='
+ *    ./gradlew :sdks:java:testing:load-tests:run -PloadTest.args='
  *      --iterations=1
  *      --sourceOptions={"numRecords":1000,...}
  *      --coSourceOptions={"numRecords":1000,...}

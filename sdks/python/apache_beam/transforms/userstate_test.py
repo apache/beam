@@ -27,11 +27,14 @@ from apache_beam.coders import BytesCoder
 from apache_beam.coders import IterableCoder
 from apache_beam.coders import StrUtf8Coder
 from apache_beam.coders import VarIntCoder
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.common import DoFnSignature
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import trigger
 from apache_beam.transforms import userstate
+from apache_beam.transforms import window
 from apache_beam.transforms.combiners import ToListCombineFn
 from apache_beam.transforms.combiners import TopCombineFn
 from apache_beam.transforms.core import DoFn
@@ -63,6 +66,9 @@ class TestStatefulDoFn(DoFn):
 
   @on_timer(EXPIRY_TIMER_1)
   def on_expiry_1(self,
+                  window=DoFn.WindowParam,
+                  timestamp=DoFn.TimestampParam,
+                  key=DoFn.KeyParam,
                   buffer=DoFn.StateParam(BUFFER_STATE_1),
                   timer_1=DoFn.TimerParam(EXPIRY_TIMER_1),
                   timer_2=DoFn.TimerParam(EXPIRY_TIMER_2),
@@ -557,16 +563,49 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
         [('timer1', 10), ('timer2', 20), ('timer3', 30)],
         sorted(StatefulDoFnOnDirectRunnerTest.all_records))
 
+  def test_timer_output_timestamp_and_window(self):
+
+    class TimerEmittingStatefulDoFn(DoFn):
+      EMIT_TIMER_1 = TimerSpec('emit1', TimeDomain.WATERMARK)
+
+      def process(self, element, timer1=DoFn.TimerParam(EMIT_TIMER_1)):
+        timer1.set(10)
+
+      @on_timer(EMIT_TIMER_1)
+      def emit_callback_1(self,
+                          window=DoFn.WindowParam,
+                          ts=DoFn.TimestampParam,
+                          key=DoFn.KeyParam):
+        yield ('timer1-{key}'.format(key=key),
+               int(ts), int(window.start), int(window.end))
+
+    pipeline_options = PipelineOptions()
+    with TestPipeline(options=pipeline_options) as p:
+      test_stream = (TestStream()
+                     .advance_watermark_to(10)
+                     .add_elements([1]))
+      (p
+       | test_stream
+       | beam.Map(lambda x: ('mykey', x))
+       | "window_into" >> beam.WindowInto(
+           window.FixedWindows(5),
+           accumulation_mode=trigger.AccumulationMode.DISCARDING)
+       | beam.ParDo(TimerEmittingStatefulDoFn())
+       | beam.ParDo(self.record_dofn()))
+
+    self.assertEqual(
+        [('timer1-mykey', 10, 10, 15)],
+        sorted(StatefulDoFnOnDirectRunnerTest.all_records))
+
   def test_index_assignment(self):
     class IndexAssigningStatefulDoFn(DoFn):
-      INDEX_STATE = BagStateSpec('index', VarIntCoder())
+      INDEX_STATE = CombiningValueStateSpec('index', sum)
 
       def process(self, element, state=DoFn.StateParam(INDEX_STATE)):
         unused_key, value = element
-        next_index, = list(state.read()) or [0]
-        yield (value, next_index)
-        state.clear()
-        state.add(next_index + 1)
+        current_index = state.read()
+        yield (value, current_index)
+        state.add(1)
 
     with TestPipeline() as p:
       test_stream = (TestStream()

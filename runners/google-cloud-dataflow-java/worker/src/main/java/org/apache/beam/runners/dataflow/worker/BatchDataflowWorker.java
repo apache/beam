@@ -209,7 +209,9 @@ public class BatchDataflowWorker implements Closeable {
             .build();
 
     this.memoryMonitor = MemoryMonitor.fromOptions(options);
-    this.statusPages = WorkerStatusPages.create(DEFAULT_STATUS_PORT, this.memoryMonitor);
+    this.statusPages =
+        WorkerStatusPages.create(
+            DEFAULT_STATUS_PORT, this.memoryMonitor, sdkHarnessRegistry::sdkHarnessesAreHealthy);
 
     if (!DataflowRunner.hasExperiment(options, "disable_debug_capture")) {
       this.debugCaptureManager =
@@ -278,15 +280,12 @@ public class BatchDataflowWorker implements Closeable {
     return result;
   }
 
-  private Node createPortNode(String predecessorId, String successorId) {
+  private Node createPortNode() {
     return RemoteGrpcPortNode.create(
         RemoteGrpcPort.newBuilder()
             .setApiServiceDescriptor(sdkHarnessRegistry.beamFnDataApiServiceDescriptor())
             .build(),
-        idGenerator.getId(),
-        idGenerator.getId(),
-        predecessorId,
-        successorId);
+        idGenerator.getId());
   }
 
   /**

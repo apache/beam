@@ -24,14 +24,14 @@ description = "Apache Beam :: SDKs :: Go :: Test"
 // Figure out why the golang plugin does not add a build dependency between projects.
 // Without the line below, we get spurious errors about not being able to resolve
 // "./github.com/apache/beam/sdks/go"
-resolveBuildDependencies.dependsOn ":beam-sdks-go:goBuild"
+resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
 
 dependencies {
   golang {
     // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
     // TODO(herohde): get the pkg subdirectory only, if possible. We spend mins pulling cmd/beamctl deps.
-    build name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-go').projectDir
-    test name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-go').projectDir
+    build name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
+    test name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
   }
 }
 
@@ -44,5 +44,37 @@ golang {
 
     targetPlatform = ['linux-amd64']
     go 'build -o ./build/bin/linux-amd64/worker github.com/apache/beam/sdks/go/test/integration'
+  }
+}
+
+task flinkValidatesRunner {
+  dependsOn ":sdks:go:test:build"
+  dependsOn ":runners:flink:1.5:job-server:shadowJar"
+  doLast {
+    def options = [
+            "--runner flink",
+            "--parallel 1", // prevent memory overuse
+            "--flink_job_server_jar ${project(":runners:flink:1.5:job-server").shadowJar.archivePath}",
+    ]
+    exec {
+      executable "sh"
+      args "-c", "./run_integration_tests.sh ${options.join(' ')}"
+    }
+  }
+}
+
+task sparkValidatesRunner {
+  dependsOn ":sdks:go:test:build"
+  dependsOn ":runners:spark:job-server:shadowJar"
+  doLast {
+    def options = [
+            "--runner spark",
+            "--parallel 1", // prevent memory overuse
+            "--spark_job_server_jar ${project(":runners:spark:job-server").shadowJar.archivePath}",
+    ]
+    exec {
+      executable "sh"
+      args "-c", "./run_integration_tests.sh ${options.join(' ')}"
+    }
   }
 }

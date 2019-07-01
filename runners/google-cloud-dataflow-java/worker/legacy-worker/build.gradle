@@ -56,12 +56,14 @@ def sdk_provided_dependencies = [
         library.java.vendored_grpc_1_13_1,
 ]
 
+def sdk_provided_shaded_project_dependencies = [
+        ":model:pipeline",
+        ":sdks:java:core",
+]
 def sdk_provided_project_dependencies = [
-        ":beam-model-pipeline",
-        ":beam-runners-google-cloud-dataflow-java",
-        ":beam-sdks-java-core",
-        ":beam-sdks-java-extensions-google-cloud-platform-core",
-        ":beam-sdks-java-io-google-cloud-platform",
+        ":runners:google-cloud-dataflow-java",
+        ":sdks:java:extensions:google-cloud-platform-core",
+        ":sdks:java:io:google-cloud-platform",
 ]
 
 // Exclude unneeded dependencies when building jar
@@ -79,6 +81,7 @@ def excluded_dependencies = [
 ]
 
 applyJavaNature(
+        archivesBaseName: 'beam-runners-google-cloud-dataflow-java-legacy-worker',
         publish: false,
         exportJavadoc: false,
         enableSpotbugs: false /* TODO(BEAM-5658): enable spotbugs */,
@@ -89,11 +92,13 @@ applyJavaNature(
             "com/google/cloud/dataflow/worker/DataflowRunnerHarness.class",
             // TODO(BEAM-6136): Enable relocation for conscrypt
             "org/conscrypt/**",
+            // Allow slf4j implementation worker for logging during pipeline execution
+            "org/slf4j/impl/**"
         ],
-        shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+        shadowClosure: {
     // Each included dependency must also include all of its necessary transitive dependencies
     // or have them provided by the users pipeline during job submission. Typically a users
-    // pipeline includes :beam-runners-google-cloud-dataflow-java and its transitive dependencies
+    // pipeline includes :runners:google-cloud-dataflow-java and its transitive dependencies
     // so those dependencies don't need to be shaded (bundled and relocated) away. All other
     // dependencies needed to run the worker must be shaded (bundled and relocated) to prevent
     // ClassNotFound and/or MethodNotFound errors during pipeline execution.
@@ -102,26 +107,30 @@ applyJavaNature(
     // that the shaded jar is correctly built.
 
     dependencies {
-        include(project(path: ":beam-model-fn-execution", configuration: "shadow"))
+      include(dependency(library.java.slf4j_jdk14))
+    }
+
+    dependencies {
+        include(project(path: ":model:fn-execution", configuration: "shadow"))
     }
     relocate("org.apache.beam.model.fnexecution.v1", getWorkerRelocatedPath("org.apache.beam.model.fnexecution.v1"))
 
     dependencies {
-        include(project(path: ":beam-runners-core-construction-java", configuration: "shadow"))
-        include(project(path: ":beam-runners-core-java", configuration: "shadow"))
+        include(project(":runners:core-construction-java"))
+        include(project(":runners:core-java"))
     }
     relocate("org.apache.beam.runners.core", getWorkerRelocatedPath("org.apache.beam.runners.core"))
     relocate("org.apache.beam.repackaged.beam_runners_core_construction_java", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_runners_core_construction_java"))
     relocate("org.apache.beam.repackaged.beam_runners_core_java", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_runners_core_java"))
 
     dependencies {
-        include(project(path: ":beam-runners-java-fn-execution", configuration: "shadow"))
+        include(project(":runners:java-fn-execution"))
     }
     relocate("org.apache.beam.runners.fnexecution", getWorkerRelocatedPath("org.apache.beam.runners.fnexecution"))
     relocate("org.apache.beam.repackaged.beam_runners_java_fn_execution", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_runners_java_fn_execution"))
 
     dependencies {
-        include(project(path: ":beam-sdks-java-fn-execution", configuration: "shadow"))
+        include(project(":sdks:java:fn-execution"))
     }
     relocate("org.apache.beam.sdk.fn", getWorkerRelocatedPath("org.apache.beam.sdk.fn"))
     relocate("org.apache.beam.repackaged.beam_sdks_java_fn_execution", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_sdks_java_fn_execution"))
@@ -144,7 +153,7 @@ applyJavaNature(
     // expect a user pipeline to include it. There is also a JNI component that windmill server relies on which makes
     // arbitrary relocation more difficult.
     dependencies {
-        include(project(path: ":beam-runners-google-cloud-dataflow-java-windmill", configuration: "shadow"))
+        include(project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow"))
     }
 
     // Include original source files extracted under
@@ -168,14 +177,14 @@ configurations {
     }
 }
 
-evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-fn-api-worker")
+evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
 
 compileJava {
-    source project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").sourceSets.main.java.srcDirs
+    source project(":runners:google-cloud-dataflow-java:worker").sourceSets.main.java.srcDirs
 }
 
 compileTestJava {
-    source project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").sourceSets.test.java.srcDirs
+    source project(":runners:google-cloud-dataflow-java:worker").sourceSets.test.java.srcDirs
 }
 
 dependencies {
@@ -185,16 +194,19 @@ dependencies {
     sdk_provided_dependencies.each {
         provided(it)
     }
-    sdk_provided_project_dependencies.each {
+    sdk_provided_shaded_project_dependencies.each {
         provided project(path: it, configuration: "shadow")
     }
+    sdk_provided_project_dependencies.each {
+        provided project(it)
+    }
 
-    compile project(path: ":beam-model-fn-execution", configuration: "shadow")
-    compile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-    compile project(path: ":beam-runners-core-java", configuration: "shadow")
-    compile project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
-    compile project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
-    compile project(path: ":beam-runners-google-cloud-dataflow-java-windmill", configuration: "shadow")
+    compile project(path: ":model:fn-execution", configuration: "shadow")
+    compile project(":runners:core-construction-java")
+    compile project(":runners:core-java")
+    compile project(":runners:java-fn-execution")
+    compile project(":sdks:java:fn-execution")
+    compile project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
     shadow library.java.vendored_guava_20_0
     compile "org.conscrypt:conscrypt-openjdk:1.1.3:linux-x86_64"
     compile "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
@@ -205,17 +217,35 @@ dependencies {
     // Any test dependency which intersects with our relocation rules above needs to be relocated
     // as well and placed within the testCompile configuration. Otherwise we can place it within
     // the shadowTest configuration.
-    testCompile project(path: ":beam-runners-core-java", configuration: "shadowTest")
-    shadowTest library.java.guava_testlib
-    shadowTest project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadowTest")
-    shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
-    shadowTest project(path: ":beam-sdks-java-harness", configuration: "shadowTest")
-    shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+    testCompile project(path: ":runners:core-java", configuration: "testRuntime")
+    shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
+    shadowTest project(path: ":runners:direct-java", configuration: "shadow")
+    shadowTest project(path: ":sdks:java:harness", configuration: "shadowTest")
+    shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
     shadowTest library.java.hamcrest_core
     shadowTest library.java.hamcrest_library
     shadowTest library.java.junit
     shadowTest library.java.mockito_core
 }
+
+project.task('validateShadedJarContainsSlf4jJdk14', dependsOn: 'shadowJar') {
+    ext.outFile = project.file("${project.reportsDir}/${name}.out")
+    inputs.files project.configurations.shadow.artifacts.files
+    outputs.files outFile
+    doLast {
+        project.configurations.shadow.artifacts.files.each {
+            FileTree slf4jImpl = project.zipTree(it).matching {
+                include "org/slf4j/impl/JDK14LoggerAdapter.class"
+            }
+            outFile.text = slf4jImpl.files
+            if (slf4jImpl.files.isEmpty()) {
+                throw new GradleException("Did not find slf4j-jdk14 in Dataflow Worker uber jar")
+            }
+        }
+    }
+}
+
+tasks.check.dependsOn project.tasks.validateShadedJarContainsSlf4jJdk14
 
 //TODO(BEAM-5657): checktyle task should be enabled in the future.
 checkstyleMain.enabled = false

@@ -17,10 +17,9 @@
  */
 package org.apache.beam.runners.fnexecution.data;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -37,17 +36,14 @@ public class RemoteInputDestinationTest {
 
   @Test
   public void testConstruction() {
-    BeamFnApi.Target target =
-        BeamFnApi.Target.newBuilder()
-            .setName("my_name")
-            .setPrimitiveTransformReference("my_target_pt")
-            .build();
+    String transformId = "my_target_pt";
+
     KvCoder<byte[], Iterable<Long>> coder =
         KvCoder.of(LengthPrefixCoder.of(ByteArrayCoder.of()), IterableCoder.of(VarLongCoder.of()));
     RemoteInputDestination<KV<byte[], Iterable<Long>>> destination =
-        RemoteInputDestination.of(coder, target);
+        RemoteInputDestination.of(coder, transformId);
 
     assertThat(destination.getCoder(), equalTo(coder));
-    assertThat(destination.getTarget(), equalTo(target));
+    assertThat(destination.getPTransformId(), equalTo(transformId));
   }
 }

@@ -41,7 +41,7 @@ import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 @Experimental
 public class HCatalogBeamSchema {
 
-  private @Nullable IMetaStoreClient metastore;
+  private @Nullable final IMetaStoreClient metastore;
 
   private HCatalogBeamSchema(IMetaStoreClient metastore) {
     this.metastore = metastore;

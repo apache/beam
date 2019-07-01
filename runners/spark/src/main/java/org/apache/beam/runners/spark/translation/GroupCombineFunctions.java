@@ -45,7 +45,7 @@ public class GroupCombineFunctions {
    * An implementation of {@link
    * org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly} for the Spark runner.
    */
-  public static <K, V> JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupByKeyOnly(
+  public static <K, V> JavaRDD<KV<K, Iterable<WindowedValue<V>>>> groupByKeyOnly(
       JavaRDD<WindowedValue<KV<K, V>>> rdd,
       Coder<K> keyCoder,
       WindowedValueCoder<V> wvCoder,
@@ -69,9 +69,34 @@ public class GroupCombineFunctions {
             TranslationUtils.pairFunctionToPairFlatMapFunction(
                 CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder)),
             true)
-        .mapPartitions(TranslationUtils.fromPairFlatMapFunction(), true)
-        .mapPartitions(
-            TranslationUtils.functionToFlatMapFunction(WindowedValue::valueInGlobalWindow), true);
+        .mapPartitions(TranslationUtils.fromPairFlatMapFunction(), true);
+  }
+
+  /**
+   * Spark-level group by key operation that keeps original Beam {@link KV} pairs unchanged.
+   *
+   * @returns {@link JavaPairRDD} where the first value in the pair is the serialized key, and the
+   *     second is an iterable of the {@link KV} pairs with that key.
+   */
+  static <K, V> JavaPairRDD<ByteArray, Iterable<WindowedValue<KV<K, V>>>> groupByKeyPair(
+      JavaRDD<WindowedValue<KV<K, V>>> rdd, Coder<K> keyCoder, WindowedValueCoder<V> wvCoder) {
+    // we use coders to convert objects in the PCollection to byte arrays, so they
+    // can be transferred over the network for the shuffle.
+    JavaPairRDD<ByteArray, byte[]> pairRDD =
+        rdd.map(new ReifyTimestampsAndWindowsFunction<>())
+            .map(WindowedValue::getValue)
+            .mapToPair(TranslationUtils.toPairFunction())
+            .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder));
+
+    JavaPairRDD<ByteArray, Iterable<Tuple2<ByteArray, byte[]>>> groupedRDD =
+        pairRDD.groupBy((value) -> value._1);
+
+    return groupedRDD
+        .mapValues(
+            it -> Iterables.transform(it, new CoderHelpers.FromByteFunction<>(keyCoder, wvCoder)))
+        .mapValues(it -> Iterables.transform(it, new TranslationUtils.FromPairFunction()))
+        .mapValues(
+            it -> Iterables.transform(it, new TranslationUtils.ToKVByWindowInValueFunction<>()));
   }
 
   /** Apply a composite {@link org.apache.beam.sdk.transforms.Combine.Globally} transformation. */
@@ -171,8 +196,8 @@ public class GroupCombineFunctions {
         .mapToPair(TranslationUtils.toPairFunction())
         .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder))
         .repartition(rdd.getNumPartitions())
-        .mapToPair(CoderHelpers.fromByteFunction(keyCoder, wvCoder))
-        .map(TranslationUtils.fromPairFunction())
-        .map(TranslationUtils.toKVByWindowInValue());
+        .mapToPair(new CoderHelpers.FromByteFunction(keyCoder, wvCoder))
+        .map(new TranslationUtils.FromPairFunction())
+        .map(new TranslationUtils.ToKVByWindowInValueFunction<>());
   }
 }

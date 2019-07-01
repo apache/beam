@@ -19,7 +19,7 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
     exportJavadoc: false,
-    shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+    shadowClosure: {
     dependencies {
         include(dependency('com.google.guava:guava:20.0'))
         include(dependency('com.google.protobuf:protobuf-java:3.5.1'))
@@ -46,14 +46,14 @@ ext.summary = "Add support to Apache Beam for Vendored Google Protobuf."
  * the following projects are evaluated before we evaluate this project. This is because
  * we are attempting to reference the "sourceSets.main.java.srcDirs" directly.
  */
-evaluationDependsOn(":beam-sdks-java-extensions-protobuf")
+evaluationDependsOn(":sdks:java:extensions:protobuf")
 
 compileJava {
-    source project(":beam-sdks-java-extensions-protobuf").sourceSets.main.java.srcDirs
+    source project(":sdks:java:extensions:protobuf").sourceSets.main.java.srcDirs
 }
 
 dependencies {
     compile 'com.google.guava:guava:20.0'
     compile 'com.google.protobuf:protobuf-java:3.5.1'
-    shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+    shadow project(path: ":sdks:java:core", configuration: "shadow")
 }

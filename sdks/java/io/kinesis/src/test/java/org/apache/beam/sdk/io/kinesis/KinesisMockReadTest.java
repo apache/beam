@@ -52,6 +52,7 @@ public class KinesisMockReadTest {
                     .withStreamName("stream")
                     .withInitialPositionInStream(InitialPositionInStream.TRIM_HORIZON)
                     .withAWSClientsProvider(new AmazonKinesisMock.Provider(testData, 10))
+                    .withArrivalTimeWatermarkPolicy()
                     .withMaxNumRecords(noOfShards * noOfEventsPerShard))
             .apply(ParDo.of(new KinesisRecordToTestData()));
     PAssert.that(result).containsInAnyOrder(Iterables.concat(testData));

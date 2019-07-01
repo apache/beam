@@ -29,10 +29,7 @@ def loadTestArgsProperty = "loadTest.args"
 
 def runnerProperty = "runner"
 
-task run(type: Exec) {
-    dependsOn 'setupVirtualenv'
-    dependsOn 'installGcpTest'
-
+task run(type: Exec, dependsOn: installGcpTest) {
     def loadTestArgs = project.findProperty(loadTestArgsProperty) ?: ""
 
     def runnerArg = project.findProperty(runnerProperty) ?: ""

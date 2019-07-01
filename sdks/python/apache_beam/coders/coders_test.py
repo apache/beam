@@ -31,16 +31,16 @@ class PickleCoderTest(unittest.TestCase):
   def test_basics(self):
     v = ('a' * 10, 'b' * 90)
     pickler = coders.PickleCoder()
-    self.assertEquals(v, pickler.decode(pickler.encode(v)))
+    self.assertEqual(v, pickler.decode(pickler.encode(v)))
     pickler = coders.Base64PickleCoder()
-    self.assertEquals(v, pickler.decode(pickler.encode(v)))
-    self.assertEquals(
+    self.assertEqual(v, pickler.decode(pickler.encode(v)))
+    self.assertEqual(
         coders.Base64PickleCoder().encode(v),
         base64.b64encode(coders.PickleCoder().encode(v)))
 
   def test_equality(self):
-    self.assertEquals(coders.PickleCoder(), coders.PickleCoder())
-    self.assertEquals(coders.Base64PickleCoder(), coders.Base64PickleCoder())
+    self.assertEqual(coders.PickleCoder(), coders.PickleCoder())
+    self.assertEqual(coders.Base64PickleCoder(), coders.Base64PickleCoder())
     self.assertNotEquals(coders.Base64PickleCoder(), coders.PickleCoder())
     self.assertNotEquals(coders.Base64PickleCoder(), object())
 
@@ -82,6 +82,34 @@ class ProtoCoderTest(unittest.TestCase):
     self.assertEqual(expected_coder, real_coder)
     self.assertEqual(real_coder.encode(ma), expected_coder.encode(ma))
     self.assertEqual(ma, real_coder.decode(real_coder.encode(ma)))
+
+
+class DeterministicProtoCoderTest(unittest.TestCase):
+
+  def test_deterministic_proto_coder(self):
+    ma = test_message.MessageA()
+    mb = ma.field2.add()
+    mb.field1 = True
+    ma.field1 = u'hello world'
+    expected_coder = coders.DeterministicProtoCoder(ma.__class__)
+    real_coder = (coders_registry.get_coder(ma.__class__)
+                  .as_deterministic_coder(step_label='unused'))
+    self.assertTrue(real_coder.is_deterministic())
+    self.assertEqual(expected_coder, real_coder)
+    self.assertEqual(real_coder.encode(ma), expected_coder.encode(ma))
+    self.assertEqual(ma, real_coder.decode(real_coder.encode(ma)))
+
+  def test_deterministic_proto_coder_determinism(self):
+    for _ in range(10):
+      keys = list(range(20))
+      mm_forward = test_message.MessageWithMap()
+      for key in keys:
+        mm_forward.field1[str(key)].field1 = str(key)
+      mm_reverse = test_message.MessageWithMap()
+      for key in reversed(keys):
+        mm_reverse.field1[str(key)].field1 = str(key)
+      coder = coders.DeterministicProtoCoder(mm_forward.__class__)
+      self.assertEqual(coder.encode(mm_forward), coder.encode(mm_reverse))
 
 
 class DummyClass(object):

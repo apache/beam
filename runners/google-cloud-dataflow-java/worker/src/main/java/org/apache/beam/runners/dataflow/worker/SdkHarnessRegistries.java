@@ -59,6 +59,7 @@ public class SdkHarnessRegistries {
     private final BeamFnDataGrpcService beamFnDataGrpcService;
     private final ConcurrentHashMap<FnApiControlClient, WorkCountingSdkWorkerHarness> workerMap =
         new ConcurrentHashMap<>();
+    private final AtomicBoolean sdkHarnessesAreHealthy = new AtomicBoolean(true);
 
     private final PriorityBlockingQueue<WorkCountingSdkWorkerHarness> workers =
         new PriorityBlockingQueue<>(
@@ -107,6 +108,17 @@ public class SdkHarnessRegistries {
         workers.remove(worker);
       }
       LOG.info("Unregistered Control client {}", worker != null ? worker.getWorkerId() : null);
+
+      // unregisterWorkerClient() will be called only when the connection between SDK harness and
+      // runner harness is broken or SDK harness respond to runner harness with an error. In either
+      // case, the SDK should be marked as unhealthy.
+      sdkHarnessesAreHealthy.set(false);
+      LOG.info("SDK harness {} became unhealthy", worker != null ? worker.getWorkerId() : null);
+    }
+
+    @Override
+    public boolean sdkHarnessesAreHealthy() {
+      return sdkHarnessesAreHealthy.get();
     }
 
     /* Any modification to workers has race condition with unregisterWorkerClient. To resolve this
@@ -251,6 +263,11 @@ public class SdkHarnessRegistries {
     public void unregisterWorkerClient(FnApiControlClient controlClient) {
       throw new UnsupportedOperationException(
           "EmptySdkHarnessRegistry does not support this operation");
+    }
+
+    @Override
+    public boolean sdkHarnessesAreHealthy() {
+      return true;
     }
 
     @Override

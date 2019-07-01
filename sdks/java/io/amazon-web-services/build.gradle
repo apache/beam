@@ -25,31 +25,32 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services"
 ext.summary = "IO library to read and write Amazon Web Services services from Beam."
 
 dependencies {
-  shadow library.java.vendored_guava_20_0
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow library.java.aws_java_sdk_cloudwatch
-  shadow library.java.aws_java_sdk_core
-  shadow library.java.aws_java_sdk_s3
-  shadow library.java.aws_java_sdk_sns
-  shadow library.java.aws_java_sdk_sqs
-  shadow "commons-lang:commons-lang:2.6"
-  shadow library.java.jackson_core
-  shadow library.java.jackson_annotations
-  shadow library.java.jackson_databind
-  shadow library.java.slf4j_api
+  compile library.java.vendored_guava_20_0
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.aws_java_sdk_cloudwatch
+  compile library.java.aws_java_sdk_core
+  compile library.java.aws_java_sdk_dynamodb
+  compile library.java.aws_java_sdk_s3
+  compile library.java.aws_java_sdk_sns
+  compile library.java.aws_java_sdk_sqs
+  compile "commons-lang:commons-lang:2.6"
+  compile library.java.jackson_core
+  compile library.java.jackson_annotations
+  compile library.java.jackson_databind
+  compile library.java.slf4j_api
   runtime 'commons-codec:commons-codec:1.9'
   runtime "org.apache.httpcomponents:httpclient:4.5.6"
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile "io.findify:s3mock_2.12:0.2.4"
-  shadowTest library.java.guava_testlib
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.hamcrest_library
-  shadowTest library.java.mockito_core
-  shadowTest library.java.junit
-  shadowTest library.java.slf4j_jdk14
-  shadowTest group: 'org.elasticmq', name: 'elasticmq-rest-sqs_2.12', version: '0.14.1'
-  testRuntimeOnly project(path: ":beam-runners-direct-java")
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  testCompile library.java.mockito_core
+  testCompile library.java.junit
+  testCompile 'org.elasticmq:elasticmq-rest-sqs_2.12:0.14.1'
+  testCompile 'org.testcontainers:localstack:1.11.2'
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(":runners:direct-java")
 }
 
 test {

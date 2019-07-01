@@ -57,6 +57,7 @@ This is a collection of documents that may or may not be up to date.
 - Support of @RequiresStableInput annotation [[doc](https://docs.google.com/document/d/117yRKbbcEdm3eIKB_26BHOJGmHSZl1YNoF0RqWGtqAM)], [[mail](https://lists.apache.org/thread.html/ae3c838df060e47148439d1dad818d5e927b2a25ff00cc4153221dff@%3Cdev.beam.apache.org%3E)]
 - [PROPOSAL] @onwindowexpiration [[mail](https://lists.apache.org/thread.html/1dab7f17c97378e665928b11116cbd887dc7be93390ab26c593ee49a@%3Cdev.beam.apache.org%3E)]
 - AutoValue Coding and Row Support [[doc](https://docs.google.com/document/d/1ucoik4WzUDfilqIz3I1AuMHc1J8DE6iv7gaUCDI42BI)] 
+- HyperLogLog++ Integration with Apache Beam [[doc](https://docs.google.com/document/d/1U5aXdC9lDSOqT6FPHRulp-EutYiQ9KeHpgu-19CIfEI)] 
 
 ### IO / Filesystem
 - IOChannelFactory Redesign [[doc](https://docs.google.com/document/d/11TdPyZ9_zmjokhNWM3Id-XJsVG3qel2lhdKTknmZ_7M)]
@@ -79,6 +80,7 @@ This is a collection of documents that may or may not be up to date.
 - Composite PInputs, POutputs, and the Runner API [[doc](https://s.apache.org/beam-runner-composites)]
 - Side Input Architecture for Apache Beam [[doc](https://s.apache.org/beam-side-inputs-1-pager)]
 - Runner supported features plugin [[doc](https://s.apache.org/k79W)]
+- Structured streaming Spark Runner [[doc](https://s.apache.org/spark-structured-streaming-runner)]
 
 ### SQL / Schema
 - Streams and Tables [[doc](https://s.apache.org/beam-streams-tables)]
@@ -94,6 +96,8 @@ This is a collection of documents that may or may not be up to date.
 - Integrating runners & IO [[doc](https://docs.google.com/document/d/1ZFVlnldrIYhUgOfxIT2JcmTFFSWTl4HwAnQsnwiNL1g)]
 - Beam SQL Pipeline Options [[doc](https://docs.google.com/document/d/1UTsSBuruJRfGnVOS9eXbQI6NauCD4WnSAPgA_Y0zjdk)]
 - Unbounded limit [[doc](https://docs.google.com/document/d/13zeTewHH9nfwhSlcE4x77WQwr1U2Z4sTiNRjOXUj2aw)]
+- Portable Beam Schemas [[doc](https://s.apache.org/beam-schemas)]
+- Cost Estimation [[doc](https://docs.google.com/document/d/1vi1PBBu5IqSy-qZl1Gk-49CcANOpbNs1UAud6LnOaiY/edit#heading=h.6rlkpwwx7gvf)]
 
 ### Portability
 - Fn API
@@ -118,6 +122,9 @@ This is a collection of documents that may or may not be up to date.
 - Portability API: How to Checkpoint and Split Bundles [[doc](https://s.apache.org/beam-checkpoint-and-split-bundles)]
 - Portability API: How to Finalize Bundles [[doc](https://s.apache.org/beam-finalizing-bundles)]
 - Side Input in Universal Reference Runner [[doc](https://docs.google.com/document/d/13N0OJ7QJm81wcgu13pi9GuN29UUxN2iIFn_H8lKpDks)]
+- Spark Portable Runner Overview [[doc](https://docs.google.com/document/d/1j8GERTiHUuc6CzzCXZHc38rBn41uWfATBh2-5JN8hro)]
+- Cross-Language Pipelines & Legacy IO [[doc](https://s.apache.org/beam-cross-language-io)]
+- Artifact Staging in Cross-Language Pipelines [[doc](https://docs.google.com/document/d/1XaiNekAY2sptuQRIXpjGAyaYdSc-wlJ-VKjl04c8N48/)]
 
 ### Build / Testing
 - More Expressive PAsserts [[doc](https://docs.google.com/document/d/1fZUUbG2LxBtqCVabQshldXIhkMcXepsbv2vuuny8Ix4)]
@@ -134,6 +141,7 @@ This is a collection of documents that may or may not be up to date.
 - Automation For Beam Dependency Check [[doc](https://docs.google.com/document/d/1rqr_8a9NYZCgeiXpTIwWLCL7X8amPAVfRXsO72BpBwA)]
 - Test performance of core Apache Beam operations [[doc](https://s.apache.org/load-test-basic-operations)]
 - Add static code analysis quality gates to Beam [[doc](https://docs.google.com/document/d/1YbV18mrHujmiLBtadS1WzCVeiI3Lo7W6awWJDA4A98o)]
+- Portable batch & streaming load tests in all sdks [[doc](https://s.apache.org/portable-load-tests)]
 
 ### Python
 - Beam Python User State and Timer APIs [[doc](https://s.apache.org/beam-python-user-state-and-timers)]
@@ -142,6 +150,7 @@ This is a collection of documents that may or may not be up to date.
 - Splittable DoFn for Python SDK [[doc](http://s.apache.org/splittable-do-fn-python-sdk)]
 - Parquet IO for Python SDK [[doc](https://docs.google.com/document/d/1-FT6zmjYhYFWXL8aDM5mNeiUnZdKnnB021zTo4S-0Wg)]
 - Building Python Wheels [[doc](https://docs.google.com/document/d/1MRVFs48e6g7wORshr2UpuOVD_yTSJTbmR65_j8XbGek)]
+- Beam Type Hints for Python 3 [[doc](https://docs.google.com/document/d/15bsOL3YcUWuIjnxqhi9nanhj2eh9S6-QlLYuL7ufcXY)]
 
 ### Go
 - Apache Beam Go SDK design [[doc](https://s.apache.org/beam-go-sdk-design-rfc)]

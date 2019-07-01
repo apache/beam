@@ -20,15 +20,14 @@ package org.apache.beam.sdk.schemas.transforms;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.schemas.utils.ConvertHelpers;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -99,7 +98,6 @@ public class Convert {
   private static class ConvertTransform<InputT, OutputT>
       extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
     TypeDescriptor<OutputT> outputTypeDescriptor;
-    Schema unboxedSchema = null;
 
     ConvertTransform(TypeDescriptor<OutputT> outputTypeDescriptor) {
       this.outputTypeDescriptor = outputTypeDescriptor;
@@ -124,62 +122,48 @@ public class Convert {
         throw new RuntimeException("Convert requires a schema on the input.");
       }
 
-      final SchemaCoder<OutputT> outputSchemaCoder;
-      boolean toRow = outputTypeDescriptor.equals(TypeDescriptor.of(Row.class));
-      if (toRow) {
-        // If the output is of type Row, then just forward the schema of the input type to the
-        // output.
-        outputSchemaCoder =
-            (SchemaCoder<OutputT>)
-                SchemaCoder.of(
-                    input.getSchema(),
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity());
+      SchemaRegistry registry = input.getPipeline().getSchemaRegistry();
+      ConvertHelpers.ConvertedSchemaInformation<OutputT> converted =
+          ConvertHelpers.getConvertedSchemaInformation(
+              input.getSchema(), outputTypeDescriptor, registry);
+      boolean unbox = converted.unboxedType != null;
+      PCollection<OutputT> output;
+      if (converted.outputSchemaCoder != null) {
+        output =
+            input.apply(
+                ParDo.of(
+                    new DoFn<InputT, OutputT>() {
+                      @ProcessElement
+                      public void processElement(@Element Row row, OutputReceiver<OutputT> o) {
+                        // Read the row, potentially unboxing if necessary.
+                        Object input = unbox ? row.getValue(0) : row;
+                        // The output has a schema, so we need to convert to the appropriate type.
+                        o.output(
+                            converted.outputSchemaCoder.getFromRowFunction().apply((Row) input));
+                      }
+                    }));
+        output =
+            output.setSchema(
+                converted.outputSchemaCoder.getSchema(),
+                converted.outputSchemaCoder.getToRowFunction(),
+                converted.outputSchemaCoder.getFromRowFunction());
       } else {
-        // Otherwise, try to find a schema for the output type in the schema registry.
-        SchemaRegistry registry = input.getPipeline().getSchemaRegistry();
-        try {
-          outputSchemaCoder =
-              SchemaCoder.of(
-                  registry.getSchema(outputTypeDescriptor),
-                  registry.getToRowFunction(outputTypeDescriptor),
-                  registry.getFromRowFunction(outputTypeDescriptor));
+        SerializableFunction<?, OutputT> convertPrimitive =
+            ConvertHelpers.getConvertPrimitive(converted.unboxedType, outputTypeDescriptor);
+        output =
+            input.apply(
+                ParDo.of(
+                    new DoFn<InputT, OutputT>() {
+                      @ProcessElement
+                      public void processElement(@Element Row row, OutputReceiver<OutputT> o) {
+                        o.output(convertPrimitive.apply(row.getValue(0)));
+                      }
+                    }));
 
-          Schema outputSchema = outputSchemaCoder.getSchema();
-          if (!outputSchema.assignableToIgnoreNullable(input.getSchema())) {
-            // We also support unboxing nested Row schemas, so attempt that.
-            // TODO: Support unboxing to primitive types as well.
-            unboxedSchema = getBoxedNestedSchema(input.getSchema());
-            if (unboxedSchema == null || !outputSchema.assignableToIgnoreNullable(unboxedSchema)) {
-              Schema checked = (unboxedSchema == null) ? input.getSchema() : unboxedSchema;
-              throw new RuntimeException(
-                  "Cannot convert between types that don't have equivalent schemas."
-                      + " input schema: "
-                      + checked
-                      + " output schema: "
-                      + outputSchemaCoder.getSchema());
-            }
-          }
-        } catch (NoSuchSchemaException e) {
-          throw new RuntimeException("No schema registered for " + outputTypeDescriptor);
-        }
+        output.setTypeDescriptor(outputTypeDescriptor);
+        // TODO: Support boxing in Convert (e.g. Long -> Row with Schema { Long }).
       }
-
-      return input
-          .apply(
-              ParDo.of(
-                  new DoFn<InputT, OutputT>() {
-                    @ProcessElement
-                    public void processElement(@Element Row row, OutputReceiver<OutputT> o) {
-                      // Read the row, potentially unboxing if necessary.
-                      Row input = (unboxedSchema == null) ? row : row.getValue(0);
-                      o.output(outputSchemaCoder.getFromRowFunction().apply(input));
-                    }
-                  }))
-          .setSchema(
-              outputSchemaCoder.getSchema(),
-              outputSchemaCoder.getToRowFunction(),
-              outputSchemaCoder.getFromRowFunction());
+      return output;
     }
   }
 }

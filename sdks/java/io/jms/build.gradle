@@ -24,11 +24,11 @@ ext.summary = """IO to read and write to JMS (Java Messaging Service)
 destinations (queues and topics)."""
 
 dependencies {
-  shadow library.java.vendored_guava_20_0
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow library.java.slf4j_api
-  shadow library.java.joda_time
-  shadow "org.apache.geronimo.specs:geronimo-jms_1.1_spec:1.1.1"
+  compile library.java.vendored_guava_20_0
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile "org.apache.geronimo.specs:geronimo-jms_1.1_spec:1.1.1"
   testCompile library.java.activemq_broker
   testCompile library.java.activemq_jaas
   testCompile library.java.activemq_kahadb_store
@@ -36,6 +36,6 @@ dependencies {
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  testCompile library.java.slf4j_jdk14
-  testRuntimeOnly project(path: ":beam-runners-direct-java")
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(":runners:direct-java")
 }

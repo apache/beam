@@ -28,32 +28,32 @@ description = "Apache Beam :: Runners :: Apex"
  * the following projects are evaluated before we evaluate this project. This is because
  * we are attempting to reference the "sourceSets.test.output" directly.
  */
-evaluationDependsOn(":beam-sdks-java-core")
+evaluationDependsOn(":sdks:java:core")
 
 configurations {
   validatesRunner
 }
 
 dependencies {
-  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  shadow project(path: ":beam-runners-core-java", configuration: "shadow")
-  shadow library.java.apex_common
-  shadow library.java.malhar_library
-  shadow library.java.apex_engine
-  shadow library.java.commons_lang3
-  shadow library.java.apex_engine
-  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  compile project(path: ":model:pipeline", configuration: "shadow")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":runners:core-construction-java")
+  compile project(":runners:core-java")
+  compile library.java.apex_common
+  compile library.java.malhar_library
+  compile library.java.apex_engine
+  compile library.java.commons_lang3
+  compile library.java.apex_engine
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   // ApexStateInternalsTest extends abstract StateInternalsTest
-  shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.junit
-  shadowTest library.java.mockito_core
-  shadowTest library.java.jackson_dataformat_yaml
-  validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
-  validatesRunner project(path: project.path, configuration: "shadow")
+  testCompile project(path: ":runners:core-java", configuration: "testRuntime")
+  testCompile library.java.hamcrest_core
+  testCompile library.java.junit
+  testCompile library.java.mockito_core
+  testCompile library.java.jackson_dataformat_yaml
+  validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
+  validatesRunner project(project.path)
 }
 
 // TODO: Update this so that the generated file is added to the explicitly added instead of
@@ -85,7 +85,7 @@ task validatesRunnerBatch(type: Test) {
   ])
 
   classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
@@ -110,5 +110,5 @@ task validatesRunner {
   dependsOn validatesRunnerBatch
 }
 
-// Generates :beam-runners-apex:runQuickstartJavaApex
+// Generates :runners:apex:runQuickstartJavaApex
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner:'Apex')

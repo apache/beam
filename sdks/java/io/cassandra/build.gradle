@@ -19,23 +19,7 @@
 plugins { id 'org.apache.beam.module' }
 
 // Do not relocate guava to avoid issues with Cassandra's version.
-applyJavaNature(
-    shadowClosure: {
-      dependencies {
-        // is default, but when omitted the default action is to include all runtime deps
-        include(dependency(project.library.java.guava))
-
-        // hack: now exclude the only thing that was included
-        exclude(dependency(project.library.java.guava))
-
-      }
-    },
-    shadowJarValidationExcludes: [
-        "org/apache/beam/**",
-        "com/google/common/**",
-        "com/google/thirdparty/**"
-    ]
-)
+applyJavaNature()
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -46,20 +30,20 @@ ext.summary = "IO to read and write with Apache Cassandra database"
 def achilles_version = "6.0.2"
 
 dependencies {
-  shadow library.java.vendored_guava_20_0
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow library.java.slf4j_api
-  shadow library.java.cassandra_driver_core
-  shadow library.java.cassandra_driver_mapping
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
+  compile library.java.vendored_guava_20_0
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.slf4j_api
+  compile library.java.cassandra_driver_core
+  compile library.java.cassandra_driver_mapping
+  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  testCompile library.java.slf4j_jdk14
   testCompile library.java.mockito_core
 
   // for embedded cassandra
   testCompile group: 'info.archinnov', name: 'achilles-junit', version: "$achilles_version"
   testCompile library.java.jackson_jaxb_annotations
-  testRuntimeOnly project(path: ":beam-runners-direct-java")
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(":runners:direct-java")
 }

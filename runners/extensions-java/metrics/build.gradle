@@ -23,10 +23,10 @@ description = "Apache Beam :: Runners :: Extensions Java :: Metrics"
 ext.summary = "Beam Runners Extensions Metrics provides implementations of runners core metrics APIs."
 
 dependencies {
-  shadow library.java.vendored_guava_20_0
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow library.java.jackson_databind
-  shadow library.java.jackson_datatype_joda
-  shadowTest library.java.joda_time
-  shadowTest library.java.junit
+  compile library.java.vendored_guava_20_0
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.jackson_databind
+  compile library.java.jackson_datatype_joda
+  testCompile library.java.joda_time
+  testCompile library.java.junit
 }

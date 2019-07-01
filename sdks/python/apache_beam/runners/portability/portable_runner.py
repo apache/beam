@@ -24,6 +24,7 @@ import json
 import logging
 import os
 import subprocess
+import sys
 import threading
 import time
 from concurrent import futures
@@ -85,9 +86,26 @@ class PortableRunner(runner.PipelineRunner):
   @staticmethod
   def default_docker_image():
     if 'USER' in os.environ:
+      if sys.version_info[0] == 2:
+        version_suffix = ''
+      elif sys.version_info[0:2] == (3, 5):
+        version_suffix = '3'
+      else:
+        version_suffix = '3'
+        # TODO(BEAM-7474): Use an image which has correct Python minor version.
+        logging.warning('Make sure that locally built Python SDK docker image '
+                        'has Python %d.%d interpreter. See also: BEAM-7474.' % (
+                            sys.version_info[0], sys.version_info[1]))
+
       # Perhaps also test if this was built?
-      logging.info('Using latest locally built Python SDK docker image.')
-      return os.environ['USER'] + '-docker-apache.bintray.io/beam/python:latest'
+      image = ('{user}-docker-apache.bintray.io/beam/python'
+               '{version_suffix}:latest'.format(
+                   user=os.environ['USER'],
+                   version_suffix=version_suffix))
+      logging.info(
+          'Using latest locally built Python SDK docker image: %s.' % image)
+      return image
+
     else:
       logging.warning('Could not find a Python SDK docker image.')
       return 'unknown'
@@ -195,21 +213,18 @@ class PortableRunner(runner.PipelineRunner):
         del transform_proto.subtransforms[:]
 
     # Preemptively apply combiner lifting, until all runners support it.
-    # This optimization is idempotent.
+    # Also apply sdf expansion.
+    # These optimizations commute and are idempotent.
     pre_optimize = options.view_as(DebugOptions).lookup_experiment(
-        'pre_optimize', 'combine').lower()
+        'pre_optimize', 'lift_combiners,expand_sdf').lower()
     if not options.view_as(StandardOptions).streaming:
       flink_known_urns = frozenset([
           common_urns.composites.RESHUFFLE.urn,
           common_urns.primitives.IMPULSE.urn,
           common_urns.primitives.FLATTEN.urn,
           common_urns.primitives.GROUP_BY_KEY.urn])
-      if pre_optimize == 'combine':
-        proto_pipeline = fn_api_runner_transforms.optimize_pipeline(
-            proto_pipeline,
-            phases=[fn_api_runner_transforms.lift_combiners],
-            known_runner_urns=flink_known_urns,
-            partial=True)
+      if pre_optimize == 'none':
+        pass
       elif pre_optimize == 'all':
         proto_pipeline = fn_api_runner_transforms.optimize_pipeline(
             proto_pipeline,
@@ -217,6 +232,7 @@ class PortableRunner(runner.PipelineRunner):
                     fn_api_runner_transforms.annotate_stateful_dofns_as_roots,
                     fn_api_runner_transforms.fix_side_input_pcoll_coders,
                     fn_api_runner_transforms.lift_combiners,
+                    fn_api_runner_transforms.expand_sdf,
                     fn_api_runner_transforms.fix_flatten_coders,
                     # fn_api_runner_transforms.sink_flattens,
                     fn_api_runner_transforms.greedily_fuse,
@@ -225,10 +241,21 @@ class PortableRunner(runner.PipelineRunner):
                     fn_api_runner_transforms.remove_data_plane_ops,
                     fn_api_runner_transforms.sort_stages],
             known_runner_urns=flink_known_urns)
-      elif pre_optimize == 'none':
-        pass
       else:
-        raise ValueError('Unknown value for pre_optimize: %s' % pre_optimize)
+        phases = []
+        for phase_name in pre_optimize.split(','):
+          # For now, these are all we allow.
+          if phase_name in ('lift_combiners', 'expand_sdf'):
+            phases.append(getattr(fn_api_runner_transforms, phase_name))
+          else:
+            raise ValueError(
+                'Unknown or inapplicable phase for pre_optimize: %s'
+                % phase_name)
+        proto_pipeline = fn_api_runner_transforms.optimize_pipeline(
+            proto_pipeline,
+            phases=phases,
+            known_runner_urns=flink_known_urns,
+            partial=True)
 
     if not job_service:
       channel = grpc.insecure_channel(job_endpoint)

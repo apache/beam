@@ -17,7 +17,9 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature()
+applyJavaNature(
+    archivesBaseName: 'beam-sdks-java-io-elasticsearch-tests-2'
+)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -29,21 +31,21 @@ def log4j_version = "2.6.2"
 def elastic_search_version = "2.4.1"
 
 dependencies {
-  testCompile project(path: ":beam-sdks-java-io-elasticsearch-tests-common", configuration: "shadowTest")
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-elasticsearch", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:core", configuration: "shadow")
+  testCompile project(":sdks:java:io:elasticsearch")
+  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile library.java.slf4j_api
   testCompile "net.java.dev.jna:jna:$jna_version"
   testCompile "org.apache.logging.log4j:log4j-api:$log4j_version"
   testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  testCompile library.java.slf4j_jdk14
   testCompile library.java.commons_io_1x
   testCompile library.java.junit
   testCompile "org.elasticsearch.client:elasticsearch-rest-client:5.6.3"
-  shadowTest library.java.vendored_guava_20_0
+  testCompile library.java.vendored_guava_20_0
   testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
-  testRuntimeOnly project(path: ":beam-runners-direct-java")
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(":runners:direct-java")
 }

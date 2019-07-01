@@ -27,17 +27,24 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesSchema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for the {@link Convert} class. */
+@RunWith(JUnit4.class)
+@Category(UsesSchema.class)
 public class ConvertTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
@@ -214,6 +221,30 @@ public class ConvertTest {
     PCollection<POJO2> pojos =
         pipeline.apply(Create.of(new POJO1())).apply(Convert.to(POJO2.class));
     PAssert.that(pojos).containsInAnyOrder(new POJO2());
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFromRowsUnboxingRow() {
+    PCollection<POJO1Nested> pojos =
+        pipeline
+            .apply(Create.of(new POJO1()))
+            .apply(Select.fieldNames("field3"))
+            .apply(Convert.to(TypeDescriptor.of(POJO1Nested.class)));
+    PAssert.that(pojos).containsInAnyOrder(new POJO1Nested());
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFromRowsUnboxingPrimitive() {
+    PCollection<Long> longs =
+        pipeline
+            .apply(Create.of(new POJO1()))
+            .apply(Select.fieldNames("field2"))
+            .apply(Convert.to(TypeDescriptors.longs()));
+    PAssert.that(longs).containsInAnyOrder((Long) EXPECTED_ROW1.getValue("field2"));
     pipeline.run();
   }
 }

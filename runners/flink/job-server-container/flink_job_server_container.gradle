@@ -27,7 +27,7 @@ apply plugin: 'base'
 applyDockerNature()
 
 // Resolve the Flink project name (and version) the job-server-container is based on
-def flinkJobServerProject = ":${project.name.replace('-container', '')}"
+def flinkJobServerProject = "${project.path.replace('-container', '')}"
 
 description = project(flinkJobServerProject).description + " :: Container"
 

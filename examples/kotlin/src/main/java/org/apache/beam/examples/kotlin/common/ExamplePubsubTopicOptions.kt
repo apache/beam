@@ -31,13 +31,12 @@ interface ExamplePubsubTopicOptions : GcpOptions {
 
     /** Returns a default Pub/Sub topic based on the project and the job names.  */
     class PubsubTopicFactory : DefaultValueFactory<String> {
-        override fun create(options: PipelineOptions): String {
-            return """
+        override fun create(options: PipelineOptions) = """
                 projects/"
                     ${(options as GcpOptions).project}
                     /topics/
                     ${options.jobName}
             """.trimIndent()
-        }
+
     }
 }

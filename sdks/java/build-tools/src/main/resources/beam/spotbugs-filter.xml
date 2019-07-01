@@ -179,25 +179,6 @@
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.runners.direct.portable.ExecutorServiceParallelExecutor$QueueMessageReceiver" />
-    <Or>
-      <Method name="failed" />
-      <Method name="cancelled" />
-      <Method name="completed" />
-    </Or>
-    <Bug pattern="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE" />
-    <!-- updates is a non-capacity-limited LinkedBlockingQueue, which
-      can never refuse an offered update -->
-  </Match>
-
-  <Match>
-    <Class name="org.apache.beam.runners.direct.portable.job.ReferenceRunnerJobService" />
-    <Method name="run" />
-    <Bug pattern="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE" />
-    <!-- the success of future methods aren't based on the returned value of the future -->
-  </Match>
-
-  <Match>
     <Class name="org.apache.beam.runners.spark.util.BroadcastHelper$CodedBroadcastHelper"/>
     <Or>
       <Field name="bcast" />
@@ -429,5 +410,24 @@
     <Field name="wrappedClient"/>
     <Bug pattern="URF_UNREAD_FIELD"/>
     <!-- Fix build. -->
+  </Match>
+
+  <Match>
+    <!--
+      This is a false positive. Spotbugs does not recognize the use of try-with-resources, so it thinks that
+      the connection is not correctly closed.
+    -->
+    <Or>
+      <And>
+        <Class name="org.apache.beam.sdk.io.jdbc.JdbcIO$ReadFn"/>
+        <Method name="processElement"/>
+      </And>
+      <And>
+        <Class name="org.apache.beam.sdk.io.jdbc.JdbcIO$ReadRows"/>
+        <Method name="inferBeamSchema"/>
+      </And>
+    </Or>
+
+    <Bug pattern="OBL_UNSATISFIED_OBLIGATION"/>
   </Match>
 </FindBugsFilter>

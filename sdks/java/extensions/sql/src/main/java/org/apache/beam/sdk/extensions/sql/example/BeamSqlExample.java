@@ -39,7 +39,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * <p>Run the example from the Beam source root with
  *
  * <pre>
- *   ./gradlew :beam-sdks-java-extensions-sql:runBasicExample
+ *   ./gradlew :sdks:java:extensions:sql:runBasicExample
  * </pre>
  *
  * <p>The above command executes the example locally using direct runner. Running the pipeline in

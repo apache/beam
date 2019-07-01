@@ -20,228 +20,132 @@ rootProject.name = "beam"
 
 include ":release"
 
-include "beam-examples-kotlin"
-project(":beam-examples-kotlin").dir = file("examples/kotlin")
-include "beam-examples-java"
-project(":beam-examples-java").dir = file("examples/java")
-include "beam-model-fn-execution"
-project(":beam-model-fn-execution").dir = file("model/fn-execution")
-include "beam-model-job-management"
-project(":beam-model-job-management").dir = file("model/job-management")
-include "beam-model-pipeline"
-project(":beam-model-pipeline").dir = file("model/pipeline")
-include "beam-runners-apex"
-project(":beam-runners-apex").dir = file("runners/apex")
-include "beam-runners-core-construction-java"
-project(":beam-runners-core-construction-java").dir = file("runners/core-construction-java")
-include "beam-runners-core-java"
-project(":beam-runners-core-java").dir = file("runners/core-java")
-include "beam-runners-direct-java"
-project(":beam-runners-direct-java").dir = file("runners/direct-java")
-include "beam-runners-extensions-java-metrics"
-project(":beam-runners-extensions-java-metrics").dir = file("runners/extensions-java/metrics")
+include ":examples:java"
+include ":examples:kotlin"
+include ":model:fn-execution"
+include ":model:job-management"
+include ":model:pipeline"
+include ":runners:apex"
+include ":runners:core-construction-java"
+include ":runners:core-java"
+include ":runners:direct-java"
+include ":runners:extensions-java:metrics"
 /* Begin Flink Runner related settings */
-// 1.5 version with Scala 2.11 suffix
-include "beam-runners-flink_2.11"
-project(":beam-runners-flink_2.11").dir = file("runners/flink")
-include "beam-runners-flink_2.11-job-server"
-project(":beam-runners-flink_2.11-job-server").dir = file("runners/flink/job-server")
-include "beam-runners-flink_2.11-job-server-container"
-project(":beam-runners-flink_2.11-job-server-container").dir = file("runners/flink/job-server-container")
-// 1.6 version
-include "beam-runners-flink-1.6"
-project(":beam-runners-flink-1.6").dir = file("runners/flink/1.6")
-include "beam-runners-flink-1.6-job-server"
-project(":beam-runners-flink-1.6-job-server").dir = file("runners/flink/1.6/job-server")
-include "beam-runners-flink-1.6-job-server-container"
-project(":beam-runners-flink-1.6-job-server-container").dir = file("runners/flink/1.6/job-server-container")
-// 1.7 version
-include "beam-runners-flink-1.7"
-project(":beam-runners-flink-1.7").dir = file("runners/flink/1.7")
-include "beam-runners-flink-1.7-job-server"
-project(":beam-runners-flink-1.7-job-server").dir = file("runners/flink/1.7/job-server")
-include "beam-runners-flink-1.7-job-server-container"
-project(":beam-runners-flink-1.7-job-server-container").dir = file("runners/flink/1.7/job-server-container")
+// Flink 1.5 (with Scala 2.11 suffix)
+include ":runners:flink:1.5"
+include ":runners:flink:1.5:job-server"
+include ":runners:flink:1.5:job-server-container"
+// Flink 1.6
+include ":runners:flink:1.6"
+include ":runners:flink:1.6:job-server"
+include ":runners:flink:1.6:job-server-container"
+// Flink 1.7
+include ":runners:flink:1.7"
+include ":runners:flink:1.7:job-server"
+include ":runners:flink:1.7:job-server-container"
+// Flink 1.8
+include ":runners:flink:1.8"
+include ":runners:flink:1.8:job-server"
+include ":runners:flink:1.8:job-server-container"
 /* End Flink Runner related settings */
-include "beam-runners-gearpump"
-project(":beam-runners-gearpump").dir = file("runners/gearpump")
-include "beam-runners-google-cloud-dataflow-java"
-project(":beam-runners-google-cloud-dataflow-java").dir = file("runners/google-cloud-dataflow-java")
-include ":beam-runners-google-cloud-dataflow-java-examples"
-project(":beam-runners-google-cloud-dataflow-java-examples").dir = file("runners/google-cloud-dataflow-java/examples")
-include ":beam-runners-google-cloud-dataflow-java-examples-streaming"
-project(":beam-runners-google-cloud-dataflow-java-examples-streaming").dir = file("runners/google-cloud-dataflow-java/examples-streaming")
-include "beam-runners-java-fn-execution"
-project(":beam-runners-java-fn-execution").dir = file("runners/java-fn-execution")
-include "beam-runners-local-java-core"
-project(":beam-runners-local-java-core").dir = file("runners/local-java")
-include "beam-runners-reference-java"
-project(":beam-runners-reference-java").dir = file("runners/reference/java")
-include "beam-runners-reference-job-server"
-project(":beam-runners-reference-job-server").dir = file("runners/reference/job-server")
-include "beam-runners-spark"
-project(":beam-runners-spark").dir = file("runners/spark")
-include "beam-runners-spark-job-server"
-project(":beam-runners-spark-job-server").dir = file("runners/spark/job-server")
-include "beam-runners-samza"
-project(":beam-runners-samza").dir = file("runners/samza")
-include "beam-runners-samza-job-server"
-project(":beam-runners-samza-job-server").dir = file("runners/samza/job-server")
-include "beam-sdks-go"
-project(":beam-sdks-go").dir = file("sdks/go")
-include "beam-sdks-go-container"
-project(":beam-sdks-go-container").dir = file("sdks/go/container")
-include "beam-sdks-go-examples"
-project(":beam-sdks-go-examples").dir = file("sdks/go/examples")
-include "beam-sdks-go-test"
-project(":beam-sdks-go-test").dir = file("sdks/go/test")
-include "beam-sdks-java-build-tools"
-project(":beam-sdks-java-build-tools").dir = file("sdks/java/build-tools")
-include "beam-sdks-java-container"
-project(":beam-sdks-java-container").dir = file("sdks/java/container")
-include "beam-sdks-java-core"
-project(":beam-sdks-java-core").dir = file("sdks/java/core")
-include "beam-sdks-java-extensions-euphoria"
-project(":beam-sdks-java-extensions-euphoria").dir = file("sdks/java/extensions/euphoria")
-include "beam-sdks-java-extensions-kryo"
-project(":beam-sdks-java-extensions-kryo").dir = file("sdks/java/extensions/kryo")
-include "beam-sdks-java-extensions-google-cloud-platform-core"
-project(":beam-sdks-java-extensions-google-cloud-platform-core").dir = file("sdks/java/extensions/google-cloud-platform-core")
-include "beam-sdks-java-extensions-json-jackson"
-project(":beam-sdks-java-extensions-json-jackson").dir = file("sdks/java/extensions/jackson")
-include "beam-sdks-java-extensions-join-library"
-project(":beam-sdks-java-extensions-join-library").dir = file("sdks/java/extensions/join-library")
-include "beam-sdks-java-extensions-protobuf"
-project(":beam-sdks-java-extensions-protobuf").dir = file("sdks/java/extensions/protobuf")
-include "beam-sdks-java-extensions-sketching"
-project(":beam-sdks-java-extensions-sketching").dir = file("sdks/java/extensions/sketching")
-include "beam-sdks-java-extensions-sorter"
-project(":beam-sdks-java-extensions-sorter").dir = file("sdks/java/extensions/sorter")
-include "beam-sdks-java-extensions-sql"
-project(":beam-sdks-java-extensions-sql").dir = file("sdks/java/extensions/sql")
-include "beam-sdks-java-extensions-sql-jdbc"
-project(":beam-sdks-java-extensions-sql-jdbc").dir = file("sdks/java/extensions/sql/jdbc")
-include "beam-sdks-java-extensions-sql-shell"
-project(":beam-sdks-java-extensions-sql-shell").dir = file("sdks/java/extensions/sql/shell")
-include "beam-sdks-java-extensions-sql-hcatalog"
-project(":beam-sdks-java-extensions-sql-hcatalog").dir = file("sdks/java/extensions/sql/hcatalog")
-include "beam-sdks-java-fn-execution"
-project(":beam-sdks-java-fn-execution").dir = file("sdks/java/fn-execution")
-include "beam-sdks-java-harness"
-project(":beam-sdks-java-harness").dir = file("sdks/java/harness")
-include "beam-sdks-java-io-amazon-web-services"
-project(":beam-sdks-java-io-amazon-web-services").dir = file("sdks/java/io/amazon-web-services")
-include "beam-sdks-java-io-amqp"
-project(":beam-sdks-java-io-amqp").dir = file("sdks/java/io/amqp")
-include "beam-sdks-java-io-cassandra"
-project(":beam-sdks-java-io-cassandra").dir = file("sdks/java/io/cassandra")
-include "beam-sdks-java-io-clickhouse"
-project(":beam-sdks-java-io-clickhouse").dir = file("sdks/java/io/clickhouse")
-include "beam-sdks-java-io-common"
-project(":beam-sdks-java-io-common").dir = file("sdks/java/io/common")
-include "beam-sdks-java-io-elasticsearch"
-project(":beam-sdks-java-io-elasticsearch").dir = file("sdks/java/io/elasticsearch")
-include "beam-sdks-java-io-elasticsearch-tests-2"
-project(":beam-sdks-java-io-elasticsearch-tests-2").dir = file("sdks/java/io/elasticsearch-tests/elasticsearch-tests-2")
-include "beam-sdks-java-io-elasticsearch-tests-5"
-project(":beam-sdks-java-io-elasticsearch-tests-5").dir = file("sdks/java/io/elasticsearch-tests/elasticsearch-tests-5")
-include "beam-sdks-java-io-elasticsearch-tests-6"
-project(":beam-sdks-java-io-elasticsearch-tests-6").dir = file("sdks/java/io/elasticsearch-tests/elasticsearch-tests-6")
-include "beam-sdks-java-io-elasticsearch-tests-common"
-project(":beam-sdks-java-io-elasticsearch-tests-common").dir = file("sdks/java/io/elasticsearch-tests/elasticsearch-tests-common")
-include "beam-sdks-java-io-file-based-io-tests"
-project(":beam-sdks-java-io-file-based-io-tests").dir = file("sdks/java/io/file-based-io-tests")
-include "beam-sdks-java-io-google-cloud-platform"
-project(":beam-sdks-java-io-google-cloud-platform").dir = file("sdks/java/io/google-cloud-platform")
-include "beam-sdks-java-io-hadoop-common"
-project(":beam-sdks-java-io-hadoop-common").dir = file("sdks/java/io/hadoop-common")
-include "beam-sdks-java-io-hadoop-file-system"
-project(":beam-sdks-java-io-hadoop-file-system").dir = file("sdks/java/io/hadoop-file-system")
-include "beam-sdks-java-io-hadoop-input-format"
-project(":beam-sdks-java-io-hadoop-input-format").dir = file("sdks/java/io/hadoop-input-format")
-include "beam-sdks-java-io-hadoop-format"
-project(":beam-sdks-java-io-hadoop-format").dir = file("sdks/java/io/hadoop-format")
-include "beam-sdks-java-io-hbase"
-project(":beam-sdks-java-io-hbase").dir = file("sdks/java/io/hbase")
-include "beam-sdks-java-io-hcatalog"
-project(":beam-sdks-java-io-hcatalog").dir = file("sdks/java/io/hcatalog")
-include "beam-sdks-java-io-jdbc"
-project(":beam-sdks-java-io-jdbc").dir = file("sdks/java/io/jdbc")
-include "beam-sdks-java-io-jms"
-project(":beam-sdks-java-io-jms").dir = file("sdks/java/io/jms")
-include "beam-sdks-java-io-kafka"
-project(":beam-sdks-java-io-kafka").dir = file("sdks/java/io/kafka")
-include "beam-sdks-java-io-kinesis"
-project(":beam-sdks-java-io-kinesis").dir = file("sdks/java/io/kinesis")
-include "beam-sdks-java-io-kudu"
-project(":beam-sdks-java-io-kudu").dir = file("sdks/java/io/kudu")
-include "beam-sdks-java-io-mongodb"
-project(":beam-sdks-java-io-mongodb").dir = file("sdks/java/io/mongodb")
-include "beam-sdks-java-io-mqtt"
-project(":beam-sdks-java-io-mqtt").dir = file("sdks/java/io/mqtt")
-include "beam-sdks-java-io-parquet"
-project(":beam-sdks-java-io-parquet").dir = file("sdks/java/io/parquet")
-include "beam-sdks-java-io-rabbitmq"
-project(":beam-sdks-java-io-rabbitmq").dir = file("sdks/java/io/rabbitmq")
-include "beam-sdks-java-io-redis"
-project(":beam-sdks-java-io-redis").dir = file("sdks/java/io/redis")
-include "beam-sdks-java-io-solr"
-project(":beam-sdks-java-io-solr").dir = file("sdks/java/io/solr")
-include "beam-sdks-java-io-tika"
-project(":beam-sdks-java-io-tika").dir = file("sdks/java/io/tika")
-include "beam-sdks-java-io-xml"
-project(":beam-sdks-java-io-xml").dir = file("sdks/java/io/xml")
-include "beam-sdks-java-io-synthetic"
-project(":beam-sdks-java-io-synthetic").dir = file("sdks/java/io/synthetic")
-include "beam-sdks-java-javadoc"
-project(":beam-sdks-java-javadoc").dir = file("sdks/java/javadoc")
-include "beam-sdks-java-load-tests"
-project(":beam-sdks-java-load-tests").dir = file("sdks/java/testing/load-tests")
-include "beam-sdks-java-maven-archetypes-examples"
-project(":beam-sdks-java-maven-archetypes-examples").dir = file("sdks/java/maven-archetypes/examples")
-include "beam-sdks-java-maven-archetypes-starter"
-project(":beam-sdks-java-maven-archetypes-starter").dir = file("sdks/java/maven-archetypes/starter")
-include "beam-sdks-java-nexmark"
-project(":beam-sdks-java-nexmark").dir = file("sdks/java/testing/nexmark")
-include "beam-sdks-python"
-project(":beam-sdks-python").dir = file("sdks/python")
-include "beam-sdks-python-container"
-project(":beam-sdks-python-container").dir = file("sdks/python/container")
-include "beam-sdks-python-container-py3"
-project(":beam-sdks-python-container-py3").dir = file("sdks/python/container/py3")
-include "beam-sdks-python-test-suites-dataflow"
-project(":beam-sdks-python-test-suites-dataflow").dir = file("sdks/python/test-suites/dataflow")
-include "beam-sdks-python-test-suites-dataflow-py3"
-project(":beam-sdks-python-test-suites-dataflow-py3").dir = file("sdks/python/test-suites/dataflow/py3")
-include "beam-sdks-python-test-suites-direct-py3"
-project(":beam-sdks-python-test-suites-direct-py3").dir = file("sdks/python/test-suites/direct/py3")
-include "beam-sdks-python-test-suites-tox-py35"
-project(":beam-sdks-python-test-suites-tox-py35").dir = file("sdks/python/test-suites/tox/py35")
-include "beam-sdks-python-test-suites-tox-py36"
-project(":beam-sdks-python-test-suites-tox-py36").dir = file("sdks/python/test-suites/tox/py36")
-include "beam-sdks-python-test-suites-tox-py37"
-project(":beam-sdks-python-test-suites-tox-py37").dir = file("sdks/python/test-suites/tox/py37")
-include "beam-sdks-python-load-tests"
-project(":beam-sdks-python-load-tests").dir = file("sdks/python/apache_beam/testing/load_tests")
-include "beam-vendor-grpc-1_13_1"
-project(":beam-vendor-grpc-1_13_1").dir = file("vendor/grpc-1_13_1")
-include "beam-sdks-java-test-utils"
-project(":beam-sdks-java-test-utils").dir = file("sdks/java/testing/test-utils")
-include "beam-vendor-sdks-java-extensions-protobuf"
-project(":beam-vendor-sdks-java-extensions-protobuf").dir = file("vendor/sdks-java-extensions-protobuf")
-include "beam-vendor-guava-20_0"
-project(":beam-vendor-guava-20_0").dir = file("vendor/guava-20_0")
-include "beam-website"
-project(":beam-website").dir = file("website")
-include "beam-runners-google-cloud-dataflow-java-legacy-worker"
-project(":beam-runners-google-cloud-dataflow-java-legacy-worker").dir = file("runners/google-cloud-dataflow-java/worker/legacy-worker")
-include "beam-runners-google-cloud-dataflow-java-fn-api-worker"
-project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").dir = file("runners/google-cloud-dataflow-java/worker")
-include "beam-runners-google-cloud-dataflow-java-windmill"
-project(":beam-runners-google-cloud-dataflow-java-windmill").dir = file("runners/google-cloud-dataflow-java/worker/windmill")
+include ":runners:gearpump"
+include ":runners:google-cloud-dataflow-java"
+include ":runners:google-cloud-dataflow-java:examples"
+include ":runners:google-cloud-dataflow-java:examples-streaming"
+include ":runners:java-fn-execution"
+include ":runners:jet-experimental"
+include ":runners:local-java"
+include ":runners:reference:java"
+include ":runners:spark"
+include ":runners:spark:job-server"
+include ":runners:samza"
+include ":runners:samza:job-server"
+include ":sdks:go"
+include ":sdks:go:container"
+include ":sdks:go:examples"
+include ":sdks:go:test"
+include ":sdks:java:bom"
+include ":sdks:java:build-tools"
+include ":sdks:java:container"
+include ":sdks:java:core"
+include ":sdks:java:extensions:euphoria"
+include ":sdks:java:extensions:kryo"
+include ":sdks:java:extensions:google-cloud-platform-core"
+include ":sdks:java:extensions:jackson"
+include ":sdks:java:extensions:join-library"
+include ":sdks:java:extensions:protobuf"
+include ":sdks:java:extensions:sketching"
+include ":sdks:java:extensions:sorter"
+include ":sdks:java:extensions:sql"
+include ":sdks:java:extensions:sql:jdbc"
+include ":sdks:java:extensions:sql:shell"
+include ":sdks:java:extensions:sql:hcatalog"
+include ":sdks:java:extensions:sql:datacatalog"
+include ":sdks:java:fn-execution"
+include ":sdks:java:harness"
+include ":sdks:java:io:amazon-web-services"
+include ":sdks:java:io:amazon-web-services2"
+include ":sdks:java:io:amqp"
+include ":sdks:java:io:cassandra"
+include ":sdks:java:io:clickhouse"
+include ":sdks:java:io:common"
+include ":sdks:java:io:elasticsearch"
+include ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-2"
+include ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-5"
+include ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-6"
+include ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common"
+include ":sdks:java:io:file-based-io-tests"
+include ":sdks:java:io:google-cloud-platform"
+include ":sdks:java:io:hadoop-common"
+include ":sdks:java:io:hadoop-file-system"
+include ":sdks:java:io:hadoop-format"
+include ":sdks:java:io:hbase"
+include ":sdks:java:io:hcatalog"
+include ":sdks:java:io:jdbc"
+include ":sdks:java:io:jms"
+include ":sdks:java:io:kafka"
+include ":sdks:java:io:kinesis"
+include ":sdks:java:io:kudu"
+include ":sdks:java:io:mongodb"
+include ":sdks:java:io:mqtt"
+include ":sdks:java:io:parquet"
+include ":sdks:java:io:rabbitmq"
+include ":sdks:java:io:redis"
+include ":sdks:java:io:solr"
+include ":sdks:java:io:tika"
+include ":sdks:java:io:xml"
+include ":sdks:java:io:synthetic"
+include ":sdks:java:javadoc"
+include ":sdks:java:testing:load-tests"
+include ":sdks:java:testing:test-utils"
+include ":sdks:java:maven-archetypes:examples"
+include ":sdks:java:maven-archetypes:starter"
+include ":sdks:java:testing:nexmark"
+include ":sdks:python"
+include ":sdks:python:apache_beam:testing:load_tests"
+include ":sdks:python:container"
+include ":sdks:python:container:py3"
+include ":sdks:python:test-suites:dataflow"
+include ":sdks:python:test-suites:dataflow:py35"
+include ":sdks:python:test-suites:dataflow:py36"
+include ":sdks:python:test-suites:dataflow:py37"
+include ":sdks:python:test-suites:direct:py35"
+include ":sdks:python:test-suites:direct:py36"
+include ":sdks:python:test-suites:direct:py37"
+include ":sdks:python:test-suites:portable:py35"
+include ":sdks:python:test-suites:tox:py35"
+include ":sdks:python:test-suites:tox:py36"
+include ":sdks:python:test-suites:tox:py37"
+include ":vendor:grpc-1_21_0"
+include ":vendor:bytebuddy-1_9_3"
+include ":vendor:sdks-java-extensions-protobuf"
+include ":vendor:guava-26_0-jre"
+include ":website"
+include ":runners:google-cloud-dataflow-java:worker:legacy-worker"
+include ":runners:google-cloud-dataflow-java:worker"
+include ":runners:google-cloud-dataflow-java:worker:windmill"
+// no dots allowed for project paths
 include "beam-test-infra-metrics"
 project(":beam-test-infra-metrics").dir = file(".test-infra/metrics")
-include "beam-sdks-java-bom"
-project(":beam-sdks-java-bom").dir = file("sdks/java/bom")
 include "beam-test-tools"
 project(":beam-test-tools").dir = file(".test-infra/tools")

@@ -967,7 +967,7 @@ public class BigQueryIOWriteTest implements Serializable {
     assertEquals(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED, write.getCreateDisposition());
     assertEquals(BigQueryIO.Write.WriteDisposition.WRITE_EMPTY, write.getWriteDisposition());
     assertEquals(null, write.getTableDescription());
-    assertEquals(true, write.getValidate());
+    assertTrue(write.getValidate());
 
     assertFalse(write.withoutValidation().getValidate());
     TableSchema schema = new TableSchema();

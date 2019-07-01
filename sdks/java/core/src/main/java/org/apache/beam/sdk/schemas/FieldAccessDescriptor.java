@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import com.google.auto.value.AutoOneOf;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -47,6 +48,7 @@ import org.apache.beam.sdk.schemas.parser.FieldAccessDescriptorParser;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
@@ -130,7 +132,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
   abstract static class Builder {
     abstract Builder setAllFields(boolean allFields);
 
-    abstract Builder setFieldsAccessed(Set<FieldDescriptor> fieldsAccessed);
+    abstract Builder setFieldsAccessed(List<FieldDescriptor> fieldsAccessed);
 
     abstract Builder setNestedFieldsAccessed(
         Map<FieldDescriptor, FieldAccessDescriptor> nestedFieldsAccessedById);
@@ -143,7 +145,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
   /** If true, all fields are being accessed. */
   public abstract boolean getAllFields();
 
-  public abstract Set<FieldDescriptor> getFieldsAccessed();
+  public abstract List<FieldDescriptor> getFieldsAccessed();
 
   public abstract Map<FieldDescriptor, FieldAccessDescriptor> getNestedFieldsAccessed();
 
@@ -155,7 +157,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
     return new AutoValue_FieldAccessDescriptor.Builder()
         .setAllFields(false)
         .setFieldInsertionOrder(false)
-        .setFieldsAccessed(Collections.emptySet())
+        .setFieldsAccessed(Collections.emptyList())
         .setNestedFieldsAccessed(Collections.emptyMap());
   }
 
@@ -225,10 +227,10 @@ public abstract class FieldAccessDescriptor implements Serializable {
 
   /** Returns a {@link FieldAccessDescriptor} that accesses the specified fields. */
   public static FieldAccessDescriptor withFields(Iterable<FieldDescriptor> fields) {
-    return builder().setFieldsAccessed(Sets.newLinkedHashSet(fields)).build();
+    return builder().setFieldsAccessed(Lists.newArrayList(fields)).build();
   }
 
-  // Union a set of FieldAccessDescriptors. This function currenty only supports descriptors with
+  // Union a set of FieldAccessDescriptors. This function currently only supports descriptors with
   // containing named fields, not those containing ids.
   private static FieldAccessDescriptor union(
       Iterable<FieldAccessDescriptor> fieldAccessDescriptors) {
@@ -316,10 +318,22 @@ public abstract class FieldAccessDescriptor implements Serializable {
     return toBuilder().setFieldInsertionOrder(true).build();
   }
 
-  /** Return the field ids accessed. Should not be called until after {@link #resolve} is called. */
-  public Set<Integer> fieldIdsAccessed() {
+  /**
+   * Return the field ids accessed. Should not be called until after {@link #resolve} is called.
+   * Iteration order is consistent with {@link #getFieldsAccessed}.
+   */
+  public List<Integer> fieldIdsAccessed() {
     return getFieldsAccessed().stream()
         .map(FieldDescriptor::getFieldId)
+        .collect(Collectors.toList());
+  }
+
+  /**
+   * Return the field names accessed. Should not be called until after {@link #resolve} is called.
+   */
+  public Set<String> fieldNamesAccessed() {
+    return getFieldsAccessed().stream()
+        .map(FieldDescriptor::getFieldName)
         .collect(Collectors.toSet());
   }
 
@@ -333,13 +347,39 @@ public abstract class FieldAccessDescriptor implements Serializable {
   }
 
   /**
+   * Return the nested fields keyed by field name. Should not be called until after {@link #resolve}
+   * is called.
+   */
+  public Map<String, FieldAccessDescriptor> nestedFieldsByName() {
+    return getNestedFieldsAccessed().entrySet().stream()
+        .collect(Collectors.toMap(f -> f.getKey().getFieldName(), f -> f.getValue()));
+  }
+
+  /** Returns true if this descriptor references only a single, non-wildcard field. */
+  public boolean referencesSingleField() {
+    if (getAllFields()) {
+      return false;
+    }
+
+    if (getFieldsAccessed().size() == 1 && getNestedFieldsAccessed().isEmpty()) {
+      return true;
+    }
+
+    if (getFieldsAccessed().isEmpty() && getNestedFieldsAccessed().size() == 1) {
+      return getNestedFieldsAccessed().values().iterator().next().referencesSingleField();
+    }
+
+    return false;
+  }
+
+  /**
    * Resolve the {@link FieldAccessDescriptor} against a schema.
    *
    * <p>Resolve will resolve all of the field names into field ids, validating that all field names
    * specified in the descriptor exist in the actual schema.
    */
   public FieldAccessDescriptor resolve(Schema schema) {
-    Set<FieldDescriptor> resolvedFieldIdsAccessed = resolveDirectFieldsAccessed(schema);
+    List<FieldDescriptor> resolvedFieldIdsAccessed = resolveDirectFieldsAccessed(schema);
     Map<FieldDescriptor, FieldAccessDescriptor> resolvedNestedFieldsAccessed =
         resolveNestedFieldsAccessed(schema);
 
@@ -358,15 +398,8 @@ public abstract class FieldAccessDescriptor implements Serializable {
         .build();
   }
 
-  private Set<FieldDescriptor> resolveDirectFieldsAccessed(Schema schema) {
-    Set<FieldDescriptor> fields;
-    if (getFieldInsertionOrder()) {
-      fields = Sets.newLinkedHashSet();
-    } else {
-      Function<FieldDescriptor, Integer> extract =
-          (Function<FieldDescriptor, Integer> & Serializable) FieldDescriptor::getFieldId;
-      fields = Sets.newTreeSet(Comparator.comparing(extract));
-    }
+  private List<FieldDescriptor> resolveDirectFieldsAccessed(Schema schema) {
+    List<FieldDescriptor> fields = new ArrayList<>();
 
     for (FieldDescriptor field : getFieldsAccessed()) {
       validateFieldDescriptor(schema, field);
@@ -378,6 +411,11 @@ public abstract class FieldAccessDescriptor implements Serializable {
       }
       field = fillInMissingQualifiers(field, schema);
       fields.add(field);
+    }
+
+    if (!getFieldInsertionOrder()) {
+      // Re-order fields based on field ID, rather than keeping them in insertion order
+      Collections.sort(fields, Comparator.comparing(FieldDescriptor::getFieldId));
     }
     return fields;
   }
@@ -512,5 +550,23 @@ public abstract class FieldAccessDescriptor implements Serializable {
           throw new IllegalStateException("Unexpected qualifier type " + qualifier.getKind());
       }
     }
+  }
+
+  @Override
+  public String toString() {
+    if (getAllFields()) {
+      return "*";
+    }
+
+    List<String> singleSelectors =
+        getFieldsAccessed().stream()
+            .map(FieldDescriptor::getFieldName)
+            .collect(Collectors.toList());
+    List<String> nestedSelectors =
+        getNestedFieldsAccessed().entrySet().stream()
+            .map(e -> e.getKey().getFieldName() + "." + e.getValue().toString())
+            .collect(Collectors.toList());
+    ;
+    return String.join(", ", Iterables.concat(singleSelectors, nestedSelectors));
   }
 }

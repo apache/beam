@@ -34,6 +34,12 @@ source: src
 # the base hostname & protocol for your site
 url: "https://beam.apache.org"
 
+# The repository and branch where the files live in Github or Colab. This is used
+# to serve and stage from your local branch, but publish to the master branch.
+#   e.g. https://github.com/{{ site.branch_repo }}/path/to/notebook.ipynb
+#   e.g. https://colab.sandbox.google.com/github/{{ site.branch_repo }}/path/to/notebook.ipynb
+branch_repo: "apache/beam/blob/master"
+
 twitter_username: apachebeam
 
 # Build settings
@@ -56,7 +62,7 @@ kramdown:
   toc_levels:     2..6
 
 # The most recent release of Beam.
-release_latest: 2.11.0
+release_latest: 2.13.0
 
 # Plugins are configured in the Gemfile.
 

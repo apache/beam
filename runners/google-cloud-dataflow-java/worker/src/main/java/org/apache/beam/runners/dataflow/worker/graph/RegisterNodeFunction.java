@@ -96,10 +96,10 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
  */
 public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>, Node> {
   /** Must match declared fields within {@code ProcessBundleHandler}. */
-  private static final String DATA_INPUT_URN = "urn:org.apache.beam:source:runner:0.1";
+  private static final String DATA_INPUT_URN = "beam:source:runner:0.1";
 
-  private static final String DATA_OUTPUT_URN = "urn:org.apache.beam:sink:runner:0.1";
-  private static final String JAVA_SOURCE_URN = "urn:org.apache.beam:source:java:0.1";
+  private static final String DATA_OUTPUT_URN = "beam:sink:runner:0.1";
+  private static final String JAVA_SOURCE_URN = "beam:source:java:0.1";
 
   public static final String COMBINE_PER_KEY_URN =
       BeamUrns.getUrn(StandardPTransforms.Composites.COMBINE_PER_KEY);
@@ -248,11 +248,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
           processBundleDescriptor.putCoders(
               coderId,
               RunnerApi.Coder.newBuilder()
-                  .setSpec(
-                      RunnerApi.SdkFunctionSpec.newBuilder()
-                          .setSpec(
-                              RunnerApi.FunctionSpec.newBuilder()
-                                  .setPayload(output.toByteString())))
+                  .setSpec(RunnerApi.FunctionSpec.newBuilder().setPayload(output.toByteString()))
                   .build());
         }
       } catch (IOException e) {
@@ -417,7 +413,8 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
       Set<Node> successors = input.successors(node);
       if (predecessors.isEmpty() && !successors.isEmpty()) {
         pTransform.putOutputs(
-            node.getInputId(), nodesToPCollections.get(Iterables.getOnlyElement(successors)));
+            "generatedOutput" + idGenerator.getId(),
+            nodesToPCollections.get(Iterables.getOnlyElement(successors)));
         pTransform.setSpec(
             RunnerApi.FunctionSpec.newBuilder()
                 .setUrn(DATA_INPUT_URN)
@@ -425,7 +422,8 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
                 .build());
       } else if (!predecessors.isEmpty() && successors.isEmpty()) {
         pTransform.putInputs(
-            node.getOutputId(), nodesToPCollections.get(Iterables.getOnlyElement(predecessors)));
+            "generatedInput" + idGenerator.getId(),
+            nodesToPCollections.get(Iterables.getOnlyElement(predecessors)));
         pTransform.setSpec(
             RunnerApi.FunctionSpec.newBuilder()
                 .setUrn(DATA_OUTPUT_URN)

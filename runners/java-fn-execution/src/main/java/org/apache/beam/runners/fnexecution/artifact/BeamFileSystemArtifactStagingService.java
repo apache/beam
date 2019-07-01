@@ -233,6 +233,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
           String message =
               String.format(
                   "Failed to begin staging artifact %s", metadata.getMetadata().getName());
+          LOG.error(message, e);
           outboundObserver.onError(
               new StatusRuntimeException(Status.DATA_LOSS.withDescription(message).withCause(e)));
         }
@@ -246,6 +247,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
               String.format(
                   "Failed to write chunk of artifact %s to %s",
                   metadata.getMetadata().getName(), artifactId);
+          LOG.error(message, e);
           outboundObserver.onError(
               new StatusRuntimeException(Status.DATA_LOSS.withDescription(message).withCause(e)));
         }

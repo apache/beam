@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-import CommonJobProperties as commonJobProperties
 import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
@@ -91,10 +90,5 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         'Java Load Tests Smoke',
         this
 ) {
-  description("Runs load tests in \"smoke\" mode to check if everything works well")
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
-
-  for (testConfiguration in smokeTestConfigurations) {
-    loadTestsBuilder.loadTest(delegate, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass, CommonTestProperties.TriggeringContext.PR)
-  }
+  loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.JAVA, smokeTestConfigurations, CommonTestProperties.TriggeringContext.PR, "GBK", "smoke")
 }

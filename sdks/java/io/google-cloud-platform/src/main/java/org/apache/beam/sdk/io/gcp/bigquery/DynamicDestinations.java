@@ -27,6 +27,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -78,6 +79,7 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
   }
 
   @Nullable private transient SideInputAccessor sideInputAccessor;
+  @Nullable private transient PipelineOptions options;
 
   static class SideInputAccessorViaProcessContext implements SideInputAccessor {
     private DoFn<?, ?>.ProcessContext processContext;
@@ -90,6 +92,12 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
     public <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view) {
       return processContext.sideInput(view);
     }
+  }
+
+  /** Get the current PipelineOptions if set. */
+  @Nullable
+  PipelineOptions getPipelineOptions() {
+    return options;
   }
 
   /**
@@ -114,6 +122,7 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
 
   void setSideInputAccessorFromProcessContext(DoFn<?, ?>.ProcessContext context) {
     this.sideInputAccessor = new SideInputAccessorViaProcessContext(context);
+    this.options = context.getPipelineOptions();
   }
 
   /**

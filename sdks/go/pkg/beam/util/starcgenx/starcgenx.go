@@ -30,6 +30,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/shimx"
 )
 
@@ -151,7 +152,7 @@ func (e *Extractor) FromAsts(imp types.Importer, fset *token.FileSet, files []*a
 	}
 
 	if _, err := conf.Check(e.Package, fset, files, info); err != nil {
-		return fmt.Errorf("failed to type check package %s : %v", e.Package, err)
+		return errors.Wrapf(err, "failed to type check package %s", e.Package)
 	}
 
 	e.Print("/*\n")
@@ -179,7 +180,7 @@ func (e *Extractor) FromAsts(imp types.Importer, fset *token.FileSet, files []*a
 		}
 	}
 	if len(notFound) > 0 {
-		return fmt.Errorf("couldn't find the following identifiers; please check for typos, or remove them: %v", strings.Join(notFound, ", "))
+		return errors.Errorf("couldn't find the following identifiers; please check for typos, or remove them: %v", strings.Join(notFound, ", "))
 	}
 	e.Print("*/\n")
 

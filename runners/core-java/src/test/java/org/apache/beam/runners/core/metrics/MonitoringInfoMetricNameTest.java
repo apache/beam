@@ -36,8 +36,6 @@ public class MonitoringInfoMetricNameTest implements Serializable {
     HashMap<String, String> labels = new HashMap<String, String>();
     String urn = MonitoringInfoConstants.Urns.ELEMENT_COUNT;
     MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
-    assertEquals(null, name.getName());
-    assertEquals(null, name.getNamespace());
     assertEquals(labels, name.getLabels());
     assertEquals(urn, name.getUrn());
 
@@ -53,24 +51,19 @@ public class MonitoringInfoMetricNameTest implements Serializable {
   }
 
   @Test
-  public void testUserCounterUrnConstruction() {
-    String urn = SimpleMonitoringInfoBuilder.userMetricUrn("namespace", "name");
+  public void testGetNameReturnsNameIfLabelIsPresent() {
     HashMap<String, String> labels = new HashMap<String, String>();
-    MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
-    assertEquals("name", name.getName());
-    assertEquals("namespace", name.getNamespace());
-    assertEquals(labels, name.getLabels());
-    assertEquals(urn, name.getUrn());
+    labels.put(MonitoringInfoConstants.Labels.NAME, "anyName");
+    MonitoringInfoMetricName name = MonitoringInfoMetricName.named("anyUrn", labels);
+    assertEquals("anyName", name.getName());
+  }
 
-    assertEquals(name, name); // test self equals;
-
-    // Reconstruct and test equality and hash code equivalence
-    urn = SimpleMonitoringInfoBuilder.userMetricUrn("namespace", "name");
-    labels = new HashMap<String, String>();
-    MonitoringInfoMetricName name2 = MonitoringInfoMetricName.named(urn, labels);
-
-    assertEquals(name, name2);
-    assertEquals(name.hashCode(), name2.hashCode());
+  @Test
+  public void testGetNamespaceReturnsNamespaceIfLabelIsPresent() {
+    HashMap<String, String> labels = new HashMap<String, String>();
+    labels.put(MonitoringInfoConstants.Labels.NAMESPACE, "anyNamespace");
+    MonitoringInfoMetricName name = MonitoringInfoMetricName.named("anyUrn", labels);
+    assertEquals("anyNamespace", name.getNamespace());
   }
 
   @Test

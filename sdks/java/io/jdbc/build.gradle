@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(enableSpotbugs: false)
+applyJavaNature()
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -25,20 +25,20 @@ description = "Apache Beam :: SDKs :: Java :: IO :: JDBC"
 ext.summary = "IO to read and write on JDBC datasource."
 
 dependencies {
-  shadow library.java.vendored_guava_20_0
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow "org.apache.commons:commons-dbcp2:2.6.0"
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
-  shadowTest project(path: ":beam-sdks-java-test-utils", configuration: "shadowTest")
+  compile library.java.vendored_guava_20_0
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile "org.apache.commons:commons-dbcp2:2.6.0"
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_api
-  testCompile library.java.slf4j_jdk14
   testCompile library.java.postgres
-  testCompile group: "org.apache.derby", name: "derby", version:"10.14.2.0"
-  testCompile group: "org.apache.derby", name: "derbyclient", version:"10.14.2.0"
-  testCompile group: "org.apache.derby", name: "derbynet", version:"10.14.2.0"
-  testRuntimeOnly project(path: ":beam-runners-direct-java")
+  testCompile "org.apache.derby:derby:10.14.2.0"
+  testCompile "org.apache.derby:derbyclient:10.14.2.0"
+  testCompile "org.apache.derby:derbynet:10.14.2.0"
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(":runners:direct-java")
 }

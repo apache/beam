@@ -22,6 +22,7 @@ import (
 	"sort"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
@@ -44,7 +45,7 @@ func Update(p *pb.Pipeline, values *pb.Components) (*pb.Pipeline, error) {
 // subtransform list.
 func Normalize(p *pb.Pipeline) (*pb.Pipeline, error) {
 	if len(p.GetComponents().GetTransforms()) == 0 {
-		return nil, fmt.Errorf("empty pipeline")
+		return nil, errors.New("empty pipeline")
 	}
 
 	ret := shallowClonePipeline(p)

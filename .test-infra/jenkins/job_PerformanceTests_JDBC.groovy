@@ -53,7 +53,7 @@ job(jobName) {
             benchmarks              : 'beam_integration_benchmark',
             beam_prebuilt           : 'false',
             beam_sdk                : 'java',
-            beam_it_module          : 'sdks/java/io/jdbc',
+            beam_it_module          : ':sdks:java:io:jdbc',
             beam_it_class           : 'org.apache.beam.sdk.io.jdbc.JdbcIOIT',
             beam_it_options         : commonJobProperties.joinPipelineOptions(pipelineOptions),
             beam_kubernetes_scripts : commonJobProperties.makePathAbsolute('src/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml'),

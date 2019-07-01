@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
@@ -69,6 +70,13 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
   private final String stepName;
   /** Keep the options so that we can initialize the localReaders. */
   private final SerializablePipelineOptions serializedOptions;
+
+  /**
+   * We are processing bounded data and should read from the sources sequentially instead of reading
+   * round-robin from all the sources. In case of file sources this avoids having too many open
+   * files/connections at once.
+   */
+  private final boolean isConvertedBoundedSource;
 
   /** For snapshot and restore. */
   private final KvCoder<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>
@@ -134,6 +142,8 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
       throws Exception {
     this.stepName = stepName;
     this.serializedOptions = new SerializablePipelineOptions(pipelineOptions);
+    this.isConvertedBoundedSource =
+        source instanceof UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter;
 
     if (source.requiresDeduping()) {
       LOG.warn("Source {} requires deduping but Flink runner doesn't support this yet.", source);
@@ -217,34 +227,33 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
       // through to idle this executor.
       LOG.info("Number of readers is 0 for this task executor, idle");
       // Do nothing here but still execute the rest of the source logic
-    } else if (localReaders.size() == 1) {
-      // the easy case, we just read from one reader
-      UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(0);
-
-      synchronized (ctx.getCheckpointLock()) {
-        boolean dataAvailable = readerInvoker.invokeStart(reader);
-        if (dataAvailable) {
-          emitElement(ctx, reader);
-        }
-      }
-
+    } else if (isConvertedBoundedSource) {
       setNextWatermarkTimer(this.runtimeContext);
 
-      while (isRunning) {
-        boolean dataAvailable;
-        synchronized (ctx.getCheckpointLock()) {
-          dataAvailable = readerInvoker.invokeAdvance(reader);
+      // We read sequentially from all bounded sources
+      for (int i = 0; i < localReaders.size() && isRunning; i++) {
+        UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(i);
 
+        synchronized (ctx.getCheckpointLock()) {
+          boolean dataAvailable = readerInvoker.invokeStart(reader);
           if (dataAvailable) {
             emitElement(ctx, reader);
           }
         }
-        if (!dataAvailable) {
-          Thread.sleep(50);
-        }
+
+        boolean dataAvailable;
+        do {
+          synchronized (ctx.getCheckpointLock()) {
+            dataAvailable = readerInvoker.invokeAdvance(reader);
+
+            if (dataAvailable) {
+              emitElement(ctx, reader);
+            }
+          }
+        } while (dataAvailable && isRunning);
       }
     } else {
-      // a bit more complicated, we are responsible for several localReaders
+      // Read from multiple unbounded sources,
       // loop through them and sleep if none of them had any data
 
       int numReaders = localReaders.size();
@@ -329,7 +338,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
             timestamp,
             GlobalWindow.INSTANCE,
             PaneInfo.NO_FIRING);
-    ctx.collectWithTimestamp(windowedValue, timestamp.getMillis());
+    ctx.collect(windowedValue);
   }
 
   @Override

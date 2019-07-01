@@ -38,6 +38,7 @@ public class ExpansionServer implements AutoCloseable {
   }
 
   private final String host;
+  private final int port;
   private final Server server;
   private final ExpansionService service;
 
@@ -49,11 +50,7 @@ public class ExpansionServer implements AutoCloseable {
             .addService(service)
             .build()
             .start();
-  }
-
-  /** Get the ExpansionService exposed by this {@link ExpansionServer}. */
-  public ExpansionService getService() {
-    return service;
+    this.port = server.getPort();
   }
 
   /** Get the host that this {@link ExpansionServer} is bound to. */
@@ -63,7 +60,7 @@ public class ExpansionServer implements AutoCloseable {
 
   /** Get the port that this {@link ExpansionServer} is bound to. */
   public int getPort() {
-    return server.getPort();
+    return port;
   }
 
   @Override

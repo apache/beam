@@ -24,7 +24,6 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     gradleTask: ':pythonPreCommit',
     triggerPathPatterns: [
       '^model/.*$',
-      '^runners/.*$',
       '^sdks/python/.*$',
       '^release/.*$',
     ]

@@ -27,9 +27,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
+import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -37,7 +37,6 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.spark.Accumulator;
 import org.apache.spark.Dependency;
 import org.apache.spark.HashPartitioner;
 import org.apache.spark.InterruptibleIterator;
@@ -67,7 +66,7 @@ public class SourceRDD {
     private final int numPartitions;
     private final long bundleSize;
     private final String stepName;
-    private final Accumulator<MetricsContainerStepMap> metricsAccum;
+    private final MetricsContainerStepMapAccumulator metricsAccum;
 
     // to satisfy Scala API.
     private static final scala.collection.immutable.Seq<Dependency<?>> NIL =
@@ -136,7 +135,7 @@ public class SourceRDD {
     @Override
     public scala.collection.Iterator<WindowedValue<T>> compute(
         final Partition split, final TaskContext context) {
-      final MetricsContainer metricsContainer = metricsAccum.localValue().getContainer(stepName);
+      final MetricsContainer metricsContainer = metricsAccum.value().getContainer(stepName);
 
       @SuppressWarnings("unchecked")
       final BoundedSource.BoundedReader<T> reader = createReader((SourcePartition<T>) split);

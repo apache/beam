@@ -558,7 +558,7 @@ class WorkerOptions(PipelineOptions):
         help=
         ('If and how to autoscale the workerpool.'))
     parser.add_argument(
-        '--worker_machine_type',
+        '--worker_machine_type', '--machine_type',
         dest='machine_type',
         default=None,
         help=('Machine type to create Dataflow worker VMs as. See '
@@ -574,7 +574,7 @@ class WorkerOptions(PipelineOptions):
         ('Remote worker disk size, in gigabytes, or 0 to use the default size. '
          'If not set, the Dataflow service will use a reasonable default.'))
     parser.add_argument(
-        '--worker_disk_type',
+        '--worker_disk_type', '--disk_type',
         dest='disk_type',
         default=None,
         help=('Specifies what type of persistent disk should be used.'))

@@ -276,12 +276,12 @@ class HadoopFileSystemTest(unittest.TestCase):
                       for filename in ['old_file1', 'old_file2']]
     result = self.fs.match([self.tmpdir + '/'], [1])[0]
     files = [f.path for f in result.metadata_list]
-    self.assertEquals(len(files), 1)
+    self.assertEqual(len(files), 1)
     self.assertIn(files[0], expected_files)
 
   def test_match_file_with_zero_limit(self):
     result = self.fs.match([self.tmpdir + '/'], [0])[0]
-    self.assertEquals(len(result.metadata_list), 0)
+    self.assertEqual(len(result.metadata_list), 0)
 
   def test_match_file_empty(self):
     url = self.fs.join(self.tmpdir, 'nonexistent_file')
