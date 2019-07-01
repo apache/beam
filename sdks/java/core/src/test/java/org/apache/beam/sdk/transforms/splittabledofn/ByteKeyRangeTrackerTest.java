@@ -26,7 +26,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import java.math.BigDecimal;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.junit.Rule;
@@ -261,35 +260,31 @@ public class ByteKeyRangeTrackerTest {
   @Test
   public void testBacklogUnstarted() {
     ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(ByteKeyRange.ALL_KEYS);
-    assertEquals(BigDecimal.ONE, tracker.getBacklog().backlog());
+    assertEquals(1., tracker.getSize(), 0.001);
 
     tracker = ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
-    assertEquals(BigDecimal.ONE, tracker.getBacklog().backlog());
+    assertEquals(1., tracker.getSize(), 0.001);
   }
 
   @Test
   public void testBacklogFinished() {
     ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(ByteKeyRange.ALL_KEYS);
     tracker.tryClaim(ByteKey.EMPTY);
-    assertEquals(BigDecimal.ZERO, tracker.getBacklog().backlog());
+    assertEquals(0., tracker.getSize(), 0.001);
 
     tracker = ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
     tracker.tryClaim(ByteKey.of(0xd0));
-    assertEquals(BigDecimal.ZERO, tracker.getBacklog().backlog());
+    assertEquals(0., tracker.getSize(), 0.001);
   }
 
   @Test
   public void testBacklogPartiallyCompleted() {
     ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(ByteKeyRange.ALL_KEYS);
     tracker.tryClaim(ByteKey.of(0xa0));
-    assertThat(
-        tracker.getBacklog().backlog(),
-        allOf(greaterThan(BigDecimal.ZERO), lessThan(BigDecimal.ONE)));
+    assertThat(tracker.getSize(), allOf(greaterThan(0.), lessThan(1.)));
 
     tracker = ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
     tracker.tryClaim(ByteKey.of(0xa0));
-    assertThat(
-        tracker.getBacklog().backlog(),
-        allOf(greaterThan(BigDecimal.ZERO), lessThan(BigDecimal.ONE)));
+    assertThat(tracker.getSize(), allOf(greaterThan(0.), lessThan(1.)));
   }
 }
