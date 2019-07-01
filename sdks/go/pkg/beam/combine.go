@@ -23,22 +23,24 @@ import (
 
 // Combine inserts a global Combine transform into the pipeline. It
 // expects a PCollection<T> as input where T is a concrete type.
-func Combine(s Scope, combinefn interface{}, col PCollection) PCollection {
-	return Must(TryCombine(s, combinefn, col))
+// Combine supports only TypeDefinition options, not side inputs.
+func Combine(s Scope, combinefn interface{}, col PCollection, opts ...Option) PCollection {
+	return Must(TryCombine(s, combinefn, col, opts...))
 }
 
 // CombinePerKey inserts a GBK and per-key Combine transform into the pipeline. It
 // expects a PCollection<KV<K,T>>. The CombineFn may optionally take a key parameter.
-func CombinePerKey(s Scope, combinefn interface{}, col PCollection) PCollection {
-	return Must(TryCombinePerKey(s, combinefn, col))
+// CombinePerKey supports only TypeDefinition options, not side inputs.
+func CombinePerKey(s Scope, combinefn interface{}, col PCollection, opts ...Option) PCollection {
+	return Must(TryCombinePerKey(s, combinefn, col, opts...))
 }
 
 // TryCombine attempts to insert a global Combine transform into the pipeline. It may fail
 // for multiple reasons, notably that the combinefn is not valid or cannot be bound
 // -- due to type mismatch, say -- to the incoming PCollections.
-func TryCombine(s Scope, combinefn interface{}, col PCollection) (PCollection, error) {
+func TryCombine(s Scope, combinefn interface{}, col PCollection, opts ...Option) (PCollection, error) {
 	pre := AddFixedKey(s, col)
-	post, err := TryCombinePerKey(s, combinefn, pre)
+	post, err := TryCombinePerKey(s, combinefn, pre, opts...)
 	if err != nil {
 		return PCollection{}, err
 	}
@@ -52,10 +54,18 @@ func addCombinePerKeyCtx(err error, s Scope) error {
 // TryCombinePerKey attempts to insert a per-key Combine transform into the pipeline. It may fail
 // for multiple reasons, notably that the combinefn is not valid or cannot be bound
 // -- due to type mismatch, say -- to the incoming PCollection.
-func TryCombinePerKey(s Scope, combinefn interface{}, col PCollection) (PCollection, error) {
+func TryCombinePerKey(s Scope, combinefn interface{}, col PCollection, opts ...Option) (PCollection, error) {
 	s = s.Scope(graph.CombinePerKeyScope)
 	ValidateKVType(col)
-	col, err := TryGroupByKey(s, col)
+	side, typedefs, err := validate(s, col, opts)
+	if err != nil {
+		return PCollection{}, addCombinePerKeyCtx(err, s)
+	}
+	if len(side) > 0 {
+		return PCollection{}, addCombinePerKeyCtx(errors.New("combine does not support side inputs"), s)
+	}
+
+	col, err = TryGroupByKey(s, col)
 	if err != nil {
 		return PCollection{}, addCombinePerKeyCtx(err, s)
 	}
@@ -74,7 +84,7 @@ func TryCombinePerKey(s Scope, combinefn interface{}, col PCollection) (PCollect
 		return PCollection{}, addCombinePerKeyCtx(wrapped, s)
 	}
 
-	edge, err := graph.NewCombine(s.real, s.scope, fn, col.n, accumCoder)
+	edge, err := graph.NewCombine(s.real, s.scope, fn, col.n, accumCoder, typedefs)
 	if err != nil {
 		return PCollection{}, addCombinePerKeyCtx(err, s)
 	}
