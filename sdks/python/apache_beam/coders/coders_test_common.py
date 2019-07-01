@@ -24,10 +24,9 @@ import sys
 import unittest
 from builtins import range
 
-import dill
-
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coders
+from apache_beam.internal import pickler
 from apache_beam.runners import pipeline_context
 from apache_beam.transforms import window
 from apache_beam.transforms.window import GlobalWindow
@@ -102,7 +101,7 @@ class CodersTest(unittest.TestCase):
                          coder.get_impl().estimate_size(v))
         self.assertEqual(coder.get_impl().get_estimated_size_and_observables(v),
                          (coder.get_impl().estimate_size(v), []))
-      copy1 = dill.loads(dill.dumps(coder))
+      copy1 = pickler.loads(pickler.dumps(coder))
     copy2 = coders.Coder.from_runner_api(coder.to_runner_api(context), context)
     for v in values:
       self.assertEqual(v, copy1.decode(copy2.encode(v)))
