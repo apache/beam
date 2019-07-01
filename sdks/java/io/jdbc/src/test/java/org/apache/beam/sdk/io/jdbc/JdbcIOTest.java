@@ -580,15 +580,21 @@ public class JdbcIOTest implements Serializable {
                     preparedStatement ->
                         preparedStatement.setString(1, TestRow.getNameForSeed(1))));
 
-    rows.apply(
-        JdbcIO.<Row>write()
-            .withDataSourceConfiguration(
-                JdbcIO.DataSourceConfiguration.create(
-                    "org.apache.derby.jdbc.ClientDriver",
-                    "jdbc:derby://localhost:" + port + "/target/beam"))
-            .withBatchSize(10L)
-            .withTable(readTableName));
-    pipeline.run();
+    String writeTableName = DatabaseTestHelper.getTestTableName("UT_WRITE_PS_WITH_READ_ROWS");
+    DatabaseTestHelper.createTableForRowWithSchema(dataSource, writeTableName);
+    try {
+      rows.apply(
+          JdbcIO.<Row>write()
+              .withDataSourceConfiguration(
+                  JdbcIO.DataSourceConfiguration.create(
+                      "org.apache.derby.jdbc.ClientDriver",
+                      "jdbc:derby://localhost:" + port + "/target/beam"))
+              .withBatchSize(10L)
+              .withTable(writeTableName));
+      pipeline.run();
+    } finally {
+      DatabaseTestHelper.deleteTable(dataSource, writeTableName);
+    }
   }
 
   @Test
