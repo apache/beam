@@ -105,7 +105,7 @@ public class TextRowCountEstimatorTest {
   }
 
   @Test(expected = FileNotFoundException.class)
-  public void testNonExistance() throws Exception {
+  public void testNonExistence() throws Exception {
     TextRowCountEstimator textRowCountEstimator =
         TextRowCountEstimator.builder()
             .setFilePattern(temporaryFolder.getRoot() + "/something/**")
