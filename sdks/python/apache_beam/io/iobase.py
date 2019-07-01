@@ -1433,7 +1433,8 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
                           range_tracker.stop_position())
 
     def create_tracker(self, restriction):
-      return _SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionTracker(restriction)
+      return _SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionTracker(
+          restriction)
 
     def split(self, element, restriction):
       # Invoke source.split to get initial splitting results.
