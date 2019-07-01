@@ -129,7 +129,7 @@ to either a single `PCollection` or a `PCollectionTuple` which holds multiple
     ```java
     // Create the schema for reviews
     Schema reviewSchema = 
-        Schema.
+        Schema
           .builder()
           .addInt32Field("appId")
           .addInt32Field("reviewerId")

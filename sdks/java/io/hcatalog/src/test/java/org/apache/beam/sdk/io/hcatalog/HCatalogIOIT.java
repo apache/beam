@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.hcatalog;
 
 import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.buildHCatRecords;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.buildHCatRecords;
 
 import java.util.Map;
 import org.apache.beam.sdk.io.common.HashingFn;

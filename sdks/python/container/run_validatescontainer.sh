@@ -23,9 +23,18 @@
 # GCS_LOCATION -> Temporary location to use for service tests.
 # PROJECT      -> Project name to use for dataflow and docker images.
 #
-# Execute from the root of the repository: sdks/python/container/run_validatescontainer.sh
+# Execute from the root of the repository:
+#     test Python2 container: ./sdks/python/container/run_validatescontainer.sh python2
+#     test Python3 container: ./sdks/python/container/run_validatescontainer.sh python3
 
 echo "This script must be executed in the root of beam project. Please set LOCAL_PATH, GCS_LOCATION, and PROJECT as desired."
+
+if [[ $# != 1 ]]; then
+  printf "Usage: \n$> ./sdks/python/container/run_validatescontainer.sh <python_version>"
+  printf "\n\tpython_version: [required] Python version used for container build and run tests."
+  printf " Use 'python2' for Python2, 'python3' for Python3."
+  exit 1
+fi
 
 set -e
 set -v
@@ -35,6 +44,22 @@ GCS_LOCATION=${GCS_LOCATION:-gs://temp-storage-for-end-to-end-tests}
 
 # Project for the container and integration test
 PROJECT=${PROJECT:-apache-beam-testing}
+
+# Other variables branched by Python version.
+if [[ $1 == "python2" ]]; then
+  IMAGE_NAME="python"       # Use this to create CONTAINER_IMAGE variable.
+  CONTAINER_PROJECT="sdks:python:container"  # Use this to build container by Gradle.
+  GRADLE_PY3_FLAG=""        # Use this in Gradle command.
+  PY_INTERPRETER="python"   # Use this in virtualenv command.
+elif [[ $1 == "python3" ]]; then
+  IMAGE_NAME="python3"          # Use this to create CONTAINER_IMAGE variable.
+  CONTAINER_PROJECT="sdks:python:container:py3"  # Use this to build container by Gradle.
+  GRADLE_PY3_FLAG="-Ppython3"   # Use this in Gradle command.
+  PY_INTERPRETER="python3.5"    # Use this in virtualenv command.
+else
+  echo "Must set Python version with 'python2' or 'python3' from commandline."
+  exit 1
+fi
 
 # Verify in the root of the repository
 test -d sdks/python/container
@@ -47,9 +72,9 @@ gcloud -v
 
 # Build the container
 TAG=$(date +%Y%m%d-%H%M%S)
-CONTAINER=us.gcr.io/$PROJECT/$USER/python
+CONTAINER=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME
 echo "Using container $CONTAINER"
-./gradlew :beam-sdks-python-container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG --info
+./gradlew :$CONTAINER_PROJECT:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG $GRADLE_PY3_FLAG --info
 
 # Verify it exists
 docker images | grep $TAG
@@ -65,9 +90,12 @@ function cleanup_container {
 }
 trap cleanup_container EXIT
 
+echo ">>> Successfully built and push container $CONTAINER"
+
 # Virtualenv for the rest of the script to run setup & e2e test
-virtualenv sdks/python/container
-. sdks/python/container/bin/activate
+VENV_PATH=sdks/python/container/venv/$PY_INTERPRETER
+virtualenv $VENV_PATH -p $PY_INTERPRETER
+. $VENV_PATH/bin/activate
 cd sdks/python
 pip install -e .[gcp,test]
 

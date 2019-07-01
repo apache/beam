@@ -18,7 +18,7 @@
 
 import groovy.json.JsonOutput
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature(exportJavadoc: false)
 
 description = "Apache Beam :: Runners :: Samza"
@@ -28,43 +28,44 @@ description = "Apache Beam :: Runners :: Samza"
  * the following projects are evaluated before we evaluate this project. This is because
  * we are attempting to reference the "sourceSets.test.output" directly.
  */
-evaluationDependsOn(":beam-sdks-java-core")
+evaluationDependsOn(":sdks:java:core")
 
 configurations {
   validatesRunner
 }
 
-def samza_version = "0.14.1"
+def samza_version = "1.1.0"
 
 dependencies {
-  shadow library.java.vendored_guava_20_0
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-runners-core-java", configuration: "shadow")
-  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  shadow project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
-  shadow library.java.jackson_annotations
-  shadow library.java.slf4j_api
-  shadow library.java.joda_time
-  shadow library.java.commons_compress
-  shadow library.java.commons_io_2x
-  shadow library.java.args4j
-  shadow "org.apache.samza:samza-api:$samza_version"
-  shadow "org.apache.samza:samza-core_2.11:$samza_version"
-  shadow "org.apache.samza:samza-kafka_2.11:$samza_version"
-  shadow "org.apache.samza:samza-kv_2.11:$samza_version"
-  shadow "org.apache.samza:samza-kv-rocksdb_2.11:$samza_version"
-  shadow "org.apache.samza:samza-kv-inmemory_2.11:$samza_version"
-  shadow "org.apache.kafka:kafka-clients:0.11.0.2"
-  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
-  shadowTest library.java.commons_lang3
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.junit
-  shadowTest library.java.mockito_core
-  shadowTest library.java.jackson_dataformat_yaml
-  validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
-  validatesRunner project(path: project.path, configuration: "shadow")
+  compile library.java.vendored_guava_20_0
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":runners:core-java")
+  compile project(":runners:core-construction-java")
+  compile project(":runners:java-fn-execution")
+  compile library.java.jackson_annotations
+  compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile library.java.commons_compress
+  compile library.java.commons_io_2x
+  compile library.java.args4j
+  compile "org.apache.samza:samza-api:$samza_version"
+  compile "org.apache.samza:samza-core_2.11:$samza_version"
+  compile "org.apache.samza:samza-kafka_2.11:$samza_version"
+  compile "org.apache.samza:samza-kv_2.11:$samza_version"
+  compile "org.apache.samza:samza-kv-rocksdb_2.11:$samza_version"
+  compile "org.apache.samza:samza-kv-inmemory_2.11:$samza_version"
+  compile "org.apache.samza:samza-yarn_2.11:$samza_version"
+  compile "org.apache.kafka:kafka-clients:0.11.0.2"
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":runners:core-java", configuration: "testRuntime")
+  testCompile library.java.commons_lang3
+  testCompile library.java.hamcrest_core
+  testCompile library.java.junit
+  testCompile library.java.mockito_core
+  testCompile library.java.jackson_dataformat_yaml
+  validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
+  validatesRunner project(project.path)
 }
 
 task validatesRunner(type: Test) {
@@ -75,7 +76,7 @@ task validatesRunner(type: Test) {
   ])
 
   classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
@@ -84,11 +85,10 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
   }
 }
 
-// Generates :beam-runners-samza:runQuickstartJavaSamza
+// Generates :runners:samza:runQuickstartJavaSamza
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner:'Samza')

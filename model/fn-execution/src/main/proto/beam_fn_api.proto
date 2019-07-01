@@ -43,6 +43,7 @@ import "endpoints.proto";
 import "google/protobuf/descriptor.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
+import "metrics.proto";
 
 /*
  * Constructs that define the pipeline shape.
@@ -53,22 +54,6 @@ import "google/protobuf/wrappers.proto";
  * as another field on a PrimitiveTransform or as part of inputs and we
  * still are missing things like the CompositeTransform.
  */
-
-// A representation of an input or output definition on a primitive transform.
-// Stable
-message Target {
-  // A repeated list of target definitions.
-  message List {
-    repeated Target target = 1;
-  }
-
-  // (Required) The id of the PrimitiveTransform which is the target.
-  string primitive_transform_reference = 1;
-
-  // (Required) The local name of an input or output defined on the primitive
-  // transform.
-  string name = 2;
-}
 
 // A descriptor for connecting to a remote port using the Beam Fn Data API.
 // Allows for communication between two environments (for example between the
@@ -254,7 +239,7 @@ message BundleApplication {
   // will use consume when providing a UI or for making scaling and performance
   // decisions. See https://s.apache.org/beam-bundles-backlog-splitting for
   // details about what types of signals may be useful to report.
-  repeated MonitoringInfo monitoring_infos = 7;
+  repeated org.apache.beam.model.pipeline.v1.MonitoringInfo monitoring_infos = 7;
 }
 
 // An Application should be scheduled for execution after a delay.
@@ -287,11 +272,13 @@ message ProcessBundleResponse {
 
   // (Optional) Specifies that the bundle has not been completed and the
   // following applications need to be scheduled and executed in the future.
+  // A runner that does not yet support residual roots MUST still check that
+  // this is empty for correctness.
   repeated DelayedBundleApplication residual_roots = 2;
 
   // (Required) The list of metrics or other MonitoredState
   // collected while processing this bundle.
-  repeated MonitoringInfo monitoring_infos = 3;
+  repeated org.apache.beam.model.pipeline.v1.MonitoringInfo monitoring_infos = 3;
 
   // (Optional) Specifies that the runner must callback to this worker
   // once the output of the bundle is committed. The Runner must send a
@@ -307,295 +294,6 @@ message ProcessBundleProgressRequest {
   // (Required) A reference to an active process bundle request with the given
   // instruction id.
   string instruction_reference = 1;
-}
-
-// A specification containing required set of fields and labels required
-// to be set on a MonitoringInfo for the specific URN for SDK->RunnerHarness
-// ProcessBundleResponse reporting.
-message MonitoringInfoSpec {
-  string urn = 1;
-  string type_urn = 2;
-  // The list of required
-  repeated string required_labels = 3;
-  // Extra non functional parts of the spec for descriptive purposes.
-  // i.e. description, units, etc.
-  repeated Annotation annotations = 4;
-}
-
-// The key name and value string of MonitoringInfo annotations.
-message Annotation {
-  string key = 1;
-  string value = 2;
-}
-
-// Populated MonitoringInfoSpecs for specific URNs.
-// Indicating the required fields to be set.
-// SDKs and RunnerHarnesses can load these instances into memory and write a
-// validator or code generator to assist with populating and validating
-// MonitoringInfo protos.
-message MonitoringInfoSpecs {
-  enum Enum {
-    // TODO(ajamato): Add the PTRANSFORM name as a required label after
-    // upgrading the python SDK.
-    USER_COUNTER = 0 [(monitoring_info_spec) = {
-      urn: "beam:metric:user:",
-      type_urn: "beam:metrics:sum_int_64",
-    }];
-
-    ELEMENT_COUNT = 1 [(monitoring_info_spec) = {
-      urn: "beam:metric:element_count:v1",
-      type_urn: "beam:metrics:sum_int_64",
-      required_labels: [ "PCOLLECTION" ],
-      annotations: [ {
-        key: "description",
-        value: "The total elements output to a Pcollection by a PTransform."
-      } ]
-    }];
-
-    START_BUNDLE_MSECS = 2 [(monitoring_info_spec) = {
-      urn: "beam:metric:pardo_execution_time:start_bundle_msecs:v1",
-      type_urn: "beam:metrics:sum_int_64",
-      required_labels: [ "PTRANSFORM" ],
-      annotations: [ {
-        key: "description",
-        value: "The total estimated execution time of the start bundle"
-               "function in a pardo"
-      } ]
-    }];
-
-    PROCESS_BUNDLE_MSECS = 3 [(monitoring_info_spec) = {
-      urn: "beam:metric:pardo_execution_time:process_bundle_msecs:v1",
-      type_urn: "beam:metrics:sum_int_64",
-      required_labels: [ "PTRANSFORM" ],
-      annotations: [ {
-        key: "description",
-        value: "The total estimated execution time of the process bundle"
-               "function in a pardo"
-      } ]
-    }];
-
-    FINISH_BUNDLE_MSECS = 4 [(monitoring_info_spec) = {
-      urn: "beam:metric:pardo_execution_time:finish_bundle_msecs:v1",
-      type_urn: "beam:metrics:sum_int_64",
-      required_labels: [ "PTRANSFORM" ],
-      annotations: [ {
-        key: "description",
-        value: "The total estimated execution time of the finish bundle "
-               "function in a pardo"
-      } ]
-    }];
-
-    TOTAL_MSECS = 5 [(monitoring_info_spec) = {
-      urn: "beam:metric:ptransform_execution_time:total_msecs:v1",
-      type_urn: "beam:metrics:sum_int_64",
-      required_labels: [ "PTRANSFORM" ],
-      annotations: [ {
-        key: "description",
-        value: "The total estimated execution time of the ptransform"
-      } ]
-    }];
-  }
-}
-
-// A set of properties for the MonitoringInfoLabel, this is useful to obtain
-// the proper label string for the MonitoringInfoLabel.
-message MonitoringInfoLabelProps {
-  // The label key to use in the MonitoringInfo labels map.
-  string name = 1;
-}
-
-// Enum extension to store MonitoringInfo related
-// specifications, constants, etc.
-extend google.protobuf.EnumValueOptions {
-  MonitoringInfoLabelProps label_props = 127337796;  // From: commit 0x7970544.
-
-  // Enum extension to store the MonitoringInfoSpecs.
-  MonitoringInfoSpec monitoring_info_spec = 207174266;
-}
-
-message MonitoringInfo {
-  // The name defining the metric or monitored state.
-  string urn = 1;
-
-  // This is specified as a URN that implies:
-  // A message class: (Distribution, Counter, Extrema, MonitoringDataTable).
-  // Sub types like field formats - int64, double, string.
-  // Aggregation methods - SUM, LATEST, TOP-N, BOTTOM-N, DISTRIBUTION
-  // valid values are:
-  // beam:metrics:[sum_int_64|latest_int_64|top_n_int_64|bottom_n_int_64|
-  //     sum_double|latest_double|top_n_double|bottom_n_double|
-  //     distribution_int_64|distribution_double|monitoring_data_table
-  string type = 2;
-
-  // The Metric or monitored state.
-  oneof data {
-    MonitoringTableData monitoring_table_data = 3;
-    Metric metric = 4;
-  }
-
-  enum MonitoringInfoLabels {
-    // TODO(ajamato): Rename all references to TRANSFORM to PTRANSFORM
-    TRANSFORM = 0 [(label_props) = { name: "PTRANSFORM" }];
-    PCOLLECTION = 1 [(label_props) = { name: "PCOLLECTION" }];
-    WINDOWING_STRATEGY = 2 [(label_props) = { name: "WINDOWING_STRATEGY" }];
-    CODER = 3 [(label_props) = { name: "CODER" }];
-    ENVIRONMENT = 4 [(label_props) = { name: "ENVIRONMENT" }];
-  }
-  // A set of key+value labels which define the scope of the metric.
-  // Either a well defined entity id for matching the enum names in
-  // the MonitoringInfoLabels enum or any arbitrary label
-  // set by a custom metric or user metric.
-  // A monitoring system is expected to be able to aggregate the metrics
-  // together for all updates having the same URN and labels. Some systems such
-  // as Stackdriver will be able to aggregate the metrics using a subset of the
-  // provided labels
-  map<string, string> labels = 5;
-
-  // The walltime of the most recent update.
-  // Useful for aggregation for latest types such as LatestInt64.
-  google.protobuf.Timestamp timestamp = 6;
-}
-
-message MonitoringInfoUrns {
-  enum Enum {
-    // User counter have this format: 'beam:metric:user:<namespace>:<name>'.
-    USER_COUNTER_URN_PREFIX = 0
-        [(org.apache.beam.model.pipeline.v1.beam_urn) = "beam:metric:user:"];
-
-    ELEMENT_COUNT = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =
-                           "beam:metric:element_count:v1"];
-
-    START_BUNDLE_MSECS = 2
-        [(org.apache.beam.model.pipeline.v1.beam_urn) =
-             "beam:metric:pardo_execution_time:start_bundle_msecs:v1"];
-
-    PROCESS_BUNDLE_MSECS = 3
-        [(org.apache.beam.model.pipeline.v1.beam_urn) =
-             "beam:metric:pardo_execution_time:process_bundle_msecs:v1"];
-
-    FINISH_BUNDLE_MSECS = 4
-        [(org.apache.beam.model.pipeline.v1.beam_urn) =
-             "beam:metric:pardo_execution_time:finish_bundle_msecs:v1"];
-
-    TOTAL_MSECS = 5
-        [(org.apache.beam.model.pipeline.v1.beam_urn) =
-             "beam:metric:ptransform_execution_time:total_msecs:v1"];
-  }
-}
-
-message MonitoringInfoTypeUrns {
-  enum Enum {
-    SUM_INT64_TYPE = 0 [(org.apache.beam.model.pipeline.v1.beam_urn) =
-                            "beam:metrics:sum_int_64"];
-
-    DISTRIBUTION_INT64_TYPE = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =
-                                     "beam:metrics:distribution_int_64"];
-
-    LATEST_INT64_TYPE = 2 [(org.apache.beam.model.pipeline.v1.beam_urn) =
-                               "beam:metrics:latest_int_64"];
-  }
-}
-
-message Metric {
-  // (Required) The data for this metric.
-  oneof data {
-    CounterData counter_data = 1;
-    DistributionData distribution_data = 2;
-    ExtremaData extrema_data = 3;
-  }
-}
-
-// Data associated with a Counter or Gauge metric.
-// This is designed to be compatible with metric collection
-// systems such as DropWizard.
-message CounterData {
-  oneof value {
-    int64 int64_value = 1;
-    double double_value = 2;
-    string string_value = 3;
-  }
-}
-
-// Extrema messages are used for calculating
-// Top-N/Bottom-N metrics.
-message ExtremaData {
-  oneof extrema {
-    IntExtremaData int_extrema_data = 1;
-    DoubleExtremaData double_extrema_data = 2;
-  }
-}
-
-message IntExtremaData {
-  repeated int64 int_values = 1;
-}
-
-message DoubleExtremaData {
-  repeated double double_values = 2;
-}
-
-// Data associated with a distribution metric.
-// This is based off of the current DistributionData metric.
-// This is not a stackdriver or dropwizard compatible
-// style of distribution metric.
-message DistributionData {
-  oneof distribution {
-    IntDistributionData int_distribution_data = 1;
-    DoubleDistributionData double_distribution_data = 2;
-  }
-}
-
-message IntDistributionData {
-  int64 count = 1;
-  int64 sum = 2;
-  int64 min = 3;
-  int64 max = 4;
-}
-
-message DoubleDistributionData {
-  int64 count = 1;
-  double sum = 2;
-  double min = 3;
-  double max = 4;
-}
-
-// General MonitoredState information which contains
-// structured information which does not fit into a typical
-// metric format. For example, a table of important files
-// and metadata which an I/O source is reading.
-// Note: Since MonitoredState is designed to be
-// customizable, and allow engines to aggregate these
-// metrics in custom ways.
-// Engines can use custom aggregation functions for specific URNs
-// by inspecting the column values.
-// An SDK should always report its current state, that is all
-// relevant MonitoredState for its PTransform at the current moment
-// and this should be kept small.
-// For example, an SDK can emit the oldest three files which
-// have been waiting for data for over 1 hour.
-// If an engine supports the URN with a custom aggregation then
-// it can filter these and keep only the Top-3 rows based on
-// how long the files have been waiting for data.
-// Otherwise an engine can ignore the MonitoringTableData
-// or union all the rows together into one large table and display
-// them in a UI.
-message MonitoringTableData {
-  message MonitoringColumnValue {
-    oneof value {
-      int64 int64_value = 1;
-      double double_value = 2;
-      string string_value = 3;
-      google.protobuf.Timestamp timestamp = 4;
-    }
-  }
-
-  message MonitoringRow {
-    repeated MonitoringColumnValue values = 1;
-  }
-
-  // The number of column names must match the
-  // number of values in each MonitoringRow.
-  repeated string column_names = 1;
-  repeated MonitoringRow row_data = 2;
 }
 
 // DEPRECATED
@@ -721,7 +419,7 @@ message ProcessBundleProgressResponse {
 
   // (Required) The list of metrics or other MonitoredState
   // collected while processing this bundle.
-  repeated MonitoringInfo monitoring_infos = 3;
+  repeated org.apache.beam.model.pipeline.v1.MonitoringInfo monitoring_infos = 3;
 
   // The list of currently active primary roots that are being
   // executed. Required to be populated for PTransforms which can be split.
@@ -746,6 +444,34 @@ message ProcessBundleSplitRequest {
   // If the backlog is unspecified for a PTransform, the runner would like
   // the SDK to process all data received for that PTransform.
   map<string, bytes> backlog_remaining = 2;
+
+  // A message specifying the desired split for a single transform.
+  message DesiredSplit {
+    // (Required) The fraction of known work remaining in this bundle
+    // for this transform that should be kept by the SDK after this split.
+    //
+    // Set to 0 to "checkpoint" as soon as possible (keeping as little work as
+    // possible and returning the remainder).
+    float fraction_of_remainder = 1;
+
+    // A set of allowed element indices where the SDK may split. When this is
+    // empty, there are no constraints on where to split.
+    repeated int64 allowed_split_points = 3;
+
+    // (Required for GrpcRead operations) Number of total elements expected
+    // to be sent to this GrpcRead operation, required to correctly account
+    // for unreceived data when determining where to split.
+    int64 estimated_input_elements = 2;
+
+    // TODO(SDF): Allow providing weights rather than sizes.
+  }
+
+  // (Required) Specifies the desired split for each transform.
+  //
+  // Currently only splits at GRPC read operations are supported.
+  // This may, of course, limit the amount of work downstream operations
+  // receive.
+  map<string, DesiredSplit> desired_splits = 3;
 }
 
 // Represents a partition of the bundle: a "primary" and
@@ -765,7 +491,36 @@ message ProcessBundleSplitResponse {
   // have to be executed in a separate bundle (e.g. in parallel on a different
   // worker, or after the current bundle completes, etc.)
   repeated DelayedBundleApplication residual_roots = 2;
+
+  // Represents contiguous portions of the data channel that are either
+  // entirely processed or entirely unprocessed and belong to the primary
+  // or residual respectively.
+  //
+  // This affords both a more efficient representation over the FnAPI
+  // (if the bundle is large) and often a more efficient representation
+  // on the runner side (e.g. if the set of elements can be represented
+  // as some range in an underlying dataset).
+  message ChannelSplit {
+    // (Required) The grpc read transform reading this channel.
+    string ptransform_id = 1;
+
+    // The last element of the input channel that should be entirely considered
+    // part of the primary, identified by its absolute index in the (ordered)
+    // channel.
+    int32 last_primary_element = 2;
+
+    // The first element of the input channel that should be entirely considered
+    // part of the residual, identified by its absolute index in the (ordered)
+    // channel.
+    int32 first_residual_element = 3;
+  }
+
+  // Partitions of input data channels into primary and residual elements,
+  // if any. Should not include any elements represented in the bundle
+  // applications roots above.
+  repeated ChannelSplit channel_splits = 3;
 }
+
 
 message FinalizeBundleRequest {
   // (Required) A reference to a completed process bundle request with the given
@@ -785,7 +540,7 @@ message FinalizeBundleResponse {
 // Stable
 message Elements {
   // Represents multiple encoded elements in nested context for a given named
-  // instruction and target.
+  // instruction and transform.
   message Data {
     // (Required) A reference to an active instruction request with the given
     // instruction id.
@@ -798,16 +553,15 @@ message Elements {
     //
     // Note that a single element may span multiple Data messages.
     //
-    // Note that a sending/receiving pair should share the same target
-    // identifier.
-    Target target = 2;
+    // Note that a sending/receiving pair should share the same identifier.
+    string ptransform_id = 2;
 
     // (Optional) Represents a part of a logical byte stream. Elements within
     // the logical byte stream are encoded in the nested context and
     // concatenated together.
     //
     // An empty data block represents the end of stream for the given
-    // instruction and target.
+    // instruction and transform.
     bytes data = 3;
   }
 

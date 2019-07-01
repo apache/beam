@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins {
+  id 'org.apache.beam.module'
+  id 'ca.coglinc.javacc'
+}
 applyJavaNature(
     // javacc generated code produces lint warnings
     disableLintWarnings: ['dep-ann']
 )
-
-apply plugin: 'ca.coglinc.javacc'
 
 description = "Apache Beam :: SDKs :: Java :: IO :: ClickHouse"
 ext.summary = "IO to write to ClickHouse (https://clickhouse.yandex)."
@@ -49,14 +50,14 @@ def testcontainers_version = "1.10.5"
 
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow library.java.joda_time
-  shadow "ru.yandex.clickhouse:clickhouse-jdbc:$clickhouse_jdbc_version"
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.joda_time
+  compile "ru.yandex.clickhouse:clickhouse-jdbc:$clickhouse_jdbc_version"
   testCompile library.java.slf4j_api
-  testCompile library.java.slf4j_jdk14
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile "org.testcontainers:clickhouse:$testcontainers_version"
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(":runners:direct-java")
 }

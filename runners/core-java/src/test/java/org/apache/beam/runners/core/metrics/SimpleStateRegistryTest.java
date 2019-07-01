@@ -22,7 +22,7 @@ import static org.junit.Assert.assertThat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.Test;
@@ -34,16 +34,22 @@ public class SimpleStateRegistryTest {
   public void testExecutionTimeUrnsBuildMonitoringInfos() throws Exception {
     String testPTransformId = "pTransformId";
     HashMap<String, String> labelsMetadata = new HashMap<String, String>();
-    labelsMetadata.put(SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL, testPTransformId);
+    labelsMetadata.put(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
     SimpleExecutionState startState =
         new SimpleExecutionState(
-            SimpleMonitoringInfoBuilder.START_BUNDLE_MSECS_URN, labelsMetadata);
+            ExecutionStateTracker.START_STATE_NAME,
+            MonitoringInfoConstants.Urns.START_BUNDLE_MSECS,
+            labelsMetadata);
     SimpleExecutionState processState =
         new SimpleExecutionState(
-            SimpleMonitoringInfoBuilder.PROCESS_BUNDLE_MSECS_URN, labelsMetadata);
+            ExecutionStateTracker.PROCESS_STATE_NAME,
+            MonitoringInfoConstants.Urns.PROCESS_BUNDLE_MSECS,
+            labelsMetadata);
     SimpleExecutionState finishState =
         new SimpleExecutionState(
-            SimpleMonitoringInfoBuilder.FINISH_BUNDLE_MSECS_URN, labelsMetadata);
+            ExecutionStateTracker.FINISH_STATE_NAME,
+            MonitoringInfoConstants.Urns.FINISH_BUNDLE_MSECS,
+            labelsMetadata);
 
     SimpleStateRegistry testObject = new SimpleStateRegistry();
     testObject.register(startState);
@@ -53,22 +59,22 @@ public class SimpleStateRegistryTest {
 
     List<Matcher<MonitoringInfo>> matchers = new ArrayList<Matcher<MonitoringInfo>>();
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrn(SimpleMonitoringInfoBuilder.START_BUNDLE_MSECS_URN);
+    builder.setUrn(MonitoringInfoConstants.Urns.START_BUNDLE_MSECS);
     builder.setInt64Value(0);
-    builder.setPTransformLabel(testPTransformId);
+    builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
     matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
     // Check for execution time metrics for the testPTransformId
     builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrn(SimpleMonitoringInfoBuilder.PROCESS_BUNDLE_MSECS_URN);
+    builder.setUrn(MonitoringInfoConstants.Urns.PROCESS_BUNDLE_MSECS);
     builder.setInt64Value(0);
-    builder.setPTransformLabel(testPTransformId);
+    builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
     matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
     builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrn(SimpleMonitoringInfoBuilder.FINISH_BUNDLE_MSECS_URN);
+    builder.setUrn(MonitoringInfoConstants.Urns.FINISH_BUNDLE_MSECS);
     builder.setInt64Value(0);
-    builder.setPTransformLabel(testPTransformId);
+    builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
     matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
     for (Matcher<MonitoringInfo> matcher : matchers) {

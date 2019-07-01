@@ -42,21 +42,22 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.gcp.auth.CredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.GcpCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
+import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
+import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
+import org.apache.beam.sdk.extensions.gcp.util.Transport;
+import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.InstanceBuilder;
-import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
-import org.apache.beam.sdk.util.Transport;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
@@ -291,9 +292,13 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
      */
     @VisibleForTesting
     static String tryCreateDefaultBucket(PipelineOptions options, CloudResourceManager crmClient) {
-      GcsOptions gcpOptions = options.as(GcsOptions.class);
+      GcsOptions gcsOptions = options.as(GcsOptions.class);
 
-      final String projectId = gcpOptions.getProject();
+      checkArgument(
+          isNullOrEmpty(gcsOptions.getDataflowKmsKey()),
+          "Cannot create a default bucket when --dataflowKmsKey is set.");
+
+      final String projectId = gcsOptions.getProject();
       checkArgument(!isNullOrEmpty(projectId), "--project is a required option.");
 
       // Look up the project number, to create a default bucket with a stable
@@ -305,8 +310,8 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
         throw new RuntimeException("Unable to verify project with ID " + projectId, e);
       }
       String region = DEFAULT_REGION;
-      if (!isNullOrEmpty(gcpOptions.getZone())) {
-        region = getRegionFromZone(gcpOptions.getZone());
+      if (!isNullOrEmpty(gcsOptions.getZone())) {
+        region = getRegionFromZone(gcsOptions.getZone());
       }
       final String bucketName = "dataflow-staging-" + region + "-" + projectNumber;
       LOG.info("No tempLocation specified, attempting to use default bucket: {}", bucketName);
@@ -314,7 +319,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       // Always try to create the bucket before checking access, so that we do not
       // race with other pipelines that may be attempting to do the same thing.
       try {
-        gcpOptions.getGcsUtil().createBucket(projectId, bucket);
+        gcsOptions.getGcsUtil().createBucket(projectId, bucket);
       } catch (FileAlreadyExistsException e) {
         LOG.debug("Bucket '{}'' already exists, verifying access.", bucketName);
       } catch (IOException e) {
@@ -324,7 +329,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       // Once the bucket is expected to exist, verify that it is correctly owned
       // by the project executing the job.
       try {
-        long owner = gcpOptions.getGcsUtil().bucketOwner(GcsPath.fromComponents(bucketName, ""));
+        long owner = gcsOptions.getGcsUtil().bucketOwner(GcsPath.fromComponents(bucketName, ""));
         checkArgument(
             owner == projectNumber,
             "Bucket owner does not match the project from --project:" + " %s vs. %s",
@@ -413,4 +418,18 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       }
     }
   }
+
+  /**
+   * GCP <a href="https://cloud.google.com/kms/">Cloud KMS</a> key for Dataflow pipelines and
+   * buckets created by GcpTempLocationFactory.
+   */
+  @Description(
+      "GCP Cloud KMS key for Dataflow pipelines. Also used by gcpTempLocation as the default key "
+          + "for new buckets. Key format is: "
+          + "projects/<project>/locations/<location>/keyRings/<keyring>/cryptoKeys/<key>")
+  @Experimental
+  @Nullable
+  String getDataflowKmsKey();
+
+  void setDataflowKmsKey(String dataflowKmsKey);
 }

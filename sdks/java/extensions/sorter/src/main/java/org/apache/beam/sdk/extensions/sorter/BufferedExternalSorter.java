@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 
 import java.io.IOException;
 import java.io.Serializable;
+import org.apache.beam.sdk.extensions.sorter.ExternalSorter.Options.SorterType;
 import org.apache.beam.sdk.values.KV;
 
 /**
@@ -29,17 +30,19 @@ import org.apache.beam.sdk.values.KV;
  */
 public class BufferedExternalSorter implements Sorter {
   public static Options options() {
-    return new Options("/tmp", 100);
+    return new Options("/tmp", 100, SorterType.HADOOP);
   }
 
   /** Contains configuration for the sorter. */
   public static class Options implements Serializable {
     private final String tempLocation;
     private final int memoryMB;
+    private final SorterType sorterType;
 
-    private Options(String tempLocation, int memoryMB) {
+    private Options(String tempLocation, int memoryMB, SorterType sorterType) {
       this.tempLocation = tempLocation;
       this.memoryMB = memoryMB;
+      this.sorterType = sorterType;
     }
 
     /** Sets the path to a temporary location where the sorter writes intermediate files. */
@@ -48,7 +51,7 @@ public class BufferedExternalSorter implements Sorter {
           !tempLocation.startsWith("gs://"),
           "BufferedExternalSorter does not support GCS temporary location");
 
-      return new Options(tempLocation, memoryMB);
+      return new Options(tempLocation, memoryMB, sorterType);
     }
 
     /** Returns the configured temporary location. */
@@ -66,12 +69,22 @@ public class BufferedExternalSorter implements Sorter {
       // Hadoop's external sort stores the number of available memory bytes in an int, this prevents
       // overflow
       checkArgument(memoryMB < 2048, "memoryMB must be less than 2048");
-      return new Options(tempLocation, memoryMB);
+      return new Options(tempLocation, memoryMB, sorterType);
     }
 
     /** Returns the configured size of the memory buffer. */
     public int getMemoryMB() {
       return memoryMB;
+    }
+
+    /** Sets the external sorter type. */
+    public Options withExternalSorterType(SorterType sorterType) {
+      return new Options(tempLocation, memoryMB, sorterType);
+    }
+
+    /** Returns the external sorter type. */
+    public SorterType getExternalSorterType() {
+      return sorterType;
     }
   }
 
@@ -89,6 +102,7 @@ public class BufferedExternalSorter implements Sorter {
     ExternalSorter.Options externalSorterOptions = new ExternalSorter.Options();
     externalSorterOptions.setMemoryMB(options.getMemoryMB());
     externalSorterOptions.setTempLocation(options.getTempLocation());
+    externalSorterOptions.setSorterType(options.getExternalSorterType());
 
     InMemorySorter.Options inMemorySorterOptions = new InMemorySorter.Options();
     inMemorySorterOptions.setMemoryMB(options.getMemoryMB());

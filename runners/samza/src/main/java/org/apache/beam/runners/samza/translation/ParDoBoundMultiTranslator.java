@@ -29,8 +29,10 @@ import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
+import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.runtime.DoFnOp;
 import org.apache.beam.runners.samza.runtime.Op;
 import org.apache.beam.runners.samza.runtime.OpAdapter;
@@ -42,6 +44,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -78,6 +81,14 @@ class ParDoBoundMultiTranslator<InT, OutT>
       ParDo.MultiOutput<InT, OutT> transform,
       TransformHierarchy.Node node,
       TranslationContext ctx) {
+    doTranslate(transform, node, ctx);
+  }
+
+  // static for serializing anonymous functions
+  private static <InT, OutT> void doTranslate(
+      ParDo.MultiOutput<InT, OutT> transform,
+      TransformHierarchy.Node node,
+      TranslationContext ctx) {
     final PCollection<? extends InT> input = ctx.getInput(transform);
     final Map<TupleTag<?>, Coder<?>> outputCoders =
         ctx.getCurrentTransform().getOutputs().entrySet().stream()
@@ -88,10 +99,6 @@ class ParDoBoundMultiTranslator<InT, OutT>
     final DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
     final Coder<?> keyCoder =
         signature.usesState() ? ((KvCoder<?, ?>) input.getCoder()).getKeyCoder() : null;
-
-    if (signature.usesTimers()) {
-      throw new UnsupportedOperationException("DoFn with timers is not currently supported");
-    }
 
     if (signature.processElement().isSplittable()) {
       throw new UnsupportedOperationException("Splittable DoFn is not currently supported");
@@ -125,6 +132,9 @@ class ParDoBoundMultiTranslator<InT, OutT>
       idToPValueMap.put(ctx.getViewId(view), view);
     }
 
+    DoFnSchemaInformation doFnSchemaInformation;
+    doFnSchemaInformation = ParDoTranslation.getSchemaInformation(ctx.getCurrentTransform());
+
     final DoFnOp<InT, OutT, RawUnionValue> op =
         new DoFnOp<>(
             transform.getMainOutputTag(),
@@ -138,9 +148,13 @@ class ParDoBoundMultiTranslator<InT, OutT>
             idToPValueMap,
             new DoFnOp.MultiOutputManagerFactory(tagToIndexMap),
             node.getFullName(),
+            // TODO: infer a fixed id from the name
+            String.valueOf(ctx.getCurrentTopologicalId()),
+            input.isBounded(),
             false,
             null,
-            Collections.emptyMap());
+            Collections.emptyMap(),
+            doFnSchemaInformation);
 
     final MessageStream<OpMessage<InT>> mergedStreams;
     if (sideInputStreams.isEmpty()) {
@@ -173,6 +187,14 @@ class ParDoBoundMultiTranslator<InT, OutT>
    */
   @Override
   public void translatePortable(
+      PipelineNode.PTransformNode transform,
+      QueryablePipeline pipeline,
+      PortableTranslationContext ctx) {
+    doTranslatePortable(transform, pipeline, ctx);
+  }
+
+  // static for serializing anonymous functions
+  private static <InT, OutT> void doTranslatePortable(
       PipelineNode.PTransformNode transform,
       QueryablePipeline pipeline,
       PortableTranslationContext ctx) {
@@ -215,6 +237,12 @@ class ParDoBoundMultiTranslator<InT, OutT>
         SamzaPipelineTranslatorUtils.instantiateCoder(inputId, pipeline.getComponents());
     final String nodeFullname = transform.getTransform().getUniqueName();
 
+    final DoFnSchemaInformation doFnSchemaInformation;
+    doFnSchemaInformation = ParDoTranslation.getSchemaInformation(transform.getTransform());
+
+    final RunnerApi.PCollection input = pipeline.getComponents().getPcollectionsOrThrow(inputId);
+    final PCollection.IsBounded isBounded = SamzaPipelineTranslatorUtils.isBounded(input);
+
     final DoFnOp<InT, OutT, RawUnionValue> op =
         new DoFnOp<>(
             mainOutputTag,
@@ -228,9 +256,13 @@ class ParDoBoundMultiTranslator<InT, OutT>
             Collections.emptyMap(), // idToViewMap not in use until side input support
             new DoFnOp.MultiOutputManagerFactory(tagToIndexMap),
             nodeFullname,
+            // TODO: infer a fixed id from the name
+            String.valueOf(ctx.getCurrentTopologicalId()),
+            isBounded,
             true,
             stagePayload,
-            idToTupleTagMap);
+            idToTupleTagMap,
+            doFnSchemaInformation);
 
     final MessageStream<OpMessage<InT>> mergedStreams;
     if (sideInputStreams.isEmpty()) {
@@ -262,6 +294,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
       ParDo.MultiOutput<InT, OutT> transform, TransformHierarchy.Node node, ConfigContext ctx) {
     final Map<String, String> config = new HashMap<>();
     final DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
+    final SamzaPipelineOptions options = ctx.getPipelineOptions();
+
     if (signature.usesState()) {
       // set up user state configs
       for (DoFnSignature.StateDeclaration state : signature.stateDeclarations().values()) {
@@ -271,6 +305,12 @@ class ParDoBoundMultiTranslator<InT, OutT>
             "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
         config.put("stores." + storeId + ".key.serde", "byteSerde");
         config.put("stores." + storeId + ".msg.serde", "byteSerde");
+
+        if (options.getStateDurable()) {
+          config.put(
+              "stores." + storeId + ".changelog",
+              ConfigBuilder.getChangelogTopic(options, storeId));
+        }
       }
     }
 
@@ -281,7 +321,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
     return config;
   }
 
-  private class SideInputWatermarkFn
+  private static class SideInputWatermarkFn<InT>
       implements FlatMapFunction<OpMessage<InT>, OpMessage<InT>>,
           WatermarkFunction<OpMessage<InT>> {
 

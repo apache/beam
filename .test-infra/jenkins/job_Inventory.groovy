@@ -22,7 +22,7 @@ import CommonJobProperties as commonJobProperties
 // is on each machine.
 def nums = 1..16
 nums.each {
-  def machine = "beam${it}"
+  def machine = "apache-beam-jenkins-${it}"
   job("beam_Inventory_${machine}") {
     description("Run inventory on ${machine}")
 
@@ -53,12 +53,17 @@ nums.each {
       shell('ls /home/jenkins/tools/*')
       shell('python --version || echo "python not found"')
       shell('python3 --version || echo "python3 not found"')
+      shell('python3.5 --version || echo "python3.5 not found"')
+      shell('python3.6 --version || echo "python3.6 not found"')
+      shell('python3.7 --version || echo "python3.7 not found"')
       shell('/home/jenkins/tools/maven/latest/mvn -v || echo "mvn not found"')
       shell('/home/jenkins/tools/gradle4.3/gradle -v || echo "gradle not found"')
       shell('gcloud -v || echo "gcloud not found"')
-      shell('kubectl version -c || echo "kubectl not found"')
-      shell('virtualenv -p python2.7 test2 && . ./test2/bin/activate && python --version && deactivate || echo "python 2.7 not found"')
-      shell('virtualenv -p python3 test3 && . ./test3/bin/activate && python --version && deactivate || echo "python 3 not found"')
+      shell('kubectl version || echo "kubectl not found"')
+      shell('virtualenv -p python2.7 test27 && . ./test27/bin/activate && python --version && deactivate || echo "python 2.7 not found"')
+      shell('virtualenv -p python3.5 test35 && . ./test35/bin/activate && python --version && deactivate || echo "python 3.5 not found"')
+      shell('virtualenv -p python3.6 test36 && . ./test36/bin/activate && python --version && deactivate || echo "python 3.6 not found"')
+      shell('virtualenv -p python3.7 test37 && . ./test37/bin/activate && python --version && deactivate || echo "python 3.7 not found"')
       shell('echo "Maven home $MAVEN_HOME"')
       shell('env')
     }

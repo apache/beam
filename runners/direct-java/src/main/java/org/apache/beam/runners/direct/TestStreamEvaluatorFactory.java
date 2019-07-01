@@ -189,7 +189,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
 
-    static final String DIRECT_TEST_STREAM_URN = "urn:beam:directrunner:transforms:test_stream:v1";
+    static final String DIRECT_TEST_STREAM_URN = "beam:directrunner:transforms:test_stream:v1";
 
     static class DirectTestStream<T> extends PTransform<PBegin, PCollection<T>> {
       private final transient DirectRunner runner;

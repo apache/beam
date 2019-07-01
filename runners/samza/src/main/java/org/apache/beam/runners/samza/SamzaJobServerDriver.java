@@ -18,7 +18,6 @@
 package org.apache.beam.runners.samza;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -31,72 +30,64 @@ import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagin
 import org.apache.beam.runners.fnexecution.jobsubmission.InMemoryJobService;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
-import org.kohsuke.args4j.CmdLineException;
-import org.kohsuke.args4j.CmdLineParser;
-import org.kohsuke.args4j.Option;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Driver program that starts a job server. */
+// TODO extend JobServerDriver
 public class SamzaJobServerDriver {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaJobServerDriver.class);
 
-  private final ServerConfiguration config;
+  private final SamzaPortablePipelineOptions pipelineOptions;
 
-  /** Configuration for the jobServer. */
-  private static class ServerConfiguration {
-    @Option(name = "--job-port", usage = "The job service port. (Default: 11440)")
-    private int jobPort = 11440;
-
-    @Option(name = "--control-port", usage = "The FnControl port. (Default: 11441)")
-    private int controlPort = 11441;
-  }
-
-  private SamzaJobServerDriver(ServerConfiguration config) {
-    this.config = config;
+  private SamzaJobServerDriver(SamzaPortablePipelineOptions pipelineOptions) {
+    this.pipelineOptions = pipelineOptions;
   }
 
   public static void main(String[] args) throws Exception {
-    final ServerConfiguration configuration = new ServerConfiguration();
-    final CmdLineParser parser = new CmdLineParser(configuration);
-    try {
-      parser.parseArgument(args);
-      fromConfig(configuration).run();
-    } catch (CmdLineException e) {
-      LOG.error("Unable to parse command line arguments {}", Arrays.asList(args), e);
-      throw new IllegalArgumentException("Unable to parse command line arguments.", e);
-    } catch (Exception e) {
-      LOG.error("Hit exception with SamzaJobServer. Exiting...", e);
-      throw e;
-    }
+    SamzaPortablePipelineOptions pipelineOptions =
+        PipelineOptionsFactory.fromArgs(args).as(SamzaPortablePipelineOptions.class);
+    fromOptions(pipelineOptions).run();
   }
 
-  public static SamzaJobServerDriver fromConfig(ServerConfiguration config) {
-    return new SamzaJobServerDriver(config);
+  public static SamzaJobServerDriver fromOptions(SamzaPortablePipelineOptions pipelineOptions) {
+    Map<String, String> overrideConfig =
+        pipelineOptions.getConfigOverride() != null
+            ? pipelineOptions.getConfigOverride()
+            : new HashMap<>();
+    overrideConfig.put(SamzaRunnerOverrideConfigs.IS_PORTABLE_MODE, String.valueOf(true));
+    overrideConfig.put(
+        SamzaRunnerOverrideConfigs.FN_CONTROL_PORT,
+        String.valueOf(pipelineOptions.getControlPort()));
+    pipelineOptions.setConfigOverride(overrideConfig);
+    return new SamzaJobServerDriver(pipelineOptions);
   }
 
-  private static InMemoryJobService createJobService(int controlPort) throws IOException {
+  private static InMemoryJobService createJobService(SamzaPortablePipelineOptions pipelineOptions)
+      throws IOException {
     JobInvoker jobInvoker =
-        new JobInvoker() {
+        new JobInvoker("samza-job-invoker") {
           @Override
-          public JobInvocation invoke(
-              RunnerApi.Pipeline pipeline, Struct options, @Nullable String retrievalToken)
+          protected JobInvocation invokeWithExecutor(
+              RunnerApi.Pipeline pipeline,
+              Struct options,
+              @Nullable String retrievalToken,
+              ListeningExecutorService executorService)
               throws IOException {
-            SamzaPipelineOptions samzaPipelineOptions =
-                PipelineOptionsTranslation.fromProto(options).as(SamzaPipelineOptions.class);
-            Map<String, String> overrideConfig =
-                samzaPipelineOptions.getConfigOverride() != null
-                    ? samzaPipelineOptions.getConfigOverride()
-                    : new HashMap<>();
-            overrideConfig.put(SamzaRunnerOverrideConfigs.IS_PORTABLE_MODE, String.valueOf(true));
-            overrideConfig.put(
-                SamzaRunnerOverrideConfigs.FN_CONTROL_PORT, String.valueOf(controlPort));
-            samzaPipelineOptions.setConfigOverride(overrideConfig);
             String invocationId =
-                String.format(
-                    "%s_%s", samzaPipelineOptions.getJobName(), UUID.randomUUID().toString());
-            return new SamzaJobInvocation(pipeline, samzaPipelineOptions, invocationId);
+                String.format("%s_%s", pipelineOptions.getJobName(), UUID.randomUUID().toString());
+            SamzaPipelineRunner pipelineRunner = new SamzaPipelineRunner(pipelineOptions);
+            JobInfo jobInfo =
+                JobInfo.create(
+                    invocationId,
+                    pipelineOptions.getJobName(),
+                    retrievalToken,
+                    PipelineOptionsTranslation.toProto(pipelineOptions));
+            return new JobInvocation(jobInfo, executorService, pipeline, pipelineRunner);
           }
         };
     return InMemoryJobService.create(
@@ -113,11 +104,11 @@ public class SamzaJobServerDriver {
         jobInvoker);
   }
 
-  private void run() throws Exception {
-    final InMemoryJobService service = createJobService(config.controlPort);
+  public void run() throws Exception {
+    final InMemoryJobService service = createJobService(pipelineOptions);
     final GrpcFnServer<InMemoryJobService> jobServiceGrpcFnServer =
         GrpcFnServer.allocatePortAndCreateFor(
-            service, ServerFactory.createWithPortSupplier(() -> config.jobPort));
+            service, ServerFactory.createWithPortSupplier(pipelineOptions::getJobPort));
     LOG.info("JobServer started on {}", jobServiceGrpcFnServer.getApiServiceDescriptor().getUrl());
     try {
       jobServiceGrpcFnServer.getServer().awaitTermination();

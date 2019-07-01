@@ -18,11 +18,13 @@
 package org.apache.beam.runners.dataflow.worker.fn;
 
 import static org.junit.Assert.assertNotNull;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import java.net.InetAddress;
 import java.net.ServerSocket;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
@@ -67,6 +69,15 @@ public class BeamFnControlServiceTest {
 
   @Test
   public void testClientConnecting() throws Exception {
+    CountDownLatch requestCompleted = new CountDownLatch(1);
+    doAnswer(
+            invocation -> {
+              requestCompleted.countDown();
+              return null;
+            })
+        .when(requestObserver)
+        .onCompleted();
+
     PipelineOptions options = PipelineOptionsFactory.create();
     Endpoints.ApiServiceDescriptor descriptor = findOpenPort();
     BeamFnControlService service =
@@ -87,7 +98,8 @@ public class BeamFnControlServiceTest {
     server.shutdown();
     server.awaitTermination(1, TimeUnit.SECONDS);
     server.shutdownNow();
-    Thread.sleep(1000); // Wait for stub to close stream.
+
+    requestCompleted.await(5, TimeUnit.SECONDS); // Wait until request streams have been closed.
 
     verify(requestObserver).onCompleted();
     verifyNoMoreInteractions(requestObserver);
@@ -95,6 +107,22 @@ public class BeamFnControlServiceTest {
 
   @Test
   public void testMultipleClientsConnecting() throws Exception {
+    CountDownLatch requestCompleted = new CountDownLatch(2);
+    doAnswer(
+            invocation -> {
+              requestCompleted.countDown();
+              return null;
+            })
+        .when(requestObserver)
+        .onCompleted();
+    doAnswer(
+            invocation -> {
+              requestCompleted.countDown();
+              return null;
+            })
+        .when(anotherRequestObserver)
+        .onCompleted();
+
     PipelineOptions options = PipelineOptionsFactory.create();
     Endpoints.ApiServiceDescriptor descriptor = findOpenPort();
     BeamFnControlService service =
@@ -126,7 +154,8 @@ public class BeamFnControlServiceTest {
     server.shutdown();
     server.awaitTermination(1, TimeUnit.SECONDS);
     server.shutdownNow();
-    Thread.sleep(1000); // Wait for stub to close stream.
+
+    requestCompleted.await(5, TimeUnit.SECONDS); // Wait until request streams have been closed.
 
     verify(requestObserver).onCompleted();
     verifyNoMoreInteractions(requestObserver);

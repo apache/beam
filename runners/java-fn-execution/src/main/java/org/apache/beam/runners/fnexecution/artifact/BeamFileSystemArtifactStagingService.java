@@ -134,8 +134,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
    * @param basePath Base path to upload artifacts.
    * @return Encoded stagingSessionToken.
    */
-  public static String generateStagingSessionToken(String sessionId, String basePath)
-      throws Exception {
+  public static String generateStagingSessionToken(String sessionId, String basePath) {
     StagingSessionToken stagingSessionToken = new StagingSessionToken();
     stagingSessionToken.setSessionId(sessionId);
     stagingSessionToken.setBasePath(basePath);
@@ -165,8 +164,11 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
 
     ResourceId artifactsResourceId =
         dir.resolve(ARTIFACTS, StandardResolveOptions.RESOLVE_DIRECTORY);
-    LOG.debug("Removing artifacts: {}", artifactsResourceId);
-    FileSystems.delete(Collections.singletonList(artifactsResourceId));
+    if (!proxyManifest.getLocationList().isEmpty()) {
+      // directory only exists when there is at least one artifact
+      LOG.debug("Removing artifacts dir: {}", artifactsResourceId);
+      FileSystems.delete(Collections.singletonList(artifactsResourceId));
+    }
     LOG.debug("Removing manifest: {}", manifestResourceId);
     FileSystems.delete(Collections.singletonList(manifestResourceId));
     LOG.debug("Removing empty dir: {}", dir);
@@ -231,6 +233,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
           String message =
               String.format(
                   "Failed to begin staging artifact %s", metadata.getMetadata().getName());
+          LOG.error(message, e);
           outboundObserver.onError(
               new StatusRuntimeException(Status.DATA_LOSS.withDescription(message).withCause(e)));
         }
@@ -244,6 +247,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
               String.format(
                   "Failed to write chunk of artifact %s to %s",
                   metadata.getMetadata().getName(), artifactId);
+          LOG.error(message, e);
           outboundObserver.onError(
               new StatusRuntimeException(Status.DATA_LOSS.withDescription(message).withCause(e)));
         }

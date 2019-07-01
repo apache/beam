@@ -29,7 +29,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
@@ -60,6 +59,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -86,7 +86,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   private final Map<TupleTag<?>, Map<BoundedWindow, Object>> sideInputCache;
 
   // Per-key cache of active Reader objects in use by this process.
-  private final ConcurrentMap<String, String> stateNameMap;
+  private final ImmutableMap<String, String> stateNameMap;
   private final WindmillStateCache.ForComputation stateCache;
 
   private Windmill.WorkItem work;
@@ -100,7 +100,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       CounterFactory counterFactory,
       String computationId,
       ReaderCache readerCache,
-      ConcurrentMap<String, String> stateNameMap,
+      Map<String, String> stateNameMap,
       WindmillStateCache.ForComputation stateCache,
       MetricsContainerRegistry<StreamingStepMetricsContainer> metricsContainerRegistry,
       DataflowExecutionStateTracker executionStateTracker,
@@ -115,7 +115,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     this.computationId = computationId;
     this.readerCache = readerCache;
     this.sideInputCache = new HashMap<>();
-    this.stateNameMap = stateNameMap;
+    this.stateNameMap = ImmutableMap.copyOf(stateNameMap);
     this.stateCache = stateCache;
     this.backlogBytes = UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
   }
@@ -511,7 +511,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               stateFamily,
               stateReader,
               work.getIsNewKey(),
-              stateCache.forKey(getSerializedKey(), stateFamily, getWork().getCacheToken()),
+              stateCache.forKey(
+                  getSerializedKey(), stateFamily, getWork().getCacheToken(), getWorkToken()),
               scopedReadStateSupplier);
 
       this.systemTimerInternals =

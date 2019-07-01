@@ -25,6 +25,7 @@ from __future__ import absolute_import
 import collections
 import logging
 import sys
+import threading
 from builtins import filter
 from builtins import object
 from builtins import zip
@@ -35,6 +36,7 @@ from apache_beam.io import iobase
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
 from apache_beam.runners.dataflow.internal.names import PropertyNames
@@ -73,6 +75,14 @@ class ConsumerSet(Receiver):
   the other edge.
   ConsumerSet are attached to the outputting Operation.
   """
+  @staticmethod
+  def create(counter_factory, step_name, output_index, consumers, coder):
+    if len(consumers) == 1:
+      return SingletonConsumerSet(
+          counter_factory, step_name, output_index, consumers, coder)
+    else:
+      return ConsumerSet(
+          counter_factory, step_name, output_index, consumers, coder)
 
   def __init__(
       self, counter_factory, step_name, output_index, consumers, coder):
@@ -90,6 +100,24 @@ class ConsumerSet(Receiver):
       cython.cast(Operation, consumer).process(windowed_value)
     self.update_counters_finish()
 
+  def try_split(self, fraction_of_remainder):
+    # TODO(SDF): Consider supporting splitting each consumer individually.
+    # This would never come up in the existing SDF expansion, but might
+    # be useful to support fused SDF nodes.
+    # This would require dedicated delivery of the split results to each
+    # of the consumers separately.
+    return None
+
+  def current_element_progress(self):
+    """Returns the progress of the current element.
+
+    This progress should be an instance of
+    apache_beam.io.iobase.RestrictionProgress, or None if progress is unknown.
+    """
+    # TODO(SDF): Could implement this as a weighted average, if it becomes
+    # useful to split on.
+    return None
+
   def update_counters_start(self, windowed_value):
     self.opcounter.update_from(windowed_value)
 
@@ -100,6 +128,26 @@ class ConsumerSet(Receiver):
     return '%s[%s.out%s, coder=%s, len(consumers)=%s]' % (
         self.__class__.__name__, self.step_name, self.output_index, self.coder,
         len(self.consumers))
+
+
+class SingletonConsumerSet(ConsumerSet):
+  def __init__(
+      self, counter_factory, step_name, output_index, consumers, coder):
+    assert len(consumers) == 1
+    super(SingletonConsumerSet, self).__init__(
+        counter_factory, step_name, output_index, consumers, coder)
+    self.consumer = consumers[0]
+
+  def receive(self, windowed_value):
+    self.update_counters_start(windowed_value)
+    self.consumer.process(windowed_value)
+    self.update_counters_finish()
+
+  def try_split(self, fraction_of_remainder):
+    return self.consumer.try_split(fraction_of_remainder)
+
+  def current_element_progress(self):
+    return self.consumer.current_element_progress()
 
 
 class Operation(object):
@@ -150,6 +198,9 @@ class Operation(object):
     self.setup_done = False
 
   def setup(self):
+    """Set up operation.
+
+    This must be called before any other methods of the operation."""
     with self.scoped_start_state:
       self.debug_logging_enabled = logging.getLogger().isEnabledFor(
           logging.DEBUG)
@@ -157,11 +208,13 @@ class Operation(object):
       # top-level operation, should have output_coders
       #TODO(pabloem): Define better what step name is used here.
       if getattr(self.spec, 'output_coders', None):
-        self.receivers = [ConsumerSet(self.counter_factory,
-                                      self.name_context.logging_name(),
-                                      i,
-                                      self.consumers[i], coder)
-                          for i, coder in enumerate(self.spec.output_coders)]
+        self.receivers = [
+            ConsumerSet.create(
+                self.counter_factory,
+                self.name_context.logging_name(),
+                i,
+                self.consumers[i], coder)
+            for i, coder in enumerate(self.spec.output_coders)]
     self.setup_done = True
 
   def start(self):
@@ -174,8 +227,26 @@ class Operation(object):
     """Process element in operation."""
     pass
 
+  def finalize_bundle(self):
+    pass
+
+  def needs_finalization(self):
+    return False
+
+  def try_split(self, fraction_of_remainder):
+    return None
+
+  def current_element_progress(self):
+    return None
+
   def finish(self):
     """Finish operation."""
+    pass
+
+  def teardown(self):
+    """Tear down operation.
+
+    No other methods of this operation should be called after this."""
     pass
 
   def reset(self):
@@ -211,23 +282,45 @@ class Operation(object):
     """Returns the list of MonitoringInfos collected by this operation."""
     all_monitoring_infos = self.execution_time_monitoring_infos(transform_id)
     all_monitoring_infos.update(
-        self.element_count_monitoring_infos(transform_id))
+        self.pcollection_count_monitoring_infos(transform_id))
     all_monitoring_infos.update(self.user_monitoring_infos(transform_id))
     return all_monitoring_infos
 
-  def element_count_monitoring_infos(self, transform_id):
+  def pcollection_count_monitoring_infos(self, transform_id):
     """Returns the element count MonitoringInfo collected by this operation."""
     if len(self.receivers) == 1:
       # If there is exactly one output, we can unambiguously
       # fix its name later, which we do.
       # TODO(robertwb): Plumb the actual name here.
-      mi = monitoring_infos.int64_counter(
+      elem_count_mi = monitoring_infos.int64_counter(
           monitoring_infos.ELEMENT_COUNT_URN,
           self.receivers[0].opcounter.element_counter.value(),
           ptransform=transform_id,
           tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
       )
-      return {monitoring_infos.to_key(mi) : mi}
+
+      (unused_mean, sum, count, min, max) = (
+          self.receivers[0].opcounter.mean_byte_counter.value())
+      metric = metrics_pb2.Metric(
+          distribution_data=metrics_pb2.DistributionData(
+              int_distribution_data=metrics_pb2.IntDistributionData(
+                  count=count,
+                  sum=sum,
+                  min=min,
+                  max=max
+              )
+          )
+      )
+      sampled_byte_count = monitoring_infos.int64_distribution(
+          monitoring_infos.SAMPLED_BYTE_SIZE_URN,
+          metric,
+          ptransform=transform_id,
+          tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
+      )
+      return {
+          monitoring_infos.to_key(elem_count_mi) : elem_count_mi,
+          monitoring_infos.to_key(sampled_byte_count) : sampled_byte_count
+      }
     return {}
 
   def user_monitoring_infos(self, transform_id):
@@ -327,7 +420,7 @@ class ImpulseReadOperation(Operation):
         name_context, None, counter_factory, state_sampler)
     self.source = source
     self.receivers = [
-        ConsumerSet(
+        ConsumerSet.create(
             self.counter_factory, self.name_context.step_name, 0,
             next(iter(consumers.values())), output_coder)]
 
@@ -485,6 +578,7 @@ class DoOperation(Operation):
           state=state,
           user_state_context=self.user_state_context,
           operation_name=self.name_context.metrics_name())
+      self.dofn_runner.setup()
 
       self.dofn_receiver = (self.dofn_runner
                             if isinstance(self.dofn_runner, Receiver)
@@ -502,6 +596,12 @@ class DoOperation(Operation):
         self.execution_context.delayed_applications.append(
             (self, delayed_application))
 
+  def finalize_bundle(self):
+    self.dofn_receiver.finalize()
+
+  def needs_finalization(self):
+    return self.dofn_receiver.bundle_finalizer_param.has_callbacks()
+
   def process_timer(self, tag, windowed_timer):
     key, timer_data = windowed_timer.value
     timer_spec = self.timer_specs[tag]
@@ -514,12 +614,17 @@ class DoOperation(Operation):
       if self.user_state_context:
         self.user_state_context.commit()
 
+  def teardown(self):
+    with self.scoped_finish_state:
+      self.dofn_runner.teardown()
+
   def reset(self):
     super(DoOperation, self).reset()
     for side_input_map in self.side_input_maps:
       side_input_map.reset()
     if self.user_state_context:
       self.user_state_context.reset()
+    self.dofn_receiver.bundle_finalizer_param.reset()
 
   def progress_metrics(self):
     metrics = super(DoOperation, self).progress_metrics()
@@ -541,17 +646,85 @@ class DoOperation(Operation):
             tag=str(tag)
         )
         infos[monitoring_infos.to_key(mi)] = mi
+        (unused_mean, sum, count, min, max) = (
+            receiver.opcounter.mean_byte_counter.value())
+        metric = metrics_pb2.Metric(
+            distribution_data=metrics_pb2.DistributionData(
+                int_distribution_data=metrics_pb2.IntDistributionData(
+                    count=count,
+                    sum=sum,
+                    min=min,
+                    max=max
+                )
+            )
+        )
+        sampled_byte_count = monitoring_infos.int64_distribution(
+            monitoring_infos.SAMPLED_BYTE_SIZE_URN,
+            metric,
+            ptransform=transform_id,
+            tag=str(tag)
+        )
+        infos[monitoring_infos.to_key(sampled_byte_count)] = sampled_byte_count
     return infos
 
 
-class SdfProcessElements(DoOperation):
+class SdfProcessSizedElements(DoOperation):
+
+  def __init__(self, *args, **kwargs):
+    super(SdfProcessSizedElements, self).__init__(*args, **kwargs)
+    self.lock = threading.RLock()
+    self.element_start_output_bytes = None
 
   def process(self, o):
     with self.scoped_process_state:
-      delayed_application = self.dofn_runner.process_with_restriction(o)
-      if delayed_application:
-        self.execution_context.delayed_applications.append(
-            (self, delayed_application))
+      try:
+        with self.lock:
+          self.element_start_output_bytes = self._total_output_bytes()
+          for receiver in self.tagged_receivers.values():
+            receiver.opcounter.restart_sampling()
+        # Actually processing the element can be expensive; do it without
+        # the lock.
+        delayed_application = self.dofn_runner.process_with_sized_restriction(o)
+        if delayed_application:
+          self.execution_context.delayed_applications.append(
+              (self, delayed_application))
+      finally:
+        with self.lock:
+          self.element_start_output_bytes = None
+
+  def try_split(self, fraction_of_remainder):
+    split = self.dofn_runner.try_split(fraction_of_remainder)
+    if split:
+      primary, residual = split
+      return (self, primary), (self, residual)
+
+  def current_element_progress(self):
+    with self.lock:
+      if self.element_start_output_bytes is not None:
+        progress = self.dofn_runner.current_element_progress()
+        if progress is not None:
+          return progress.with_completed(
+              self._total_output_bytes() - self.element_start_output_bytes)
+
+  def progress_metrics(self):
+    with self.lock:
+      metrics = super(SdfProcessSizedElements, self).progress_metrics()
+      current_element_progress = self.current_element_progress()
+    if current_element_progress:
+      metrics.active_elements.measured.input_element_counts[
+          self.input_info[1]] = 1
+      metrics.active_elements.fraction_remaining = (
+          current_element_progress.fraction_remaining)
+    return metrics
+
+  def _total_output_bytes(self):
+    total = 0
+    for receiver in self.tagged_receivers.values():
+      elements = receiver.opcounter.element_counter.value()
+      if elements > 0:
+        mean = (receiver.opcounter.mean_byte_counter.value())[0]
+        total += elements * mean
+    return total
 
 
 class DoFnRunnerReceiver(Receiver):

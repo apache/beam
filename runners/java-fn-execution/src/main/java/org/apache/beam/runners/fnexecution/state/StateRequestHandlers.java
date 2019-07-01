@@ -145,8 +145,8 @@ public class StateRequestHandlers {
    * <p>Note that this factory should be thread safe.
    */
   @ThreadSafe
-  public interface BagUserStateHandlerFactory {
-    <K, V, W extends BoundedWindow> BagUserStateHandler<K, V, W> forUserState(
+  public interface BagUserStateHandlerFactory<K, V, W extends BoundedWindow> {
+    BagUserStateHandler<K, V, W> forUserState(
         String pTransformId,
         String userStateId,
         Coder<K> keyCoder,
@@ -154,10 +154,10 @@ public class StateRequestHandlers {
         Coder<W> windowCoder);
 
     /** Throws a {@link UnsupportedOperationException} on the first access. */
-    static BagUserStateHandlerFactory unsupported() {
-      return new BagUserStateHandlerFactory() {
+    static <K, V, W extends BoundedWindow> BagUserStateHandlerFactory<K, V, W> unsupported() {
+      return new BagUserStateHandlerFactory<K, V, W>() {
         @Override
-        public <K, V, W extends BoundedWindow> BagUserStateHandler<K, V, W> forUserState(
+        public BagUserStateHandler<K, V, W> forUserState(
             String pTransformId,
             String userStateId,
             Coder<K> keyCoder,

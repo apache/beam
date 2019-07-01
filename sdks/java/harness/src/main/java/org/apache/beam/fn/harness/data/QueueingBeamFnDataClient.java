@@ -18,7 +18,7 @@
 package org.apache.beam.fn.harness.data;
 
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
@@ -39,15 +39,17 @@ import org.slf4j.LoggerFactory;
  */
 public class QueueingBeamFnDataClient implements BeamFnDataClient {
 
+  private static final int QUEUE_SIZE = 1000;
+
   private static final Logger LOG = LoggerFactory.getLogger(QueueingBeamFnDataClient.class);
 
   private final BeamFnDataClient mainClient;
-  private final SynchronousQueue<ConsumerAndData> queue;
+  private final LinkedBlockingQueue<ConsumerAndData> queue;
   private final ConcurrentHashMap<InboundDataClient, Object> inboundDataClients;
 
   public QueueingBeamFnDataClient(BeamFnDataClient mainClient) {
     this.mainClient = mainClient;
-    this.queue = new SynchronousQueue<>();
+    this.queue = new LinkedBlockingQueue<ConsumerAndData>(QUEUE_SIZE);
     this.inboundDataClients = new ConcurrentHashMap<>();
   }
 
@@ -58,9 +60,9 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
       Coder<WindowedValue<T>> coder,
       FnDataReceiver<WindowedValue<T>> consumer) {
     LOG.debug(
-        "Registering consumer for instruction {} and target {}",
+        "Registering consumer for instruction {} and transform {}",
         inputLocation.getInstructionId(),
-        inputLocation.getTarget());
+        inputLocation.getPTransformId());
 
     QueueingFnDataReceiver<T> queueingConsumer = new QueueingFnDataReceiver<T>(consumer);
     InboundDataClient inboundDataClient =
@@ -71,12 +73,16 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
     return inboundDataClient;
   }
 
-  // Returns true if all the InboundDataClients have finished or cancelled.
+  // Returns true if all the InboundDataClients have finished or cancelled and no WindowedValues
+  // remain on the queue.
   private boolean allDone() {
     for (InboundDataClient inboundDataClient : inboundDataClients.keySet()) {
       if (!inboundDataClient.isDone()) {
         return false;
       }
+    }
+    if (!this.queue.isEmpty()) {
+      return false;
     }
     return true;
   }
@@ -126,9 +132,9 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
       LogicalEndpoint outputLocation,
       Coder<WindowedValue<T>> coder) {
     LOG.debug(
-        "Creating output consumer for instruction {} and target {}",
+        "Creating output consumer for instruction {} and transform {}",
         outputLocation.getInstructionId(),
-        outputLocation.getTarget());
+        outputLocation.getPTransformId());
     return this.mainClient.send(apiServiceDescriptor, outputLocation, coder);
   }
 

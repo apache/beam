@@ -23,14 +23,14 @@ import (
 	"fmt"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/filter"
 )
 
 //go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
 //go:generate starcgen --package=passert --identifiers=diffFn,failFn,failKVFn,failGBKFn,hashFn,sumFn
+//go:generate go fmt
 
 // Equals verifies the given collection has the same values as the given
 // values, under coder equality. The values can be provided as single
@@ -61,26 +61,25 @@ func equals(s beam.Scope, actual, expected beam.PCollection) beam.PCollection {
 // because all values are held in memory at the same time.
 func Diff(s beam.Scope, a, b beam.PCollection) (left, both, right beam.PCollection) {
 	imp := beam.Impulse(s)
-	return beam.ParDo3(s, &diffFn{Coder: beam.EncodedCoder{Coder: a.Coder()}}, imp, beam.SideInput{Input: a}, beam.SideInput{Input: b})
-}
 
-// TODO(herohde) 7/11/2017: should there be a first-class way to obtain the coder,
-// such a a specially-typed parameter?
+	t := beam.ValidateNonCompositeType(a)
+	beam.ValidateNonCompositeType(b)
+	return beam.ParDo3(s, &diffFn{Type: beam.EncodedType{T: t.Type()}}, imp, beam.SideInput{Input: a}, beam.SideInput{Input: b})
+}
 
 // diffFn computes the symmetrical multi-set difference of 2 collections, under
 // coder equality. The Go values returned may be any of the coder-equal ones.
 type diffFn struct {
-	Coder beam.EncodedCoder `json:"coder"`
+	Type beam.EncodedType `json:"type"`
 }
 
 func (f *diffFn) ProcessElement(_ []byte, ls, rs func(*beam.T) bool, left, both, right func(t beam.T)) error {
-	c := beam.UnwrapCoder(f.Coder.Coder)
-
-	indexL, err := index(c, ls)
+	enc := beam.NewElementEncoder(f.Type.T)
+	indexL, err := index(enc, ls)
 	if err != nil {
 		return err
 	}
-	indexR, err := index(c, rs)
+	indexR, err := index(enc, rs)
 	if err != nil {
 		return err
 	}
@@ -130,15 +129,14 @@ type indexEntry struct {
 	value beam.T
 }
 
-func index(c *coder.Coder, iter func(*beam.T) bool) (map[string]indexEntry, error) {
+func index(enc beam.ElementEncoder, iter func(*beam.T) bool) (map[string]indexEntry, error) {
 	ret := make(map[string]indexEntry)
-	enc := exec.MakeElementEncoder(c)
 
 	var val beam.T
 	for iter(&val) {
 		var buf bytes.Buffer
-		if err := enc.Encode(exec.FullValue{Elm: val}, &buf); err != nil {
-			return nil, fmt.Errorf("value %v not encodable by %v", val, c)
+		if err := enc.Encode(val, &buf); err != nil {
+			return nil, errors.Errorf("value %v not encodable with %v", val, enc)
 		}
 		encoded := buf.String()
 
@@ -147,9 +145,6 @@ func index(c *coder.Coder, iter func(*beam.T) bool) (map[string]indexEntry, erro
 	}
 	return ret, nil
 }
-
-// TODO(herohde) 7/11/2017: perhaps extract the coder helpers as more
-// general and polished utilities for working with coders in user code.
 
 // True asserts that all elements satisfy the given predicate.
 func True(s beam.Scope, col beam.PCollection, fn interface{}) beam.PCollection {
@@ -189,7 +184,7 @@ type failFn struct {
 }
 
 func (f *failFn) ProcessElement(x beam.X) error {
-	return fmt.Errorf(f.Format, x)
+	return errors.Errorf(f.Format, x)
 }
 
 type failKVFn struct {
@@ -197,7 +192,7 @@ type failKVFn struct {
 }
 
 func (f *failKVFn) ProcessElement(x beam.X, y beam.Y) error {
-	return fmt.Errorf(f.Format, fmt.Sprintf("(%v,%v)", x, y))
+	return errors.Errorf(f.Format, fmt.Sprintf("(%v,%v)", x, y))
 }
 
 type failGBKFn struct {
@@ -205,5 +200,5 @@ type failGBKFn struct {
 }
 
 func (f *failGBKFn) ProcessElement(x beam.X, _ func(*beam.Y) bool) error {
-	return fmt.Errorf(f.Format, fmt.Sprintf("(%v,*)", x))
+	return errors.Errorf(f.Format, fmt.Sprintf("(%v,*)", x))
 }

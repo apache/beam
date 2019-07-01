@@ -32,7 +32,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
@@ -44,6 +43,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -51,6 +51,7 @@ import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.dataflow.worker.ByteStringCoder;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext;
+import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
@@ -100,6 +101,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
   private final Table<String, String, PCollectionView<?>>
       ptransformIdToSideInputIdToPCollectionView;
   private final ConcurrentHashMap<StateKey, BagState<ByteString>> userStateData;
+  private final Map<String, NameContext> pcollectionIdToNameContext;
 
   private @Nullable CompletionStage<InstructionResponse> registerFuture;
   private @Nullable CompletionStage<InstructionResponse> processBundleResponse;
@@ -118,6 +120,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
       Map<String, DataflowStepContext> ptransformIdToSystemStepContext,
       Map<String, SideInputReader> ptransformIdToSideInputReader,
       Table<String, String, PCollectionView<?>> ptransformIdToSideInputIdToPCollectionView,
+      Map<String, NameContext> pcollectionIdToNameContext,
       OperationContext context) {
     super(EMPTY_RECEIVERS, context);
     this.idGenerator = idGenerator;
@@ -126,6 +129,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
     this.registerRequest = registerRequest;
     this.ptransformIdToSideInputReader = ptransformIdToSideInputReader;
     this.ptransformIdToSideInputIdToPCollectionView = ptransformIdToSideInputIdToPCollectionView;
+    this.pcollectionIdToNameContext = pcollectionIdToNameContext;
     ImmutableMap.Builder<String, DataflowStepContext> userStepContextsMap = ImmutableMap.builder();
     for (Map.Entry<String, DataflowStepContext> entry :
         ptransformIdToSystemStepContext.entrySet()) {
@@ -277,7 +281,13 @@ public class RegisterAndProcessBundleOperation extends Operation {
 
     try (Closeable scope = context.enterFinish()) {
       // Await completion or failure
-      MoreFutures.get(getProcessBundleResponse(processBundleResponse));
+      BeamFnApi.ProcessBundleResponse completedResponse =
+          MoreFutures.get(getProcessBundleResponse(processBundleResponse));
+      if (completedResponse.getResidualRootsCount() > 0) {
+        throw new IllegalStateException(
+            "TODO: [BEAM-2939] residual roots in process bundle response not yet supported.");
+      }
+
       deregisterStateHandler.deregister();
       userStateData.clear();
       processBundleId = null;
@@ -293,6 +303,10 @@ public class RegisterAndProcessBundleOperation extends Operation {
       cancelIfNotNull(processBundleResponse);
       super.abort();
     }
+  }
+
+  public Map<String, NameContext> getPCollectionIdToNameContext() {
+    return this.pcollectionIdToNameContext;
   }
 
   public Map<String, DataflowStepContext> getPtransformIdToUserStepContext() {

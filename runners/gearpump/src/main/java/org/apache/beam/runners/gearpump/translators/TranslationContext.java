@@ -84,7 +84,7 @@ public class TranslationContext {
     return Iterables.getOnlyElement(getOutputs().values());
   }
 
-  private AppliedPTransform<?, ?, ?> getCurrentTransform() {
+  public AppliedPTransform<?, ?, ?> getCurrentTransform() {
     checkArgument(currentTransform != null, "current transform not set");
     return currentTransform;
   }

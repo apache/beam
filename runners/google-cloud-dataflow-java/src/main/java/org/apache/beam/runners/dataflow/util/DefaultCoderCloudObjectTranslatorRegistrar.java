@@ -42,7 +42,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TextualIntegerCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.gcp.bigquery.TableDestinationCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestinationCoderV2;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
@@ -70,6 +69,7 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           CloudObjectTranslators.windowedValue(),
           new AvroCoderCloudObjectTranslator(),
           new SerializableCoderCloudObjectTranslator(),
+          new SchemaCoderCloudObjectTranslator(),
           CloudObjectTranslators.iterableLike(CollectionCoder.class),
           CloudObjectTranslators.iterableLike(ListCoder.class),
           CloudObjectTranslators.iterableLike(SetCoder.class),
@@ -98,7 +98,6 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           KeyPrefixCoder.class,
           RandomAccessDataCoder.class,
           StringUtf8Coder.class,
-          TableDestinationCoder.class,
           TableDestinationCoderV2.class,
           TableRowJsonCoder.class,
           TextualIntegerCoder.class,

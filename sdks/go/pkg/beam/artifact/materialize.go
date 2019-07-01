@@ -21,7 +21,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"math/rand"
 	"os"
@@ -30,6 +29,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/errorx"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
@@ -50,7 +50,7 @@ func Materialize(ctx context.Context, endpoint string, rt string, dest string) (
 
 	m, err := client.GetManifest(ctx, &pb.GetManifestRequest{RetrievalToken: rt})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get manifest: %v", err)
+		return nil, errors.Wrap(err, "failed to get manifest")
 	}
 	md := m.GetManifest().GetArtifact()
 	return md, MultiRetrieve(ctx, client, 10, md, rt, dest)
@@ -92,7 +92,7 @@ func MultiRetrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient
 					}
 					failures = append(failures, err.Error())
 					if len(failures) > attempts {
-						permErr.TrySetError(fmt.Errorf("failed to retrieve %v in %v attempts: %v", a.Name, attempts, strings.Join(failures, "; ")))
+						permErr.TrySetError(errors.Errorf("failed to retrieve %v in %v attempts: %v", a.Name, attempts, strings.Join(failures, "; ")))
 						break // give up
 					}
 					time.Sleep(time.Duration(rand.Intn(5)+1) * time.Second)
@@ -114,7 +114,7 @@ func Retrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, a *
 
 	_, err := os.Stat(filename)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to stat %v: %v", filename, err)
+		return errors.Wrapf(err, "failed to stat %v", filename)
 	}
 	if err == nil {
 		// File already exists. Validate or delete.
@@ -130,7 +130,7 @@ func Retrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, a *
 		}
 
 		if err2 := os.Remove(filename); err2 != nil {
-			return fmt.Errorf("failed to both validate %v and delete: %v (remove: %v)", filename, err, err2)
+			return errors.Errorf("failed to both validate %v and delete: %v (remove: %v)", filename, err, err2)
 		} // else: successfully deleted bad file.
 	} // else: file does not exist.
 
@@ -159,11 +159,11 @@ func retrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, a *
 	sha256Hash, err := retrieveChunks(stream, w)
 	if err != nil {
 		fd.Close() // drop any buffered content
-		return fmt.Errorf("failed to retrieve chunk for %v: %v", filename, err)
+		return errors.Wrapf(err, "failed to retrieve chunk for %v", filename)
 	}
 	if err := w.Flush(); err != nil {
 		fd.Close()
-		return fmt.Errorf("failed to flush chunks for %v: %v", filename, err)
+		return errors.Wrapf(err, "failed to flush chunks for %v", filename)
 	}
 	if err := fd.Close(); err != nil {
 		return err
@@ -171,7 +171,7 @@ func retrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, a *
 
 	// Artifact Sha256 hash is an optional field in metadata so we should only validate when its present.
 	if a.Sha256 != "" && sha256Hash != a.Sha256 {
-		return fmt.Errorf("bad SHA256 for %v: %v, want %v", filename, sha256Hash, a.Sha256)
+		return errors.Errorf("bad SHA256 for %v: %v, want %v", filename, sha256Hash, a.Sha256)
 	}
 	return nil
 }
@@ -191,7 +191,7 @@ func retrieveChunks(stream pb.ArtifactRetrievalService_GetArtifactClient, w io.W
 			panic(err) // cannot fail
 		}
 		if _, err := w.Write(chunk.Data); err != nil {
-			return "", fmt.Errorf("chunk write failed: %v", err)
+			return "", errors.Wrapf(err, "chunk write failed")
 		}
 	}
 	return hex.EncodeToString(sha256W.Sum(nil)), nil

@@ -47,6 +47,7 @@ from builtins import hex
 from builtins import object
 from builtins import zip
 from functools import reduce
+from functools import wraps
 
 from google.protobuf import message
 
@@ -600,9 +601,18 @@ class PTransform(WithTypeHints, HasDisplayData):
     if proto is None or not proto.urn:
       return None
     parameter_type, constructor = cls._known_urns[proto.urn]
-    return constructor(
-        proto_utils.parse_Bytes(proto.payload, parameter_type),
-        context)
+
+    try:
+      return constructor(
+          proto_utils.parse_Bytes(proto.payload, parameter_type),
+          context)
+    except Exception:
+      if context.allow_proto_holders:
+        # For external transforms we cannot build a Python ParDo object so
+        # we build a holder transform instead.
+        from apache_beam.transforms.core import RunnerAPIPTransformHolder
+        return RunnerAPIPTransformHolder(proto)
+      raise
 
   def to_runner_api_parameter(self, unused_context):
     # The payload here is just to ease debugging.
@@ -684,7 +694,11 @@ class PTransformWithSideInputs(PTransform):
     self._cached_fn = self.fn
 
     # Ensure fn and side inputs are picklable for remote execution.
-    self.fn = pickler.loads(pickler.dumps(self.fn))
+    try:
+      self.fn = pickler.loads(pickler.dumps(self.fn))
+    except RuntimeError:
+      raise RuntimeError('Unable to pickle fn %s' % self.fn)
+
     self.args = pickler.loads(pickler.dumps(self.args))
     self.kwargs = pickler.loads(pickler.dumps(self.kwargs))
 
@@ -854,7 +868,7 @@ def ptransform_fn(fn):
   (first argument if no label was specified and second argument otherwise).
   """
   # TODO(robertwb): Consider removing staticmethod to allow for self parameter.
-
+  @wraps(fn)
   def callable_ptransform_factory(*args, **kwargs):
     return _PTransformFnPTransform(fn, *args, **kwargs)
   return callable_ptransform_factory

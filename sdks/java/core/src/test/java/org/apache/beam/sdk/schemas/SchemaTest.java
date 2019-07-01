@@ -24,6 +24,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.stream.Stream;
+import org.apache.beam.sdk.schemas.LogicalTypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.junit.Rule;
@@ -263,5 +264,28 @@ public class SchemaTest {
         Schema.builder().addMapField("foo", FieldType.STRING, FieldType.row(nestedSchema2)).build();
     assertNotEquals(schema1, schema2);
     assertFalse(schema1.equivalent(schema2));
+  }
+
+  static class TestType extends PassThroughLogicalType<Long> {
+    TestType(String id, String arg) {
+      super(id, arg, FieldType.INT64);
+    }
+  }
+
+  @Test
+  public void testLogicalType() {
+    Schema schema1 =
+        Schema.builder().addLogicalTypeField("logical", new TestType("id", "arg")).build();
+    Schema schema2 =
+        Schema.builder().addLogicalTypeField("logical", new TestType("id", "arg")).build();
+    assertEquals(schema1, schema2); // Logical types are the same.
+
+    Schema schema3 =
+        Schema.builder().addLogicalTypeField("logical", new TestType("id2", "arg")).build();
+    assertNotEquals(schema1, schema3); // Logical type id is different.
+
+    Schema schema4 =
+        Schema.builder().addLogicalTypeField("logical", new TestType("id", "arg2")).build();
+    assertNotEquals(schema1, schema4); // Logical type arg is different.
   }
 }

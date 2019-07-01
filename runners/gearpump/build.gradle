@@ -18,7 +18,7 @@
 
 import groovy.json.JsonOutput
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature()
 
 description = "Apache Beam :: Runners :: Gearpump"
@@ -28,7 +28,7 @@ description = "Apache Beam :: Runners :: Gearpump"
  * the following projects are evaluated before we evaluate this project. This is because
  * we are attempting to reference the "sourceSets.test.output" directly.
  */
-evaluationDependsOn(":beam-sdks-java-core")
+evaluationDependsOn(":sdks:java:core")
 
 def gearpump_version = "0.9.0"
 
@@ -37,26 +37,26 @@ configurations {
 }
 
 dependencies {
-  shadow library.java.vendored_guava_20_0
+  compile library.java.vendored_guava_20_0
   compileOnly "com.typesafe:config:1.3.0"
   compileOnly "org.scala-lang:scala-library:2.12.7"
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-runners-core-java", configuration: "shadow")
-  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  shadow "io.github.gearpump:gearpump-core_2.12:$gearpump_version:assembly"
-  shadow "io.github.gearpump:gearpump-streaming_2.12:$gearpump_version:assembly"
-  shadow library.java.joda_time
-  shadow library.java.jackson_annotations
-  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  shadowTest library.java.junit
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.hamcrest_library
-  shadowTest library.java.jackson_databind
-  shadowTest library.java.jackson_dataformat_yaml
-  shadowTest library.java.mockito_core
-  validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
-  validatesRunner project(path: project.path, configuration: "shadow")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":runners:core-java")
+  compile project(":runners:core-construction-java")
+  compile "io.github.gearpump:gearpump-core_2.12:$gearpump_version:assembly"
+  compile "io.github.gearpump:gearpump-streaming_2.12:$gearpump_version:assembly"
+  compile library.java.joda_time
+  compile library.java.jackson_annotations
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile library.java.junit
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  testCompile library.java.jackson_databind
+  testCompile library.java.jackson_dataformat_yaml
+  testCompile library.java.mockito_core
+  validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
+  validatesRunner project(project.path)
 }
 
 task validatesRunnerStreaming(type: Test) {
@@ -68,7 +68,7 @@ task validatesRunnerStreaming(type: Test) {
 
 
   classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'

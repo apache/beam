@@ -47,6 +47,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -91,6 +92,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   private final DoFnRunnerFactory runnerFactory;
   private final boolean hasStreamingSideInput;
   private final OutputsPerElementTracker outputsPerElementTracker;
+  private final DoFnSchemaInformation doFnSchemaInformation;
 
   // Various DoFn helpers, null between bundles
   @Nullable private DoFnRunner<InputT, OutputT> fnRunner;
@@ -110,6 +112,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
       Map<TupleTag<?>, Integer> outputTupleTagsToReceiverIndices,
       DataflowExecutionContext.DataflowStepContext stepContext,
       DataflowOperationContext operationContext,
+      DoFnSchemaInformation doFnSchemaInformation,
       DoFnRunnerFactory runnerFactory) {
     this.options = options;
     this.doFnInstanceManager = doFnInstanceManager;
@@ -139,6 +142,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
     this.hasStreamingSideInput =
         options.as(StreamingOptions.class).isStreaming() && !sideInputReader.isEmpty();
     this.outputsPerElementTracker = createOutputsPerElementTracker();
+    this.doFnSchemaInformation = doFnSchemaInformation;
   }
 
   private OutputsPerElementTracker createOutputsPerElementTracker() {
@@ -297,7 +301,8 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
             fnInfo.getWindowingStrategy(),
             stepContext,
             userStepContext,
-            outputManager);
+            outputManager,
+            doFnSchemaInformation);
 
     fnRunner.startBundle();
   }

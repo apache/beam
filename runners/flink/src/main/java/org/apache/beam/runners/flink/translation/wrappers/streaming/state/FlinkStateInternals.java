@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
@@ -59,7 +60,10 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.joda.time.Instant;
 
 /**
@@ -73,13 +77,20 @@ public class FlinkStateInternals<K> implements StateInternals {
   private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
   private Coder<K> keyCoder;
 
-  // on recovery, these will no be properly set because we don't
-  // know which watermark hold states there are in the Flink State Backend
+  // Combined watermark holds for all keys of this partition
   private final Map<String, Instant> watermarkHolds = new HashMap<>();
+  // State to persist combined watermark holds for all keys of this partition
+  private final MapStateDescriptor<String, Instant> watermarkHoldStateDescriptor =
+      new MapStateDescriptor<>(
+          "watermark-holds",
+          StringSerializer.INSTANCE,
+          new CoderTypeSerializer<>(InstantCoder.of()));
 
-  public FlinkStateInternals(KeyedStateBackend<ByteBuffer> flinkStateBackend, Coder<K> keyCoder) {
+  public FlinkStateInternals(KeyedStateBackend<ByteBuffer> flinkStateBackend, Coder<K> keyCoder)
+      throws Exception {
     this.flinkStateBackend = flinkStateBackend;
     this.keyCoder = keyCoder;
+    restoreWatermarkHoldsView();
   }
 
   /** Returns the minimum over all watermark holds. */
@@ -111,7 +122,12 @@ public class FlinkStateInternals<K> implements StateInternals {
         .getSpec()
         .bind(
             address.getId(),
-            new FlinkStateBinder(namespace, context, flinkStateBackend, watermarkHolds));
+            new FlinkStateBinder(
+                namespace,
+                context,
+                flinkStateBackend,
+                watermarkHolds,
+                watermarkHoldStateDescriptor));
   }
 
   private static class FlinkStateBinder implements StateBinder {
@@ -120,16 +136,19 @@ public class FlinkStateInternals<K> implements StateInternals {
     private final StateContext<?> stateContext;
     private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
     private final Map<String, Instant> watermarkHolds;
+    private final MapStateDescriptor<String, Instant> watermarkHoldStateDescriptor;
 
     private FlinkStateBinder(
         StateNamespace namespace,
         StateContext<?> stateContext,
         KeyedStateBackend<ByteBuffer> flinkStateBackend,
-        Map<String, Instant> watermarkHolds) {
+        Map<String, Instant> watermarkHolds,
+        MapStateDescriptor<String, Instant> watermarkHoldStateDescriptor) {
       this.namespace = namespace;
       this.stateContext = stateContext;
       this.flinkStateBackend = flinkStateBackend;
       this.watermarkHolds = watermarkHolds;
+      this.watermarkHoldStateDescriptor = watermarkHoldStateDescriptor;
     }
 
     @Override
@@ -186,7 +205,12 @@ public class FlinkStateInternals<K> implements StateInternals {
     public WatermarkHoldState bindWatermark(
         String id, StateSpec<WatermarkHoldState> spec, TimestampCombiner timestampCombiner) {
       return new FlinkWatermarkHoldState<>(
-          flinkStateBackend, watermarkHolds, id, namespace, timestampCombiner);
+          flinkStateBackend,
+          watermarkHolds,
+          watermarkHoldStateDescriptor,
+          id,
+          namespace,
+          timestampCombiner);
     }
   }
 
@@ -480,10 +504,12 @@ public class FlinkStateInternals<K> implements StateInternals {
     @Override
     public AccumT getAccum() {
       try {
-        return flinkStateBackend
-            .getPartitionedState(
-                namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
-            .value();
+        AccumT accum =
+            flinkStateBackend
+                .getPartitionedState(
+                    namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
+                .value();
+        return accum != null ? accum : combineFn.createAccumulator();
       } catch (Exception e) {
         throw new RuntimeException("Error reading state.", e);
       }
@@ -642,10 +668,12 @@ public class FlinkStateInternals<K> implements StateInternals {
     @Override
     public AccumT getAccum() {
       try {
-        return flinkStateBackend
-            .getPartitionedState(
-                namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
-            .value();
+        AccumT accum =
+            flinkStateBackend
+                .getPartitionedState(
+                    namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
+                .value();
+        return accum != null ? accum : combineFn.createAccumulator(context);
       } catch (Exception e) {
         throw new RuntimeException("Error reading state.", e);
       }
@@ -734,27 +762,34 @@ public class FlinkStateInternals<K> implements StateInternals {
 
   private static class FlinkWatermarkHoldState<K, W extends BoundedWindow>
       implements WatermarkHoldState {
-    private final String stateId;
+
     private final TimestampCombiner timestampCombiner;
-    private final StateNamespace namespace;
-    private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
     private final Map<String, Instant> watermarkHolds;
-    private final ValueStateDescriptor<Instant> flinkStateDescriptor;
+    private final String namespaceString;
+    private org.apache.flink.api.common.state.MapState<String, Instant> watermarkHoldsState;
 
     public FlinkWatermarkHoldState(
         KeyedStateBackend<ByteBuffer> flinkStateBackend,
         Map<String, Instant> watermarkHolds,
+        MapStateDescriptor<String, Instant> watermarkHoldStateDescriptor,
         String stateId,
         StateNamespace namespace,
         TimestampCombiner timestampCombiner) {
-      this.stateId = stateId;
       this.timestampCombiner = timestampCombiner;
-      this.namespace = namespace;
-      this.flinkStateBackend = flinkStateBackend;
       this.watermarkHolds = watermarkHolds;
-
-      flinkStateDescriptor =
-          new ValueStateDescriptor<>(stateId, new CoderTypeSerializer<>(InstantCoder.of()));
+      // Combines StateNamespace and stateId to generate a unique namespace for
+      // watermarkHoldsState. We do not want to use Flink's namespacing to be
+      // able to recover watermark holds efficiently during recovery.
+      this.namespaceString = namespace.stringKey() + stateId;
+      try {
+        this.watermarkHoldsState =
+            flinkStateBackend.getPartitionedState(
+                VoidNamespace.INSTANCE,
+                VoidNamespaceSerializer.INSTANCE,
+                watermarkHoldStateDescriptor);
+      } catch (Exception e) {
+        throw new RuntimeException("Could not access state for watermark partition view");
+      }
     }
 
     @Override
@@ -773,11 +808,7 @@ public class FlinkStateInternals<K> implements StateInternals {
         @Override
         public Boolean read() {
           try {
-            return flinkStateBackend
-                    .getPartitionedState(
-                        namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
-                    .value()
-                == null;
+            return watermarkHoldsState.get(namespaceString) == null;
           } catch (Exception e) {
             throw new RuntimeException("Error reading state.", e);
           }
@@ -793,18 +824,14 @@ public class FlinkStateInternals<K> implements StateInternals {
     @Override
     public void add(Instant value) {
       try {
-        org.apache.flink.api.common.state.ValueState<Instant> state =
-            flinkStateBackend.getPartitionedState(
-                namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor);
-
-        Instant current = state.value();
+        Instant current = watermarkHoldsState.get(namespaceString);
         if (current == null) {
-          state.update(value);
-          watermarkHolds.put(namespace.stringKey(), value);
+          watermarkHolds.put(namespaceString, value);
+          watermarkHoldsState.put(namespaceString, value);
         } else {
           Instant combined = timestampCombiner.combine(current, value);
-          state.update(combined);
-          watermarkHolds.put(namespace.stringKey(), combined);
+          watermarkHolds.put(namespaceString, combined);
+          watermarkHoldsState.put(namespaceString, combined);
         }
       } catch (Exception e) {
         throw new RuntimeException("Error updating state.", e);
@@ -814,10 +841,7 @@ public class FlinkStateInternals<K> implements StateInternals {
     @Override
     public Instant read() {
       try {
-        org.apache.flink.api.common.state.ValueState<Instant> state =
-            flinkStateBackend.getPartitionedState(
-                namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor);
-        return state.value();
+        return watermarkHoldsState.get(namespaceString);
       } catch (Exception e) {
         throw new RuntimeException("Error reading state.", e);
       }
@@ -825,12 +849,9 @@ public class FlinkStateInternals<K> implements StateInternals {
 
     @Override
     public void clear() {
-      watermarkHolds.remove(namespace.stringKey());
+      watermarkHolds.remove(namespaceString);
       try {
-        org.apache.flink.api.common.state.ValueState<Instant> state =
-            flinkStateBackend.getPartitionedState(
-                namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor);
-        state.clear();
+        watermarkHoldsState.remove(namespaceString);
       } catch (Exception e) {
         throw new RuntimeException("Error reading state.", e);
       }
@@ -847,20 +868,16 @@ public class FlinkStateInternals<K> implements StateInternals {
 
       FlinkWatermarkHoldState<?, ?> that = (FlinkWatermarkHoldState<?, ?>) o;
 
-      if (!stateId.equals(that.stateId)) {
-        return false;
-      }
       if (!timestampCombiner.equals(that.timestampCombiner)) {
         return false;
       }
-      return namespace.equals(that.namespace);
+      return namespaceString.equals(that.namespaceString);
     }
 
     @Override
     public int hashCode() {
-      int result = stateId.hashCode();
+      int result = namespaceString.hashCode();
       result = 31 * result + timestampCombiner.hashCode();
-      result = 31 * result + namespace.hashCode();
       return result;
     }
   }
@@ -1200,6 +1217,138 @@ public class FlinkStateInternals<K> implements StateInternals {
       int result = namespace.hashCode();
       result = 31 * result + stateId.hashCode();
       return result;
+    }
+  }
+
+  /** Restores a view of the watermark holds of all keys of this partiton. */
+  private void restoreWatermarkHoldsView() throws Exception {
+    org.apache.flink.api.common.state.MapState<String, Instant> mapState =
+        flinkStateBackend.getPartitionedState(
+            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, watermarkHoldStateDescriptor);
+    try (Stream<ByteBuffer> keys =
+        flinkStateBackend.getKeys(watermarkHoldStateDescriptor.getName(), VoidNamespace.INSTANCE)) {
+      Iterator<ByteBuffer> iterator = keys.iterator();
+      while (iterator.hasNext()) {
+        flinkStateBackend.setCurrentKey(iterator.next());
+        mapState.entries().forEach(entry -> watermarkHolds.put(entry.getKey(), entry.getValue()));
+      }
+    }
+  }
+
+  /** Eagerly create user state to work around https://jira.apache.org/jira/browse/FLINK-12653. */
+  public static class EarlyBinder implements StateBinder {
+
+    private final KeyedStateBackend keyedStateBackend;
+
+    public EarlyBinder(KeyedStateBackend keyedStateBackend) {
+      this.keyedStateBackend = keyedStateBackend;
+    }
+
+    @Override
+    public <T> ValueState<T> bindValue(String id, StateSpec<ValueState<T>> spec, Coder<T> coder) {
+      try {
+        keyedStateBackend.getOrCreateKeyedState(
+            StringSerializer.INSTANCE,
+            new ValueStateDescriptor<>(id, new CoderTypeSerializer<>(coder)));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+
+      return null;
+    }
+
+    @Override
+    public <T> BagState<T> bindBag(String id, StateSpec<BagState<T>> spec, Coder<T> elemCoder) {
+      try {
+        keyedStateBackend.getOrCreateKeyedState(
+            StringSerializer.INSTANCE,
+            new ListStateDescriptor<>(id, new CoderTypeSerializer<>(elemCoder)));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+
+      return null;
+    }
+
+    @Override
+    public <T> SetState<T> bindSet(String id, StateSpec<SetState<T>> spec, Coder<T> elemCoder) {
+      try {
+        keyedStateBackend.getOrCreateKeyedState(
+            StringSerializer.INSTANCE,
+            new MapStateDescriptor<>(
+                id, new CoderTypeSerializer<>(elemCoder), VoidSerializer.INSTANCE));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+      return null;
+    }
+
+    @Override
+    public <KeyT, ValueT> org.apache.beam.sdk.state.MapState<KeyT, ValueT> bindMap(
+        String id,
+        StateSpec<org.apache.beam.sdk.state.MapState<KeyT, ValueT>> spec,
+        Coder<KeyT> mapKeyCoder,
+        Coder<ValueT> mapValueCoder) {
+      try {
+        keyedStateBackend.getOrCreateKeyedState(
+            StringSerializer.INSTANCE,
+            new MapStateDescriptor<>(
+                id,
+                new CoderTypeSerializer<>(mapKeyCoder),
+                new CoderTypeSerializer<>(mapValueCoder)));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+      return null;
+    }
+
+    @Override
+    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT> bindCombining(
+        String id,
+        StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
+        Coder<AccumT> accumCoder,
+        Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
+      try {
+        keyedStateBackend.getOrCreateKeyedState(
+            StringSerializer.INSTANCE,
+            new ValueStateDescriptor<>(id, new CoderTypeSerializer<>(accumCoder)));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+      return null;
+    }
+
+    @Override
+    public <InputT, AccumT, OutputT>
+        CombiningState<InputT, AccumT, OutputT> bindCombiningWithContext(
+            String id,
+            StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
+            Coder<AccumT> accumCoder,
+            CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
+      try {
+        keyedStateBackend.getOrCreateKeyedState(
+            StringSerializer.INSTANCE,
+            new ValueStateDescriptor<>(id, new CoderTypeSerializer<>(accumCoder)));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+      return null;
+    }
+
+    @Override
+    public WatermarkHoldState bindWatermark(
+        String id, StateSpec<WatermarkHoldState> spec, TimestampCombiner timestampCombiner) {
+      try {
+        keyedStateBackend.getOrCreateKeyedState(
+            VoidNamespaceSerializer.INSTANCE,
+            new MapStateDescriptor<>(
+                "watermark-holds",
+                StringSerializer.INSTANCE,
+                new CoderTypeSerializer<>(InstantCoder.of())));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+      return null;
     }
   }
 }

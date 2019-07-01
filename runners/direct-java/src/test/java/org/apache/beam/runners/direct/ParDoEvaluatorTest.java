@@ -36,6 +36,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -159,6 +160,7 @@ public class ParDoEvaluatorTest {
         mainOutputTag,
         additionalOutputTags,
         ImmutableMap.of(mainOutputTag, output),
+        DoFnSchemaInformation.create(),
         ParDoEvaluator.defaultRunnerFactory());
   }
 

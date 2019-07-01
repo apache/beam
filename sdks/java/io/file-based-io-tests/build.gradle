@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature(exportJavadoc: false)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
@@ -25,13 +25,13 @@ description = "Apache Beam :: SDKs :: Java :: File-based-io-tests"
 ext.summary = "Integration tests for reading/writing using file-based sources/sinks."
 
 dependencies {
-  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  shadowTest project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
-  shadowTest project(path: ":beam-sdks-java-io-xml", configuration: "shadowTest")
-  shadowTest project(path: ":beam-sdks-java-io-parquet", configuration: "shadowTest")
-  shadowTest project(path: ":beam-sdks-java-test-utils", configuration: "shadowTest")
-  shadowTest library.java.guava
-  shadowTest library.java.junit
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.jaxb_api
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:io:xml", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:io:parquet", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
+  testCompile library.java.guava
+  testCompile library.java.junit
+  testCompile library.java.hamcrest_core
+  testCompile library.java.jaxb_api
 }

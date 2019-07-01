@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature()
 
 description = "Apache Beam :: Runners :: Core Java"
@@ -31,19 +31,20 @@ test {
 }
 
 dependencies {
-  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-model-fn-execution", configuration: "shadow")
-  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  shadow library.java.vendored_guava_20_0
-  shadow library.java.joda_time
-  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  shadowTest library.java.junit
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.hamcrest_library
-  shadowTest library.java.mockito_core
-  shadowTest library.java.junit
-  shadowTest library.java.slf4j_api
-  shadowTest library.java.slf4j_simple
-  shadowTest library.java.jackson_dataformat_yaml
+  compile project(path: ":model:pipeline", configuration: "shadow")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(path: ":model:fn-execution", configuration: "shadow")
+  compile project(":runners:core-construction-java")
+  compile project(":sdks:java:fn-execution")
+  compile library.java.vendored_guava_20_0
+  compile library.java.joda_time
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile library.java.junit
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  testCompile library.java.mockito_core
+  testCompile library.java.junit
+  testCompile library.java.slf4j_api
+  testCompile library.java.jackson_dataformat_yaml
+  testRuntimeOnly library.java.slf4j_simple
 }

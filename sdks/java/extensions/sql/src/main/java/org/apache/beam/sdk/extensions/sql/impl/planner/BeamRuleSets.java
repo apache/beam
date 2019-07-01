@@ -40,7 +40,6 @@ import org.apache.calcite.rel.rules.AggregateProjectMergeRule;
 import org.apache.calcite.rel.rules.AggregateRemoveRule;
 import org.apache.calcite.rel.rules.AggregateUnionAggregateRule;
 import org.apache.calcite.rel.rules.CalcMergeRule;
-import org.apache.calcite.rel.rules.CalcRemoveRule;
 import org.apache.calcite.rel.rules.FilterAggregateTransposeRule;
 import org.apache.calcite.rel.rules.FilterCalcMergeRule;
 import org.apache.calcite.rel.rules.FilterJoinRule;
@@ -74,7 +73,8 @@ public class BeamRuleSets {
           ProjectCalcMergeRule.INSTANCE,
           FilterToCalcRule.INSTANCE,
           ProjectToCalcRule.INSTANCE,
-          CalcRemoveRule.INSTANCE,
+          // disabled due to https://issues.apache.org/jira/browse/BEAM-6810
+          // CalcRemoveRule.INSTANCE,
           CalcMergeRule.INSTANCE,
 
           // push a filter into a join

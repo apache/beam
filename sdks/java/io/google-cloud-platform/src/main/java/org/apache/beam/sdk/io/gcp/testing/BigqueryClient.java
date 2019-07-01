@@ -60,9 +60,9 @@ import java.util.Random;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.util.BackOffAdapter;
+import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
+import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.joda.time.Duration;
@@ -114,6 +114,8 @@ public class BigqueryClient {
   private static final Logger LOG = LoggerFactory.getLogger(BigqueryClient.class);
   // The maximum number of retries to execute a BigQuery RPC
   static final int MAX_QUERY_RETRIES = 4;
+  // How long should BQ jobs.query call wait for query completion. Default is 10 seconds.
+  static final Long QUERY_TIMEOUT_MS = 20_000L;
 
   // The initial backoff for executing a BigQuery RPC
   private static final Duration INITIAL_BACKOFF = Duration.standardSeconds(1L);
@@ -274,6 +276,7 @@ public class BigqueryClient {
     return response;
   }
 
+  /** Performs a query without flattening results. */
   @Nonnull
   public List<TableRow> queryUnflattened(String query, String projectId, boolean typed)
       throws IOException, InterruptedException {
@@ -328,7 +331,7 @@ public class BigqueryClient {
     Sleeper sleeper = Sleeper.DEFAULT;
     BackOff backoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
     IOException lastException = null;
-    QueryRequest bqQueryRequest = new QueryRequest().setQuery(query);
+    QueryRequest bqQueryRequest = new QueryRequest().setQuery(query).setTimeoutMs(QUERY_TIMEOUT_MS);
     do {
       if (lastException != null) {
         LOG.warn("Retrying query ({}) after exception", bqQueryRequest.getQuery(), lastException);
@@ -354,6 +357,7 @@ public class BigqueryClient {
         lastException);
   }
 
+  /** Creates a new dataset. */
   public void createNewDataset(String projectId, String datasetId)
       throws IOException, InterruptedException {
     Sleeper sleeper = Sleeper.DEFAULT;
@@ -451,6 +455,7 @@ public class BigqueryClient {
         lastException);
   }
 
+  /** Inserts rows to a table using a BigQuery streaming write. */
   public void insertDataToTable(
       String projectId, String datasetId, String tableName, List<Map<String, Object>> rows)
       throws IOException, InterruptedException {
@@ -498,6 +503,36 @@ public class BigqueryClient {
         String.format(
             "Unable to get BigQuery response after retrying %d times for table (%s)",
             MAX_QUERY_RETRIES, tableName),
+        lastException);
+  }
+
+  public Table getTableResource(String projectId, String datasetId, String tableId)
+      throws IOException, InterruptedException {
+    Sleeper sleeper = Sleeper.DEFAULT;
+    BackOff backoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
+    IOException lastException = null;
+    do {
+      if (lastException != null) {
+        LOG.warn("Retrying tables.get ({}) after exception", tableId, lastException);
+      }
+      try {
+        Table response = this.bqClient.tables().get(projectId, datasetId, tableId).execute();
+        if (response != null) {
+          return response;
+        } else {
+          lastException =
+              new IOException("Expected valid response from tables.get, but received null.");
+        }
+      } catch (IOException e) {
+        // ignore and retry
+        lastException = e;
+      }
+    } while (BackOffUtils.next(sleeper, backoff));
+
+    throw new RuntimeException(
+        String.format(
+            "Unable to get BigQuery response after retrying %d times for tables.get (%s)",
+            MAX_QUERY_RETRIES, tableId),
         lastException);
   }
 }

@@ -40,6 +40,7 @@ public abstract class ShuffleOperator<InputT, KeyT, OutputT> extends Operator<Ou
       UnaryFunction<InputT, KeyT> keyExtractor,
       @Nullable TypeDescriptor<KeyT> keyType,
       @Nullable Window<InputT> windowing) {
+
     super(name, outputType);
     this.keyExtractor = keyExtractor;
     this.keyType = keyType;

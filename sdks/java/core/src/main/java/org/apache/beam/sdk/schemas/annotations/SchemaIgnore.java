@@ -29,19 +29,21 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * When used on a POJO field or a JavaBean getter, that field or getter is ignored from the inferred
  * schema.
  *
- * <p>For example, a Java POJO with a field that we don't want included in the schema.
+ * <p>For example, a Java POJO with a field that we don't want included in the schema:
  *
  * <pre><code>
- *   {@literal @}DefaultSchema(JavaBeanSchema.class)
+ *  {@literal @}DefaultSchema(JavaBeanSchema.class)
  *   class MyClass {
  *     public String user;
  *     public int age;
- *     {@literal @}SchemaIgnore public String pleaseDontAddToSchema;
+ *
+ *    {@literal @}SchemaIgnore
+ *     public String pleaseDontAddToSchema;
  *   }
  * </code></pre>
  *
- * <p>In this case, the pleaseDontAddToSchema will be excluded from the schema, and implicitly
- * dropped from calculations.
+ * <p>In this case, the {@code pleaseDontAddToSchema} will be excluded from the schema, and
+ * implicitly dropped from calculations.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)

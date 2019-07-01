@@ -17,6 +17,7 @@ package exec
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"reflect"
 	"runtime"
@@ -29,6 +30,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/coderx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 var intInput = []interface{}{int(1), int(2), int(3), int(4), int(5), int(6)}
@@ -61,7 +63,7 @@ func fnName(x interface{}) string {
 func TestCombine(t *testing.T) {
 	for _, test := range tests {
 		t.Run(fnName(test.Fn), func(t *testing.T) {
-			edge := getCombineEdge(t, test.Fn, test.AccumCoder)
+			edge := getCombineEdge(t, test.Fn, reflectx.Int, test.AccumCoder)
 
 			out := &CaptureNode{UID: 1}
 			combine := &Combine{UID: 2, Fn: edge.CombineFn, Out: out}
@@ -80,27 +82,75 @@ func TestCombine(t *testing.T) {
 // TestLiftedCombine verifies that the LiftedCombine, MergeAccumulators, and
 // ExtractOutput nodes work correctly after the lift has been performed.
 func TestLiftedCombine(t *testing.T) {
-	for _, test := range tests {
-		t.Run(fnName(test.Fn), func(t *testing.T) {
-			edge := getCombineEdge(t, test.Fn, test.AccumCoder)
+	withCoder := func(t *testing.T, suffix string, key interface{}, keyCoder *coder.Coder) {
+		for _, test := range tests {
+			t.Run(fnName(test.Fn)+"_"+suffix, func(t *testing.T) {
+				edge := getCombineEdge(t, test.Fn, reflectx.Int, test.AccumCoder)
 
-			out := &CaptureNode{UID: 1}
-			extract := &ExtractOutput{Combine: &Combine{UID: 2, Fn: edge.CombineFn, Out: out}}
-			merge := &MergeAccumulators{Combine: &Combine{UID: 3, Fn: edge.CombineFn, Out: extract}}
-			gbk := &simpleGBK{UID: 4, Out: merge}
-			precombine := &LiftedCombine{Combine: &Combine{UID: 5, Fn: edge.CombineFn, Out: gbk}}
-			n := &FixedRoot{UID: 6, Elements: makeKVInput(42, test.Input...), Out: precombine}
+				out := &CaptureNode{UID: 1}
+				extract := &ExtractOutput{Combine: &Combine{UID: 2, Fn: edge.CombineFn, Out: out}}
+				merge := &MergeAccumulators{Combine: &Combine{UID: 3, Fn: edge.CombineFn, Out: extract}}
+				gbk := &simpleGBK{UID: 4, KeyCoder: keyCoder, Out: merge}
+				precombine := &LiftedCombine{Combine: &Combine{UID: 5, Fn: edge.CombineFn, Out: gbk}, KeyCoder: keyCoder}
+				n := &FixedRoot{UID: 6, Elements: makeKVInput(key, test.Input...), Out: precombine}
 
-			constructAndExecutePlan(t, []Unit{n, precombine, gbk, merge, extract, out})
-			expected := makeKV(42, test.Expected)
-			if !equalList(out.Elements, expected) {
-				t.Errorf("liftedCombineChain(%s) = %v, want %v", edge.CombineFn.Name(), extractKeyedValues(out.Elements...), extractKeyedValues(expected...))
-			}
-		})
+				constructAndExecutePlan(t, []Unit{n, precombine, gbk, merge, extract, out})
+				expected := makeKV(key, test.Expected)
+				if !equalList(out.Elements, expected) {
+					t.Errorf("liftedCombineChain(%s) = %v, want %v", edge.CombineFn.Name(), extractKeyedValues(out.Elements...), extractKeyedValues(expected...))
+				}
+			})
+		}
 	}
+	withCoder(t, "intKeys", 42, intCoder(reflectx.Int))
+	withCoder(t, "int64Keys", int64(42), intCoder(reflectx.Int64))
+
+	cc, err := coder.NewCustomCoder("codable", myCodableType, codableEncoder, codableDecoder)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	withCoder(t, "pointerKeys", &myCodable{42}, &coder.Coder{Kind: coder.Custom, T: typex.New(myCodableType), Custom: cc})
+
 }
 
-func getCombineEdge(t *testing.T, cfn interface{}, ac *coder.Coder) *graph.MultiEdge {
+type codable interface {
+	EncodeMe() []byte
+	DecodeMe([]byte)
+}
+
+func codableEncoder(v codable) []byte {
+	return v.EncodeMe()
+}
+
+var myCodableType = reflect.TypeOf((*myCodable)(nil))
+
+func codableDecoder(t reflect.Type, b []byte) codable {
+	var v codable
+	switch t {
+	case myCodableType:
+		v = &myCodable{}
+	default:
+		panic("don't know this type" + t.String())
+	}
+	v.DecodeMe(b)
+	return v
+}
+
+type myCodable struct {
+	val uint64
+}
+
+func (c *myCodable) EncodeMe() []byte {
+	data := make([]byte, 8)
+	binary.LittleEndian.PutUint64(data, c.val)
+	return data
+}
+
+func (c *myCodable) DecodeMe(b []byte) {
+	c.val = binary.LittleEndian.Uint64(b)
+}
+
+func getCombineEdge(t *testing.T, cfn interface{}, kt reflect.Type, ac *coder.Coder) *graph.MultiEdge {
 	t.Helper()
 	fn, err := graph.NewCombineFn(cfn)
 	if err != nil {
@@ -115,7 +165,7 @@ func getCombineEdge(t *testing.T, cfn interface{}, ac *coder.Coder) *graph.Multi
 	} else {
 		vtype = fn.MergeAccumulatorsFn().Param[1].T
 	}
-	inT := typex.NewCoGBK(typex.New(reflectx.Int), typex.New(vtype))
+	inT := typex.NewCoGBK(typex.New(kt), typex.New(vtype))
 	in := g.NewNode(inT, window.DefaultWindowingStrategy(), true)
 
 	edge, err := graph.NewCombine(g, g.Root(), fn, in, ac)
@@ -255,6 +305,10 @@ type MyErrorCombine struct {
 	MyCombine // Embedding to re-use the exisitng AddInput implementations
 }
 
+func (*MyErrorCombine) CreateAccumulator() (int64, error) {
+	return 0, nil
+}
+
 func (*MyErrorCombine) MergeAccumulators(a, b int64) (int64, error) {
 	return a + b, nil
 }
@@ -262,18 +316,19 @@ func (*MyErrorCombine) MergeAccumulators(a, b int64) (int64, error) {
 func intCoder(t reflect.Type) *coder.Coder {
 	c, err := coderx.NewVarIntZ(t)
 	if err != nil {
-		panic(fmt.Sprintf("Couldn't get VarInt coder for %v: %v", t, err))
+		panic(errors.Wrapf(err, "Couldn't get VarInt coder for %v", t))
 	}
 	return &coder.Coder{Kind: coder.Custom, T: typex.New(t), Custom: c}
 }
 
 // simpleGBK buffers all input and continues on FinishBundle. Use with small single-bundle data only.
 type simpleGBK struct {
-	UID  UnitID
-	Edge *graph.MultiEdge
-	Out  Node
+	UID      UnitID
+	Out      Node
+	KeyCoder *coder.Coder
 
-	m map[interface{}]*group
+	hasher elementHasher
+	m      map[uint64]*group
 }
 
 type group struct {
@@ -286,7 +341,8 @@ func (n *simpleGBK) ID() UnitID {
 }
 
 func (n *simpleGBK) Up(ctx context.Context) error {
-	n.m = make(map[interface{}]*group)
+	n.m = make(map[uint64]*group)
+	n.hasher = makeElementHasher(n.KeyCoder)
 	return nil
 }
 
@@ -294,17 +350,20 @@ func (n *simpleGBK) StartBundle(ctx context.Context, id string, data DataContext
 	return n.Out.StartBundle(ctx, id, data)
 }
 
-func (n *simpleGBK) ProcessElement(ctx context.Context, elm FullValue, _ ...ReStream) error {
-	key := elm.Elm.(int)
+func (n *simpleGBK) ProcessElement(ctx context.Context, elm *FullValue, _ ...ReStream) error {
+	key := elm.Elm
 	value := elm.Elm2
-
-	g, ok := n.m[key]
+	keyHash, err := n.hasher.Hash(key)
+	if err != nil {
+		return err
+	}
+	g, ok := n.m[keyHash]
 	if !ok {
 		g = &group{
 			key:    FullValue{Elm: key, Timestamp: elm.Timestamp, Windows: elm.Windows},
 			values: make([]FullValue, 0),
 		}
-		n.m[key] = g
+		n.m[keyHash] = g
 	}
 	g.values = append(g.values, FullValue{Elm: value, Timestamp: elm.Timestamp})
 
@@ -314,7 +373,7 @@ func (n *simpleGBK) ProcessElement(ctx context.Context, elm FullValue, _ ...ReSt
 func (n *simpleGBK) FinishBundle(ctx context.Context) error {
 	for _, g := range n.m {
 		values := &FixedReStream{Buf: g.values}
-		if err := n.Out.ProcessElement(ctx, g.key, values); err != nil {
+		if err := n.Out.ProcessElement(ctx, &g.key, values); err != nil {
 			return err
 		}
 	}

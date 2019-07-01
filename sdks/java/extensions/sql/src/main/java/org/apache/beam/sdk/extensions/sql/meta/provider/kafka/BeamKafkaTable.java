@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -53,6 +54,7 @@ public abstract class BeamKafkaTable extends BaseBeamTable {
     super(beamSchema);
     this.bootstrapServers = bootstrapServers;
     this.topics = topics;
+    this.configUpdates = new HashMap<>();
   }
 
   public BeamKafkaTable(
@@ -86,7 +88,7 @@ public abstract class BeamKafkaTable extends BaseBeamTable {
           KafkaIO.<byte[], byte[]>read()
               .withBootstrapServers(bootstrapServers)
               .withTopics(topics)
-              .updateConsumerProperties(configUpdates)
+              .withConsumerConfigUpdates(configUpdates)
               .withKeyDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
               .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of());
     } else if (topicPartitions != null) {
@@ -94,7 +96,7 @@ public abstract class BeamKafkaTable extends BaseBeamTable {
           KafkaIO.<byte[], byte[]>read()
               .withBootstrapServers(bootstrapServers)
               .withTopicPartitions(topicPartitions)
-              .updateConsumerProperties(configUpdates)
+              .withConsumerConfigUpdates(configUpdates)
               .withKeyDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
               .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of());
     } else {

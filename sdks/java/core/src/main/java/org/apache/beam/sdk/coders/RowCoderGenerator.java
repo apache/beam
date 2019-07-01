@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -59,15 +61,15 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  * A utility for automatically generating a {@link Coder} for {@link Row} objects corresponding to a
  * specific schema. The resulting coder is loaded into the default ClassLoader and returned.
  *
- * <p>When {@link RowCoderGenerator#generate(Schema, UUID)} is called, a new subclass of {@literal
+ * <p>When {@link RowCoderGenerator#generate(Schema)} is called, a new subclass of {@literal
  * Coder<Row>} is generated for the specified schema. This class is generated using low-level
  * bytecode generation, and hardcodes encodings for all fields of the Schema. Empirically, this is
  * 30-40% faster than a coder that introspects the schema.
  *
  * <p>The generated class corresponds to the following Java class:
  *
- * <pre>{@code
- * class SchemaRowCoder extends Coder<Row> {
+ * <pre><code>
+ * class SchemaRowCoder extends{@literal Coder<Row>} {
  *   // Generated array containing a coder for each field in the Schema.
  *   private static final Coder[] FIELD_CODERS;
  *
@@ -77,17 +79,19 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  *     return schema;
  *   }
  *
- *   {@literal @}Override public void encode(T value, OutputStream outStream) {
+ *  {@literal @}Override
+ *   public void encode(T value, OutputStream outStream) {
  *     // Delegate to a method that evaluates each coder in the static array.
  *     encodeDelegate(FIELD_CODERS, value, outStream);
  *   }
  *
- *   {@literal @}Overide public abstract T decode(InputStream inStream) {
+ *  {@literal @}Overide
+ *   public abstract T decode(InputStream inStream) {
  *     // Delegate to a method that evaluates each coder in the static array.
  *     return decodeDelegate(FIELD_CODERS, inStream);
  *   }
  * }
- * }</pre>
+ * </code></pre>
  */
 public abstract class RowCoderGenerator {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
@@ -95,6 +99,8 @@ public abstract class RowCoderGenerator {
   private static final ForLoadedType LIST_CODER_TYPE = new ForLoadedType(ListCoder.class);
   private static final ForLoadedType MAP_CODER_TYPE = new ForLoadedType(MapCoder.class);
   private static final BitSetCoder NULL_LIST_CODER = BitSetCoder.of();
+  private static final VarIntCoder VAR_INT_CODER = VarIntCoder.of();
+  private static final ForLoadedType NULLABLE_CODER = new ForLoadedType(NullableCoder.class);
 
   private static final String CODERS_FIELD_NAME = "FIELD_CODERS";
 
@@ -102,7 +108,7 @@ public abstract class RowCoderGenerator {
   private static final Map<TypeName, StackManipulation> CODER_MAP;
 
   // Cache for Coder class that are already generated.
-  private static Map<UUID, Coder<Row>> generatedCoders = Maps.newHashMap();
+  private static Map<UUID, Coder<Row>> generatedCoders = Maps.newConcurrentMap();
 
   static {
     // Initialize the CODER_MAP with the StackManipulations to create the primitive coders.
@@ -120,30 +126,34 @@ public abstract class RowCoderGenerator {
   }
 
   @SuppressWarnings("unchecked")
-  public static Coder<Row> generate(Schema schema, UUID coderId) {
-    return generatedCoders.computeIfAbsent(
-        coderId,
-        h -> {
-          TypeDescription.Generic coderType =
-              TypeDescription.Generic.Builder.parameterizedType(Coder.class, Row.class).build();
-          DynamicType.Builder<Coder> builder =
-              (DynamicType.Builder<Coder>) BYTE_BUDDY.subclass(coderType);
-          builder = createComponentCoders(schema, builder);
-          builder = implementMethods(schema, builder);
-          try {
-            return builder
+  public static Coder<Row> generate(Schema schema) {
+    // Using ConcurrentHashMap::computeIfAbsent here would deadlock in case of nested
+    // coders. Using HashMap::computeIfAbsent generates ConcurrentModificationExceptions in Java 11.
+    Coder<Row> rowCoder = generatedCoders.get(schema.getUUID());
+    if (rowCoder == null) {
+      TypeDescription.Generic coderType =
+          TypeDescription.Generic.Builder.parameterizedType(Coder.class, Row.class).build();
+      DynamicType.Builder<Coder> builder =
+          (DynamicType.Builder<Coder>) BYTE_BUDDY.subclass(coderType);
+      builder = createComponentCoders(schema, builder);
+      builder = implementMethods(schema, builder);
+      try {
+        rowCoder =
+            builder
                 .make()
                 .load(Coder.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
                 .getLoaded()
                 .getDeclaredConstructor()
                 .newInstance();
-          } catch (InstantiationException
-              | IllegalAccessException
-              | NoSuchMethodException
-              | InvocationTargetException e) {
-            throw new RuntimeException("Unable to generate coder for schema " + schema);
-          }
-        });
+      } catch (InstantiationException
+          | IllegalAccessException
+          | NoSuchMethodException
+          | InvocationTargetException e) {
+        throw new RuntimeException("Unable to generate coder for schema " + schema);
+      }
+      generatedCoders.put(schema.getUUID(), rowCoder);
+    }
+    return rowCoder;
   }
 
   private static DynamicType.Builder<Coder> implementMethods(
@@ -212,6 +222,11 @@ public abstract class RowCoderGenerator {
     static void encodeDelegate(
         Coder[] coders, Row value, OutputStream outputStream, boolean hasNullableFields)
         throws IOException {
+      checkState(value.getFieldCount() == value.getSchema().getFieldCount());
+
+      // Encode the field count. This allows us to handle compatible schema changes.
+      VAR_INT_CODER.encode(value.getFieldCount(), outputStream);
+      // Encode a bitmap for the null fields to save having to encode a bunch of nulls.
       NULL_LIST_CODER.encode(scanNullFields(value, hasNullableFields), outputStream);
       for (int idx = 0; idx < value.getFieldCount(); ++idx) {
         Object fieldValue = value.getValue(idx);
@@ -282,14 +297,24 @@ public abstract class RowCoderGenerator {
     // per-field Coders.
     static Row decodeDelegate(Schema schema, Coder[] coders, InputStream inputStream)
         throws IOException {
+      int fieldCount = VAR_INT_CODER.decode(inputStream);
+
       BitSet nullFields = NULL_LIST_CODER.decode(inputStream);
       List<Object> fieldValues = Lists.newArrayListWithCapacity(coders.length);
-      for (int i = 0; i < coders.length; ++i) {
-        if (nullFields.get(i)) {
-          fieldValues.add(null);
-        } else {
-          fieldValues.add(coders[i].decode(inputStream));
+      for (int i = 0; i < fieldCount; ++i) {
+        // In the case of a schema change going backwards, fieldCount might be > coders.length,
+        // in which case we drop the extra fields.
+        if (i < coders.length) {
+          if (nullFields.get(i)) {
+            fieldValues.add(null);
+          } else {
+            fieldValues.add(coders[i].decode(inputStream));
+          }
         }
+      }
+      // If the schema was evolved to contain more fields, we fill them in with nulls.
+      for (int i = fieldCount; i < coders.length; i++) {
+        fieldValues.add(null);
       }
       // We call attachValues instead of setValues. setValues validates every element in the list
       // is of the proper type, potentially converts to the internal type Row stores, and copies
@@ -305,7 +330,9 @@ public abstract class RowCoderGenerator {
     List<StackManipulation> componentCoders =
         Lists.newArrayListWithCapacity(schema.getFieldCount());
     for (int i = 0; i < schema.getFieldCount(); i++) {
-      componentCoders.add(getCoder(schema.getField(i).getType()));
+      // We use withNullable(false) as nulls are handled by the RowCoder and the individual
+      // component coders therefore do not need to handle nulls.
+      componentCoders.add(getCoder(schema.getField(i).getType().withNullable(false)));
     }
 
     return builder
@@ -338,15 +365,31 @@ public abstract class RowCoderGenerator {
   }
 
   private static StackManipulation getCoder(Schema.FieldType fieldType) {
-    if (TypeName.ARRAY.equals(fieldType.getTypeName())) {
+    if (TypeName.LOGICAL_TYPE.equals(fieldType.getTypeName())) {
+      return getCoder(fieldType.getLogicalType().getBaseType());
+    } else if (TypeName.ARRAY.equals(fieldType.getTypeName())) {
       return listCoder(fieldType.getCollectionElementType());
     } else if (TypeName.MAP.equals(fieldType.getTypeName())) {
       return mapCoder(fieldType.getMapKeyType(), fieldType.getMapValueType());
     } else if (TypeName.ROW.equals(fieldType.getTypeName())) {
-      Coder<Row> nestedCoder = generate(fieldType.getRowSchema(), UUID.randomUUID());
+      checkState(fieldType.getRowSchema().getUUID() != null);
+      Coder<Row> nestedCoder = generate(fieldType.getRowSchema());
       return rowCoder(nestedCoder.getClass());
     } else {
-      return coderForPrimitiveType(fieldType.getTypeName());
+      StackManipulation primitiveCoder = coderForPrimitiveType(fieldType.getTypeName());
+
+      if (fieldType.getNullable()) {
+        primitiveCoder =
+            new Compound(
+                primitiveCoder,
+                MethodInvocation.invoke(
+                    NULLABLE_CODER
+                        .getDeclaredMethods()
+                        .filter(ElementMatchers.named("of"))
+                        .getOnly()));
+      }
+
+      return primitiveCoder;
     }
   }
 
@@ -363,7 +406,7 @@ public abstract class RowCoderGenerator {
   }
 
   static StackManipulation mapCoder(Schema.FieldType keyType, Schema.FieldType valueType) {
-    StackManipulation keyCoder = coderForPrimitiveType(keyType.getTypeName());
+    StackManipulation keyCoder = getCoder(keyType);
     StackManipulation valueCoder = getCoder(valueType);
     return new Compound(
         keyCoder,

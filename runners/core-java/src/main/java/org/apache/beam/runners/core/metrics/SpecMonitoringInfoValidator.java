@@ -17,14 +17,15 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.model.pipeline.v1.MetricsApi.monitoringInfoSpec;
+
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoSpec;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoSpecs;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpec;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
 
 /** Class implements validation of MonitoringInfos against MonitoringInfoSpecs. */
 public class SpecMonitoringInfoValidator {
@@ -35,8 +36,7 @@ public class SpecMonitoringInfoValidator {
         Arrays.stream(MonitoringInfoSpecs.Enum.values())
             // Filtering default value for "unknown" Enums. Coming from proto implementation.
             .filter(x -> !x.name().equals("UNRECOGNIZED"))
-            .map(
-                x -> x.getValueDescriptor().getOptions().getExtension(BeamFnApi.monitoringInfoSpec))
+            .map(x -> x.getValueDescriptor().getOptions().getExtension(monitoringInfoSpec))
             .toArray(size -> new MonitoringInfoSpec[size]);
   }
 
@@ -50,7 +50,7 @@ public class SpecMonitoringInfoValidator {
     MonitoringInfoSpec spec = null;
 
     for (MonitoringInfoSpec specIterator : specs) {
-      if (monitoringInfo.getUrn().startsWith(specIterator.getUrn())) {
+      if (monitoringInfo.getUrn().equals(specIterator.getUrn())) {
         spec = specIterator;
         break;
       }

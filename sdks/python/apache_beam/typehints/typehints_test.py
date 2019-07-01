@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 import functools
 import inspect
+import sys
 import unittest
 from builtins import next
 from builtins import range
@@ -226,6 +227,17 @@ class UnionHintTestCase(TypeHintTestCase):
                      "instance of one of: ('float', 'int'), received str "
                      "instead.",
                      e.exception.args[0])
+
+  def test_dict_union(self):
+    hint = Union[typehints.Dict[Any, int],
+                 typehints.Dict[Union[()], Union[()]]]
+    self.assertEqual(typehints.Dict[Any, int], hint)
+
+  def test_empty_union(self):
+    self.assertEqual(typehints.Union[()],
+                     typehints.Union[typehints.Union[()], typehints.Union[()]])
+    self.assertEqual(int,
+                     typehints.Union[typehints.Union[()], int])
 
 
 class OptionalHintTestCase(TypeHintTestCase):
@@ -1048,24 +1060,82 @@ class DecoratorHelpers(TypeHintTestCase):
     self.assertFalse(is_consistent_with(Union[str, int], str))
 
   def test_positional_arg_hints(self):
-    self.assertEquals(typehints.Any, _positional_arg_hints('x', {}))
-    self.assertEquals(int, _positional_arg_hints('x', {'x': int}))
-    self.assertEquals(typehints.Tuple[int, typehints.Any],
-                      _positional_arg_hints(['x', 'y'], {'x': int}))
+    self.assertEqual(typehints.Any, _positional_arg_hints('x', {}))
+    self.assertEqual(int, _positional_arg_hints('x', {'x': int}))
+    self.assertEqual(typehints.Tuple[int, typehints.Any],
+                     _positional_arg_hints(['x', 'y'], {'x': int}))
 
   def test_getcallargs_forhints(self):
     def func(a, b_c, *d):
       b, c = b_c # pylint: disable=unused-variable
       return None
-    self.assertEquals(
+    self.assertEqual(
         {'a': Any, 'b_c': Any, 'd': Tuple[Any, ...]},
         getcallargs_forhints(func, *[Any, Any]))
-    self.assertEquals(
+    self.assertEqual(
         {'a': Any, 'b_c': Any, 'd': Tuple[Any, ...]},
         getcallargs_forhints(func, *[Any, Any, Any, int]))
-    self.assertEquals(
+    self.assertEqual(
         {'a': int, 'b_c': Tuple[str, Any], 'd': Tuple[Any, ...]},
         getcallargs_forhints(func, *[int, Tuple[str, Any]]))
+
+  def test_getcallargs_forhints_builtins(self):
+    if sys.version_info.major < 3:
+      self.assertEqual(
+          {'_': str,
+           '__unknown__varargs': Tuple[Any, ...],
+           '__unknown__keywords': typehints.Dict[Any, Any]},
+          getcallargs_forhints(str.upper, str))
+      self.assertEqual(
+          {'_': str,
+           '__unknown__varargs': Tuple[Any, ...],
+           '__unknown__keywords': typehints.Dict[Any, Any]},
+          getcallargs_forhints(str.strip, str, str))
+      self.assertEqual(
+          {'_': str,
+           '__unknown__varargs': Tuple[Any, ...],
+           '__unknown__keywords': typehints.Dict[Any, Any]},
+          getcallargs_forhints(str.join, str, list))
+    elif sys.version_info.minor < 7:
+      # Signatures for builtins are not supported in 3.5 and 3.6.
+      self.assertEqual({}, getcallargs_forhints(str.upper, str))
+      self.assertEqual({}, getcallargs_forhints(str.strip, str, str))
+      self.assertEqual({}, getcallargs_forhints(str.join, str, list))
+    else:
+      self.assertEqual(
+          {'self': str},
+          getcallargs_forhints(str.upper, str))
+      # str.strip has an optional second argument.
+      self.assertEqual({'self': str, 'chars': Any},
+                       getcallargs_forhints(str.strip, str))
+      self.assertEqual({'self': str, 'iterable': list},
+                       getcallargs_forhints(str.join, str, list))
+
+
+class TestCoerceToKvType(TypeHintTestCase):
+  def test_coercion_success(self):
+    cases = [
+        ((Any, ), typehints.KV[Any, Any]),
+        ((typehints.KV[Any, Any],), typehints.KV[Any, Any]),
+        ((typehints.Tuple[str, int],), typehints.KV[str, int]),
+    ]
+    for args, expected in cases:
+      self.assertEqual(typehints.coerce_to_kv_type(*args), expected)
+      self.assertCompatible(args[0], expected)
+
+  def test_coercion_fail(self):
+    cases = [
+        ((str, 'label', 'producer'), r'producer.*compatible'),
+        ((Tuple[str],), r'two components'),
+        # It seems that the only Unions that may be successfully coerced are not
+        # Unions but Any (e.g. Union[Any, Tuple[Any, Any]] is Any).
+        ((Union[str, int],), r'compatible'),
+        ((Union,), r'compatible'),
+        ((typehints.List[Any],), r'compatible'),
+    ]
+    for args, regex in cases:
+      with self.assertRaisesRegexp(ValueError, regex):
+        typehints.coerce_to_kv_type(*args)
 
 
 if __name__ == '__main__':

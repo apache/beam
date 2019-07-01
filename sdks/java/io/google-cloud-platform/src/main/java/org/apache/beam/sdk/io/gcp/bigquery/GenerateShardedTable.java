@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -29,8 +28,8 @@ import org.apache.beam.sdk.values.ShardedKey;
  * Given a write to a specific table, assign that to one of the {@link
  * GenerateShardedTable#numShards} keys assigned to that table.
  */
-class GenerateShardedTable
-    extends DoFn<KV<TableDestination, TableRow>, KV<ShardedKey<String>, TableRow>> {
+class GenerateShardedTable<ElementT>
+    extends DoFn<KV<TableDestination, ElementT>, KV<ShardedKey<String>, ElementT>> {
   private final int numShards;
 
   GenerateShardedTable(int numShards) {

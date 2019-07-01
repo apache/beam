@@ -16,15 +16,15 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature(exportJavadoc: false)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Common"
 ext.summary = "Code used by all Beam IOs"
 
 dependencies {
-  shadowTest library.java.vendored_guava_20_0
+  testCompile library.java.vendored_guava_20_0
   testCompile library.java.junit
   testCompile library.java.postgres
-  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadow")
+  testCompile project(path: ":sdks:java:core", configuration: "shadow")
 }

@@ -41,13 +41,6 @@ public interface PortablePipelineOptions extends PipelineOptions {
   void setFilesToStage(List<String> value);
 
   @Description(
-      "Set the default environment for running user code. "
-          + "Currently only docker image URL are supported.")
-  String getDefaultJavaEnvironmentUrl();
-
-  void setDefaultJavaEnvironmentUrl(String url);
-
-  @Description(
       "Job service endpoint to use. Should be in the form of address and port, e.g. localhost:3000")
   @Required
   String getJobEndpoint();
@@ -75,15 +68,22 @@ public interface PortablePipelineOptions extends PipelineOptions {
 
   @Description(
       "Sets the number of sdk worker processes that will run on each worker node. Default is 1. If"
-          + " 0, it will be automatically set according to the number of CPU cores on the worker.")
-  @Nullable
-  Long getSdkWorkerParallelism();
+          + " 0, it will be automatically set by the runner by looking at different parameters "
+          + "(e.g. number of CPU cores on the worker machine).")
+  @Default.Long(1L)
+  long getSdkWorkerParallelism();
 
-  void setSdkWorkerParallelism(@Nullable Long parallelism);
+  void setSdkWorkerParallelism(long parallelism);
 
   @Description("Duration in milliseconds for environment cache within a job. 0 means no caching.")
   @Default.Integer(0)
   int getEnvironmentCacheMillis();
 
   void setEnvironmentCacheMillis(int environmentCacheMillis);
+
+  @Description("Duration in milliseconds for environment expiration. 0 means no expiration.")
+  @Default.Integer(0)
+  int getEnvironmentExpirationMillis();
+
+  void setEnvironmentExpirationMillis(int environmentExpirationMillis);
 }

@@ -141,6 +141,9 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     /** @see Compression#BZIP2 */
     BZIP2(Compression.BZIP2),
 
+    /** @see Compression#ZSTD */
+    ZSTD(Compression.ZSTD),
+
     /** @see Compression#DEFLATE */
     DEFLATE(Compression.DEFLATE);
 
@@ -182,6 +185,9 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
         case ZIP:
           throw new IllegalArgumentException("ZIP is unsupported");
+
+        case ZSTD:
+          return ZSTD;
 
         case DEFLATE:
           return DEFLATE;

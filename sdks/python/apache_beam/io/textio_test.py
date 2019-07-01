@@ -1149,7 +1149,7 @@ class TextSinkTest(unittest.TestCase):
   def test_write_dataflow_header(self):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Create' >> beam.core.Create(self.lines)
-    header_text = b'foo'
+    header_text = 'foo'
     pcoll | 'Write' >> WriteToText(  # pylint: disable=expression-not-assigned
         self.path + '.gz',
         shard_name_template='',
@@ -1160,8 +1160,8 @@ class TextSinkTest(unittest.TestCase):
     for file_name in glob.glob(self.path + '*'):
       with gzip.GzipFile(file_name, 'rb') as f:
         read_result.extend(f.read().splitlines())
-
-    self.assertEqual(read_result, [header_text] + self.lines)
+    # header_text is automatically encoded in WriteToText
+    self.assertEqual(read_result, [header_text.encode('utf-8')] + self.lines)
 
 
 if __name__ == '__main__':

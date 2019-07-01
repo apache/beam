@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.FileSystems.match;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getExtractJobId;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
@@ -36,6 +37,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.AvroSource;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
@@ -90,10 +92,17 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   protected static class ExtractResult {
     public final TableSchema schema;
     public final List<ResourceId> extractedFiles;
+    public List<MatchResult.Metadata> metadata = null;
 
     public ExtractResult(TableSchema schema, List<ResourceId> extractedFiles) {
+      this(schema, extractedFiles, null);
+    }
+
+    public ExtractResult(
+        TableSchema schema, List<ResourceId> extractedFiles, List<MatchResult.Metadata> metadata) {
       this.schema = schema;
       this.extractedFiles = extractedFiles;
+      this.metadata = metadata;
     }
   }
 
@@ -138,8 +147,19 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
     if (cachedSplitResult == null) {
       ExtractResult res = extractFiles(options);
       LOG.info("Extract job produced {} files", res.extractedFiles.size());
+
+      if (res.extractedFiles.size() > 0) {
+        BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+        final String extractDestinationDir =
+            resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", stepUuid);
+        // Match all files in the destination directory to stat them in bulk.
+        List<MatchResult> matches = match(ImmutableList.of(extractDestinationDir + "*"));
+        if (matches.size() > 0) {
+          res.metadata = matches.get(0).metadata();
+        }
+      }
       cleanupTempResource(options.as(BigQueryOptions.class));
-      cachedSplitResult = checkNotNull(createSources(res.extractedFiles, res.schema));
+      cachedSplitResult = checkNotNull(createSources(res.extractedFiles, res.schema, res.metadata));
     }
     return cachedSplitResult;
   }
@@ -206,7 +226,8 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
     }
   }
 
-  List<BoundedSource<T>> createSources(List<ResourceId> files, TableSchema schema)
+  List<BoundedSource<T>> createSources(
+      List<ResourceId> files, TableSchema schema, List<MatchResult.Metadata> metadata)
       throws IOException, InterruptedException {
 
     final String jsonSchema = BigQueryIO.JSON_FACTORY.toString(schema);
@@ -221,9 +242,18 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
             return parseFn.apply(new SchemaAndRecord(input, schema.get()));
           }
         };
+
     List<BoundedSource<T>> avroSources = Lists.newArrayList();
-    for (ResourceId file : files) {
-      avroSources.add(AvroSource.from(file.toString()).withParseFn(fnWrapper, getOutputCoder()));
+    // If metadata is available, create AvroSources with said metadata in SINGLE_FILE_OR_SUBRANGE
+    // mode.
+    if (metadata != null) {
+      for (MatchResult.Metadata file : metadata) {
+        avroSources.add(AvroSource.from(file).withParseFn(fnWrapper, getOutputCoder()));
+      }
+    } else {
+      for (ResourceId file : files) {
+        avroSources.add(AvroSource.from(file.toString()).withParseFn(fnWrapper, getOutputCoder()));
+      }
     }
     return ImmutableList.copyOf(avroSources);
   }

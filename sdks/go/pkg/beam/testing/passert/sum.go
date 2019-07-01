@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // Sum validates that the incoming PCollection<int> is a singleton
@@ -46,7 +47,7 @@ func (f *sumFn) ProcessElement(_ int, values func(*int) bool) error {
 	}
 
 	if f.Sum != sum || f.Size != count {
-		return fmt.Errorf("passert.Sum(%v) = {%v, size: %v}, want {%v, size:%v}", f.Name, sum, count, f.Sum, f.Size)
+		return errors.Errorf("passert.Sum(%v) = {%v, size: %v}, want {%v, size:%v}", f.Name, sum, count, f.Sum, f.Size)
 	}
 	return nil
 }

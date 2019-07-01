@@ -21,18 +21,21 @@ from __future__ import absolute_import
 
 from builtins import object
 
-from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.portability.api import metrics_pb2
 from apache_beam.portability.api import standard_window_fns_pb2
 
 
 class PropertiesFromEnumValue(object):
   def __init__(self, value_descriptor):
-    self.urn = (
-        value_descriptor.GetOptions().Extensions[beam_runner_api_pb2.beam_urn])
-    self.constant = (
-        value_descriptor.GetOptions().Extensions[
-            beam_runner_api_pb2.beam_constant])
+    self.urn = (value_descriptor.GetOptions().Extensions[
+        beam_runner_api_pb2.beam_urn])
+    self.constant = (value_descriptor.GetOptions().Extensions[
+        beam_runner_api_pb2.beam_constant])
+    self.spec = (value_descriptor.GetOptions().Extensions[
+        metrics_pb2.monitoring_info_spec])
+    self.label_props = (value_descriptor.GetOptions().Extensions[
+        metrics_pb2.label_props])
 
 
 class PropertiesFromEnumType(object):
@@ -77,7 +80,9 @@ sliding_windows = PropertiesFromPayloadType(
 session_windows = PropertiesFromPayloadType(
     standard_window_fns_pb2.SessionsPayload)
 
-monitoring_infos = PropertiesFromEnumType(
-    beam_fn_api_pb2.MonitoringInfoUrns.Enum)
+monitoring_info_specs = PropertiesFromEnumType(
+    metrics_pb2.MonitoringInfoSpecs.Enum)
 monitoring_info_types = PropertiesFromEnumType(
-    beam_fn_api_pb2.MonitoringInfoTypeUrns.Enum)
+    metrics_pb2.MonitoringInfoTypeUrns.Enum)
+monitoring_info_labels = PropertiesFromEnumType(
+    metrics_pb2.MonitoringInfo.MonitoringInfoLabels)

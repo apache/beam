@@ -263,27 +263,31 @@ class Coder(object):
   def to_runner_api(self, context):
     urn, typed_param, components = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.Coder(
-        spec=beam_runner_api_pb2.SdkFunctionSpec(
-            environment_id=(
-                context.default_environment_id() if context else None),
-            spec=beam_runner_api_pb2.FunctionSpec(
-                urn=urn,
-                payload=typed_param
-                if isinstance(typed_param, (bytes, type(None)))
-                else typed_param.SerializeToString())),
+        spec=beam_runner_api_pb2.FunctionSpec(
+            urn=urn,
+            payload=typed_param
+            if isinstance(typed_param, (bytes, type(None)))
+            else typed_param.SerializeToString()),
         component_coder_ids=[context.coders.get_id(c) for c in components])
 
   @classmethod
   def from_runner_api(cls, coder_proto, context):
-    """Converts from an SdkFunctionSpec to a Fn object.
+    """Converts from an FunctionSpec to a Fn object.
 
     Prefer registering a urn with its parameter type and constructor.
     """
-    parameter_type, constructor = cls._known_urns[coder_proto.spec.spec.urn]
-    return constructor(
-        proto_utils.parse_Bytes(coder_proto.spec.spec.payload, parameter_type),
-        [context.coders.get_by_id(c) for c in coder_proto.component_coder_ids],
-        context)
+    parameter_type, constructor = cls._known_urns[coder_proto.spec.urn]
+    try:
+      return constructor(
+          proto_utils.parse_Bytes(
+              coder_proto.spec.payload, parameter_type),
+          [context.coders.get_by_id(c)
+           for c in coder_proto.component_coder_ids],
+          context)
+    except Exception:
+      if context.allow_proto_holders:
+        return RunnerAPICoderHolder(coder_proto)
+      raise
 
   def to_runner_api_parameter(self, context):
     return (
@@ -328,6 +332,10 @@ class StrUtf8Coder(Coder):
 
   def to_type_hint(self):
     return unicode
+
+
+Coder.register_structured_urn(
+    common_urns.coders.STRING_UTF8.urn, StrUtf8Coder)
 
 
 class ToStringCoder(Coder):
@@ -446,6 +454,9 @@ class FloatCoder(FastCoder):
 
   def __hash__(self):
     return hash(type(self))
+
+
+Coder.register_structured_urn(common_urns.coders.DOUBLE.urn, FloatCoder)
 
 
 class TimestampCoder(FastCoder):
@@ -737,6 +748,9 @@ class ProtoCoder(FastCoder):
     # a Map.
     return False
 
+  def as_deterministic_coder(self, step_label, error_message=None):
+    return DeterministicProtoCoder(self.proto_message_type)
+
   def __eq__(self, other):
     return (type(self) == type(other)
             and self.proto_message_type == other.proto_message_type)
@@ -751,6 +765,25 @@ class ProtoCoder(FastCoder):
     else:
       raise ValueError(('Expected a subclass of google.protobuf.message.Message'
                         ', but got a %s' % typehint))
+
+
+class DeterministicProtoCoder(ProtoCoder):
+  """A deterministic Coder for Google Protocol Buffers.
+
+  It supports both Protocol Buffers syntax versions 2 and 3. However,
+  the runtime version of the python protobuf library must exactly match the
+  version of the protoc compiler what was used to generate the protobuf
+  messages.
+  """
+
+  def _create_impl(self):
+    return coder_impl.DeterministicProtoCoderImpl(self.proto_message_type)
+
+  def is_deterministic(self):
+    return True
+
+  def as_deterministic_coder(self, step_label, error_message=None):
+    return self
 
 
 class TupleCoder(FastCoder):
@@ -1133,3 +1166,25 @@ class StateBackedIterableCoder(FastCoder):
         read_state=context.iterable_state_read,
         write_state=context.iterable_state_write,
         write_state_threshold=int(payload))
+
+
+class RunnerAPICoderHolder(Coder):
+  """A `Coder` that holds a runner API `Coder` proto.
+
+  This is used for coders for which corresponding objects cannot be
+  initialized in Python SDK. For example, coders for remote SDKs that may
+  be available in Python SDK transform graph when expanding a cross-language
+  transform.
+  """
+
+  def __init__(self, proto):
+    self._proto = proto
+
+  def proto(self):
+    return self._proto
+
+  def to_runner_api(self, context):
+    return self._proto
+
+  def to_type_hint(self):
+    return typehints.Any

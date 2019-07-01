@@ -24,8 +24,11 @@ import static org.junit.Assert.assertThat;
 
 import org.apache.tika.metadata.Metadata;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests {@link ParseResult}. */
+@RunWith(JUnit4.class)
 public class ParseResultTest {
   @Test
   public void testEqualsAndHashCode() {

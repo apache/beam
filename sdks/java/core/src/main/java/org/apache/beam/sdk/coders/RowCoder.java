@@ -69,6 +69,11 @@ public class RowCoder extends CustomCoder<Row> {
           .build();
 
   private final Schema schema;
+
+  public UUID getId() {
+    return id;
+  }
+
   private final UUID id;
   @Nullable private transient Coder<Row> delegateCoder = null;
 
@@ -85,11 +90,44 @@ public class RowCoder extends CustomCoder<Row> {
           schema.getUUID(),
           id);
     } else {
+      // Clone the schema before modifying the Java object.
       schema = SerializableUtils.clone(schema);
-      schema.setUUID(id);
+      setSchemaIds(schema, id);
     }
     this.schema = schema;
     this.id = id;
+  }
+
+  // Sets the schema id, and then recursively ensures that all schemas have ids set.
+  private void setSchemaIds(Schema schema, UUID id) {
+    if (schema.getUUID() == null) {
+      schema.setUUID(id);
+    }
+    for (Field field : schema.getFields()) {
+      setSchemaIds(field.getType());
+    }
+  }
+
+  private void setSchemaIds(FieldType fieldType) {
+    switch (fieldType.getTypeName()) {
+      case ROW:
+        setSchemaIds(fieldType.getRowSchema(), UUID.randomUUID());
+        return;
+      case MAP:
+        setSchemaIds(fieldType.getMapKeyType());
+        setSchemaIds(fieldType.getMapValueType());
+        return;
+      case LOGICAL_TYPE:
+        setSchemaIds(fieldType.getLogicalType().getBaseType());
+        return;
+
+      case ARRAY:
+        setSchemaIds(fieldType.getCollectionElementType());
+        return;
+
+      default:
+        return;
+    }
   }
 
   // Return the generated coder class for this schema.
@@ -97,7 +135,7 @@ public class RowCoder extends CustomCoder<Row> {
     if (delegateCoder == null) {
       // RowCoderGenerator caches based on id, so if a new instance of this RowCoder is
       // deserialized, we don't need to run ByteBuddy again to construct the class.
-      delegateCoder = RowCoderGenerator.generate(schema, id);
+      delegateCoder = RowCoderGenerator.generate(schema);
     }
     return delegateCoder;
   }
@@ -171,6 +209,8 @@ public class RowCoder extends CustomCoder<Row> {
 
   private static long estimatedSizeBytes(FieldType typeDescriptor, Object value) {
     switch (typeDescriptor.getTypeName()) {
+      case LOGICAL_TYPE:
+        return estimatedSizeBytes(typeDescriptor.getLogicalType().getBaseType(), value);
       case ROW:
         return estimatedSizeBytes((Row) value);
       case ARRAY:
@@ -200,5 +240,11 @@ public class RowCoder extends CustomCoder<Row> {
       default:
         return ESTIMATED_FIELD_SIZES.get(typeDescriptor.getTypeName());
     }
+  }
+
+  @Override
+  public String toString() {
+    String string = "Schema: " + schema + "  UUID: " + id + " delegateCoder: " + getDelegateCoder();
+    return string;
   }
 }

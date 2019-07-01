@@ -103,6 +103,23 @@ public class Combine {
 
   /**
    * Returns a {@link Globally Combine.Globally} {@code PTransform} that uses the given {@code
+   * SerializableBiFunction} to combine all the elements in each window of the input {@code
+   * PCollection} into a single value in the output {@code PCollection}. The types of the input
+   * elements and the output elements must be the same.
+   *
+   * <p>If the input {@code PCollection} is windowed into {@link GlobalWindows}, a default value in
+   * the {@link GlobalWindow} will be output if the input {@code PCollection} is empty. To use this
+   * with inputs with other windowing, either {@link Globally#withoutDefaults} or {@link
+   * Globally#asSingletonView} must be called.
+   *
+   * <p>See {@link Globally Combine.Globally} for more information.
+   */
+  public static <V> Globally<V, V> globally(SerializableBiFunction<V, V, V> combiner) {
+    return globally(BinaryCombineFn.of(combiner), displayDataForFn(combiner));
+  }
+
+  /**
+   * Returns a {@link Globally Combine.Globally} {@code PTransform} that uses the given {@code
    * GloballyCombineFn} to combine all the elements in each window of the input {@code PCollection}
    * into a single value in the output {@code PCollection}. The types of the input elements and the
    * output elements can differ.
@@ -157,6 +174,22 @@ public class Combine {
    *
    * <p>See {@link PerKey Combine.PerKey} for more information.
    */
+  public static <K, V> PerKey<K, V, V> perKey(SerializableBiFunction<V, V, V> fn) {
+    return perKey(BinaryCombineFn.of(fn), displayDataForFn(fn));
+  }
+
+  /**
+   * Returns a {@link PerKey Combine.PerKey} {@code PTransform} that first groups its input {@code
+   * PCollection} of {@code KV}s by keys and windows, then invokes the given function on each of the
+   * values lists to produce a combined value, and then returns a {@code PCollection} of {@code KV}s
+   * mapping each distinct key to its combined value for each window.
+   *
+   * <p>Each output element is in the window by which its corresponding input was grouped, and has
+   * the timestamp of the end of that window. The output {@code PCollection} has the same {@link
+   * org.apache.beam.sdk.transforms.windowing.WindowFn} as the input.
+   *
+   * <p>See {@link PerKey Combine.PerKey} for more information.
+   */
   public static <K, InputT, OutputT> PerKey<K, InputT, OutputT> perKey(
       GlobalCombineFn<? super InputT, ?, OutputT> fn) {
     return perKey(fn, displayDataForFn(fn));
@@ -194,6 +227,26 @@ public class Combine {
   public static <K, V> GroupedValues<K, V, V> groupedValues(
       SerializableFunction<Iterable<V>, V> fn) {
     return groupedValues(IterableCombineFn.of(fn), displayDataForFn(fn));
+  }
+
+  /**
+   * Returns a {@link GroupedValues Combine.GroupedValues} {@code PTransform} that takes a {@code
+   * PCollection} of {@code KV}s where a key maps to an {@code Iterable} of values, e.g., the result
+   * of a {@code GroupByKey}, then uses the given {@code SerializableFunction} to combine all the
+   * values associated with a key, ignoring the key. The type of the input and output values must be
+   * the same.
+   *
+   * <p>Each output element has the same timestamp and is in the same window as its corresponding
+   * input element, and the output {@code PCollection} has the same {@link
+   * org.apache.beam.sdk.transforms.windowing.WindowFn} associated with it as the input.
+   *
+   * <p>See {@link GroupedValues Combine.GroupedValues} for more information.
+   *
+   * <p>Note that {@link #perKey(SerializableBiFunction)} is typically more convenient to use than
+   * {@link GroupByKey} followed by {@code groupedValues(...)}.
+   */
+  public static <K, V> GroupedValues<K, V, V> groupedValues(SerializableBiFunction<V, V, V> fn) {
+    return groupedValues(BinaryCombineFn.of(fn), displayDataForFn(fn));
   }
 
   /**
@@ -252,13 +305,13 @@ public class Combine {
    *
    * <p>For example:
    *
-   * <pre>{@code
-   * public class AverageFn extends CombineFn<Integer, AverageFn.Accum, Double> {
+   * <pre><code>
+   * public class AverageFn extends{@literal CombineFn<Integer, AverageFn.Accum, Double>} {
    *   public static class Accum implements Serializable {
    *     int sum = 0;
    *     int count = 0;
    *
-   *    {@literal@}Override
+   *    {@literal @Override}
    *     public boolean equals(Object other) {
    *       if (other == null) return false;
    *       if (other == this) return true;
@@ -277,12 +330,14 @@ public class Combine {
    *   public Accum createAccumulator() {
    *     return new Accum();
    *   }
+   *
    *   public Accum addInput(Accum accum, Integer input) {
    *       accum.sum += input;
    *       accum.count++;
    *       return accum;
    *   }
-   *   public Accum mergeAccumulators(Iterable<Accum> accums) {
+   *
+   *   public Accum{@literal mergeAccumulators(Iterable<Accum> accums)} {
    *     Accum merged = createAccumulator();
    *     for (Accum accum : accums) {
    *       merged.sum += accum.sum;
@@ -290,13 +345,14 @@ public class Combine {
    *     }
    *     return merged;
    *   }
+   *
    *   public Double extractOutput(Accum accum) {
    *     return ((double) accum.sum) / accum.count;
    *   }
-   * }
+   * }{@literal
    * PCollection<Integer> pc = ...;
    * PCollection<Double> average = pc.apply(Combine.globally(new AverageFn()));
-   * }</pre>
+   * }</code></pre>
    *
    * <p>Combining functions used by {@link Combine.Globally}, {@link Combine.PerKey}, {@link
    * Combine.GroupedValues}, and {@code PTransforms} derived from them should be <i>associative</i>
@@ -338,22 +394,26 @@ public class Combine {
     /**
      * Adds the given input value to the given accumulator, returning the new accumulator value.
      *
-     * <p>For efficiency, the input accumulator may be modified and returned.
+     * @param mutableAccumulator may be modified and returned for efficiency
+     * @param input should not be mutated
      */
-    public abstract AccumT addInput(AccumT accumulator, InputT input);
+    public abstract AccumT addInput(AccumT mutableAccumulator, InputT input);
 
     /**
      * Returns an accumulator representing the accumulation of all the input values accumulated in
      * the merging accumulators.
      *
-     * <p>May modify any of the argument accumulators. May return a fresh accumulator, or may return
-     * one of the (modified) argument accumulators.
+     * @param accumulators only the first accumulator may be modified and returned for efficiency;
+     *     the other accumulators should not be mutated, because they may be shared with other code
+     *     and mutating them could lead to incorrect results or data corruption.
      */
     public abstract AccumT mergeAccumulators(Iterable<AccumT> accumulators);
 
     /**
      * Returns the output value that is the result of combining all the input values represented by
      * the given accumulator.
+     *
+     * @param accumulator can be modified for efficiency
      */
     public abstract OutputT extractOutput(AccumT accumulator);
 
@@ -427,6 +487,19 @@ public class Combine {
    * expressed as binary operations.
    */
   public abstract static class BinaryCombineFn<V> extends CombineFn<V, Holder<V>, V> {
+
+    /**
+     * Returns a {@code CombineFn} that uses the given {@code SerializableBiFunction} to combine
+     * values.
+     */
+    public static <V> BinaryCombineFn<V> of(SerializableBiFunction<V, V, V> combiner) {
+      return new BinaryCombineFn<V>() {
+        @Override
+        public V apply(V left, V right) {
+          return combiner.apply(left, right);
+        }
+      };
+    }
 
     /** Applies the binary operation to the two operands, returning the result. */
     public abstract V apply(V left, V right);

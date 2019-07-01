@@ -23,9 +23,10 @@ from __future__ import division
 import heapq
 import operator
 import random
+import sys
+import warnings
 from builtins import object
 from builtins import zip
-from functools import cmp_to_key
 
 from past.builtins import long
 
@@ -44,6 +45,8 @@ from apache_beam.typehints import TypeVariable
 from apache_beam.typehints import Union
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
+from apache_beam.utils.timestamp import Duration
+from apache_beam.utils.timestamp import Timestamp
 
 __all__ = [
     'Count',
@@ -52,12 +55,14 @@ __all__ = [
     'Top',
     'ToDict',
     'ToList',
+    'Latest'
     ]
 
 # Type variables
 T = TypeVariable('T')
 K = TypeVariable('K')
 V = TypeVariable('V')
+TimestampType = Union[int, long, float, Timestamp, Duration]
 
 
 class Mean(object):
@@ -167,7 +172,7 @@ class Top(object):
     function supplied as the compare argument.
     """
 
-    def __init__(self, n, compare=None, *args, **kwargs):
+    def _py2__init__(self, n, compare=None, *args, **kwargs):
       """Initializer.
 
       compare should be an implementation of "a < b" taking at least two
@@ -184,6 +189,9 @@ class Top(object):
         *args: as described above.
         **kwargs: as described above.
       """
+      if compare:
+        warnings.warn('Compare not available in Python 3, use key instead.',
+                      DeprecationWarning)
       self._n = n
       self._compare = compare
       self._key = kwargs.pop('key', None)
@@ -191,13 +199,36 @@ class Top(object):
       self._args = args
       self._kwargs = kwargs
 
+    def _py3__init__(self, n, **kwargs):
+      """Creates a global Top operation.
+
+      The arguments 'key' and 'reverse' may be passed as keyword arguments,
+      and have the same meaning as for Python's sort functions.
+
+      Args:
+        pcoll: PCollection to process.
+        n: number of elements to extract from pcoll.
+        **kwargs: may contain 'key' and/or 'reverse'
+      """
+      unknown_kwargs = set(kwargs.keys()) - set(['key', 'reverse'])
+      if unknown_kwargs:
+        raise ValueError(
+            'Unknown keyword arguments: ' + ', '.join(unknown_kwargs))
+      self._py2__init__(n, None, **kwargs)
+
+    # Python 3 sort does not accept a comparison operator, and nor do we.
+    if sys.version_info[0] < 3:
+      __init__ = _py2__init__
+    else:
+      __init__ = _py3__init__
+
     def default_label(self):
       return 'Top(%d)' % self._n
 
     def expand(self, pcoll):
       compare = self._compare
       if (not self._args and not self._kwargs and
-          not self._key and pcoll.windowing.is_default()):
+          pcoll.windowing.is_default()):
         if self._reverse:
           if compare is None or compare is operator.lt:
             compare = operator.gt
@@ -205,7 +236,8 @@ class Top(object):
             original_compare = compare
             compare = lambda a, b: original_compare(b, a)
         # This is a more efficient global algorithm.
-        top_per_bundle = pcoll | core.ParDo(_TopPerBundle(self._n, compare))
+        top_per_bundle = pcoll | core.ParDo(
+            _TopPerBundle(self._n, compare, self._key))
         # If pcoll is empty, we can't guerentee that top_per_bundle
         # won't be empty, so inject at least one empty accumulator
         # so that downstream is guerenteed to produce non-empty output.
@@ -213,7 +245,7 @@ class Top(object):
         return (
             (top_per_bundle, empty_bundle) | core.Flatten()
             | core.GroupByKey()
-            | core.ParDo(_MergeTopPerBundle(self._n, compare)))
+            | core.ParDo(_MergeTopPerBundle(self._n, compare, self._key)))
       else:
         return pcoll | core.CombineGlobally(
             TopCombineFn(self._n, compare, self._key, self._reverse),
@@ -227,7 +259,7 @@ class Top(object):
     "greatest" is determined by the comparator function supplied as the compare
     argument in the initializer.
     """
-    def __init__(self, n, compare=None, *args, **kwargs):
+    def _py2__init__(self, n, compare=None, *args, **kwargs):
       """Initializer.
 
       compare should be an implementation of "a < b" taking at least two
@@ -244,12 +276,38 @@ class Top(object):
         *args: as described above.
         **kwargs: as described above.
       """
+      if compare:
+        warnings.warn('Compare not available in Python 3, use key instead.',
+                      DeprecationWarning)
       self._n = n
       self._compare = compare
       self._key = kwargs.pop('key', None)
       self._reverse = kwargs.pop('reverse', False)
       self._args = args
       self._kwargs = kwargs
+
+    def _py3__init__(self, n, **kwargs):
+      """Creates a per-key Top operation.
+
+      The arguments 'key' and 'reverse' may be passed as keyword arguments,
+      and have the same meaning as for Python's sort functions.
+
+      Args:
+        pcoll: PCollection to process.
+        n: number of elements to extract from pcoll.
+        **kwargs: may contain 'key' and/or 'reverse'
+      """
+      unknown_kwargs = set(kwargs.keys()) - set(['key', 'reverse'])
+      if unknown_kwargs:
+        raise ValueError(
+            'Unknown keyword arguments: ' + ', '.join(unknown_kwargs))
+      self._py2__init__(n, None, **kwargs)
+
+    # Python 3 sort does not accept a comparison operator, and nor do we.
+    if sys.version_info[0] < 3:
+      __init__ = _py2__init__
+    else:
+      __init__ = _py3__init__
 
     def default_label(self):
       return 'TopPerKey(%d)' % self._n
@@ -295,34 +353,21 @@ class Top(object):
     return pcoll | Top.PerKey(n, reverse=True)
 
 
-class _ComparableValue(object):
-
-  __slots__ = ('value', 'less_than')
-
-  def __init__(self, value, less_than):
-    self.value = value
-    self.less_than = less_than
-
-  def __lt__(self, other):
-    return self.less_than(self.value, other.value)
-
-  def __repr__(self):
-    return "_ComparableValue[%s]" % self.value
-
-
 @with_input_types(T)
 @with_output_types(KV[None, List[T]])
 class _TopPerBundle(core.DoFn):
-  def __init__(self, n, less_than):
+  def __init__(self, n, less_than, key):
     self._n = n
     self._less_than = None if less_than is operator.le else less_than
+    self._key = key
 
   def start_bundle(self):
     self._heap = []
 
   def process(self, element):
-    if self._less_than is not None:
-      element = _ComparableValue(element, self._less_than)
+    if self._less_than or self._key:
+      element = cy_combiners.ComparableValue(
+          element, self._less_than, self._key)
     if len(self._heap) < self._n:
       heapq.heappush(self._heap, element)
     else:
@@ -336,7 +381,7 @@ class _TopPerBundle(core.DoFn):
     self._heap.sort()
 
     # Unwrap to avoid serialization via pickle.
-    if self._less_than:
+    if self._less_than or self._key:
       yield window.GlobalWindows.windowed_value(
           (None, [wrapper.value for wrapper in self._heap]))
     else:
@@ -347,27 +392,30 @@ class _TopPerBundle(core.DoFn):
 @with_input_types(KV[None, Iterable[List[T]]])
 @with_output_types(List[T])
 class _MergeTopPerBundle(core.DoFn):
-  def __init__(self, n, less_than):
+  def __init__(self, n, less_than, key):
     self._n = n
-    self._less_than = None if less_than is operator.le else less_than
+    self._less_than = None if less_than is operator.lt else less_than
+    self._key = key
 
   def process(self, key_and_bundles):
     _, bundles = key_and_bundles
     heap = []
     for bundle in bundles:
       if not heap:
-        if self._less_than:
+        if self._less_than or self._key:
           heap = [
-              _ComparableValue(element, self._less_than) for element in bundle]
+              cy_combiners.ComparableValue(element, self._less_than, self._key)
+              for element in bundle]
         else:
           heap = bundle
         continue
       for element in reversed(bundle):
-        if self._less_than is not None:
-          element = _ComparableValue(element, self._less_than)
+        if self._less_than or self._key:
+          element = cy_combiners.ComparableValue(
+              element, self._less_than, self._key)
         if len(heap) < self._n:
           heapq.heappush(heap, element)
-        elif element <= heap[0]:
+        elif element < heap[0]:
           # Because _TopPerBundle returns sorted lists, all other elements
           # will also be smaller.
           break
@@ -375,7 +423,7 @@ class _MergeTopPerBundle(core.DoFn):
           heapq.heappushpop(heap, element)
 
     heap.sort()
-    if self._less_than:
+    if self._less_than or self._key:
       yield [wrapper.value for wrapper in reversed(heap)]
     else:
       yield heap[::-1]
@@ -398,15 +446,9 @@ class TopCombineFn(core.CombineFn):
         than largest to smallest
   """
 
-  _MIN_BUFFER_OVERSIZE = 100
-  _MAX_BUFFER_OVERSIZE = 1000
-
-  # TODO(robertwb): Allow taking a key rather than a compare.
+  # TODO(robertwb): For Python 3, remove compare and only keep key.
   def __init__(self, n, compare=None, key=None, reverse=False):
     self._n = n
-    self._buffer_size = max(
-        min(2 * n, n + TopCombineFn._MAX_BUFFER_OVERSIZE),
-        n + TopCombineFn._MIN_BUFFER_OVERSIZE)
 
     if compare is operator.lt:
       compare = None
@@ -422,18 +464,30 @@ class TopCombineFn(core.CombineFn):
     else:
       self._compare = operator.gt if reverse else operator.lt
 
-    self._key_fn = key
-    self._reverse = reverse
+    self._less_than = None
+    self._key = key
 
-  def _sort_buffer(self, buffer, lt):
-    if lt in (operator.gt, operator.lt):
-      buffer.sort(key=self._key_fn, reverse=self._reverse)
-    elif self._key_fn:
-      buffer.sort(key=cmp_to_key(
-          (lambda a, b: (not lt(self._key_fn(a), self._key_fn(b)))
-           - (not lt(self._key_fn(b), self._key_fn(a))))))
+  def _hydrated_heap(self, heap):
+    if heap:
+      first = heap[0]
+      if isinstance(first, cy_combiners.ComparableValue):
+        if first.requires_hydration:
+          assert self._less_than is not None
+          for comparable in heap:
+            assert comparable.requires_hydration
+            comparable.hydrate(self._less_than, self._key)
+            assert not comparable.requires_hydration
+          return heap
+        else:
+          return heap
+      else:
+        assert self._less_than is not None
+        return [
+            cy_combiners.ComparableValue(element, self._less_than, self._key)
+            for element in heap
+        ]
     else:
-      buffer.sort(key=cmp_to_key(lambda a, b: (not lt(a, b)) - (not lt(b, a))))
+      return heap
 
   def display_data(self):
     return {'n': self._n,
@@ -442,66 +496,102 @@ class TopCombineFn(core.CombineFn):
                                        else self._compare.__class__.__name__)
                        .drop_if_none()}
 
-  # The accumulator type is a tuple (threshold, buffer), where threshold
-  # is the smallest element [key] that could possibly be in the top n based
-  # on the elements observed so far, and buffer is a (periodically sorted)
-  # list of candidates of bounded size.
-
+  # The accumulator type is a tuple
+  # (bool, Union[List[T], List[ComparableValue[T]])
+  # where the boolean indicates whether the second slot contains a List of T
+  # (False) or List of ComparableValue[T] (True). In either case, the List
+  # maintains heap invariance. When the contents of the List are
+  # ComparableValue[T] they either all 'requires_hydration' or none do.
+  # This accumulator representation allows us to minimize the data encoding
+  # overheads. Creation of ComparableValues is elided for performance reasons
+  # when there is no need for complicated comparison functions.
   def create_accumulator(self, *args, **kwargs):
-    return None, []
+    return (False, [])
 
   def add_input(self, accumulator, element, *args, **kwargs):
-    if args or kwargs:
-      lt = lambda a, b: self._compare(a, b, *args, **kwargs)
+    # Caching to avoid paying the price of variadic expansion of args / kwargs
+    # when it's not needed (for the 'if' case below).
+    if self._less_than is None:
+      if args or kwargs:
+        self._less_than = lambda a, b: self._compare(a, b, *args, **kwargs)
+      else:
+        self._less_than = self._compare
+
+    holds_comparables, heap = accumulator
+    if self._less_than is not operator.lt or self._key:
+      heap = self._hydrated_heap(heap)
+      holds_comparables = True
     else:
-      lt = self._compare
+      assert not holds_comparables
 
-    threshold, buffer = accumulator
-    element_key = self._key_fn(element) if self._key_fn else element
+    comparable = (
+        cy_combiners.ComparableValue(element, self._less_than, self._key)
+        if holds_comparables else element)
 
-    if len(buffer) < self._n:
-      if not buffer:
-        return element_key, [element]
-      buffer.append(element)
-      if lt(element_key, threshold):  # element_key < threshold
-        return element_key, buffer
-      return accumulator  # with mutated buffer
-    elif lt(threshold, element_key):  # threshold < element_key
-      buffer.append(element)
-      if len(buffer) < self._buffer_size:
-        return accumulator
-      self._sort_buffer(buffer, lt)
-      min_element = buffer[-self._n]
-      threshold = self._key_fn(min_element) if self._key_fn else min_element
-      return threshold, buffer[-self._n:]
-    return accumulator
+    if len(heap) < self._n:
+      heapq.heappush(heap, comparable)
+    else:
+      heapq.heappushpop(heap, comparable)
+    return (holds_comparables, heap)
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
-    accumulators = list(accumulators)
     if args or kwargs:
+      self._less_than = lambda a, b: self._compare(a, b, *args, **kwargs)
       add_input = lambda accumulator, element: self.add_input(
           accumulator, element, *args, **kwargs)
     else:
+      self._less_than = self._compare
       add_input = self.add_input
 
-    total_accumulator = None
+    result_heap = None
+    holds_comparables = None
     for accumulator in accumulators:
-      if total_accumulator is None:
-        total_accumulator = accumulator
+      holds_comparables, heap = accumulator
+      if self._less_than is not operator.lt or self._key:
+        heap = self._hydrated_heap(heap)
+        holds_comparables = True
       else:
-        for element in accumulator[1]:
-          total_accumulator = add_input(total_accumulator, element)
-    return total_accumulator
+        assert not holds_comparables
+
+      if result_heap is None:
+        result_heap = heap
+      else:
+        for comparable in heap:
+          _, result_heap = add_input(
+              (holds_comparables, result_heap),
+              comparable.value if holds_comparables else comparable)
+
+    assert result_heap is not None and holds_comparables is not None
+    return (holds_comparables, result_heap)
+
+  def compact(self, accumulator, *args, **kwargs):
+    holds_comparables, heap = accumulator
+    # Unwrap to avoid serialization via pickle.
+    if holds_comparables:
+      return (False, [comparable.value for comparable in heap])
+    else:
+      return accumulator
 
   def extract_output(self, accumulator, *args, **kwargs):
     if args or kwargs:
-      lt = lambda a, b: self._compare(a, b, *args, **kwargs)
+      self._less_than = lambda a, b: self._compare(a, b, *args, **kwargs)
     else:
-      lt = self._compare
+      self._less_than = self._compare
 
-    _, buffer = accumulator
-    self._sort_buffer(buffer, lt)
-    return buffer[:-self._n-1:-1]  # tail, reversed
+    holds_comparables, heap = accumulator
+    if self._less_than is not operator.lt or self._key:
+      if not holds_comparables:
+        heap = self._hydrated_heap(heap)
+        holds_comparables = True
+    else:
+      assert not holds_comparables
+
+    assert len(heap) <= self._n
+    heap.sort(reverse=True)
+    return [
+        comparable.value if holds_comparables else comparable
+        for comparable in heap
+    ]
 
 
 class Largest(TopCombineFn):
@@ -578,6 +668,9 @@ class SampleCombineFn(core.CombineFn):
   def merge_accumulators(self, heaps):
     return self._top_combiner.merge_accumulators(heaps)
 
+  def compact(self, heap):
+    return self._top_combiner.compact(heap)
+
   def extract_output(self, heap):
     # Here we strip off the random number keys we added in add_input.
     return [e for _, e in self._top_combiner.extract_output(heap)]
@@ -600,6 +693,9 @@ class _TupleCombineFnBase(core.CombineFn):
   def merge_accumulators(self, accumulators):
     return [c.merge_accumulators(a)
             for c, a in zip(self._combiners, zip(*accumulators))]
+
+  def compact(self, accumulator):
+    return [c.compact(a) for c, a in zip(self._combiners, accumulator)]
 
   def extract_output(self, accumulator):
     return tuple([c.extract_output(a)
@@ -719,11 +815,11 @@ class _CurriedFn(core.CombineFn):
   def merge_accumulators(self, accumulators):
     return self.fn.merge_accumulators(accumulators, *self.args, **self.kwargs)
 
-  def extract_output(self, accumulator):
-    return self.fn.extract_output(accumulator, *self.args, **self.kwargs)
-
   def compact(self, accumulator):
     return self.fn.compact(accumulator, *self.args, **self.kwargs)
+
+  def extract_output(self, accumulator):
+    return self.fn.extract_output(accumulator, *self.args, **self.kwargs)
 
   def apply(self, elements):
     return self.fn.apply(elements, *self.args, **self.kwargs)
@@ -754,15 +850,77 @@ class PhasedCombineFnExecutor(object):
     else:
       raise ValueError('Unexpected phase: %s' % phase)
 
-  def full_combine(self, elements):  # pylint: disable=invalid-name
+  def full_combine(self, elements):
     return self.combine_fn.apply(elements)
 
-  def add_only(self, elements):  # pylint: disable=invalid-name
+  def add_only(self, elements):
     return self.combine_fn.add_inputs(
         self.combine_fn.create_accumulator(), elements)
 
-  def merge_only(self, accumulators):  # pylint: disable=invalid-name
+  def merge_only(self, accumulators):
     return self.combine_fn.merge_accumulators(accumulators)
 
-  def extract_only(self, accumulator):  # pylint: disable=invalid-name
+  def extract_only(self, accumulator):
     return self.combine_fn.extract_output(accumulator)
+
+
+class Latest(object):
+  """Combiners for computing the latest element"""
+
+  @with_input_types(T)
+  @with_output_types(T)
+  class Globally(ptransform.PTransform):
+    """Compute the element with the latest timestamp from a
+    PCollection."""
+
+    @staticmethod
+    def add_timestamp(element, timestamp=core.DoFn.TimestampParam):
+      return [(element, timestamp)]
+
+    def expand(self, pcoll):
+      return (pcoll
+              | core.ParDo(self.add_timestamp)
+              .with_output_types(Tuple[T, TimestampType])
+              | core.CombineGlobally(LatestCombineFn()))
+
+  @with_input_types(KV[K, V])
+  @with_output_types(KV[K, V])
+  class PerKey(ptransform.PTransform):
+    """Compute elements with the latest timestamp for each key
+    from a keyed PCollection"""
+
+    @staticmethod
+    def add_timestamp(element, timestamp=core.DoFn.TimestampParam):
+      key, value = element
+      return [(key, (value, timestamp))]
+
+    def expand(self, pcoll):
+      return (pcoll
+              | core.ParDo(self.add_timestamp)
+              .with_output_types(KV[K, Tuple[T, TimestampType]])
+              | core.CombinePerKey(LatestCombineFn()))
+
+
+@with_input_types(Tuple[T, TimestampType])
+@with_output_types(T)
+class LatestCombineFn(core.CombineFn):
+  """CombineFn to get the element with the latest timestamp
+  from a PCollection."""
+
+  def create_accumulator(self):
+    return (None, window.MIN_TIMESTAMP)
+
+  def add_input(self, accumulator, element):
+    if accumulator[1] > element[1]:
+      return accumulator
+    else:
+      return element
+
+  def merge_accumulators(self, accumulators):
+    result = self.create_accumulator()
+    for accumulator in accumulators:
+      result = self.add_input(result, accumulator)
+    return result
+
+  def extract_output(self, accumulator):
+    return accumulator[0]

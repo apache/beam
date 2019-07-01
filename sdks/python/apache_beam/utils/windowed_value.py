@@ -46,7 +46,13 @@ class PaneInfoTiming(object):
 
 
 class PaneInfo(object):
-  """Describes the trigger firing information for a given WindowedValue."""
+  """Describes the trigger firing information for a given WindowedValue.
+
+  "Panes" represent individual firings on a single window. ``PaneInfo``s are
+  passed downstream after trigger firings. They contain information about
+  whether it's an early/on time/late firing, if it's the last or first firing
+  from a window, and the index of the firing.
+  """
 
   def __init__(self, is_first, is_last, timing, index, nonspeculative_index):
     self._is_first = is_first
@@ -202,10 +208,10 @@ class WindowedValue(object):
     return not self == other
 
   def __hash__(self):
-    return (hash(self.value) +
-            3 * self.timestamp_micros +
-            7 * hash(self.windows) +
-            11 * hash(self.pane_info))
+    return ((hash(self.value) & 0xFFFFFFFFFFFFFFF) +
+            3 * (self.timestamp_micros & 0xFFFFFFFFFFFFFF) +
+            7 * (hash(self.windows) & 0xFFFFFFFFFFFFF) +
+            11 * (hash(self.pane_info) & 0xFFFFFFFFFFFFF))
 
   def with_value(self, new_value):
     """Creates a new WindowedValue with the same timestamps and windows as this.

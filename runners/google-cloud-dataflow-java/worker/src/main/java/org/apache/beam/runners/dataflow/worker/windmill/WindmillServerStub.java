@@ -103,13 +103,6 @@ public abstract class WindmillServerStub implements StatusDataProvider {
     /** Indicates that no more requests will be sent. */
     void close();
 
-    /**
-     * Waits for the server to close its end of the connection.
-     *
-     * <p>Should only be called after calling close.
-     */
-    void awaitTermination() throws InterruptedException;
-
     /** Waits for the server to close its end of the connection, with timeout. */
     boolean awaitTermination(int time, TimeUnit unit) throws InterruptedException;
 

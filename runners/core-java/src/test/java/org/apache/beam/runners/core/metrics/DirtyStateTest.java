@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.metrics;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -51,5 +52,25 @@ public class DirtyStateTest {
         "Changes after beforeCommit should be dirty after afterCommit",
         dirty.beforeCommit(),
         is(true));
+  }
+
+  @Test
+  public void testEquals() {
+    DirtyState dirtyState = new DirtyState();
+    DirtyState equal = new DirtyState();
+    Assert.assertEquals(dirtyState, equal);
+    Assert.assertEquals(dirtyState.hashCode(), equal.hashCode());
+  }
+
+  @Test
+  public void testNotEquals() {
+    DirtyState dirtyState = new DirtyState();
+
+    Assert.assertNotEquals(dirtyState, new Object());
+
+    DirtyState differentState = new DirtyState();
+    differentState.beforeCommit();
+    Assert.assertNotEquals(dirtyState, differentState);
+    Assert.assertNotEquals(dirtyState.hashCode(), differentState.hashCode());
   }
 }

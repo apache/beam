@@ -1,46 +1,4 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_BEAMPSQL",
-      "label": "BeamPSQL",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "postgres",
-      "pluginName": "PostgreSQL"
-    }
-  ],
-  "__requires": [
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "5.3.2"
-    },
-    {
-      "type": "panel",
-      "id": "graph",
-      "name": "Graph",
-      "version": "5.0.0"
-    },
-    {
-      "type": "datasource",
-      "id": "postgres",
-      "name": "PostgreSQL",
-      "version": "5.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "table",
-      "name": "Table",
-      "version": "5.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "text",
-      "name": "Text",
-      "version": "5.0.0"
-    }
-  ],
   "annotations": {
     "list": [
       {
@@ -57,7 +15,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": null,
+  "id": 3,
   "links": [],
   "panels": [
     {
@@ -72,15 +30,14 @@
       "links": [],
       "mode": "markdown",
       "title": "Dashboard guidelines",
-      "transparent": false,
       "type": "text"
     },
     {
       "columns": [],
-      "datasource": "${DS_BEAMPSQL}",
+      "datasource": "BeamPSQL",
       "fontSize": "100%",
       "gridPos": {
-        "h": 13,
+        "h": 6,
         "w": 14,
         "x": 10,
         "y": 0
@@ -131,7 +88,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT \n  build_timestamp,\n  job_name,\n  build_url\nFROM jenkins_builds\nWHERE \n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND ((job_name LIKE 'beam_PostCommit_Java') \n     OR (job_name LIKE 'beam_PostCommit_Go') \n     OR (job_name LIKE 'beam_PostCommit_Python_Verify')\n     OR (job_name LIKE 'beam_PostCommit_Website_Publish'))\n  AND NOT (job_name LIKE '%_PR')\n  AND NOT (build_result = 'SUCCESS')\nORDER BY \n  build_timestamp",
+          "rawSql": "SELECT \n  build_timestamp,\n  job_name,\n  build_url\nFROM jenkins_builds\nWHERE \n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND ((job_name LIKE 'beam_PostCommit_Java_GradleBuild') \n     OR (job_name LIKE 'beam_PostCommit_Go_GradleBuild') \n     OR (job_name LIKE 'beam_PostCommit_Python_Verify')\n     OR (job_name LIKE 'beam_PostCommit_Website_Publish'))\n  AND NOT (job_name LIKE '%_PR')\n  AND NOT (build_result = 'SUCCESS')\nORDER BY \n  build_timestamp",
           "refId": "A",
           "select": [
             [
@@ -170,7 +127,6 @@
       "links": [],
       "mode": "markdown",
       "title": "Useful links",
-      "transparent": false,
       "type": "text"
     },
     {
@@ -178,7 +134,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_BEAMPSQL}",
+      "datasource": "BeamPSQL",
       "fill": 0,
       "gridPos": {
         "h": 7,
@@ -250,6 +206,7 @@
         }
       ],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "Greenness per Week (in %)",
       "tooltip": {
@@ -288,16 +245,135 @@
         "align": false,
         "alignLevel": null
       }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "BeamPSQL",
+      "fill": 0,
+      "gridPos": {
+        "h": 7,
+        "w": 14,
+        "x": 10,
+        "y": 6
+      },
+      "id": 10,
+      "legend": {
+        "alignAsTable": true,
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "rightSide": true,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "percentage": false,
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "alias": "",
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  DATE_TRUNC('month', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as job_name\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND ((job_name LIKE 'beam_PostCommit_Java') \n       OR (job_name LIKE 'beam_PostCommit_Go') \n       OR (job_name LIKE 'beam_PostCommit_Python_Verify')\n       OR (job_name LIKE 'beam_PostCommit_Website_Publish'))\n  AND NOT (job_name like '%_PR')\nGROUP BY\n  time, job_name\norder BY\n  job_name, time\n",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "thresholds": [
+        {
+          "colorMode": "custom",
+          "fill": false,
+          "line": true,
+          "lineColor": "#3f6833",
+          "op": "lt",
+          "value": 0.7,
+          "yaxis": "left"
+        }
+      ],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Greenness per Month (in %)",
+      "tooltip": {
+        "shared": true,
+        "sort": 1,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "decimals": null,
+          "format": "percentunit",
+          "label": "",
+          "logBase": 1,
+          "max": "1",
+          "min": "0",
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": false
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
     }
   ],
-  "schemaVersion": 16,
+  "refresh": false,
+  "schemaVersion": 18,
   "style": "dark",
   "tags": [],
   "templating": {
     "list": []
   },
   "time": {
-    "from": "now-30d",
+    "from": "now-90d",
     "to": "now"
   },
   "timepicker": {
@@ -328,5 +404,5 @@
   "timezone": "",
   "title": "Stability critical jobs status",
   "uid": "McTAiu0ik",
-  "version": 10
+  "version": 13
 }

@@ -29,7 +29,9 @@ import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
@@ -87,31 +89,83 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
     ImmutableList.Builder<MatchResult> resultsBuilder = ImmutableList.builder();
     for (String spec : specs) {
       try {
-        FileStatus[] fileStatuses = fileSystem.globStatus(new Path(spec));
-        if (fileStatuses == null) {
-          resultsBuilder.add(MatchResult.create(Status.NOT_FOUND, Collections.emptyList()));
-          continue;
-        }
-
-        List<Metadata> metadata = new ArrayList<>();
-        for (FileStatus fileStatus : fileStatuses) {
-          if (fileStatus.isFile()) {
-            URI uri = dropEmptyAuthority(fileStatus.getPath().toUri().toString());
-            metadata.add(
-                Metadata.builder()
-                    .setResourceId(new HadoopResourceId(uri))
-                    .setIsReadSeekEfficient(true)
-                    .setSizeBytes(fileStatus.getLen())
-                    .setLastModifiedMillis(fileStatus.getModificationTime())
-                    .build());
+        final Set<Metadata> metadata = new HashSet<>();
+        if (spec.contains("**")) {
+          // recursive glob
+          int index = spec.indexOf("**");
+          metadata.addAll(
+              matchRecursiveGlob(spec.substring(0, index + 1), spec.substring(index + 1)));
+        } else {
+          // normal glob
+          final FileStatus[] fileStatuses = fileSystem.globStatus(new Path(spec));
+          if (fileStatuses != null) {
+            for (FileStatus fileStatus : fileStatuses) {
+              metadata.add(toMetadata(fileStatus));
+            }
           }
         }
-        resultsBuilder.add(MatchResult.create(Status.OK, metadata));
+        if (metadata.isEmpty()) {
+          resultsBuilder.add(MatchResult.create(Status.NOT_FOUND, Collections.emptyList()));
+        } else {
+          resultsBuilder.add(MatchResult.create(Status.OK, new ArrayList<>(metadata)));
+        }
       } catch (IOException e) {
         resultsBuilder.add(MatchResult.create(Status.ERROR, e));
       }
     }
     return resultsBuilder.build();
+  }
+
+  private Set<Metadata> matchRecursiveGlob(String directorySpec, String fileSpec)
+      throws IOException {
+    Set<Metadata> metadata = new HashSet<>();
+    if (directorySpec.contains("*")) {
+      // An abstract directory with a wildcard is converted to concrete directories to search.
+      FileStatus[] directoryStatuses = fileSystem.globStatus(new Path(directorySpec));
+      for (FileStatus directoryStatus : directoryStatuses) {
+        if (directoryStatus.isDirectory()) {
+          metadata.addAll(
+              matchRecursiveGlob(directoryStatus.getPath().toUri().toString(), fileSpec));
+        }
+      }
+    } else {
+      // A concrete directory is searched.
+      FileStatus[] fileStatuses = fileSystem.globStatus(new Path(directorySpec + "/" + fileSpec));
+      for (FileStatus fileStatus : fileStatuses) {
+        if (fileStatus.isFile()) {
+          metadata.add(toMetadata(fileStatus));
+        }
+      }
+
+      // All sub-directories of a concrete directory are searched.
+      FileStatus[] directoryStatuses = fileSystem.globStatus(new Path(directorySpec + "/*"));
+      for (FileStatus directoryStatus : directoryStatuses) {
+        if (directoryStatus.isDirectory()) {
+          metadata.addAll(
+              matchRecursiveGlob(directoryStatus.getPath().toUri().toString(), fileSpec));
+        }
+      }
+
+      // Handle additional instances of recursive globs.
+      if (fileSpec.contains("**")) {
+        int index = fileSpec.indexOf("**");
+        metadata.addAll(
+            matchRecursiveGlob(
+                directorySpec + "/" + fileSpec.substring(0, index + 1),
+                fileSpec.substring(index + 1)));
+      }
+    }
+    return metadata;
+  }
+
+  private Metadata toMetadata(FileStatus fileStatus) {
+    URI uri = dropEmptyAuthority(fileStatus.getPath().toUri().toString());
+    return Metadata.builder()
+        .setResourceId(new HadoopResourceId(uri))
+        .setIsReadSeekEfficient(true)
+        .setSizeBytes(fileStatus.getLen())
+        .setLastModifiedMillis(fileStatus.getModificationTime())
+        .build();
   }
 
   @Override

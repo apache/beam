@@ -31,9 +31,9 @@ import org.apache.avro.reflect.AvroIgnore;
 import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.AvroSchema;
 import org.apache.avro.util.Utf8;
+import org.apache.beam.sdk.schemas.LogicalTypes.FixedBytes;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
-import org.apache.beam.sdk.schemas.utils.AvroUtils.FixedBytesField;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -196,7 +196,7 @@ public class AvroSchemaTest {
           .addNullableField("double", FieldType.DOUBLE)
           .addNullableField("string", FieldType.STRING)
           .addNullableField("bytes", FieldType.BYTES)
-          .addField("fixed", FixedBytesField.withSize(4).toBeamType())
+          .addField("fixed", FieldType.logicalType(FixedBytes.of(4)))
           .addNullableField("timestampMillis", FieldType.DATETIME)
           .addNullableField("row", SUB_TYPE)
           .addNullableField("array", FieldType.array(SUB_TYPE))
@@ -212,7 +212,7 @@ public class AvroSchemaTest {
           .addNullableField("double", FieldType.DOUBLE)
           .addNullableField("string", FieldType.STRING)
           .addNullableField("bytes", FieldType.BYTES)
-          .addField("fixed", FixedBytesField.withSize(4).toBeamType())
+          .addField("fixed", FieldType.logicalType(FixedBytes.of(4)))
           .addNullableField("row", SUB_TYPE)
           .addNullableField("array", FieldType.array(SUB_TYPE.withNullable(false)))
           .addNullableField("map", FieldType.map(FieldType.STRING, SUB_TYPE.withNullable(false)))
@@ -276,7 +276,7 @@ public class AvroSchemaTest {
               (double) 44.2,
               "mystring",
               ByteBuffer.wrap(BYTE_ARRAY),
-              ByteBuffer.wrap(BYTE_ARRAY),
+              BYTE_ARRAY,
               DATE_TIME,
               NESTED_ROW,
               ImmutableList.of(NESTED_ROW, NESTED_ROW),
@@ -346,7 +346,7 @@ public class AvroSchemaTest {
               (double) 44.2,
               "mystring",
               ByteBuffer.wrap(BYTE_ARRAY),
-              ByteBuffer.wrap(BYTE_ARRAY),
+              BYTE_ARRAY,
               NESTED_ROW,
               ImmutableList.of(NESTED_ROW, NESTED_ROW),
               ImmutableMap.of("k1", NESTED_ROW, "k2", NESTED_ROW))

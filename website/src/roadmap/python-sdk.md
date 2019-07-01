@@ -22,12 +22,14 @@ limitations under the License.
 
 ## Python 3 Support
 
-Work is in progress to add Python 3 support to Beam.  Current goal is to make Beam codebase compatible both with Python 2.7 and Python 3.4.
+Apache Beam 2.11.0 is the first release that offers partial support for Python 3. As of 2.11.0, only Python 3.5 on Direct and Dataflow runners has been sufficiently tested, and Python 3 support remains an active work in progress. Current goal is to extend Beam codebase compatibility with Python 3.6, 3.7, address [known issues](https://issues.apache.org/jira/browse/BEAM-1251?focusedCommentId=16789854&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-16789854) and increase test coverage.
+ 
 
  - [Proposal](https://docs.google.com/document/d/1xDG0MWVlDKDPu_IW9gtMvxi2S9I0GB0VDTkPhjXT0nE)
  - [Kanban Board](https://issues.apache.org/jira/secure/RapidBoard.jspa?rapidView=245&view=detail)
  - [Python 3 Conversion Quick Start Guide](https://docs.google.com/document/d/1s1BJVCY65LB_SYK1SU1u7NbZiFANoq-nEYaEvzRbYlA)
+ - [Tracking Issue](https://issues.apache.org/jira/browse/BEAM-1251)
 
 Contributions are welcome! If you are interested to help, you can select an unassigned issue in the Kanban board and assign it to yourself. Comment on the issue if you cannot assign it yourself.
-When submitting a new PR, please tag [@RobbeSneyders](https://github.com/robbesneyders), [@aaltay](https://github.com/aaltay), and [@tvalentyn](https://github.com/tvalentyn).
+When submitting a new PR, please tag [@aaltay](https://github.com/aaltay), [@fredo838](https://github.com/fredo838), [@Juta](https://github.com/Juta), and [@tvalentyn](https://github.com/tvalentyn).
 

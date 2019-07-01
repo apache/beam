@@ -20,7 +20,6 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import logging
 import os
 import platform
 import sys
@@ -112,17 +111,19 @@ REQUIRED_PACKAGES = [
     'futures>=3.2.0,<4.0.0; python_version < "3.0"',
     'grpcio>=1.8,<2',
     'hdfs>=2.1.0,<3.0.0',
-    'httplib2>=0.8,<=0.11.3',
+    'httplib2>=0.8,<=0.12.0',
     'mock>=1.0.1,<3.0.0',
+    'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<4',
     # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.
     'protobuf>=3.5.0.post1,<4',
-    # pyarrow is not supported on Windows for Python 2 [BEAM-6287]
-    ('pyarrow>=0.11.1,<0.12.0; python_version >= "3.0" or '
+    # [BEAM-6287] pyarrow is not supported on Windows for Python 2
+    ('pyarrow>=0.11.1,<0.14.0; python_version >= "3.0" or '
      'platform_system != "Windows"'),
     'pydot>=1.2.0,<1.3',
     'pytz>=2018.3',
-    'pyvcf>=0.6.8,<0.7.0',
+    # [BEAM-5628] Beam VCF IO is not supported in Python 3.
+    'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
     'pyyaml>=3.12,<4.0.0',
     'typing>=3.6.0,<3.7.0; python_version < "3.5.0"',
     ]
@@ -137,15 +138,18 @@ REQUIRED_TEST_PACKAGES = [
     ]
 
 GCP_REQUIREMENTS = [
-    # google-apitools 0.5.23 and above has important Python 3 supports.
-    'google-apitools>=0.5.26,<0.5.27',
-    'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4',
+    'cachetools>=3.1.0,<4',
+    'google-apitools>=0.5.28,<0.5.29',
+    # [BEAM-4543] googledatastore is not supported in Python 3.
+    'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4; python_version < "3.0"',
+    # [BEAM-4543] googledatastore is not supported in Python 3.
     'googledatastore>=7.0.1,<7.1; python_version < "3.0"',
-    'google-cloud-pubsub==0.39.0',
+    'google-cloud-datastore>=1.7.1,<1.8.0',
+    'google-cloud-pubsub>=0.39.0,<0.40.0',
     # GCP packages required by tests
     'google-cloud-bigquery>=1.6.0,<1.7.0',
-    'google-cloud-core==0.28.1',
-    'google-cloud-bigtable==0.31.1',
+    'google-cloud-core>=0.28.1,<0.30.0',
+    'google-cloud-bigtable>=0.31.1,<0.33.0',
 ]
 
 
@@ -166,14 +170,12 @@ def generate_protos_first(original_cmd):
     return original_cmd
 
 
-# TODO(BEAM-6583): audit Python 3.x version compatibility and refine this
-# requirement range if necessary.
-python_requires = '>=2.7<=3.7'
+python_requires = '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*'
 
 if sys.version_info[0] == 3:
-  logging.warning(
-      'Python 3 support for the Apache Beam SDK is not yet fully supported. '
-      'You may encounter buggy behavior or missing features.')
+  warnings.warn(
+      'Some syntactic constructs of Python 3 are not yet fully supported by '
+      'Apache Beam.')
 
 setuptools.setup(
     name=PACKAGE_NAME,
@@ -186,7 +188,8 @@ setuptools.setup(
     author_email=PACKAGE_EMAIL,
     packages=setuptools.find_packages(),
     package_data={'apache_beam': [
-        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'testing/data/*.yaml']},
+        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'testing/data/*.yaml',
+        'portability/api/*.yaml']},
     ext_modules=cythonize([
         'apache_beam/**/*.pyx',
         'apache_beam/coders/coder_impl.py',
@@ -215,6 +218,9 @@ setuptools.setup(
         'License :: OSI Approved :: Apache Software License',
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],

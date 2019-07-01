@@ -22,7 +22,7 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.JsonGenerator;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CountingOutputStream;
 

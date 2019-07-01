@@ -80,16 +80,21 @@ class Uploader(with_metaclass(abc.ABCMeta, object)):
 class DownloaderStream(io.RawIOBase):
   """Provides a stream interface for Downloader objects."""
 
-  def __init__(self, downloader, mode='rb'):
+  def __init__(self,
+               downloader,
+               read_buffer_size=io.DEFAULT_BUFFER_SIZE,
+               mode='rb'):
     """Initializes the stream.
 
     Args:
       downloader: (Downloader) Filesystem dependent implementation.
+      read_buffer_size: (int) Buffer size to use during read operations.
       mode: (string) Python mode attribute for this stream.
     """
     self._downloader = downloader
     self.mode = mode
     self._position = 0
+    self._reader_buffer_size = read_buffer_size
 
   def readinto(self, b):
     """Read up to len(b) bytes into b.
@@ -157,6 +162,16 @@ class DownloaderStream(io.RawIOBase):
   def readable(self):
     return True
 
+  def readall(self):
+    """Read until EOF, using multiple read() call."""
+    res = []
+    while True:
+      data = self.read(self._reader_buffer_size)
+      if not data:
+        break
+      res.append(data)
+    return b''.join(res)
+
 
 class UploaderStream(io.RawIOBase):
   """Provides a stream interface for Uploader objects."""
@@ -208,13 +223,24 @@ class UploaderStream(io.RawIOBase):
 
 
 class PipeStream(object):
-  """A class that presents a pipe connection as a readable stream."""
+  """A class that presents a pipe connection as a readable stream.
+
+  Not thread-safe.
+
+  Remembers the last ``size`` bytes read and allows rewinding the stream by that
+  amount exactly. See BEAM-6380 for more.
+  """
 
   def __init__(self, recv_pipe):
     self.conn = recv_pipe
     self.closed = False
     self.position = 0
     self.remaining = b''
+
+    # Data and position of last block streamed. Allows limited seeking backwards
+    # of stream.
+    self.last_block_position = None
+    self.last_block = b''
 
   def read(self, size):
     """Read data from the wrapped pipe connection.
@@ -228,6 +254,8 @@ class PipeStream(object):
     """
     data_list = []
     bytes_read = 0
+    self.last_block_position = self.position
+
     while bytes_read < size:
       bytes_from_remaining = min(size - bytes_read, len(self.remaining))
       data_list.append(self.remaining[0:bytes_from_remaining])
@@ -239,7 +267,8 @@ class PipeStream(object):
           self.remaining = self.conn.recv_bytes()
         except EOFError:
           break
-    return b''.join(data_list)
+    self.last_block = b''.join(data_list)
+    return self.last_block
 
   def tell(self):
     """Tell the file's current offset.
@@ -259,9 +288,17 @@ class PipeStream(object):
     # must have this no-op method here in that case.
     if whence == os.SEEK_END and offset == 0:
       return
-    elif whence == os.SEEK_SET and offset == self.position:
-      return
-    raise NotImplementedError
+    elif whence == os.SEEK_SET:
+      if offset == self.position:
+        return
+      elif offset == self.last_block_position and self.last_block:
+        self.position = offset
+        self.remaining = b''.join([self.last_block, self.remaining])
+        self.last_block = b''
+        return
+    raise NotImplementedError(
+        'offset: %s, whence: %s, position: %s, last: %s' % (
+            offset, whence, self.position, self.last_block_position))
 
   def _check_open(self):
     if self.closed:

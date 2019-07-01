@@ -54,6 +54,7 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -140,7 +141,8 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
                     },
                     mainOutput,
                     TupleTagList.empty(),
-                    Collections.emptyList()))
+                    Collections.emptyList(),
+                    DoFnSchemaInformation.create()))
             .get(mainOutput)
             .setCoder(VarIntCoder.of());
 
@@ -248,7 +250,8 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
                     },
                     mainOutput,
                     TupleTagList.empty(),
-                    Collections.singletonList(sideInput)))
+                    Collections.singletonList(sideInput),
+                    DoFnSchemaInformation.create()))
             .get(mainOutput)
             .setCoder(VarIntCoder.of());
 

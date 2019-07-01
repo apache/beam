@@ -44,9 +44,12 @@ import org.apache.kudu.client.KuduException;
 import org.apache.kudu.client.Operation;
 import org.apache.kudu.client.RowResult;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
@@ -61,6 +64,7 @@ import org.slf4j.LoggerFactory;
  * future. In the meantime, only rudimentary tests exist here, with the preferred testing being
  * carried out in {@link KuduIOIT}.
  */
+@RunWith(JUnit4.class)
 public class KuduIOTest {
   private static final Logger LOG = LoggerFactory.getLogger(KuduIOTest.class);
 
@@ -130,6 +134,7 @@ public class KuduIOTest {
    * deserializing writers and that each writer is opening and closing Kudu sessions.
    */
   @Test
+  @Ignore
   public void testWrite() throws Exception {
     when(mockWriteService.createWriter(any())).thenReturn(new FakeWriter());
 

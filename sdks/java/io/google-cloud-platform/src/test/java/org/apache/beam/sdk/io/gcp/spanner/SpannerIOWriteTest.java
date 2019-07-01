@@ -53,11 +53,9 @@ import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.BatchFn;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.BatchableMutationFilterFn;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.GatherBundleAndSortFn;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteGrouped;
-import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
@@ -72,7 +70,6 @@ import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -222,7 +219,6 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void singleMutationPipeline() throws Exception {
     Mutation mutation = m(2L);
     PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));
@@ -239,7 +235,6 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void singleMutationGroupPipeline() throws Exception {
     PCollection<MutationGroup> mutations =
         pipeline.apply(Create.<MutationGroup>of(g(m(1L), m(2L), m(3L))));
@@ -262,7 +257,6 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void noBatching() throws Exception {
     PCollection<MutationGroup> mutations = pipeline.apply(Create.of(g(m(1L)), g(m(2L))));
     mutations.apply(
@@ -279,7 +273,6 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
   public void streamingWrites() throws Exception {
     TestStream<Mutation> testStream =
         TestStream.create(SerializableCoder.of(Mutation.class))
@@ -303,7 +296,6 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void reportFailures() throws Exception {
 
     MutationGroup[] mutationGroups = new MutationGroup[10];

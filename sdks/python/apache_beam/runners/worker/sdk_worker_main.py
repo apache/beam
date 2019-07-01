@@ -181,7 +181,7 @@ def _get_worker_count(pipeline_options):
   future releases.
 
   Returns:
-    an int containing the worker_threads to use. Default is 1
+    an int containing the worker_threads to use. Default is 12
   """
   experiments = pipeline_options.view_as(DebugOptions).experiments
 

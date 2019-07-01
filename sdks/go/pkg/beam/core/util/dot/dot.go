@@ -22,6 +22,7 @@ import (
 	"text/template"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 var (
@@ -114,14 +115,14 @@ func Render(edges []*graph.MultiEdge, nodes []*graph.Node, w io.Writer) error {
 		for _, ib := range edge.Input {
 			err := edgeTmpl.Execute(w, struct{ From, To string }{ib.From.String(), e})
 			if err != nil {
-				return fmt.Errorf("render DOT failed: %v", err)
+				return errors.Wrap(err, "render DOT failed")
 			}
 		}
 		for _, ob := range edge.Output {
 			uniqNodes[ob.To].From = ob
 			err := edgeTmpl.Execute(w, struct{ From, To string }{e, ob.To.String()})
 			if err != nil {
-				return fmt.Errorf("render DOT failed: %v", err)
+				return errors.Wrap(err, "render DOT failed")
 			}
 		}
 	}

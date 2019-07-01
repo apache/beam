@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.util.BackOff;
@@ -40,9 +40,6 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
-import com.google.common.collect.HashBasedTable;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -64,15 +61,19 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
+import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
-import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MimeTypes;
-import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBasedTable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 
 /** A fake implementation of BigQuery's job service. */
@@ -98,11 +99,17 @@ public class FakeJobService implements JobService, Serializable {
     }
   }
 
-  private static com.google.common.collect.Table<String, String, JobInfo> allJobs;
+  private static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Table<
+          String, String, JobInfo>
+      allJobs;
   private static int numExtractJobCalls;
 
-  private static com.google.common.collect.Table<String, String, List<ResourceId>> filesForLoadJobs;
-  private static com.google.common.collect.Table<String, String, JobStatistics> dryRunQueryResults;
+  private static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Table<
+          String, String, List<ResourceId>>
+      filesForLoadJobs;
+  private static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Table<
+          String, String, JobStatistics>
+      dryRunQueryResults;
 
   public FakeJobService() {
     this(0);
@@ -401,7 +408,8 @@ public class FakeJobService implements JobService, Serializable {
         new Table()
             .setTableReference(destination)
             .setSchema(schema)
-            .setTimePartitioning(partitioning));
+            .setTimePartitioning(partitioning)
+            .setEncryptionConfiguration(copy.getDestinationEncryptionConfiguration()));
     datasetService.insertAll(destination, allRows, null);
     return new JobStatus().setState("DONE");
   }
@@ -426,9 +434,9 @@ public class FakeJobService implements JobService, Serializable {
 
   private JobStatus runQueryJob(JobConfigurationQuery query)
       throws IOException, InterruptedException {
-    List<TableRow> rows = FakeBigQueryServices.rowsFromEncodedQuery(query.getQuery());
-    datasetService.createTable(new Table().setTableReference(query.getDestinationTable()));
-    datasetService.insertAll(query.getDestinationTable(), rows, null);
+    KV<Table, List<TableRow>> result = FakeBigQueryServices.decodeQueryResult(query.getQuery());
+    datasetService.createTable(result.getKey().setTableReference(query.getDestinationTable()));
+    datasetService.insertAll(query.getDestinationTable(), result.getValue(), null);
     return new JobStatus().setState("DONE");
   }
 

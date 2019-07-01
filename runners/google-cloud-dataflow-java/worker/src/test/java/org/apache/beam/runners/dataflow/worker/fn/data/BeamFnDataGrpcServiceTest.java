@@ -77,8 +77,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 @SuppressWarnings("FutureReturnValueIgnored")
 public class BeamFnDataGrpcServiceTest {
-  private static final BeamFnApi.Target TARGET =
-      BeamFnApi.Target.newBuilder().setPrimitiveTransformReference("888").setName("test").build();
+  private static final String PTRANSFORM_ID = "888";
   private static final Coder<WindowedValue<String>> CODER =
       LengthPrefixCoder.of(WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()));
   private static final String DEFAULT_CLIENT = "";
@@ -130,7 +129,7 @@ public class BeamFnDataGrpcServiceTest {
       CloseableFnDataReceiver<WindowedValue<String>> consumer =
           service
               .getDataService(DEFAULT_CLIENT)
-              .send(LogicalEndpoint.of(Integer.toString(i), TARGET), CODER);
+              .send(LogicalEndpoint.of(Integer.toString(i), PTRANSFORM_ID), CODER);
 
       consumer.accept(valueInGlobalWindow("A" + i));
       consumer.accept(valueInGlobalWindow("B" + i));
@@ -203,7 +202,7 @@ public class BeamFnDataGrpcServiceTest {
         CloseableFnDataReceiver<WindowedValue<String>> consumer =
             service
                 .getDataService(Integer.toString(client))
-                .send(LogicalEndpoint.of(instructionId, TARGET), CODER);
+                .send(LogicalEndpoint.of(instructionId, PTRANSFORM_ID), CODER);
 
         consumer.accept(valueInGlobalWindow("A" + instructionId));
         consumer.accept(valueInGlobalWindow("B" + instructionId));
@@ -260,7 +259,9 @@ public class BeamFnDataGrpcServiceTest {
           service
               .getDataService(DEFAULT_CLIENT)
               .receive(
-                  LogicalEndpoint.of(Integer.toString(i), TARGET), CODER, serverInboundValue::add));
+                  LogicalEndpoint.of(Integer.toString(i), PTRANSFORM_ID),
+                  CODER,
+                  serverInboundValue::add));
     }
 
     // Waiting for the client provides the necessary synchronization for the elements to arrive.
@@ -284,7 +285,7 @@ public class BeamFnDataGrpcServiceTest {
         .addData(
             BeamFnApi.Elements.Data.newBuilder()
                 .setInstructionReference(id)
-                .setTarget(TARGET)
+                .setPtransformId(PTRANSFORM_ID)
                 .setData(
                     ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("A" + id)))
                         .concat(
@@ -293,7 +294,10 @@ public class BeamFnDataGrpcServiceTest {
                         .concat(
                             ByteString.copyFrom(
                                 encodeToByteArray(CODER, valueInGlobalWindow("C" + id))))))
-        .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionReference(id).setTarget(TARGET))
+        .addData(
+            BeamFnApi.Elements.Data.newBuilder()
+                .setInstructionReference(id)
+                .setPtransformId(PTRANSFORM_ID))
         .build();
   }
 

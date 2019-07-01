@@ -32,6 +32,7 @@ import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -205,7 +206,8 @@ public class StatefulDoFnRunnerTest {
         mockStepContext,
         null,
         Collections.emptyMap(),
-        WINDOWING_STRATEGY);
+        WINDOWING_STRATEGY,
+        DoFnSchemaInformation.create());
   }
 
   private static void advanceInputWatermark(

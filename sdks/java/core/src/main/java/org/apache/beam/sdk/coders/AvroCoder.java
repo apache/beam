@@ -80,17 +80,16 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
  * <pre>{@code
  * PCollection<MyCustomElement> records =
  *     input.apply(...)
- *          .setCoder(AvroCoder.of(MyCustomElement.class);
+ *          .setCoder(AvroCoder.of(MyCustomElement.class));
  * }</pre>
  *
  * <p>or annotate the element class using {@code @DefaultCoder}.
  *
- * <pre><code>
- * {@literal @}DefaultCoder(AvroCoder.class)
+ * <pre>{@code @DefaultCoder(AvroCoder.class)
  * public class MyCustomElement {
- *   ...
+ *     ...
  * }
- * </code></pre>
+ * }</pre>
  *
  * <p>The implementation attempts to determine if the Avro encoding of the given type will satisfy
  * the criteria of {@link Coder#verifyDeterministic} by inspecting both the type and the Schema

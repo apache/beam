@@ -17,31 +17,187 @@
  */
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables.getRootCause;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables.getStackTraceAsString;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.function.Consumer;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.FutureCallback;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Futures;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListenableFuture;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Internal representation of a Job which has been invoked (prepared and run) by a client. */
-public interface JobInvocation {
+public class JobInvocation {
+
+  private static final Logger LOG = LoggerFactory.getLogger(JobInvocation.class);
+
+  private final RunnerApi.Pipeline pipeline;
+  private final PortablePipelineRunner pipelineRunner;
+  private final JobInfo jobInfo;
+  private final ListeningExecutorService executorService;
+  private List<Consumer<Enum>> stateObservers;
+  private List<Consumer<JobMessage>> messageObservers;
+  private JobState.Enum jobState;
+  @Nullable private ListenableFuture<PipelineResult> invocationFuture;
+
+  public JobInvocation(
+      JobInfo jobInfo,
+      ListeningExecutorService executorService,
+      Pipeline pipeline,
+      PortablePipelineRunner pipelineRunner) {
+    this.jobInfo = jobInfo;
+    this.executorService = executorService;
+    this.pipeline = pipeline;
+    this.pipelineRunner = pipelineRunner;
+    this.stateObservers = new ArrayList<>();
+    this.messageObservers = new ArrayList<>();
+    this.invocationFuture = null;
+    this.jobState = JobState.Enum.STOPPED;
+  }
+
+  private PipelineResult runPipeline() throws Exception {
+    return pipelineRunner.run(pipeline, jobInfo);
+  }
 
   /** Start the job. */
-  void start();
+  public synchronized void start() {
+    LOG.info("Starting job invocation {}", getId());
+    if (getState() != JobState.Enum.STOPPED) {
+      throw new IllegalStateException(String.format("Job %s already running.", getId()));
+    }
+    setState(JobState.Enum.STARTING);
+    invocationFuture = executorService.submit(this::runPipeline);
+    // TODO: Defer transitioning until the pipeline is up and running.
+    setState(JobState.Enum.RUNNING);
+    Futures.addCallback(
+        invocationFuture,
+        new FutureCallback<PipelineResult>() {
+          @Override
+          public void onSuccess(@Nullable PipelineResult pipelineResult) {
+            if (pipelineResult != null) {
+              switch (pipelineResult.getState()) {
+                case DONE:
+                  setState(Enum.DONE);
+                  break;
+                case RUNNING:
+                  setState(Enum.RUNNING);
+                  break;
+                case CANCELLED:
+                  setState(Enum.CANCELLED);
+                  break;
+                case FAILED:
+                  setState(Enum.FAILED);
+                  break;
+                default:
+                  setState(JobState.Enum.UNSPECIFIED);
+              }
+            } else {
+              setState(JobState.Enum.UNSPECIFIED);
+            }
+          }
+
+          @Override
+          public void onFailure(@Nonnull Throwable throwable) {
+            if (throwable instanceof CancellationException) {
+              // We have canceled execution, just update the job state
+              setState(JobState.Enum.CANCELLED);
+              return;
+            }
+            String message = String.format("Error during job invocation %s.", getId());
+            LOG.error(message, throwable);
+            sendMessage(
+                JobMessage.newBuilder()
+                    .setMessageText(getStackTraceAsString(throwable))
+                    .setImportance(JobMessage.MessageImportance.JOB_MESSAGE_DEBUG)
+                    .build());
+            sendMessage(
+                JobMessage.newBuilder()
+                    .setMessageText(getRootCause(throwable).toString())
+                    .setImportance(JobMessage.MessageImportance.JOB_MESSAGE_ERROR)
+                    .build());
+            setState(JobState.Enum.FAILED);
+          }
+        },
+        executorService);
+  }
 
   /** @return Unique identifier for the job invocation. */
-  String getId();
+  public String getId() {
+    return jobInfo.jobId();
+  }
 
   /** Cancel the job. */
-  void cancel();
+  public synchronized void cancel() {
+    LOG.info("Canceling job invocation {}", getId());
+    if (this.invocationFuture != null) {
+      this.invocationFuture.cancel(true /* mayInterruptIfRunning */);
+      Futures.addCallback(
+          invocationFuture,
+          new FutureCallback<PipelineResult>() {
+            @Override
+            public void onSuccess(@Nullable PipelineResult pipelineResult) {
+              // Do not cancel when we are already done.
+              if (pipelineResult != null
+                  && pipelineResult.getState() != PipelineResult.State.DONE) {
+                try {
+                  pipelineResult.cancel();
+                  setState(JobState.Enum.CANCELLED);
+                } catch (IOException exn) {
+                  throw new RuntimeException(exn);
+                }
+              }
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {}
+          },
+          executorService);
+    }
+  }
 
   /** Retrieve the job's current state. */
-  JobState.Enum getState();
+  public JobState.Enum getState() {
+    return this.jobState;
+  }
 
   /** Listen for job state changes with a {@link Consumer}. */
-  void addStateListener(Consumer<Enum> stateStreamObserver);
+  public synchronized void addStateListener(Consumer<JobState.Enum> stateStreamObserver) {
+    stateStreamObserver.accept(getState());
+    stateObservers.add(stateStreamObserver);
+  }
 
   /** Listen for job messages with a {@link Consumer}. */
-  void addMessageListener(Consumer<JobMessage> messageStreamObserver);
+  public synchronized void addMessageListener(Consumer<JobMessage> messageStreamObserver) {
+    messageObservers.add(messageStreamObserver);
+  }
+
+  private synchronized void setState(JobState.Enum state) {
+    this.jobState = state;
+    for (Consumer<JobState.Enum> observer : stateObservers) {
+      observer.accept(state);
+    }
+  }
+
+  private synchronized void sendMessage(JobMessage message) {
+    for (Consumer<JobMessage> observer : messageObservers) {
+      observer.accept(message);
+    }
+  }
 
   static Boolean isTerminated(Enum state) {
     switch (state) {

@@ -47,6 +47,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine.BinaryCombineLongFn;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.View;
@@ -116,7 +117,8 @@ public class ParDoTranslationTest {
     public void testToProto() throws Exception {
       SdkComponents components = SdkComponents.create();
       components.registerEnvironment(Environments.createDockerEnvironment("java"));
-      ParDoPayload payload = ParDoTranslation.translateParDo(parDo, p, components);
+      ParDoPayload payload =
+          ParDoTranslation.translateParDo(parDo, DoFnSchemaInformation.create(), p, components);
 
       assertThat(ParDoTranslation.getDoFn(payload), equalTo(parDo.getFn()));
       assertThat(ParDoTranslation.getMainOutputTag(payload), equalTo(parDo.getMainOutputTag()));

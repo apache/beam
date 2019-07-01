@@ -33,14 +33,15 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.ConsoleIO;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.io.SparkUnboundedSource;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
+import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.runners.spark.stateful.SparkGroupAlsoByWindowViaWindowSet;
 import org.apache.beam.runners.spark.translation.BoundedDataset;
 import org.apache.beam.runners.spark.translation.Dataset;
@@ -53,7 +54,6 @@ import org.apache.beam.runners.spark.translation.SparkPCollectionView;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformEvaluator;
 import org.apache.beam.runners.spark.translation.TranslationUtils;
-import org.apache.beam.runners.spark.translation.WindowingHelpers;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.sdk.coders.Coder;
@@ -62,6 +62,7 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -82,7 +83,7 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.spark.Accumulator;
+import org.apache.spark.HashPartitioner;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.JavaSparkContext$;
@@ -103,7 +104,7 @@ public final class StreamingTransformTranslator {
         @SuppressWarnings("unchecked")
         JavaDStream<WindowedValue<T>> dstream =
             ((UnboundedDataset<T>) context.borrowDataset(transform)).getDStream();
-        dstream.map(WindowingHelpers.unwindowFunction()).print(transform.getNum());
+        dstream.map(WindowedValue::getValue).print(transform.getNum());
       }
 
       @Override
@@ -289,7 +290,6 @@ public final class StreamingTransformTranslator {
             (UnboundedDataset<KV<K, V>>) context.borrowDataset(transform);
         List<Integer> streamSources = inputDataset.getStreamSources();
         JavaDStream<WindowedValue<KV<K, V>>> dStream = inputDataset.getDStream();
-        @SuppressWarnings("unchecked")
         final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
         @SuppressWarnings("unchecked")
         final WindowingStrategy<?, W> windowingStrategy =
@@ -302,10 +302,14 @@ public final class StreamingTransformTranslator {
             WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
 
         // --- group by key only.
-        JavaDStream<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKeyStream =
+        JavaDStream<KV<K, Iterable<WindowedValue<V>>>> groupedByKeyStream =
             dStream.transform(
                 rdd ->
-                    GroupCombineFunctions.groupByKeyOnly(rdd, coder.getKeyCoder(), wvCoder, null));
+                    GroupCombineFunctions.groupByKeyOnly(
+                        rdd,
+                        coder.getKeyCoder(),
+                        wvCoder,
+                        new HashPartitioner(rdd.rdd().sparkContext().defaultParallelism())));
 
         // --- now group also by window.
         JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outStream =
@@ -400,11 +404,14 @@ public final class StreamingTransformTranslator {
             (UnboundedDataset<InputT>) context.borrowDataset(transform);
         JavaDStream<WindowedValue<InputT>> dStream = unboundedDataset.getDStream();
 
+        final DoFnSchemaInformation doFnSchemaInformation =
+            ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+
         final String stepName = context.getCurrentTransform().getFullName();
         JavaPairDStream<TupleTag<?>, WindowedValue<?>> all =
             dStream.transformToPair(
                 rdd -> {
-                  final Accumulator<MetricsContainerStepMap> metricsAccum =
+                  final MetricsContainerStepMapAccumulator metricsAccum =
                       MetricsAccumulator.getInstance();
                   final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>>
                       sideInputs =
@@ -425,7 +432,8 @@ public final class StreamingTransformTranslator {
                           outputCoders,
                           sideInputs,
                           windowingStrategy,
-                          false));
+                          false,
+                          doFnSchemaInformation));
                 });
 
         Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);
@@ -471,7 +479,6 @@ public final class StreamingTransformTranslator {
             (UnboundedDataset<KV<K, V>>) context.borrowDataset(transform);
         List<Integer> streamSources = inputDataset.getStreamSources();
         JavaDStream<WindowedValue<KV<K, V>>> dStream = inputDataset.getDStream();
-        @SuppressWarnings("unchecked")
         final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
         @SuppressWarnings("unchecked")
         final WindowingStrategy<?, W> windowingStrategy =

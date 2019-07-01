@@ -28,18 +28,28 @@ results in the pipeline.
 from __future__ import absolute_import
 
 import logging
+import os
 import random
+import sys
 import unittest
 from datetime import datetime
 
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
-from apache_beam.io.gcp import datastore_write_it_pipeline
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 
+try:
+  from apache_beam.io.gcp import datastore_write_it_pipeline
+except TypeError:
+  datastore_write_it_pipeline = None
 
+
+@unittest.skipIf(sys.version_info[0] == 3 and
+                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                 'This test still needs to be fixed on Python 3'
+                 'TODO: BEAM-4543')
 class DatastoreWriteIT(unittest.TestCase):
 
   NUM_ENTITIES = 1001
@@ -61,6 +71,8 @@ class DatastoreWriteIT(unittest.TestCase):
         **extra_opts))
 
   @attr('IT')
+  @unittest.skipIf(datastore_write_it_pipeline is None,
+                   'GCP dependencies are not installed')
   def test_datastore_write_limit(self):
     self.run_datastore_write(limit=self.LIMIT)
 

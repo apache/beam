@@ -17,41 +17,13 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
-
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
- * Manages concurrent access to the restriction and keeps track of its claimed part for a <a
+ * Manages access to the restriction and keeps track of its claimed part for a <a
  * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
  */
 public abstract class RestrictionTracker<RestrictionT, PositionT> {
-  /** Internal interface allowing a runner to observe the calls to {@link #tryClaim}. */
-  @Internal
-  public interface ClaimObserver<PositionT> {
-    /** Called when {@link #tryClaim} returns true. */
-    void onClaimed(PositionT position);
-
-    /** Called when {@link #tryClaim} returns false. */
-    void onClaimFailed(PositionT position);
-  }
-
-  @Nullable private ClaimObserver<PositionT> claimObserver;
-
-  /**
-   * Sets a {@link ClaimObserver} to be invoked on every call to {@link #tryClaim}. Internal:
-   * intended only for runner authors.
-   */
-  @Internal
-  public void setClaimObserver(ClaimObserver<PositionT> claimObserver) {
-    checkNotNull(claimObserver, "claimObserver");
-    checkState(this.claimObserver == null, "A claim observer has already been set");
-    this.claimObserver = claimObserver;
-  }
-
   /**
    * Attempts to claim the block of work in the current restriction identified by the given
    * position.
@@ -65,27 +37,8 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    *       call to this method).
    *   <li>{@link RestrictionTracker#checkDone} MUST succeed.
    * </ul>
-   *
-   * <p>Under the hood, calls {@link #tryClaimImpl} and notifies {@link ClaimObserver} of the
-   * result.
    */
-  public final boolean tryClaim(PositionT position) {
-    if (tryClaimImpl(position)) {
-      if (claimObserver != null) {
-        claimObserver.onClaimed(position);
-      }
-      return true;
-    } else {
-      if (claimObserver != null) {
-        claimObserver.onClaimFailed(position);
-      }
-      return false;
-    }
-  }
-
-  /** Tracker-specific implementation of {@link #tryClaim}. */
-  @Internal
-  protected abstract boolean tryClaimImpl(PositionT position);
+  public abstract boolean tryClaim(PositionT position);
 
   /**
    * Returns a restriction accurately describing the full range of work the current {@link
@@ -102,8 +55,7 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    * work: the old value of {@link #currentRestriction} is equivalent to the new value and the
    * return value of this method combined.
    *
-   * <p>Must be called at most once on a given object. Must not be called before the first
-   * successful {@link #tryClaim} call.
+   * <p>Must be called at most once on a given object.
    */
   public abstract RestrictionT checkpoint();
 
