@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
-import com.google.common.collect.ImmutableMap;
 import java.sql.Date;
 import java.sql.JDBCType;
 import java.sql.Time;
@@ -28,6 +27,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 /** Provides utility functions for working with {@link JdbcIO}. */
 public class JdbcUtil {
