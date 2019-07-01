@@ -1,3 +1,4 @@
+# Remove this line eventually
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -44,6 +45,7 @@ import operator
 import os
 import sys
 import threading
+import traceback
 from builtins import hex
 from builtins import object
 from builtins import zip
@@ -786,8 +788,9 @@ class PTransformWithSideInputs(PTransform):
     # Ensure fn and side inputs are picklable for remote execution.
     try:
       self.fn = pickler.loads(pickler.dumps(self.fn))
-    except RuntimeError as e:
-      raise RuntimeError('Unable to pickle fn %s: %s' % (self.fn, e))
+    except Exception:
+      message = traceback.format_exc()
+      raise RuntimeError('Unable to pickle fn %s %s.' % (self.fn, message))
 
     self.args = pickler.loads(pickler.dumps(self.args))
     self.kwargs = pickler.loads(pickler.dumps(self.kwargs))

@@ -140,6 +140,7 @@ REQUIRED_PACKAGES = [
     'avro>=1.8.1,<1.10.0; python_version < "3.0"',
     # Avro 1.9.2 for python3 was broken. The issue was fixed in version 1.9.2.1
     'avro-python3>=1.8.1,!=1.9.2,<1.10.0; python_version >= "3.0"',
+    'cloudpickle>=1.4.1,<1.5',
     'crcmod>=1.7,<2.0',
     # Dill doesn't have forwards-compatibility guarantees within minor version.
     # Pickles created with a new version of dill may not unpickle using older

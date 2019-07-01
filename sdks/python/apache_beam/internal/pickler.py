@@ -43,6 +43,7 @@ from typing import Any
 from typing import Dict
 from typing import Tuple
 
+import cloudpickle
 import dill
 
 
@@ -250,16 +251,7 @@ def dumps(o, enable_trace=True):
 
   """For internal use only; no backwards-compatibility guarantees."""
   with pickle_lock_unless_py2:
-    try:
-      s = dill.dumps(o)
-    except Exception:  # pylint: disable=broad-except
-      if enable_trace:
-        dill.dill._trace(True)  # pylint: disable=protected-access
-        s = dill.dumps(o)
-      else:
-        raise
-    finally:
-      dill.dill._trace(False)  # pylint: disable=protected-access
+    s = cloudpickle.dumps(o)
 
   # Compress as compactly as possible to decrease peak memory usage (of multiple
   # in-memory copies) and free up some possibly large and no-longer-needed
@@ -279,16 +271,7 @@ def loads(encoded, enable_trace=True):
   del c  # Free up some possibly large and no-longer-needed memory.
 
   with pickle_lock_unless_py2:
-    try:
-      return dill.loads(s)
-    except Exception:  # pylint: disable=broad-except
-      if enable_trace:
-        dill.dill._trace(True)  # pylint: disable=protected-access
-        return dill.loads(s)
-      else:
-        raise
-    finally:
-      dill.dill._trace(False)  # pylint: disable=protected-access
+    return cloudpickle.loads(s)
 
 
 def dump_session(file_path):
@@ -300,12 +283,8 @@ def dump_session(file_path):
   create and load the dump twice to have consistent results in the worker and
   the running session. Check: https://github.com/uqfoundation/dill/issues/195
   """
-  with pickle_lock_unless_py2:
-    dill.dump_session(file_path)
-    dill.load_session(file_path)
-    return dill.dump_session(file_path)
+  pass
 
 
 def load_session(file_path):
-  with pickle_lock_unless_py2:
-    return dill.load_session(file_path)
+  pass

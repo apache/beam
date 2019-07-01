@@ -516,13 +516,6 @@ class Pipeline(object):
         from apache_beam.typehints import typecheck
         self.visit(typecheck.TypeCheckVisitor())
 
-      if self._options.view_as(SetupOptions).save_main_session:
-        # If this option is chosen, verify we can pickle the main session early.
-        tmpdir = tempfile.mkdtemp()
-        try:
-          pickler.dump_session(os.path.join(tmpdir, 'main_session.pickle'))
-        finally:
-          shutil.rmtree(tmpdir)
       return self.runner.run_pipeline(self, self._options)
     finally:
       shutil.rmtree(self.local_tempdir, ignore_errors=True)
