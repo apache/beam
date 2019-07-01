@@ -1349,6 +1349,7 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
       self._delegate_range_tracker = restriction.source.get_range_tracker(
           restriction.start_position, restriction.stop_position)
       self._source = restriction.source
+      self._weight = restriction.weight
 
     def current_progress(self):
       return RestrictionProgress(
@@ -1358,7 +1359,7 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
       start_pos = self._delegate_range_tracker.start_position()
       stop_pos = self._delegate_range_tracker.stop_position()
       return SourceBundle(
-          stop_pos - start_pos,
+          self._weight,
           self._source,
           start_pos,
           stop_pos)
@@ -1380,23 +1381,26 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
       # Need to stash current stop_pos before splitting since
       # range_tracker.split will update its stop_pos if splits
       # successfully.
+      start_pos = self.start_pos()
       stop_pos = self.stop_pos()
+      # Get a copy of range_tracker before split for calculating source weight
+      # after split.
+      range_tracker_before_split = self._source.get_range_tracker(start_pos,
+                                                                  stop_pos)
       split_result = self._delegate_range_tracker.try_split(position)
       if split_result:
         split_pos, _ = split_result
-        primary_start = self._delegate_range_tracker.start_position()
-        primary_stop = split_pos
-        residual_start = split_pos
-        residual_stop = stop_pos
         if split_pos:
-          return (SourceBundle(primary_stop - primary_start,
-                               self._source,
-                               primary_start,
-                               primary_stop),
-                  SourceBundle(residual_stop - residual_start,
-                               self._source,
-                               residual_start,
-                               residual_stop))
+          primary_fraction = range_tracker_before_split.position_at_fraction(
+              split_pos)
+          primary_weight = self._weight * primary_fraction
+          residual_weight = self._weight - primary_weight
+          # Update self._weight to primary weight
+          self._weight = primary_weight
+          return (SourceBundle(primary_weight, self._source, start_pos,
+                               split_pos),
+                  SourceBundle(residual_weight, self._source, split_pos,
+                               stop_pos))
 
     def deferred_status(self):
       return None
