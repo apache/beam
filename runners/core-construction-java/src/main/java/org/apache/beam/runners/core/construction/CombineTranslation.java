@@ -37,7 +37,6 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -105,7 +104,7 @@ public class CombineTranslation {
         return RunnerApi.CombinePayload.newBuilder()
             .setAccumulatorCoderId(
                 components.registerCoder(
-                    extractAccumulatorCoder(combineFn, (AppliedPTransform) combine)))
+                    extractCombinePerKeyAccumulatorCoder(combineFn, (AppliedPTransform) combine)))
             .setCombineFn(
                 SdkFunctionSpec.newBuilder()
                     .setEnvironmentId(components.getOnlyEnvironmentId())
@@ -176,7 +175,7 @@ public class CombineTranslation {
         return RunnerApi.CombinePayload.newBuilder()
             .setAccumulatorCoderId(
                 components.registerCoder(
-                    extractAccumulatorCoder(combineFn, (AppliedPTransform) combine)))
+                    extractCombineGloballyAccumulatorCoder(combineFn, (AppliedPTransform) combine)))
             .setCombineFn(
                 SdkFunctionSpec.newBuilder()
                     .setEnvironmentId(components.getOnlyEnvironmentId())
@@ -198,14 +197,15 @@ public class CombineTranslation {
 
   @VisibleForTesting
   static CombinePayload toProto(
-      AppliedPTransform<?, ?, Combine.PerKey<?, ?, ?>> combine, SdkComponents sdkComponents)
+      AppliedPTransform<?, ?, Combine.Globally<?, ?>> combine, SdkComponents sdkComponents)
       throws IOException {
     checkArgument(
         combine.getTransform().getSideInputs().isEmpty(),
         "CombineTranslation.toProto cannot translate Combines with side inputs.");
     GlobalCombineFn<?, ?, ?> combineFn = combine.getTransform().getFn();
     try {
-      Coder<?> accumulatorCoder = extractAccumulatorCoder(combineFn, (AppliedPTransform) combine);
+      Coder<?> accumulatorCoder =
+          extractCombineGloballyAccumulatorCoder(combineFn, (AppliedPTransform) combine);
       return RunnerApi.CombinePayload.newBuilder()
           .setAccumulatorCoderId(sdkComponents.registerCoder(accumulatorCoder))
           .setCombineFn(toProto(combineFn, sdkComponents))
@@ -215,7 +215,7 @@ public class CombineTranslation {
     }
   }
 
-  private static <K, InputT, AccumT> Coder<AccumT> extractAccumulatorCoder(
+  private static <K, InputT, AccumT> Coder<AccumT> extractCombinePerKeyAccumulatorCoder(
       GlobalCombineFn<InputT, AccumT, ?> combineFn,
       AppliedPTransform<PCollection<KV<K, InputT>>, ?, Combine.PerKey<K, InputT, ?>> transform)
       throws CannotProvideCoderException {
@@ -223,15 +223,21 @@ public class CombineTranslation {
     PCollection<KV<K, InputT>> mainInput =
         (PCollection<KV<K, InputT>>)
             Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(transform));
-    KvCoder<K, InputT> inputCoder = (KvCoder<K, InputT>) mainInput.getCoder();
-    return AppliedCombineFn.withInputCoder(
-            combineFn,
-            transform.getPipeline().getCoderRegistry(),
-            inputCoder,
-            transform.getTransform().getSideInputs(),
-            ((PCollection<?>) Iterables.getOnlyElement(transform.getOutputs().values()))
-                .getWindowingStrategy())
-        .getAccumulatorCoder();
+    return combineFn.getAccumulatorCoder(
+        transform.getPipeline().getCoderRegistry(),
+        ((KvCoder<K, InputT>) mainInput.getCoder()).getValueCoder());
+  }
+
+  private static <InputT, AccumT> Coder<AccumT> extractCombineGloballyAccumulatorCoder(
+      GlobalCombineFn<InputT, AccumT, ?> combineFn,
+      AppliedPTransform<PCollection<InputT>, ?, Combine.Globally<InputT, ?>> transform)
+      throws CannotProvideCoderException {
+    @SuppressWarnings("unchecked")
+    PCollection<InputT> mainInput =
+        (PCollection<InputT>)
+            Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(transform));
+    return combineFn.getAccumulatorCoder(
+        transform.getPipeline().getCoderRegistry(), mainInput.getCoder());
   }
 
   public static SdkFunctionSpec toProto(
