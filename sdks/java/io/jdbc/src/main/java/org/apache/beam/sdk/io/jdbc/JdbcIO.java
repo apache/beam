@@ -1017,6 +1017,7 @@ public class JdbcIO {
           PreparedStatement statement =
               connection.prepareStatement((String.format("SELECT * FROM %s", inner.getTable())))) {
         tableSchema = SchemaUtil.toBeamSchema(statement.getMetaData());
+        statement.close();
       } catch (SQLException e) {
         throw new RuntimeException(
             "Error while determining columns from table: " + inner.getTable(), e);

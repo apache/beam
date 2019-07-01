@@ -170,7 +170,7 @@ public class JdbcUtil {
 
   private static void validateLogicalTypeLength(Schema.Field field, Integer length) {
     if (field.getType().getTypeName().isLogicalType()
-        && length >= Integer.valueOf(field.getType().getLogicalType().getArgument())) {
+        && length >= Integer.parseInt(field.getType().getLogicalType().getArgument())) {
       throw new RuntimeException(
           String.format(
               "Length of Schema.Field[%s] data exceeds database column capacity", field.getName()));
