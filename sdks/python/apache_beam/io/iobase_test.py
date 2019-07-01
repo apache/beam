@@ -140,13 +140,19 @@ class SDFBoundedSourceRestrictionTrackerTest(unittest.TestCase):
 
   def test_try_split_at_remainder(self):
     fraction_of_remainder = 0.4
-    expected_primary = (0, 3)
-    expected_residual = (3, 4)
+    expected_primary = (0, 3, 3)
+    expected_residual = (3, 4, 1)
     self.sdf_restriction_tracker.try_claim(0)
     actual_primary, actual_residual = (
         self.sdf_restriction_tracker.try_split(fraction_of_remainder))
-    self.assertEqual(expected_primary, (actual_primary.start_position, actual_primary.stop_position))
-    self.assertEqual(expected_residual, (actual_residual.start_position, actual_residual.stop_position))
+    self.assertEqual(expected_primary, (actual_primary.start_position,
+                                        actual_primary.stop_position,
+                                        actual_primary.weight))
+    self.assertEqual(expected_residual, (actual_residual.start_position,
+                                         actual_residual.stop_position,
+                                         actual_residual.weight))
+    self.assertEqual(actual_primary.weight,
+                     self.sdf_restriction_tracker._weight)
 
 
 if __name__ == '__main__':
