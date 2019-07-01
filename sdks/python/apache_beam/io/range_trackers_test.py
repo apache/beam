@@ -190,6 +190,14 @@ class OffsetRangeTrackerTest(unittest.TestCase):
     self.assertEqual(tracker.split_points(),
                      (3, 41))
 
+  def test_position_to_fraction(self):
+    tracker = range_trackers.OffsetRangeTracker(0, 100)
+    position = tracker.position_at_fraction(0.4)
+    self.assertEqual(0.4,
+                     tracker.position_to_fraction(position,
+                                                  tracker.start_position(),
+                                                  tracker.stop_position()))
+
 
 class OrderedPositionRangeTrackerTest(unittest.TestCase):
 

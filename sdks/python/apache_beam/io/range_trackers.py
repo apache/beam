@@ -160,7 +160,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
                                        self.stop_position())
 
   def position_to_fraction(self, pos, start, stop):
-    fraction = 1.0 * (pos - start) / (stop - start) if start != stop else 0.0
+    fraction = (1.0 * (pos - start) / (stop - start)) if start != stop else 0.0
     return max(0.0, min(1.0, fraction))
 
   def position_at_fraction(self, fraction):
