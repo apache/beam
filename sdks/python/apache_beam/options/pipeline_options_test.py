@@ -47,6 +47,12 @@ class PipelineOptionsTest(unittest.TestCase):
                     'mock_option': None,
                     'mock_multi_option': None},
        'display_data': [DisplayDataItemMatcher('num_workers', 5)]},
+      {'flags': ['--direct_num_workers', '5'],
+       'expected': {'direct_num_workers': 5,
+                    'mock_flag': False,
+                    'mock_option': None,
+                    'mock_multi_option': None},
+       'display_data': [DisplayDataItemMatcher('direct_num_workers', 5)]},
       {
           'flags': [
               '--profile_cpu', '--profile_location', 'gs://bucket/', 'ignored'],
