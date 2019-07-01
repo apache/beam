@@ -580,6 +580,11 @@ class RangeTracker(object):
     """
     raise NotImplementedError
 
+  def distance_between_positions(self, start_pos, stop_pos):
+    """Calculate the distance between given start position and stop position.
+    """
+    raise NotImplementedError
+
 
 class Sink(HasDisplayData):
   """This class is deprecated, no backwards-compatibility guarantees.
@@ -1358,7 +1363,8 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
       start_pos = self._delegate_range_tracker.start_position()
       stop_pos = self._delegate_range_tracker.stop_position()
       return SourceBundle(
-          stop_pos - start_pos,
+          self._delegate_range_tracker.distance_between_positions(start_pos,
+                                                                  stop_pos),
           self._source,
           start_pos,
           stop_pos)
@@ -1389,11 +1395,15 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
         residual_start = split_pos
         residual_stop = stop_pos
         if split_pos:
-          return (SourceBundle(primary_stop - primary_start,
+          return (SourceBundle(self._delegate_range_tracker
+                               .distance_between_positions(primary_start,
+                                                           primary_stop),
                                self._source,
                                primary_start,
                                primary_stop),
-                  SourceBundle(residual_stop - residual_start,
+                  SourceBundle(self._delegate_range_tracker
+                               .distance_between_positions(residual_start,
+                                                           residual_stop),
                                self._source,
                                residual_start,
                                residual_stop))
