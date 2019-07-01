@@ -187,14 +187,12 @@ class OffsetRangeTracker(iobase.RangeTracker):
   def set_split_points_unclaimed_callback(self, callback):
     self._split_points_unclaimed_callback = callback
 
-  def distance_between_positions(self, start_pos, stop_pos):
-    return stop_pos - start_pos
 
 class OrderedPositionRangeTracker(iobase.RangeTracker):
   """
   An abstract base class for range trackers whose positions are comparable.
 
-  Subclasses only need to implement the mapping fKrom position ranges
+  Subclasses only need to implement the mapping from position ranges
   to and from the closed interval [0, 1].
   """
 
@@ -267,10 +265,6 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
     Converts a fraction between 0 and 1 to a position between start and end.
     """
     raise NotImplementedError
-
-  def distance_between_positions(self, start_pos, stop_pos):
-    return (self.position_at_fraction(stop_pos, None, None) -
-            self.position_at_fraction(start_pos, None, None))
 
 
 class UnsplittableRangeTracker(iobase.RangeTracker):
