@@ -339,6 +339,10 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
     }
   }
 
+  public boolean isThrashing() {
+    return isThrashing.get();
+  }
+
   /**
    * Check if we've observed high gc workload in sufficient sample periods to justify classifying
    * the server as in gc thrashing.
