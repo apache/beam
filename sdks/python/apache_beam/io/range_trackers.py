@@ -149,17 +149,19 @@ class OffsetRangeTracker(iobase.RangeTracker):
 
   def fraction_consumed(self):
     with self._lock:
-      fraction = ((1.0 * (self._last_record_start - self.start_position()) /
-                   (self.stop_position() - self.start_position())) if
-                  self.stop_position() != self.start_position() else 0.0)
-
       # self.last_record_start may become larger than self.end_offset when
       # reading the records since any record that starts before the first 'split
       # point' at or after the defined 'stop offset' is considered to be within
       # the range of the OffsetRangeTracker. Hence fraction could be > 1.
       # self.last_record_start is initialized to -1, hence fraction may be < 0.
       # Bounding the to range [0, 1].
-      return max(0.0, min(1.0, fraction))
+      return self.position_to_fraction(self._last_record_start,
+                                       self.start_position(),
+                                       self.stop_position())
+
+  def position_to_fraction(self, pos, start, stop):
+    fraction = 1.0 * (pos - start) / (stop - start) if start != stop else 0.0
+    return max(0.0, min(1.0, fraction))
 
   def position_at_fraction(self, fraction):
     if self.stop_position() == OffsetRangeTracker.OFFSET_INFINITY:
@@ -252,13 +254,6 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
     else:
       return self.position_to_fraction(
           self._last_claim, self._start_position, self._stop_position)
-
-  def position_to_fraction(self, pos, start, end):
-    """
-    Converts a position `pos` betweeen `start` and `end` (inclusive) to a
-    fraction between 0 and 1.
-    """
-    raise NotImplementedError
 
   def fraction_to_position(self, fraction, start, end):
     """

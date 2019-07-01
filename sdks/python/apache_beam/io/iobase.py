@@ -388,6 +388,13 @@ class RangeTracker(object):
     """
     raise NotImplementedError
 
+  def position_to_fraction(self, pos, start, stop):
+    """
+    Converts a position `pos` betweeen `start` and `end` (inclusive) to a
+    fraction between 0 and 1.
+    """
+    raise NotImplementedError
+
   def try_split(self, position):
     """Atomically splits the current range.
 
@@ -1383,16 +1390,12 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
       # successfully.
       start_pos = self.start_pos()
       stop_pos = self.stop_pos()
-      # Get a copy of range_tracker before split for calculating source weight
-      # after split.
-      range_tracker_before_split = self._source.get_range_tracker(start_pos,
-                                                                  stop_pos)
       split_result = self._delegate_range_tracker.try_split(position)
       if split_result:
         split_pos, _ = split_result
         if split_pos:
-          primary_fraction = range_tracker_before_split.position_at_fraction(
-              split_pos)
+          primary_fraction = self._delegate_range_tracker.position_to_fraction(
+              split_pos, start_pos, stop_pos)
           primary_weight = self._weight * primary_fraction
           residual_weight = self._weight - primary_weight
           # Update self._weight to primary weight
