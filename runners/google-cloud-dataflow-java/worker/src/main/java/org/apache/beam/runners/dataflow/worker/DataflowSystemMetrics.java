@@ -39,7 +39,8 @@ public class DataflowSystemMetrics {
     JAVA_HARNESS_USED_MEMORY("dataflow_java_harness_used_memory"),
     JAVA_HARNESS_MAX_MEMORY("dataflow_java_harness_max_memory"),
     JAVA_HARNESS_RESTARTS("dataflow_java_harness_restarts"),
-    WINDMILL_QUOTA_THROTTLING("dataflow_streaming_engine_throttled_msecs");
+    WINDMILL_QUOTA_THROTTLING("dataflow_streaming_engine_throttled_msecs"),
+    MEMORY_THRASHING("dataflow_streaming_engine_user_worker_thrashing");
 
     private final String name;
 
