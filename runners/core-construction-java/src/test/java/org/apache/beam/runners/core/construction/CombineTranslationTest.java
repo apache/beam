@@ -80,13 +80,13 @@ public class CombineTranslationTest {
     public void testToProto() throws Exception {
       PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3));
       input.apply(Combine.globally(combineFn));
-      final AtomicReference<AppliedPTransform<?, ?, Combine.PerKey<?, ?, ?>>> combine =
+      final AtomicReference<AppliedPTransform<?, ?, Combine.Globally<?, ?>>> combine =
           new AtomicReference<>();
       pipeline.traverseTopologically(
           new PipelineVisitor.Defaults() {
             @Override
             public void leaveCompositeTransform(Node node) {
-              if (node.getTransform() instanceof Combine.PerKey) {
+              if (node.getTransform() instanceof Combine.Globally) {
                 checkState(combine.get() == null);
                 combine.set((AppliedPTransform) node.toAppliedPTransform(getPipeline()));
               }
@@ -121,13 +121,13 @@ public class CombineTranslationTest {
       PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3));
       CombineFnWithContext<Integer, int[], Integer> combineFn = new TestCombineFnWithContext();
       input.apply(Combine.globally(combineFn).withoutDefaults());
-      final AtomicReference<AppliedPTransform<?, ?, Combine.PerKey<?, ?, ?>>> combine =
+      final AtomicReference<AppliedPTransform<?, ?, Combine.Globally<?, ?>>> combine =
           new AtomicReference<>();
       pipeline.traverseTopologically(
           new PipelineVisitor.Defaults() {
             @Override
             public void leaveCompositeTransform(Node node) {
-              if (node.getTransform() instanceof Combine.PerKey) {
+              if (node.getTransform() instanceof Combine.Globally) {
                 checkState(combine.get() == null);
                 combine.set((AppliedPTransform) node.toAppliedPTransform(getPipeline()));
               }
@@ -168,13 +168,13 @@ public class CombineTranslationTest {
           };
 
       input.apply(Combine.globally(combineFn).withSideInputs(sideInputs).withoutDefaults());
-      final AtomicReference<AppliedPTransform<?, ?, Combine.PerKey<?, ?, ?>>> combine =
+      final AtomicReference<AppliedPTransform<?, ?, Combine.Globally<?, ?>>> combine =
           new AtomicReference<>();
       pipeline.traverseTopologically(
           new PipelineVisitor.Defaults() {
             @Override
             public void leaveCompositeTransform(Node node) {
-              if (node.getTransform() instanceof Combine.PerKey) {
+              if (node.getTransform() instanceof Combine.Globally) {
                 checkState(combine.get() == null);
                 combine.set((AppliedPTransform) node.toAppliedPTransform(getPipeline()));
               }
