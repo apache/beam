@@ -21,7 +21,7 @@ limitations under the License.
 
 ## Overview
 
-The Hazelcast Jet Runner can be used to execute Beam pipelines using [Hazelcat
+The Hazelcast Jet Runner can be used to execute Beam pipelines using [Hazelcast
 Jet](https://jet.hazelcast.org/). 
 
 The Jet Runner and Jet are suitable for large scale continuous jobs and provide:
