@@ -586,6 +586,7 @@ public class Snippets {
                 .withSideInputs(map));
   }
 
+  /* Placeholder class that represents an external service generating test data. */
   public static class PlaceholderExternalService {
 
     public static Map<String, String> readTestData() {
