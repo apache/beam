@@ -63,9 +63,9 @@ class AggregatorCombinerGlobally<InputT, AccumT, OutputT, W extends BoundedWindo
   }
 
   @Override public Iterable<WindowedValue<AccumT>> reduce(Iterable<WindowedValue<AccumT>> accumulators,
-      Tuple2<Integer, WindowedValue<InputT>> inputTupe) {
+      Tuple2<Integer, WindowedValue<InputT>> inputTuple) {
 
-    WindowedValue<InputT> input = inputTupe._2;
+    WindowedValue<InputT> input = inputTuple._2;
     //concatenate accumulators windows and input windows and merge the windows
     Collection<W> inputWindows = (Collection<W>)input.getWindows();
     Set<W> windows = collectAccumulatorsWindows(accumulators);
@@ -80,11 +80,11 @@ class AggregatorCombinerGlobally<InputT, AccumT, OutputT, W extends BoundedWindo
     // iterate through the input windows and for each, create an accumulator with the merged window
     // associated to it and call addInput with the accumulator.
     // Maintain a map of the accumulators for use as output
-    Map<W, Tuple2<AccumT, Instant>> mapState = new HashMap<>();
+    Map<W, Tuple2<AccumT, Instant>> windowToAccumAndInstant = new HashMap<>();
     for (W inputWindow:inputWindows) {
       W mergedWindow = windowToMergeResult.get(inputWindow);
       mergedWindow = mergedWindow == null ? inputWindow : mergedWindow;
-      Tuple2<AccumT, Instant> accumAndInstant = mapState.get(mergedWindow);
+      Tuple2<AccumT, Instant> accumAndInstant = windowToAccumAndInstant.get(mergedWindow);
       // if there is no accumulator associated with this window yet, create one
       if (accumAndInstant == null) {
         AccumT accum = combineFn.addInput(combineFn.createAccumulator(), input.getValue());
@@ -92,7 +92,6 @@ class AggregatorCombinerGlobally<InputT, AccumT, OutputT, W extends BoundedWindo
             timestampCombiner.assign(
                 mergedWindow, windowingStrategy.getWindowFn().getOutputTime(input.getTimestamp(), mergedWindow));
         accumAndInstant = new Tuple2<>(accum, windowTimestamp);
-        mapState.put(mergedWindow, accumAndInstant);
       } else {
         AccumT updatedAccum =
             combineFn.addInput(accumAndInstant._1, input.getValue());
@@ -101,10 +100,12 @@ class AggregatorCombinerGlobally<InputT, AccumT, OutputT, W extends BoundedWindo
                 windowingStrategy.getWindowFn().getOutputTime(input.getTimestamp(), mergedWindow)));
         accumAndInstant = new Tuple2<>(updatedAccum, updatedTimestamp);
       }
+      windowToAccumAndInstant.put(mergedWindow, accumAndInstant);
     }
     // output the accumulators map
+    //TODO perf: to avoid memory allocation it is authorized to modify accumulators argument
     List<WindowedValue<AccumT>> result = new ArrayList<>();
-    for (Map.Entry<W, Tuple2<AccumT, Instant>> entry : mapState.entrySet()) {
+    for (Map.Entry<W, Tuple2<AccumT, Instant>> entry : windowToAccumAndInstant.entrySet()) {
       AccumT accumulator = entry.getValue()._1;
       Instant windowTimestamp = entry.getValue()._2;
       W window = entry.getKey();
