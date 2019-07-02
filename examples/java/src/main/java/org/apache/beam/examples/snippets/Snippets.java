@@ -517,7 +517,8 @@ public class Snippets {
 
     // [START FileProcessPatternAccessMetadataSnip1]
     p.apply(FileIO.match().filepattern("hdfs://path/to/*.gz"))
-        // The withCompression method is optional. By default, the Beam SDK detects compression from the filename.
+        // The withCompression method is optional. By default, the Beam SDK detects compression from
+        // the filename.
         .apply(FileIO.readMatches().withCompression(Compression.GZIP))
         .apply(
             ParDo.of(
