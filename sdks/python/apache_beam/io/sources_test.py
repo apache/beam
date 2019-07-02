@@ -59,27 +59,28 @@ class LineSource(iobase.BoundedSource):
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     assert start_position is None
     assert stop_position is None
-    with open(self._file_name, 'rb') as f:
-      f.seek(0, os.SEEK_END)
-      size = f.tell()
+    size = self.estimate_size()
 
     bundle_start = 0
     while bundle_start < size:
       bundle_stop = min(bundle_start + LineSource.TEST_BUNDLE_SIZE, size)
-      yield iobase.SourceBundle(1, self, bundle_start, bundle_stop)
+      yield iobase.SourceBundle(bundle_stop - bundle_start, self, bundle_start, bundle_stop)
       bundle_start = bundle_stop
 
   def get_range_tracker(self, start_position, stop_position):
     if start_position is None:
       start_position = 0
     if stop_position is None:
-      with open(self._file_name, 'rb') as f:
-        f.seek(0, os.SEEK_END)
-        stop_position = f.tell()
+      stop_position = self.estimate_size()
     return range_trackers.OffsetRangeTracker(start_position, stop_position)
 
   def default_output_coder(self):
     return coders.BytesCoder()
+
+  def estimate_size(self):
+    with open(self._file_name, 'rb') as f:
+      f.seek(0, os.SEEK_END)
+      return f.tell()
 
 
 class SourcesTest(unittest.TestCase):
