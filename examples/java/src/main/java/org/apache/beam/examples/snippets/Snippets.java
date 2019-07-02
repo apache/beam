@@ -543,7 +543,7 @@ public class Snippets {
                 new DoFn<FileIO.ReadableFile, String>() {
                   @ProcessElement
                   public void process(@Element FileIO.ReadableFile file) {
-                    // We can now access to the file and its metadata.
+                    // We can now access the file and its metadata.
                     LOG.info("File Metadata resourceId is {} ", file.getMetadata().resourceId());
                   }
                 }));
