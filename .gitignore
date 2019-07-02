@@ -84,3 +84,4 @@ sdks/python/postcommit_requirements.txt
 # is an input to 'maven-assembly-plugin' that generates source distribution.
 # This is typically in files named 'src.xml' throughout this repository.
 
+# JetBrains Education files

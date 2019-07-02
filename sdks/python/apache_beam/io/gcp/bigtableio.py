@@ -42,7 +42,6 @@ from collections import namedtuple
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.io import iobase
-from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
 from apache_beam.metrics import Metrics
 from apache_beam.transforms import core
 from apache_beam.transforms.display import DisplayDataItem
@@ -235,8 +234,6 @@ class ReadFromBigTable(beam.PTransform):
                          'instance_id': instance_id,
                          'table_id': table_id,
                          'filter_': filter_}
-    self.table = None
-    self.sample_row_keys = None
 
   def __getstate__(self):
       return self._beam_options
@@ -246,12 +243,11 @@ class ReadFromBigTable(beam.PTransform):
 
   def expand(self, pbegin):
     beam_options = self._beam_options
-    if self.table is None:
-      self.table = Client(project=self._beam_options['project_id'])\
-                    .instance(self._beam_options['instance_id'])\
-                    .table(self._beam_options['table_id'])
+    table = Client(project=beam_options['project_id'])\
+                .instance(beam_options['instance_id'])\
+                .table(beam_options['table_id'])
+    sample_row_keys = list(table.sample_row_keys())
 
-    sample_row_keys = list(self.table.sample_row_keys())
     if len(sample_row_keys) > 1 and sample_row_keys[0].row_key != b'':
         SampleRowKey = namedtuple("SampleRowKey", "row_key offset_bytes")
         first_key = SampleRowKey(b'', 0)
