@@ -21,7 +21,7 @@ import PhraseTriggeringPostCommitBuilder
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def loadTestConfigurations = [
+def loadTestConfigurations = { datasetName -> [
         [
                 title        : 'GroupByKey Python Load test: 2GB of 10B records',
                 itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
@@ -32,7 +32,7 @@ def loadTestConfigurations = [
                         project              : 'apache-beam-testing',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
-                        metrics_dataset      : 'load_test',
+                        metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_gbk_1',
                         input_options        : '\'{"num_records": 200000000,' +
                                 '"key_size": 1,' +
@@ -54,7 +54,7 @@ def loadTestConfigurations = [
                         project              : 'apache-beam-testing',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
-                        metrics_dataset      : 'load_test',
+                        metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_gbk_2',
                         input_options        : '\'{"num_records": 20000000,' +
                                 '"key_size": 10,' +
@@ -76,7 +76,7 @@ def loadTestConfigurations = [
                         project              : 'apache-beam-testing',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
-                        metrics_dataset      : 'load_test',
+                        metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_gbk_3',
                         input_options        : '\'{"num_records": 2000,' +
                                 '"key_size": 100000,' +
@@ -98,7 +98,7 @@ def loadTestConfigurations = [
                         project              : 'apache-beam-testing',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
-                        metrics_dataset      : 'load_test',
+                        metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_gbk_4',
                         input_options        : '\'{"num_records": 5000000,' +
                                 '"key_size": 10,' +
@@ -120,7 +120,7 @@ def loadTestConfigurations = [
                         project              : 'apache-beam-testing',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
-                        metrics_dataset      : 'load_test',
+                        metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_gbk_5',
                         input_options        : '\'{"num_records": 2500000,' +
                                 '"key_size": 10,' +
@@ -132,7 +132,7 @@ def loadTestConfigurations = [
                         autoscaling_algorithm: "NONE"
                 ]
         ],
-]
+]}
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
         'beam_LoadTests_Python_GBK_Dataflow_Batch',
@@ -140,10 +140,12 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         'Load Tests Python GBK Dataflow Batch suite',
         this
 ) {
-        loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON, loadTestConfigurations, CommonTestProperties.TriggeringContext.PR, "GBK", "batch")
+        def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', CommonTestProperties.TriggeringContext.PR)
+        loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON, loadTestConfigurations(datasetName), "GBK", "batch")
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_Dataflow_Batch', 'H 12 * * *', this) {
-        loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON, loadTestConfigurations, CommonTestProperties.TriggeringContext.POST_COMMIT, "GBK", "batch")
+        def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', CommonTestProperties.TriggeringContext.POST_COMMIT)
+        loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON, loadTestConfigurations(datasetName), "GBK", "batch")
 }
 
