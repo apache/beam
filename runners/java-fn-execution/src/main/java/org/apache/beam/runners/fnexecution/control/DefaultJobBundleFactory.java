@@ -81,7 +81,9 @@ import org.slf4j.LoggerFactory;
 @ThreadSafe
 public class DefaultJobBundleFactory implements JobBundleFactory {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultJobBundleFactory.class);
+  private static final IdGenerator factoryIdGenerator = IdGenerators.incrementingLongs();
 
+  private final String factoryId = factoryIdGenerator.getId();
   private final LoadingCache<Environment, WrappedSdkHarnessClient> environmentCache;
   private final Map<String, EnvironmentFactory.Provider> environmentFactoryProviderMap;
   private final ExecutorService executor;
@@ -112,11 +114,11 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
   DefaultJobBundleFactory(
       JobInfo jobInfo, Map<String, EnvironmentFactory.Provider> environmentFactoryMap) {
-    IdGenerator stageIdGenerator = IdGenerators.incrementingLongs();
+    IdGenerator stageIdSuffixGenerator = IdGenerators.incrementingLongs();
     this.environmentFactoryProviderMap = environmentFactoryMap;
     this.executor = Executors.newCachedThreadPool();
     this.clientPool = MapControlClientPool.create();
-    this.stageIdGenerator = stageIdGenerator;
+    this.stageIdGenerator = () -> factoryId + "-" + stageIdSuffixGenerator.getId();
     this.environmentExpirationMillis = getEnvironmentExpirationMillis(jobInfo);
     this.environmentCache =
         createEnvironmentCache(serverFactory -> createServerInfo(jobInfo, serverFactory));
