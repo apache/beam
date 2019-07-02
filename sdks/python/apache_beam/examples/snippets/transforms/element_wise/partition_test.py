@@ -23,10 +23,46 @@ import unittest
 
 import mock
 
-from apache_beam.examples.snippets.transforms.element_wise.partition import *
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+
+from ..element_wise import partition
+
+
+def check_partitions(actual1, actual2, actual3):
+  # [START partitions]
+  annuals = [
+      {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
+  ]
+  biennials = [
+      {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
+  ]
+  perennials = [
+      {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
+      {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
+      {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
+  ]
+  # [END partitions]
+  assert_that(actual1, equal_to(annuals), label='assert annuals')
+  assert_that(actual2, equal_to(biennials), label='assert biennials')
+  assert_that(actual3, equal_to(perennials), label='assert perennials')
+
+
+def check_split_datasets(actual1, actual2):
+  # [START train_test]
+  train_dataset = [
+      {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
+      {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
+      {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
+  ]
+  test_dataset = [
+      {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
+      {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
+  ]
+  # [END train_test]
+  assert_that(actual1, equal_to(train_dataset), label='assert train')
+  assert_that(actual2, equal_to(test_dataset), label='assert test')
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
@@ -34,53 +70,14 @@ from apache_beam.testing.util import equal_to
 @mock.patch('apache_beam.examples.snippets.transforms.element_wise.partition.print', lambda elem: elem)
 # pylint: enable=line-too-long
 class PartitionTest(unittest.TestCase):
-  def __init__(self, methodName):
-    super(PartitionTest, self).__init__(methodName)
-    # [START partitions]
-    annuals = [
-        {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
-    ]
-    biennials = [
-        {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
-    ]
-    perennials = [
-        {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
-        {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
-        {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
-    ]
-    # [END partitions]
-
-    def partitions_test(actual1, actual2, actual3):
-      assert_that(actual1, equal_to(annuals), label='assert annuals')
-      assert_that(actual2, equal_to(biennials), label='assert biennials')
-      assert_that(actual3, equal_to(perennials), label='assert perennials')
-    self.partitions_test = partitions_test
-
-    # [START train_test]
-    train_dataset = [
-        {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
-        {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
-        {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
-        {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
-    ]
-    test_dataset = [
-        {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
-    ]
-    # [END train_test]
-
-    def train_test_split_test(actual1, actual2):
-      assert_that(actual1, equal_to(train_dataset), label='assert train')
-      assert_that(actual2, equal_to(test_dataset), label='assert test')
-    self.train_test_split_test = train_test_split_test
-
   def test_partition_function(self):
-    partition_function(self.partitions_test)
+    partition.partition_function(check_partitions)
 
   def test_partition_lambda(self):
-    partition_lambda(self.partitions_test)
+    partition.partition_lambda(check_partitions)
 
   def test_partition_multiple_arguments(self):
-    partition_multiple_arguments(self.train_test_split_test)
+    partition.partition_multiple_arguments(check_split_datasets)
 
 
 if __name__ == '__main__':

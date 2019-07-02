@@ -99,9 +99,18 @@ def partition_lambda(test=None):
 def partition_multiple_arguments(test=None):
   # [START partition_multiple_arguments]
   import apache_beam as beam
-  from random import Random
+  import json
 
-  random = Random(0)
+  def split_dataset(plant, num_partitions, ratio):
+    assert num_partitions == len(ratio)
+    bucket = sum(map(ord, json.dumps(plant))) % sum(ratio)
+    total = 0
+    for i, part in enumerate(ratio):
+      total += part
+      if bucket < total:
+        return i
+    return len(ratio) - 1
+
   with beam.Pipeline() as pipeline:
     train_dataset, test_dataset = (
         pipeline
@@ -112,10 +121,7 @@ def partition_multiple_arguments(test=None):
             {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
             {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
         ])
-        | 'Partition' >> beam.Partition(
-            lambda plant, n, train_ratio: int(random.random() > train_ratio),
-            2, train_ratio=0.8,
-        )
+        | 'Partition' >> beam.Partition(split_dataset, 2, ratio=[8, 2])
     )
     _ = (
         train_dataset
