@@ -19,8 +19,9 @@
 # This image contains a Python SDK build and dependencies.
 # By default it runs wordcount against a locally accessible HDFS service.
 # See hdfs_integration_test.sh for example usage.
+ARG BASE_IMAGE
+FROM $BASE_IMAGE
 
-FROM python:2
 WORKDIR /app
 ENV HDFSCLI_CONFIG /app/sdks/python/apache_beam/io/hdfs_integration_test/hdfscli.cfg
 RUN pip install --no-cache-dir holdup gsutil
