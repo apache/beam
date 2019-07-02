@@ -82,8 +82,8 @@ public class ElasticsearchIOIT {
 
   @AfterClass
   public static void afterClass() throws Exception {
-    ElasticSearchIOTestUtils.deleteIndex(writeConnectionConfiguration, restClient);
-    ElasticSearchIOTestUtils.deleteIndex(updateConnectionConfiguration, restClient);
+    ElasticsearchIOTestUtils.deleteIndex(writeConnectionConfiguration, restClient);
+    ElasticsearchIOTestUtils.deleteIndex(updateConnectionConfiguration, restClient);
     restClient.close();
   }
 
@@ -130,11 +130,11 @@ public class ElasticsearchIOIT {
   /**
    * This test verifies volume partial updates of Elasticsearch. The test dataset index is cloned
    * and then a new field is added to each document using a partial update. The test then asserts
-   * the updates where appied.
+   * the updates were applied.
    */
   @Test
   public void testWritePartialUpdate() throws Exception {
-    ElasticSearchIOTestUtils.copyIndex(
+    ElasticsearchIOTestUtils.copyIndex(
         restClient,
         readConnectionConfiguration.getIndex(),
         updateConnectionConfiguration.getIndex());
