@@ -41,6 +41,17 @@ public class AvroSortedBucketIO {
         bucketingMetadata, outputDirectory, ".avro", tempDirectory, AvroFileOperations.of(schema));
   }
 
+  public static <KeyT> SortedBucketSink<KeyT, GenericRecord> sink(
+      AvroBucketMetadata<KeyT, GenericRecord> bucketingMetadata,
+      ResourceId outputDirectory,
+      ResourceId tempDirectory,
+      Schema schema,
+      boolean allowNullKeys) {
+    return SortedBucketIO.write(
+        bucketingMetadata, outputDirectory, ".avro", tempDirectory, AvroFileOperations.of(schema),
+        allowNullKeys);
+  }
+
   public static <KeyT, ValueT extends SpecificRecordBase> SortedBucketSink<KeyT, ValueT> sink(
       AvroBucketMetadata<KeyT, ValueT> bucketingMetadata,
       ResourceId outputDirectory,
@@ -52,6 +63,21 @@ public class AvroSortedBucketIO {
         ".avro",
         tempDirectory,
         AvroFileOperations.of(recordClass));
+  }
+
+  public static <KeyT, ValueT extends SpecificRecordBase> SortedBucketSink<KeyT, ValueT> sink(
+      AvroBucketMetadata<KeyT, ValueT> bucketingMetadata,
+      ResourceId outputDirectory,
+      ResourceId tempDirectory,
+      Class<ValueT> recordClass,
+      boolean allowNullKeys) {
+    return SortedBucketIO.write(
+        bucketingMetadata,
+        outputDirectory,
+        ".avro",
+        tempDirectory,
+        AvroFileOperations.of(recordClass),
+        allowNullKeys);
   }
 
   // Joins

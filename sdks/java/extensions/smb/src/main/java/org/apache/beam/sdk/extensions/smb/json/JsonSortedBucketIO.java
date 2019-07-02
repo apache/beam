@@ -37,6 +37,16 @@ public class JsonSortedBucketIO {
         bucketingMetadata, outputDirectory, ".json", tempDirectory, new JsonFileOperations());
   }
 
+  public static <KeyT> SortedBucketSink<KeyT, TableRow> sink(
+      JsonBucketMetadata<KeyT> bucketingMetadata,
+      ResourceId outputDirectory,
+      ResourceId tempDirectory,
+      boolean allowNullKeys) {
+    return SortedBucketIO.write(
+        bucketingMetadata, outputDirectory, ".json", tempDirectory, new JsonFileOperations(),
+        allowNullKeys);
+  }
+
   public static <KeyT> JoinSource<KeyT, TableRow> jsonSource(
       TupleTag<TableRow> tupleTag, ResourceId filenamePrefix) {
     return new JoinSource<>(

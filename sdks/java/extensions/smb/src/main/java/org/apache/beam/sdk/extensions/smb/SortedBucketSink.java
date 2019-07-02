@@ -24,11 +24,13 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.extensions.smb.BucketShardId.BucketShardIdCoder;
 import org.apache.beam.sdk.extensions.smb.FileOperations.Writer;
 import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy.FileAssignment;
@@ -71,16 +73,29 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
   private final SMBFilenamePolicy filenamePolicy;
   private final SerializableSupplier<Writer<V>> writerSupplier;
   private final ResourceId tempDirectory;
+  private final boolean allowNullKeys;
 
+  // By default set, allowNullKeys to false as there's a slight performance penalty for wrapping
+  // KV pairs with NullableCoder.
   public SortedBucketSink(
       BucketMetadata<K, V> bucketMetadata,
       SMBFilenamePolicy filenamePolicy,
       SerializableSupplier<Writer<V>> writerSupplier,
       ResourceId tempDirectory) {
+    this(bucketMetadata, filenamePolicy, writerSupplier, tempDirectory, false);
+  }
+
+  public SortedBucketSink(
+      BucketMetadata<K, V> bucketMetadata,
+      SMBFilenamePolicy filenamePolicy,
+      SerializableSupplier<Writer<V>> writerSupplier,
+      ResourceId tempDirectory,
+      boolean allowNullKeys) {
     this.bucketMetadata = bucketMetadata;
     this.filenamePolicy = filenamePolicy;
     this.writerSupplier = writerSupplier;
     this.tempDirectory = tempDirectory;
+    this.allowNullKeys = allowNullKeys;
   }
 
   @Override
@@ -93,7 +108,11 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
     return input
         .apply("ExtractKeys", ParDo.of(new ExtractKeys<>(this.bucketMetadata)))
         .setCoder(
-            KvCoder.of(BucketShardIdCoder.of(), KvCoder.of(ByteArrayCoder.of(), input.getCoder())))
+            KvCoder.of(
+                BucketShardIdCoder.of(),
+                KvCoder.of(
+                    allowNullKeys ? NullableCoder.of(ByteArrayCoder.of()) : ByteArrayCoder.of(),
+                    input.getCoder())))
         .apply("GroupByKey", GroupByKey.create())
         .apply(
             "SortValues",
@@ -131,8 +150,12 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
       final V record = c.element();
       final byte[] keyBytes = bucketMetadata.getKeyBytes(record);
 
-      final int bucketId = bucketMetadata.getBucketId(keyBytes);
-      c.output(KV.of(BucketShardId.of(bucketId, shardId), KV.of(keyBytes, record)));
+      final BucketShardId bucketShardId =
+          Optional.ofNullable(keyBytes)
+              .map(bytes -> BucketShardId.of(bucketMetadata.getBucketId(keyBytes), shardId))
+              .orElse(BucketShardId.ofNullKey(shardId));
+
+      c.output(KV.of(bucketShardId, KV.of(keyBytes, record)));
     }
   }
 

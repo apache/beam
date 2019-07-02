@@ -23,6 +23,7 @@ import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Optional;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
@@ -66,12 +67,21 @@ public class MixedSourcesEndToEndTest implements Serializable {
           "org.apache.beam.sdk.extensions.smb",
           false,
           Arrays.asList(
-              new Field("name", Schema.create(Type.BYTES), "", ""),
+              new Field(
+                  "name",
+                  Schema.createUnion(
+                      Arrays.asList(Schema.create(Type.NULL), Schema.create(Type.BYTES))),
+                  "",
+                  ""),
               new Field("age", Schema.create(Type.INT), "", -1)));
 
   private static GenericRecord createUserGR(String name, int age) {
     GenericData.Record result = new GenericData.Record(GR_USER_SCHEMA);
-    result.put("name", ByteBuffer.wrap(ByteString.copyFromUtf8(name).toByteArray()));
+    result.put(
+        "name",
+        Optional.ofNullable(name)
+            .map(n -> ByteBuffer.wrap(ByteString.copyFromUtf8(n).toByteArray()))
+            .orElse(null));
     result.put("age", age);
 
     return result;
@@ -97,6 +107,7 @@ public class MixedSourcesEndToEndTest implements Serializable {
                     createUserGR("e", 5),
                     createUserGR("f", 6),
                     createUserGR("g", 7),
+                    createUserGR(null, 7),
                     createUserGR("h", 8))
                 .withCoder(AvroCoder.of(GR_USER_SCHEMA)))
         .apply(
@@ -104,7 +115,8 @@ public class MixedSourcesEndToEndTest implements Serializable {
                 avroMetadata,
                 LocalResources.fromFile(source1Folder.getRoot(), true),
                 LocalResources.fromFile(tmpFolder.getRoot(), true),
-                GR_USER_SCHEMA));
+                GR_USER_SCHEMA,
+                true));
 
     pipeline.run().waitUntilFinish();
 
@@ -120,6 +132,7 @@ public class MixedSourcesEndToEndTest implements Serializable {
                     createUserJson("e", "AU"),
                     createUserJson("f", "US"),
                     createUserJson("g", "SE"),
+                    createUserJson(null, "SE"),
                     createUserJson("h", "DE"),
                     createUserJson("i", "MX"))
                 .withCoder(TableRowJsonCoder.of()))
@@ -127,7 +140,8 @@ public class MixedSourcesEndToEndTest implements Serializable {
             JsonSortedBucketIO.sink(
                 jsonMetadata,
                 LocalResources.fromFile(source2Folder.getRoot(), true),
-                LocalResources.fromFile(tmpFolder2.getRoot(), true)));
+                LocalResources.fromFile(tmpFolder2.getRoot(), true),
+                true));
 
     pipeline2.run().waitUntilFinish();
 

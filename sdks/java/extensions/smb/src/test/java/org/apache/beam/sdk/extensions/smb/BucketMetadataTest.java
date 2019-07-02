@@ -83,4 +83,12 @@ public class BucketMetadataTest {
     Assert.assertFalse(m1.isCompatibleWith(m4));
     Assert.assertFalse(m1.isCompatibleWith(m5));
   }
+
+  @Test
+  public void testNullKeyEncoding() throws Exception {
+    final TestBucketMetadata m = new TestBucketMetadata(0, 1, 1, HashType.MURMUR3_32);
+
+    Assert.assertNull(m.extractKey(""));
+    Assert.assertNull(m.getKeyBytes(""));
+  }
 }

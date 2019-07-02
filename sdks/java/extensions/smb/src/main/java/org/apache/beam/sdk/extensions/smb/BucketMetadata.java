@@ -157,8 +157,11 @@ public abstract class BucketMetadata<K, V> implements Serializable {
   ////////////////////////////////////////
 
   byte[] getKeyBytes(V value) {
-    final ByteArrayOutputStream baos = new ByteArrayOutputStream();
     final K key = extractKey(value);
+
+    if (key == null) return null;
+
+    final ByteArrayOutputStream baos = new ByteArrayOutputStream();
     try {
       keyCoder.encode(key, baos);
     } catch (Exception e) {

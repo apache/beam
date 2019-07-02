@@ -29,12 +29,25 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 @AutoValue
 public abstract class BucketShardId {
 
+  // An integer guaranteed to not overlap with existing bucket IDs, used specifically to separate
+  // out records with null keys. Note that this does not necessarily reflect the final filename:
+  // SMBFilenamePolicy can special-case this bucket ID.
+  private static final int NULL_KEYS_BUCKET_ID = -1;
+
   public abstract int getBucketId();
 
   public abstract int getShardId();
 
   public static BucketShardId of(int bucketId, int shardId) {
     return new AutoValue_BucketShardId(bucketId, shardId);
+  }
+
+  public static BucketShardId ofNullKey(int shardId) {
+    return new AutoValue_BucketShardId(NULL_KEYS_BUCKET_ID, shardId);
+  }
+
+  public boolean isNullKeyBucket() {
+    return getBucketId() == NULL_KEYS_BUCKET_ID;
   }
 
   /** {@link org.apache.beam.sdk.coders.Coder} for {@link BucketShardId}. */

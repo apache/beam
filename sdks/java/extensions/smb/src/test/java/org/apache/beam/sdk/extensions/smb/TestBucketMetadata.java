@@ -49,6 +49,10 @@ class TestBucketMetadata extends BucketMetadata<String, String> {
 
   @Override
   public String extractKey(String value) {
-    return value.substring(0, 1);
+    try {
+      return value.substring(0, 1);
+    } catch (StringIndexOutOfBoundsException e) {
+      return null;
+    }
   }
 }

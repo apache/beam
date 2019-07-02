@@ -60,6 +60,10 @@ public class SMBFilenamePolicyTest {
         fileAssignment.forBucket(BucketShardId.of(5, 1), metadata),
         resolveFile(destination, "bucket-00005-of-00008-shard-00001-of-00003", SUFFIX));
 
+    Assert.assertEquals(
+        fileAssignment.forBucket(BucketShardId.ofNullKey(1), metadata),
+        resolveFile(destination, "bucket-null-keys-shard-00001-of-00003", SUFFIX));
+
     // Test invalid shard-bucket combinations
     Assert.assertThrows(
         IllegalArgumentException.class,

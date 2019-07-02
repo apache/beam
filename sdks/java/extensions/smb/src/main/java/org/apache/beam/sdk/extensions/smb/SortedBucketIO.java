@@ -142,4 +142,19 @@ public class SortedBucketIO {
         fileOperations::createWriter,
         tempDirectory);
   }
+
+  public static <K, V> SortedBucketSink<K, V> write(
+      BucketMetadata<K, V> bucketingMetadata,
+      ResourceId outputDirectory,
+      String filenameSuffix,
+      ResourceId tempDirectory,
+      FileOperations<V> fileOperations,
+      boolean allowNullKeys) {
+    return new SortedBucketSink<>(
+        bucketingMetadata,
+        new SMBFilenamePolicy(outputDirectory, filenameSuffix),
+        fileOperations::createWriter,
+        tempDirectory,
+        allowNullKeys);
+  }
 }

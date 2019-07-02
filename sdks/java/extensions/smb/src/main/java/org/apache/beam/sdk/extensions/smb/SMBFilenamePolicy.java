@@ -71,7 +71,9 @@ public final class SMBFilenamePolicy implements Serializable {
   /** A file name assigner based on a specific output directory and file suffix. */
   public static class FileAssignment implements Serializable {
 
-    private static final String BUCKET_TEMPLATE = "bucket-%05d-of-%05d-shard-%05d-of-%05d%s";
+    private static final String NULL_KEYS_BUCKET_TEMPLATE = "null-keys";
+    private static final String NUMERIC_BUCKET_TEMPLATE = "%05d-of-%05d";
+    private static final String BUCKET_SHARD_TEMPLATE = "bucket-%s-shard-%05d-of-%05d%s";
     private static final String METADATA_FILENAME = "metadata.json";
     private static final DateTimeFormatter TEMPFILE_TIMESTAMP =
         DateTimeFormat.forPattern("yyyy-MM-dd_HH-mm-ss-");
@@ -103,12 +105,16 @@ public final class SMBFilenamePolicy implements Serializable {
           id,
           metadata.getNumBuckets());
 
-      String timestamp = doTimestampFiles ? Instant.now().toString(TEMPFILE_TIMESTAMP) : "";
+      final String bucketName =
+          id.isNullKeyBucket()
+              ? NULL_KEYS_BUCKET_TEMPLATE
+              : String.format(NUMERIC_BUCKET_TEMPLATE, id.getBucketId(), metadata.getNumBuckets());
+
+      final String timestamp = doTimestampFiles ? Instant.now().toString(TEMPFILE_TIMESTAMP) : "";
       String filename =
           String.format(
-              BUCKET_TEMPLATE,
-              id.getBucketId(),
-              metadata.getNumBuckets(),
+              BUCKET_SHARD_TEMPLATE,
+              bucketName,
               id.getShardId(),
               metadata.getNumShards(),
               filenameSuffix);
