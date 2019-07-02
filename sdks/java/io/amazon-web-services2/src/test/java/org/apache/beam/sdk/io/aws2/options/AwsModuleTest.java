@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws.options;
+package org.apache.beam.sdk.io.aws2.options;
 
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
@@ -40,7 +40,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
 
-/** Tests {@link AwsModule}. */
+/** Tests {@link org.apache.beam.sdk.io.aws2.options.AwsModule}. */
 @RunWith(JUnit4.class)
 public class AwsModuleTest {
   private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new AwsModule());

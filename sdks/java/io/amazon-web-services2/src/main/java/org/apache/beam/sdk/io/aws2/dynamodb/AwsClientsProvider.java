@@ -15,8 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.io.aws2.dynamodb;
+
+import java.io.Serializable;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
 /**
- * Defines {@link org.apache.beam.sdk.options.PipelineOptions} for configuring pipeline execution
- * for Amazon Web Services components.
+ * Provides instances of AWS clients.
+ *
+ * <p>Please note, that any instance of {@link AwsClientsProvider} must be {@link Serializable} to
+ * ensure it can be sent to worker machines.
  */
-package org.apache.beam.sdk.io.aws.options;
+public interface AwsClientsProvider extends Serializable {
+  CloudWatchClient getCloudWatchClient();
+
+  DynamoDbClient createDynamoDB();
+}
