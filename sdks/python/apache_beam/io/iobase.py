@@ -436,7 +436,7 @@ class RangeTracker(object):
 
     Returns:
       the approximate fraction of positions that have been consumed by
-      successful 'try_split()' and  'report_current_position()'  calls, or
+      successful 'try_split()' and  'try_claim()'  calls, or
       0.0 if no such calls have happened.
     """
     raise NotImplementedError
