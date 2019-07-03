@@ -57,6 +57,7 @@ class SyntheticPipelineTest(unittest.TestCase):
 
   # pylint: disable=expression-not-assigned
 
+  @unittest.skip('BEAM-7680 test is flaky')
   def testSyntheticStep(self):
     start = time.time()
     with beam.Pipeline() as p:
@@ -69,6 +70,7 @@ class SyntheticPipelineTest(unittest.TestCase):
     # TODO(chamikaramj): Fix the flaky time based bounds.
     self.assertTrue(0.5 <= elapsed <= 3, elapsed)
 
+  @unittest.skip('BEAM-7680 test is flaky')
   def testSyntheticSDFStep(self):
     start = time.time()
     with beam.Pipeline() as p:
