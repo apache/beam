@@ -23,14 +23,14 @@ import (
 
 // Combine inserts a global Combine transform into the pipeline. It
 // expects a PCollection<T> as input where T is a concrete type.
-// Combine supports only TypeDefinition options, not side inputs.
+// Combine supports TypeDefinition options for binding generic types in combinefn.
 func Combine(s Scope, combinefn interface{}, col PCollection, opts ...Option) PCollection {
 	return Must(TryCombine(s, combinefn, col, opts...))
 }
 
 // CombinePerKey inserts a GBK and per-key Combine transform into the pipeline. It
 // expects a PCollection<KV<K,T>>. The CombineFn may optionally take a key parameter.
-// CombinePerKey supports only TypeDefinition options, not side inputs.
+// CombinePerKey supports TypeDefinition options for binding generic types in combinefn.
 func CombinePerKey(s Scope, combinefn interface{}, col PCollection, opts ...Option) PCollection {
 	return Must(TryCombinePerKey(s, combinefn, col, opts...))
 }
