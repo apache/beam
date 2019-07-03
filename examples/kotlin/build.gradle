@@ -52,17 +52,17 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile project(":sdks:java:io:google-cloud-platform")
+  compile library.java.avro
+  compile library.java.bigdataoss_util
   compile library.java.google_api_client
   compile library.java.google_api_services_bigquery
-  compile library.java.google_http_client
-  compile library.java.bigdataoss_util
-  compile library.java.google_auth_library_oauth2_http
-  compile library.java.google_auth_library_credentials
-  compile library.java.avro
   compile library.java.google_api_services_pubsub
+  compile library.java.google_auth_library_credentials
+  compile library.java.google_auth_library_oauth2_http
   compile library.java.google_cloud_datastore_v1_proto_client
-  compile library.java.proto_google_cloud_datastore_v1
+  compile library.java.google_http_client
   compile library.java.joda_time
+  compile library.java.proto_google_cloud_datastore_v1
   compile library.java.slf4j_api
   compile library.java.slf4j_jdk14
   runtime project(path: ":runners:direct-java", configuration: "shadow")
