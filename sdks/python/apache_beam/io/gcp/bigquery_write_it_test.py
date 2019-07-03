@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -103,6 +105,8 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     input_data = [
         {'number': 1, 'str': 'abc'},
         {'number': 2, 'str': 'def'},
+        {'number': 3, 'str': u'你好'},
+        {'number': 4, 'str': u'привет'},
     ]
     table_schema = {"fields": [
         {"name": "number", "type": "INTEGER"},
@@ -112,7 +116,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
         BigqueryFullResultMatcher(
             project=self.project,
             query="SELECT number, str FROM %s" % table_id,
-            data=[(1, 'abc',), (2, 'def',)])]
+            data=[(1, 'abc',), (2, 'def',), (3, u'你好',), (4, u'привет',)])]
 
     args = self.test_pipeline.get_full_options_as_args(
         on_success_matcher=hc.all_of(*pipeline_verifiers))
