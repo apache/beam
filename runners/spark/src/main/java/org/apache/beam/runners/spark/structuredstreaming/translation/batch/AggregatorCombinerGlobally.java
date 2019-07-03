@@ -46,7 +46,7 @@ import scala.Tuple2;
  * */
 
 class AggregatorCombinerGlobally<InputT, AccumT, OutputT, W extends BoundedWindow>
-    extends Aggregator<Tuple2<Integer, WindowedValue<InputT>>, Iterable<WindowedValue<AccumT>>, Iterable<WindowedValue<OutputT>>> {
+    extends Aggregator<WindowedValue<InputT>, Iterable<WindowedValue<AccumT>>, Iterable<WindowedValue<OutputT>>> {
 
   private final Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
   private WindowingStrategy<InputT, W> windowingStrategy;
@@ -63,9 +63,8 @@ class AggregatorCombinerGlobally<InputT, AccumT, OutputT, W extends BoundedWindo
   }
 
   @Override public Iterable<WindowedValue<AccumT>> reduce(Iterable<WindowedValue<AccumT>> accumulators,
-      Tuple2<Integer, WindowedValue<InputT>> inputTuple) {
+      WindowedValue<InputT> input) {
 
-    WindowedValue<InputT> input = inputTuple._2;
     //concatenate accumulators windows and input windows and merge the windows
     Collection<W> inputWindows = (Collection<W>)input.getWindows();
     Set<W> windows = collectAccumulatorsWindows(accumulators);
