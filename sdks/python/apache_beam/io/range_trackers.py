@@ -133,29 +133,44 @@ class OffsetRangeTracker(iobase.RangeTracker):
       self._validate_record_start(record_start, False)
       self._last_record_start = record_start
 
+  def _validate_split_offset(self, split_offset):
+    if split_offset <= self._last_record_start:
+      logging.debug(
+          'Split position %s at %r is not valid: '
+          'already past proposed stop offset', split_offset, self)
+      return False
+    if (split_offset < self.start_position()
+          or split_offset >= self.stop_position()):
+      logging.debug(
+          'Split position %s at %s is not valid: '
+          'proposed split position out of range', split_offset, self)
+      return False
+    return True
+
   def try_split(self, split_offset):
     assert isinstance(split_offset, (int, long))
     with self._lock:
       if self._stop_offset == OffsetRangeTracker.OFFSET_INFINITY:
-        logging.debug('refusing to split %r at %d: stop position unspecified',
+        logging.debug('Refusing to split %r at %d: stop position unspecified',
                       self, split_offset)
         return
+
       if self._last_record_start == -1:
         logging.debug('Refusing to split %r at %d: unstarted', self,
                       split_offset)
         return
 
-      if split_offset <= self._last_record_start:
-        logging.debug(
-            'Refusing to split %r at %d: already past proposed stop offset',
-            self, split_offset)
-        return
-      if (split_offset < self.start_position()
-          or split_offset >= self.stop_position()):
-        logging.debug(
-            'Refusing to split %r at %d: proposed split position out of range',
-            self, split_offset)
-        return
+      if not self._validate_split_offset(split_offset):
+        split_offset = self._last_attempted_record_start + 1
+        logging.debug('Suggested split position is not a valid split position,'
+                      'try to split as soon as possible at position %d.',
+                      split_offset)
+        # Adjusted split may reach to the end of the range.
+        if split_offset >= self._stop_offset:
+          logging.debug('Adjusted split has reached the end of the range.'
+                        'Cannot perform any split for range [%d, %d)',
+                        self._start_offset, self._stop_offset)
+          return
 
       logging.debug('Agreeing to split %r at %d', self, split_offset)
 

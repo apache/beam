@@ -94,7 +94,7 @@ class ConcatSourceTest(unittest.TestCase):
   def test_range_source(self):
     source_test_utils.assert_split_at_fraction_exhaustive(RangeSource(0, 10, 3))
 
-  def test_conact_source(self):
+  def test_concat_source(self):
     source = ConcatSource([RangeSource(0, 4),
                            RangeSource(4, 8),
                            RangeSource(8, 12),
@@ -119,17 +119,15 @@ class ConcatSourceTest(unittest.TestCase):
     self.assertEqual(range_tracker.sub_range_tracker(1).try_claim(6), True)
     self.assertEqual(range_tracker.fraction_consumed(), 0.375)
     self.assertEqual(range_tracker.try_split((0, 1)), None)
+    self.assertEqual(range_tracker.sub_range_tracker(1).try_claim(7), True)
     self.assertEqual(range_tracker.try_split((1, 5)), None)
 
     self.assertEqual(range_tracker.try_split((3, 14)), ((3, None), 0.75))
     self.assertEqual(range_tracker.try_claim((3, None)), False)
-    self.assertEqual(range_tracker.sub_range_tracker(1).try_claim(7), True)
     self.assertEqual(range_tracker.try_claim((2, None)), True)
-    self.assertEqual(range_tracker.sub_range_tracker(2).try_claim(9), True)
-
-    self.assertEqual(range_tracker.try_split((2, 8)), None)
-    self.assertEqual(range_tracker.try_split((2, 11)), ((2, 11), 11. / 12))
     self.assertEqual(range_tracker.sub_range_tracker(2).try_claim(10), True)
+
+    self.assertEqual(range_tracker.try_split((2, 8)), ((2, 11), 11. / 12))
     self.assertEqual(range_tracker.sub_range_tracker(2).try_claim(11), False)
 
   def test_estimate_size(self):

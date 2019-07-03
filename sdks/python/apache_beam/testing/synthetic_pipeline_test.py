@@ -184,7 +184,7 @@ class SyntheticPipelineTest(unittest.TestCase):
   def test_split_at_fraction(self):
     source = synthetic_pipeline.SyntheticSource(input_spec(10, 1, 1))
     source_test_utils.assert_split_at_fraction_exhaustive(source)
-    source_test_utils.assert_split_at_fraction_fails(source, 5, 0.3)
+    source_test_utils.assert_split_at_fraction_fails(source, 10, 0.3)
     source_test_utils.assert_split_at_fraction_succeeds_and_consistent(
         source, 1, 0.3)
 
