@@ -51,7 +51,6 @@ dependencies {
   compile library.java.grpc_core
   compile library.java.grpc_netty
   compile library.java.grpc_stub
-  compile library.java.grpc_google_cloud_bigtable_v2
   compile library.java.grpc_google_cloud_pubsub_v1
   compile library.java.guava
   compile library.java.jackson_databind
@@ -59,6 +58,7 @@ dependencies {
   compile library.java.netty_handler
   compile library.java.netty_tcnative_boringssl_static
   compile library.java.proto_google_cloud_bigquery_storage_v1beta1
+  compile library.java.proto_google_cloud_bigtable_v2
   compile library.java.proto_google_cloud_datastore_v1
   compile library.java.proto_google_cloud_pubsub_v1
   compile library.java.proto_google_cloud_spanner_admin_database_v1
