@@ -60,7 +60,6 @@ public class PipelineTranslatorBatch extends PipelineTranslator {
 
   static {
     TRANSFORM_TRANSLATORS.put(Combine.PerKey.class, new CombinePerKeyTranslatorBatch());
-    TRANSFORM_TRANSLATORS.put(Combine.Globally.class, new CombineGloballyTranslatorBatch());
     TRANSFORM_TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslatorBatch());
 
     // TODO: Do we need to have a dedicated translator for {@code Reshuffle} if it's deprecated?
