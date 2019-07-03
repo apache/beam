@@ -64,7 +64,10 @@ class LineSource(iobase.BoundedSource):
     bundle_start = 0
     while bundle_start < size:
       bundle_stop = min(bundle_start + LineSource.TEST_BUNDLE_SIZE, size)
-      yield iobase.SourceBundle(bundle_stop - bundle_start, self, bundle_start, bundle_stop)
+      yield iobase.SourceBundle(bundle_stop - bundle_start,
+                                self,
+                                bundle_start,
+                                bundle_stop)
       bundle_start = bundle_stop
 
   def get_range_tracker(self, start_position, stop_position):
