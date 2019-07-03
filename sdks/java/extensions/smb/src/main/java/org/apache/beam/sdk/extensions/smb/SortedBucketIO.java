@@ -20,9 +20,10 @@ package org.apache.beam.sdk.extensions.smb;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.extensions.smb.SMBCoGbkResult.ToFinalResult;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSource.BucketedInput;
+import org.apache.beam.sdk.extensions.smb.SortedBucketSource.ToFinalResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
@@ -40,14 +41,14 @@ public class SortedBucketIO {
     return new ReadBuilder<>(keyClass);
   }
 
-  /** Transforms a two-way {@link SMBCoGbkResult} into a typed {@link KV}. */
-  static class SmbCoGbkResult2<V1, V2> extends ToFinalResult<KV<Iterable<V1>, Iterable<V2>>> {
+  /** Transforms a two-way {@link CoGbkResult} into a typed {@link KV}. */
+  static class CoGbkResult2<V1, V2> extends ToFinalResult<KV<Iterable<V1>, Iterable<V2>>> {
     private final TupleTag<V1> lhsTupleTag;
     private final TupleTag<V2> rhsTupleTag;
     private final Coder<V1> lhsCoder; // TODO: can we get these from Coder registry?
     private final Coder<V2> rhsCoder;
 
-    SmbCoGbkResult2(
+    CoGbkResult2(
         TupleTag<V1> lhsTupleTag,
         TupleTag<V2> rhsTupleTag,
         Coder<V1> lhsCoder,
@@ -59,7 +60,7 @@ public class SortedBucketIO {
     }
 
     @Override
-    public KV<Iterable<V1>, Iterable<V2>> apply(SMBCoGbkResult input) {
+    public KV<Iterable<V1>, Iterable<V2>> apply(CoGbkResult input) {
       return KV.of(input.getAll(lhsTupleTag), input.getAll(rhsTupleTag));
     }
 
@@ -124,7 +125,7 @@ public class SortedBucketIO {
       return new SortedBucketSource<>(
           ImmutableList.of(lhs.bucketedInput, rhs.bucketedInput),
           keyClass,
-          new SmbCoGbkResult2<>(
+          new CoGbkResult2<>(
               lhs.bucketedInput.tupleTag, rhs.bucketedInput.tupleTag,
               lhs.valueCoder, rhs.valueCoder));
     }

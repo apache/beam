@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -40,7 +41,6 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata.BucketMetadataCoder;
-import org.apache.beam.sdk.extensions.smb.SMBCoGbkResult.ToFinalResult;
 import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy.FileAssignment;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -50,6 +50,9 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.join.CoGbkResult;
+import org.apache.beam.sdk.transforms.join.CoGbkResultSchema;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -177,7 +180,9 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
           sources.stream()
               .map(i -> i.createIterator(bucketId, leastNumBuckets))
               .toArray(KeyGroupIterator[]::new);
-      final TupleTag[] tupleTags = sources.stream().map(i -> i.tupleTag).toArray(TupleTag[]::new);
+      final List<TupleTag<?>> tupleTags =
+          sources.stream().map(i -> i.tupleTag).collect(Collectors.toList());
+      final CoGbkResultSchema schema = CoGbkResultSchema.of(tupleTags);
 
       final Map<TupleTag, KV<byte[], Iterator<?>>> nextKeyGroups = new HashMap<>();
 
@@ -186,13 +191,13 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
         // Advance key-value groups from each source
         for (int i = 0; i < numSources; i++) {
           final KeyGroupIterator it = iterators[i];
-          if (nextKeyGroups.containsKey(tupleTags[i])) {
+          if (nextKeyGroups.containsKey(tupleTags.get(i))) {
             continue;
           }
           if (it.hasNext()) {
             @SuppressWarnings("unchecked")
             final KV<byte[], Iterator<?>> next = it.next();
-            nextKeyGroups.put(tupleTags[i], next);
+            nextKeyGroups.put(tupleTags.get(i), next);
           } else {
             completedSources++;
           }
@@ -208,18 +213,21 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
 
         final Iterator<Map.Entry<TupleTag, KV<byte[], Iterator<?>>>> nextKeyGroupsIt =
             nextKeyGroups.entrySet().iterator();
-        final Map<TupleTag, Iterable<?>> valueMap = new HashMap<>();
+        final List<Iterable<?>> valueMap = new ArrayList<>();
+        for (int i = 0; i < schema.size(); i++) {
+          valueMap.add(new ArrayList<>());
+        }
 
         while (nextKeyGroupsIt.hasNext()) {
-          final List<Object> values = new ArrayList<>();
           final Map.Entry<TupleTag, KV<byte[], Iterator<?>>> entry = nextKeyGroupsIt.next();
           if (keyComparator.compare(entry, minKeyEntry) == 0) {
+            int index = schema.getIndex(entry.getKey());
+            @SuppressWarnings("unchecked")
+            final List<Object> values = (List<Object>) valueMap.get(index);
             // TODO: this exhausts everything from the "lazy" iterator and can be expensive.
             // To fix we have to make the underlying Reader range aware so that it's safe to
             // re-iterate or stop without exhausting remaining elements in the value group.
             entry.getValue().getValue().forEachRemaining(values::add);
-
-            valueMap.put(entry.getKey(), values);
             nextKeyGroupsIt.remove();
           }
         }
@@ -233,7 +241,7 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
         } catch (Exception e) {
           throw new RuntimeException("Could not decode key bytes for group", e);
         }
-        c.output(KV.of(groupKey, toResult.apply(new SMBCoGbkResult(valueMap))));
+        c.output(KV.of(groupKey, toResult.apply(new CoGbkResult(schema, valueMap))));
 
         if (completedSources == numSources) {
           break;
@@ -408,5 +416,14 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
           "BucketedInput[tupleTag=%s, filenamePrefix=%s, metadata=%s]",
           tupleTag.getId(), filenamePrefix, getMetadata());
     }
+  }
+
+  /**
+   * Function to expand a {@link CoGbkResult} into desired a result type, e.g. cartesian product for
+   * joins.
+   */
+  public abstract static class ToFinalResult<FinalResultT>
+      implements SerializableFunction<CoGbkResult, FinalResultT> {
+    public abstract Coder<FinalResultT> resultCoder();
   }
 }

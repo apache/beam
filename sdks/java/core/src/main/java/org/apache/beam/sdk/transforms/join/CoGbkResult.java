@@ -332,7 +332,7 @@ public class CoGbkResult {
     this.nextTestUnionId = nextTestUnionId;
   }
 
-  private CoGbkResult(CoGbkResultSchema schema, List<Iterable<?>> valueMap) {
+  public CoGbkResult(CoGbkResultSchema schema, List<Iterable<?>> valueMap) {
     this.schema = schema;
     this.valueMap = valueMap;
   }

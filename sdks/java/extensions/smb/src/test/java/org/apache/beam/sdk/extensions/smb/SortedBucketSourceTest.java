@@ -34,12 +34,13 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.smb.FileOperations.Writer;
-import org.apache.beam.sdk.extensions.smb.SMBCoGbkResult.ToFinalResult;
 import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy.FileAssignment;
+import org.apache.beam.sdk.extensions.smb.SortedBucketSource.ToFinalResult;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
@@ -218,7 +219,7 @@ public class SortedBucketSourceTest {
     }
 
     @Override
-    public KV<List<String>, List<String>> apply(SMBCoGbkResult input) {
+    public KV<List<String>, List<String>> apply(CoGbkResult input) {
       // Sort values for easy equality check
       List<String> lhs = Lists.newArrayList(input.getAll(lhsTag));
       List<String> rhs = Lists.newArrayList(input.getAll(rhsTag));
