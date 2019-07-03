@@ -18,6 +18,7 @@
 This is Combine load test with Synthetic Source. Besides of the standard
 input options there are additional options:
 * fanout (optional) - number of GBK operations to run in parallel
+* top_count - an arguments passed to the Top combiner.
 * project (optional) - the gcp project in case of saving
 metrics in Big Query (in case of Dataflow Runner
 it is required to specify project of runner),
@@ -37,6 +38,7 @@ python setup.py nosetests \
     --metrics_dataset=python_load_tests
     --metrics_table=combine
     --fanout=1
+    --top_count=1000
     --input_options='{
     \"num_records\": 300,
     \"key_size\": 5,
@@ -62,7 +64,8 @@ or:
       "bundle_size_distribution_param": 1,
       "force_initial_num_bundles": 1}\'
     --runner=DirectRunner
-    --fanout=1' \
+    --fanout=1
+    --top_count=1000' \
 -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
 -Prunner=DirectRunner :sdks:python:apache_beam:testing:load-tests:run
 
@@ -72,6 +75,7 @@ python setup.py nosetests \
     --test-pipeline-options="
         --runner=TestDataflowRunner
         --fanout=1
+        --top_count=1000
         --project=...
         --staging_location=gs://...
         --temp_location=gs://...
@@ -105,7 +109,8 @@ or:
       "bundle_size_distribution_param": 1,
       "force_initial_num_bundles": 1}\'
     --runner=TestDataflowRunner
-    --fanout=1' \
+    --fanout=1
+    --top_count=1000' \
 -PloadTest.mainClass=
 apache_beam.testing.load_tests.combine_test \
 -Prunner=
@@ -138,6 +143,11 @@ class CombineTest(LoadTest):
     else:
       self.fanout = int(self.fanout)
 
+    try:
+      self.top_count = int(self.pipeline.get_option('top_count'))
+    except (TypeError, ValueError):
+      self.fail('You should set \"--top_count\" option to use TOP combiners')
+
   class _GetElement(beam.DoFn):
     def process(self, element):
       yield element
@@ -154,7 +164,7 @@ class CombineTest(LoadTest):
       # pylint: disable=expression-not-assigned
       (input
        | 'Combine with Top %i' % branch >> beam.CombineGlobally(
-           beam.combiners.TopCombineFn(1000))
+           beam.combiners.TopCombineFn(self.top_count))
        | 'Consume %i' % branch >> beam.ParDo(self._GetElement())
        | 'Measure time: End %i' % branch >> beam.ParDo(
            MeasureTime(self.metrics_namespace))

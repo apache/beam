@@ -19,4 +19,4 @@
  * Defines {@link org.apache.beam.sdk.options.PipelineOptions} for configuring pipeline execution
  * for Amazon Web Services components.
  */
-package org.apache.beam.sdk.io.aws.options;
+package org.apache.beam.sdk.io.aws2.options;
