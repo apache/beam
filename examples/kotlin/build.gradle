@@ -60,8 +60,8 @@ dependencies {
   compile library.java.google_auth_library_credentials
   compile library.java.avro
   compile library.java.google_api_services_pubsub
-  compile library.java.datastore_v1_proto_client
-  compile library.java.datastore_v1_protos
+  compile library.java.google_cloud_datastore_v1_proto_client
+  compile library.java.proto_google_cloud_datastore_v1
   compile library.java.joda_time
   compile library.java.slf4j_api
   compile library.java.slf4j_jdk14
