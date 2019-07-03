@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.io.Files.fileTraverser;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertArrayEquals;
@@ -280,7 +281,7 @@ public class ZipFilesTest {
   // This is not generally safe as it does not handle symlinks, etc. However it is safe
   // enough for these tests.
   private static void removeRecursive(Path path) throws IOException {
-    Iterable<File> files = Files.fileTreeTraverser().postOrderTraversal(path.toFile());
+    Iterable<File> files = fileTraverser().depthFirstPostOrder(path.toFile());
     for (File f : files) {
       java.nio.file.Files.delete(f.toPath());
     }
