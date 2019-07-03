@@ -33,6 +33,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamJavaTypeFactory;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateTimeType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeWithLocalTzType;
@@ -352,6 +353,7 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
             .put(TimeType.IDENTIFIER, "getDateTime")
             .put(TimeWithLocalTzType.IDENTIFIER, "getDateTime")
             .put(TimestampWithLocalTzType.IDENTIFIER, "getDateTime")
+            .put(DateTimeType.IDENTIFIER, "getDateTime")
             .put(CharType.IDENTIFIER, "getString")
             .build();
 
@@ -386,6 +388,7 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
       }
       Expression field = Expressions.call(expression, getter, Expressions.constant(index));
       if (fromType.getTypeName().isLogicalType()) {
+        // TODO: how do handle SqlDateTimeType?
         field = Expressions.call(field, "getMillis");
         String logicalId = fromType.getLogicalType().getIdentifier();
         if (logicalId.equals(TimeType.IDENTIFIER)) {

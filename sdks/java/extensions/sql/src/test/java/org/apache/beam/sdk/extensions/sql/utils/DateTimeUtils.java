@@ -53,4 +53,12 @@ public class DateTimeUtils {
       return DateTimeFormat.forPattern("HH:mm:ss.SSS").withZoneUTC().parseDateTime(str);
     }
   }
+
+  public static DateTime parseDateTime(String str) {
+    if (str.indexOf('.') == -1) {
+      return DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC().parseDateTime(str);
+    } else {
+      return DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS").withZoneUTC().parseDateTime(str);
+    }
+  }
 }

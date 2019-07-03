@@ -307,6 +307,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
         } else if (logicalId.equals(CharType.IDENTIFIER)) {
           return beamValue;
         } else {
+          // TODO: how to handle SqlDateTimeType?
           throw new IllegalArgumentException("Unknown DateTime type " + logicalId);
         }
       case DATETIME:

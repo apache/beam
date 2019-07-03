@@ -25,8 +25,6 @@ import org.apache.beam.sdk.schemas.LogicalTypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableBiMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.calcite.avatica.util.ByteString;
 import org.apache.calcite.rel.type.RelDataType;
@@ -57,6 +55,15 @@ public class CalciteUtils {
     public static final String IDENTIFIER = "SqlTimeType";
 
     public TimeType() {
+      super(IDENTIFIER, "", FieldType.DATETIME);
+    }
+  }
+
+  /** A LogicalType corresponding to DATETIME. */
+  public static class DateTimeType extends PassThroughLogicalType<Instant> {
+    public static final String IDENTIFIER = "SqlDateTimeType";
+
+    public DateTimeType() {
       super(IDENTIFIER, "", FieldType.DATETIME);
     }
   }
@@ -99,7 +106,8 @@ public class CalciteUtils {
       return logicalId.equals(DateType.IDENTIFIER)
           || logicalId.equals(TimeType.IDENTIFIER)
           || logicalId.equals(TimeWithLocalTzType.IDENTIFIER)
-          || logicalId.equals(TimestampWithLocalTzType.IDENTIFIER);
+          || logicalId.equals(TimestampWithLocalTzType.IDENTIFIER)
+          || logicalId.equals(DateTimeType.IDENTIFIER);
     }
     return false;
   }
@@ -130,14 +138,15 @@ public class CalciteUtils {
   public static final FieldType CHAR = FieldType.logicalType(new CharType());
   public static final FieldType DATE = FieldType.logicalType(new DateType());
   public static final FieldType TIME = FieldType.logicalType(new TimeType());
+  public static final FieldType DATETIME = FieldType.logicalType(new DateTimeType());
   public static final FieldType TIME_WITH_LOCAL_TZ =
       FieldType.logicalType(new TimeWithLocalTzType());
   public static final FieldType TIMESTAMP = FieldType.DATETIME;
   public static final FieldType TIMESTAMP_WITH_LOCAL_TZ =
       FieldType.logicalType(new TimestampWithLocalTzType());
 
-  private static final BiMap<FieldType, SqlTypeName> BEAM_TO_CALCITE_TYPE_MAPPING =
-      ImmutableBiMap.<FieldType, SqlTypeName>builder()
+  private static final ImmutableMap<FieldType, SqlTypeName> BEAM_TO_CALCITE_TYPE_MAPPING =
+      ImmutableMap.<FieldType, SqlTypeName>builder()
           .put(TINY_INT, SqlTypeName.TINYINT)
           .put(SMALL_INT, SqlTypeName.SMALLINT)
           .put(INTEGER, SqlTypeName.INTEGER)
@@ -154,6 +163,7 @@ public class CalciteUtils {
           .put(TIME_WITH_LOCAL_TZ, SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE)
           .put(TIMESTAMP, SqlTypeName.TIMESTAMP)
           .put(TIMESTAMP_WITH_LOCAL_TZ, SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+          .put(DATETIME, SqlTypeName.TIMESTAMP)
           .build();
 
   private static final ImmutableMap<SqlTypeName, FieldType> CALCITE_TO_BEAM_TYPE_MAPPING =

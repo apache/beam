@@ -23,6 +23,7 @@ import com.google.cloud.datacatalog.ColumnSchema;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateTimeType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -45,6 +46,7 @@ class SchemaUtils {
           .put("STRING", FieldType.STRING)
           .put("TIME", FieldType.logicalType(new CalciteUtils.TimeType()))
           .put("TIMESTAMP", FieldType.DATETIME)
+          .put("DATETIME", FieldType.logicalType(new DateTimeType()))
           .put("MAP<STRING,STRING>", FieldType.map(FieldType.STRING, FieldType.STRING))
           .build();
 
