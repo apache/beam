@@ -495,7 +495,10 @@ class BeamFnExternalWorkerPoolServicer(
                        self._worker_threads,
                        start_worker_request.worker_id)]
         logging.warn("Starting worker with command %s" % (command))
-        worker_process = subprocess.Popen(command, stdout=subprocess.PIPE)
+        worker_process = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            close_fds=True)
 
         # Register to kill the subprocess on exit.
         atexit.register(worker_process.kill)
