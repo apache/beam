@@ -97,7 +97,9 @@ public class CombineTranslationTest {
 
       SdkComponents sdkComponents = SdkComponents.create();
       sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
-      CombinePayload combineProto = CombineTranslation.toProto(combine.get(), sdkComponents);
+      CombinePayload combineProto =
+          CombineTranslation.CombineGloballyPayloadTranslator.payloadForCombineGlobally(
+              (AppliedPTransform) combine.get(), sdkComponents);
       RunnerApi.Components componentsProto = sdkComponents.toComponents();
 
       assertEquals(
@@ -138,7 +140,9 @@ public class CombineTranslationTest {
 
       SdkComponents sdkComponents = SdkComponents.create();
       sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
-      CombinePayload combineProto = CombineTranslation.toProto(combine.get(), sdkComponents);
+      CombinePayload combineProto =
+          CombineTranslation.CombineGloballyPayloadTranslator.payloadForCombineGlobally(
+              (AppliedPTransform) combine.get(), sdkComponents);
       RunnerApi.Components componentsProto = sdkComponents.toComponents();
 
       assertEquals(
@@ -183,7 +187,9 @@ public class CombineTranslationTest {
 
       SdkComponents sdkComponents = SdkComponents.create();
       sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
-      CombinePayload payload = CombineTranslation.toProto(combine.get(), sdkComponents);
+      CombinePayload payload =
+          CombineTranslation.CombineGloballyPayloadTranslator.payloadForCombineGlobally(
+              (AppliedPTransform) combine.get(), sdkComponents);
     }
   }
 
