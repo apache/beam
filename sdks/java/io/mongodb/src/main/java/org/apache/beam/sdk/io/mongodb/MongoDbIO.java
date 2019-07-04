@@ -454,14 +454,19 @@ public class MongoDbIO {
             return Collections.singletonList(this);
           }
 
-          List<String> keys = splitKeysToFilters(splitKeys);
           for (String shardFilter : splitKeysToFilters(splitKeys)) {
             SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> queryFn =
                 spec.queryFn();
 
             BsonDocument filters = bson2BsonDocument(Document.parse(shardFilter));
             FindQuery findQuery = (FindQuery) queryFn;
-            FindQuery queryWithFilter = findQuery.toBuilder().setFilters(filters).build();
+            final BsonDocument allFilters =
+                bson2BsonDocument(
+                    findQuery.filters() != null
+                        ? Filters.and(findQuery.filters(), filters)
+                        : filters);
+            FindQuery queryWithFilter = findQuery.toBuilder().setFilters(allFilters).build();
+            LOG.debug("using filters: " + allFilters.toJson());
             sources.add(new BoundedMongoDbSource(spec.withQueryFn(queryWithFilter)));
           }
         } else {
