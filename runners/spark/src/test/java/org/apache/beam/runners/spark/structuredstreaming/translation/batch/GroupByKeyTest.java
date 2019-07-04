@@ -59,7 +59,7 @@ public class GroupByKeyTest implements Serializable {
 
   @Test
   public void testGroupByKeyPreservesWindowing(){
-    PCollection<KV<Integer, Iterable<Integer>>> input = p.apply(Create
+    p.apply(Create
         .timestamped(
             TimestampedValue.of(KV.of(1, 1), new Instant(1)),
             TimestampedValue.of(KV.of(1, 3), new Instant(2)),
@@ -90,8 +90,8 @@ public class GroupByKeyTest implements Serializable {
           }
         }));
     p.run();
-
   }
+
   @Test
   public void testGroupByKey() {
     List<KV<Integer, Integer>> elems = new ArrayList<>();
