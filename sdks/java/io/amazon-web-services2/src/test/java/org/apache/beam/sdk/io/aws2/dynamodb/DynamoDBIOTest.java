@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.aws2.dynamodb;
 
+import static org.apache.beam.sdk.io.aws2.dynamodb.DynamoDBIO.RetryConfiguration.DEFAULT_RETRY_PREDICATE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -93,8 +94,8 @@ public class DynamoDBIOTest implements Serializable {
     PCollection<List<Map<String, AttributeValue>>> actual =
         pipeline.apply(
             DynamoDBIO.<List<Map<String, AttributeValue>>>read()
-                .withAwsClientsProvider(
-                    AwsClientsProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient()))
+                .withDynamoDbClientProvider(
+                    DynamoDbClientProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient()))
                 .withScanRequestFn(
                     (SerializableFunction<Void, ScanRequest>)
                         input ->
@@ -111,8 +112,8 @@ public class DynamoDBIOTest implements Serializable {
         pipeline
             .apply(
                 DynamoDBIO.<List<Map<String, AttributeValue>>>read()
-                    .withAwsClientsProvider(
-                        AwsClientsProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient()))
+                    .withDynamoDbClientProvider(
+                        DynamoDbClientProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient()))
                     .withScanRequestFn(
                         (SerializableFunction<Void, ScanRequest>)
                             input ->
@@ -144,8 +145,8 @@ public class DynamoDBIOTest implements Serializable {
     thrown.expectMessage("withScanRequestFn() is required");
     pipeline.apply(
         DynamoDBIO.read()
-            .withAwsClientsProvider(
-                AwsClientsProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())));
+            .withDynamoDbClientProvider(
+                DynamoDbClientProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())));
     try {
       pipeline.run().waitUntilFinish();
       fail("withScanRequestFn() is required");
@@ -155,8 +156,8 @@ public class DynamoDBIOTest implements Serializable {
   }
 
   @Test
-  public void testMissingAwsClientsProvider() {
-    thrown.expectMessage("withAwsClientsProvider() is required");
+  public void testMissingDynamoDbClientProvider() {
+    thrown.expectMessage("withDynamoDbClientProvider() is required");
     pipeline.apply(
         DynamoDBIO.read()
             .withScanRequestFn(
@@ -164,9 +165,9 @@ public class DynamoDBIOTest implements Serializable {
                     input -> ScanRequest.builder().tableName(tableName).totalSegments(3).build()));
     try {
       pipeline.run().waitUntilFinish();
-      fail("withAwsClientsProvider() is required");
+      fail("withDynamoDbClientProvider() is required");
     } catch (IllegalArgumentException ex) {
-      assertEquals("withAwsClientsProvider() is required", ex.getMessage());
+      assertEquals("withDynamoDbClientProvider() is required", ex.getMessage());
     }
   }
 
@@ -178,8 +179,8 @@ public class DynamoDBIOTest implements Serializable {
             .withScanRequestFn(
                 (SerializableFunction<Void, ScanRequest>)
                     input -> ScanRequest.builder().tableName(tableName).build())
-            .withAwsClientsProvider(
-                AwsClientsProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())));
+            .withDynamoDbClientProvider(
+                DynamoDbClientProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())));
     try {
       pipeline.run().waitUntilFinish();
       fail("TotalSegments is required with withScanRequestFn()");
@@ -196,8 +197,8 @@ public class DynamoDBIOTest implements Serializable {
             .withScanRequestFn(
                 (SerializableFunction<Void, ScanRequest>)
                     input -> ScanRequest.builder().tableName(tableName).totalSegments(-1).build())
-            .withAwsClientsProvider(
-                AwsClientsProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())));
+            .withDynamoDbClientProvider(
+                DynamoDbClientProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())));
     try {
       pipeline.run().waitUntilFinish();
       fail("withTotalSegments() is expected and greater than zero");
@@ -236,9 +237,13 @@ public class DynamoDBIOTest implements Serializable {
                               return KV.of(tableName, writeRequest);
                             })
                     .withRetryConfiguration(
-                        DynamoDBIO.RetryConfiguration.create(5, Duration.standardMinutes(1)))
-                    .withAwsClientsProvider(
-                        AwsClientsProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())));
+                        DynamoDBIO.RetryConfiguration.builder()
+                            .setMaxAttempts(5)
+                            .setMaxDuration(Duration.standardMinutes(1))
+                            .setRetryPredicate(DEFAULT_RETRY_PREDICATE)
+                            .build())
+                    .withDynamoDbClientProvider(
+                        DynamoDbClientProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())));
 
     final PCollection<Long> publishedResultsSize = output.apply(Count.globally());
     PAssert.that(publishedResultsSize).containsInAnyOrder(0L);
@@ -254,7 +259,7 @@ public class DynamoDBIOTest implements Serializable {
 
   @Test
   public void testRetries() throws Throwable {
-    thrown.expectMessage("Error writing to DynamoDB");
+    thrown.expectMessage("Error writing to DynamoDb");
 
     List<KV<String, Integer>> items =
         ImmutableList.of(KV.of("test1", 111), KV.of("test2", 222), KV.of("test3", 333));
@@ -285,8 +290,12 @@ public class DynamoDBIOTest implements Serializable {
                           return KV.of(tableName, writeRequest);
                         })
                 .withRetryConfiguration(
-                    DynamoDBIO.RetryConfiguration.create(4, Duration.standardSeconds(10)))
-                .withAwsClientsProvider(AwsClientsProviderMock.of(amazonDynamoDBMock)));
+                    DynamoDBIO.RetryConfiguration.builder()
+                        .setMaxAttempts(4)
+                        .setMaxDuration(Duration.standardSeconds(10))
+                        .setRetryPredicate(DEFAULT_RETRY_PREDICATE)
+                        .build())
+                .withDynamoDbClientProvider(DynamoDbClientProviderMock.of(amazonDynamoDBMock)));
 
     try {
       pipeline.run().waitUntilFinish();
@@ -297,6 +306,6 @@ public class DynamoDBIOTest implements Serializable {
       expectedLogs.verifyWarn(String.format(DynamoDBIO.Write.WriteFn.RETRY_ATTEMPT_LOG, 3));
       throw e.getCause();
     }
-    fail("Pipeline is expected to fail because we were unable to write to DynamoDB.");
+    fail("Pipeline is expected to fail because we were unable to write to DynamoDb.");
   }
 }

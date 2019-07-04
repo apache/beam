@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -57,6 +58,7 @@ import org.apache.http.HttpStatus;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemRequest;
@@ -66,10 +68,35 @@ import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
 import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
 
 /**
- * {@link PTransform}s to read/write from/to <a
- * href="https://aws.amazon.com/dynamodb/">DynamoDB</a>.
  *
- * <h3>Writing to DynamoDB</h3>
+ *
+ * <h3>Reading from DynamoDb</h3>
+ *
+ * <p>Example usage:
+ *
+ * <pre>{@code
+ * PCollection<List<Map<String, AttributeValue>>> output =
+ *     pipeline.apply(
+ *             DynamoDBIO.<List<Map<String, AttributeValue>>>read()
+ *                 .withDynamoDbClientProvider(new BasicDynamoDbClientProvider(dynamoDbClientProvider, region))
+ *                 .withScanRequestFn(
+ *                     (SerializableFunction<Void, ScanRequest>)
+ *                         input -> new ScanRequest(tableName).withTotalSegments(1))
+ *                 .items());
+ * }</pre>
+ *
+ * <p>As a client, you need to provide at least the following things:
+ *
+ * <ul>
+ *   <li>Specify DynamoDbClientProvider. You can pass on the default one BasicDynamoDbClientProvider
+ *   <li>ScanRequestFn, which you build a ScanRequest object with at least table name and total
+ *       number of segment. Note This number should base on the number of your workers
+ * </ul>
+ *
+ * {@link PTransform}s to read/write from/to <a
+ * href="https://aws.amazon.com/dynamodb/">DynamoDb</a>.
+ *
+ * <h3>Writing to DynamoDb</h3>
  *
  * <p>Example usage:
  *
@@ -83,39 +110,16 @@ import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
  *                       t -> KV.of(tableName, writeRequest))
  *               .withRetryConfiguration(
  *                    DynamoDBIO.RetryConfiguration.create(5, Duration.standardMinutes(1)))
- *               .withAwsClientsProvider(new BasicSnsProvider(accessKey, secretKey, region));
+ *               .withDynamoDbClientProvider(new BasicDynamoDbClientProvider(dynamoDbClientProvider, region));
  * }</pre>
  *
  * <p>As a client, you need to provide at least the following things:
  *
  * <ul>
  *   <li>Retry configuration
- *   <li>Specify AwsClientsProvider. You can pass on the default one BasicSnsProvider
+ *   <li>Specify DynamoDbClientProvider. You can pass on the default one BasicDynamoDbClientProvider
  *   <li>Mapper function with a table name to map or transform your object into KV<tableName,
  *       writeRequest>
- * </ul>
- *
- * <h3>Reading from DynamoDB</h3>
- *
- * <p>Example usage:
- *
- * <pre>{@code
- * PCollection<List<Map<String, AttributeValue>>> output =
- *     pipeline.apply(
- *             DynamoDBIO.<List<Map<String, AttributeValue>>>read()
- *                 .withAwsClientsProvider(new BasicSnsProvider(accessKey, secretKey, region))
- *                 .withScanRequestFn(
- *                     (SerializableFunction<Void, ScanRequest>)
- *                         input -> new ScanRequest(tableName).withTotalSegments(1))
- *                 .items());
- * }</pre>
- *
- * <p>As a client, you need to provide at least the following things:
- *
- * <ul>
- *   <li>Specify AwsClientsProvider. You can pass on the default one BasicSnsProvider
- *   <li>ScanRequestFn, which you build a ScanRequest object with at least table name and total
- *       number of segment. Note This number should base on the number of your workers
  * </ul>
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
@@ -128,11 +132,11 @@ public final class DynamoDBIO {
     return new AutoValue_DynamoDBIO_Write.Builder().build();
   }
 
-  /** Read data from DynamoDB and return ScanResult. */
+  /** Read data from DynamoDb and return ScanResult. */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
     @Nullable
-    abstract AwsClientsProvider getAwsClientsProvider();
+    abstract DynamoDbClientProvider getDynamoDbClientProvider();
 
     @Nullable
     abstract SerializableFunction<Void, ScanRequest> getScanRequestFn();
@@ -151,7 +155,7 @@ public final class DynamoDBIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
 
-      abstract Builder<T> setAwsClientsProvider(AwsClientsProvider awsClientsProvider);
+      abstract Builder<T> setDynamoDbClientProvider(DynamoDbClientProvider dynamoDbClientProvider);
 
       abstract Builder<T> setScanRequestFn(SerializableFunction<Void, ScanRequest> fn);
 
@@ -165,18 +169,19 @@ public final class DynamoDBIO {
       abstract Read<T> build();
     }
 
-    public Read<T> withAwsClientsProvider(AwsClientsProvider awsClientsProvider) {
-      return toBuilder().setAwsClientsProvider(awsClientsProvider).build();
+    public Read<T> withDynamoDbClientProvider(DynamoDbClientProvider dynamoDbClientProvider) {
+      return toBuilder().setDynamoDbClientProvider(dynamoDbClientProvider).build();
     }
 
-    public Read<T> withAwsClientsProvider(
-        String awsAccessKey, String awsSecretKey, String region, String serviceEndpoint) {
-      return withAwsClientsProvider(
-          new BasicDynamoDbProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint));
+    public Read<T> withDynamoDbClientProvider(
+        AwsCredentialsProvider credentialsProvider, String region, URI serviceEndpoint) {
+      return withDynamoDbClientProvider(
+          new BasicDynamoDbClientProvider(credentialsProvider, region, serviceEndpoint));
     }
 
-    public Read<T> withAwsClientsProvider(String awsAccessKey, String awsSecretKey, String region) {
-      return withAwsClientsProvider(awsAccessKey, awsSecretKey, region, null);
+    public Read<T> withDynamoDbClientProvider(
+        AwsCredentialsProvider credentialsProvider, String region) {
+      return withDynamoDbClientProvider(credentialsProvider, region, null);
     }
 
     /**
@@ -211,7 +216,8 @@ public final class DynamoDBIO {
     @Override
     public PCollection<T> expand(PBegin input) {
       checkArgument((getScanRequestFn() != null), "withScanRequestFn() is required");
-      checkArgument((getAwsClientsProvider() != null), "withAwsClientsProvider() is required");
+      checkArgument(
+          (getDynamoDbClientProvider() != null), "withDynamoDbClientProvider() is required");
       ScanRequest scanRequest = getScanRequestFn().apply(null);
       checkArgument(
           (scanRequest.totalSegments() != null && scanRequest.totalSegments() > 0),
@@ -242,11 +248,11 @@ public final class DynamoDBIO {
       }
     }
 
-    /** A {@link DoFn} executing the ScanRequest to read from DynamoDB. */
+    /** A {@link DoFn} executing the ScanRequest to read from DynamoDb. */
     private static class ReadFn<T> extends DoFn<Read<T>, T> {
       @ProcessElement
       public void processElement(@Element Read<T> spec, OutputReceiver<T> out) {
-        DynamoDbClient client = spec.getAwsClientsProvider().createDynamoDB();
+        DynamoDbClient client = spec.getDynamoDbClientProvider().getDynamoDbClient();
 
         ScanRequest scanRequest = spec.getScanRequestFn().apply(null);
         ScanRequest scanRequestWithSegment =
@@ -289,18 +295,10 @@ public final class DynamoDBIO {
 
     abstract RetryPredicate getRetryPredicate();
 
-    abstract Builder builder();
+    abstract Builder toBuilder();
 
-    public static RetryConfiguration create(int maxAttempts, Duration maxDuration) {
-      checkArgument(maxAttempts > 0, "maxAttempts should be greater than 0");
-      checkArgument(
-          maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
-          "maxDuration should be greater than 0");
-      return new AutoValue_DynamoDBIO_RetryConfiguration.Builder()
-          .setMaxAttempts(maxAttempts)
-          .setMaxDuration(maxDuration)
-          .setRetryPredicate(DEFAULT_RETRY_PREDICATE)
-          .build();
+    public static Builder builder() {
+      return new AutoValue_DynamoDBIO_RetryConfiguration.Builder();
     }
 
     @AutoValue.Builder
@@ -341,7 +339,7 @@ public final class DynamoDBIO {
   public abstract static class Write<T> extends PTransform<PCollection<T>, PCollection<Void>> {
 
     @Nullable
-    abstract AwsClientsProvider getAwsClientsProvider();
+    abstract DynamoDbClientProvider getDynamoDbClientProvider();
 
     @Nullable
     abstract RetryConfiguration getRetryConfiguration();
@@ -349,12 +347,12 @@ public final class DynamoDBIO {
     @Nullable
     abstract SerializableFunction<T, KV<String, WriteRequest>> getWriteItemMapperFn();
 
-    abstract Builder<T> builder();
+    abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder<T> {
 
-      abstract Builder<T> setAwsClientsProvider(AwsClientsProvider awsClientsProvider);
+      abstract Builder<T> setDynamoDbClientProvider(DynamoDbClientProvider dynamoDbClientProvider);
 
       abstract Builder<T> setRetryConfiguration(RetryConfiguration retryConfiguration);
 
@@ -364,23 +362,23 @@ public final class DynamoDBIO {
       abstract Write<T> build();
     }
 
-    public Write<T> withAwsClientsProvider(AwsClientsProvider awsClientsProvider) {
-      return builder().setAwsClientsProvider(awsClientsProvider).build();
+    public Write<T> withDynamoDbClientProvider(DynamoDbClientProvider dynamoDbClientProvider) {
+      return toBuilder().setDynamoDbClientProvider(dynamoDbClientProvider).build();
     }
 
-    public Write<T> withAwsClientsProvider(
-        String awsAccessKey, String awsSecretKey, String region, String serviceEndpoint) {
-      return withAwsClientsProvider(
-          new BasicDynamoDbProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint));
+    public Write<T> withDynamoDbClientProvider(
+        AwsCredentialsProvider credentialsProvider, String region, URI serviceEndpoint) {
+      return withDynamoDbClientProvider(
+          new BasicDynamoDbClientProvider(credentialsProvider, region, serviceEndpoint));
     }
 
-    public Write<T> withAwsClientsProvider(
-        String awsAccessKey, String awsSecretKey, String region) {
-      return withAwsClientsProvider(awsAccessKey, awsSecretKey, region, null);
+    public Write<T> withDynamoDbClientProvider(
+        AwsCredentialsProvider credentialsProvider, String region) {
+      return withDynamoDbClientProvider(credentialsProvider, region, null);
     }
 
     /**
-     * Provides configuration to retry a failed request to publish a set of records to DynamoDB.
+     * Provides configuration to retry a failed request to publish a set of records to DynamoDb.
      * Users should consider that retrying might compound the underlying problem which caused the
      * initial failure. Users should also be aware that once retrying is exhausted the error is
      * surfaced to the runner which <em>may</em> then opt to retry the current partition in entirety
@@ -401,12 +399,12 @@ public final class DynamoDBIO {
      */
     public Write<T> withRetryConfiguration(RetryConfiguration retryConfiguration) {
       checkArgument(retryConfiguration != null, "retryConfiguration is required");
-      return builder().setRetryConfiguration(retryConfiguration).build();
+      return toBuilder().setRetryConfiguration(retryConfiguration).build();
     }
 
     public Write<T> withWriteRequestMapperFn(
         SerializableFunction<T, KV<String, WriteRequest>> writeItemMapperFn) {
-      return builder().setWriteItemMapperFn(writeItemMapperFn).build();
+      return toBuilder().setWriteItemMapperFn(writeItemMapperFn).build();
     }
 
     @Override
@@ -416,7 +414,7 @@ public final class DynamoDBIO {
 
     static class WriteFn<T> extends DoFn<T, Void> {
       @VisibleForTesting
-      static final String RETRY_ATTEMPT_LOG = "Error writing to DynamoDB. Retry attempt[%d]";
+      static final String RETRY_ATTEMPT_LOG = "Error writing to DynamoDb. Retry attempt[%d]";
 
       private static final Duration RETRY_INITIAL_BACKOFF = Duration.standardSeconds(5);
       private transient FluentBackoff retryBackoff; // defaults to no retries
@@ -435,7 +433,7 @@ public final class DynamoDBIO {
 
       @Setup
       public void setup() {
-        client = spec.getAwsClientsProvider().createDynamoDB();
+        client = spec.getDynamoDbClientProvider().getDynamoDbClient();
         retryBackoff =
             FluentBackoff.DEFAULT
                 .withMaxRetries(0) // default to no retrying

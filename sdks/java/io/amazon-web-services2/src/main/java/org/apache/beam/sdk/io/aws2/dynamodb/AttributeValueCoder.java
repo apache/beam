@@ -68,7 +68,6 @@ public class AttributeValueCoder extends AtomicCoder<AttributeValue> {
 
   @Override
   public void encode(AttributeValue value, OutputStream outStream) throws IOException {
-
     if (value.s() != null) {
       StringUtf8Coder.of().encode(AttributeValueType.s.toString(), outStream);
       StringUtf8Coder.of().encode(value.s(), outStream);

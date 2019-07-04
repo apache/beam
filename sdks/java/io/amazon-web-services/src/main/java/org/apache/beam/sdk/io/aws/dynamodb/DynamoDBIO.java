@@ -84,14 +84,14 @@ import org.slf4j.LoggerFactory;
  *                       t -> KV.of(tableName, writeRequest))
  *               .withRetryConfiguration(
  *                    DynamoDBIO.RetryConfiguration.create(5, Duration.standardMinutes(1)))
- *               .withAwsClientsProvider(new BasicSnsProvider(accessKey, secretKey, region));
+ *               .withAwsClientsProvider(new BasicDynamoDbProvider(accessKey, secretKey, region));
  * }</pre>
  *
  * <p>As a client, you need to provide at least the following things:
  *
  * <ul>
  *   <li>Retry configuration
- *   <li>Specify AwsClientsProvider. You can pass on the default one BasicSnsProvider
+ *   <li>Specify AwsClientsProvider. You can pass on the default one BasicDynamoDbProvider
  *   <li>Mapper function with a table name to map or transform your object into KV<tableName,
  *       writeRequest>
  * </ul>
@@ -104,7 +104,7 @@ import org.slf4j.LoggerFactory;
  * PCollection<List<Map<String, AttributeValue>>> output =
  *     pipeline.apply(
  *             DynamoDBIO.<List<Map<String, AttributeValue>>>read()
- *                 .withAwsClientsProvider(new BasicSnsProvider(accessKey, secretKey, region))
+ *                 .withAwsClientsProvider(new BasicDynamoDBProvider(accessKey, secretKey, region))
  *                 .withScanRequestFn(
  *                     (SerializableFunction<Void, ScanRequest>)
  *                         input -> new ScanRequest(tableName).withTotalSegments(1))
@@ -114,7 +114,7 @@ import org.slf4j.LoggerFactory;
  * <p>As a client, you need to provide at least the following things:
  *
  * <ul>
- *   <li>Specify AwsClientsProvider. You can pass on the default one BasicSnsProvider
+ *   <li>Specify AwsClientsProvider. You can pass on the default one BasicDynamoDBProvider
  *   <li>ScanRequestFn, which you build a ScanRequest object with at least table name and total
  *       number of segment. Note This number should base on the number of your workers
  * </ul>

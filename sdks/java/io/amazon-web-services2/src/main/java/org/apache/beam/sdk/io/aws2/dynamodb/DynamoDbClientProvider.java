@@ -18,17 +18,14 @@
 package org.apache.beam.sdk.io.aws2.dynamodb;
 
 import java.io.Serializable;
-import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
 /**
- * Provides instances of AWS clients.
+ * Provides instances of DynamoDB clients.
  *
- * <p>Please note, that any instance of {@link AwsClientsProvider} must be {@link Serializable} to
- * ensure it can be sent to worker machines.
+ * <p>Please note, that any instance of {@link DynamoDbClientProvider} must be {@link Serializable}
+ * to ensure it can be sent to worker machines.
  */
-public interface AwsClientsProvider extends Serializable {
-  CloudWatchClient getCloudWatchClient();
-
-  DynamoDbClient createDynamoDB();
+public interface DynamoDbClientProvider extends Serializable {
+  DynamoDbClient getDynamoDbClient();
 }

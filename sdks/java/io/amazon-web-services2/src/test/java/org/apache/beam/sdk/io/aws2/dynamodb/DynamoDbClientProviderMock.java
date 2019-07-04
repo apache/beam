@@ -17,30 +17,23 @@
  */
 package org.apache.beam.sdk.io.aws2.dynamodb;
 
-import org.mockito.Mockito;
-import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
 /** Mocking AwsClientProvider. */
-public class AwsClientsProviderMock implements AwsClientsProvider {
+public class DynamoDbClientProviderMock implements DynamoDbClientProvider {
 
-  private static AwsClientsProviderMock instance = new AwsClientsProviderMock();
+  private static DynamoDbClientProviderMock instance = new DynamoDbClientProviderMock();
   private static DynamoDbClient db;
 
-  private AwsClientsProviderMock() {}
+  private DynamoDbClientProviderMock() {}
 
-  public static AwsClientsProviderMock of(DynamoDbClient dynamoDB) {
+  public static DynamoDbClientProviderMock of(DynamoDbClient dynamoDB) {
     db = dynamoDB;
     return instance;
   }
 
   @Override
-  public CloudWatchClient getCloudWatchClient() {
-    return Mockito.mock(CloudWatchClient.class);
-  }
-
-  @Override
-  public DynamoDbClient createDynamoDB() {
+  public DynamoDbClient getDynamoDbClient() {
     return db;
   }
 }
