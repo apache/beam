@@ -17,18 +17,20 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
-import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.AggregatorCombinerPerKey;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.KVHelpers;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.WindowingHelpers;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.spark.api.java.function.MapFunction;
+import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.KeyValueGroupedDataset;
 import scala.Tuple2;
@@ -50,25 +52,30 @@ class CombinePerKeyTranslatorBatch<K, InputT, AccumT, OutputT>
     @SuppressWarnings("unchecked")
     final Combine.CombineFn<InputT, AccumT, OutputT> combineFn =
         (Combine.CombineFn<InputT, AccumT, OutputT>) combineTransform.getFn();
+    WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
 
     Dataset<WindowedValue<KV<K, InputT>>> inputDataset = context.getDataset(input);
 
-    Dataset<KV<K, InputT>> unwindowedDataset = inputDataset
-        .map(WindowingHelpers.unwindowMapFunction(), EncoderHelpers.kvEncoder());
-    KeyValueGroupedDataset<K, KV<K, InputT>> groupedDataset =
-        unwindowedDataset.groupByKey((MapFunction<KV<K, InputT>, K>) kv -> kv.getKey(), EncoderHelpers.genericEncoder());
+    KeyValueGroupedDataset<K, WindowedValue<KV<K, InputT>>> groupedDataset = inputDataset
+        .groupByKey(KVHelpers.extractKey(), EncoderHelpers.genericEncoder());
 
-    Dataset<Tuple2<K, OutputT>> combinedDataset =
-        groupedDataset.agg(
-            new AggregatorCombinerPerKey<K, InputT, AccumT, OutputT>(combineFn).toColumn());
+    Dataset<Tuple2<K, Iterable<WindowedValue<OutputT>>>> combinedDataset = groupedDataset.agg(
+        new AggregatorCombiner<K, InputT, AccumT, OutputT, BoundedWindow>(combineFn,
+            windowingStrategy).toColumn());
 
-    Dataset<KV<K, OutputT>> kvOutputDataset =
-        combinedDataset.map(KVHelpers.tuple2ToKV(), EncoderHelpers.kvEncoder());
-
-    // Window the result into global window.
-    Dataset<WindowedValue<KV<K, OutputT>>> outputDataset =
-        kvOutputDataset.map(
-            WindowingHelpers.windowMapFunction(), EncoderHelpers.windowedValueEncoder());
+    Dataset<WindowedValue<KV<K, OutputT>>> outputDataset = combinedDataset.flatMap(
+        (FlatMapFunction<Tuple2<K, Iterable<WindowedValue<OutputT>>>, WindowedValue<KV<K, OutputT>>>) tuple2 -> {
+          K key = tuple2._1;
+          Iterable<WindowedValue<OutputT>> windowedValues = tuple2._2;
+          List<WindowedValue<KV<K, OutputT>>> result = new ArrayList<>();
+          for (WindowedValue<OutputT> windowedValue : windowedValues) {
+            KV<K, OutputT> kv = KV.of(key, windowedValue.getValue());
+            result.add(WindowedValue
+                .of(kv, windowedValue.getTimestamp(), windowedValue.getWindows(),
+                    windowedValue.getPane()));
+          }
+          return result.iterator();
+        }, EncoderHelpers.windowedValueEncoder());
     context.putDataset(output, outputDataset);
   }
 }
