@@ -33,28 +33,6 @@ import org.joda.time.Instant;
 public final class WindowingHelpers {
 
   /**
-   * A Spark {@link MapFunction} for converting a value to a {@link WindowedValue}. The resulting
-   * {@link WindowedValue} will be in a global windows, and will have the default timestamp == MIN
-   * and pane.
-   *
-   * @param <T> The type of the object.
-   * @return A {@link MapFunction} that accepts an object and returns its {@link WindowedValue}.
-   */
-  public static <T> MapFunction<T, WindowedValue<T>> windowMapFunction() {
-    return (MapFunction<T, WindowedValue<T>>) WindowedValue::valueInGlobalWindow;
-  }
-
-  /**
-   * A Spark {@link MapFunction} for extracting the value from a {@link WindowedValue}.
-   *
-   * @param <T> The type of the object.
-   * @return A {@link MapFunction} that accepts a {@link WindowedValue} and returns its value.
-   */
-  public static <T> MapFunction<WindowedValue<T>, T> unwindowMapFunction() {
-    return (MapFunction<WindowedValue<T>, T>) WindowedValue::getValue;
-  }
-
-  /**
    * Checks if the window transformation should be applied or skipped.
    *
    * <p>Avoid running assign windows if both source and destination are global window or if the user
