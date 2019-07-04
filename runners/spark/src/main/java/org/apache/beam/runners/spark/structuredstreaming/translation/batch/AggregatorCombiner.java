@@ -41,8 +41,7 @@ import org.apache.spark.sql.expressions.Aggregator;
 import org.joda.time.Instant;
 import scala.Tuple2;
 
-/** An {@link Aggregator} for the Spark Batch Runner. It does not use ReduceFnRunner
- * for windowMerging, because reduceFnRunner is based on state which requires a keyed collection.
+/** An {@link Aggregator} for the Spark Batch Runner.
  * The accumulator is a {@code Iterable<WindowedValue<AccumT>> because an {@code InputT} can be in multiple windows. So, when accumulating {@code InputT} values, we create one accumulator per input window.
  * */
 
