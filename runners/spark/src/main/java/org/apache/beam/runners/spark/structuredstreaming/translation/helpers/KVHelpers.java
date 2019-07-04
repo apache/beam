@@ -29,9 +29,4 @@ public final class KVHelpers {
   public static <K, V> MapFunction<WindowedValue<KV<K, V>>, K> extractKey() {
     return (MapFunction<WindowedValue<KV<K, V>>, K>) wv -> wv.getValue().getKey();
   }
-
-  /** A Spark {@link MapFunction} for making a KV out of a {@link scala.Tuple2}. */
-  public static <K, V> MapFunction<Tuple2<K, V>, KV<K, V>> tuple2ToKV() {
-    return (MapFunction<Tuple2<K, V>, KV<K, V>>) tuple2 -> KV.of(tuple2._1, tuple2._2);
-  }
 }
