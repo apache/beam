@@ -51,6 +51,7 @@ public class CombineTest implements Serializable {
     PCollection<Integer> input =
         p.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)).apply(Sum.integersGlobally());
     PAssert.that(input).containsInAnyOrder(55);
+    // uses combine per key
     p.run();
   }
 
