@@ -76,32 +76,4 @@ public final class RowHelpers {
     }
     return InternalRow.apply(asScalaBuffer(list).toList());
   }
-
-  /**
-   * A Spark {@link MapFunction} for extracting an Object from a Row was serialized to bytes using
-   * kryo.
-   *
-   * @param <T> The type of the object.
-   * @return A {@link MapFunction} that accepts a {@link Row} and returns its {@link WindowedValue}.
-   */
-  public static <T> MapFunction<Row, T> extractObjectFromRowMapFunction() {
-    return (MapFunction<Row, T>) RowHelpers::extractObjectFromRow;
-  }
-
-  /** Extracts an Object from a Row was serialized to bytes using kryo. */
-  @SuppressWarnings("TypeParameterUnusedInFormals")
-  public static <T> T extractObjectFromRow(Row value) {
-    // there is only one value put in each Row by the InputPartitionReader
-    byte[] bytes = (byte[]) value.get(0);
-    if (bytes == null) {
-      return null;
-    }
-    ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
-    Kryo kryo = new Kryo();
-    Input input = new Input(inputStream);
-    @SuppressWarnings("unchecked")
-    T object = (T) kryo.readClassAndObject(input);
-    input.close();
-    return object;
-  }
 }
