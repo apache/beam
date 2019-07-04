@@ -36,6 +36,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.expressions.Aggregator;
 import org.joda.time.Instant;
@@ -137,7 +138,7 @@ class AggregatorCombiner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
       mergedWindowForAccumulator = (mergedWindowForAccumulator == null) ? (W)accumulatorWindow : mergedWindowForAccumulator;
 
       if (mergedWindowToAccumulators.get(mergedWindowForAccumulator) == null){
-        mergedWindowToAccumulators.put(mergedWindowForAccumulator, Collections.singletonList(accumulator));
+        mergedWindowToAccumulators.put(mergedWindowForAccumulator, Lists.newArrayList(accumulator));
       }
       else {
         mergedWindowToAccumulators.get(mergedWindowForAccumulator).add(accumulator);
