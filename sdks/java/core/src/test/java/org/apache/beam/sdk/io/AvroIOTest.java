@@ -52,7 +52,6 @@ import org.apache.avro.file.DataFileStream;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.generic.IndexedRecord;
 import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
@@ -262,7 +261,9 @@ public class AvroIOTest implements Serializable {
 
     private enum WriteMethod {
       AVROIO_WRITE,
-      AVROIO_SINK,
+      AVROIO_SINK_WITH_CLASS,
+      AVROIO_SINK_WITH_SCHEMA,
+      /** @deprecated Test code for the deprecated {AvroIO.RecordFormatter}. */
       @Deprecated
       AVROIO_SINK_WITH_FORMATTER
     }
@@ -873,7 +874,7 @@ public class AvroIOTest implements Serializable {
     @Test
     @Category({NeedsRunner.class, UsesTestStream.class})
     public void testWindowedAvroIOWriteViaSink() throws Throwable {
-      testWindowedAvroIOWriteUsingMethod(WriteMethod.AVROIO_SINK);
+      testWindowedAvroIOWriteUsingMethod(WriteMethod.AVROIO_SINK_WITH_CLASS);
     }
 
     void testWindowedAvroIOWriteUsingMethod(WriteMethod method) throws IOException {
@@ -946,7 +947,7 @@ public class AvroIOTest implements Serializable {
             break;
           }
 
-        case AVROIO_SINK:
+        case AVROIO_SINK_WITH_CLASS:
           {
             write =
                 FileIO.<GenericClass>write()
@@ -979,11 +980,11 @@ public class AvroIOTest implements Serializable {
             case AVROIO_WRITE:
               expectedFiles.add(new File(baseAndWindow + "-" + shard + "-of-2-pane-0-last.avro"));
               break;
-            case AVROIO_SINK:
+            case AVROIO_SINK_WITH_CLASS:
               expectedFiles.add(new File(baseAndWindow + "-0000" + shard + "-of-00002.avro"));
               break;
             default:
-              throw new UnsupportedOperationException();
+              throw new UnsupportedOperationException("Unknown write method " + method);
           }
         }
       }
@@ -1121,10 +1122,10 @@ public class AvroIOTest implements Serializable {
             break;
           }
 
-        case AVROIO_SINK:
+        case AVROIO_SINK_WITH_SCHEMA:
           {
-            FileIO.Write<String, IndexedRecord> write =
-                FileIO.<String, IndexedRecord>writeDynamic()
+            FileIO.Write<String, GenericRecord> write =
+                FileIO.<String, GenericRecord>writeDynamic()
                     .by(
                         fn(
                             (element, c) -> {
@@ -1137,7 +1138,7 @@ public class AvroIOTest implements Serializable {
                             (dest, c) -> {
                               Schema schema =
                                   new Schema.Parser().parse(c.sideInput(schemaView).get(dest));
-                              return AvroIO.sinkViaGeneric(schema);
+                              return AvroIO.sinkWithSchema(schema);
                             },
                             requiresSideInputs(schemaView)))
                     .to(baseDir.toString())
@@ -1164,11 +1165,11 @@ public class AvroIOTest implements Serializable {
                 throw new IllegalArgumentException("Unknown sharding " + sharding);
             }
 
-            MapElements<String, IndexedRecord> formatter =
+            MapElements<String, GenericRecord> toRecord =
                 MapElements.via(
-                    new SimpleFunction<String, IndexedRecord>() {
+                    new SimpleFunction<String, GenericRecord>() {
                       @Override
-                      public IndexedRecord apply(String element) {
+                      public GenericRecord apply(String element) {
                         String prefix = element.substring(0, 1);
                         GenericRecord record =
                             new GenericData.Record(
@@ -1179,7 +1180,7 @@ public class AvroIOTest implements Serializable {
                       }
                     });
 
-            input.apply(formatter).apply(write);
+            input.apply(toRecord).apply(write);
             break;
           }
 
@@ -1237,6 +1238,8 @@ public class AvroIOTest implements Serializable {
             input.apply(write);
             break;
           }
+        default:
+          throw new UnsupportedOperationException("Unknown write method " + writeMethod);
       }
 
       writePipeline.run();
@@ -1297,21 +1300,21 @@ public class AvroIOTest implements Serializable {
     @Category(NeedsRunner.class)
     public void testDynamicDestinationsViaSinkRunnerDeterminedSharding() throws Exception {
       testDynamicDestinationsUnwindowedWithSharding(
-          WriteMethod.AVROIO_SINK, Sharding.RUNNER_DETERMINED);
+          WriteMethod.AVROIO_SINK_WITH_SCHEMA, Sharding.RUNNER_DETERMINED);
     }
 
     @Test
     @Category(NeedsRunner.class)
     public void testDynamicDestinationsViaSinkWithoutSharding() throws Exception {
       testDynamicDestinationsUnwindowedWithSharding(
-          WriteMethod.AVROIO_SINK, Sharding.WITHOUT_SHARDING);
+          WriteMethod.AVROIO_SINK_WITH_SCHEMA, Sharding.WITHOUT_SHARDING);
     }
 
     @Test
     @Category(NeedsRunner.class)
     public void testDynamicDestinationsViaSinkWithNumShards() throws Exception {
       testDynamicDestinationsUnwindowedWithSharding(
-          WriteMethod.AVROIO_SINK, Sharding.FIXED_3_SHARDS);
+          WriteMethod.AVROIO_SINK_WITH_SCHEMA, Sharding.FIXED_3_SHARDS);
     }
 
     @Test
