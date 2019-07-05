@@ -35,6 +35,7 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -51,6 +52,7 @@ public class CombineTest implements Serializable {
     p = Pipeline.create(options);
   }
 
+  @Ignore
   @Test
   public void testCombineGlobally() {
     PCollection<Integer> input =
