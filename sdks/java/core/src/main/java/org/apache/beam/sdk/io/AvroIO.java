@@ -33,6 +33,7 @@ import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.generic.IndexedRecord;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -1705,6 +1706,26 @@ public class AvroIO {
 
   /**
    * A {@link Sink} for use with {@link FileIO#write} and {@link FileIO#writeDynamic}, writing
+   * elements with a given (common) schema, like {@link #writeGenericRecords(Schema)}.
+   */
+  public static <ElementT extends IndexedRecord> Sink<ElementT> sinkViaGeneric(Schema schema) {
+    return sinkViaGeneric(schema.toString());
+  }
+
+  /**
+   * A {@link Sink} for use with {@link FileIO#write} and {@link FileIO#writeDynamic}, writing
+   * elements with a given (common) schema, like {@link #writeGenericRecords(String)}.
+   */
+  public static <ElementT extends IndexedRecord> Sink<ElementT> sinkViaGeneric(String schema) {
+    return new AutoValue_AvroIO_Sink.Builder<ElementT>()
+        .setJsonSchema(schema)
+        .setMetadata(ImmutableMap.of())
+        .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
+        .build();
+  }
+
+  /**
+   * A {@link Sink} for use with {@link FileIO#write} and {@link FileIO#writeDynamic}, writing
    * elements by converting each one to a {@link GenericRecord} with a given (common) schema, like
    * {@link #writeCustomTypeToGenericRecords()}.
    *
@@ -1721,7 +1742,9 @@ public class AvroIO {
         .build();
   }
 
-  /** Implementation of {@link #sink} and {@link #sinkViaGenericRecords}. */
+  /**
+   * Implementation of {@link #sink}, {@link #sinkViaRecords} and {@link #sinkViaGenericRecords}.
+   */
   @AutoValue
   public abstract static class Sink<ElementT> implements FileIO.Sink<ElementT> {
     /** @deprecated RecordFormatter will be removed in future versions. */
