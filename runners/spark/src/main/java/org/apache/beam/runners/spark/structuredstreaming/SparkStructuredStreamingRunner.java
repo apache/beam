@@ -19,15 +19,26 @@ package org.apache.beam.runners.spark.structuredstreaming;
 
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 
+import org.apache.beam.runners.core.metrics.MetricsPusher;
+import org.apache.beam.runners.spark.structuredstreaming.aggregators.AggregatorsAccumulator;
+import org.apache.beam.runners.spark.structuredstreaming.metrics.AggregatorMetricSource;
+import org.apache.beam.runners.spark.structuredstreaming.metrics.CompositeSource;
+import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
+import org.apache.beam.runners.spark.structuredstreaming.metrics.SparkBeamMetricSource;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorBatch;
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.PipelineTranslatorStreaming;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import org.apache.spark.SparkEnv$;
+import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.metrics.MetricsSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,11 +125,29 @@ public final class SparkStructuredStreamingRunner
 
   @Override
   public SparkStructuredStreamingPipelineResult run(final Pipeline pipeline) {
+    MetricsEnvironment.setMetricsSupported(true);
+
+    // clear state of Aggregators, Metrics and Watermarks if exists.
+    AggregatorsAccumulator.clear();
+    MetricsAccumulator.clear();
+
     TranslationContext translationContext = translatePipeline(pipeline);
     // TODO initialise other services: checkpointing, metrics system, listeners, ...
     // TODO pass testMode using pipelineOptions
     translationContext.startPipeline(true);
-    return new SparkStructuredStreamingPipelineResult();
+
+    SparkStructuredStreamingPipelineResult result = new SparkStructuredStreamingPipelineResult();
+
+    if (options.getEnableSparkMetricSinks()) {
+      registerMetricsSource(options.getAppName());
+    }
+
+    MetricsPusher metricsPusher =
+        new MetricsPusher(
+            MetricsAccumulator.getInstance().value(), options.as(MetricsOptions.class), result);
+    metricsPusher.start();
+
+    return result;
   }
 
   private TranslationContext translatePipeline(Pipeline pipeline) {
@@ -129,7 +158,36 @@ public final class SparkStructuredStreamingRunner
         options.isStreaming()
             ? new PipelineTranslatorStreaming(options)
             : new PipelineTranslatorBatch(options);
+
+    final JavaSparkContext jsc =
+        JavaSparkContext.fromSparkContext(
+            pipelineTranslator.getTranslationContext().getSparkSession().sparkContext());
+    initAccumulators(options, jsc);
+
     pipelineTranslator.translate(pipeline);
     return pipelineTranslator.getTranslationContext();
+  }
+
+  private void registerMetricsSource(String appName) {
+    final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
+    final AggregatorMetricSource aggregatorMetricSource =
+        new AggregatorMetricSource(null, AggregatorsAccumulator.getInstance().value());
+    final SparkBeamMetricSource metricsSource = new SparkBeamMetricSource(null);
+    final CompositeSource compositeSource =
+        new CompositeSource(
+            appName + ".Beam",
+            metricsSource.metricRegistry(),
+            aggregatorMetricSource.metricRegistry());
+    // re-register the metrics in case of context re-use
+    metricsSystem.removeSource(compositeSource);
+    metricsSystem.registerSource(compositeSource);
+  }
+
+  /** Init Metrics/Aggregators accumulators. This method is idempotent. */
+  public static void initAccumulators(
+      SparkStructuredStreamingPipelineOptions opts, JavaSparkContext jsc) {
+    // Init metrics accumulators
+    MetricsAccumulator.init(jsc);
+    AggregatorsAccumulator.init(jsc);
   }
 }

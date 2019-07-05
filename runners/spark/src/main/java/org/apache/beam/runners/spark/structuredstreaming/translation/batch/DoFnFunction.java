@@ -24,6 +24,7 @@ import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.NoOpStepContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SparkSideInputReader;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.SideInputBroadcast;
@@ -54,6 +55,8 @@ import scala.Tuple2;
 public class DoFnFunction<InputT, OutputT>
     implements MapPartitionsFunction<WindowedValue<InputT>, Tuple2<TupleTag<?>, WindowedValue<?>>> {
 
+  private final MetricsContainerStepMapAccumulator metricsAccum;
+  private final String stepName;
   private final DoFn<InputT, OutputT> doFn;
   private transient boolean wasSetupCalled;
   private final WindowingStrategy<?, ?> windowingStrategy;
@@ -67,6 +70,8 @@ public class DoFnFunction<InputT, OutputT>
   private DoFnSchemaInformation doFnSchemaInformation;
 
   public DoFnFunction(
+      MetricsContainerStepMapAccumulator metricsAccum,
+      String stepName,
       DoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
@@ -77,6 +82,8 @@ public class DoFnFunction<InputT, OutputT>
       Map<TupleTag<?>, Coder<?>> outputCoderMap,
       SideInputBroadcast broadcastStateData,
       DoFnSchemaInformation doFnSchemaInformation) {
+    this.metricsAccum = metricsAccum;
+    this.stepName = stepName;
     this.doFn = doFn;
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
@@ -113,7 +120,13 @@ public class DoFnFunction<InputT, OutputT>
             windowingStrategy,
             doFnSchemaInformation);
 
-    return new ProcessContext<>(doFn, doFnRunner, outputManager, Collections.emptyIterator())
+//    DoFnRunnerWithMetrics<InputT, OutputT> doFnRunnerWithMetrics =
+    DoFnRunnerWithMetrics<InputT, OutputT> doFnRunnerWithMetrics =
+        new DoFnRunnerWithMetrics<>(stepName, doFnRunner, metricsAccum);
+
+//        return new ProcessContext<>(doFn, doFnRunner, outputManager, Collections.emptyIterator())
+    return new ProcessContext<>(
+            doFn, doFnRunnerWithMetrics, outputManager, Collections.emptyIterator())
         .processPartition(iter)
         .iterator();
   }

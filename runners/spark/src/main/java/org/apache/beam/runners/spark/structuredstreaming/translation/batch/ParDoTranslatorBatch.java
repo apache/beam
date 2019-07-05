@@ -25,6 +25,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
+import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
+import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.CoderHelpers;
@@ -62,6 +64,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
   @Override
   public void translateTransform(
       PTransform<PCollection<InputT>, PCollectionTuple> transform, TranslationContext context) {
+    String stepName = context.getCurrentTransform().getFullName();
 
     // Check for not supported advanced features
     // TODO: add support of Splittable DoFn
@@ -101,9 +104,14 @@ class ParDoTranslatorBatch<InputT, OutputT>
     Map<TupleTag<?>, Coder<?>> outputCoderMap = context.getOutputCoders();
     Coder<InputT> inputCoder = ((PCollection<InputT>) context.getInput()).getCoder();
 
+    MetricsContainerStepMapAccumulator metricsAccum = MetricsAccumulator.getInstance();
+//    MetricsContainerStepMapAccumulator metricsAccum = null;
+
     @SuppressWarnings("unchecked")
     DoFnFunction<InputT, OutputT> doFnWrapper =
         new DoFnFunction(
+            metricsAccum,
+            stepName,
             doFn,
             windowingStrategy,
             sideInputStrategies,

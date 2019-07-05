@@ -15,19 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.structuredstreaming;
+package org.apache.beam.runners.spark.structuredstreaming.metrics;
 
-import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
-import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 
 /**
- * Spark runner {@link PipelineOptions} handles Spark execution-related configurations, such as the
- * master address, and other user-related knobs.
+ * Sole purpose of this class is to override {@link #toString()} of {@link MetricsContainerStepMap}
+ * in order to show meaningful metrics in Spark Web Interface.
  */
-public interface SparkStructuredStreamingPipelineOptions extends SparkCommonPipelineOptions {
-  @Description("Enable/disable sending aggregator values to Spark's metric sinks")
-  @Default.Boolean(true)
-  Boolean getEnableSparkMetricSinks();
+class SparkMetricsContainerStepMap extends MetricsContainerStepMap {
+
+  @Override
+  public String toString() {
+    return new SparkBeamMetric().renderAll().toString();
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    return super.equals(o);
+  }
+
+  @Override
+  public int hashCode() {
+    return super.hashCode();
+  }
 }
