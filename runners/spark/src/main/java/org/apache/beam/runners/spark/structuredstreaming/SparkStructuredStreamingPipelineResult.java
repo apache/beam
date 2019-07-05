@@ -19,9 +19,13 @@ package org.apache.beam.runners.spark.structuredstreaming;
 
 import java.io.IOException;
 import javax.annotation.Nullable;
+
+import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.joda.time.Duration;
+
+import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
 /** Represents a Spark pipeline execution result. */
 class SparkStructuredStreamingPipelineResult implements PipelineResult {
@@ -50,9 +54,8 @@ class SparkStructuredStreamingPipelineResult implements PipelineResult {
     return null;
   }
 
-  @Nullable // TODO: remove once method will be implemented
   @Override
   public MetricResults metrics() {
-    return null;
+    return asAttemptedOnlyMetricResults(MetricsAccumulator.getInstance().value());
   }
 }

@@ -15,19 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.structuredstreaming;
+package org.apache.beam.runners.spark.structuredstreaming.metrics;
 
-import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
-import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
+import com.codahale.metrics.MetricRegistry;
+import org.apache.spark.metrics.source.Source;
 
-/**
- * Spark runner {@link PipelineOptions} handles Spark execution-related configurations, such as the
- * master address, and other user-related knobs.
- */
-public interface SparkStructuredStreamingPipelineOptions extends SparkCommonPipelineOptions {
-  @Description("Enable/disable sending aggregator values to Spark's metric sinks")
-  @Default.Boolean(true)
-  Boolean getEnableSparkMetricSinks();
+/** Composite source made up of several {@link MetricRegistry} instances. */
+public class CompositeSource implements Source {
+  private final String name;
+  private final MetricRegistry metricRegistry;
+
+  public CompositeSource(final String name, MetricRegistry... metricRegistries) {
+    this.name = name;
+    this.metricRegistry = new MetricRegistry();
+    for (MetricRegistry metricRegistry : metricRegistries) {
+      this.metricRegistry.registerAll(metricRegistry);
+    }
+  }
+
+  @Override
+  public String sourceName() {
+    return name;
+  }
+
+  @Override
+  public MetricRegistry metricRegistry() {
+    return metricRegistry;
+  }
 }

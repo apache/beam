@@ -15,19 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.structuredstreaming;
+package org.apache.beam.runners.spark.structuredstreaming.metrics;
 
-import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
-import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
+import com.codahale.metrics.Metric;
+import org.apache.beam.runners.spark.structuredstreaming.aggregators.NamedAggregators;
 
-/**
- * Spark runner {@link PipelineOptions} handles Spark execution-related configurations, such as the
- * master address, and other user-related knobs.
- */
-public interface SparkStructuredStreamingPipelineOptions extends SparkCommonPipelineOptions {
-  @Description("Enable/disable sending aggregator values to Spark's metric sinks")
-  @Default.Boolean(true)
-  Boolean getEnableSparkMetricSinks();
+/** An adapter between the {@link NamedAggregators} and Codahale's {@link Metric} interface. */
+public class AggregatorMetric implements Metric {
+
+  private final NamedAggregators namedAggregators;
+
+  private AggregatorMetric(final NamedAggregators namedAggregators) {
+    this.namedAggregators = namedAggregators;
+  }
+
+  public static AggregatorMetric of(final NamedAggregators namedAggregators) {
+    return new AggregatorMetric(namedAggregators);
+  }
+
+  NamedAggregators getNamedAggregators() {
+    return namedAggregators;
+  }
 }
