@@ -103,7 +103,7 @@ class PubSubMessageMatcher(BaseMatcher):
       for rm in response.received_messages:
         msg = PubsubMessage._from_message(rm.message)
         if not self.with_attributes:
-          total_messages.append(msg.data.decode('utf-8'))
+          total_messages.append(msg.data)
           continue
 
         if self.strip_attributes:
