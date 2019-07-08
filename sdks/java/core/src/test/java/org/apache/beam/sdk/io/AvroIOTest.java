@@ -1081,7 +1081,7 @@ public class AvroIOTest implements Serializable {
     /**
      * Example of a {@link Coder} for a collection of Avro records with different schemas.
      *
-     * All the schemas are known at pipeline construction, and are keyed internally on the prefix
+     * <p>All the schemas are known at pipeline construction, and are keyed internally on the prefix
      * character (lower byte only for UTF-8 data).
      */
     private static class AvroMultiplexCoder extends Coder<GenericRecord> {
@@ -1116,7 +1116,7 @@ public class AvroIOTest implements Serializable {
 
       @Override
       public void verifyDeterministic() throws NonDeterministicException {
-        for (AvroCoder<GenericRecord> internalCoder: coderMap.values()) {
+        for (AvroCoder<GenericRecord> internalCoder : coderMap.values()) {
           internalCoder.verifyDeterministic();
         }
       }
