@@ -20,14 +20,12 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.parquet;
 import java.io.Serializable;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
+import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PBegin;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.*;
 
 public class ParquetTable extends BaseBeamTable implements Serializable {
   private final String filePattern;
@@ -43,13 +41,19 @@ public class ParquetTable extends BaseBeamTable implements Serializable {
         GenericRecordReadConverter.builder().beamSchema(schema).build();
 
     return begin
-        .apply(ParquetIO.read(AvroUtils.toAvroSchema(schema)).from(filePattern))
+        .apply("ParquetIORead", ParquetIO.read(AvroUtils.toAvroSchema(schema)).from(filePattern))
         .apply("GenericRecordToRow", readConverter);
   }
 
   @Override
-  public POutput buildIOWriter(PCollection<Row> input) {
-    throw new UnsupportedOperationException("Writing to a Pubsub topic is not supported");
+  public PDone buildIOWriter(PCollection<Row> input) {
+    PTransform<PCollection<Row>, PCollection<GenericRecord>> writeConverter = null;
+
+    return input
+            .apply("RowToGenericRecord", writeConverter)
+            .apply("ParquetIOWrite", FileIO.<GenericRecord>.write().via(
+                    ParquetIO.sink(AvroUtils.toAvroSchema(schema))).to()
+            );
   }
 
   @Override
