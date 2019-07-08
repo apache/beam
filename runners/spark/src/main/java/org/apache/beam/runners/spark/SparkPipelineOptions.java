@@ -150,17 +150,15 @@ public interface SparkPipelineOptions
   void setCacheDisabled(boolean value);
 
   /**
-   * Local configurations work in the same JVM and have no problems with improperly formatted files
-   * on classpath (eg. directories with .class files or empty directories). Prepare files for
-   * staging only when using remote cluster (passing the master address explicitly).
+   * Classpath contains non jar files (eg. directories with .class files or empty directories) will
+   * cause exception in running log. Though the {@link org.apache.spark.SparkContext} can handle
+   * this when running in local master, it's better not to include non-jars files in classpath.
    */
-  static void prepareFilesToStageForRemoteClusterExecution(SparkPipelineOptions options) {
-    if (!options.getSparkMaster().matches("local\\[?\\d*\\]?")) {
-      options.setFilesToStage(
-          PipelineResources.prepareFilesForStaging(
-              options.getFilesToStage(),
-              MoreObjects.firstNonNull(
-                  options.getTempLocation(), System.getProperty("java.io.tmpdir"))));
-    }
+  static void prepareFilesToStage(SparkPipelineOptions options) {
+    options.setFilesToStage(
+        PipelineResources.prepareFilesForStaging(
+            options.getFilesToStage(),
+            MoreObjects.firstNonNull(
+                options.getTempLocation(), System.getProperty("java.io.tmpdir"))));
   }
 }
