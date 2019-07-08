@@ -59,9 +59,13 @@ public class PipelineResources {
     }
 
     List<String> files = new ArrayList<>();
-    for (URL url : ((URLClassLoader) classLoader).getURLs()) {
+    URL[] urls = ((URLClassLoader) classLoader).getURLs();
+    for (URL url : urls) {
       try {
-        files.add(new File(url.toURI()).getAbsolutePath());
+        File file = new File(url.toURI());
+        if (file.isFile()) {
+          files.add(file.getAbsolutePath());
+        }
       } catch (IllegalArgumentException | URISyntaxException e) {
         String message = String.format("Unable to convert url (%s) to file.", url);
         throw new IllegalArgumentException(message, e);
