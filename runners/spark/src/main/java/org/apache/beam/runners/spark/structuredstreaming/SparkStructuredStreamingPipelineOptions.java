@@ -30,4 +30,6 @@ public interface SparkStructuredStreamingPipelineOptions extends SparkCommonPipe
   @Description("Enable/disable sending aggregator values to Spark's metric sinks")
   @Default.Boolean(true)
   Boolean getEnableSparkMetricSinks();
+
+  void setEnableSparkMetricSinks(Boolean enableSparkMetricSinks);
 }
