@@ -179,7 +179,7 @@ public class TranslationContext {
   //  Pipeline methods
   // --------------------------------------------------------------------------------------------
 
-  /** Starts a new pipeline. */
+  /** Starts the pipeline. */
   public void startPipeline(boolean testMode) {
     try {
       SparkStructuredStreamingPipelineOptions options =
