@@ -422,14 +422,8 @@ public abstract class Row implements Serializable {
         V value = e.getValue();
         V otherValue = b.get(key);
 
-        if (value == null) {
-          if (otherValue != null || !b.containsKey(key)) {
-            return false;
-          }
-        } else {
-          if (!deepEquals(value, otherValue, valueType)) {
-            return false;
-          }
+        if (!deepEquals(value, otherValue, valueType)) {
+          return false;
         }
       }
 
