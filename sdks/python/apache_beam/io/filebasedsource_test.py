@@ -65,14 +65,14 @@ class LineSource(FileBasedSource):
         f.seek(start)
         line = f.readline()
         start += len(line)
-      current = start
       line = f.readline()
+      current = start + len(line) - 1
       while line:
         if not range_tracker.try_claim(current):
           return
         yield line.rstrip(b'\n')
-        current += len(line)
         line = f.readline()
+        current = current + len(line) if line else current
     finally:
       f.close()
 
