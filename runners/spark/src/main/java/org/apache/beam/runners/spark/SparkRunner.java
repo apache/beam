@@ -18,7 +18,7 @@
 package org.apache.beam.runners.spark;
 
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
-import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToStageForRemoteClusterExecution;
+import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToStage;
 
 import java.util.Collection;
 import java.util.List;
@@ -165,7 +165,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     pipeline.replaceAll(SparkTransformOverrides.getDefaultOverrides(mOptions.isStreaming()));
 
-    prepareFilesToStageForRemoteClusterExecution(mOptions);
+    prepareFilesToStage(mOptions);
 
     if (mOptions.isStreaming()) {
       CheckpointDir checkpointDir = new CheckpointDir(mOptions.getCheckpointDir());

@@ -18,7 +18,7 @@
 package org.apache.beam.runners.spark;
 
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
-import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToStageForRemoteClusterExecution;
+import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToStage;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -74,7 +74,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
       LOG.info(
           "PipelineOptions.filesToStage was not specified. Defaulting to files from the classpath");
     }
-    prepareFilesToStageForRemoteClusterExecution(pipelineOptions);
+    prepareFilesToStage(pipelineOptions);
     LOG.info(
         "Will stage {} files. (Enable logging at DEBUG level to see which files will be staged.)",
         pipelineOptions.getFilesToStage().size());
