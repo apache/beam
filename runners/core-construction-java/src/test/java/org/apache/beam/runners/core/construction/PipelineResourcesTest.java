@@ -62,8 +62,8 @@ public class PipelineResourcesTest {
     File file2 = tmpFolder.newFile("file2");
     File folder = tmpFolder.newFolder("testFolder");
     URLClassLoader classLoader =
-        new URLClassLoader(new URL[] {file.toURI().toURL(), file2.toURI().toURL(),
-            folder.toURI().toURL()});
+        new URLClassLoader(
+            new URL[] {file.toURI().toURL(), file2.toURI().toURL(), folder.toURI().toURL()});
     assertEquals(
         ImmutableList.of(file.getAbsolutePath(), file2.getAbsolutePath()),
         PipelineResources.detectClassPathResourcesToStage(classLoader));
