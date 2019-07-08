@@ -18,9 +18,8 @@
 package org.apache.beam.sdk.fn.splittabledofn;
 
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.sdk.transforms.splittabledofn.Backlog;
-import org.apache.beam.sdk.transforms.splittabledofn.Backlogs;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.Sizes;
 
 /** Support utilities for interacting with {@link RestrictionTracker RestrictionTrackers}. */
 public class RestrictionTrackers {
@@ -83,39 +82,18 @@ public class RestrictionTrackers {
    * RestrictionTracker}.
    */
   @ThreadSafe
-  private static class RestrictionTrackerObserverWithBacklog<RestrictionT, PositionT>
-      extends RestrictionTrackerObserver<RestrictionT, PositionT> implements Backlogs.HasBacklog {
+  private static class RestrictionTrackerObserverWithSize<RestrictionT, PositionT>
+      extends RestrictionTrackerObserver<RestrictionT, PositionT> implements Sizes.HasSize {
 
-    protected RestrictionTrackerObserverWithBacklog(
+    protected RestrictionTrackerObserverWithSize(
         RestrictionTracker<RestrictionT, PositionT> delegate,
         ClaimObserver<PositionT> claimObserver) {
       super(delegate, claimObserver);
     }
 
     @Override
-    public synchronized Backlog getBacklog() {
-      return ((Backlogs.HasBacklog) delegate).getBacklog();
-    }
-  }
-
-  /**
-   * A {@link RestrictionTracker} which forwards all calls to the delegate partitioned backlog
-   * reporting {@link RestrictionTracker}.
-   */
-  @ThreadSafe
-  private static class RestrictionTrackerObserverWithPartitionedBacklog<RestrictionT, PositionT>
-      extends RestrictionTrackerObserverWithBacklog<RestrictionT, PositionT>
-      implements Backlogs.HasPartitionedBacklog {
-
-    protected RestrictionTrackerObserverWithPartitionedBacklog(
-        RestrictionTracker<RestrictionT, PositionT> delegate,
-        ClaimObserver<PositionT> claimObserver) {
-      super(delegate, claimObserver);
-    }
-
-    @Override
-    public synchronized byte[] getBacklogPartition() {
-      return ((Backlogs.HasPartitionedBacklog) delegate).getBacklogPartition();
+    public synchronized double getSize() {
+      return ((Sizes.HasSize) delegate).getSize();
     }
   }
 
@@ -126,11 +104,8 @@ public class RestrictionTrackers {
   public static <RestrictionT, PositionT> RestrictionTracker<RestrictionT, PositionT> observe(
       RestrictionTracker<RestrictionT, PositionT> restrictionTracker,
       ClaimObserver<PositionT> claimObserver) {
-    if (restrictionTracker instanceof Backlogs.HasPartitionedBacklog) {
-      return new RestrictionTrackerObserverWithPartitionedBacklog<>(
-          restrictionTracker, claimObserver);
-    } else if (restrictionTracker instanceof Backlogs.HasBacklog) {
-      return new RestrictionTrackerObserverWithBacklog<>(restrictionTracker, claimObserver);
+    if (restrictionTracker instanceof Sizes.HasSize) {
+      return new RestrictionTrackerObserverWithSize<>(restrictionTracker, claimObserver);
     } else {
       return new RestrictionTrackerObserver<>(restrictionTracker, claimObserver);
     }
