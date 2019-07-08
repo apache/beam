@@ -48,7 +48,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -82,9 +81,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors.TypeVariableExtractor;
-import org.joda.time.Instant;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -504,7 +500,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      *
      * <p>Default is a uniquely named subdirectory of the provided tempDirectory, e.g. if
      * tempDirectory is /path/to/foo/, the temporary directory will be
-     * /path/to/foo/temp-beam-foo-$date.
+     * /path/to/foo/.temp-beam-$uuid.
      *
      * @param sink the FileBasedSink that will be used to configure this write operation.
      */
@@ -516,20 +512,12 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
     private static class TemporaryDirectoryBuilder
         implements SerializableFunction<ResourceId, ResourceId> {
-      private static final AtomicLong TEMP_COUNT = new AtomicLong(0);
-      private static final DateTimeFormatter TEMPDIR_TIMESTAMP =
-          DateTimeFormat.forPattern("yyyy-MM-dd_HH-mm-ss");
-      // The intent of the code is to have a consistent value of tempDirectory across
-      // all workers, which wouldn't happen if now() was called inline.
-      private final String timestamp = Instant.now().toString(TEMPDIR_TIMESTAMP);
-      // Multiple different sinks may be used in the same output directory; use tempId to create a
-      // separate temp directory for each.
-      private final Long tempId = TEMP_COUNT.getAndIncrement();
+      private final UUID tempUUID = UUID.randomUUID();
 
       @Override
       public ResourceId apply(ResourceId tempDirectory) {
-        // Temp directory has a timestamp and a unique ID
-        String tempDirName = String.format(TEMP_DIRECTORY_PREFIX + "-%s-%s", timestamp, tempId);
+        // Temp directory has a random UUID postfix (BEAM-7689)
+        String tempDirName = String.format(TEMP_DIRECTORY_PREFIX + "-%s", tempUUID);
         return tempDirectory
             .getCurrentDirectory()
             .resolve(tempDirName, StandardResolveOptions.RESOLVE_DIRECTORY);
