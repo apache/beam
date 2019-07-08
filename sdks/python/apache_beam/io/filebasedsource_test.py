@@ -52,19 +52,22 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 class LineSource(FileBasedSource):
 
+  def _find_first_record(self, file, start):
+    file.seek(start - 1)
+    while file.read(1) != b'\n':
+      start -= 1
+      file.seek(start-1)
+    file.seek(start)
+    return start
+
   def read_records(self, file_name, range_tracker):
     f = self.open_file(file_name)
     try:
       start = range_tracker.start_position()
       if start > 0:
-        # Any line that starts after 'start' does not belong to the current
-        # bundle. Seeking to (start - 1) and skipping a line moves the current
-        # position to the starting position of the first line that belongs to
-        # the current bundle.
-        start -= 1
-        f.seek(start)
-        line = f.readline()
-        start += len(line)
+        # Any line that starts after 'start' should be included in current
+        # bundle.
+        start = self._find_first_record(f, start)
       line = f.readline()
       current = start + len(line) - 1
       while line:
@@ -696,7 +699,7 @@ class TestSingleFileSource(unittest.TestCase):
     source = SingleFileSource(fbs, file_name, 0, 10 * 6)
     range_tracker = source.get_range_tracker(0, 20)
     read_data = [value for value in source.read(range_tracker)]
-    self.assertCountEqual(expected_data[:4], read_data)
+    self.assertCountEqual(expected_data[:3], read_data)
 
   def test_read_range_at_end(self):
     fbs = LineSource('dummy_pattern', validate=False)
@@ -707,7 +710,7 @@ class TestSingleFileSource(unittest.TestCase):
     source = SingleFileSource(fbs, file_name, 0, 10 * 6)
     range_tracker = source.get_range_tracker(40, 60)
     read_data = [value for value in source.read(range_tracker)]
-    self.assertCountEqual(expected_data[-3:], read_data)
+    self.assertCountEqual(expected_data[-4:], read_data)
 
   def test_read_range_at_middle(self):
     fbs = LineSource('dummy_pattern', validate=False)
@@ -718,7 +721,7 @@ class TestSingleFileSource(unittest.TestCase):
     source = SingleFileSource(fbs, file_name, 0, 10 * 6)
     range_tracker = source.get_range_tracker(20, 40)
     read_data = [value for value in source.read(range_tracker)]
-    self.assertCountEqual(expected_data[4:7], read_data)
+    self.assertCountEqual(expected_data[3:6], read_data)
 
   def test_produces_splits_desiredsize_large_than_size(self):
     fbs = LineSource('dummy_pattern', validate=False)
@@ -772,7 +775,7 @@ class TestSingleFileSource(unittest.TestCase):
                                                split.stop_position)
       data_from_split = [data for data in source.read(range_tracker)]
       read_data.extend(data_from_split)
-    self.assertCountEqual(expected_data[2:9], read_data)
+    self.assertCountEqual(expected_data[1:8], read_data)
 
 
 if __name__ == '__main__':
