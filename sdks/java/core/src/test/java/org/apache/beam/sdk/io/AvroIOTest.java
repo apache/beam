@@ -34,12 +34,15 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -56,6 +59,8 @@ import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
@@ -1006,7 +1011,7 @@ public class AvroIOTest implements Serializable {
     private static final String SCHEMA_TEMPLATE_STRING =
         "{\"namespace\": \"example.avro\",\n"
             + " \"type\": \"record\",\n"
-            + " \"name\": \"TestTemplateSchema$$\",\n"
+            + " \"name\": \"$$TestTemplateSchema\",\n"
             + " \"fields\": [\n"
             + "     {\"name\": \"$$full\", \"type\": \"string\"},\n"
             + "     {\"name\": \"$$suffix\", \"type\": [\"string\", \"null\"]}\n"
@@ -1070,6 +1075,50 @@ public class AvroIOTest implements Serializable {
             "-SSSSS-of-NNNNN",
             ".avro",
             false);
+      }
+    }
+
+    /**
+     * Example of a {@link Coder} for a collection of Avro records with different schemas.
+     *
+     * All the schemas are known at pipeline construction, and are keyed internally on the prefix
+     * character (lower byte only for UTF-8 data).
+     */
+    private static class AvroMultiplexCoder extends Coder<GenericRecord> {
+
+      /** Lookup table for the possible schemas, keyed on the prefix character. */
+      private final Map<Character, AvroCoder<GenericRecord>> coderMap = Maps.newHashMap();
+
+      protected AvroMultiplexCoder(Map<String, String> schemaMap) {
+        for (Map.Entry<String, String> entry : schemaMap.entrySet()) {
+          coderMap.put(
+              entry.getKey().charAt(0), AvroCoder.of(new Schema.Parser().parse(entry.getValue())));
+        }
+      }
+
+      @Override
+      public void encode(GenericRecord value, OutputStream outStream) throws IOException {
+        char prefix = value.getSchema().getName().charAt(0);
+        outStream.write(prefix); // Only reads and writes the low byte.
+        coderMap.get(prefix).encode(value, outStream);
+      }
+
+      @Override
+      public GenericRecord decode(InputStream inStream) throws CoderException, IOException {
+        char prefix = (char) inStream.read();
+        return coderMap.get(prefix).decode(inStream);
+      }
+
+      @Override
+      public List<? extends Coder<?>> getCoderArguments() {
+        return Collections.emptyList();
+      }
+
+      @Override
+      public void verifyDeterministic() throws NonDeterministicException {
+        for (AvroCoder<GenericRecord> internalCoder: coderMap.values()) {
+          internalCoder.verifyDeterministic();
+        }
       }
     }
 
@@ -1180,7 +1229,7 @@ public class AvroIOTest implements Serializable {
                       }
                     });
 
-            input.apply(toRecord).apply(write);
+            input.apply(toRecord).setCoder(new AvroMultiplexCoder(schemaMap)).apply(write);
             break;
           }
 
