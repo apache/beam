@@ -99,7 +99,7 @@ class BigQueryWritePerfTest(LoadTest):
          self.output_dataset + '.' + self.output_table,
          schema=SCHEMA,
          create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
-         write_disposition=BigQueryDisposition.WRITE_EMPTY))
+         write_disposition=BigQueryDisposition.WRITE_TRUNCATE))
 
 
 if __name__ == '__main__':
