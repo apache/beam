@@ -204,13 +204,13 @@ class SyntheticSDFStepRestrictionProvider(RestrictionProvider):
 
 
 def get_synthetic_sdf_step(per_element_delay_sec=0,
-                        per_bundle_delay_sec=0,
-                        output_records_per_input_record=1,
-                        output_filter_ratio=0,
-                        initial_splitting_num_bundles=8,
-                        initial_splitting_uneven_chunks=False,
-                        disable_liquid_sharding=False,
-                        size_estimate_override=None,):
+                           per_bundle_delay_sec=0,
+                           output_records_per_input_record=1,
+                           output_filter_ratio=0,
+                           initial_splitting_num_bundles=8,
+                           initial_splitting_uneven_chunks=False,
+                           disable_liquid_sharding=False,
+                           size_estimate_override=None,):
   """A function which returns a SyntheticSDFStep with given parameters. """
 
   class SyntheticSDFStep(beam.DoFn):
