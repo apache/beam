@@ -68,6 +68,7 @@
 :beam-sdks-java-extensions-join-library :sdks:java:extensions:join-library
 :beam-sdks-java-extensions-google-cloud-platform-core :sdks:java:extensions:google-cloud-platform-core
 :beam-sdks-java-extensions-euphoria :sdks:java:extensions:euphoria
+:beam-sdks-java-extensions-timeseries :sdks:java:extensions:timeseries
 :beam-sdks-java-core :sdks:java:core
 :beam-sdks-java-container :sdks:java:container
 :beam-sdks-java-build-tools :sdks:java:build-tools
