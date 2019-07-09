@@ -528,22 +528,23 @@ public class Snippets {
         TextIO.read()
             .from("<path-to-files>/*")
             .watchForNewFiles(
-                // Check for new files every minute
+                // Check for new files every minute.
                 Duration.standardMinutes(1),
-                // Stop watching the filepattern if no new files appear within an hour
+                // Stop watching the file pattern if no new files appear for an hour.
                 Watch.Growth.afterTimeSinceNewOutput(Duration.standardHours(1))));
     // [END FileProcessPatternProcessNewFilesSnip2]
 
     // [START FileProcessPatternAccessMetadataSnip1]
     p.apply(FileIO.match().filepattern("hdfs://path/to/*.gz"))
-        // withCompression can be omitted - by default compression is detected from the filename.
+        // The withCompression method is optional. By default, the Beam SDK detects compression from
+        // the filename.
         .apply(FileIO.readMatches().withCompression(Compression.GZIP))
         .apply(
             ParDo.of(
                 new DoFn<FileIO.ReadableFile, String>() {
                   @ProcessElement
                   public void process(@Element FileIO.ReadableFile file) {
-                    // We now have access to the file and its metadata
+                    // We can now access the file and its metadata.
                     LOG.info("File Metadata resourceId is {} ", file.getMetadata().resourceId());
                   }
                 }));
@@ -555,12 +556,11 @@ public class Snippets {
 
   // [START SideInputPatternSlowUpdateGlobalWindowSnip1]
   public static void sideInputPatterns() {
-    // Using View.asSingleton, this pipeline uses a dummy external service as illustration.
-    // Run in debug mode to see the output
+    // This pipeline uses View.asSingleton for a placeholder external service.
+    // Run in debug mode to see the output.
     Pipeline p = Pipeline.create();
 
-    // Create slowly updating sideinput
-
+    // Create a side input that updates each second.
     PCollectionView<Map<String, String>> map =
         p.apply(GenerateSequence.from(0).withRate(1, Duration.standardSeconds(5L)))
             .apply(
@@ -574,20 +574,15 @@ public class Snippets {
                       @ProcessElement
                       public void process(
                           @Element Long input, OutputReceiver<Map<String, String>> o) {
-                        // Do any external reads needed here...
-                        // We will make use of our dummy external service.
-                        // Every time this triggers, the complete map will be replaced with that
-                        // read from
-                        // the service.
-                        o.output(DummyExternalService.readDummyData());
+                        // Replace map with test data from the placeholder external service.
+                        // Add external reads here.
+                        o.output(PlaceholderExternalService.readTestData());
                       }
                     }))
             .apply(View.asSingleton());
 
-    // ---- Consume slowly updating sideinput
-
-    // GenerateSequence is only used here to generate dummy data for this illustration.
-    // You would use your real source for example PubSubIO, KafkaIO etc...
+    // Consume side input. GenerateSequence generates test data.
+    // Use a real source (like PubSubIO or KafkaIO) in production.
     p.apply(GenerateSequence.from(0).withRate(1, Duration.standardSeconds(1L)))
         .apply(Window.into(FixedWindows.of(Duration.standardSeconds(1))))
         .apply(Sum.longsGlobally().withoutDefaults())
@@ -601,7 +596,7 @@ public class Snippets {
                         c.outputWithTimestamp(KV.of(1L, c.element()), Instant.now());
 
                         LOG.debug(
-                            "Value is {} key A is {} and key B is {}",
+                            "Value is {}, key A is {}, and key B is {}.",
                             c.element(),
                             keyMap.get("Key_A"),
                             keyMap.get("Key_B"));
@@ -610,10 +605,10 @@ public class Snippets {
                 .withSideInputs(map));
   }
 
-  /** Dummy class representing a pretend external service. */
-  public static class DummyExternalService {
+  /** Placeholder class that represents an external service generating test data. */
+  public static class PlaceholderExternalService {
 
-    public static Map<String, String> readDummyData() {
+    public static Map<String, String> readTestData() {
 
       Map<String, String> map = new HashMap<>();
       Instant now = Instant.now();
