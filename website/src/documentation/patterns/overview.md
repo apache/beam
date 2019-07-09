@@ -27,7 +27,7 @@ Pipeline patterns demonstrate common Beam use cases. Pipeline patterns are based
 * [Accessing filenames]({{ site.baseurl }}/documentation/patterns/file-processing-patterns/#accessing-filenames)
 
 **Side input patterns** - Patterns for processing supplementary data
-* [Using global window side inputs in non-global windows]({{ site.baseurl }}/documentation/patterns/side-input-patterns/#using-global-window-side-inputs-in-non-global-windows)
+* [Slowly updating global window side inputs]({{ site.baseurl }}/documentation/patterns/side-input-patterns/#slowly-updating-global-window-side-inputs)
 
 **Pipeline option patterns** - Patterns for configuring pipelines
 * [Retroactively logging runtime parameters]({{ site.baseurl }}/documentation/patterns/pipeline-option-patterns/#retroactively-logging-runtime-parameters)
