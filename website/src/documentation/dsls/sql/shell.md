@@ -33,7 +33,7 @@ To use Beam SQL shell, you must first clone the [Beam SDK repository](https://gi
 ```
 ./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':runners:flink:1.5,:sdks:java:io:kafka' installDist
 
-./sdks/java/extensions/sql/shell/build/install/beam-sdks-java-extensions-sql-shell/bin/beam-sdks-java-extensions-sql-shell
+./sdks/java/extensions/sql/shell/build/install/shell/bin/shell
 ```
 
 After you run the commands,  the SQL shell starts and you can type queries:
