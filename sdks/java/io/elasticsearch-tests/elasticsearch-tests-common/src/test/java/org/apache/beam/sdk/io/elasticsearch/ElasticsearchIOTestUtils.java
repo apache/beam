@@ -34,7 +34,7 @@ import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 
 /** Test utilities to use with {@link ElasticsearchIO}. */
-class ElasticSearchIOTestUtils {
+class ElasticsearchIOTestUtils {
   static final String[] FAMOUS_SCIENTISTS = {
     "Einstein",
     "Darwin",
@@ -100,8 +100,8 @@ class ElasticSearchIOTestUtils {
       ConnectionConfiguration connectionConfiguration, long numDocs, RestClient restClient)
       throws IOException {
     List<String> data =
-        ElasticSearchIOTestUtils.createDocuments(
-            numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+        ElasticsearchIOTestUtils.createDocuments(
+            numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
     StringBuilder bulkRequest = new StringBuilder();
     int i = 0;
     for (String document : data) {

@@ -1013,7 +1013,7 @@ public class ElasticsearchIO {
      * docs (like Elasticsearch bulk size advice). See
      * https://www.elastic.co/guide/en/elasticsearch/guide/current/bulk.html Depending on the
      * execution engine, size of bundles may vary, this sets the maximum size. Change this if you
-     * need to have smaller ElasticSearch bulks.
+     * need to have smaller Elasticsearch bulks.
      *
      * @param batchSize maximum batch size in number of documents
      * @return the {@link Write} with connection batch size set
@@ -1029,7 +1029,7 @@ public class ElasticsearchIO {
      * (like Elasticsearch bulk size advice). See
      * https://www.elastic.co/guide/en/elasticsearch/guide/current/bulk.html Depending on the
      * execution engine, size of bundles may vary, this sets the maximum size. Change this if you
-     * need to have smaller ElasticSearch bulks.
+     * need to have smaller Elasticsearch bulks.
      *
      * @param batchSizeBytes maximum batch size in bytes
      * @return the {@link Write} with connection batch size in bytes set
