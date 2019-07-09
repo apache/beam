@@ -63,6 +63,7 @@ class CombinePerKeyTranslatorBatch<K, InputT, AccumT, OutputT>
         new AggregatorCombiner<K, InputT, AccumT, OutputT, BoundedWindow>(combineFn,
             windowingStrategy).toColumn());
 
+    //expand the list into separate elements and put the key back into the elements
     Dataset<WindowedValue<KV<K, OutputT>>> outputDataset = combinedDataset.flatMap(
         (FlatMapFunction<Tuple2<K, Iterable<WindowedValue<OutputT>>>, WindowedValue<KV<K, OutputT>>>) tuple2 -> {
           K key = tuple2._1;
