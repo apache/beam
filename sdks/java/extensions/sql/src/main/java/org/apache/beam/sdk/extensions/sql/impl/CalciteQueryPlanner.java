@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
@@ -43,6 +42,7 @@ import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.calcite.tools.Frameworks;
 import org.apache.calcite.tools.Planner;
 import org.apache.calcite.tools.RelConversionException;
+import org.apache.calcite.tools.RuleSet;
 import org.apache.calcite.tools.ValidationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,11 +56,11 @@ class CalciteQueryPlanner implements QueryPlanner {
 
   private final Planner planner;
 
-  CalciteQueryPlanner(JdbcConnection connection) {
-    planner = Frameworks.getPlanner(defaultConfig(connection));
+  CalciteQueryPlanner(JdbcConnection connection, RuleSet[] ruleSets) {
+    planner = Frameworks.getPlanner(defaultConfig(connection, ruleSets));
   }
 
-  public FrameworkConfig defaultConfig(JdbcConnection connection) {
+  public FrameworkConfig defaultConfig(JdbcConnection connection, RuleSet[] ruleSets) {
     final CalciteConnectionConfig config = connection.config();
     final SqlParser.ConfigBuilder parserConfig =
         SqlParser.configBuilder()
@@ -94,7 +94,7 @@ class CalciteQueryPlanner implements QueryPlanner {
         .defaultSchema(defaultSchema)
         .traitDefs(traitDefs)
         .context(Contexts.of(connection.config()))
-        .ruleSets(BeamRuleSets.getRuleSets())
+        .ruleSets(ruleSets)
         .costFactory(null)
         .typeSystem(connection.getTypeFactory().getTypeSystem())
         .operatorTable(ChainedSqlOperatorTable.of(opTab0, catalogReader))
