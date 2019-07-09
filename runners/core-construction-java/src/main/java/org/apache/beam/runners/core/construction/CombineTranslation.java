@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_GLOBALLY_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_GROUPED_VALUES_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN;
 
 import com.google.auto.service.AutoService;
@@ -30,6 +31,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
@@ -155,6 +157,56 @@ public class CombineTranslation {
     }
   }
 
+  /** A {@link TransformPayloadTranslator} for {@link Combine.GroupedValues}. */
+  public static class CombineGroupedValuesPayloadTranslator
+      implements PTransformTranslation.TransformPayloadTranslator<Combine.GroupedValues<?, ?, ?>> {
+    private CombineGroupedValuesPayloadTranslator() {}
+
+    @Override
+    public String getUrn(Combine.GroupedValues<?, ?, ?> transform) {
+      return COMBINE_GROUPED_VALUES_TRANSFORM_URN;
+    }
+
+    @Override
+    public FunctionSpec translate(
+        AppliedPTransform<?, ?, Combine.GroupedValues<?, ?, ?>> transform, SdkComponents components)
+        throws IOException {
+      if (transform.getTransform().getSideInputs().isEmpty()) {
+        GlobalCombineFn<?, ?, ?> combineFn = transform.getTransform().getFn();
+        Coder<?> accumulatorCoder =
+            extractAccumulatorCoder(combineFn, (AppliedPTransform) transform);
+        return FunctionSpec.newBuilder()
+            .setUrn(getUrn(transform.getTransform()))
+            .setPayload(combinePayload(combineFn, accumulatorCoder, components).toByteString())
+            .build();
+      } else {
+        // Combines with side inputs are translated as generic composites, which have a blank
+        // FunctionSpec.
+        return null;
+      }
+    }
+
+    private static <K, InputT, AccumT> Coder<AccumT> extractAccumulatorCoder(
+        GlobalCombineFn<InputT, AccumT, ?> combineFn,
+        AppliedPTransform<
+                PCollection<KV<K, Iterable<InputT>>>, ?, Combine.GroupedValues<K, InputT, ?>>
+            transform)
+        throws IOException {
+      try {
+        @SuppressWarnings("unchecked")
+        PCollection<KV<K, Iterable<InputT>>> mainInput =
+            (PCollection<KV<K, Iterable<InputT>>>)
+                Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(transform));
+        KvCoder<K, Iterable<InputT>> kvCoder = (KvCoder<K, Iterable<InputT>>) mainInput.getCoder();
+        IterableCoder<InputT> iterCoder = (IterableCoder<InputT>) kvCoder.getValueCoder();
+        return combineFn.getAccumulatorCoder(
+            transform.getPipeline().getCoderRegistry(), iterCoder.getElemCoder());
+      } catch (CannotProvideCoderException e) {
+        throw new IOException("Could not obtain a Coder for the accumulator", e);
+      }
+    }
+  }
+
   /**
    * Registers {@link TransformPayloadTranslator TransformPayloadTranslators} for {@link Combine
    * Combines}.
@@ -165,8 +217,9 @@ public class CombineTranslation {
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
         getTransformPayloadTranslators() {
       return ImmutableMap.<Class<? extends PTransform>, TransformPayloadTranslator>builder()
-          .put(Combine.PerKey.class, new CombinePerKeyPayloadTranslator())
           .put(Combine.Globally.class, new CombineGloballyPayloadTranslator())
+          .put(Combine.GroupedValues.class, new CombineGroupedValuesPayloadTranslator())
+          .put(Combine.PerKey.class, new CombinePerKeyPayloadTranslator())
           .build();
     }
   }
