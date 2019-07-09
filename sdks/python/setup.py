@@ -118,7 +118,7 @@ REQUIRED_PACKAGES = [
     # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.
     'protobuf>=3.5.0.post1,<4',
     # [BEAM-6287] pyarrow is not supported on Windows for Python 2
-    ('pyarrow>=0.11.1,<0.14.0; python_version >= "3.0" or '
+    ('pyarrow>=0.11.1,<0.15.0; python_version >= "3.0" or '
      'platform_system != "Windows"'),
     'pydot>=1.2.0,<1.3',
     'pytz>=2018.3',
