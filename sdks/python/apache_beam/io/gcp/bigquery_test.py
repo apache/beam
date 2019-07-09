@@ -38,9 +38,12 @@ from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
+from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigQueryTableMatcher
 from apache_beam.options import value_provider
 from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
+from apache_beam.runners.runner import PipelineState
+from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
@@ -639,13 +642,14 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
     bad_record = {'language': 1, 'manguage': 2}
 
     pipeline_verifiers = [
-        BigqueryFullResultMatcher(
+        PipelineStateMatcher(PipelineState.RUNNING),
+        BigqueryFullResultStreamingMatcher(
             project=self.project,
             query="SELECT name, language FROM %s" % output_table_1,
             data=[(d['name'], d['language'])
                   for d in _ELEMENTS
                   if 'language' in d]),
-        BigqueryFullResultMatcher(
+        BigqueryFullResultStreamingMatcher(
             project=self.project,
             query="SELECT name, foundation FROM %s" % output_table_2,
             data=[(d['name'], d['foundation'])
@@ -654,7 +658,8 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
 
     args = self.test_pipeline.get_full_options_as_args(
         on_success_matcher=hc.all_of(*pipeline_verifiers),
-        experiments='use_beam_bq_sink')
+        experiments='use_beam_bq_sink',
+        streaming=True)
 
     with beam.Pipeline(argv=args) as p:
       _SIZE = len(_ELEMENTS)
