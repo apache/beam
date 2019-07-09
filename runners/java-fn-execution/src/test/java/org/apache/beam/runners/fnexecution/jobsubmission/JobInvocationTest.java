@@ -34,9 +34,8 @@ import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.joda.time.Duration;
-import org.junit.AfterClass;
+import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 /** Tests for {@link JobInvocation}. */
@@ -47,19 +46,9 @@ public class JobInvocationTest {
   private JobInvocation jobInvocation;
   private ControllablePipelineRunner runner;
 
-  @BeforeClass
-  public static void init() {
-    executorService = Executors.newFixedThreadPool(1);
-  }
-
-  @AfterClass
-  public static void shutdown() {
-    executorService.shutdownNow();
-    executorService = null;
-  }
-
   @Before
   public void setup() {
+    executorService = Executors.newFixedThreadPool(1);
     JobInfo jobInfo =
         JobInfo.create("jobid", "jobName", "retrievalToken", Struct.getDefaultInstance());
     ListeningExecutorService listeningExecutorService =
@@ -69,6 +58,12 @@ public class JobInvocationTest {
     jobInvocation =
         new JobInvocation(
             jobInfo, listeningExecutorService, PipelineTranslation.toProto(pipeline), runner);
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    executorService.shutdownNow();
+    executorService = null;
   }
 
   @Test(timeout = 10_000)
