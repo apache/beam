@@ -19,6 +19,14 @@
 #
 # Requires docker, docker-compose to be installed.
 
+# Usage check.
+if [[ $# != 1 ]]; then
+  printf "Usage: \n$> ./apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh <python_version>"
+  printf "\n\tpython_version: [required] Python version used for container build and run tests."
+  printf " Use 'python:2' for Python2, 'python:3.7' for Python3.7."
+  exit 1
+fi
+
 set -e -u -x
 
 # Setup context directory.
@@ -53,7 +61,6 @@ function finally {
 }
 trap finally EXIT
 
-# pass the python version as BASE_IMAGE (e.g. python:2 or python:3.7)
 time docker-compose ${COMPOSE_OPT} build --build-arg BASE_IMAGE=$1
 time docker-compose ${COMPOSE_OPT} up --exit-code-from test \
     --abort-on-container-exit --force-recreate
