@@ -1709,8 +1709,8 @@ public class AvroIO {
    * elements with a given (common) schema, like {@link #writeGenericRecords(Schema)}.
    */
   @Experimental
-  public static <ElementT extends IndexedRecord> Sink<ElementT> sinkWithSchema(Schema schema) {
-    return sinkWithSchema(schema.toString());
+  public static <ElementT extends IndexedRecord> Sink<ElementT> sink(Schema schema) {
+    return sink(schema.toString());
   }
 
   /**
@@ -1718,9 +1718,9 @@ public class AvroIO {
    * elements with a given (common) schema, like {@link #writeGenericRecords(String)}.
    */
   @Experimental
-  public static <ElementT extends IndexedRecord> Sink<ElementT> sinkWithSchema(String schema) {
+  public static <ElementT extends IndexedRecord> Sink<ElementT> sink(String jsonSchema) {
     return new AutoValue_AvroIO_Sink.Builder<ElementT>()
-        .setJsonSchema(schema)
+        .setJsonSchema(jsonSchema)
         .setMetadata(ImmutableMap.of())
         .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
         .build();
@@ -1745,7 +1745,7 @@ public class AvroIO {
   }
 
   /**
-   * Implementation of {@link #sink}, {@link #sinkWithSchema} and {@link #sinkViaGenericRecords}.
+   * Implementation of {@link #sink} and {@link #sinkViaGenericRecords}.
    */
   @AutoValue
   public abstract static class Sink<ElementT> implements FileIO.Sink<ElementT> {

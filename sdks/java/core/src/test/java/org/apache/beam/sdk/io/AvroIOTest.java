@@ -1187,7 +1187,7 @@ public class AvroIOTest implements Serializable {
                             (dest, c) -> {
                               Schema schema =
                                   new Schema.Parser().parse(c.sideInput(schemaView).get(dest));
-                              return AvroIO.sinkWithSchema(schema);
+                              return AvroIO.sink(schema);
                             },
                             requiresSideInputs(schemaView)))
                     .to(baseDir.toString())
