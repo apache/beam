@@ -16,6 +16,3 @@
 #
 
 include gen_protos.py
-include README.md
-include NOTICE
-include LICENSE
