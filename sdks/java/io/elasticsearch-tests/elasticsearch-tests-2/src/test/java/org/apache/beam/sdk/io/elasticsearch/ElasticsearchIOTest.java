@@ -116,7 +116,7 @@ public class ElasticsearchIOTest implements Serializable {
 
   @Before
   public void before() throws Exception {
-    ElasticSearchIOTestUtils.deleteIndex(connectionConfiguration, restClient);
+    ElasticsearchIOTestUtils.deleteIndex(connectionConfiguration, restClient);
   }
 
   @Test
