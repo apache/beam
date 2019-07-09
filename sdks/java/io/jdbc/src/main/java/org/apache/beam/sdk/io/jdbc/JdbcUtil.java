@@ -21,12 +21,9 @@ import java.sql.Date;
 import java.sql.JDBCType;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.time.ZoneOffset;
-import java.util.Calendar;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
@@ -136,8 +133,7 @@ public class JdbcUtil {
               return (element, ps, i, fieldWithIndex) -> {
                 ps.setTimestamp(
                     i + 1,
-                    new Timestamp(element.getDateTime(fieldWithIndex.getIndex()).getMillis()),
-                    Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
+                    new Timestamp(element.getDateTime(fieldWithIndex.getIndex()).getMillis()));
               };
             default:
               return getPreparedStatementSetCaller(fieldType.getLogicalType().getBaseType());
