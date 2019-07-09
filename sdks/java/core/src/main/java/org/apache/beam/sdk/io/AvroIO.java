@@ -1744,9 +1744,7 @@ public class AvroIO {
         .build();
   }
 
-  /**
-   * Implementation of {@link #sink} and {@link #sinkViaGenericRecords}.
-   */
+  /** Implementation of {@link #sink} and {@link #sinkViaGenericRecords}. */
   @AutoValue
   public abstract static class Sink<ElementT> implements FileIO.Sink<ElementT> {
     /** @deprecated RecordFormatter will be removed in future versions. */
