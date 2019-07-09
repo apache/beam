@@ -54,7 +54,7 @@ task setupVirtualenv {
 
 task buildDockerImage(type: Exec) {
   inputs.files 'Gemfile', 'Gemfile.lock'
-  commandLine 'docker', 'build', '-t', dockerImageTag, '.'
+  commandLine 'sudo', 'docker', 'build', '-t', dockerImageTag, '.'
 }
 
 task createDockerContainer(type: Exec) {
