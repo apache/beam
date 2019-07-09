@@ -193,6 +193,8 @@ message BundleApplication {
   // value represents a lower bound on the timestamps of elements that
   // are produced by this PTransform into each of its output PCollections
   // when invoked with this application.
+  //
+  // If there is no watermark reported, use MIN_TIMESTAMP by default.
   map<string, google.protobuf.Timestamp> output_watermarks = 4;
 
   // (Required) Whether this application potentially produces an unbounded

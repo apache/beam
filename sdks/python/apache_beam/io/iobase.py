@@ -1137,6 +1137,10 @@ class RestrictionTracker(object):
     """
     raise NotImplementedError
 
+  def current_watermark(self):
+    """Returns current watermark. By default, not report watermark."""
+    return None
+
   def checkpoint(self):
     """Performs a checkpoint of the current restriction.
 

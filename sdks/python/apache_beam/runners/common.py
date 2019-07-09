@@ -44,7 +44,7 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
-from apache_beam.utils.timestamp import Timestamp
+from apache_beam.utils import timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
 
@@ -201,7 +201,7 @@ class MethodWrapper(object):
         kwargs[kw] = user_state_context.get_timer(timer_spec, key, window)
 
     if self.timestamp_arg_name:
-      kwargs[self.timestamp_arg_name] = Timestamp(seconds=timestamp)
+      kwargs[self.timestamp_arg_name] = timestamp.Timestamp(seconds=timestamp)
     if self.window_arg_name:
       kwargs[self.window_arg_name] = window
     if self.key_arg_name:
@@ -704,13 +704,17 @@ class PerWindowInvoker(DoFnInvoker):
         restriction_provider = self.signature.get_restriction_provider()
         primary_size = restriction_provider.restriction_size(element, primary)
         residual_size = restriction_provider.restriction_size(element, residual)
+        # If no current watermark reported, use MIN_TIMESTAMP by default.
+        current_watermark = (restriction_tracker.current_watermark()
+                             if restriction_tracker.current_watermark()
+                             else timestamp.MIN_TIMESTAMP)
         return (
             (self.current_windowed_value.with_value(
                 ((element, primary), primary_size)),
              None),
             (self.current_windowed_value.with_value(
                 ((element, residual), residual_size)),
-             restriction_tracker.current_watermark()))
+             current_watermark))
 
   def current_element_progress(self):
     restriction_tracker = self.restriction_tracker
