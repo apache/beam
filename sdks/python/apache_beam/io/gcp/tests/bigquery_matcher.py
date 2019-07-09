@@ -25,6 +25,8 @@ from hamcrest.core.base_matcher import BaseMatcher
 
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.testing.test_utils import compute_hash
+from apache_beam.testing.util import BeamAssertException
+from apache_beam.testing.util import equal_to
 from apache_beam.utils import retry
 
 __all__ = ['BigqueryMatcher', 'BigQueryTableMatcher']
@@ -145,17 +147,10 @@ class BigqueryFullResultMatcher(BaseMatcher):
 
     # Verify result
     try:
-      return sorted(self.expected_data) == sorted(self.actual_data)
-    # Fall back to slower method which works for different types on Python 3.
-    except TypeError:
-      for element in self.actual_data:
-        try:
-          self.expected_data.remove(element)
-        except ValueError:
-          return False
-      if self.expected_data:
-        return False
-    return True
+      equal_to(self.expected_data)(self.actual_data)
+      return True
+    except BeamAssertException:
+      return False
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
