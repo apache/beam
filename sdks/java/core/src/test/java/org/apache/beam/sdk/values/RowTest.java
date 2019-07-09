@@ -287,16 +287,32 @@ public class RowTest {
 
   @Test
   public void testCreateAndCompareMapWithDifferentKey() {
-    Map<Integer, String> data1 = new HashMap();
-    data1.put(1, "value1");
-    data1.put(2, "value2");
+    Map<Integer, String> data1 =
+        ImmutableMap.<Integer, String>builder().put(1, "value1").put(2, "value2").build();
 
-    Map<Integer, String> data2 = new HashMap();
-    data2.put(1, "value1");
-    data2.put(3, "value2");
+    Map<Integer, String> data2 =
+        ImmutableMap.<Integer, String>builder().put(1, "value1").put(3, "value3").build();
 
     Schema type =
         Stream.of(Schema.Field.of("map", FieldType.map(FieldType.INT32, FieldType.STRING)))
+            .collect(toSchema());
+
+    Row row1 = Row.withSchema(type).addValue(data1).build();
+    Row row2 = Row.withSchema(type).addValue(data2).build();
+
+    assertNotEquals(row1, row2);
+  }
+
+  @Test
+  public void testCreateAndCompareNullableMapWithDifferentKey() {
+    Map<Integer, String> data1 = new HashMap();
+    data1.put(1, null);
+
+    Map<Integer, String> data2 = new HashMap();
+    data2.put(2, null);
+
+    Schema type =
+        Stream.of(Schema.Field.of("map", FieldType.map(FieldType.INT32, FieldType.STRING, true)))
             .collect(toSchema());
 
     Row row1 = Row.withSchema(type).addValue(data1).build();
