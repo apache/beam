@@ -25,6 +25,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -35,7 +36,6 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -59,6 +59,20 @@ public class CombineTest implements Serializable {
     PAssert.that(input).containsInAnyOrder(55);
     // uses combine per key
     p.run();
+  }
+
+  @Test
+  public void testCombineGloballyPreservesWindowing() {
+    PCollection<Integer> input = p.apply(Create.timestamped(
+        TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(2, new Instant(2)),
+        TimestampedValue.of(3, new Instant(11)),
+        TimestampedValue.of(4, new Instant(3)),
+        TimestampedValue.of(5, new Instant(11)),
+        TimestampedValue.of(6, new Instant(12))))
+        .apply(Window.into(FixedWindows.of(Duration.millis(10))))
+        .apply(Combine.globally(Sum.ofIntegers()).withoutDefaults());
+    PAssert.that(input).containsInAnyOrder(7, 14);
   }
 
   @Test
