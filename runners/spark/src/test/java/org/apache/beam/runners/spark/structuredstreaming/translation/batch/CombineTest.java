@@ -52,7 +52,6 @@ public class CombineTest implements Serializable {
     p = Pipeline.create(options);
   }
 
-  @Ignore
   @Test
   public void testCombineGlobally() {
     PCollection<Integer> input =
