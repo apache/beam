@@ -369,8 +369,7 @@ class DataflowRunner(PipelineRunner):
           'please install apache_beam[gcp]')
 
     # Convert all side inputs into a form acceptable to Dataflow.
-    if apiclient._use_fnapi(options) and (
-        not apiclient._use_unified_worker(options)):
+    if apiclient._use_fnapi(options):
       pipeline.visit(self.side_input_visitor())
 
     # Performing configured PTransform overrides.  Note that this is currently
