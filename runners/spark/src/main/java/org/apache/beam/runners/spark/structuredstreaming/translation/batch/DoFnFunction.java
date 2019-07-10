@@ -120,11 +120,9 @@ public class DoFnFunction<InputT, OutputT>
             windowingStrategy,
             doFnSchemaInformation);
 
-//    DoFnRunnerWithMetrics<InputT, OutputT> doFnRunnerWithMetrics =
     DoFnRunnerWithMetrics<InputT, OutputT> doFnRunnerWithMetrics =
         new DoFnRunnerWithMetrics<>(stepName, doFnRunner, metricsAccum);
 
-//        return new ProcessContext<>(doFn, doFnRunner, outputManager, Collections.emptyIterator())
     return new ProcessContext<>(
             doFn, doFnRunnerWithMetrics, outputManager, Collections.emptyIterator())
         .processPartition(iter)

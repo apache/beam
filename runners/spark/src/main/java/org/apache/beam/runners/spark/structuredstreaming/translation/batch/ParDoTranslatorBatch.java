@@ -105,7 +105,13 @@ class ParDoTranslatorBatch<InputT, OutputT>
     Coder<InputT> inputCoder = ((PCollection<InputT>) context.getInput()).getCoder();
 
     MetricsContainerStepMapAccumulator metricsAccum = MetricsAccumulator.getInstance();
-//    MetricsContainerStepMapAccumulator metricsAccum = null;
+
+    List<TupleTag<?>> additionalOutputTags = new ArrayList<>();
+    for (TupleTag<?> tag: outputTags) {
+      if (!tag.equals(mainOutputTag)) {
+        additionalOutputTags.add(tag);
+      }
+    }
 
     @SuppressWarnings("unchecked")
     DoFnFunction<InputT, OutputT> doFnWrapper =
@@ -116,7 +122,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
             windowingStrategy,
             sideInputStrategies,
             context.getSerializableOptions(),
-            outputTags,
+            additionalOutputTags,
             mainOutputTag,
             inputCoder,
             outputCoderMap,
@@ -125,6 +131,9 @@ class ParDoTranslatorBatch<InputT, OutputT>
 
     Dataset<Tuple2<TupleTag<?>, WindowedValue<?>>> allOutputs =
         inputDataSet.mapPartitions(doFnWrapper, EncoderHelpers.tuple2Encoder());
+    if (outputs.entrySet().size() > 1) {
+      allOutputs.persist();
+    }
 
     for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
       pruneOutputFilteredByTag(context, allOutputs, output);
