@@ -25,10 +25,12 @@ ext.summary = """Beam TIMESERIES provides helper utils to deal with timeseries p
 dependencies {
   compile library.java.guava
   compile project(path: ":sdks:java:core", configuration: "shadow")
+  // Needed to run the Example.
+  compile project(path: ":runners:direct-java")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.junit
-  testRuntimeOnly project(path: ":runners:direct-java")
+  //testRuntimeOnly project(path: ":runners:direct-java")
 }
 
 // Exclude tests that need a runner
@@ -36,4 +38,12 @@ test {
   useJUnit {
     excludeCategories "org.apache.beam.sdk.testing.NeedsRunner"
   }
+}
+
+// Run example on POJO inputs
+task runBiTemporalJoinExample(type: JavaExec) {
+  description = ""
+  main = "org.apache.beam.sdk.extensions.timeseries.example.BiTemporalJoinExample"
+  classpath = sourceSets.main.runtimeClasspath
+  args = ["--runner=DirectRunner"]
 }

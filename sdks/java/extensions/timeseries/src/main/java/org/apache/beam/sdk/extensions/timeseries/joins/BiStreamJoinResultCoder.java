@@ -55,7 +55,7 @@ public class BiStreamJoinResultCoder<K, V1, V2>
   public static <K, V1, V2> BiStreamJoinResultCoder<K, V1, V2> of(
       Coder<K> keyCoder, Coder<V1> leftCoder, Coder<V2> rightCoder) {
 
-    return new BiStreamJoinResultCoder<K, V1, V2>(keyCoder, leftCoder, rightCoder);
+    return new BiStreamJoinResultCoder<>(keyCoder, leftCoder, rightCoder);
   }
 
   @Override
@@ -82,11 +82,9 @@ public class BiStreamJoinResultCoder<K, V1, V2>
   }
 
   @Override
-  public BiTemporalJoinResult decode(InputStream inStream) throws IOException {
+  public BiTemporalJoinResult<K, V1, V2> decode(InputStream inStream) throws IOException {
 
     K key = this.keyCoder.decode(inStream);
-
-    int b;
 
     TimestampedValue<V1> leftValue =
         NullableCoder.of(TimestampedValue.TimestampedValueCoder.of(this.leftCoder))
@@ -97,7 +95,7 @@ public class BiStreamJoinResultCoder<K, V1, V2>
 
     Boolean matched = BooleanCoder.of().decode(inStream);
 
-    return new BiTemporalJoinResult(key, leftValue, rightValue, matched);
+    return new BiTemporalJoinResult<>(key, leftValue, rightValue, matched);
   }
 
   @Override

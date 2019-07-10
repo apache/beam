@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.timeseries;
+package org.apache.beam.sdk.extensions.timeseries.example;
 
 import com.google.common.collect.ImmutableList;
 import java.util.List;
@@ -25,6 +25,8 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.extensions.timeseries.joins.BiTemporalJoinResult;
 import org.apache.beam.sdk.extensions.timeseries.joins.BiTemporalStreams;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
 import org.apache.beam.sdk.values.KV;
@@ -55,7 +57,7 @@ public class BiTemporalJoinExample {
     List<TimestampedValue<TradeData>> tradeStream = generateTradeData();
 
     // Mock Quote data for right stream
-    List<TimestampedValue<QuoteData>> rightStream = generateQuoteData();
+    List<TimestampedValue<QuoteData>> quoteStream = generateQuoteData();
 
     // Setup Pipeline
 
@@ -68,7 +70,7 @@ public class BiTemporalJoinExample {
     TupleTag<QuoteData> quoteTag = new TupleTag() {};
 
     PCollection<KV<String, QuoteData>> quotes =
-        p.apply("Create Quotes", Create.timestamped(rightStream))
+        p.apply("Create Quotes", Create.timestamped(quoteStream))
             .setCoder(AvroCoder.of(QuoteData.class))
             .apply("Quote Key", WithKeys.of("FX_1"));
 
@@ -85,6 +87,25 @@ public class BiTemporalJoinExample {
             "BiTemporalJoin",
             BiTemporalStreams.<String, TradeData, QuoteData>join(tradeTag, quoteTag));
 
+    stream.apply(
+        ParDo.of(
+            new DoFn<BiTemporalJoinResult<String, TradeData, QuoteData>, String>() {
+
+              @ProcessElement
+              public void process(
+                  @Element BiTemporalJoinResult<String, TradeData, QuoteData> input) {
+                if (input.getMatched()) {
+                  System.out.println(
+                      String.format(
+                          "Trade %s matches Quote %s",
+                          input.getLeftData().getValue().id, input.getRightData().getValue().id));
+                } else {
+                  System.out.println(
+                      String.format("No Match for Trade %s", input.getLeftData().getValue().id));
+                }
+              }
+            }));
+
     p.run();
   }
 
@@ -92,17 +113,20 @@ public class BiTemporalJoinExample {
     // Mock trade data for left stream
     TimestampedValue<TradeData> tradeBeforeQuote =
         TimestampedValue.of(
-            createTradeData("FX_1", "Trade@23:59:00.000", now.minus(Duration.standardMinutes(1))),
+            createTradeData(
+                "FX_1", "Trade@1999-12-31T23:59:00.000", now.minus(Duration.standardMinutes(1))),
             now.minus(Duration.standardMinutes(1)));
 
     TimestampedValue<TradeData> tradeAfterQuoteButBeforeEndOfQuotes =
         TimestampedValue.of(
-            createTradeData("FX_1", "Trade@00:15:00.000", now.plus(Duration.standardMinutes(15))),
+            createTradeData(
+                "FX_1", "Trade@2000-01-01T00:15:00.000", now.plus(Duration.standardMinutes(15))),
             now.plus(Duration.standardMinutes(15)));
 
     TimestampedValue<TradeData> tradeAfterAllQuotesButInWindow =
         TimestampedValue.of(
-            createTradeData("FX_1", "Trade@00:35:00.000", now.plus(Duration.standardMinutes(35))),
+            createTradeData(
+                "FX_1", "Trade@2000-01-01T00:35:00.000", now.plus(Duration.standardMinutes(35))),
             now.plus(Duration.standardMinutes(35)));
 
     return ImmutableList.of(
@@ -113,14 +137,16 @@ public class BiTemporalJoinExample {
 
     TimestampedValue<QuoteData> quoteTenMinutes =
         TimestampedValue.of(
-            createQuoteData("FX_1", "Trade@00:10:00.000", now.plus(Duration.standardMinutes(10))),
-            now.plus(Duration.standardMinutes(1)));
+            createQuoteData(
+                "FX_1", "Quote@2000-01-01T00:10:00.000", now.plus(Duration.standardMinutes(10))),
+            now.plus(Duration.standardMinutes(10)));
 
     // Mock trade data for left stream
     TimestampedValue<QuoteData> quoteTwentyMinutes =
         TimestampedValue.of(
-            createQuoteData("FX_1", "Trade@00:20:00.000", now.minus(Duration.standardMinutes(20))),
-            now.minus(Duration.standardMinutes(20)));
+            createQuoteData(
+                "FX_1", "Quote@2000-01-01T00:20:00.000", now.plus(Duration.standardMinutes(20))),
+            now.plus(Duration.standardMinutes(20)));
 
     return ImmutableList.of(quoteTenMinutes, quoteTwentyMinutes);
   }
@@ -133,7 +159,7 @@ public class BiTemporalJoinExample {
     public TradeData(String type, String key, String id, Long timestamp) {
       super(type, key, id, timestamp);
     }
-  };
+  }
 
   @DefaultCoder(AvroCoder.class)
   public static class QuoteData extends SomeData {

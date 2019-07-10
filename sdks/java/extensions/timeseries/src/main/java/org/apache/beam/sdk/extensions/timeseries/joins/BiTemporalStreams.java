@@ -352,7 +352,9 @@ public class BiTemporalStreams {
 
               int idx =
                   Collections.binarySearch(
-                      subList, rightStreamValue, Comparator.comparing(t -> t.getTimestamp()));
+                      subList,
+                      rightStreamValue,
+                      Comparator.comparing(TimestampedValue::getTimestamp));
 
               BiTemporalJoinResult<K, V1, V2> m =
                   createMatch(dataKey.read(), subList, rightStreamValue, idx);
