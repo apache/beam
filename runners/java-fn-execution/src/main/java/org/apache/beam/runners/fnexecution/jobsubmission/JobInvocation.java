@@ -175,6 +175,11 @@ public class JobInvocation {
     return this.jobState;
   }
 
+  /** Retrieve the job's pipeline. */
+  public RunnerApi.Pipeline getPipeline() {
+    return this.pipeline;
+  }
+
   /** Listen for job state changes with a {@link Consumer}. */
   public synchronized void addStateListener(Consumer<JobState.Enum> stateStreamObserver) {
     stateStreamObserver.accept(getState());

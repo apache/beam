@@ -131,6 +131,10 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     return beam_job_api_pb2.GetJobStateResponse(
         state=self._jobs[request.job_id].state)
 
+  def GetPipeline(self, request, context=None):
+    return beam_job_api_pb2.GetJobPipelineResponse(
+        pipeline=self._jobs[request.job_id]._pipeline_proto)
+
   def Cancel(self, request, context=None):
     self._jobs[request.job_id].cancel()
     return beam_job_api_pb2.CancelJobRequest(
