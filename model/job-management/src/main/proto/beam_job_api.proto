@@ -46,6 +46,9 @@ service JobService {
   // Get the current state of the job
   rpc GetState (GetJobStateRequest) returns (GetJobStateResponse);
 
+  // Get the job's pipeline
+  rpc GetPipeline (GetJobPipelineRequest) returns (GetJobPipelineResponse);
+
   // Cancel the job
   rpc Cancel (CancelJobRequest) returns (CancelJobResponse);
 
@@ -131,6 +134,19 @@ message GetJobStateRequest {
 
 message GetJobStateResponse {
   JobState.Enum state = 1; // (required)
+}
+
+
+// GetPipeline is a synchronus request that returns a pipeline back
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+// Throws error NOT_FOUND if the jobId is not found
+message GetJobPipelineRequest {
+  string job_id = 1; // (required)
+
+}
+
+message GetJobPipelineResponse {
+  org.apache.beam.model.pipeline.v1.Pipeline pipeline = 1; // (required)
 }
 
 
