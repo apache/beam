@@ -85,7 +85,8 @@ public class BiTemporalJoinExample {
     PCollection<BiTemporalJoinResult<String, TradeData, QuoteData>> stream =
         kct.apply(
             "BiTemporalJoin",
-            BiTemporalStreams.<String, TradeData, QuoteData>join(tradeTag, quoteTag));
+            BiTemporalStreams.<String, TradeData, QuoteData>join(
+                tradeTag, quoteTag, Duration.standardHours(1)));
 
     stream.apply(
         ParDo.of(
@@ -129,8 +130,17 @@ public class BiTemporalJoinExample {
                 "FX_1", "Trade@2000-01-01T00:35:00.000", now.plus(Duration.standardMinutes(35))),
             now.plus(Duration.standardMinutes(35)));
 
+    TimestampedValue<TradeData> tradeAfterWindowClosed =
+        TimestampedValue.of(
+            createTradeData(
+                "FX_1", "Trade@2000-01-01T01:15:00.000", now.plus(Duration.standardMinutes(75))),
+            now.plus(Duration.standardMinutes(75)));
+
     return ImmutableList.of(
-        tradeBeforeQuote, tradeAfterAllQuotesButInWindow, tradeAfterQuoteButBeforeEndOfQuotes);
+        tradeBeforeQuote,
+        tradeAfterAllQuotesButInWindow,
+        tradeAfterQuoteButBeforeEndOfQuotes,
+        tradeAfterWindowClosed);
   }
 
   public static List<TimestampedValue<QuoteData>> generateQuoteData() {

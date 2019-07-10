@@ -121,7 +121,10 @@ public class BiTemporalCacheTestIT implements Serializable {
         KeyedPCollectionTuple.of(tradeTag, trades).and(quoteTag, quotes);
 
     PCollection<BiTemporalJoinResult<String, TradeData, QuoteData>> stream =
-        kct.apply("", BiTemporalStreams.<String, TradeData, QuoteData>join(tradeTag, quoteTag));
+        kct.apply(
+            "",
+            BiTemporalStreams.<String, TradeData, QuoteData>join(
+                tradeTag, quoteTag, WINDOW_DURATION));
 
     PCollection<Integer> matches =
         stream

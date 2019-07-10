@@ -38,6 +38,7 @@ public class BiTemporalFunctionalTests implements Serializable {
 
   static TupleTag<TradeData> tradeTag = new TupleTag() {};
   static TupleTag<QuoteData> quoteTag = new TupleTag() {};
+  static final Duration WINDOW_DURATION = Duration.standardDays(30);
 
   @Rule public transient TestPipeline p = TestPipeline.create();
 
@@ -75,7 +76,8 @@ public class BiTemporalFunctionalTests implements Serializable {
     PCollection<BiTemporalJoinResult<String, TradeData, QuoteData>> stream =
         kct.apply(
             "BiTemporalStreams",
-            BiTemporalStreams.<String, TradeData, QuoteData>join(tradeTag, quoteTag));
+            BiTemporalStreams.<String, TradeData, QuoteData>join(
+                tradeTag, quoteTag, WINDOW_DURATION));
 
     PAssert.that(stream.apply(new BiTemporalTestUtils.BiTemporalTest())).empty();
 
@@ -120,7 +122,8 @@ public class BiTemporalFunctionalTests implements Serializable {
     PCollection<BiTemporalJoinResult<String, TradeData, QuoteData>> stream =
         kct.apply(
             "BiTemporalStreams",
-            BiTemporalStreams.<String, TradeData, QuoteData>join(tradeTag, quoteTag));
+            BiTemporalStreams.<String, TradeData, QuoteData>join(
+                tradeTag, quoteTag, WINDOW_DURATION));
 
     PAssert.that(stream.apply(new BiTemporalTestUtils.BiTemporalTest())).containsInAnyOrder(2);
 
@@ -156,7 +159,8 @@ public class BiTemporalFunctionalTests implements Serializable {
     PCollection<BiTemporalJoinResult<String, TradeData, QuoteData>> stream =
         kct.apply(
             "BiTemporalStreams",
-            BiTemporalStreams.<String, TradeData, QuoteData>join(tradeTag, quoteTag));
+            BiTemporalStreams.<String, TradeData, QuoteData>join(
+                tradeTag, quoteTag, WINDOW_DURATION));
 
     PAssert.that(stream.apply(new BiTemporalTestUtils.BiTemporalTest())).containsInAnyOrder(1);
 

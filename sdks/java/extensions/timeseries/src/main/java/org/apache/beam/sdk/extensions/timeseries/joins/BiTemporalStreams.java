@@ -52,8 +52,8 @@ import org.slf4j.LoggerFactory;
 public class BiTemporalStreams {
 
   public static <K, V1, V2> BiTemporalJoin<K, V1, V2> join(
-      TupleTag<V1> leftTag, TupleTag<V2> rightTag) {
-    return new BiTemporalJoin<K, V1, V2>(leftTag, rightTag);
+      TupleTag<V1> leftTag, TupleTag<V2> rightTag, Duration window) {
+    return new BiTemporalJoin<K, V1, V2>(leftTag, rightTag, window);
   }
 
   @Experimental
@@ -71,13 +71,17 @@ public class BiTemporalStreams {
     TupleTag<V1> leftTag;
     TupleTag<V2> rightTag;
 
-    public BiTemporalJoin(TupleTag<V1> leftTag, TupleTag<V2> rightTag) {
+    Duration window;
+
+    public BiTemporalJoin(TupleTag<V1> leftTag, TupleTag<V2> rightTag, Duration window) {
       this.leftTag = leftTag;
       this.rightTag = rightTag;
+      this.window = window;
     }
 
-    public static <K, V1, V2> BiTemporalJoin create(TupleTag<V1> leftTag, TupleTag<V2> rightTag) {
-      return new BiTemporalJoin<K, V1, V2>(leftTag, rightTag);
+    public static <K, V1, V2> BiTemporalJoin create(
+        TupleTag<V1> leftTag, TupleTag<V2> rightTag, Duration window) {
+      return new BiTemporalJoin<K, V1, V2>(leftTag, rightTag, window);
     }
 
     public BiTemporalJoin setGCLimit(int gcLimit) {
@@ -124,7 +128,7 @@ public class BiTemporalStreams {
                       .setCoder(KvCoder.of(input.getKeyCoder(), biStreamJoinResultCoder)));
 
       return l.apply(Flatten.pCollections())
-          .apply(Window.into(FixedWindows.of(Duration.standardDays(30))))
+          .apply(Window.into(FixedWindows.of(window)))
           .apply(
               ParDo.of(new StreamMatcher<K, V1, V2>(input.getKeyCoder(), leftCoder, rightCoder)));
     }
@@ -247,6 +251,9 @@ public class BiTemporalStreams {
        Right stream values are added to the bag
        Left stream values are added to the bag
        A timer is set if no timer exists already or if min(timerTimestamp) is > current object timestamp
+
+       If timertimestamp is NULL then a timer is set in OnProcess()
+       If On OnTimer firing there are elements in the left stream where  EventTime > OnTimer.timestamp then a new timer is also set.
       */
       @ProcessElement
       public void process(
