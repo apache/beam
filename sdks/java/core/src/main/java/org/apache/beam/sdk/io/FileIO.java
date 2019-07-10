@@ -237,7 +237,7 @@ import org.slf4j.LoggerFactory;
  * type to the sink's <i>output type</i>.
  *
  * <p>However, when using dynamic destinations, in many such cases the destination needs to be
- * extract from the original type, so such a conversion is not possible. For example, one might
+ * extracted from the original type, so such a conversion is not possible. For example, one might
  * write events of a custom class {@code Event} to a text sink, using the event's "type" as a
  * destination. In that case, specify an <i>output function</i> in {@link Write#via(Contextful,
  * Contextful)} or {@link Write#via(Contextful, Sink)}.
