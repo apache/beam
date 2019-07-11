@@ -1695,12 +1695,6 @@ mean average:</p>
 </code></pre>
 </div>
 
-<p>If you are combining a <code class="highlighter-rouge">PCollection</code> of key-value pairs, <a href="#combining-values-in-a-keyed-pcollection">per-key
-combining</a> is often enough. If
-you need the combining strategy to change based on the key (for example, MIN for
-some users and MAX for other users), you can define a <code class="highlighter-rouge">KeyedCombineFn</code> to access
-the key within the combining strategy.</p>
-
 <h5 id="combining-pcollection">4.2.4.3. Combining a PCollection into a single value</h5>
 
 <p>Use the global combine to transform all of the elements in a given <code class="highlighter-rouge">PCollection</code>

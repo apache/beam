@@ -444,9 +444,9 @@ limitations under the License.
     <span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">()</span>
         <span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="s">"&lt;path-to-files&gt;/*"</span><span class="o">)</span>
         <span class="o">.</span><span class="na">watchForNewFiles</span><span class="o">(</span>
-            <span class="c1">// Check for new files every minute</span>
+            <span class="c1">// Check for new files every minute.</span>
             <span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">),</span>
-            <span class="c1">// Stop watching the filepattern if no new files appear within an hour</span>
+            <span class="c1">// Stop watching the file pattern if no new files appear for an hour.</span>
             <span class="n">Watch</span><span class="o">.</span><span class="na">Growth</span><span class="o">.</span><span class="na">afterTimeSinceNewOutput</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardHours</span><span class="o">(</span><span class="mi">1</span><span class="o">))));</span>
 
 </code></pre>
@@ -495,14 +495,15 @@ limitations under the License.
 </ol>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">FileIO</span><span class="o">.</span><span class="na">match</span><span class="o">().</span><span class="na">filepattern</span><span class="o">(</span><span class="s">"hdfs://path/to/*.gz"</span><span class="o">))</span>
-    <span class="c1">// withCompression can be omitted - by default compression is detected from the filename.</span>
+    <span class="c1">// The withCompression method is optional. By default, the Beam SDK detects compression from</span>
+    <span class="c1">// the filename.</span>
     <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">FileIO</span><span class="o">.</span><span class="na">readMatches</span><span class="o">().</span><span class="na">withCompression</span><span class="o">(</span><span class="n">Compression</span><span class="o">.</span><span class="na">GZIP</span><span class="o">))</span>
     <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
         <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
             <span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">FileIO</span><span class="o">.</span><span class="na">ReadableFile</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
               <span class="nd">@ProcessElement</span>
               <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="nd">@Element</span> <span class="n">FileIO</span><span class="o">.</span><span class="na">ReadableFile</span> <span class="n">file</span><span class="o">)</span> <span class="o">{</span>
-                <span class="c1">// We now have access to the file and its metadata</span>
+                <span class="c1">// We can now access the file and its metadata.</span>
                 <span class="n">LOG</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">"File Metadata resourceId is {} "</span><span class="o">,</span> <span class="n">file</span><span class="o">.</span><span class="na">getMetadata</span><span class="o">().</span><span class="na">resourceId</span><span class="o">());</span>
               <span class="o">}</span>
             <span class="o">}));</span>
