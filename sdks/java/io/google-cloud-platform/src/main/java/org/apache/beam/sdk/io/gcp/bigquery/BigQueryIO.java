@@ -30,6 +30,7 @@ import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -83,6 +84,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -100,6 +102,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
@@ -139,6 +142,34 @@ import org.slf4j.LoggerFactory;
  *   <li>[{@code project_id}]:[{@code dataset_id}].[{@code table_id}]
  *   <li>[{@code dataset_id}].[{@code table_id}]
  * </ul>
+ *
+ * <h3>BigQuery Concepts</h3>
+ *
+ * <p>Tables have rows ({@link TableRow}) and each row has cells ({@link TableCell}). A table has a
+ * schema ({@link TableSchema}), which in turn describes the schema of each cell ({@link
+ * TableFieldSchema}). The terms field and cell are used interchangeably.
+ *
+ * <p>{@link TableSchema}: describes the schema (types and order) for values in each row. It has one
+ * attribute, ‘fields’, which is list of {@link TableFieldSchema} objects.
+ *
+ * <p>{@link TableFieldSchema}: describes the schema (type, name) for one field. It has several
+ * attributes, including 'name' and 'type'. Common values for the type attribute are: 'STRING',
+ * 'INTEGER', 'FLOAT', 'BOOLEAN', 'NUMERIC', 'GEOGRAPHY'. All possible values are described at: <a
+ * href="https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types">
+ * https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types</a>
+ *
+ * <p>{@link TableRow}: Holds all values in a table row. Has one attribute, 'f', which is a list of
+ * {@link TableCell} instances.
+ *
+ * <p>{@link TableCell}: Holds the value for one cell (or field). Has one attribute, 'v', which is
+ * the value of the table cell.
+ *
+ * <p>As of Beam 2.7.0, the NUMERIC data type is supported. This data type supports high-precision
+ * decimal numbers (precision of 38 digits, scale of 9 digits). The GEOGRAPHY data type works with
+ * Well-Known Text (See <a href="https://en.wikipedia.org/wiki/Well-known_text">
+ * https://en.wikipedia.org/wiki/Well-known_text</a>) format for reading and writing to BigQuery.
+ * BigQuery IO requires values of BYTES datatype to be encoded using base64 encoding when writing to
+ * BigQuery. When bytes are read from BigQuery they are returned as base64-encoded strings.
  *
  * <h3>Reading</h3>
  *
@@ -405,6 +436,14 @@ public class BigQueryIO {
     return read(new TableRowParser()).withCoder(TableRowJsonCoder.of());
   }
 
+  /** Like {@link #readTableRows()} but with {@link Schema} support. */
+  public static TypedRead<TableRow> readTableRowsWithSchema() {
+    return read(new TableRowParser())
+        .withCoder(TableRowJsonCoder.of())
+        .withBeamRowConverters(
+            BigQueryUtils.tableRowToBeamRow(), BigQueryUtils.tableRowFromBeamRow());
+  }
+
   /**
    * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
    * each row of the table or query result, parsed from the BigQuery AVRO format using the specified
@@ -593,6 +632,12 @@ public class BigQueryIO {
       DIRECT_READ,
     }
 
+    interface ToBeamRowFunction<T>
+        extends SerializableFunction<Schema, SerializableFunction<T, Row>> {}
+
+    interface FromBeamRowFunction<T>
+        extends SerializableFunction<Schema, SerializableFunction<Row, T>> {}
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -628,6 +673,12 @@ public class BigQueryIO {
       abstract Builder<T> setCoder(Coder<T> coder);
 
       abstract Builder<T> setKmsKey(String kmsKey);
+
+      @Experimental(Experimental.Kind.SCHEMAS)
+      abstract Builder<T> setToBeamRowFn(ToBeamRowFunction<T> toRowFn);
+
+      @Experimental(Experimental.Kind.SCHEMAS)
+      abstract Builder<T> setFromBeamRowFn(FromBeamRowFunction<T> fromRowFn);
     }
 
     @Nullable
@@ -669,6 +720,14 @@ public class BigQueryIO {
     @Nullable
     abstract String getKmsKey();
 
+    @Nullable
+    @Experimental(Experimental.Kind.SCHEMAS)
+    abstract ToBeamRowFunction<T> getToBeamRowFn();
+
+    @Nullable
+    @Experimental(Experimental.Kind.SCHEMAS)
+    abstract FromBeamRowFunction<T> getFromBeamRowFn();
+
     /**
      * An enumeration type for the priority of a query.
      *
@@ -709,27 +768,22 @@ public class BigQueryIO {
       }
     }
 
-    private BigQuerySourceBase<T> createSource(String jobUuid, Coder<T> coder) {
-      BigQuerySourceBase<T> source;
+    private BigQuerySourceDef createSourceDef() {
+      BigQuerySourceDef sourceDef;
       if (getQuery() == null) {
-        source =
-            BigQueryTableSource.create(
-                jobUuid, getTableProvider(), getBigQueryServices(), coder, getParseFn());
+        sourceDef = BigQueryTableSourceDef.create(getBigQueryServices(), getTableProvider());
       } else {
-        source =
-            BigQueryQuerySource.create(
-                jobUuid,
+        sourceDef =
+            BigQueryQuerySourceDef.create(
+                getBigQueryServices(),
                 getQuery(),
                 getFlattenResults(),
                 getUseLegacySql(),
-                getBigQueryServices(),
-                coder,
-                getParseFn(),
                 MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
                 getQueryLocation(),
                 getKmsKey());
       }
-      return source;
+      return sourceDef;
     }
 
     private BigQueryStorageQuerySource<T> createStorageQuerySource(
@@ -840,6 +894,12 @@ public class BigQueryIO {
       }
       checkArgument(getParseFn() != null, "A parseFn is required");
 
+      // if both toRowFn and fromRowFn values are set, enable Beam schema support
+      boolean beamSchemaEnabled = false;
+      if (getToBeamRowFn() != null && getFromBeamRowFn() != null) {
+        beamSchemaEnabled = true;
+      }
+
       Pipeline p = input.getPipeline();
       final Coder<T> coder = inferCoder(p.getCoderRegistry());
 
@@ -852,6 +912,7 @@ public class BigQueryIO {
           "Invalid BigQueryIO.Read: Specifies table read options, "
               + "which only applies when using Method.DIRECT_READ");
 
+      final BigQuerySourceDef sourceDef = createSourceDef();
       final PCollectionView<String> jobIdTokenView;
       PCollection<String> jobIdTokenCollection;
       PCollection<T> rows;
@@ -862,7 +923,10 @@ public class BigQueryIO {
             p.apply("TriggerIdCreation", Create.of(staticJobUuid))
                 .apply("ViewId", View.asSingleton());
         // Apply the traditional Source model.
-        rows = p.apply(org.apache.beam.sdk.io.Read.from(createSource(staticJobUuid, coder)));
+        rows =
+            p.apply(
+                org.apache.beam.sdk.io.Read.from(
+                    sourceDef.toSource(staticJobUuid, coder, getParseFn())));
       } else {
         // Create a singleton job ID token at execution time.
         jobIdTokenCollection =
@@ -888,7 +952,8 @@ public class BigQueryIO {
                           @ProcessElement
                           public void processElement(ProcessContext c) throws Exception {
                             String jobUuid = c.element();
-                            BigQuerySourceBase<T> source = createSource(jobUuid, coder);
+                            BigQuerySourceBase<T> source =
+                                sourceDef.toSource(jobUuid, coder, getParseFn());
                             BigQueryOptions options =
                                 c.getPipelineOptions().as(BigQueryOptions.class);
                             ExtractResult res = source.extractFiles(options);
@@ -919,7 +984,8 @@ public class BigQueryIO {
                                     BigQueryHelpers.fromJsonString(
                                         c.sideInput(schemaView), TableSchema.class);
                                 String jobUuid = c.sideInput(jobIdTokenView);
-                                BigQuerySourceBase<T> source = createSource(jobUuid, coder);
+                                BigQuerySourceBase<T> source =
+                                    sourceDef.toSource(jobUuid, coder, getParseFn());
                                 List<BoundedSource<T>> sources =
                                     source.createSources(
                                         ImmutableList.of(
@@ -966,7 +1032,18 @@ public class BigQueryIO {
               }
             }
           };
-      return rows.apply(new PassThroughThenCleanup<>(cleanupOperation, jobIdTokenView));
+
+      rows = rows.apply(new PassThroughThenCleanup<>(cleanupOperation, jobIdTokenView));
+
+      if (beamSchemaEnabled) {
+        BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
+        Schema beamSchema = sourceDef.getBeamSchema(bqOptions);
+        SerializableFunction<T, Row> toBeamRow = getToBeamRowFn().apply(beamSchema);
+        SerializableFunction<Row, T> fromBeamRow = getFromBeamRowFn().apply(beamSchema);
+
+        rows.setSchema(beamSchema, toBeamRow, fromBeamRow);
+      }
+      return rows;
     }
 
     private PCollection<T> expandForDirectRead(PBegin input, Coder<T> outputCoder) {
@@ -1199,6 +1276,17 @@ public class BigQueryIO {
     /** For query sources, use this Cloud KMS key to encrypt any temporary tables created. */
     public TypedRead<T> withKmsKey(String kmsKey) {
       return toBuilder().setKmsKey(kmsKey).build();
+    }
+
+    /**
+     * Sets the functions to convert elements to/from {@link Row} objects.
+     *
+     * <p>Setting these conversion functions is necessary to enable {@link Schema} support.
+     */
+    @Experimental(Experimental.Kind.SCHEMAS)
+    public TypedRead<T> withBeamRowConverters(
+        ToBeamRowFunction<T> toRowFn, FromBeamRowFunction<T> fromRowFn) {
+      return toBuilder().setToBeamRowFn(toRowFn).setFromBeamRowFn(fromRowFn).build();
     }
 
     /** See {@link Read#from(String)}. */

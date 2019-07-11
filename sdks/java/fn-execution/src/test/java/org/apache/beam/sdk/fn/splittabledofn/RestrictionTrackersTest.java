@@ -25,9 +25,8 @@ import static org.junit.Assert.assertThat;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.fn.splittabledofn.RestrictionTrackers.ClaimObserver;
-import org.apache.beam.sdk.transforms.splittabledofn.Backlog;
-import org.apache.beam.sdk.transforms.splittabledofn.Backlogs;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.Sizes;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -85,12 +84,12 @@ public class RestrictionTrackersTest {
     assertThat(positionsObserved, contains("goodClaim", "badClaim"));
   }
 
-  private static class RestrictionTrackerWithBacklog extends RestrictionTracker<Object, Object>
-      implements Backlogs.HasBacklog {
+  private static class RestrictionTrackerWithSize extends RestrictionTracker<Object, Object>
+      implements Sizes.HasSize {
 
     @Override
-    public Backlog getBacklog() {
-      return null;
+    public double getSize() {
+      return 1;
     }
 
     @Override
@@ -110,47 +109,12 @@ public class RestrictionTrackersTest {
 
     @Override
     public void checkDone() throws IllegalStateException {}
-  }
-
-  private static class RestrictionTrackerWithBacklogPartitionedBacklog
-      extends RestrictionTracker<Object, Object> implements Backlogs.HasPartitionedBacklog {
-
-    @Override
-    public Backlog getBacklog() {
-      return null;
-    }
-
-    @Override
-    public boolean tryClaim(Object position) {
-      return false;
-    }
-
-    @Override
-    public Object currentRestriction() {
-      return null;
-    }
-
-    @Override
-    public Object checkpoint() {
-      return null;
-    }
-
-    @Override
-    public void checkDone() throws IllegalStateException {}
-
-    @Override
-    public byte[] getBacklogPartition() {
-      return null;
-    }
   }
 
   @Test
   public void testClaimObserversMaintainBacklogInterfaces() {
-    RestrictionTracker hasBacklog =
-        RestrictionTrackers.observe(new RestrictionTrackerWithBacklog(), null);
-    assertThat(hasBacklog, instanceOf(Backlogs.HasBacklog.class));
-    RestrictionTracker hasPartitionedBacklog =
-        RestrictionTrackers.observe(new RestrictionTrackerWithBacklogPartitionedBacklog(), null);
-    assertThat(hasPartitionedBacklog, instanceOf(Backlogs.HasPartitionedBacklog.class));
+    RestrictionTracker hasSize =
+        RestrictionTrackers.observe(new RestrictionTrackerWithSize(), null);
+    assertThat(hasSize, instanceOf(Sizes.HasSize.class));
   }
 }

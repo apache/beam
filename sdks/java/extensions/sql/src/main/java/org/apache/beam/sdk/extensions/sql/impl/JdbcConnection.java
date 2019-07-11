@@ -45,6 +45,7 @@ public class JdbcConnection extends CalciteConnectionWrapper {
   private static final String PIPELINE_OPTION_PREFIX = "beam.";
 
   private Map<String, String> pipelineOptionsMap;
+  private PipelineOptions pipelineOptions;
 
   private JdbcConnection(CalciteConnection connection) throws SQLException {
     super(connection);
@@ -95,6 +96,14 @@ public class JdbcConnection extends CalciteConnectionWrapper {
    */
   public void setPipelineOptionsMap(Map<String, String> pipelineOptionsMap) {
     this.pipelineOptionsMap = ImmutableMap.copyOf(pipelineOptionsMap);
+  }
+
+  public void setPipelineOptions(PipelineOptions pipelineOptions) {
+    this.pipelineOptions = pipelineOptions;
+  }
+
+  public PipelineOptions getPipelineOptions() {
+    return this.pipelineOptions;
   }
 
   /** Get the current default schema from the root schema. */

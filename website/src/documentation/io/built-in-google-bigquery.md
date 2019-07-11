@@ -163,6 +163,43 @@ table that you want to write to, unless you specify a [create
 disposition](#create-disposition) of `CREATE_NEVER`. [Creating a table
 schema](#creating-a-table-schema) covers schemas in more detail.
 
+### Data types
+
+BigQuery supports the following data types: STRING, BYTES, INTEGER, FLOAT,
+NUMERIC, BOOLEAN, TIMESTAMP, DATE, TIME, DATETIME and GEOGRAPHY.
+All possible values are described at [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types](https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types).
+BigQueryIO allows you to use all of these data types. The following example
+shows the correct format for data types used when reading from and writing to
+BigQuery:
+
+```java
+{% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:BigQueryDataTypes
+%}```
+```py
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_bigqueryio_data_types
+%}```
+
+<!-- Java specific -->
+
+{:.language-java}
+As of Beam 2.7.0, the NUMERIC data type is supported. This data type supports
+high-precision decimal numbers (precision of 38 digits, scale of 9 digits).
+The GEOGRAPHY data type works with Well-Known Text (See [https://en.wikipedia.org/wiki/Well-known_text](https://en.wikipedia.org/wiki/Well-known_text)
+format for reading and writing to BigQuery.
+BigQuery IO requires values of BYTES datatype to be encoded using base64
+encoding when writing to BigQuery. When bytes are read from BigQuery they are
+returned as base64-encoded strings.
+
+<!-- Python specific -->
+
+{:.language-py}
+As of Beam 2.7.0, the NUMERIC data type is supported. This data type supports
+high-precision decimal numbers (precision of 38 digits, scale of 9 digits).
+The GEOGRAPHY data type works with Well-Known Text (See [https://en.wikipedia.org/wiki/Well-known_text](https://en.wikipedia.org/wiki/Well-known_text)
+format for reading and writing to BigQuery.
+BigQuery IO requires values of BYTES datatype to be encoded using base64
+encoding when writing to BigQuery. When bytes are read from BigQuery they are
+returned as base64-encoded bytes.
 
 ## Reading from BigQuery
 
@@ -278,10 +315,10 @@ release of the BigQuery Storage API as an [experimental feature](https://beam.ap
 Beam's support for the BigQuery Storage API has the following limitations:
 
 * The SDK for Python does not support the BigQuery Storage API.
-* You must read from a table. Reading with a query string is not currently
-  supported.
 * Dynamic work re-balancing is not currently supported. As a result, reads might
   be less efficient in the presence of stragglers.
+* SDK versions 2.11.0 and 2.12.0 do not support reading with a query string; you
+  can only read from a table.
 
 Because this is currently a Beam experimental feature, export based reads are
 recommended for production jobs.
@@ -302,7 +339,7 @@ Use the following methods when you read from a table:
   you must also specify a [TableReadOptions](https://googleapis.github.io/google-cloud-java/google-api-grpc/apidocs/index.html?com/google/cloud/bigquery/storage/v1beta1/ReadOptions.TableReadOptions.html)
   proto using the [withReadOptions](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withReadOptions-com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions-) method.
 
-The following code snippet is from the [BigQueryTornadoes
+The following code snippet reads from a table. This example is from the [BigQueryTornadoes
 example](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java).
 When the example's read method option is set to `DIRECT_READ`, the pipeline uses
 the BigQuery Storage API and column projection to read public samples of weather
@@ -326,6 +363,14 @@ GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/o
 # The SDK for Python does not support the BigQuery Storage API.
 ```
 
+The following code snippet reads with a query string.
+
+```java
+// Snippet not yet available (BEAM-7034).
+```
+```py
+# The SDK for Python does not support the BigQuery Storage API.
+```
 
 ## Writing to BigQuery
 

@@ -48,6 +48,7 @@ import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.Stream;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.StreamPosition;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.UnknownFieldSet;
 import java.io.ByteArrayOutputStream;
 import java.util.Collection;
 import java.util.List;
@@ -68,6 +69,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
+import org.apache.beam.sdk.io.gcp.bigquery.FakeBigQueryServices.FakeBigQueryServerStream;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -358,6 +360,12 @@ public class BigQueryIOStorageQueryTest {
             .setParent("projects/" + options.getProject())
             .setTableReference(BigQueryHelpers.toTableRefProto(tempTableReference))
             .setRequestedStreams(requestedStreamCount)
+            // TODO(aryann): Once we rebuild the generated client code, we should change this to
+            // use setShardingStrategy().
+            .setUnknownFields(
+                UnknownFieldSet.newBuilder()
+                    .addField(7, UnknownFieldSet.Field.newBuilder().addVarint(2).build())
+                    .build())
             .build();
 
     ReadSession.Builder builder = ReadSession.newBuilder();
@@ -428,6 +436,12 @@ public class BigQueryIOStorageQueryTest {
             .setParent("projects/" + options.getProject())
             .setTableReference(BigQueryHelpers.toTableRefProto(tempTableReference))
             .setRequestedStreams(1024)
+            // TODO(aryann): Once we rebuild the generated client code, we should change this to
+            // use setShardingStrategy().
+            .setUnknownFields(
+                UnknownFieldSet.newBuilder()
+                    .addField(7, UnknownFieldSet.Field.newBuilder().addVarint(2).build())
+                    .build())
             .build();
 
     ReadSession.Builder builder = ReadSession.newBuilder();
@@ -561,6 +575,12 @@ public class BigQueryIOStorageQueryTest {
             .setParent("projects/" + options.getProject())
             .setTableReference(BigQueryHelpers.toTableRefProto(tempTableReference))
             .setRequestedStreams(10)
+            // TODO(aryann): Once we rebuild the generated client code, we should change this to
+            // use setShardingStrategy().
+            .setUnknownFields(
+                UnknownFieldSet.newBuilder()
+                    .addField(7, UnknownFieldSet.Field.newBuilder().addVarint(2).build())
+                    .build())
             .build();
 
     ReadSession emptyReadSession = ReadSession.newBuilder().build();
@@ -685,7 +705,8 @@ public class BigQueryIOStorageQueryTest {
 
     StorageClient fakeStorageClient = mock(StorageClient.class, withSettings().serializable());
     when(fakeStorageClient.createReadSession(any())).thenReturn(readSession);
-    when(fakeStorageClient.readRows(expectedReadRowsRequest)).thenReturn(readRowsResponses);
+    when(fakeStorageClient.readRows(expectedReadRowsRequest))
+        .thenReturn(new FakeBigQueryServerStream<>(readRowsResponses));
 
     BigQueryIO.TypedRead<KV<String, Long>> typedRead =
         BigQueryIO.read(new ParseKeyValue())

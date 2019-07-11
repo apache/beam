@@ -25,8 +25,6 @@
 
 plugins { id 'org.apache.beam.module' }
 
-archivesBaseName = 'beam-runners-google-cloud-dataflow-java-legacy-worker'
-
 // Set a specific version of 'com.google.apis:google-api-services-dataflow'
 // by adding -Pdataflow.version=<version> in Gradle command. Otherwise,
 // 'google_clients_version' defined in BeamModulePlugin will be used as default.
@@ -58,10 +56,12 @@ def sdk_provided_dependencies = [
         library.java.vendored_grpc_1_13_1,
 ]
 
-def sdk_provided_project_dependencies = [
+def sdk_provided_shaded_project_dependencies = [
         ":model:pipeline",
-        ":runners:google-cloud-dataflow-java",
         ":sdks:java:core",
+]
+def sdk_provided_project_dependencies = [
+        ":runners:google-cloud-dataflow-java",
         ":sdks:java:extensions:google-cloud-platform-core",
         ":sdks:java:io:google-cloud-platform",
 ]
@@ -81,6 +81,7 @@ def excluded_dependencies = [
 ]
 
 applyJavaNature(
+        archivesBaseName: 'beam-runners-google-cloud-dataflow-java-legacy-worker',
         publish: false,
         exportJavadoc: false,
         enableSpotbugs: false /* TODO(BEAM-5658): enable spotbugs */,
@@ -94,7 +95,7 @@ applyJavaNature(
             // Allow slf4j implementation worker for logging during pipeline execution
             "org/slf4j/impl/**"
         ],
-        shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+        shadowClosure: {
     // Each included dependency must also include all of its necessary transitive dependencies
     // or have them provided by the users pipeline during job submission. Typically a users
     // pipeline includes :runners:google-cloud-dataflow-java and its transitive dependencies
@@ -115,21 +116,21 @@ applyJavaNature(
     relocate("org.apache.beam.model.fnexecution.v1", getWorkerRelocatedPath("org.apache.beam.model.fnexecution.v1"))
 
     dependencies {
-        include(project(path: ":runners:core-construction-java", configuration: "shadow"))
-        include(project(path: ":runners:core-java", configuration: "shadow"))
+        include(project(":runners:core-construction-java"))
+        include(project(":runners:core-java"))
     }
     relocate("org.apache.beam.runners.core", getWorkerRelocatedPath("org.apache.beam.runners.core"))
     relocate("org.apache.beam.repackaged.beam_runners_core_construction_java", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_runners_core_construction_java"))
     relocate("org.apache.beam.repackaged.beam_runners_core_java", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_runners_core_java"))
 
     dependencies {
-        include(project(path: ":runners:java-fn-execution", configuration: "shadow"))
+        include(project(":runners:java-fn-execution"))
     }
     relocate("org.apache.beam.runners.fnexecution", getWorkerRelocatedPath("org.apache.beam.runners.fnexecution"))
     relocate("org.apache.beam.repackaged.beam_runners_java_fn_execution", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_runners_java_fn_execution"))
 
     dependencies {
-        include(project(path: ":sdks:java:fn-execution", configuration: "shadow"))
+        include(project(":sdks:java:fn-execution"))
     }
     relocate("org.apache.beam.sdk.fn", getWorkerRelocatedPath("org.apache.beam.sdk.fn"))
     relocate("org.apache.beam.repackaged.beam_sdks_java_fn_execution", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_sdks_java_fn_execution"))
@@ -193,15 +194,18 @@ dependencies {
     sdk_provided_dependencies.each {
         provided(it)
     }
-    sdk_provided_project_dependencies.each {
+    sdk_provided_shaded_project_dependencies.each {
         provided project(path: it, configuration: "shadow")
+    }
+    sdk_provided_project_dependencies.each {
+        provided project(it)
     }
 
     compile project(path: ":model:fn-execution", configuration: "shadow")
-    compile project(path: ":runners:core-construction-java", configuration: "shadow")
-    compile project(path: ":runners:core-java", configuration: "shadow")
-    compile project(path: ":runners:java-fn-execution", configuration: "shadow")
-    compile project(path: ":sdks:java:fn-execution", configuration: "shadow")
+    compile project(":runners:core-construction-java")
+    compile project(":runners:core-java")
+    compile project(":runners:java-fn-execution")
+    compile project(":sdks:java:fn-execution")
     compile project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
     shadow library.java.vendored_guava_20_0
     compile "org.conscrypt:conscrypt-openjdk:1.1.3:linux-x86_64"
@@ -213,9 +217,8 @@ dependencies {
     // Any test dependency which intersects with our relocation rules above needs to be relocated
     // as well and placed within the testCompile configuration. Otherwise we can place it within
     // the shadowTest configuration.
-    testCompile project(path: ":runners:core-java", configuration: "shadowTest")
-    shadowTest library.java.guava_testlib
-    shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadowTest")
+    testCompile project(path: ":runners:core-java", configuration: "testRuntime")
+    shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
     shadowTest project(path: ":runners:direct-java", configuration: "shadow")
     shadowTest project(path: ":sdks:java:harness", configuration: "shadowTest")
     shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")

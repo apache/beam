@@ -77,11 +77,13 @@ task preCommitPy2() {
   dependsOn "lint"
 }
 
-task portablePreCommit() {
+addPortableWordCountTasks()
+
+task portablePreCommitPy2() {
   dependsOn ':runners:flink:1.5:job-server-container:docker'
   dependsOn ':sdks:python:container:docker'
-  dependsOn portableWordCountTask('portableWordCountBatch', false)
-  dependsOn portableWordCountTask('portableWordCountStreaming', true)
+  dependsOn portableWordCountBatch
+  dependsOn portableWordCountStreaming
 }
 
 
@@ -120,6 +122,8 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
     def tests = [
         "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
         "apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest",
+        "apache_beam.io.gcp.bigquery_test:BigQueryStreamingInsertTransformIntegrationTests\
+.test_multiple_destinations_transform_streaming",
     ]
     def streamingTestOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
     def argMap = ["runner": "TestDirectRunner",
@@ -159,44 +163,9 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
 //
 //    ./gradlew :sdks:python:portableWordCount -PjobEndpoint=localhost:8099
 //
-task portableWordCount {
-  dependsOn portableWordCountTask('portableWordCountExample', project.hasProperty("streaming"))
-}
 
-def portableWordCountTask(name, streaming) {
-  tasks.create(name) {
-    dependsOn = ['installGcpTest']
-    mustRunAfter = [':runners:flink:1.5:job-server-container:docker', ':sdks:python:container:docker']
-    doLast {
-      // TODO: Figure out GCS credentials and use real GCS input and output.
-      def options = [
-              "--input=/etc/profile",
-              "--output=/tmp/py-wordcount-direct",
-              "--runner=PortableRunner",
-              "--experiments=worker_threads=100",
-              "--parallelism=2",
-              "--shutdown_sources_on_final_watermark",
-      ]
-      if (streaming)
-        options += ["--streaming"]
-      else
-        // workaround for local file output in docker container
-        options += ["--environment_cache_millis=10000"]
-      if (project.hasProperty("jobEndpoint"))
-        options += ["--job_endpoint=${project.property('jobEndpoint')}"]
-      if (project.hasProperty("environmentType")) {
-        options += ["--environment_type=${project.property('environmentType')}"]
-      }
-      if (project.hasProperty("environmentConfig")) {
-        options += ["--environment_config=${project.property('environmentConfig')}"]
-      }
-      exec {
-        executable 'sh'
-        args '-c', ". ${project.ext.envdir}/bin/activate && python -m apache_beam.examples.wordcount ${options.join(' ')}"
-        // TODO: Check that the output file is generated and runs.
-      }
-    }
-  }
+task portableWordCount {
+  dependsOn project.hasProperty("streaming") ? portableWordCountStreaming : portableWordCountBatch
 }
 
 // Run PostCommit integration tests on default runner (TestDataflowRunner)
@@ -263,18 +232,18 @@ task hdfsIntegrationTest(dependsOn: 'installGcpTest') {
 task sparkValidatesRunner() {
   dependsOn 'createProcessWorker'
   dependsOn 'setupVirtualenv'
-  dependsOn ':beam-runners-spark-job-server:shadowJar'
+  dependsOn ':runners:spark:job-server:shadowJar'
   doLast {
-    def environment_config = "'{\"command\": \"${project(":beam-sdks-python:").buildDir.absolutePath}/sdk_worker.sh\"}'"
+    def environment_config = "'{\"command\": \"${project(":sdks:python:").buildDir.absolutePath}/sdk_worker.sh\"}'"
     def argMap = [
             "environment_type"    : "PROCESS",
-            "spark_job_server_jar": project(":beam-runners-spark-job-server:").shadowJar.archivePath,
+            "spark_job_server_jar": project(":runners:spark:job-server:").shadowJar.archivePath,
             "environment_config": environment_config,
     ]
     def argString = project.mapToArgString(argMap)
 
     // Optionally specify test function names separated by space e.g.:
-    // ./gradlew :beam-sdks-python:sparkValidatesRunner -Ptests="test_external_transforms test_read"
+    // ./gradlew :sdks:python:sparkValidatesRunner -Ptests="test_external_transforms test_read"
     // Otherwise run all test functions under SparkRunnerTest
     def tests = project.hasProperty('tests') ?
             project.property('tests').split().collect{ "SparkRunnerTest.$it" }.join(' ') : ''
@@ -351,6 +320,7 @@ task postCommit() {
   dependsOn "directRunnerIT"
   dependsOn "hdfsIntegrationTest"
   dependsOn "postCommitIT"
+  dependsOn "mongodbioIT"
 }
 
 
@@ -460,4 +430,35 @@ project.task('crossLanguagePortableWordCount') {
 project.task('crossLanguageTests') {
   dependsOn "crossLanguagePythonJavaFlink"
   dependsOn "crossLanguagePortableWordCount"
+}
+
+project.task('mongodbioIT') {
+  dependsOn 'setupVirtualenv'
+
+  Random r = new Random()
+  def port = r.nextInt(1000) + 27017
+  def containerName = "mongoioit" + port
+
+  def options = [
+        "--mongo_uri=mongodb://localhost:" + port
+  ]
+
+  // Pull the latest mongodb docker image and run
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', "docker pull mongo && docker run --name ${containerName} -p ${port}:27017 -d mongo:latest"
+      }
+  }
+
+  doLast {
+      exec {
+        executable 'sh'
+        args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.io.mongodbio_it_test ${options.join(' ')}"
+      }
+      exec {
+        executable 'sh'
+        args '-c', "docker stop ${containerName} && docker rm ${containerName}"
+      }
+  }
 }

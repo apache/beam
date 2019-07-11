@@ -40,8 +40,6 @@ import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
-import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
-import org.apache.beam.sdk.testutils.metrics.CountMonitor;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
@@ -139,11 +137,6 @@ public class ParquetIOIT {
             .apply(
                 "Gather read start time",
                 ParDo.of(new TimeMonitor<>(PARQUET_NAMESPACE, "readStart")))
-            .apply(
-                "Collect byte count", ParDo.of(new ByteMonitor<>(PARQUET_NAMESPACE, "byteCount")))
-            .apply(
-                "Collect element count",
-                ParDo.of(new CountMonitor<>(PARQUET_NAMESPACE, "itemCount")))
             .apply("Read parquet files", ParquetIO.readFiles(SCHEMA))
             .apply(
                 "Gather read end time", ParDo.of(new TimeMonitor<>(PARQUET_NAMESPACE, "readEnd")))
@@ -202,18 +195,6 @@ public class ParquetIOIT {
           long readEnd = reader.getEndTimeMetric("readEnd");
           double runTime = (readEnd - writeStart) / 1e3;
           return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
-        });
-
-    metricSuppliers.add(
-        reader -> {
-          double totalBytes = reader.getCounterMetric("byteCount");
-          return NamedTestResult.create(uuid, timestamp, "byte_count", totalBytes);
-        });
-
-    metricSuppliers.add(
-        reader -> {
-          double totalBytes = reader.getCounterMetric("itemCount");
-          return NamedTestResult.create(uuid, timestamp, "item_count", totalBytes);
         });
 
     return metricSuppliers;

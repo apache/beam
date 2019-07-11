@@ -28,8 +28,10 @@ import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.testing.UsesKms;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -41,17 +43,19 @@ import org.junit.runners.JUnit4;
  * this test should only be run against single runner (such as DirectRunner).
  */
 @RunWith(JUnit4.class)
+@Category(UsesKms.class)
 public class GcsUtilIT {
   /** Tests a rewrite operation that requires multiple API calls (using a continuation token). */
   @Test
   public void testRewriteMultiPart() throws IOException {
     TestPipelineOptions options =
         TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
-    GcsOptions gcsOptions = options.as(GcsOptions.class);
-    // Setting the KMS key is necessary to trigger multi-part rewrites (gcpTempLocation is created
+    // Using a KMS key is necessary to trigger multi-part rewrites (bucket is created
     // with a bucket default key).
-    assertNotNull(gcsOptions.getDataflowKmsKey());
+    assertNotNull(options.getTempRoot());
+    options.setTempLocation(options.getTempRoot() + "/testRewriteMultiPart");
 
+    GcsOptions gcsOptions = options.as(GcsOptions.class);
     GcsUtil gcsUtil = gcsOptions.getGcsUtil();
     String srcFilename = "gs://dataflow-samples/wikipedia_edits/wiki_data-000000000000.json";
     String dstFilename =

@@ -32,6 +32,7 @@ import (
 type DataSource struct {
 	UID   UnitID
 	SID   StreamID
+	Name  string
 	Coder *coder.Coder
 	Out   Node
 
@@ -199,7 +200,7 @@ func (n *DataSource) Down(ctx context.Context) error {
 }
 
 func (n *DataSource) String() string {
-	return fmt.Sprintf("DataSource[%v] Coder:%v Out:%v", n.SID, n.Coder, n.Out.ID())
+	return fmt.Sprintf("DataSource[%v, %v] Coder:%v Out:%v", n.SID, n.Name, n.Coder, n.Out.ID())
 }
 
 // IncrementCountAndCheckSplit increments DataSource.count by one and checks if
@@ -231,7 +232,7 @@ func (n *DataSource) Progress() ProgressReportSnapshot {
 	n.mu.Lock()
 	c := n.count
 	n.mu.Unlock()
-	return ProgressReportSnapshot{n.SID.Target.ID, n.SID.Target.Name, c}
+	return ProgressReportSnapshot{n.SID.PtransformID, n.Name, c}
 }
 
 // Split takes a sorted set of potential split points, selects and actuates
@@ -249,7 +250,7 @@ func (n *DataSource) Split(splits []int64, frac float32) (int64, error) {
 	// Find the smallest split index that we haven't yet processed, and set
 	// the promised split position to this value.
 	for _, s := range splits {
-		if s >= c {
+		if s >= c && s < n.splitPos {
 			n.splitPos = s
 			fs := n.splitPos
 			n.mu.Unlock()

@@ -118,6 +118,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     sqlEnvBuilder.setQueryPlannerClassName(
         input.getPipeline().getOptions().as(BeamSqlPipelineOptions.class).getPlannerName());
 
+    sqlEnvBuilder.setPipelineOptions(input.getPipeline().getOptions());
+
     BeamSqlEnv sqlEnv = sqlEnvBuilder.build();
     return BeamSqlRelUtils.toPCollection(input.getPipeline(), sqlEnv.parseQuery(queryString()));
   }

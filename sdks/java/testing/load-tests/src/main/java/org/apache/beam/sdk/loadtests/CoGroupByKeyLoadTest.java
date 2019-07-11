@@ -115,8 +115,7 @@ public class CoGroupByKeyLoadTest extends LoadTest<CoGroupByKeyLoadTest.Options>
         .apply("CoGroupByKey", CoGroupByKey.create())
         .apply("Ungroup and reiterate", ParDo.of(new UngroupAndReiterate(options.getIterations())))
         .apply(
-            "Collect total bytes",
-            ParDo.of(new ByteMonitor<>(METRICS_NAMESPACE, "totalBytes.count")))
+            "Collect total bytes", ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")))
         .apply("Collect end time metrics", ParDo.of(runtimeMonitor));
   }
 

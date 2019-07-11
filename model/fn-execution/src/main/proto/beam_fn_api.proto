@@ -55,22 +55,6 @@ import "metrics.proto";
  * still are missing things like the CompositeTransform.
  */
 
-// A representation of an input or output definition on a primitive transform.
-// Stable
-message Target {
-  // A repeated list of target definitions.
-  message List {
-    repeated Target target = 1;
-  }
-
-  // (Required) The id of the PrimitiveTransform which is the target.
-  string primitive_transform_reference = 1;
-
-  // (Required) The local name of an input or output defined on the primitive
-  // transform.
-  string name = 2;
-}
-
 // A descriptor for connecting to a remote port using the Beam Fn Data API.
 // Allows for communication between two environments (for example between the
 // runner and the SDK).
@@ -211,43 +195,13 @@ message BundleApplication {
   // when invoked with this application.
   map<string, google.protobuf.Timestamp> output_watermarks = 4;
 
-  // Represents an estimate for the amount of currently outstanding work.
-  message Backlog {
-    // This informs Runners on how to aggregate the backlog
-    // being reported across multiple active bundles. Backlogs
-    // are aggregated using the set of partitions.
-    //
-    // For example SplittableDoFn's which consume elements from:
-    //  * a globally shared resource such as a Pubsub queue should set this
-    //    to “”.
-    //  * a shared partitioned resource should use the partition identifier.
-    //  * a uniquely partitioned resource such as a file range should set this
-    //  to
-    //    file name + start offset.
-    bytes partition = 1;
-
-    // The estimate for the backlog.
-    oneof value {
-      // Represents an estimate for the amount of outstanding work. Values
-      // compare lexicographically.
-      bytes bytes = 1000;
-
-      // Whether the backlog is unknown.
-      bool is_unknown = 1001;
-    }
-  }
-
-  // (Required) An estimate for the amount outstanding work related to
-  // this application.
-  Backlog backlog = 5;
-
   // (Required) Whether this application potentially produces an unbounded
   // amount of data. Note that this should only be set to BOUNDED if and
   // only if the application is known to produce a finite amount of output.
   //
   // Note that this is different from the backlog as the backlog represents
   // how much work there is currently outstanding.
-  org.apache.beam.model.pipeline.v1.IsBounded.Enum is_bounded = 6;
+  org.apache.beam.model.pipeline.v1.IsBounded.Enum is_bounded = 5;
 
   // Contains additional monitoring information related to this application.
   //
@@ -255,7 +209,7 @@ message BundleApplication {
   // will use consume when providing a UI or for making scaling and performance
   // decisions. See https://s.apache.org/beam-bundles-backlog-splitting for
   // details about what types of signals may be useful to report.
-  repeated org.apache.beam.model.pipeline.v1.MonitoringInfo monitoring_infos = 7;
+  repeated org.apache.beam.model.pipeline.v1.MonitoringInfo monitoring_infos = 6;
 }
 
 // An Application should be scheduled for execution after a delay.
@@ -520,18 +474,15 @@ message ProcessBundleSplitResponse {
     // (Required) The grpc read transform reading this channel.
     string ptransform_id = 1;
 
-    // (Required) Name of the transform's input to which to pass the element.
-    string input_id = 2;
-
     // The last element of the input channel that should be entirely considered
     // part of the primary, identified by its absolute index in the (ordered)
     // channel.
-    int32 last_primary_element = 3;
+    int32 last_primary_element = 2;
 
     // The first element of the input channel that should be entirely considered
     // part of the residual, identified by its absolute index in the (ordered)
     // channel.
-    int32 first_residual_element = 4;
+    int32 first_residual_element = 3;
   }
 
   // Partitions of input data channels into primary and residual elements,
@@ -559,7 +510,7 @@ message FinalizeBundleResponse {
 // Stable
 message Elements {
   // Represents multiple encoded elements in nested context for a given named
-  // instruction and target.
+  // instruction and transform.
   message Data {
     // (Required) A reference to an active instruction request with the given
     // instruction id.
@@ -572,16 +523,15 @@ message Elements {
     //
     // Note that a single element may span multiple Data messages.
     //
-    // Note that a sending/receiving pair should share the same target
-    // identifier.
-    Target target = 2;
+    // Note that a sending/receiving pair should share the same identifier.
+    string ptransform_id = 2;
 
     // (Optional) Represents a part of a logical byte stream. Elements within
     // the logical byte stream are encoded in the nested context and
     // concatenated together.
     //
     // An empty data block represents the end of stream for the given
-    // instruction and target.
+    // instruction and transform.
     bytes data = 3;
   }
 

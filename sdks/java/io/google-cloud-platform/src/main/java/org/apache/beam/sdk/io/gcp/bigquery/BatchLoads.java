@@ -250,9 +250,9 @@ class BatchLoads<DestinationT, ElementT>
     final PCollectionView<String> loadJobIdPrefixView = createLoadJobIdPrefixView(p);
     final PCollectionView<String> tempFilePrefixView =
         createTempFilePrefixView(p, loadJobIdPrefixView);
-    // The user-supplied triggeringDuration is often chosen to to control how many BigQuery load
+    // The user-supplied triggeringDuration is often chosen to control how many BigQuery load
     // jobs are generated, to prevent going over BigQuery's daily quota for load jobs. If this
-    // is set to a large value, currently we have to buffer all the data unti the trigger fires.
+    // is set to a large value, currently we have to buffer all the data until the trigger fires.
     // Instead we ensure that the files are written if a threshold number of records are ready.
     // We use only the user-supplied trigger on the actual BigQuery load. This allows us to
     // offload the data to the filesystem.
@@ -552,6 +552,17 @@ class BatchLoads<DestinationT, ElementT>
             ShardedKeyCoder.of(NullableCoder.of(destinationCoder)),
             ListCoder.of(StringUtf8Coder.of()));
 
+    // If the final destination table exists already (and we're appending to it), then the temp
+    // tables must exactly match schema, partitioning, etc. Wrap the DynamicDestinations object
+    // with one that makes this happen.
+    @SuppressWarnings("unchecked")
+    DynamicDestinations<?, DestinationT> destinations = dynamicDestinations;
+    if (createDisposition.equals(CreateDisposition.CREATE_IF_NEEDED)
+        || createDisposition.equals(CreateDisposition.CREATE_NEVER)) {
+      destinations =
+          DynamicDestinationsHelpers.matchTableDynamicDestinations(destinations, bigQueryServices);
+    }
+
     // If WriteBundlesToFiles produced more than DEFAULT_MAX_FILES_PER_PARTITION files or
     // DEFAULT_MAX_BYTES_PER_PARTITION bytes, then
     // the import needs to be split into multiple partitions, and those partitions will be
@@ -570,7 +581,7 @@ class BatchLoads<DestinationT, ElementT>
                 WriteDisposition.WRITE_EMPTY,
                 CreateDisposition.CREATE_IF_NEEDED,
                 sideInputs,
-                dynamicDestinations,
+                destinations,
                 loadJobProjectId,
                 maxRetryJobs,
                 ignoreUnknownValues,

@@ -22,7 +22,7 @@ import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import CronJobBuilder
 
-def loadTestConfigurations = { mode, isStreaming ->
+def loadTestConfigurations = { mode, isStreaming, datasetName ->
     [
             [
                     title        : 'Load test: 2GB of 10B records',
@@ -33,7 +33,7 @@ def loadTestConfigurations = { mode, isStreaming ->
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_1",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
-                            bigQueryDataset       : 'load_test',
+                            bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_GBK_1",
                             sourceOptions         : """
                                             {
@@ -59,7 +59,7 @@ def loadTestConfigurations = { mode, isStreaming ->
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_2",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
-                            bigQueryDataset       : 'load_test',
+                            bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_GBK_2",
                             sourceOptions         : """
                                             {
@@ -86,7 +86,7 @@ def loadTestConfigurations = { mode, isStreaming ->
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_3",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
-                            bigQueryDataset       : 'load_test',
+                            bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_GBK_3",
                             sourceOptions         : """
                                             {
@@ -113,7 +113,7 @@ def loadTestConfigurations = { mode, isStreaming ->
                             appName               : 'load_tests_Java_Dataflow_${mode}_GBK_4',
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
-                            bigQueryDataset       : 'load_test',
+                            bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_GBK_4",
                             sourceOptions         : """
                                             {
@@ -139,7 +139,7 @@ def loadTestConfigurations = { mode, isStreaming ->
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_5",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
-                            bigQueryDataset       : 'load_test',
+                            bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_GBK_5",
                             sourceOptions         : """
                                             {
@@ -165,7 +165,7 @@ def loadTestConfigurations = { mode, isStreaming ->
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_6",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
-                            bigQueryDataset       : 'load_test',
+                            bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_GBK_6",
                             sourceOptions         : """
                                             {
@@ -193,7 +193,7 @@ def loadTestConfigurations = { mode, isStreaming ->
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_7",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
-                            bigQueryDataset       : 'load_test',
+                            bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_GBK_7",
                             sourceOptions         : """
                                             {
@@ -219,9 +219,10 @@ def streamingLoadTestJob = { scope, triggeringContext ->
   scope.description('Runs Java GBK load tests on Dataflow runner in streaming mode')
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
-  for (testConfiguration in loadTestConfigurations('streaming', true)) {
-      testConfiguration.jobProperties << [inputWindowDurationSec: 1200]
-    loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
+  def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
+  for (testConfiguration in loadTestConfigurations('streaming', true, datasetName)) {
+    testConfiguration.jobProperties << [inputWindowDurationSec: 1200]
+    loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass)
   }
 }
 
@@ -240,12 +241,8 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
 
 
 def batchLoadTestJob = { scope, triggeringContext ->
-    scope.description('Runs Java GBK load tests on Dataflow runner in batch mode')
-    commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
-
-    for (testConfiguration in loadTestConfigurations('batch', false)) {
-        loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
-    }
+    def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
+    loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.JAVA, loadTestConfigurations('batch', false, datasetName), "GBK", "batch")
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Java_GBK_Dataflow_Batch', 'H 14 * * *', this) {

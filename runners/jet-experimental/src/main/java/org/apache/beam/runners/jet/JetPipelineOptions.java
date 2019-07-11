@@ -47,10 +47,10 @@ public interface JetPipelineOptions extends PipelineOptions {
 
   @Description("Local parallelism of Jet nodes")
   @Validation.Required
-  @Default.Integer(-1)
-  Integer getJetLocalParallelism();
+  @Default.Integer(2)
+  Integer getJetDefaultParallelism();
 
-  void setJetLocalParallelism(Integer localParallelism);
+  void setJetDefaultParallelism(Integer localParallelism);
 
   @Description("Number of locally started Jet Cluster Members")
   @Validation.Required
@@ -58,4 +58,11 @@ public interface JetPipelineOptions extends PipelineOptions {
   Integer getJetLocalMode();
 
   void setJetLocalMode(Integer noOfLocalClusterMembers);
+
+  @Description("Weather Jet Processors for DoFns should use green threads or not")
+  @Validation.Required
+  @Default.Boolean(false)
+  Boolean getJetProcessorsCooperative();
+
+  void setJetProcessorsCooperative(Boolean cooperative);
 }

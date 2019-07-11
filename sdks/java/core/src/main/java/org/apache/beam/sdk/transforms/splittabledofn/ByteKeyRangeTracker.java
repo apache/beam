@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import java.math.BigDecimal;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
@@ -38,7 +37,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Bytes;
  * to process.
  */
 public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKey>
-    implements Backlogs.HasBacklog {
+    implements Sizes.HasSize {
   /* An empty range which contains no keys. */
   @VisibleForTesting
   static final ByteKeyRange NO_KEYS = ByteKeyRange.of(ByteKey.EMPTY, ByteKey.of(0x00));
@@ -184,28 +183,26 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
   private static final byte[] ZERO_BYTE_ARRAY = new byte[] {0};
 
   @Override
-  public Backlog getBacklog() {
+  public double getSize() {
     // Return 0 for the empty range which is implicitly done.
     // This case can occur if the range tracker is checkpointed before any keys have been claimed
     // or if the range tracker is checkpointed once the range is done.
     if (NO_KEYS.equals(range)) {
-      return Backlog.of(BigDecimal.ZERO);
+      return 0;
     }
 
     // If we are attempting to get the backlog without processing a single key, we return 1.0
     if (lastAttemptedKey == null) {
-      return Backlog.of(BigDecimal.ONE);
+      return 1;
     }
 
     // Return 0 if the last attempted key was the empty key representing the end of range for
     // all ranges or the last attempted key is beyond the end of the range.
     if (lastAttemptedKey.isEmpty()
         || !(range.getEndKey().isEmpty() || range.getEndKey().compareTo(lastAttemptedKey) > 0)) {
-      return Backlog.of(BigDecimal.ZERO);
+      return 0;
     }
 
-    // TODO: Use the ability of BigDecimal's additional precision to more accurately report backlog
-    // for keys which are long.
-    return Backlog.of(BigDecimal.valueOf(range.estimateFractionForKey(lastAttemptedKey)));
+    return range.estimateFractionForKey(lastAttemptedKey);
   }
 }

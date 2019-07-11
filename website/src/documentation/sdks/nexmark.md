@@ -618,7 +618,7 @@ Set these up first so the below command is valid
 Launch:
 
     ./gradlew :sdks:java:testing:nexmark:run \
-        -Pnexmark.runner=":beam-runners-google-cloud-dataflow" \
+        -Pnexmark.runner=":runners:google-cloud-dataflow-java" \
         -Pnexmark.args="
             --runner=DataflowRunner
             --suite=SMOKE

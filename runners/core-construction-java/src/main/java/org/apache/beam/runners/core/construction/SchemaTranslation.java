@@ -25,32 +25,28 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableBiMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 
 /** Utility methods for translating schemas. */
 public class SchemaTranslation {
-  private static final BiMap<TypeName, RunnerApi.Schema.TypeName> TYPE_NAME_MAPPING =
-      ImmutableBiMap.<TypeName, RunnerApi.Schema.TypeName>builder()
-          .put(TypeName.BYTE, RunnerApi.Schema.TypeName.BYTE)
-          .put(TypeName.INT16, RunnerApi.Schema.TypeName.INT16)
-          .put(TypeName.INT32, RunnerApi.Schema.TypeName.INT32)
-          .put(TypeName.INT64, RunnerApi.Schema.TypeName.INT64)
-          .put(TypeName.DECIMAL, RunnerApi.Schema.TypeName.DECIMAL)
-          .put(TypeName.FLOAT, RunnerApi.Schema.TypeName.FLOAT)
-          .put(TypeName.DOUBLE, RunnerApi.Schema.TypeName.DOUBLE)
-          .put(TypeName.STRING, RunnerApi.Schema.TypeName.STRING)
-          .put(TypeName.DATETIME, RunnerApi.Schema.TypeName.DATETIME)
-          .put(TypeName.BOOLEAN, RunnerApi.Schema.TypeName.BOOLEAN)
-          .put(TypeName.BYTES, RunnerApi.Schema.TypeName.BYTES)
-          .put(TypeName.ARRAY, RunnerApi.Schema.TypeName.ARRAY)
-          .put(TypeName.MAP, RunnerApi.Schema.TypeName.MAP)
-          .put(TypeName.ROW, RunnerApi.Schema.TypeName.ROW)
-          .put(TypeName.LOGICAL_TYPE, RunnerApi.Schema.TypeName.LOGICAL_TYPE)
+
+  private static final BiMap<TypeName, RunnerApi.Schema.AtomicType> ATOMIC_TYPE_MAPPING =
+      ImmutableBiMap.<TypeName, RunnerApi.Schema.AtomicType>builder()
+          .put(TypeName.BYTE, RunnerApi.Schema.AtomicType.BYTE)
+          .put(TypeName.INT16, RunnerApi.Schema.AtomicType.INT16)
+          .put(TypeName.INT32, RunnerApi.Schema.AtomicType.INT32)
+          .put(TypeName.INT64, RunnerApi.Schema.AtomicType.INT64)
+          .put(TypeName.FLOAT, RunnerApi.Schema.AtomicType.FLOAT)
+          .put(TypeName.DOUBLE, RunnerApi.Schema.AtomicType.DOUBLE)
+          .put(TypeName.STRING, RunnerApi.Schema.AtomicType.STRING)
+          .put(TypeName.BOOLEAN, RunnerApi.Schema.AtomicType.BOOLEAN)
+          .put(TypeName.BYTES, RunnerApi.Schema.AtomicType.BYTES)
           .build();
+
+  private static final String URN_BEAM_LOGICAL_DATETIME = "beam:fieldtype:datetime";
+  private static final String URN_BEAM_LOGICAL_DECIMAL = "beam:fieldtype:decimal";
 
   public static RunnerApi.Schema toProto(Schema schema) {
     String uuid = schema.getUUID() != null ? schema.getUUID().toString() : "";
@@ -77,16 +73,17 @@ public class SchemaTranslation {
   }
 
   private static RunnerApi.Schema.FieldType toProto(FieldType fieldType) {
-    RunnerApi.Schema.FieldType.Builder builder =
-        RunnerApi.Schema.FieldType.newBuilder()
-            .setTypeName(TYPE_NAME_MAPPING.get(fieldType.getTypeName()));
+    RunnerApi.Schema.FieldType.Builder builder = RunnerApi.Schema.FieldType.newBuilder();
     switch (fieldType.getTypeName()) {
       case ROW:
-        builder.setRowSchema(toProto(fieldType.getRowSchema()));
+        builder.setRowType(
+            RunnerApi.Schema.RowType.newBuilder().setSchema(toProto(fieldType.getRowSchema())));
         break;
 
       case ARRAY:
-        builder.setCollectionElementType(toProto(fieldType.getCollectionElementType()));
+        builder.setArrayType(
+            RunnerApi.Schema.ArrayType.newBuilder()
+                .setElementType(toProto(fieldType.getCollectionElementType())));
         break;
 
       case MAP:
@@ -101,15 +98,29 @@ public class SchemaTranslation {
         LogicalType logicalType = fieldType.getLogicalType();
         builder.setLogicalType(
             RunnerApi.Schema.LogicalType.newBuilder()
-                .setId(logicalType.getIdentifier())
+                .setUrn(logicalType.getIdentifier())
                 .setArgs(logicalType.getArgument())
-                .setBaseType(toProto(logicalType.getBaseType()))
-                .setSerializedClass(
-                    ByteString.copyFrom(SerializableUtils.serializeToByteArray(logicalType)))
+                .setRepresentation(toProto(logicalType.getBaseType()))
                 .build());
         break;
-
+        // Special-case for DATETIME and DECIMAL which are logical types in portable representation,
+        // but not yet in Java. (BEAM-7554)
+      case DATETIME:
+        builder.setLogicalType(
+            RunnerApi.Schema.LogicalType.newBuilder()
+                .setUrn(URN_BEAM_LOGICAL_DATETIME)
+                .setRepresentation(toProto(FieldType.INT64))
+                .build());
+        break;
+      case DECIMAL:
+        builder.setLogicalType(
+            RunnerApi.Schema.LogicalType.newBuilder()
+                .setUrn(URN_BEAM_LOGICAL_DECIMAL)
+                .setRepresentation(toProto(FieldType.BYTES))
+                .build());
+        break;
       default:
+        builder.setAtomicType(ATOMIC_TYPE_MAPPING.get(fieldType.getTypeName()));
         break;
     }
     builder.setNullable(fieldType.getNullable());
@@ -139,32 +150,43 @@ public class SchemaTranslation {
   }
 
   private static FieldType fieldTypeFromProto(RunnerApi.Schema.FieldType protoFieldType) {
-    TypeName typeName = TYPE_NAME_MAPPING.inverse().get(protoFieldType.getTypeName());
     FieldType fieldType;
-    switch (typeName) {
-      case ROW:
-        fieldType = FieldType.row(fromProto(protoFieldType.getRowSchema()));
+    switch (protoFieldType.getTypeInfoCase()) {
+      case ATOMIC_TYPE:
+        TypeName typeName = ATOMIC_TYPE_MAPPING.inverse().get(protoFieldType.getAtomicType());
+        fieldType = FieldType.of(typeName);
         break;
-      case ARRAY:
-        fieldType = FieldType.array(fieldTypeFromProto(protoFieldType.getCollectionElementType()));
+      case ROW_TYPE:
+        fieldType = FieldType.row(fromProto(protoFieldType.getRowType().getSchema()));
         break;
-      case MAP:
+      case ARRAY_TYPE:
+        fieldType =
+            FieldType.array(fieldTypeFromProto(protoFieldType.getArrayType().getElementType()));
+        break;
+      case MAP_TYPE:
         fieldType =
             FieldType.map(
                 fieldTypeFromProto(protoFieldType.getMapType().getKeyType()),
                 fieldTypeFromProto(protoFieldType.getMapType().getValueType()));
         break;
       case LOGICAL_TYPE:
-        LogicalType logicalType =
-            (LogicalType)
-                SerializableUtils.deserializeFromByteArray(
-                    protoFieldType.getLogicalType().getSerializedClass().toByteArray(),
-                    "logicalType");
-        fieldType = FieldType.logicalType(logicalType);
+        // Special-case for DATETIME and DECIMAL which are logical types in portable representation,
+        // but not yet in Java. (BEAM-7554)
+        String urn = protoFieldType.getLogicalType().getUrn();
+        if (urn.equals(URN_BEAM_LOGICAL_DATETIME)) {
+          fieldType = FieldType.DATETIME;
+        } else if (urn.equals(URN_BEAM_LOGICAL_DECIMAL)) {
+          fieldType = FieldType.DECIMAL;
+        } else {
+          // TODO: Look up logical type class by URN.
+          throw new IllegalArgumentException("Decoding logical types is not yet supported.");
+        }
         break;
       default:
-        fieldType = FieldType.of(typeName);
+        throw new IllegalArgumentException(
+            "Unexpected type_info: " + protoFieldType.getTypeInfoCase());
     }
+
     if (protoFieldType.getNullable()) {
       fieldType = fieldType.withNullable(true);
     }

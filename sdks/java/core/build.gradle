@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+applyJavaNature(shadowClosure: {
   dependencies {
     include(dependency(library.java.protobuf_java))
     include(dependency(library.java.byte_buddy))
@@ -68,7 +68,6 @@ dependencies {
   compile library.java.byte_buddy
   compile library.java.commons_compress
   compile library.java.commons_lang3
-  compile library.java.guava_testlib
   shadow library.java.jackson_core
   shadow library.java.jackson_annotations
   shadow library.java.jackson_databind

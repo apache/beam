@@ -57,49 +57,48 @@ configurations {
 }
 
 dependencies {
-  shadow library.java.vendored_guava_20_0
-  shadow project(path: ":model:pipeline", configuration: "shadow")
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
-  shadow project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
-  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
-  shadow library.java.vendored_grpc_1_13_1
-  shadow library.java.google_api_client
-  shadow library.java.google_http_client
-  shadow library.java.google_http_client_jackson2
-  shadow library.java.google_api_services_dataflow
-  shadow library.java.google_api_services_clouddebugger
-  shadow library.java.google_api_services_storage
-  shadow library.java.google_auth_library_credentials
-  shadow library.java.google_auth_library_oauth2_http
-  shadow library.java.bigdataoss_util
-  shadow library.java.avro
-  shadow library.java.joda_time
-  shadow library.java.jackson_core
-  shadow library.java.jackson_annotations
-  shadow library.java.jackson_databind
-  shadow library.java.slf4j_api
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.junit
-  shadowTest project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadowTest")
-  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
-  shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadowTest")
-  shadowTest library.java.guava_testlib
-  shadowTest library.java.slf4j_jdk14
-  shadowTest library.java.mockito_core
-  shadowTest library.java.google_cloud_dataflow_java_proto_library_all
-  shadowTest library.java.datastore_v1_protos
-  shadowTest library.java.jackson_dataformat_yaml
+  compile library.java.vendored_guava_20_0
+  compile project(path: ":model:pipeline", configuration: "shadow")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":sdks:java:extensions:google-cloud-platform-core")
+  compile project(":sdks:java:io:google-cloud-platform")
+  compile project(":runners:core-construction-java")
+  compile library.java.vendored_grpc_1_13_1
+  compile library.java.google_api_client
+  compile library.java.google_http_client
+  compile library.java.google_http_client_jackson2
+  compile library.java.google_api_services_dataflow
+  compile library.java.google_api_services_clouddebugger
+  compile library.java.google_api_services_storage
+  compile library.java.google_auth_library_credentials
+  compile library.java.google_auth_library_oauth2_http
+  compile library.java.bigdataoss_util
+  compile library.java.avro
+  compile library.java.joda_time
+  compile library.java.jackson_core
+  compile library.java.jackson_annotations
+  compile library.java.jackson_databind
+  compile library.java.slf4j_api
+  testCompile library.java.hamcrest_core
+  testCompile library.java.junit
+  testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
+  testCompile library.java.slf4j_jdk14
+  testCompile library.java.mockito_core
+  testCompile library.java.google_cloud_dataflow_java_proto_library_all
+  testCompile library.java.datastore_v1_protos
+  testCompile library.java.jackson_dataformat_yaml
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
-  validatesRunner project(path: project.path, configuration: "shadow")
+  validatesRunner project(project.path)
   validatesRunner library.java.hamcrest_core
   validatesRunner library.java.hamcrest_library
-  coreSDKJavaIntegrationTest project(path: project.path, configuration: "shadow")
+  coreSDKJavaIntegrationTest project(project.path)
   coreSDKJavaIntegrationTest project(path: ":sdks:java:core", configuration: "shadowTest")
-  examplesJavaIntegrationTest project(path: project.path, configuration: "shadow")
-  examplesJavaIntegrationTest project(path: ":examples:java", configuration: "shadowTest")
-  googleCloudPlatformIntegrationTest project(path: project.path, configuration: "shadow")
-  googleCloudPlatformIntegrationTest project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadowTest")
+  examplesJavaIntegrationTest project(project.path)
+  examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntime")
+  googleCloudPlatformIntegrationTest project(project.path)
+  googleCloudPlatformIntegrationTest project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
 }
 
 test {
@@ -109,6 +108,7 @@ test {
 def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
 def dataflowValidatesTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests'
 def dataflowPostCommitTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+def dataflowPostCommitTempRootKms = project.findProperty('dataflowTempRootKms') ?: 'gs://temp-storage-for-end-to-end-tests-cmek'
 def dataflowUploadTemp = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-upload-tests'
 def testFilesToStage = project.findProperty('filesToStage') ?: 'test.txt'
 def dataflowLegacyWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
@@ -330,11 +330,12 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
   exclude '**/BigQueryIOReadIT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
   exclude '**/PubsubReadIT.class'
-  exclude '**/*KmsKeyIT.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
-  useJUnit { }
+  useJUnit {
+    excludeCategories "org.apache.beam.sdk.testing.UsesKms"
+  }
 }
 
 task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
@@ -343,18 +344,20 @@ task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
-          "--tempRoot=${dataflowPostCommitTempRoot}",
+          "--tempRoot=${dataflowPostCommitTempRootKms}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
           "--dataflowKmsKey=${dataflowKmsKey}",
   ])
 
-  include '**/*KmsKeyIT.class'
+  include '**/*IT.class'
   exclude '**/BigQueryKmsKeyIT.class'  // Only needs to run on direct runner.
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
-  useJUnit { }
+  useJUnit {
+    includeCategories "org.apache.beam.sdk.testing.UsesKms"
+  }
 }
 
 task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {

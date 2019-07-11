@@ -19,17 +19,22 @@ package org.apache.beam.runners.spark.translation;
 
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.createOutputMap;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getWindowingStrategy;
+import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.instantiateCoder;
 
+import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.core.construction.NativeTransforms;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -41,6 +46,7 @@ import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.io.SourceRDD;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
+import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -60,6 +66,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.apache.spark.HashPartitioner;
 import org.apache.spark.Partitioner;
+import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
@@ -103,6 +110,9 @@ public class SparkBatchPortablePipelineTranslator {
     translatorMap.put(
         PTransformTranslation.READ_TRANSFORM_URN,
         SparkBatchPortablePipelineTranslator::translateRead);
+    translatorMap.put(
+        PTransformTranslation.RESHUFFLE_URN,
+        SparkBatchPortablePipelineTranslator::translateReshuffle);
     this.urnToTransformTranslator = translatorMap.build();
   }
 
@@ -171,14 +181,14 @@ public class SparkBatchPortablePipelineTranslator {
         WindowedValue.FullWindowedValueCoder.of(inputValueCoder, windowFn.windowCoder());
 
     JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupedByKeyAndWindow;
+    Partitioner partitioner = getPartitioner(context);
     if (windowingStrategy.getWindowFn().isNonMerging()
         && windowingStrategy.getTimestampCombiner() == TimestampCombiner.END_OF_WINDOW) {
       // we can have a memory sensitive translation for non-merging windows
       groupedByKeyAndWindow =
           GroupNonMergingWindowsFunctions.groupByKeyAndWindow(
-              inputRdd, inputKeyCoder, inputValueCoder, windowingStrategy);
+              inputRdd, inputKeyCoder, inputValueCoder, windowingStrategy, partitioner);
     } else {
-      Partitioner partitioner = getPartitioner(context);
       JavaRDD<KV<K, Iterable<WindowedValue<V>>>> groupedByKeyOnly =
           GroupCombineFunctions.groupByKeyOnly(inputRdd, inputKeyCoder, wvCoder, partitioner);
       // for batch, GroupAlsoByWindow uses an in-memory StateInternals.
@@ -206,9 +216,11 @@ public class SparkBatchPortablePipelineTranslator {
     }
     String inputPCollectionId = stagePayload.getInput();
     Dataset inputDataset = context.popDataset(inputPCollectionId);
-    JavaRDD<WindowedValue<InputT>> inputRdd = ((BoundedDataset<InputT>) inputDataset).getRDD();
     Map<String, String> outputs = transformNode.getTransform().getOutputsMap();
     BiMap<String, Integer> outputExtractionMap = createOutputMap(outputs.values());
+    Components components = pipeline.getComponents();
+    Coder windowCoder =
+        getWindowingStrategy(inputPCollectionId, components).getWindowFn().windowCoder();
 
     ImmutableMap.Builder<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>>
         broadcastVariablesBuilder = ImmutableMap.builder();
@@ -223,14 +235,52 @@ public class SparkBatchPortablePipelineTranslator {
       broadcastVariablesBuilder.put(collectionId, tuple2);
     }
 
-    SparkExecutableStageFunction<InputT, SideInputT> function =
-        new SparkExecutableStageFunction<>(
-            stagePayload,
-            context.jobInfo,
-            outputExtractionMap,
-            broadcastVariablesBuilder.build(),
-            MetricsAccumulator.getInstance());
-    JavaRDD<RawUnionValue> staged = inputRdd.mapPartitions(function);
+    JavaRDD<RawUnionValue> staged;
+    if (stagePayload.getUserStatesCount() > 0 || stagePayload.getTimersCount() > 0) {
+      Coder<WindowedValue<InputT>> windowedInputCoder =
+          instantiateCoder(inputPCollectionId, components);
+      Coder valueCoder =
+          ((WindowedValue.FullWindowedValueCoder) windowedInputCoder).getValueCoder();
+      // Stateful stages are only allowed of KV input to be able to group on the key
+      if (!(valueCoder instanceof KvCoder)) {
+        throw new IllegalStateException(
+            String.format(
+                Locale.ENGLISH,
+                "The element coder for stateful DoFn '%s' must be KvCoder but is: %s",
+                inputPCollectionId,
+                valueCoder.getClass().getSimpleName()));
+      }
+      Coder keyCoder = ((KvCoder) valueCoder).getKeyCoder();
+      Coder innerValueCoder = ((KvCoder) valueCoder).getValueCoder();
+      WindowingStrategy windowingStrategy = getWindowingStrategy(inputPCollectionId, components);
+      WindowFn<Object, BoundedWindow> windowFn = windowingStrategy.getWindowFn();
+      WindowedValue.WindowedValueCoder wvCoder =
+          WindowedValue.FullWindowedValueCoder.of(innerValueCoder, windowFn.windowCoder());
+
+      JavaPairRDD<ByteArray, Iterable<WindowedValue<KV>>> groupedByKey =
+          groupByKeyPair(inputDataset, keyCoder, wvCoder);
+      SparkExecutableStageFunction<KV, SideInputT> function =
+          new SparkExecutableStageFunction<>(
+              stagePayload,
+              context.jobInfo,
+              outputExtractionMap,
+              broadcastVariablesBuilder.build(),
+              MetricsAccumulator.getInstance(),
+              windowCoder);
+      staged = groupedByKey.flatMap(function.forPair());
+    } else {
+      JavaRDD<WindowedValue<InputT>> inputRdd2 = ((BoundedDataset<InputT>) inputDataset).getRDD();
+      SparkExecutableStageFunction<InputT, SideInputT> function2 =
+          new SparkExecutableStageFunction<>(
+              stagePayload,
+              context.jobInfo,
+              outputExtractionMap,
+              broadcastVariablesBuilder.build(),
+              MetricsAccumulator.getInstance(),
+              windowCoder);
+      staged = inputRdd2.mapPartitions(function2);
+    }
+
     String intermediateId = getExecutableStageIntermediateId(transformNode);
     context.pushDataset(
         intermediateId,
@@ -272,6 +322,13 @@ public class SparkBatchPortablePipelineTranslator {
           String.format("EmptyOutputSink_%d", context.nextSinkId()),
           new BoundedDataset<>(outputRdd));
     }
+  }
+
+  /** Wrapper to help with type inference for {@link GroupCombineFunctions#groupByKeyPair}. */
+  private static <K, V> JavaPairRDD<ByteArray, Iterable<WindowedValue<KV<K, V>>>> groupByKeyPair(
+      Dataset dataset, Coder<K> keyCoder, WindowedValueCoder<V> wvCoder) {
+    JavaRDD<WindowedValue<KV<K, V>>> inputRdd = ((BoundedDataset<KV<K, V>>) dataset).getRDD();
+    return GroupCombineFunctions.groupByKeyPair(inputRdd, keyCoder, wvCoder);
   }
 
   /**
@@ -332,6 +389,25 @@ public class SparkBatchPortablePipelineTranslator {
     context.pushDataset(getOutputId(transformNode), new BoundedDataset<>(input));
   }
 
+  private static <K, V> void translateReshuffle(
+      PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkTranslationContext context) {
+    String inputId = getInputId(transformNode);
+    JavaRDD<WindowedValue<KV<K, V>>> inRDD =
+        ((BoundedDataset<KV<K, V>>) context.popDataset(inputId)).getRDD();
+    RunnerApi.Components components = pipeline.getComponents();
+    WindowingStrategy windowingStrategy = getWindowingStrategy(inputId, components);
+    WindowedValueCoder<KV<K, V>> windowedCoder = getWindowedValueCoder(inputId, components);
+    KvCoder<K, V> coder = (KvCoder<K, V>) windowedCoder.getValueCoder();
+    final WindowFn windowFn = windowingStrategy.getWindowFn();
+    final Coder<K> keyCoder = coder.getKeyCoder();
+    final WindowedValue.WindowedValueCoder<V> wvCoder =
+        WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
+
+    JavaRDD<WindowedValue<KV<K, V>>> reshuffled =
+        GroupCombineFunctions.reshuffle(inRDD, keyCoder, wvCoder);
+    context.pushDataset(getOutputId(transformNode), new BoundedDataset<>(reshuffled));
+  }
+
   @Nullable
   private static Partitioner getPartitioner(SparkTranslationContext context) {
     Long bundleSize =
@@ -365,5 +441,15 @@ public class SparkBatchPortablePipelineTranslator {
 
   private static String getExecutableStageIntermediateId(PTransformNode transformNode) {
     return transformNode.getId();
+  }
+
+  /** Predicate to determine whether a URN is a Spark native transform. */
+  @AutoService(NativeTransforms.IsNativeTransform.class)
+  public static class IsSparkNativeTransform implements NativeTransforms.IsNativeTransform {
+    @Override
+    public boolean test(RunnerApi.PTransform pTransform) {
+      return PTransformTranslation.RESHUFFLE_URN.equals(
+          PTransformTranslation.urnForTransformOrNull(pTransform));
+    }
   }
 }

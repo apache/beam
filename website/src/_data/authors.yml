@@ -22,6 +22,9 @@ aljoscha:
 altay:
     name: Ahmet Altay
     email: altay@apache.org
+angoenka:
+    name: Ankur Goenka
+    email: goenka@apache.org
 ccy:
     name: Charles Chen
     email: ccy@apache.org
@@ -44,6 +47,10 @@ harshithdwivedi:
     name: Harshit Dwivedi
     email: harshithdwivedi@gmail.com
     twitter: harshithdwivedi
+henryken:
+    name: Henry Suryawirawan
+    email: henry.ken@gmail.com
+    twitter: henry_ken
 iemejia:
     name: Ismaël Mejía
     email: iemejia@apache.org
@@ -109,3 +116,8 @@ mbaetens:
     name: Matthias Baetens
     email: baetensmatthias@gmail.com
     twitter: matthiasbaetens
+rez:
+    name: Reza Rokni
+    email: rez@google.com
+    twitter: rarokni
+

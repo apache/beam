@@ -2054,10 +2054,10 @@ public class Combine {
    * <pre>{@code
    * PCollection<KV<String, Integer>> pc = ...;
    * PCollection<KV<String, Iterable<Integer>>> groupedByKey = pc.apply(
-   *     new GroupByKey<String, Integer>());
-   * PCollection<KV<String, Integer>> sumByKey = groupedByKey.apply(
-   *     Combine.<String, Integer>groupedValues(
-   *         new Sum.SumIntegerFn()));
+   *     GroupByKey.create());
+   * PCollection<KV<String, Integer>> sumByKey =
+   *     groupedByKey.apply(Combine.groupedValues(
+   *         Sum.ofIntegers()));
    * }</pre>
    *
    * <p>See also {@link #perKey}/{@link PerKey Combine.PerKey}, which captures the common pattern of

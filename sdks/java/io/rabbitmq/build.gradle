@@ -23,11 +23,11 @@ description = "Apache Beam :: SDKs :: Java :: IO :: RabbitMQ"
 ext.summary = "IO to read and write to a RabbitMQ broker."
 
 dependencies {
-  shadow library.java.vendored_guava_20_0
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow library.java.joda_time
-  shadow "com.rabbitmq:amqp-client:4.9.3"
-  testCompile project(path: ":sdks:java:io:common", configuration: "shadowTest")
+  compile library.java.vendored_guava_20_0
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.joda_time
+  compile "com.rabbitmq:amqp-client:4.9.3"
+  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile "org.apache.qpid:qpid-broker:0.28"
   testCompile "org.apache.qpid:qpid-broker-core:0.28"
   testCompile library.java.junit
@@ -35,5 +35,5 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_api
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(path: ":runners:direct-java")
+  testRuntimeOnly project(":runners:direct-java")
 }

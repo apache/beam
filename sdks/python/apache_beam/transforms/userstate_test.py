@@ -66,6 +66,9 @@ class TestStatefulDoFn(DoFn):
 
   @on_timer(EXPIRY_TIMER_1)
   def on_expiry_1(self,
+                  window=DoFn.WindowParam,
+                  timestamp=DoFn.TimestampParam,
+                  key=DoFn.KeyParam,
                   buffer=DoFn.StateParam(BUFFER_STATE_1),
                   timer_1=DoFn.TimerParam(EXPIRY_TIMER_1),
                   timer_2=DoFn.TimerParam(EXPIRY_TIMER_2),
@@ -571,8 +574,10 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
       @on_timer(EMIT_TIMER_1)
       def emit_callback_1(self,
                           window=DoFn.WindowParam,
-                          ts=DoFn.TimestampParam):
-        yield ('timer1', int(ts), int(window.start), int(window.end))
+                          ts=DoFn.TimestampParam,
+                          key=DoFn.KeyParam):
+        yield ('timer1-{key}'.format(key=key),
+               int(ts), int(window.start), int(window.end))
 
     pipeline_options = PipelineOptions()
     with TestPipeline(options=pipeline_options) as p:
@@ -589,19 +594,18 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
        | beam.ParDo(self.record_dofn()))
 
     self.assertEqual(
-        [('timer1', 10, 10, 15)],
+        [('timer1-mykey', 10, 10, 15)],
         sorted(StatefulDoFnOnDirectRunnerTest.all_records))
 
   def test_index_assignment(self):
     class IndexAssigningStatefulDoFn(DoFn):
-      INDEX_STATE = BagStateSpec('index', VarIntCoder())
+      INDEX_STATE = CombiningValueStateSpec('index', sum)
 
       def process(self, element, state=DoFn.StateParam(INDEX_STATE)):
         unused_key, value = element
-        next_index, = list(state.read()) or [0]
-        yield (value, next_index)
-        state.clear()
-        state.add(next_index + 1)
+        current_index = state.read()
+        yield (value, current_index)
+        state.add(1)
 
     with TestPipeline() as p:
       test_stream = (TestStream()

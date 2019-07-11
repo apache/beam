@@ -23,6 +23,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -42,6 +43,11 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.SchemaAndRecord;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -140,6 +146,24 @@ public class Snippets {
               .setDatasetId("samples")
               .setTableId("weather_stations");
       // [END BigQueryTableSpecObject]
+    }
+
+    {
+      // [START BigQueryDataTypes]
+      TableRow row = new TableRow();
+      row.set("string", "abc");
+      byte[] rawbytes = {(byte) 0xab, (byte) 0xac};
+      row.set("bytes", new String(Base64.getEncoder().encodeToString(rawbytes)));
+      row.set("integer", 5);
+      row.set("float", 0.5);
+      row.set("numeric", 5);
+      row.set("boolean", true);
+      row.set("timestamp", "2018-12-31 12:44:31.744957 UTC");
+      row.set("date", "2018-12-31");
+      row.set("time", "12:44:31");
+      row.set("datetime", "2019-06-11T14:44:31");
+      row.set("geography", "POINT(30 10)");
+      // [END BigQueryDataTypes]
     }
 
     {
@@ -504,22 +528,23 @@ public class Snippets {
         TextIO.read()
             .from("<path-to-files>/*")
             .watchForNewFiles(
-                // Check for new files every minute
+                // Check for new files every minute.
                 Duration.standardMinutes(1),
-                // Stop watching the filepattern if no new files appear within an hour
+                // Stop watching the file pattern if no new files appear for an hour.
                 Watch.Growth.afterTimeSinceNewOutput(Duration.standardHours(1))));
     // [END FileProcessPatternProcessNewFilesSnip2]
 
     // [START FileProcessPatternAccessMetadataSnip1]
     p.apply(FileIO.match().filepattern("hdfs://path/to/*.gz"))
-        // withCompression can be omitted - by default compression is detected from the filename.
+        // The withCompression method is optional. By default, the Beam SDK detects compression from
+        // the filename.
         .apply(FileIO.readMatches().withCompression(Compression.GZIP))
         .apply(
             ParDo.of(
                 new DoFn<FileIO.ReadableFile, String>() {
                   @ProcessElement
                   public void process(@Element FileIO.ReadableFile file) {
-                    // We now have access to the file and its metadata
+                    // We can now access the file and its metadata.
                     LOG.info("File Metadata resourceId is {} ", file.getMetadata().resourceId());
                   }
                 }));
@@ -531,12 +556,11 @@ public class Snippets {
 
   // [START SideInputPatternSlowUpdateGlobalWindowSnip1]
   public static void sideInputPatterns() {
-    // Using View.asSingleton, this pipeline uses a dummy external service as illustration.
-    // Run in debug mode to see the output
+    // This pipeline uses View.asSingleton for a placeholder external service.
+    // Run in debug mode to see the output.
     Pipeline p = Pipeline.create();
 
-    // Create slowly updating sideinput
-
+    // Create a side input that updates each second.
     PCollectionView<Map<String, String>> map =
         p.apply(GenerateSequence.from(0).withRate(1, Duration.standardSeconds(5L)))
             .apply(
@@ -550,20 +574,15 @@ public class Snippets {
                       @ProcessElement
                       public void process(
                           @Element Long input, OutputReceiver<Map<String, String>> o) {
-                        // Do any external reads needed here...
-                        // We will make use of our dummy external service.
-                        // Every time this triggers, the complete map will be replaced with that
-                        // read from
-                        // the service.
-                        o.output(DummyExternalService.readDummyData());
+                        // Replace map with test data from the placeholder external service.
+                        // Add external reads here.
+                        o.output(PlaceholderExternalService.readTestData());
                       }
                     }))
             .apply(View.asSingleton());
 
-    // ---- Consume slowly updating sideinput
-
-    // GenerateSequence is only used here to generate dummy data for this illustration.
-    // You would use your real source for example PubSubIO, KafkaIO etc...
+    // Consume side input. GenerateSequence generates test data.
+    // Use a real source (like PubSubIO or KafkaIO) in production.
     p.apply(GenerateSequence.from(0).withRate(1, Duration.standardSeconds(1L)))
         .apply(Window.into(FixedWindows.of(Duration.standardSeconds(1))))
         .apply(Sum.longsGlobally().withoutDefaults())
@@ -577,7 +596,7 @@ public class Snippets {
                         c.outputWithTimestamp(KV.of(1L, c.element()), Instant.now());
 
                         LOG.debug(
-                            "Value is {} key A is {} and key B is {}",
+                            "Value is {}, key A is {}, and key B is {}.",
                             c.element(),
                             keyMap.get("Key_A"),
                             keyMap.get("Key_B"));
@@ -586,10 +605,10 @@ public class Snippets {
                 .withSideInputs(map));
   }
 
-  /** Dummy class representing a pretend external service. */
-  public static class DummyExternalService {
+  /** Placeholder class that represents an external service generating test data. */
+  public static class PlaceholderExternalService {
 
-    public static Map<String, String> readDummyData() {
+    public static Map<String, String> readTestData() {
 
       Map<String, String> map = new HashMap<>();
       Instant now = Instant.now();
@@ -605,4 +624,47 @@ public class Snippets {
 
   // [END SideInputPatternSlowUpdateGlobalWindowSnip1]
 
+  // [START AccessingValueProviderInfoAfterRunSnip1]
+
+  /** Sample of PipelineOptions with a ValueProvider option argument. */
+  public interface MyOptions extends PipelineOptions {
+    @Description("My option")
+    @Default.String("Hello world!")
+    ValueProvider<String> getStringValue();
+
+    void setStringValue(ValueProvider<String> value);
+  }
+
+  public static void accessingValueProviderInfoAfterRunSnip1(String[] args) {
+
+    MyOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(MyOptions.class);
+
+    // Create pipeline.
+    Pipeline p = Pipeline.create(options);
+
+    // Add a branch for logging the ValueProvider value.
+    p.apply(Create.of(1))
+        .apply(
+            ParDo.of(
+                new DoFn<Integer, Integer>() {
+
+                  // Define the DoFn that logs the ValueProvider value.
+                  @ProcessElement
+                  public void process(ProcessContext c) {
+
+                    MyOptions ops = c.getPipelineOptions().as(MyOptions.class);
+                    // This example logs the ValueProvider value, but you could store it by
+                    // pushing it to an external database.
+
+                    LOG.info("Option StringValue was {}", ops.getStringValue());
+                  }
+                }));
+
+    // The main pipeline.
+    p.apply(Create.of(1, 2, 3, 4)).apply(Sum.integersGlobally());
+
+    p.run();
+  }
+
+  // [END AccessingValueProviderInfoAfterRunSnip1]
 }

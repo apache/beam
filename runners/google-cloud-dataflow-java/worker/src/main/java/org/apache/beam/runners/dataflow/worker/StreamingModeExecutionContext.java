@@ -511,7 +511,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               stateFamily,
               stateReader,
               work.getIsNewKey(),
-              stateCache.forKey(getSerializedKey(), stateFamily, getWork().getCacheToken()),
+              stateCache.forKey(
+                  getSerializedKey(), stateFamily, getWork().getCacheToken(), getWorkToken()),
               scopedReadStateSupplier);
 
       this.systemTimerInternals =

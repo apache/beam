@@ -25,16 +25,16 @@ def streamlib_version = "2.9.5"
 def tdigest_version = "3.2"
 
 dependencies {
-  shadow library.java.vendored_guava_20_0
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow "com.clearspring.analytics:stream:$streamlib_version"
-  shadow "com.tdunning:t-digest:$tdigest_version"
-  shadow library.java.slf4j_api
-  shadowTest library.java.avro
-  shadowTest library.java.commons_lang3
-  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.hamcrest_library
-  shadowTest library.java.junit
-  testRuntimeOnly project(path: ":runners:direct-java")
+  compile library.java.vendored_guava_20_0
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile "com.clearspring.analytics:stream:$streamlib_version"
+  compile "com.tdunning:t-digest:$tdigest_version"
+  compile library.java.slf4j_api
+  testCompile library.java.avro
+  testCompile library.java.commons_lang3
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  testCompile library.java.junit
+  testRuntimeOnly project(":runners:direct-java")
 }

@@ -45,9 +45,7 @@ KNOWN_COMPOSITES = frozenset([
 
 COMBINE_URNS = frozenset([
     common_urns.composites.COMBINE_PER_KEY.urn,
-    common_urns.combine_components.COMBINE_PGBKCV.urn,
-    common_urns.combine_components.COMBINE_MERGE_ACCUMULATORS.urn,
-    common_urns.combine_components.COMBINE_EXTRACT_OUTPUTS.urn])
+])
 
 PAR_DO_URNS = frozenset([
     common_urns.primitives.PAR_DO.urn,
@@ -55,7 +53,8 @@ PAR_DO_URNS = frozenset([
     common_urns.sdf_components.SPLIT_RESTRICTION.urn,
     common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
     common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
-    common_urns.sdf_components.PROCESS_ELEMENTS.urn])
+    common_urns.sdf_components.PROCESS_ELEMENTS.urn,
+])
 
 IMPULSE_BUFFER = b'impulse'
 
@@ -308,13 +307,13 @@ class TransformContext(object):
   @memoize_on_instance
   def with_state_iterables(self, coder_id):
     coder = self.components.coders[coder_id]
-    if coder.spec.spec.urn == common_urns.coders.ITERABLE.urn:
+    if coder.spec.urn == common_urns.coders.ITERABLE.urn:
       new_coder_id = unique_name(
           self.components.coders, coder_id + '_state_backed')
       new_coder = self.components.coders[new_coder_id]
       new_coder.CopyFrom(coder)
-      new_coder.spec.spec.urn = common_urns.coders.STATE_BACKED_ITERABLE.urn
-      new_coder.spec.spec.payload = b'1'
+      new_coder.spec.urn = common_urns.coders.STATE_BACKED_ITERABLE.urn
+      new_coder.spec.payload = b'1'
       new_coder.component_coder_ids[0] = self.with_state_iterables(
           coder.component_coder_ids[0])
       return new_coder_id
@@ -343,9 +342,9 @@ class TransformContext(object):
   @memoize_on_instance
   def length_prefixed_and_safe_coder(self, coder_id):
     coder = self.components.coders[coder_id]
-    if coder.spec.spec.urn == common_urns.coders.LENGTH_PREFIX.urn:
+    if coder.spec.urn == common_urns.coders.LENGTH_PREFIX.urn:
       return coder_id, self.bytes_coder_id
-    elif coder.spec.spec.urn in self._KNOWN_CODER_URNS:
+    elif coder.spec.urn in self._KNOWN_CODER_URNS:
       new_component_ids = [
           self.length_prefixed_coder(c) for c in coder.component_coder_ids]
       if new_component_ids == coder.component_coder_ids:
@@ -373,9 +372,8 @@ class TransformContext(object):
           self.components.coders, coder_id + '_length_prefixed')
       self.components.coders[new_coder_id].CopyFrom(
           beam_runner_api_pb2.Coder(
-              spec=beam_runner_api_pb2.SdkFunctionSpec(
-                  spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=common_urns.coders.LENGTH_PREFIX.urn)),
+              spec=beam_runner_api_pb2.FunctionSpec(
+                  urn=common_urns.coders.LENGTH_PREFIX.urn),
               component_coder_ids=[coder_id]))
       return new_coder_id, self.bytes_coder_id
 
@@ -608,25 +606,22 @@ def lift_combiners(stages, context):
       accumulator_coder_id = combine_payload.accumulator_coder_id
 
       key_accumulator_coder = beam_runner_api_pb2.Coder(
-          spec=beam_runner_api_pb2.SdkFunctionSpec(
-              spec=beam_runner_api_pb2.FunctionSpec(
-                  urn=common_urns.coders.KV.urn)),
+          spec=beam_runner_api_pb2.FunctionSpec(
+              urn=common_urns.coders.KV.urn),
           component_coder_ids=[key_coder_id, accumulator_coder_id])
       key_accumulator_coder_id = context.add_or_get_coder_id(
           key_accumulator_coder)
 
       accumulator_iter_coder = beam_runner_api_pb2.Coder(
-          spec=beam_runner_api_pb2.SdkFunctionSpec(
-              spec=beam_runner_api_pb2.FunctionSpec(
-                  urn=common_urns.coders.ITERABLE.urn)),
+          spec=beam_runner_api_pb2.FunctionSpec(
+              urn=common_urns.coders.ITERABLE.urn),
           component_coder_ids=[accumulator_coder_id])
       accumulator_iter_coder_id = context.add_or_get_coder_id(
           accumulator_iter_coder)
 
       key_accumulator_iter_coder = beam_runner_api_pb2.Coder(
-          spec=beam_runner_api_pb2.SdkFunctionSpec(
-              spec=beam_runner_api_pb2.FunctionSpec(
-                  urn=common_urns.coders.KV.urn)),
+          spec=beam_runner_api_pb2.FunctionSpec(
+              urn=common_urns.coders.KV.urn),
           component_coder_ids=[key_coder_id, accumulator_iter_coder_id])
       key_accumulator_iter_coder_id = context.add_or_get_coder_id(
           key_accumulator_iter_coder)
@@ -771,17 +766,15 @@ def expand_sdf(stages, context):
         # KV[element, restriction]
         paired_coder_id = context.add_or_get_coder_id(
             beam_runner_api_pb2.Coder(
-                spec=beam_runner_api_pb2.SdkFunctionSpec(
-                    spec=beam_runner_api_pb2.FunctionSpec(
-                        urn=common_urns.coders.KV.urn)),
+                spec=beam_runner_api_pb2.FunctionSpec(
+                    urn=common_urns.coders.KV.urn),
                 component_coder_ids=[element_coder_id,
                                      pardo_payload.restriction_coder_id]))
         # KV[KV[element, restriction], double]
         sized_coder_id = context.add_or_get_coder_id(
             beam_runner_api_pb2.Coder(
-                spec=beam_runner_api_pb2.SdkFunctionSpec(
-                    spec=beam_runner_api_pb2.FunctionSpec(
-                        urn=common_urns.coders.KV.urn)),
+                spec=beam_runner_api_pb2.FunctionSpec(
+                    urn=common_urns.coders.KV.urn),
                 component_coder_ids=[
                     paired_coder_id,
                     context.add_or_get_coder_id(
@@ -1020,9 +1013,6 @@ def greedily_fuse(stages, pipeline_context):
       for output in transform.outputs.values():
         producers_by_pcoll[output] = stage
 
-  logging.debug('consumers\n%s', consumers_by_pcoll)
-  logging.debug('producers\n%s', producers_by_pcoll)
-
   # Now try to fuse away all pcollections.
   for pcoll, producer in producers_by_pcoll.items():
     write_pcoll = None
@@ -1180,15 +1170,14 @@ def inject_timer_pcollections(stages, pipeline_context):
               next(iter(transform.inputs.values()))]
           # Create the appropriate coder for the timer PCollection.
           key_coder_id = input_pcoll.coder_id
-          if (pipeline_context.components.coders[key_coder_id].spec.spec.urn
+          if (pipeline_context.components.coders[key_coder_id].spec.urn
               == common_urns.coders.KV.urn):
             key_coder_id = pipeline_context.components.coders[
                 key_coder_id].component_coder_ids[0]
           key_timer_coder_id = pipeline_context.add_or_get_coder_id(
               beam_runner_api_pb2.Coder(
-                  spec=beam_runner_api_pb2.SdkFunctionSpec(
-                      spec=beam_runner_api_pb2.FunctionSpec(
-                          urn=common_urns.coders.KV.urn)),
+                  spec=beam_runner_api_pb2.FunctionSpec(
+                      urn=common_urns.coders.KV.urn),
                   component_coder_ids=[key_coder_id, spec.timer_coder_id]))
           # Inject the read and write pcollections.
           timer_read_pcoll = unique_name(
@@ -1263,15 +1252,14 @@ def window_pcollection_coders(stages, pipeline_context):
   """
   def windowed_coder_id(coder_id, window_coder_id):
     proto = beam_runner_api_pb2.Coder(
-        spec=beam_runner_api_pb2.SdkFunctionSpec(
-            spec=beam_runner_api_pb2.FunctionSpec(
-                urn=common_urns.coders.WINDOWED_VALUE.urn)),
+        spec=beam_runner_api_pb2.FunctionSpec(
+            urn=common_urns.coders.WINDOWED_VALUE.urn),
         component_coder_ids=[coder_id, window_coder_id])
     return pipeline_context.add_or_get_coder_id(
         proto, coder_id + '_windowed')
 
   for pcoll in pipeline_context.components.pcollections.values():
-    if (pipeline_context.components.coders[pcoll.coder_id].spec.spec.urn
+    if (pipeline_context.components.coders[pcoll.coder_id].spec.urn
         != common_urns.coders.WINDOWED_VALUE.urn):
       new_coder_id = windowed_coder_id(
           pcoll.coder_id,
@@ -1324,4 +1312,5 @@ def create_buffer_id(name, kind='materialize'):
 
 
 def split_buffer_id(buffer_id):
+  """A buffer id is "kind:pcollection_id". Split into (kind, pcoll_id). """
   return buffer_id.decode('utf-8').split(':', 1)

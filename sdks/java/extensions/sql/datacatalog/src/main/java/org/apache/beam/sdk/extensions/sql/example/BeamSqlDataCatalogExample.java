@@ -91,7 +91,7 @@ public class BeamSqlDataCatalogExample {
           "ERROR: SQL query or output file is not specified."
               + "To run this example:\n"
               + "./gradlew "
-              + ":beam-sdks-java-extensions-sql-datacatalog:runDataCatalogExample "
+              + ":sdks:java:extensions:sql:datacatalog:runDataCatalogExample "
               + "-PgcpProject=<project> "
               + "-PgcsTempRoot=<GCS temp location> "
               + "-PqueryString=<query> "

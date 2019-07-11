@@ -35,11 +35,11 @@ import org.gradle.api.publish.maven.MavenPublication
  *   <li>Increment the vendored artifact version only if we need to release a new version.
  * </ul>
  *
- * <p>Example for com.google.guava:guava:20.0:
+ * <p>Example for com.google.guava:guava:26.0-jre:
  * <ul>
  *   <li>groupId: org.apache.beam
- *   <li>artifactId: guava-20_0
- *   <li>namespace: org.apache.beam.vendor.guava.v20_0
+ *   <li>artifactId: guava-26_0-jre
+ *   <li>namespace: org.apache.beam.vendor.guava.v26_0_jre
  *   <li>version: 0.1
  * </ul>
  *
@@ -69,6 +69,9 @@ class VendorJavaPlugin implements Plugin<Project> {
     // task
     project.ext.vendorJava = {
       VendorJavaPluginConfig config = it ? it as VendorJavaPluginConfig : new VendorJavaPluginConfig()
+
+      project.apply plugin: 'base'
+      project.archivesBaseName = config.artifactId
 
       if (!isRelease(project)) {
         config.version += '-SNAPSHOT'

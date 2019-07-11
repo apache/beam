@@ -23,10 +23,12 @@ import unittest
 
 from apache_beam import Create
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import BeamAssertException
 from apache_beam.testing.util import TestWindowedValue
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import is_empty
+from apache_beam.testing.util import is_not_empty
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
@@ -98,6 +100,15 @@ class UtilTest(unittest.TestCase):
     with self.assertRaises(Exception):
       with TestPipeline() as p:
         assert_that(p | Create([1, 2, 3]), is_empty())
+
+  def test_assert_that_passes_is_not_empty(self):
+    with TestPipeline() as p:
+      assert_that(p | Create([1, 2, 3]), is_not_empty())
+
+  def test_assert_that_fails_on_empty_expected(self):
+    with self.assertRaises(BeamAssertException):
+      with TestPipeline() as p:
+        assert_that(p | Create([]), is_not_empty())
 
 
 if __name__ == '__main__':

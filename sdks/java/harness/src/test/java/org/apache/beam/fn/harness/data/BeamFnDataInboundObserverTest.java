@@ -102,10 +102,7 @@ public class BeamFnDataInboundObserverTest {
     BeamFnApi.Elements.Data.Builder builder =
         BeamFnApi.Elements.Data.newBuilder()
             .setInstructionReference("777L")
-            .setTarget(
-                BeamFnApi.Target.newBuilder()
-                    .setPrimitiveTransformReference("999L")
-                    .setName("Test"));
+            .setPtransformId("999L");
     ByteString.Output output = ByteString.newOutput();
     for (String value : values) {
       CODER.encode(valueInGlobalWindow(value), output);
