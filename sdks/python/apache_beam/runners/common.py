@@ -697,6 +697,13 @@ class PerWindowInvoker(DoFnInvoker):
     restriction_tracker = self.restriction_tracker
     current_windowed_value = self.current_windowed_value
     if restriction_tracker and current_windowed_value:
+      # Temporary workaround for [BEAM-7473]: get current_watermark before
+      # split, in case watermark gets advanced before getting split results.
+      # In worst case, current_watermark is always stale, which is ok.
+      # If no current watermark reported, use MIN_TIMESTAMP by default.
+      current_watermark = (restriction_tracker.current_watermark()
+                           if restriction_tracker.current_watermark()
+                           else timestamp.MIN_TIMESTAMP)
       split = restriction_tracker.try_split(fraction)
       if split:
         primary, residual = split
@@ -704,10 +711,6 @@ class PerWindowInvoker(DoFnInvoker):
         restriction_provider = self.signature.get_restriction_provider()
         primary_size = restriction_provider.restriction_size(element, primary)
         residual_size = restriction_provider.restriction_size(element, residual)
-        # If no current watermark reported, use MIN_TIMESTAMP by default.
-        current_watermark = (restriction_tracker.current_watermark()
-                             if restriction_tracker.current_watermark()
-                             else timestamp.MIN_TIMESTAMP)
         return (
             (self.current_windowed_value.with_value(
                 ((element, primary), primary_size)),

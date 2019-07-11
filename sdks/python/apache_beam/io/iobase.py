@@ -1138,7 +1138,10 @@ class RestrictionTracker(object):
     raise NotImplementedError
 
   def current_watermark(self):
-    """Returns current watermark. By default, not report watermark."""
+    """Returns current watermark. By default, not report watermark.
+
+    TODO(BEAM-7473): Provide synchronization guarantee by using a wrapper.
+    """
     return None
 
   def checkpoint(self):
