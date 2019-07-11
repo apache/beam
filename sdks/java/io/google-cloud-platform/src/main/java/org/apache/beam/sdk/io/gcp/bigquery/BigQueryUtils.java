@@ -473,6 +473,14 @@ public class BigQueryUtils {
   public static Object convertAvroFormat(
       Field beamField, Object avroValue, BigQueryUtils.ConversionOptions options) {
     TypeName beamFieldTypeName = beamField.getType().getTypeName();
+    if (avroValue == null) {
+      if (beamField.getType().getNullable()) {
+        return null;
+      } else {
+        throw new IllegalArgumentException(
+            String.format("Field %s not nullable", beamField.getName()));
+      }
+    }
     switch (beamFieldTypeName) {
       case INT16:
       case INT32:
