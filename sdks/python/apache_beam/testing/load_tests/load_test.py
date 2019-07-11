@@ -93,7 +93,7 @@ class LoadTest(unittest.TestCase):
       self.fail(str(exc))
 
   def are_metrics_collected(self):
-    return self.publish_to_big_query != 'true' and None not in (
+    return self.publish_to_big_query == 'true' and None not in (
         self.project_id, self.metrics_dataset, self.metrics_namespace)
 
 
