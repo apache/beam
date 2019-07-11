@@ -74,13 +74,16 @@ class LineSource(iobase.BoundedSource):
     if start_position is None:
       start_position = 0
     if stop_position is None:
-      stop_position = self.estimate_size()
+      stop_position = self._get_file_size()
     return range_trackers.OffsetRangeTracker(start_position, stop_position)
 
   def default_output_coder(self):
     return coders.BytesCoder()
 
   def estimate_size(self):
+    return self._get_file_size()
+
+  def _get_file_size(self):
     with open(self._file_name, 'rb') as f:
       f.seek(0, os.SEEK_END)
       return f.tell()
@@ -107,6 +110,12 @@ class SourcesTest(unittest.TestCase):
     result = [line for line in source.read(range_tracker)]
 
     self.assertCountEqual([b'aaaa', b'bbbb', b'cccc', b'dddd'], result)
+
+  def test_source_estimated_size(self):
+    file_name = self._create_temp_file(b'aaaa\n')
+
+    source = LineSource(file_name)
+    self.assertEqual(5, source.estimate_size())
 
   def test_run_direct(self):
     file_name = self._create_temp_file(b'aaaa\nbbbb\ncccc\ndddd')
