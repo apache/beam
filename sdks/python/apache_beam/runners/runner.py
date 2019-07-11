@@ -35,6 +35,7 @@ _ALL_KNOWN_RUNNERS = (
     'apache_beam.runners.direct.direct_runner.BundleBasedDirectRunner',
     'apache_beam.runners.direct.direct_runner.DirectRunner',
     'apache_beam.runners.direct.direct_runner.SwitchingDirectRunner',
+    'apache_beam.runners.portability.flink_runner.FlinkRunner',
     'apache_beam.runners.portability.portable_runner.PortableRunner',
     'apache_beam.runners.test.TestDirectRunner',
     'apache_beam.runners.test.TestDataflowRunner',
