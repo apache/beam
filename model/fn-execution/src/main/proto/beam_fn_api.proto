@@ -194,7 +194,8 @@ message BundleApplication {
   // are produced by this PTransform into each of its output PCollections
   // when invoked with this application.
   //
-  // If there is no watermark reported, use MIN_TIMESTAMP by default.
+  // If there is no watermark reported from RestrictionTracker, the sdk should
+  // report MIN_TIMESTAMP by default.
   map<string, google.protobuf.Timestamp> output_watermarks = 4;
 
   // (Required) Whether this application potentially produces an unbounded
