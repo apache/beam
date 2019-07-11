@@ -23,6 +23,20 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 
+/**
+ * {@link TableProvider} for {@link ParquetTable}
+ *
+ * <p>A sample of parquet table is:
+ *
+ * <pre>{@code
+ * CREATE TABLE ORDERS(
+ *   ID INT COMMENT 'this is the primary key',
+ *   NAME VARCHAR(127) COMMENT 'this is the name'
+ * )
+ * TYPE 'parquet'
+ * LOCATION '/home/admin/orders'
+ * }</pre>
+ */
 @AutoService(TableProvider.class)
 public class ParquetTableProvider extends InMemoryMetaTableProvider {
   @Override

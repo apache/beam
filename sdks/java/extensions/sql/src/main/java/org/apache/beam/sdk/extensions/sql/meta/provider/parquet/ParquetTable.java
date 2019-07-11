@@ -47,13 +47,7 @@ public class ParquetTable extends BaseBeamTable implements Serializable {
 
   @Override
   public PDone buildIOWriter(PCollection<Row> input) {
-    PTransform<PCollection<Row>, PCollection<GenericRecord>> writeConverter = null;
-
-    return input
-            .apply("RowToGenericRecord", writeConverter)
-            .apply("ParquetIOWrite", FileIO.<GenericRecord>.write().via(
-                    ParquetIO.sink(AvroUtils.toAvroSchema(schema))).to()
-            );
+    throw new UnsupportedOperationException("Writing to a Parquet file is not supported");
   }
 
   @Override
