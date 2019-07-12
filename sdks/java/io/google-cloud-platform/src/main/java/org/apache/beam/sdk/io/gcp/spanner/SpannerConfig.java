@@ -56,6 +56,9 @@ public abstract class SpannerConfig implements Serializable {
   public abstract ValueProvider<String> getHost();
 
   @Nullable
+  public abstract SpannerOptionsFactory getSpannerOptionsFactory();
+
+  @Nullable
   @VisibleForTesting
   abstract ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
 
@@ -103,9 +106,23 @@ public abstract class SpannerConfig implements Serializable {
 
     abstract Builder setHost(ValueProvider<String> host);
 
+    abstract Builder setSpannerOptionsFactory(SpannerOptionsFactory spannerOptionsFactory);
+
     abstract Builder setServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory);
 
     public abstract SpannerConfig build();
+  }
+
+  /**
+   * Factory class for creating a {@link SpannerOptions} with pre-set values.
+   *
+   * <p>Note that SpannerOptions values for ProjectId, HostId, and ServiceFactory will be overridden
+   * if specified in SpannerConfig.
+   *
+   * <p>Note that the HeaderProvider will always be overridden by a Beam header.
+   */
+  public interface SpannerOptionsFactory {
+    SpannerOptions create();
   }
 
   public SpannerConfig withProjectId(ValueProvider<String> projectId) {
@@ -136,13 +153,25 @@ public abstract class SpannerConfig implements Serializable {
     return toBuilder().setHost(host).build();
   }
 
+  public SpannerConfig withSpannerOptionsFactory(SpannerOptionsFactory spannerOptionsFactory) {
+    return toBuilder().setSpannerOptionsFactory(spannerOptionsFactory).build();
+  }
+
   @VisibleForTesting
   SpannerConfig withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
     return toBuilder().setServiceFactory(serviceFactory).build();
   }
 
   public SpannerAccessor connectToSpanner() {
-    SpannerOptions.Builder builder = SpannerOptions.newBuilder();
+
+    SpannerOptions.Builder builder;
+
+    if (getSpannerOptionsFactory() != null) {
+      builder = getSpannerOptionsFactory().create().toBuilder();
+    } else {
+      builder = SpannerOptions.newBuilder();
+    }
+
     if (getProjectId() != null) {
       builder.setProjectId(getProjectId().get());
     }
