@@ -57,29 +57,39 @@ class SyntheticPipelineTest(unittest.TestCase):
 
   # pylint: disable=expression-not-assigned
 
-  def test_synthetic_step(self):
-    start = time.time()
+  def test_count_elements_after_synthetic_step(self):
     with beam.Pipeline() as p:
       pcoll = p | beam.Create(list(range(10))) | beam.ParDo(
           synthetic_pipeline.SyntheticStep(0, 0.5, 10))
       assert_that(
           pcoll | beam.combiners.Count.Globally(), equal_to([100]))
 
-    elapsed = time.time() - start
-    # TODO(chamikaramj): Fix the flaky time based bounds.
-    self.assertTrue(0.5 <= elapsed <= 3, elapsed)
-
-  def test_synthetic_sdf_step(self):
+  def test_minimal_runtime_with_synthetic_step_delay(self):
     start = time.time()
+    with beam.Pipeline() as p:
+      p | beam.Create(list(range(10))) | beam.ParDo(
+          synthetic_pipeline.SyntheticStep(0, 0.5, 10))
+
+    elapsed = time.time() - start
+
+    self.assertTrue(elapsed >= 0.5, elapsed)
+
+  def test_count_elements_after_synthetic_sdf_step(self):
     with beam.Pipeline() as p:
       pcoll = p | beam.Create(list(range(10))) | beam.ParDo(
           synthetic_pipeline.get_synthetic_sdf_step(0, 0.5, 10))
       assert_that(
           pcoll | beam.combiners.Count.Globally(), equal_to([100]))
 
+  def test_minimal_runtime_with_synthetic_sdf_step_bundle_delay(self):
+    start = time.time()
+    with beam.Pipeline() as p:
+      p | beam.Create(list(range(10))) | beam.ParDo(
+          synthetic_pipeline.get_synthetic_sdf_step(0, 0.5, 10))
+
     elapsed = time.time() - start
-    # TODO(chamikaramj): Fix the flaky time based bounds.
-    self.assertTrue(0.5 <= elapsed <= 3, elapsed)
+
+    self.assertTrue(elapsed >= 0.5, elapsed)
 
   def test_synthetic_step_split_provider(self):
     provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(
