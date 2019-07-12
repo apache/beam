@@ -180,7 +180,7 @@ public class TranslationContext {
   // --------------------------------------------------------------------------------------------
 
   /** Starts the pipeline. */
-  public void startPipeline(boolean testMode) {
+  public void startPipeline() {
     try {
       SparkStructuredStreamingPipelineOptions options =
           serializablePipelineOptions.get().as(SparkStructuredStreamingPipelineOptions.class);
@@ -194,9 +194,10 @@ public class TranslationContext {
             dataStreamWriter =
                 dataStreamWriter.option("checkpointLocation", options.getCheckpointDir());
           }
+          // TODO: Do not await termination here.
           dataStreamWriter.foreach(new NoOpForeachWriter<>()).start().awaitTermination();
         } else {
-          if (testMode) {
+          if (options.getTestMode()) {
             // cannot use dataset.show because dataset schema is binary so it will print binary
             // code.
             List<WindowedValue> windowedValues = ((Dataset<WindowedValue>) dataset).collectAsList();
