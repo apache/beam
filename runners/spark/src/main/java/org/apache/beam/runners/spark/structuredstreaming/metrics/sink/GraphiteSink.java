@@ -18,11 +18,10 @@
 package org.apache.beam.runners.spark.structuredstreaming.metrics.sink;
 
 import com.codahale.metrics.MetricRegistry;
+import java.util.Properties;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.AggregatorMetric;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.WithMetricsSupport;
 import org.apache.spark.metrics.sink.Sink;
-
-import java.util.Properties;
 
 /** A Spark {@link Sink} that is tailored to report {@link AggregatorMetric} metrics to Graphite. */
 public class GraphiteSink extends org.apache.spark.metrics.sink.GraphiteSink {

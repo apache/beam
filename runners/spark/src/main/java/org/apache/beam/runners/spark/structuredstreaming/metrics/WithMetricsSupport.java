@@ -25,6 +25,9 @@ import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.SortedMap;
 import org.apache.beam.runners.spark.structuredstreaming.aggregators.NamedAggregators;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
@@ -37,10 +40,6 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.SortedMap;
-
 /**
  * A {@link MetricRegistry} decorator-like that supports {@link AggregatorMetric} and {@link
  * SparkBeamMetric} as {@link Gauge Gauges}.
@@ -50,8 +49,7 @@ import java.util.SortedMap;
  */
 public class WithMetricsSupport extends MetricRegistry {
 
-  private static final Logger LOG = LoggerFactory.getLogger(
-      WithMetricsSupport.class);
+  private static final Logger LOG = LoggerFactory.getLogger(WithMetricsSupport.class);
 
   private final MetricRegistry internalMetricRegistry;
 

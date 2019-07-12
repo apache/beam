@@ -20,7 +20,6 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.helpers;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.spark.api.java.function.MapFunction;
-import scala.Tuple2;
 
 /** Helper functions for working with {@link org.apache.beam.sdk.values.KV}. */
 public final class KVHelpers {

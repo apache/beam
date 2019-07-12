@@ -17,13 +17,12 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.aggregators;
 
-import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
-
 import java.io.Serializable;
 import java.util.Map;
 import java.util.TreeMap;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 
 /**
  * This class wraps a map of named aggregators. Spark expects that all accumulators be declared
@@ -62,8 +61,7 @@ public class NamedAggregators implements Serializable {
    * @return This instance of Named aggregators with associated states updated to reflect the other
    *     instance's aggregators.
    */
-  public NamedAggregators merge(
-      NamedAggregators other) {
+  public NamedAggregators merge(NamedAggregators other) {
     for (Map.Entry<String, State<?, ?, ?>> e : other.mNamedAggregators.entrySet()) {
       String key = e.getKey();
       State<?, ?, ?> otherValue = e.getValue();

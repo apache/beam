@@ -36,7 +36,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.api.java.function.MapGroupsFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.KeyValueGroupedDataset;
@@ -55,31 +54,42 @@ class GroupByKeyTranslatorBatch<K, V>
 
     Dataset<WindowedValue<KV<K, V>>> input = context.getDataset(inputPCollection);
 
-    //group by key only
-    KeyValueGroupedDataset<K, WindowedValue<KV<K, V>>> groupByKeyOnly = input
-        .groupByKey(KVHelpers.extractKey(), EncoderHelpers.genericEncoder());
+    // group by key only
+    KeyValueGroupedDataset<K, WindowedValue<KV<K, V>>> groupByKeyOnly =
+        input.groupByKey(KVHelpers.extractKey(), EncoderHelpers.genericEncoder());
 
     // Materialize groupByKeyOnly values, potential OOM because of creation of new iterable
-    Dataset<KV<K, Iterable<WindowedValue<V>>>> materialized = groupByKeyOnly.mapGroups(
-        (MapGroupsFunction<K, WindowedValue<KV<K, V>>, KV<K, Iterable<WindowedValue<V>>>>) (key, iterator) -> {
-          List<WindowedValue<V>> values = new ArrayList<>();
-          while (iterator.hasNext()) {
-            WindowedValue<KV<K, V>> next = iterator.next();
-            values.add(WindowedValue
-                .of(next.getValue().getValue(), next.getTimestamp(), next.getWindows(),
-                    next.getPane()));
-          }
-          KV<K, Iterable<WindowedValue<V>>> kv = KV.of(key, Iterables.unmodifiableIterable(values));
-          return kv;
-        }, EncoderHelpers.kvEncoder());
+    Dataset<KV<K, Iterable<WindowedValue<V>>>> materialized =
+        groupByKeyOnly.mapGroups(
+            (MapGroupsFunction<K, WindowedValue<KV<K, V>>, KV<K, Iterable<WindowedValue<V>>>>)
+                (key, iterator) -> {
+                  List<WindowedValue<V>> values = new ArrayList<>();
+                  while (iterator.hasNext()) {
+                    WindowedValue<KV<K, V>> next = iterator.next();
+                    values.add(
+                        WindowedValue.of(
+                            next.getValue().getValue(),
+                            next.getTimestamp(),
+                            next.getWindows(),
+                            next.getPane()));
+                  }
+                  KV<K, Iterable<WindowedValue<V>>> kv =
+                      KV.of(key, Iterables.unmodifiableIterable(values));
+                  return kv;
+                },
+            EncoderHelpers.kvEncoder());
 
     WindowingStrategy<?, ?> windowingStrategy = inputPCollection.getWindowingStrategy();
     KvCoder<K, V> coder = (KvCoder<K, V>) inputPCollection.getCoder();
     // group also by windows
-    Dataset<WindowedValue<KV<K, Iterable<V>>>> output = materialized.flatMap(
-        new GroupAlsoByWindowViaOutputBufferFn<>(windowingStrategy,
-            new InMemoryStateInternalsFactory<>(), SystemReduceFn.buffering(coder.getValueCoder()),
-            context.getSerializableOptions()), EncoderHelpers.windowedValueEncoder());
+    Dataset<WindowedValue<KV<K, Iterable<V>>>> output =
+        materialized.flatMap(
+            new GroupAlsoByWindowViaOutputBufferFn<>(
+                windowingStrategy,
+                new InMemoryStateInternalsFactory<>(),
+                SystemReduceFn.buffering(coder.getValueCoder()),
+                context.getSerializableOptions()),
+            EncoderHelpers.windowedValueEncoder());
 
     context.putDataset(context.getOutput(), output);
   }
@@ -95,5 +105,4 @@ class GroupByKeyTranslatorBatch<K, V>
       return InMemoryStateInternals.forKey(key);
     }
   }
-
 }

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
+import java.io.Closeable;
+import java.io.IOException;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsContainerStepMapAccumulator;
@@ -27,9 +29,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
-
-import java.io.Closeable;
-import java.io.IOException;
 
 /** DoFnRunner decorator which registers {@link MetricsContainerImpl}. */
 class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {

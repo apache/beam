@@ -107,7 +107,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
     MetricsContainerStepMapAccumulator metricsAccum = MetricsAccumulator.getInstance();
 
     List<TupleTag<?>> additionalOutputTags = new ArrayList<>();
-    for (TupleTag<?> tag: outputTags) {
+    for (TupleTag<?> tag : outputTags) {
       if (!tag.equals(mainOutputTag)) {
         additionalOutputTags.add(tag);
       }

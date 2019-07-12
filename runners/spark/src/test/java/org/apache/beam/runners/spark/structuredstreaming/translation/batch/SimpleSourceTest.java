@@ -94,4 +94,5 @@ public class SimpleSourceTest implements Serializable {
     PCollection<Integer> input = p.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
     PAssert.that(input).containsInAnyOrder(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
     p.run();
-  }}
+  }
+}

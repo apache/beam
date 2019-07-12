@@ -17,7 +17,13 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.metrics;
 
+import static java.util.stream.Collectors.toList;
+import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
+
 import com.codahale.metrics.Metric;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
@@ -28,13 +34,6 @@ import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-
-import static java.util.stream.Collectors.toList;
-import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
 /**
  * An adapter between the {@link MetricsContainerStepMap} and Codahale's {@link Metric} interface.

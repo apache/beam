@@ -43,37 +43,45 @@ import org.apache.spark.sql.expressions.Aggregator;
 /** An {@link Aggregator} for the Spark Batch Runner.
  * The accumulator is a {@code Iterable<WindowedValue<AccumT>> because an {@code InputT} can be in multiple windows. So, when accumulating {@code InputT} values, we create one accumulator per input window.
  * */
-
 class AggregatorCombiner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
-    extends Aggregator<WindowedValue<KV<K, InputT>>, Iterable<WindowedValue<AccumT>>, Iterable<WindowedValue<OutputT>>> {
+    extends Aggregator<
+        WindowedValue<KV<K, InputT>>,
+        Iterable<WindowedValue<AccumT>>,
+        Iterable<WindowedValue<OutputT>>> {
 
   private final Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
   private WindowingStrategy<InputT, W> windowingStrategy;
   private TimestampCombiner timestampCombiner;
 
-  public AggregatorCombiner(Combine.CombineFn<InputT, AccumT, OutputT> combineFn, WindowingStrategy<?, ?> windowingStrategy) {
+  public AggregatorCombiner(
+      Combine.CombineFn<InputT, AccumT, OutputT> combineFn,
+      WindowingStrategy<?, ?> windowingStrategy) {
     this.combineFn = combineFn;
     this.windowingStrategy = (WindowingStrategy<InputT, W>) windowingStrategy;
     this.timestampCombiner = windowingStrategy.getTimestampCombiner();
   }
 
-  @Override public Iterable<WindowedValue<AccumT>> zero() {
+  @Override
+  public Iterable<WindowedValue<AccumT>> zero() {
     return new ArrayList<>();
   }
 
   private Iterable<WindowedValue<AccumT>> createAccumulator(WindowedValue<KV<K, InputT>> inputWv) {
     AccumT accumulator = combineFn.createAccumulator();
     combineFn.addInput(accumulator, inputWv.getValue().getValue());
-    return Lists.newArrayList(WindowedValue
-        .of(accumulator, inputWv.getTimestamp(), inputWv.getWindows(),
-            inputWv.getPane()));
+    return Lists.newArrayList(
+        WindowedValue.of(
+            accumulator, inputWv.getTimestamp(), inputWv.getWindows(), inputWv.getPane()));
   }
-  @Override public Iterable<WindowedValue<AccumT>> reduce(Iterable<WindowedValue<AccumT>> accumulators,
-      WindowedValue<KV<K, InputT>> inputWv) {
+
+  @Override
+  public Iterable<WindowedValue<AccumT>> reduce(
+      Iterable<WindowedValue<AccumT>> accumulators, WindowedValue<KV<K, InputT>> inputWv) {
     return merge(accumulators, createAccumulator(inputWv));
   }
 
-  @Override public Iterable<WindowedValue<AccumT>> merge(
+  @Override
+  public Iterable<WindowedValue<AccumT>> merge(
       Iterable<WindowedValue<AccumT>> accumulators1,
       Iterable<WindowedValue<AccumT>> accumulators2) {
 
@@ -82,7 +90,7 @@ class AggregatorCombiner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
     Set<W> accumulatorsWindows = collectAccumulatorsWindows(accumulators);
     Map<W, W> windowToMergeResult;
     try {
-     windowToMergeResult = mergeWindows(windowingStrategy, accumulatorsWindows);
+      windowToMergeResult = mergeWindows(windowingStrategy, accumulatorsWindows);
     } catch (Exception e) {
       throw new RuntimeException("Unable to merge accumulators windows", e);
     }
@@ -90,46 +98,56 @@ class AggregatorCombiner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
     // group accumulators by their merged window
     Map<W, List<WindowedValue<AccumT>>> mergedWindowToAccumulators = new HashMap<>();
     for (WindowedValue<AccumT> accumulator : accumulators) {
-      //each accumulator has only one window
+      // each accumulator has only one window
       BoundedWindow accumulatorWindow = accumulator.getWindows().iterator().next();
       W mergedWindowForAccumulator = windowToMergeResult.get(accumulatorWindow);
-      mergedWindowForAccumulator = (mergedWindowForAccumulator == null) ? (W)accumulatorWindow : mergedWindowForAccumulator;
+      mergedWindowForAccumulator =
+          (mergedWindowForAccumulator == null) ? (W) accumulatorWindow : mergedWindowForAccumulator;
 
-      if (mergedWindowToAccumulators.get(mergedWindowForAccumulator) == null){
+      if (mergedWindowToAccumulators.get(mergedWindowForAccumulator) == null) {
         mergedWindowToAccumulators.put(mergedWindowForAccumulator, Lists.newArrayList(accumulator));
-      }
-      else {
+      } else {
         mergedWindowToAccumulators.get(mergedWindowForAccumulator).add(accumulator);
       }
     }
     // merge the accumulators for each mergedWindow
     List<WindowedValue<AccumT>> result = new ArrayList<>();
-    for (Map.Entry<W, List<WindowedValue<AccumT>>> entry : mergedWindowToAccumulators.entrySet()){
+    for (Map.Entry<W, List<WindowedValue<AccumT>>> entry : mergedWindowToAccumulators.entrySet()) {
       W mergedWindow = entry.getKey();
       List<WindowedValue<AccumT>> accumulatorsForMergedWindow = entry.getValue();
-      result.add(WindowedValue
-          .of(combineFn.mergeAccumulators(accumulatorsForMergedWindow.stream().map(x -> x.getValue()).collect(
-              Collectors.toList())), timestampCombiner.combine(accumulatorsForMergedWindow.stream().map(x -> x.getTimestamp()).collect(
-              Collectors.toList())),
-              mergedWindow, PaneInfo.NO_FIRING));
+      result.add(
+          WindowedValue.of(
+              combineFn.mergeAccumulators(
+                  accumulatorsForMergedWindow.stream()
+                      .map(x -> x.getValue())
+                      .collect(Collectors.toList())),
+              timestampCombiner.combine(
+                  accumulatorsForMergedWindow.stream()
+                      .map(x -> x.getTimestamp())
+                      .collect(Collectors.toList())),
+              mergedWindow,
+              PaneInfo.NO_FIRING));
     }
     return result;
   }
 
-  @Override public Iterable<WindowedValue<OutputT>> finish(Iterable<WindowedValue<AccumT>> reduction) {
+  @Override
+  public Iterable<WindowedValue<OutputT>> finish(Iterable<WindowedValue<AccumT>> reduction) {
     List<WindowedValue<OutputT>> result = new ArrayList<>();
-    for (WindowedValue<AccumT> windowedValue: reduction) {
+    for (WindowedValue<AccumT> windowedValue : reduction) {
       result.add(windowedValue.withValue(combineFn.extractOutput(windowedValue.getValue())));
     }
     return result;
   }
 
-  @Override public Encoder<Iterable<WindowedValue<AccumT>>> bufferEncoder() {
+  @Override
+  public Encoder<Iterable<WindowedValue<AccumT>>> bufferEncoder() {
     // TODO replace with accumulatorCoder if possible
     return EncoderHelpers.genericEncoder();
   }
 
-  @Override public Encoder<Iterable<WindowedValue<OutputT>>> outputEncoder() {
+  @Override
+  public Encoder<Iterable<WindowedValue<OutputT>>> outputEncoder() {
     // TODO replace with outputCoder if possible
     return EncoderHelpers.genericEncoder();
   }
@@ -158,7 +176,6 @@ class AggregatorCombiner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
     return windowToMergeResult;
   }
 
-
   private class MergeContextImpl extends WindowFn<InputT, W>.MergeContext {
 
     private Set<W> windows;
@@ -182,5 +199,4 @@ class AggregatorCombiner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
       }
     }
   }
-
 }

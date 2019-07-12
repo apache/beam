@@ -45,8 +45,7 @@ import org.joda.time.Instant;
 /** A FlatMap function that groups by windows in batch mode using {@link ReduceFnRunner}. */
 public class GroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends BoundedWindow>
     implements FlatMapFunction<
-        KV<K, Iterable<WindowedValue<InputT>>>,
-        WindowedValue<KV<K, Iterable<InputT>>>> {
+        KV<K, Iterable<WindowedValue<InputT>>>, WindowedValue<KV<K, Iterable<InputT>>>> {
 
   private final WindowingStrategy<?, W> windowingStrategy;
   private final StateInternalsFactory<K> stateInternalsFactory;

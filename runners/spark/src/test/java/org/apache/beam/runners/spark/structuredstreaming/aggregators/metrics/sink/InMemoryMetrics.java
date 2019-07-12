@@ -19,11 +19,10 @@ package org.apache.beam.runners.spark.structuredstreaming.aggregators.metrics.si
 
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
+import java.util.Properties;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.WithMetricsSupport;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
 import org.apache.spark.metrics.sink.Sink;
-
-import java.util.Properties;
 
 /** An in-memory {@link Sink} implementation for tests. */
 public class InMemoryMetrics implements Sink {

@@ -56,27 +56,36 @@ class CombinePerKeyTranslatorBatch<K, InputT, AccumT, OutputT>
 
     Dataset<WindowedValue<KV<K, InputT>>> inputDataset = context.getDataset(input);
 
-    KeyValueGroupedDataset<K, WindowedValue<KV<K, InputT>>> groupedDataset = inputDataset
-        .groupByKey(KVHelpers.extractKey(), EncoderHelpers.genericEncoder());
+    KeyValueGroupedDataset<K, WindowedValue<KV<K, InputT>>> groupedDataset =
+        inputDataset.groupByKey(KVHelpers.extractKey(), EncoderHelpers.genericEncoder());
 
-    Dataset<Tuple2<K, Iterable<WindowedValue<OutputT>>>> combinedDataset = groupedDataset.agg(
-        new AggregatorCombiner<K, InputT, AccumT, OutputT, BoundedWindow>(combineFn,
-            windowingStrategy).toColumn());
+    Dataset<Tuple2<K, Iterable<WindowedValue<OutputT>>>> combinedDataset =
+        groupedDataset.agg(
+            new AggregatorCombiner<K, InputT, AccumT, OutputT, BoundedWindow>(
+                    combineFn, windowingStrategy)
+                .toColumn());
 
-    //expand the list into separate elements and put the key back into the elements
-    Dataset<WindowedValue<KV<K, OutputT>>> outputDataset = combinedDataset.flatMap(
-        (FlatMapFunction<Tuple2<K, Iterable<WindowedValue<OutputT>>>, WindowedValue<KV<K, OutputT>>>) tuple2 -> {
-          K key = tuple2._1;
-          Iterable<WindowedValue<OutputT>> windowedValues = tuple2._2;
-          List<WindowedValue<KV<K, OutputT>>> result = new ArrayList<>();
-          for (WindowedValue<OutputT> windowedValue : windowedValues) {
-            KV<K, OutputT> kv = KV.of(key, windowedValue.getValue());
-            result.add(WindowedValue
-                .of(kv, windowedValue.getTimestamp(), windowedValue.getWindows(),
-                    windowedValue.getPane()));
-          }
-          return result.iterator();
-        }, EncoderHelpers.windowedValueEncoder());
+    // expand the list into separate elements and put the key back into the elements
+    Dataset<WindowedValue<KV<K, OutputT>>> outputDataset =
+        combinedDataset.flatMap(
+            (FlatMapFunction<
+                    Tuple2<K, Iterable<WindowedValue<OutputT>>>, WindowedValue<KV<K, OutputT>>>)
+                tuple2 -> {
+                  K key = tuple2._1;
+                  Iterable<WindowedValue<OutputT>> windowedValues = tuple2._2;
+                  List<WindowedValue<KV<K, OutputT>>> result = new ArrayList<>();
+                  for (WindowedValue<OutputT> windowedValue : windowedValues) {
+                    KV<K, OutputT> kv = KV.of(key, windowedValue.getValue());
+                    result.add(
+                        WindowedValue.of(
+                            kv,
+                            windowedValue.getTimestamp(),
+                            windowedValue.getWindows(),
+                            windowedValue.getPane()));
+                  }
+                  return result.iterator();
+                },
+            EncoderHelpers.windowedValueEncoder());
     context.putDataset(output, outputDataset);
   }
 }
