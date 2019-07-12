@@ -113,7 +113,7 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
     def batchCmdArgs = project.mapToArgString(argMap)
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $batchCmdArgs"
+      args '-c', ". ${project.envdir}/bin/activate && cd ${project.copiedPyRoot} && ./scripts/run_integration_test.sh $batchCmdArgs"
     }
   }
 
@@ -132,7 +132,7 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
     def streamingCmdArgs = project.mapToArgString(argMap)
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $streamingCmdArgs"
+      args '-c', ". ${project.envdir}/bin/activate && cd ${project.copiedPyRoot} && ./scripts/run_integration_test.sh $streamingCmdArgs"
     }
   }
 }
@@ -180,7 +180,7 @@ task postCommitIT(dependsOn: ['installGcpTest', 'sdist']) {
                                           "worker_jar": dataflowWorkerJar])
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"
+      args '-c', ". ${project.envdir}/bin/activate && cd ${project.copiedPyRoot} && ./scripts/run_integration_test.sh $cmdArgs"
     }
   }
 }
@@ -196,7 +196,7 @@ task validatesRunnerBatchTests(dependsOn: ['installGcpTest', 'sdist']) {
                                           "worker_jar": dataflowWorkerJar])
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"
+      args '-c', ". ${project.envdir}/bin/activate && cd ${project.copiedPyRoot} && ./scripts/run_integration_test.sh $cmdArgs"
     }
   }
 }
@@ -215,7 +215,7 @@ task validatesRunnerStreamingTests(dependsOn: ['installGcpTest', 'sdist']) {
     def cmdArgs = project.mapToArgString(argMap)
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"
+      args '-c', ". ${project.envdir}/bin/activate && cd ${project.copiedPyRoot} && ./scripts/run_integration_test.sh $cmdArgs"
     }
   }
 }
@@ -224,7 +224,7 @@ task hdfsIntegrationTest(dependsOn: 'installGcpTest') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ./apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh"
+      args '-c', ". ${project.envdir}/bin/activate && cd ${project.copiedPyRoot} && ./apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh"
     }
   }
 }
@@ -250,7 +250,7 @@ task sparkValidatesRunner() {
 
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.runners.portability.spark_runner_test $tests $argString"
+      args '-c', ". ${project.ext.envdir}/bin/activate && cd ${project.copiedPyRoot} && pip install -e .[test] && python -m apache_beam.runners.portability.spark_runner_test $tests $argString"
     }
   }
 }
@@ -289,7 +289,7 @@ def flinkCompatibilityMatrix = {
     doLast {
       exec {
         executable 'sh'
-        args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.runners.portability.flink_runner_test --flink_job_server_jar=${project(":runners:flink:1.5:job-server:").shadowJar.archivePath} --environment_type=${workerType} ${environment_config} ${streaming ? '--streaming' : ''} ${extra_experiments ? '--extra_experiments=' + extra_experiments.join(',') : ''}"
+        args '-c', ". ${project.ext.envdir}/bin/activate && cd ${project.copiedPyRoot} && pip install -e .[test] && python -m apache_beam.runners.portability.flink_runner_test --flink_job_server_jar=${project(":runners:flink:1.5:job-server:").shadowJar.archivePath} --environment_type=${workerType} ${environment_config} ${streaming ? '--streaming' : ''} ${extra_experiments ? '--extra_experiments=' + extra_experiments.join(',') : ''}"
       }
     }
   }
@@ -335,7 +335,7 @@ task depSnapshot(dependsOn: 'installGcpTest') {
     exec {
       // Remove useless item "pkg-resources" from file which is introduced by a bug in Ubuntu.
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && pip freeze --local --all | grep -v \"pkg-resources\" > ${project.buildDir}/requirements.txt"
+      args '-c', ". ${project.ext.envdir}/bin/activate && cd ${project.copiedPyRoot} && pip freeze --local --all | grep -v \"pkg-resources\" > ${project.buildDir}/requirements.txt"
     }
   }
 }
@@ -395,7 +395,7 @@ project.task('crossLanguagePythonJavaFlink') {
     ]
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.transforms.external_test ${options.join(' ')}"
+      args '-c', ". ${project.ext.envdir}/bin/activate && cd ${project.copiedPyRoot} && pip install -e .[test] && python -m apache_beam.transforms.external_test ${options.join(' ')}"
     }
   }
 }
@@ -421,7 +421,7 @@ project.task('crossLanguagePortableWordCount') {
     ]
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.examples.wordcount_xlang ${options.join(' ')}"
+      args '-c', ". ${project.ext.envdir}/bin/activate && cd ${project.copiedPyRoot} && pip install -e .[test] && python -m apache_beam.examples.wordcount_xlang ${options.join(' ')}"
       // TODO: Check that the output file is generated and runs.
     }
   }
@@ -454,7 +454,7 @@ project.task('mongodbioIT') {
   doLast {
       exec {
         executable 'sh'
-        args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.io.mongodbio_it_test ${options.join(' ')}"
+        args '-c', ". ${project.ext.envdir}/bin/activate && cd ${project.copiedPyRoot} && pip install -e .[test] && python -m apache_beam.io.mongodbio_it_test ${options.join(' ')}"
       }
       exec {
         executable 'sh'

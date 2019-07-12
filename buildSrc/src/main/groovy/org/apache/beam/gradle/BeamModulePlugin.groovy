@@ -1728,23 +1728,33 @@ class BeamModulePlugin implements Plugin<Project> {
                 'sdks/python/test-suites/**',
               ])
               )
-      def copiedSrcRoot = "${project.buildDir}/srcs"
+      def copiedSrcRoot = "${project.buildDir}/copiedSrcs"
       def tarball = "apache-beam.tar.gz"
+      project.ext.copiedPyRoot = "${copiedSrcRoot}/sdks/python"
 
       project.configurations { distConfig }
 
-      project.task('sdist', dependsOn: 'setupVirtualenv') {
+      // setup.py have problems running concurrently. Copy Python SDK source code to a isolated
+      // directory and invoke setup.py command from it make Gradle parallel execution stable.
+      project.task('copySrc') {
         doLast {
           // Copy sdk sources to an isolated directory
           project.copy {
             from pythonSdkDeps
             into copiedSrcRoot
           }
+        }
+      }
 
+      project.task('sdist') {
+        dependsOn 'setupVirtualenv'
+        dependsOn 'copySrc'
+
+        doLast {
           // Build artifact
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedSrcRoot}/sdks/python && python setup.py -q sdist --formats zip,gztar --dist-dir ${project.buildDir}"
+            args '-c', ". ${project.ext.envdir}/bin/activate && cd ${project.copiedPyRoot} && python setup.py -q sdist --formats zip,gztar --dist-dir ${project.buildDir}"
           }
           def collection = project.fileTree("${project.buildDir}"){ include '**/*.tar.gz' exclude '**/apache-beam.tar.gz', 'srcs/**'}
 
@@ -1759,11 +1769,14 @@ class BeamModulePlugin implements Plugin<Project> {
         distConfig file: project.file("${project.buildDir}/${tarball}"), builtBy: project.sdist
       }
 
-      project.task('installGcpTest', dependsOn: 'setupVirtualenv') {
+      project.task('installGcpTest') {
+        dependsOn 'setupVirtualenv'
+        dependsOn 'copySrc'
+
         doLast {
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 -e ${pythonRootDir}/[gcp,test]"
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 -e ${project.copiedPyRoot}/[gcp,test]"
           }
         }
       }
@@ -1807,10 +1820,9 @@ class BeamModulePlugin implements Plugin<Project> {
         project.tasks.create(name) {
           dependsOn = ['sdist']
           doLast {
-            def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
             project.exec {
               executable 'sh'
-              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env ${project.buildDir}/apache-beam.tar.gz"
+              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${project.copiedPyRoot} && scripts/run_tox.sh $tox_env ${project.buildDir}/apache-beam.tar.gz"
             }
           }
           inputs.files pythonSdkDeps
@@ -1848,10 +1860,9 @@ class BeamModulePlugin implements Plugin<Project> {
               argMap["kms_key_name"] = config.kmsKeyName
 
             def cmdArgs = project.mapToArgString(argMap)
-            def runScriptsDir = "${pythonRootDir}/scripts"
             project.exec {
               executable 'sh'
-              args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh ${cmdArgs}"
+              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${project.copiedPyRoot} && ./scripts/run_integration_test.sh ${cmdArgs}"
             }
           }
         }
@@ -1900,7 +1911,7 @@ class BeamModulePlugin implements Plugin<Project> {
             }
             project.exec {
               executable 'sh'
-              args '-c', ". ${project.ext.envdir}/bin/activate && python -m apache_beam.examples.wordcount ${options.join(' ')}"
+              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${project.copiedPyRoot} && python -m apache_beam.examples.wordcount ${options.join(' ')}"
               // TODO: Check that the output file is generated and runs.
             }
           }

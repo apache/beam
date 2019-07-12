@@ -57,7 +57,7 @@ task preCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
 
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      args '-c', ". ${project.ext.envdir}/bin/activate && cd ${project.copiedPyRoot} && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
     }
   }
 }
@@ -77,7 +77,7 @@ task postCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
     ])
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      args '-c', ". ${project.ext.envdir}/bin/activate && cd ${project.copiedPyRoot} && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
     }
   }
 }
@@ -96,7 +96,7 @@ task validatesRunnerBatchTests(dependsOn: ['installGcpTest', 'sdist']) {
     ])
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      args '-c', ". ${project.ext.envdir}/bin/activate && cd ${project.copiedPyRoot} && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
     }
   }
 }
@@ -116,7 +116,7 @@ task validatesRunnerStreamingTests(dependsOn: ['installGcpTest', 'sdist']) {
     def cmdArgs = project.mapToArgString(argMap)
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      args '-c', ". ${project.ext.envdir}/bin/activate && cd ${project.copiedPyRoot} && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
     }
   }
 }

@@ -47,7 +47,7 @@ task postCommitIT(dependsOn: 'installGcpTest') {
     def batchCmdArgs = project.mapToArgString(argMap)
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $batchCmdArgs"
+      args '-c', ". ${project.ext.envdir}/bin/activate && cd ${project.copiedPyRoot} && ${runScriptsDir}/run_integration_test.sh $batchCmdArgs"
     }
   }
 }

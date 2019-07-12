@@ -46,7 +46,7 @@ task preCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
 
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      args '-c', ". ${project.ext.envdir}/bin/activate && cd ${project.copiedPyRoot} && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
     }
   }
 }
