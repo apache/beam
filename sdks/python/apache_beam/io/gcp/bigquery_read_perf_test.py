@@ -66,7 +66,6 @@ from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import CountMessages
-from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureBytes
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.synthetic_pipeline import SyntheticSource
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -126,27 +125,19 @@ class BigQueryReadPerfTest(LoadTest):
      | 'Produce rows' >> Read(SyntheticSource(self.parseTestPipelineOptions()))
      | 'Format' >> Map(format_record)
      | 'Write to BigQuery' >> WriteToBigQuery(
-         self.input_dataset + '.' + self.input_table,
+         dataset=self.input_dataset, table=self.input_table,
          schema=SCHEMA,
          create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
          write_disposition=BigQueryDisposition.WRITE_EMPTY))
     p.run().wait_until_finish()
 
   def test(self):
-    def extract_values(row):
-      """Extracts value from a row."""
-      yield base64.b64decode(row.values()[0])
-
     self.result = (self.pipeline
                    | 'Read from BigQuery' >> Read(BigQuerySource(
                        dataset=self.input_dataset, table=self.input_table))
-                   | 'Measure bytes' >> ParDo(MeasureBytes(
-                       self.metrics_namespace, extract_values))
                    | 'Count messages' >> ParDo(CountMessages(
                        self.metrics_namespace))
-                   | 'Measure time: Start' >> ParDo(MeasureTime(
-                       self.metrics_namespace))
-                   | 'Measure time: End' >> ParDo(MeasureTime(
+                   | 'Measure time' >> ParDo(MeasureTime(
                        self.metrics_namespace))
                    | 'Count' >> Count.Globally())
 

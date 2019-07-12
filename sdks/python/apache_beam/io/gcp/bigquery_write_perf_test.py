@@ -17,8 +17,8 @@
 """
 A pipeline that writes data from Synthetic Source to a BigQuery table.
 Besides of the standard options, there are options with special meaning:
-* output - BQ destination in the following format: 'dataset_id.table_id'.
-The table will be removed after test completion,
+* output_dataset - BQ dataset name.
+* output_table - BQ table name. The table will be removed after test completion,
 * input_options - options for Synthetic Source:
 num_records - number of rows to be inserted,
 value_size - the length of a single row,
@@ -64,7 +64,6 @@ from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
 from apache_beam.io.gcp.tests import utils
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import CountMessages
-from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureBytes
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.synthetic_pipeline import SyntheticSource
 
@@ -98,18 +97,12 @@ class BigQueryWritePerfTest(LoadTest):
       # of the part
       return {'data': base64.b64encode(record[1])}
 
-    def extractor(record):
-      # The same issue as above
-      yield record[1]
-
     # pylint: disable=expression-not-assigned
     (self.pipeline
      | 'Produce rows' >> Read(SyntheticSource(self.parseTestPipelineOptions()))
-     | 'Measure bytes' >> ParDo(MeasureBytes(self.metrics_namespace, extractor))
      | 'Count messages' >> ParDo(CountMessages(self.metrics_namespace))
      | 'Format' >> Map(format_record)
-     | 'Measure time: Start' >> ParDo(MeasureTime(self.metrics_namespace))
-     | 'Measure time: End' >> ParDo(MeasureTime(self.metrics_namespace))
+     | 'Measure time' >> ParDo(MeasureTime(self.metrics_namespace))
      | 'Write to BigQuery' >> WriteToBigQuery(
          dataset=self.output_dataset, table=self.output_table,
          schema=SCHEMA,
