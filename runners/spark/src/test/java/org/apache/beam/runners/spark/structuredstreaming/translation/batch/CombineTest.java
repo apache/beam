@@ -63,15 +63,17 @@ public class CombineTest implements Serializable {
 
   @Test
   public void testCombineGloballyPreservesWindowing() {
-    PCollection<Integer> input = p.apply(Create.timestamped(
-        TimestampedValue.of(1, new Instant(1)),
-        TimestampedValue.of(2, new Instant(2)),
-        TimestampedValue.of(3, new Instant(11)),
-        TimestampedValue.of(4, new Instant(3)),
-        TimestampedValue.of(5, new Instant(11)),
-        TimestampedValue.of(6, new Instant(12))))
-        .apply(Window.into(FixedWindows.of(Duration.millis(10))))
-        .apply(Combine.globally(Sum.ofIntegers()).withoutDefaults());
+    PCollection<Integer> input =
+        p.apply(
+                Create.timestamped(
+                    TimestampedValue.of(1, new Instant(1)),
+                    TimestampedValue.of(2, new Instant(2)),
+                    TimestampedValue.of(3, new Instant(11)),
+                    TimestampedValue.of(4, new Instant(3)),
+                    TimestampedValue.of(5, new Instant(11)),
+                    TimestampedValue.of(6, new Instant(12))))
+            .apply(Window.into(FixedWindows.of(Duration.millis(10))))
+            .apply(Combine.globally(Sum.ofIntegers()).withoutDefaults());
     PAssert.that(input).containsInAnyOrder(7, 14);
   }
 
@@ -91,18 +93,19 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  public void testCombinePerKeyPreservesWindowing(){
-    PCollection<KV<Integer, Integer>> input = p.apply(Create
-        .timestamped(TimestampedValue.of(KV.of(1, 1), new Instant(1)),
-            TimestampedValue.of(KV.of(1, 3), new Instant(2)),
-            TimestampedValue.of(KV.of(1, 5), new Instant(11)),
-            TimestampedValue.of(KV.of(2, 2), new Instant(3)),
-            TimestampedValue.of(KV.of(2, 4), new Instant(11)),
-            TimestampedValue.of(KV.of(2, 6), new Instant(12))))
-        .apply(Window.into(FixedWindows.of(Duration.millis(10)))).apply(Sum.integersPerKey());
+  public void testCombinePerKeyPreservesWindowing() {
+    PCollection<KV<Integer, Integer>> input =
+        p.apply(
+                Create.timestamped(
+                    TimestampedValue.of(KV.of(1, 1), new Instant(1)),
+                    TimestampedValue.of(KV.of(1, 3), new Instant(2)),
+                    TimestampedValue.of(KV.of(1, 5), new Instant(11)),
+                    TimestampedValue.of(KV.of(2, 2), new Instant(3)),
+                    TimestampedValue.of(KV.of(2, 4), new Instant(11)),
+                    TimestampedValue.of(KV.of(2, 6), new Instant(12))))
+            .apply(Window.into(FixedWindows.of(Duration.millis(10))))
+            .apply(Sum.integersPerKey());
     PAssert.that(input).containsInAnyOrder(KV.of(1, 4), KV.of(1, 5), KV.of(2, 2), KV.of(2, 10));
     p.run();
-
   }
-
 }

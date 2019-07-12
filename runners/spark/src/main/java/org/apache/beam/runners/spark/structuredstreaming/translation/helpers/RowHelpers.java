@@ -19,8 +19,6 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.helpers;
 
 import static scala.collection.JavaConversions.asScalaBuffer;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.Input;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
