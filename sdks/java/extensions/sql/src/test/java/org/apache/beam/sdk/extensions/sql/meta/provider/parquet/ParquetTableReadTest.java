@@ -17,6 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.parquet;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
@@ -27,6 +32,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
@@ -37,6 +43,7 @@ public class ParquetTableReadTest {
   private static final Logger LOG = LoggerFactory.getLogger(ParquetTableReadTest.class);
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
+  @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   private static final String SQL_PARQUET_FIELD =
       "(name VARCHAR, favorite_color VARCHAR, favorite_numbers ARRAY<INTEGER>)";
@@ -48,22 +55,28 @@ public class ParquetTableReadTest {
           .addArrayField("favorite_numbers", Schema.FieldType.INT32)
           .build();
 
+  private String extractParquetFile(String fileName) throws IOException {
+    InputStream inputStream = getClass().getResourceAsStream("/" + fileName);
+    File root = temporaryFolder.getRoot();
+    Path tempFilePath = new File(root, fileName).toPath();
+    Files.copy(inputStream, tempFilePath);
+    return tempFilePath.toString();
+  }
+
   /**
    * Tests {@code CREATE EXTERNAL TABLE TYPE text} with no format reads a default CSV.
    *
    * <p>The default format ignores empty lines, so that is an important part of this test.
    */
   @Test
-  public void testReadParquet() {
-    String parquetPath = getClass().getResource("/users.parquet").getPath();
-    LOG.info("path: " + parquetPath);
+  public void testReadParquet() throws IOException {
+    String parquetPath = extractParquetFile("users.parquet");
 
     BeamSqlEnv env = BeamSqlEnv.inMemory(new ParquetTableProvider());
     env.executeDdl(
         String.format(
             "CREATE EXTERNAL TABLE users %s TYPE parquet LOCATION '%s'",
-            SQL_PARQUET_FIELD,
-            "/Users/jiangkai/project/beam/sdks/java/extensions/sql/src/test/resources/users.parquet"));
+            SQL_PARQUET_FIELD, parquetPath));
 
     PCollection<Row> rows =
         BeamSqlRelUtils.toPCollection(pipeline, env.parseQuery("SELECT * FROM users"));

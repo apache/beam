@@ -24,7 +24,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvide
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 
 /**
- * {@link TableProvider} for {@link ParquetTable}
+ * {@link TableProvider} for {@link ParquetTable}.
  *
  * <p>A sample of parquet table is:
  *

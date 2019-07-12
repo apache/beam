@@ -28,7 +28,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 
-/** A {@link PTransform} to convert {@link GenericRecord}  to {@link Row}. */
+/** A {@link PTransform} to convert {@link GenericRecord} to {@link Row}. */
 @AutoValue
 public abstract class GenericRecordReadConverter
     extends PTransform<PCollection<GenericRecord>, PCollection<Row>> implements Serializable {

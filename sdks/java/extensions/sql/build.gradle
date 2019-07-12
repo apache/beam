@@ -107,6 +107,7 @@ dependencies {
 
   // Dependencies that we don't directly reference
   permitUnusedDeclared "com.jayway.jsonpath:json-path:2.4.0"
+  permitUnusedDeclared "net.jcip:jcip-annotations:1.0"
   permitUnusedDeclared library.java.jackson_dataformat_yaml
 
   // Dependencies that are bundled in when we bundle Calcite
@@ -116,7 +117,8 @@ dependencies {
   // Dependencies where one or the other appears "used" depending on classpath,
   // but it doesn't matter which is used
   permitUsedUndeclared "com.google.code.findbugs:jsr305:3.0.2"
-  permitUnusedDeclared "net.jcip:jcip-annotations:1.0"
+  permitUsedUndeclared "org.apache.avro:avro:1.8.2"
+
 }
 
 // Copy Caclcite templates and our own template into the build directory
