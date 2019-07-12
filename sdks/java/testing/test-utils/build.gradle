@@ -16,20 +16,23 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(exportJavadoc: false)
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+    exportJavadoc: false,
+    archivesBaseName: 'beam-sdks-java-test-utils'
+)
 
 description = "Apache Beam :: SDKs :: Java :: Test Utils"
 
 dependencies {
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow library.java.vendored_guava_20_0
-  shadow library.java.google_cloud_bigquery
-  shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.vendored_guava_20_0
+  compile library.java.google_cloud_bigquery
+  compile project(":sdks:java:extensions:google-cloud-platform-core")
 
-  shadowTest library.java.junit
-  shadowTest library.java.mockito_core
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.hamcrest_library
-  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadowTest")
+  testCompile library.java.junit
+  testCompile library.java.mockito_core
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadowTest")
 }

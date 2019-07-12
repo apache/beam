@@ -37,12 +37,17 @@ cdef class MethodWrapper(object):
   cdef bint has_userstate_arguments
   cdef object state_args_to_replace
   cdef object timer_args_to_replace
+  cdef object timestamp_arg_name
+  cdef object window_arg_name
+  cdef object key_arg_name
 
 
 cdef class DoFnSignature(object):
   cdef public MethodWrapper process_method
   cdef public MethodWrapper start_bundle_method
   cdef public MethodWrapper finish_bundle_method
+  cdef public MethodWrapper setup_lifecycle_method
+  cdef public MethodWrapper teardown_lifecycle_method
   cdef public MethodWrapper initial_restriction_method
   cdef public MethodWrapper restriction_coder_method
   cdef public MethodWrapper create_tracker_method
@@ -56,6 +61,7 @@ cdef class DoFnInvoker(object):
   cdef public DoFnSignature signature
   cdef OutputProcessor output_processor
   cdef object user_state_context
+  cdef public object bundle_finalizer_param
 
   cpdef invoke_process(self, WindowedValue windowed_value,
                        restriction_tracker=*,
@@ -85,6 +91,7 @@ cdef class PerWindowInvoker(DoFnInvoker):
   cdef bint is_splittable
   cdef object restriction_tracker
   cdef WindowedValue current_windowed_value
+  cdef bint is_key_param_required
 
 
 cdef class DoFnRunner(Receiver):
@@ -92,7 +99,7 @@ cdef class DoFnRunner(Receiver):
   cdef object step_name
   cdef list side_inputs
   cdef DoFnInvoker do_fn_invoker
-
+  cdef public object bundle_finalizer_param
   cpdef process(self, WindowedValue windowed_value)
 
 

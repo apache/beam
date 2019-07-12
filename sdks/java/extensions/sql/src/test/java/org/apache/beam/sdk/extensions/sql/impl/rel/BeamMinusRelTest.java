@@ -93,7 +93,7 @@ public class BeamMinusRelTest extends BaseRelTest {
                     Schema.FieldType.INT64, "order_id",
                     Schema.FieldType.INT32, "site_id",
                     Schema.FieldType.DECIMAL, "price")
-                .addRows(1L, 1, new BigDecimal(1.0), 4L, 4, new BigDecimal(4.0))
+                .addRows(4L, 4, new BigDecimal(4.0))
                 .getRows());
 
     pipeline.run();
@@ -129,6 +129,20 @@ public class BeamMinusRelTest extends BaseRelTest {
                     4,
                     new BigDecimal(4.0))
                 .getRows());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testExceptRemovesDuplicates() throws Exception {
+    String sql = "(SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 1) EXCEPT SELECT 1";
+
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
+    PAssert.that(rows).satisfies(new CheckSize(1));
+
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(Schema.FieldType.INT32, "i").addRows(2).getRows());
 
     pipeline.run();
   }

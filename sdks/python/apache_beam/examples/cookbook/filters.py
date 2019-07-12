@@ -92,11 +92,11 @@ def run(argv=None):
 
     # pylint: disable=expression-not-assigned
     (filter_cold_days(input_data, known_args.month_filter)
-     | 'SaveToBQ' >> beam.io.Write(beam.io.BigQuerySink(
+     | 'SaveToBQ' >> beam.io.WriteToBigQuery(
          known_args.output,
          schema='year:INTEGER,month:INTEGER,day:INTEGER,mean_temp:FLOAT',
          create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-         write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE)))
+         write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE))
 
 
 if __name__ == '__main__':

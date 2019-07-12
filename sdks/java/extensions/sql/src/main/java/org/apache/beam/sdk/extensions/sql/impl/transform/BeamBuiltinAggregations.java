@@ -30,7 +30,9 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CovarianceFn;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceFn;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Count;
@@ -40,37 +42,33 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
-/**
- * Built-in aggregations functions for COUNT/MAX/MIN/SUM/AVG/VAR_POP/VAR_SAMP.
- *
- * <p>TODO: Consider making the interface in terms of (1-column) rows. reuvenlax
- */
+/** Built-in aggregations functions for COUNT/MAX/MIN/SUM/AVG/VAR_POP/VAR_SAMP. */
 public class BeamBuiltinAggregations {
 
-  public static final Map<String, Function<Schema.TypeName, CombineFn<?, ?, ?>>>
+  public static final Map<String, Function<Schema.FieldType, CombineFn<?, ?, ?>>>
       BUILTIN_AGGREGATOR_FACTORIES =
-          ImmutableMap.<String, Function<Schema.TypeName, CombineFn<?, ?, ?>>>builder()
+          ImmutableMap.<String, Function<Schema.FieldType, CombineFn<?, ?, ?>>>builder()
               .put("COUNT", typeName -> Count.combineFn())
               .put("MAX", BeamBuiltinAggregations::createMax)
               .put("MIN", BeamBuiltinAggregations::createMin)
               .put("SUM", BeamBuiltinAggregations::createSum)
               .put("$SUM0", BeamBuiltinAggregations::createSum)
               .put("AVG", BeamBuiltinAggregations::createAvg)
-              .put("VAR_POP", VarianceFn::newPopulation)
-              .put("VAR_SAMP", VarianceFn::newSample)
-              .put("COVAR_POP", CovarianceFn::newPopulation)
-              .put("COVAR_SAMP", CovarianceFn::newSample)
+              .put("VAR_POP", t -> VarianceFn.newPopulation(t.getTypeName()))
+              .put("VAR_SAMP", t -> VarianceFn.newSample(t.getTypeName()))
+              .put("COVAR_POP", t -> CovarianceFn.newPopulation(t.getTypeName()))
+              .put("COVAR_SAMP", t -> CovarianceFn.newSample(t.getTypeName()))
               .build();
 
   private static MathContext mc = new MathContext(10, RoundingMode.HALF_UP);
 
-  public static CombineFn<?, ?, ?> create(String functionName, Schema.TypeName fieldTypeName) {
+  public static CombineFn<?, ?, ?> create(String functionName, Schema.FieldType fieldType) {
 
-    Function<Schema.TypeName, CombineFn<?, ?, ?>> aggregatorFactory =
+    Function<Schema.FieldType, CombineFn<?, ?, ?>> aggregatorFactory =
         BUILTIN_AGGREGATOR_FACTORIES.get(functionName);
 
     if (aggregatorFactory != null) {
-      return aggregatorFactory.apply(fieldTypeName);
+      return aggregatorFactory.apply(fieldType);
     }
 
     throw new UnsupportedOperationException(
@@ -78,14 +76,18 @@ public class BeamBuiltinAggregations {
   }
 
   /** {@link CombineFn} for MAX based on {@link Max} and {@link Combine.BinaryCombineFn}. */
-  static CombineFn createMax(Schema.TypeName fieldType) {
-    switch (fieldType) {
+  static CombineFn createMax(FieldType fieldType) {
+    if (CalciteUtils.isDateTimeType(fieldType)) {
+      return new CustMax<>();
+    }
+    switch (fieldType.getTypeName()) {
       case BOOLEAN:
       case INT16:
       case BYTE:
       case FLOAT:
       case DATETIME:
       case DECIMAL:
+      case STRING:
         return new CustMax<>();
       case INT32:
         return Max.ofIntegers();
@@ -100,14 +102,18 @@ public class BeamBuiltinAggregations {
   }
 
   /** {@link CombineFn} for MIN based on {@link Min} and {@link Combine.BinaryCombineFn}. */
-  static CombineFn createMin(Schema.TypeName fieldType) {
-    switch (fieldType) {
+  static CombineFn createMin(Schema.FieldType fieldType) {
+    if (CalciteUtils.isDateTimeType(fieldType)) {
+      return new CustMin();
+    }
+    switch (fieldType.getTypeName()) {
       case BOOLEAN:
       case BYTE:
       case INT16:
       case FLOAT:
       case DATETIME:
       case DECIMAL:
+      case STRING:
         return new CustMin();
       case INT32:
         return Min.ofIntegers();
@@ -122,8 +128,8 @@ public class BeamBuiltinAggregations {
   }
 
   /** {@link CombineFn} for Sum based on {@link Sum} and {@link Combine.BinaryCombineFn}. */
-  static CombineFn createSum(Schema.TypeName fieldType) {
-    switch (fieldType) {
+  static CombineFn createSum(Schema.FieldType fieldType) {
+    switch (fieldType.getTypeName()) {
       case INT32:
         return Sum.ofIntegers();
       case INT16:
@@ -145,8 +151,8 @@ public class BeamBuiltinAggregations {
   }
 
   /** {@link CombineFn} for AVG. */
-  static CombineFn createAvg(Schema.TypeName fieldType) {
-    switch (fieldType) {
+  static CombineFn createAvg(Schema.FieldType fieldType) {
+    switch (fieldType.getTypeName()) {
       case INT32:
         return new IntegerAvg();
       case INT16:

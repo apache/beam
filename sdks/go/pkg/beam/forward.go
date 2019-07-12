@@ -92,13 +92,18 @@ func RegisterInit(hook func()) {
 //  func(reflect.Type, []byte) (T, error)
 //
 // where T is the matching user type.
-//
 func RegisterCoder(t reflect.Type, encoder, decoder interface{}) {
 	runtime.RegisterType(t)
 	runtime.RegisterFunction(encoder)
 	runtime.RegisterFunction(decoder)
 	coder.RegisterCoder(t, encoder, decoder)
 }
+
+// ElementEncoder encapsulates being able to encode an element into a writer.
+type ElementEncoder = coder.ElementEncoder
+
+// ElementDecoder encapsulates being able to decode an element from a reader.
+type ElementDecoder = coder.ElementDecoder
 
 // Init is the hook that all user code must call after flags processing and
 // other static initialization, for now.

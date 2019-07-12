@@ -25,6 +25,7 @@ import (
 	"path"
 
 	"cloud.google.com/go/storage"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"google.golang.org/api/option"
 )
 
@@ -111,10 +112,10 @@ func ParseObject(object string) (bucket, path string, err error) {
 	}
 
 	if parsed.Scheme != "gs" {
-		return "", "", fmt.Errorf("object %s must have 'gs' scheme", object)
+		return "", "", errors.Errorf("object %s must have 'gs' scheme", object)
 	}
 	if parsed.Host == "" {
-		return "", "", fmt.Errorf("object %s must have bucket", object)
+		return "", "", errors.Errorf("object %s must have bucket", object)
 	}
 	if parsed.Path == "" {
 		return parsed.Host, "", nil

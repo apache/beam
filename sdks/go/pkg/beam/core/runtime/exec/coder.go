@@ -27,7 +27,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // NOTE(herohde) 4/30/2017: The main complication is CoGBK results, which have
@@ -39,14 +39,14 @@ import (
 // can be reused, even if an error is encountered. Concurrency-safe.
 type ElementEncoder interface {
 	// Encode serializes the given value to the writer.
-	Encode(FullValue, io.Writer) error
+	Encode(*FullValue, io.Writer) error
 }
 
 // EncodeElement is a convenience function for encoding a single element into a
 // byte slice.
 func EncodeElement(c ElementEncoder, val interface{}) ([]byte, error) {
 	var buf bytes.Buffer
-	if err := c.Encode(FullValue{Elm: val}, &buf); err != nil {
+	if err := c.Encode(&FullValue{Elm: val}, &buf); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
@@ -56,7 +56,7 @@ func EncodeElement(c ElementEncoder, val interface{}) ([]byte, error) {
 // can be reused, even if an error is encountered.  Concurrency-safe.
 type ElementDecoder interface {
 	// Decode deserializes a value from the given reader.
-	Decode(io.Reader) (FullValue, error)
+	Decode(io.Reader) (*FullValue, error)
 }
 
 // MakeElementEncoder returns a ElementCoder for the given coder. It panics
@@ -115,16 +115,16 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 
 type bytesEncoder struct{}
 
-func (*bytesEncoder) Encode(val FullValue, w io.Writer) error {
+func (*bytesEncoder) Encode(val *FullValue, w io.Writer) error {
 	// Encoding: size (varint) + raw data
 	var data []byte
 	data, ok := val.Elm.([]byte)
 	if !ok {
-		return fmt.Errorf("received unknown value type: want []byte, got %T", val.Elm)
+		return errors.Errorf("received unknown value type: want []byte, got %T", val.Elm)
 	}
 	size := len(data)
 
-	if err := coder.EncodeVarInt((int32)(size), w); err != nil {
+	if err := coder.EncodeVarInt((int64)(size), w); err != nil {
 		return err
 	}
 	_, err := w.Write(data)
@@ -133,39 +133,36 @@ func (*bytesEncoder) Encode(val FullValue, w io.Writer) error {
 
 type bytesDecoder struct{}
 
-func (*bytesDecoder) Decode(r io.Reader) (FullValue, error) {
+func (*bytesDecoder) Decode(r io.Reader) (*FullValue, error) {
 	// Encoding: size (varint) + raw data
 
 	size, err := coder.DecodeVarInt(r)
 	if err != nil {
-		return FullValue{}, err
+		return nil, err
 	}
 	data, err := ioutilx.ReadN(r, (int)(size))
 	if err != nil {
-		return FullValue{}, err
+		return nil, err
 	}
-	return FullValue{Elm: data}, nil
+	return &FullValue{Elm: data}, nil
 }
 
 type varIntEncoder struct{}
 
-func (*varIntEncoder) Encode(val FullValue, w io.Writer) error {
+func (*varIntEncoder) Encode(val *FullValue, w io.Writer) error {
 	// Encoding: beam varint
-
-	n := Convert(val.Elm, reflectx.Int32).(int32) // Convert needed?
-	return coder.EncodeVarInt(n, w)
+	return coder.EncodeVarInt(val.Elm.(int64), w)
 }
 
 type varIntDecoder struct{}
 
-func (*varIntDecoder) Decode(r io.Reader) (FullValue, error) {
+func (*varIntDecoder) Decode(r io.Reader) (*FullValue, error) {
 	// Encoding: beam varint
-
 	n, err := coder.DecodeVarInt(r)
 	if err != nil {
-		return FullValue{}, err
+		return nil, err
 	}
-	return FullValue{Elm: n}, nil
+	return &FullValue{Elm: n}, nil
 }
 
 type customEncoder struct {
@@ -173,7 +170,7 @@ type customEncoder struct {
 	enc Encoder
 }
 
-func (c *customEncoder) Encode(val FullValue, w io.Writer) error {
+func (c *customEncoder) Encode(val *FullValue, w io.Writer) error {
 	// (1) Call encode
 
 	data, err := c.enc.Encode(c.t, val.Elm)
@@ -184,7 +181,7 @@ func (c *customEncoder) Encode(val FullValue, w io.Writer) error {
 	// (2) Add length prefix
 
 	size := len(data)
-	if err := coder.EncodeVarInt((int32)(size), w); err != nil {
+	if err := coder.EncodeVarInt((int64)(size), w); err != nil {
 		return err
 	}
 	_, err = w.Write(data)
@@ -196,32 +193,32 @@ type customDecoder struct {
 	dec Decoder
 }
 
-func (c *customDecoder) Decode(r io.Reader) (FullValue, error) {
+func (c *customDecoder) Decode(r io.Reader) (*FullValue, error) {
 	// (1) Read length-prefixed encoded data
 
 	size, err := coder.DecodeVarInt(r)
 	if err != nil {
-		return FullValue{}, err
+		return nil, err
 	}
 	data, err := ioutilx.ReadN(r, (int)(size))
 	if err != nil {
-		return FullValue{}, err
+		return nil, err
 	}
 
 	// (2) Call decode
 
 	val, err := c.dec.Decode(c.t, data)
 	if err != nil {
-		return FullValue{}, err
+		return nil, err
 	}
-	return FullValue{Elm: val}, err
+	return &FullValue{Elm: val}, err
 }
 
 type kvEncoder struct {
 	fst, snd ElementEncoder
 }
 
-func (c *kvEncoder) Encode(val FullValue, w io.Writer) error {
+func (c *kvEncoder) Encode(val *FullValue, w io.Writer) error {
 	if err := c.fst.Encode(convertIfNeeded(val.Elm), w); err != nil {
 		return err
 	}
@@ -232,16 +229,16 @@ type kvDecoder struct {
 	fst, snd ElementDecoder
 }
 
-func (c *kvDecoder) Decode(r io.Reader) (FullValue, error) {
+func (c *kvDecoder) Decode(r io.Reader) (*FullValue, error) {
 	key, err := c.fst.Decode(r)
 	if err != nil {
-		return FullValue{}, err
+		return nil, err
 	}
 	value, err := c.snd.Decode(r)
 	if err != nil {
-		return FullValue{}, err
+		return nil, err
 	}
-	return FullValue{Elm: key.Elm, Elm2: value.Elm}, nil
+	return &FullValue{Elm: key.Elm, Elm2: value.Elm}, nil
 
 }
 
@@ -398,9 +395,9 @@ func DecodeWindowedValueHeader(dec WindowDecoder, r io.Reader) ([]typex.Window, 
 	return ws, t, nil
 }
 
-func convertIfNeeded(v interface{}) FullValue {
-	if fv, ok := v.(FullValue); ok {
+func convertIfNeeded(v interface{}) *FullValue {
+	if fv, ok := v.(*FullValue); ok {
 		return fv
 	}
-	return FullValue{Elm: v}
+	return &FullValue{Elm: v}
 }

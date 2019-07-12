@@ -39,6 +39,8 @@ There are lots of opportunities to contribute:
 }}/community/contact-us/)
  - improve the documentation
  - contribute [bug reports](https://issues.apache.org/jira/projects/BEAM/issues)
+ - contribute by testing releases
+ - contribute by reviewing [changes](https://github.com/apache/beam/pulls)
  - write new examples
  - improve your favorite language SDK (Java, Python, Go, etc)
  - improve specific runners (Apache Apex, Apache Flink, Apache Spark, Google
@@ -56,7 +58,7 @@ Most importantly, if you have an idea of how to contribute, then do it!
 
 ## Contributing code
 
-Below is a tutorial for contributing code to Beam, covering our tools and typical process in
+Below is a tutorial for contributing [code to Beam](https://github.com/apache/beam), covering our tools and typical process in
 detail.
 
 ### Prerequisites
@@ -98,7 +100,7 @@ To contribute code, you need
    [discuss it on the dev@ mailing list]({{ site.baseurl }}/community/contact-us/)
 1. For large changes create a design doc
    ([template](https://s.apache.org/beam-design-doc-template),
-   [examples](https://s.apache.org/beam-design-docs)) and email it to the dev@ mailing list.
+   [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@ mailing list]({{ site.baseurl }}/community/contact-us).
 
 ### Development Setup
 
@@ -172,7 +174,7 @@ To contribute code, you need
     - ask on [dev@beam.apache.org]({{ site.baseurl }}/community/contact-us/)
 
    Use `R: @username` in the pull request to notify a reviewer.
-1. If you don't get any response in 3 business days, email the dev@ list to ask for someone to look at your pull
+1. If you don't get any response in 3 business days, email the [dev@ mailing list]({{ site.baseurl }}/community/contact-us) to ask for someone to look at your pull
    request.
 1. Review feedback typically leads to follow-up changes. You can add these changes as additional "fixup" commits to the
    existing PR/branch. This will allow reviewer(s) to track the incremental progress. After review is complete and the

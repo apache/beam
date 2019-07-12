@@ -24,9 +24,11 @@ import unittest
 
 import hamcrest as hc
 
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
 from apache_beam.options.pipeline_options import TypeOptions
+from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.transforms.display import DisplayData
@@ -45,6 +47,12 @@ class PipelineOptionsTest(unittest.TestCase):
                     'mock_option': None,
                     'mock_multi_option': None},
        'display_data': [DisplayDataItemMatcher('num_workers', 5)]},
+      {'flags': ['--direct_num_workers', '5'],
+       'expected': {'direct_num_workers': 5,
+                    'mock_flag': False,
+                    'mock_option': None,
+                    'mock_multi_option': None},
+       'display_data': [DisplayDataItemMatcher('direct_num_workers', 5)]},
       {
           'flags': [
               '--profile_cpu', '--profile_location', 'gs://bucket/', 'ignored'],
@@ -119,11 +127,35 @@ class PipelineOptionsTest(unittest.TestCase):
           '--mock_multi_option', action='append', help='mock multi option')
       parser.add_argument('--option with space', help='mock option with space')
 
+  # Use with MockOptions in test cases where multiple option classes are needed.
+  class FakeOptions(PipelineOptions):
+
+    @classmethod
+    def _add_argparse_args(cls, parser):
+      parser.add_argument('--fake_flag', action='store_true', help='fake flag')
+      parser.add_argument('--fake_option', help='fake option')
+      parser.add_argument(
+          '--fake_multi_option', action='append', help='fake multi option')
+
   def test_display_data(self):
     for case in PipelineOptionsTest.TEST_CASES:
       options = PipelineOptions(flags=case['flags'])
       dd = DisplayData.create_from(options)
       hc.assert_that(dd.items, hc.contains_inanyorder(*case['display_data']))
+
+  def test_get_all_options_subclass(self):
+    for case in PipelineOptionsTest.TEST_CASES:
+      options = PipelineOptionsTest.MockOptions(flags=case['flags'])
+      self.assertDictContainsSubset(case['expected'], options.get_all_options())
+      self.assertEqual(options.view_as(
+          PipelineOptionsTest.MockOptions).mock_flag,
+                       case['expected']['mock_flag'])
+      self.assertEqual(options.view_as(
+          PipelineOptionsTest.MockOptions).mock_option,
+                       case['expected']['mock_option'])
+      self.assertEqual(options.view_as(
+          PipelineOptionsTest.MockOptions).mock_multi_option,
+                       case['expected']['mock_multi_option'])
 
   def test_get_all_options(self):
     for case in PipelineOptionsTest.TEST_CASES:
@@ -138,6 +170,49 @@ class PipelineOptionsTest(unittest.TestCase):
       self.assertEqual(options.view_as(
           PipelineOptionsTest.MockOptions).mock_multi_option,
                        case['expected']['mock_multi_option'])
+
+  def test_sublcalsses_of_pipeline_options_can_be_instantiated(self):
+    for case in PipelineOptionsTest.TEST_CASES:
+      mock_options = PipelineOptionsTest.MockOptions(flags=case['flags'])
+      self.assertEqual(mock_options.mock_flag,
+                       case['expected']['mock_flag'])
+      self.assertEqual(mock_options.mock_option,
+                       case['expected']['mock_option'])
+      self.assertEqual(mock_options.mock_multi_option,
+                       case['expected']['mock_multi_option'])
+
+  def test_views_can_be_constructed_from_pipeline_option_subclasses(self):
+    for case in PipelineOptionsTest.TEST_CASES:
+      fake_options = PipelineOptionsTest.FakeOptions(flags=case['flags'])
+      mock_options = fake_options.view_as(PipelineOptionsTest.MockOptions)
+
+      self.assertEqual(mock_options.mock_flag,
+                       case['expected']['mock_flag'])
+      self.assertEqual(mock_options.mock_option,
+                       case['expected']['mock_option'])
+      self.assertEqual(mock_options.mock_multi_option,
+                       case['expected']['mock_multi_option'])
+
+  def test_views_do_not_expose_options_defined_by_other_views(self):
+    flags = ['--mock_option=mock_value', '--fake_option=fake_value']
+
+    options = PipelineOptions(flags)
+    assert options.view_as(
+        PipelineOptionsTest.MockOptions).mock_option == 'mock_value'
+    assert options.view_as(
+        PipelineOptionsTest.FakeOptions).fake_option == 'fake_value'
+    assert options.view_as(
+        PipelineOptionsTest.MockOptions).view_as(
+            PipelineOptionsTest.FakeOptions).fake_option == 'fake_value'
+
+    self.assertRaises(
+        AttributeError,
+        lambda: options.view_as(PipelineOptionsTest.MockOptions).fake_option)
+    self.assertRaises(
+        AttributeError,
+        lambda: options.view_as(PipelineOptionsTest.MockOptions).view_as(
+            PipelineOptionsTest.FakeOptions).view_as(
+                PipelineOptionsTest.MockOptions).fake_option)
 
   def test_from_dictionary(self):
     for case in PipelineOptionsTest.TEST_CASES:
@@ -184,6 +259,69 @@ class PipelineOptionsTest(unittest.TestCase):
     options = PipelineOptions(flags=[''])
     self.assertEqual(options.get_all_options()['experiments'], None)
 
+  def test_worker_options(self):
+    options = PipelineOptions(['--machine_type', 'abc', '--disk_type', 'def'])
+    worker_options = options.view_as(WorkerOptions)
+    self.assertEqual(worker_options.machine_type, 'abc')
+    self.assertEqual(worker_options.disk_type, 'def')
+
+    options = PipelineOptions(
+        ['--worker_machine_type', 'abc', '--worker_disk_type', 'def'])
+    worker_options = options.view_as(WorkerOptions)
+    self.assertEqual(worker_options.machine_type, 'abc')
+    self.assertEqual(worker_options.disk_type, 'def')
+
+  def test_option_modifications_are_shared_between_views(self):
+    pipeline_options = PipelineOptions([
+        '--mock_option', 'value', '--mock_flag',
+        '--mock_multi_option', 'value1',
+        '--mock_multi_option', 'value2',
+    ])
+
+    mock_options = PipelineOptionsTest.MockOptions([
+        '--mock_option', 'value', '--mock_flag',
+        '--mock_multi_option', 'value1',
+        '--mock_multi_option', 'value2',
+    ])
+
+    for options in [pipeline_options, mock_options]:
+      view1 = options.view_as(PipelineOptionsTest.MockOptions)
+      view2 = options.view_as(PipelineOptionsTest.MockOptions)
+
+      view1.mock_option = 'new_value'
+      view1.mock_flag = False
+      view1.mock_multi_option.append('value3')
+
+      view3 = options.view_as(PipelineOptionsTest.MockOptions)
+      view4 = view1.view_as(PipelineOptionsTest.MockOptions)
+      view5 = options.view_as(TypeOptions).view_as(
+          PipelineOptionsTest.MockOptions)
+
+      for view in [view1, view2, view3, view4, view5]:
+        self.assertEqual('new_value', view.mock_option)
+        self.assertFalse(view.mock_flag)
+        self.assertEqual(['value1', 'value2', 'value3'], view.mock_multi_option)
+
+  def test_uninitialized_option_modifications_are_shared_between_views(self):
+    options = PipelineOptions([])
+
+    view1 = options.view_as(PipelineOptionsTest.MockOptions)
+    view2 = options.view_as(PipelineOptionsTest.MockOptions)
+
+    view1.mock_option = 'some_value'
+    view1.mock_flag = False
+    view1.mock_multi_option = ['value1', 'value2']
+
+    view3 = options.view_as(PipelineOptionsTest.MockOptions)
+    view4 = view1.view_as(PipelineOptionsTest.MockOptions)
+    view5 = options.view_as(TypeOptions).view_as(
+        PipelineOptionsTest.MockOptions)
+
+    for view in [view1, view2, view3, view4, view5]:
+      self.assertEqual('some_value', view.mock_option)
+      self.assertFalse(view.mock_flag)
+      self.assertEqual(['value1', 'value2'], view.mock_multi_option)
+
   def test_extra_package(self):
     options = PipelineOptions(['--extra_package', 'abc',
                                '--extra_packages', 'def',
@@ -211,13 +349,13 @@ class PipelineOptionsTest(unittest.TestCase):
 
   def test_redefine_options(self):
 
-    class TestRedefinedOptios(PipelineOptions):  # pylint: disable=unused-variable
+    class TestRedefinedOptions(PipelineOptions):  # pylint: disable=unused-variable
 
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_argument('--redefined_flag', action='store_true')
 
-    class TestRedefinedOptios(PipelineOptions):
+    class TestRedefinedOptions(PipelineOptions):
 
       @classmethod
       def _add_argparse_args(cls, parser):
@@ -302,6 +440,42 @@ class PipelineOptionsTest(unittest.TestCase):
       # Invalid option choice.
       options = PipelineOptions(['--type_check_strictness', 'blahblah'])
       options.view_as(TypeOptions)
+
+  def test_add_experiment(self):
+    options = PipelineOptions([])
+    options.view_as(DebugOptions).add_experiment('new_experiment')
+    self.assertEqual(
+        ['new_experiment'],
+        options.view_as(DebugOptions).experiments
+    )
+
+  def test_add_experiment_preserves_existing_experiments(self):
+    options = PipelineOptions(['--experiment=existing_experiment'])
+    options.view_as(DebugOptions).add_experiment('new_experiment')
+    self.assertEqual(
+        ['existing_experiment', 'new_experiment'],
+        options.view_as(DebugOptions).experiments
+    )
+
+  def test_lookup_experiments(self):
+    options = PipelineOptions([
+        '--experiment=existing_experiment',
+        '--experiment', 'key=value',
+        '--experiment', 'master_key=k1=v1,k2=v2',
+    ])
+    debug_options = options.view_as(DebugOptions)
+    self.assertEqual(
+        'default_value',
+        debug_options.lookup_experiment('nonexistent', 'default_value'))
+    self.assertEqual(
+        'value',
+        debug_options.lookup_experiment('key', 'default_value'))
+    self.assertEqual(
+        'k1=v1,k2=v2',
+        debug_options.lookup_experiment('master_key'))
+    self.assertEqual(
+        True,
+        debug_options.lookup_experiment('existing_experiment'))
 
 
 if __name__ == '__main__':

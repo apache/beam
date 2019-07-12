@@ -61,6 +61,12 @@ public class FakeDatasetService implements DatasetService, Serializable {
 
   @Override
   public Table getTable(TableReference tableRef) throws InterruptedException, IOException {
+    return getTable(tableRef, null);
+  }
+
+  @Override
+  public Table getTable(TableReference tableRef, @Nullable List<String> selectedFields)
+      throws InterruptedException, IOException {
     synchronized (tables) {
       Map<String, TableContainer> dataset =
           tables.get(tableRef.getProjectId(), tableRef.getDatasetId());

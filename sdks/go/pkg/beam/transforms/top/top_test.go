@@ -20,8 +20,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
@@ -31,7 +29,7 @@ func TestCombineFn3String(t *testing.T) {
 	less := func(a, b string) bool {
 		return len(a) < len(b)
 	}
-	fn := newCombineFn(less, 3, typex.New(reflectx.String), false)
+	fn := newCombineFn(less, 3, reflectx.String, false)
 
 	tests := []struct {
 		Elms     []string
@@ -59,7 +57,7 @@ func TestCombineFn3RevString(t *testing.T) {
 	less := func(a, b string) bool {
 		return len(a) < len(b)
 	}
-	fn := newCombineFn(less, 3, typex.New(reflectx.String), true)
+	fn := newCombineFn(less, 3, reflectx.String, true)
 
 	tests := []struct {
 		Elms     []string
@@ -86,7 +84,7 @@ func TestCombineFnMerge(t *testing.T) {
 	less := func(a, b string) bool {
 		return len(a) < len(b)
 	}
-	fn := newCombineFn(less, 3, typex.New(reflectx.String), false)
+	fn := newCombineFn(less, 3, reflectx.String, false)
 	tests := []struct {
 		Elms     [][]string
 		Expected []string

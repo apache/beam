@@ -40,7 +40,7 @@ func (m *Multiplex) StartBundle(ctx context.Context, id string, data DataContext
 	return MultiStartBundle(ctx, id, data, m.Out...)
 }
 
-func (m *Multiplex) ProcessElement(ctx context.Context, elm FullValue, values ...ReStream) error {
+func (m *Multiplex) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	for _, out := range m.Out {
 		if err := out.ProcessElement(ctx, elm, values...); err != nil {
 			return err

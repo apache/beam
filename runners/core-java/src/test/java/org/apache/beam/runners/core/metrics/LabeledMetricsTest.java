@@ -41,7 +41,7 @@ public class LabeledMetricsTest implements Serializable {
     MetricsEnvironment.setCurrentContainer(null);
     assertNull(MetricsEnvironment.getCurrentContainer());
     HashMap<String, String> labels = new HashMap<String, String>();
-    String urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
+    String urn = MonitoringInfoConstants.Urns.ELEMENT_COUNT;
     MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
 
     Counter counter = LabeledMetrics.counter(name);
@@ -54,7 +54,7 @@ public class LabeledMetricsTest implements Serializable {
   @Test
   public void testOperationsUpdateCounterFromContainerWhenContainerIsPresent() {
     HashMap<String, String> labels = new HashMap<String, String>();
-    String urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
+    String urn = MonitoringInfoConstants.Urns.ELEMENT_COUNT;
     MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
 
     MetricsContainer mockContainer = Mockito.mock(MetricsContainer.class);

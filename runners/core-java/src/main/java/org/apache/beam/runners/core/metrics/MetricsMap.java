@@ -19,6 +19,7 @@ package org.apache.beam.runners.core.metrics;
 
 import java.io.Serializable;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import javax.annotation.Nullable;
@@ -75,5 +76,20 @@ public class MetricsMap<K, T> implements Serializable {
   /** Return an iterable over the values in the current {@link MetricsMap}. */
   public Iterable<T> values() {
     return Iterables.unmodifiableIterable(metrics.values());
+  }
+
+  @Override
+  public boolean equals(Object object) {
+    if (object instanceof MetricsMap) {
+      MetricsMap<?, ?> metricsMap = (MetricsMap<?, ?>) object;
+      return Objects.equals(metrics, metricsMap.metrics);
+    }
+
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return metrics.hashCode();
   }
 }

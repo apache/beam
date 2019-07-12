@@ -19,6 +19,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // TODO(BEAM-490): This file contains support for the handling of CoGBK
@@ -51,17 +53,17 @@ func (n *Inject) StartBundle(ctx context.Context, id string, data DataContext) e
 	return n.Out.StartBundle(ctx, id, data)
 }
 
-func (n *Inject) ProcessElement(ctx context.Context, elm FullValue, values ...ReStream) error {
+func (n *Inject) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	// Transform: KV<K,V> to KV<K,KV<int,[]byte>>
 
 	var buf bytes.Buffer
-	if err := n.ValueEncoder.Encode(FullValue{Elm: elm.Elm2}, &buf); err != nil {
+	if err := n.ValueEncoder.Encode(&FullValue{Elm: elm.Elm2}, &buf); err != nil {
 		return err
 	}
 
-	v := FullValue{
+	v := &FullValue{
 		Elm: elm.Elm,
-		Elm2: FullValue{
+		Elm2: &FullValue{
 			Elm:  n.N,
 			Elm2: buf.Bytes(),
 		},
@@ -104,7 +106,7 @@ func (n *Expand) StartBundle(ctx context.Context, id string, data DataContext) e
 	return n.Out.StartBundle(ctx, id, data)
 }
 
-func (n *Expand) ProcessElement(ctx context.Context, elm FullValue, values ...ReStream) error {
+func (n *Expand) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	filtered := make([]ReStream, len(n.ValueDecoders))
 	for i, dec := range n.ValueDecoders {
 		filtered[i] = &filterReStream{n: i, dec: dec, real: values[0]}
@@ -149,11 +151,11 @@ func (f *filterStream) Close() error {
 	return f.real.Close()
 }
 
-func (f *filterStream) Read() (FullValue, error) {
+func (f *filterStream) Read() (*FullValue, error) {
 	for {
 		elm, err := f.real.Read()
 		if err != nil {
-			return FullValue{}, err
+			return nil, err
 		}
 
 		key := elm.Elm.(int)
@@ -167,7 +169,7 @@ func (f *filterStream) Read() (FullValue, error) {
 
 		v, err := f.dec.Decode(bytes.NewReader(value))
 		if err != nil {
-			return FullValue{}, fmt.Errorf("failed to decode union value '%v' for key %v: %v", value, key, err)
+			return nil, errors.Wrapf(err, "failed to decode union value '%v' for key %v", value, key)
 		}
 		v.Timestamp = elm.Timestamp
 		v.Windows = elm.Windows

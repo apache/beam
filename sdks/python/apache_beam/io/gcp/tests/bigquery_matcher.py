@@ -20,13 +20,15 @@
 from __future__ import absolute_import
 
 import logging
+import time
 
 from hamcrest.core.base_matcher import BaseMatcher
 
+from apache_beam.io.gcp import bigquery_tools
 from apache_beam.testing.test_utils import compute_hash
 from apache_beam.utils import retry
 
-__all__ = ['BigqueryMatcher']
+__all__ = ['BigqueryMatcher', 'BigQueryTableMatcher']
 
 
 # Protect against environments where bigquery library is not available.
@@ -47,7 +49,7 @@ def retry_on_http_and_value_error(exception):
 
 
 class BigqueryMatcher(BaseMatcher):
-  """Matcher that verifies Bigquery data with given query.
+  """Matcher that verifies the checksum of Bigquery data with given query.
 
   Fetch Bigquery data with given query, compute a hash string and compare
   with expected checksum.
@@ -106,3 +108,154 @@ class BigqueryMatcher(BaseMatcher):
     mismatch_description \
       .append_text("Actual checksum is ") \
       .append_text(self.checksum)
+
+
+class BigqueryFullResultMatcher(BaseMatcher):
+  """Matcher that verifies Bigquery data with given query.
+
+  Fetch Bigquery data with given query, compare to the expected data.
+  """
+
+  def __init__(self, project, query, data):
+    """Initialize BigQueryMatcher object.
+    Args:
+      project: The name (string) of the project.
+      query: The query (string) to perform.
+      data: List of tuples with the expected data.
+    """
+    if bigquery is None:
+      raise ImportError(
+          'Bigquery dependencies are not installed.')
+    if not query or not isinstance(query, str):
+      raise ValueError(
+          'Invalid argument: query. Please use non-empty string')
+    self.project = project
+    self.query = query
+    self.expected_data = data
+
+  def _matches(self, _):
+    logging.info('Start verify Bigquery data.')
+    # Run query
+    bigquery_client = bigquery.Client(project=self.project)
+    response = self._get_query_result(bigquery_client)
+    logging.info('Read from given query (%s), total rows %d',
+                 self.query, len(response))
+
+    self.actual_data = response
+
+    # Verify result
+    return sorted(self.expected_data) == sorted(self.actual_data)
+
+  def _get_query_result(self, bigquery_client):
+    return self._query_with_retry(bigquery_client)
+
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry_on_http_and_value_error)
+  def _query_with_retry(self, bigquery_client):
+    """Run Bigquery query with retry if got error http response"""
+    query_job = bigquery_client.query(self.query)
+    return [row.values() for row in query_job]
+
+  def describe_to(self, description):
+    description \
+      .append_text("Expected data is ") \
+      .append_text(self.expected_data)
+
+  def describe_mismatch(self, pipeline_result, mismatch_description):
+    mismatch_description \
+      .append_text("Actual data is ") \
+      .append_text(self.actual_data)
+
+
+class BigqueryFullResultStreamingMatcher(BigqueryFullResultMatcher):
+  """
+  Matcher that verifies Bigquery data with given query.
+
+  Fetch Bigquery data with given query, compare to the expected data.
+  This matcher polls BigQuery until the no. of records in BigQuery is
+  equal to the no. of records in expected data.
+  A timeout can be specified.
+  """
+
+  DEFAULT_TIMEOUT = 5*60
+
+  def __init__(self, project, query, data, timeout=DEFAULT_TIMEOUT):
+    super(BigqueryFullResultStreamingMatcher, self).__init__(
+        project, query, data)
+    self.timeout = timeout
+
+  def _get_query_result(self, bigquery_client):
+    start_time = time.time()
+    while time.time() - start_time <= self.timeout:
+      response = self._query_with_retry(bigquery_client)
+      if len(response) >= len(self.expected_data):
+        return response
+      time.sleep(1)
+    raise TimeoutError('Timeout exceeded for matcher.')
+
+
+class BigQueryTableMatcher(BaseMatcher):
+  """Matcher that verifies the properties of a Table in BigQuery."""
+
+  def __init__(self, project, dataset, table, expected_properties):
+    if bigquery is None:
+      raise ImportError(
+          'Bigquery dependencies are not installed.')
+
+    self.project = project
+    self.dataset = dataset
+    self.table = table
+    self.expected_properties = expected_properties
+
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry_on_http_and_value_error)
+  def _get_table_with_retry(self, bigquery_wrapper):
+    return bigquery_wrapper.get_table(self.project, self.dataset, self.table)
+
+  def _matches(self, _):
+    logging.info('Start verify Bigquery table properties.')
+    # Run query
+    bigquery_wrapper = bigquery_tools.BigQueryWrapper()
+
+    self.actual_table = self._get_table_with_retry(bigquery_wrapper)
+
+    logging.info('Table proto is %s', self.actual_table)
+
+    return all(
+        self._match_property(v, self._get_or_none(self.actual_table, k))
+        for k, v in self.expected_properties.items())
+
+  @staticmethod
+  def _get_or_none(obj, attr):
+    try:
+      return obj.__getattribute__(attr)
+    except AttributeError:
+      try:
+        return obj.get(attr, None)
+      except TypeError:
+        return None
+
+  @staticmethod
+  def _match_property(expected, actual):
+    logging.info("Matching %s to %s", expected, actual)
+    if isinstance(expected, dict):
+      return all(
+          BigQueryTableMatcher._match_property(
+              v, BigQueryTableMatcher._get_or_none(actual, k))
+          for k, v in expected.items())
+    else:
+      return expected == actual
+
+  def describe_to(self, description):
+    description \
+      .append_text("Expected table attributes are ") \
+      .append_text(sorted((k, v)
+                          for k, v in self.expected_properties.items()))
+
+  def describe_mismatch(self, pipeline_result, mismatch_description):
+    mismatch_description \
+      .append_text("Actual table attributes are ") \
+      .append_text(sorted((k, self._get_or_none(self.actual_table, k))
+                          for k in self.expected_properties))

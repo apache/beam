@@ -23,7 +23,9 @@ to the Dataflow Service for remote execution by a worker.
 from __future__ import absolute_import
 from __future__ import division
 
+import json
 import logging
+import sys
 import threading
 import time
 import traceback
@@ -93,9 +95,14 @@ class DataflowRunner(PipelineRunner):
   # Imported here to avoid circular dependencies.
   # TODO: Remove the apache_beam.pipeline dependency in CreatePTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import CreatePTransformOverride
+  from apache_beam.runners.dataflow.ptransform_overrides import ReadPTransformOverride
 
   _PTRANSFORM_OVERRIDES = [
       CreatePTransformOverride(),
+  ]
+
+  _SDF_PTRANSFORM_OVERRIDES = [
+      ReadPTransformOverride(),
   ]
 
   def __init__(self, cache=None):
@@ -242,10 +249,40 @@ class DataflowRunner(PipelineRunner):
               pcoll.element_type, transform_node.full_label)
           key_type, value_type = pcoll.element_type.tuple_types
           if transform_node.outputs:
-            transform_node.outputs[None].element_type = typehints.KV[
+            from apache_beam.runners.portability.fn_api_runner_transforms import \
+              only_element
+            key = (
+                None if None in transform_node.outputs.keys()
+                else only_element(transform_node.outputs.keys()))
+            transform_node.outputs[key].element_type = typehints.KV[
                 key_type, typehints.Iterable[value_type]]
 
     return GroupByKeyInputVisitor()
+
+  @staticmethod
+  def _set_pdone_visitor(pipeline):
+    # Imported here to avoid circular dependencies.
+    from apache_beam.pipeline import PipelineVisitor
+
+    class SetPDoneVisitor(PipelineVisitor):
+
+      def __init__(self, pipeline):
+        self._pipeline = pipeline
+
+      @staticmethod
+      def _maybe_fix_output(transform_node, pipeline):
+        if not transform_node.outputs:
+          pval = pvalue.PDone(pipeline)
+          pval.producer = transform_node
+          transform_node.outputs = {None: pval}
+
+      def enter_composite_transform(self, transform_node):
+        SetPDoneVisitor._maybe_fix_output(transform_node, self._pipeline)
+
+      def visit_transform(self, transform_node):
+        SetPDoneVisitor._maybe_fix_output(transform_node, self._pipeline)
+
+    return SetPDoneVisitor(pipeline)
 
   @staticmethod
   def side_input_visitor():
@@ -273,11 +310,11 @@ class DataflowRunner(PipelineRunner):
               new_side_input.pvalue = beam.pvalue.PCollection(
                   pipeline,
                   element_type=typehints.KV[
-                      str, side_input.pvalue.element_type])
+                      bytes, side_input.pvalue.element_type])
               parent = transform_node.parent or pipeline._root_transform()
               map_to_void_key = beam.pipeline.AppliedPTransform(
                   pipeline,
-                  beam.Map(lambda x: ('', x)),
+                  beam.Map(lambda x: (b'', x)),
                   transform_node.full_label + '/MapToVoidKey%s' % ix,
                   (side_input.pvalue,))
               new_side_input.pvalue.producer = map_to_void_key
@@ -332,18 +369,36 @@ class DataflowRunner(PipelineRunner):
           'please install apache_beam[gcp]')
 
     # Convert all side inputs into a form acceptable to Dataflow.
-    if apiclient._use_fnapi(options) and (
-        not apiclient._use_unified_worker(options)):
+    if apiclient._use_fnapi(options):
       pipeline.visit(self.side_input_visitor())
 
     # Performing configured PTransform overrides.  Note that this is currently
     # done before Runner API serialization, since the new proto needs to contain
     # any added PTransforms.
     pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
+    if apiclient._use_sdf_bounded_source(options):
+      pipeline.replace_all(DataflowRunner._SDF_PTRANSFORM_OVERRIDES)
 
     # Snapshot the pipeline in a portable proto.
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
         return_context=True)
+
+    if apiclient._use_fnapi(options):
+      # Cross language transform require using a pipeline object constructed
+      # from the full pipeline proto to make sure that expanded version of
+      # external transforms are reflected in the Pipeline job graph.
+      from apache_beam import Pipeline
+      pipeline = Pipeline.from_runner_api(
+          self.proto_pipeline, pipeline.runner, options,
+          allow_proto_holders=True)
+
+      # Pipelines generated from proto do not have output set to PDone set for
+      # leaf elements.
+      pipeline.visit(self._set_pdone_visitor(pipeline))
+
+      # We need to generate a new context that maps to the new pipeline object.
+      self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
+          return_context=True)
 
     # Add setup_options for all the BeamPlugin imports
     setup_options = options.view_as(SetupOptions)
@@ -357,29 +412,39 @@ class DataflowRunner(PipelineRunner):
     debug_options = options.view_as(DebugOptions)
     worker_options = options.view_as(WorkerOptions)
     if worker_options.min_cpu_platform:
-      experiments = ["min_cpu_platform=%s" % worker_options.min_cpu_platform]
-      if debug_options.experiments is not None:
-        experiments = list(set(experiments + debug_options.experiments))
-      debug_options.experiments = experiments
+      debug_options.add_experiment('min_cpu_platform=' +
+                                   worker_options.min_cpu_platform)
 
     # Elevate "enable_streaming_engine" to pipeline option, but using the
     # existing experiment.
     google_cloud_options = options.view_as(GoogleCloudOptions)
     if google_cloud_options.enable_streaming_engine:
-      if debug_options.experiments is None:
-        debug_options.experiments = []
-      if "enable_windmill_service" not in debug_options.experiments:
-        debug_options.experiments.append("enable_windmill_service")
-      if "enable_streaming_engine" not in debug_options.experiments:
-        debug_options.experiments.append("enable_streaming_engine")
+      debug_options.add_experiment("enable_windmill_service")
+      debug_options.add_experiment("enable_streaming_engine")
     else:
-      if debug_options.experiments is not None:
-        if ("enable_windmill_service" in debug_options.experiments
-            or "enable_streaming_engine" in debug_options.experiments):
-          raise ValueError("""Streaming engine both disabled and enabled:
-          enableStreamingEngine is set to false, but enable_windmill_service
-          and/or enable_streaming_engine are present. It is recommended you
-          only set enableStreamingEngine.""")
+      if (debug_options.lookup_experiment("enable_windmill_service") or
+          debug_options.lookup_experiment("enable_streaming_engine")):
+        raise ValueError("""Streaming engine both disabled and enabled:
+        enable_streaming_engine flag is not set, but enable_windmill_service
+        and/or enable_streaming_engine experiments are present.
+        It is recommended you only set the enable_streaming_engine flag.""")
+
+    dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
+    if dataflow_worker_jar is not None:
+      if not apiclient._use_fnapi(options):
+        logging.warn(
+            'Typical end users should not use this worker jar feature. '
+            'It can only be used when FnAPI is enabled.')
+      else:
+        debug_options.add_experiment('use_staged_dataflow_worker_jar')
+
+    # Make Dataflow workers use FastAvro on Python 3 unless use_avro experiment
+    # is set. Note that use_avro is only interpreted by the Dataflow runner
+    # at job submission and is not interpreted by Dataflow service or workers,
+    # which by default use avro library unless use_fastavro experiment is set.
+    if sys.version_info[0] > 2 and (
+        not debug_options.lookup_experiment('use_avro')):
+      debug_options.add_experiment('use_fastavro')
 
     self.job = apiclient.Job(options, self.proto_pipeline)
 
@@ -401,18 +466,6 @@ class DataflowRunner(PipelineRunner):
 
     # Get a Dataflow API client and set its options
     self.dataflow_client = apiclient.DataflowApplicationClient(options)
-
-    dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
-    if dataflow_worker_jar is not None:
-      if not apiclient._use_fnapi(options):
-        logging.fatal(
-            'Typical end users should not use this worker jar feature. '
-            'It can only be used when fnapi is enabled.')
-
-      experiments = ["use_staged_dataflow_worker_jar"]
-      if debug_options.experiments is not None:
-        experiments = list(set(experiments + debug_options.experiments))
-      debug_options.experiments = experiments
 
     # Create the job description and send a request to the service. The result
     # can be None if there is no need to send a request to the service (e.g.
@@ -470,18 +523,24 @@ class DataflowRunner(PipelineRunner):
 
   def _get_encoded_output_coder(self, transform_node, window_value=True):
     """Returns the cloud encoding of the coder for the output of a transform."""
-    if (len(transform_node.outputs) == 1
-        and transform_node.outputs[None].element_type is not None):
+    from apache_beam.runners.portability.fn_api_runner_transforms import \
+      only_element
+    if len(transform_node.outputs) == 1:
+      output_tag = only_element(transform_node.outputs.keys())
       # TODO(robertwb): Handle type hints for multi-output transforms.
-      element_type = transform_node.outputs[None].element_type
+      element_type = transform_node.outputs[output_tag].element_type
     else:
       # TODO(silviuc): Remove this branch (and assert) when typehints are
       # propagated everywhere. Returning an 'Any' as type hint will trigger
       # usage of the fallback coder (i.e., cPickler).
       element_type = typehints.Any
     if window_value:
+      # All outputs have the same windowing. So getting the coder from an
+      # arbitrary window is fine.
+      output_tag = next(iter(transform_node.outputs.keys()))
       window_coder = (
-          transform_node.outputs[None].windowing.windowfn.get_window_coder())
+          transform_node.outputs[
+              output_tag].windowing.windowfn.get_window_coder())
     else:
       window_coder = None
     from apache_beam.runners.dataflow.internal import apiclient
@@ -499,7 +558,14 @@ class DataflowRunner(PipelineRunner):
     self.job.proto.steps.append(step.proto)
     step.add_property(PropertyNames.USER_NAME, step_label)
     # Cache the node/step association for the main output of the transform node.
-    self._cache.cache_output(transform_node, None, step)
+
+    # Main output key of external transforms can be ambiguous, so we only tag if
+    # there's only one tag instead of None.
+    from apache_beam.runners.portability.fn_api_runner_transforms import only_element
+    output_tag = (only_element(transform_node.outputs.keys())
+                  if len(transform_node.outputs.keys()) == 1 else None)
+
+    self._cache.cache_output(transform_node, output_tag, step)
     # If side_tags is not () then this is a multi-output transform node and we
     # need to cache the (node, tag, step) for each of the tags used to access
     # the outputs. This is essential because the keys used to search in the
@@ -586,9 +652,18 @@ class DataflowRunner(PipelineRunner):
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
 
   def apply_WriteToBigQuery(self, transform, pcoll, options):
-    # Make sure this is the WriteToBigQuery class that we expected
-    if not isinstance(transform, beam.io.WriteToBigQuery):
+    # Make sure this is the WriteToBigQuery class that we expected, and that
+    # users did not specifically request the new BQ sink by passing experiment
+    # flag.
+
+    # TODO(BEAM-6928): Remove this function for release 2.14.0.
+    experiments = options.view_as(DebugOptions).experiments or []
+    if (not isinstance(transform, beam.io.WriteToBigQuery)
+        or 'use_beam_bq_sink' in experiments):
       return self.apply_PTransform(transform, pcoll, options)
+    if transform.schema == beam.io.gcp.bigquery.SCHEMA_AUTODETECT:
+      raise RuntimeError(
+          'Schema auto-detection is not supported on the native sink')
     standard_options = options.view_as(StandardOptions)
     if standard_options.streaming:
       if (transform.write_disposition ==
@@ -596,14 +671,19 @@ class DataflowRunner(PipelineRunner):
         raise RuntimeError('Can not use write truncation mode in streaming')
       return self.apply_PTransform(transform, pcoll, options)
     else:
+      from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
+      schema = None
+      if transform.schema:
+        schema = parse_table_schema_from_json(json.dumps(transform.schema))
       return pcoll  | 'WriteToBigQuery' >> beam.io.Write(
           beam.io.BigQuerySink(
               transform.table_reference.tableId,
               transform.table_reference.datasetId,
               transform.table_reference.projectId,
-              transform.schema,
+              schema,
               transform.create_disposition,
-              transform.write_disposition))
+              transform.write_disposition,
+              kms_key=transform.kms_key))
 
   def apply_GroupByKey(self, transform, pcoll, options):
     # Infer coder of parent.
@@ -647,6 +727,24 @@ class DataflowRunner(PipelineRunner):
     step.add_property(
         PropertyNames.SERIALIZED_FN,
         self.serialize_windowing_strategy(windowing))
+
+  def run_RunnerAPIPTransformHolder(self, transform_node, options):
+    """Adding Dataflow runner job description for transform holder objects.
+
+    These holder transform objects are generated for some of the transforms that
+    become available after a cross-language transform expansion, usually if the
+    corresponding transform object cannot be generated in Python SDK (for
+    example, a python `ParDo` transform cannot be generated without a serialized
+    Python `DoFn` object).
+    """
+    urn = transform_node.transform.proto().urn
+    assert urn
+    # TODO(chamikara): support other transforms that requires holder objects in
+    #  Python SDk.
+    if common_urns.primitives.PAR_DO.urn == urn:
+      self.run_ParDo(transform_node, options)
+    else:
+      NotImplementedError(urn)
 
   def run_ParDo(self, transform_node, options):
     transform = transform_node.transform
@@ -703,11 +801,13 @@ class DataflowRunner(PipelineRunner):
     from apache_beam.runners.dataflow.internal import apiclient
     transform_proto = self.proto_context.transforms.get_proto(transform_node)
     transform_id = self.proto_context.transforms.get_id(transform_node)
+    use_fnapi = apiclient._use_fnapi(options)
+    use_unified_worker = apiclient._use_unified_worker(options)
     # The data transmitted in SERIALIZED_FN is different depending on whether
     # this is a fnapi pipeline or not.
-    if (apiclient._use_fnapi(options) and
+    if (use_fnapi and
         (transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn or
-         apiclient._use_unified_worker(options))):
+         use_unified_worker)):
       # Patch side input ids to be unique across a given pipeline.
       if (label_renames and
           transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
@@ -766,6 +866,14 @@ class DataflowRunner(PipelineRunner):
                '%s_%s' % (PropertyNames.OUT, side_tag))})
 
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
+
+    # Add the restriction encoding if we are a splittable DoFn
+    # and are using the Fn API on the unified worker.
+    restriction_coder = transform.get_restriction_coder()
+    if (use_fnapi and use_unified_worker and restriction_coder):
+      step.add_property(PropertyNames.RESTRICTION_ENCODING,
+                        self._get_cloud_encoding(
+                            restriction_coder, use_fnapi))
 
   @staticmethod
   def _pardo_fn_data(transform_node, get_label):
@@ -905,6 +1013,9 @@ class DataflowRunner(PipelineRunner):
       else:
         raise ValueError('BigQuery source %r must specify either a table or'
                          ' a query' % transform.source)
+      if transform.source.kms_key is not None:
+        step.add_property(
+            PropertyNames.BIGQUERY_KMS_KEY, transform.source.kms_key)
     elif transform.source.format == 'pubsub':
       if not standard_options.streaming:
         raise ValueError('Cloud Pub/Sub is currently available for use '
@@ -1003,6 +1114,9 @@ class DataflowRunner(PipelineRunner):
       if transform.sink.table_schema is not None:
         step.add_property(
             PropertyNames.BIGQUERY_SCHEMA, transform.sink.schema_as_json())
+      if transform.sink.kms_key is not None:
+        step.add_property(
+            PropertyNames.BIGQUERY_KMS_KEY, transform.sink.kms_key)
     elif transform.sink.format == 'pubsub':
       standard_options = options.view_as(StandardOptions)
       if not standard_options.streaming:
@@ -1080,9 +1194,6 @@ class DataflowRunner(PipelineRunner):
 class _DataflowSideInput(beam.pvalue.AsSideInput):
   """Wraps a side input as a dataflow-compatible side input."""
 
-  # Dataflow does not yet accept the shared urn definition for access.
-  DATAFLOW_MULTIMAP_URN = 'urn:beam:sideinput:materialization:multimap:0.1'
-
   def _view_options(self):
     return {
         'data': self._data,
@@ -1102,9 +1213,9 @@ class _DataflowIterableSideInput(_DataflowSideInput):
         side_input_data.access_pattern == common_urns.side_inputs.ITERABLE.urn)
     iterable_view_fn = side_input_data.view_fn
     self._data = beam.pvalue.SideInputData(
-        self.DATAFLOW_MULTIMAP_URN,
+        common_urns.side_inputs.MULTIMAP.urn,
         side_input_data.window_mapping_fn,
-        lambda multimap: iterable_view_fn(multimap['']))
+        lambda multimap: iterable_view_fn(multimap[b'']))
 
 
 class _DataflowMultimapSideInput(_DataflowSideInput):
@@ -1117,7 +1228,7 @@ class _DataflowMultimapSideInput(_DataflowSideInput):
     assert (
         side_input_data.access_pattern == common_urns.side_inputs.MULTIMAP.urn)
     self._data = beam.pvalue.SideInputData(
-        self.DATAFLOW_MULTIMAP_URN,
+        common_urns.side_inputs.MULTIMAP.urn,
         side_input_data.window_mapping_fn,
         side_input_data.view_fn)
 

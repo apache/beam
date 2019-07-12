@@ -131,35 +131,19 @@ public class KinesisMockWriteTest {
   }
 
   @Test
-  public void testNotExistedStream() {
-    Iterable<byte[]> data = ImmutableList.of("1".getBytes(StandardCharsets.UTF_8));
-    p.apply(Create.of(data))
-        .apply(
-            KinesisIO.write()
-                .withStreamName(STREAM)
-                .withPartitionKey(PARTITION_KEY)
-                .withAWSClientsProvider(new FakeKinesisProvider(false)));
-
-    thrown.expect(RuntimeException.class);
-    p.run().waitUntilFinish();
-  }
-
-  @Test
   public void testSetInvalidProperty() {
     Properties properties = new Properties();
     properties.setProperty("KinesisPort", "qwe");
 
-    Iterable<byte[]> data = ImmutableList.of("1".getBytes(StandardCharsets.UTF_8));
-    p.apply(Create.of(data))
-        .apply(
-            KinesisIO.write()
-                .withStreamName(STREAM)
-                .withPartitionKey(PARTITION_KEY)
-                .withAWSClientsProvider(new FakeKinesisProvider())
-                .withProducerProperties(properties));
+    KinesisIO.Write write =
+        KinesisIO.write()
+            .withStreamName(STREAM)
+            .withPartitionKey(PARTITION_KEY)
+            .withAWSClientsProvider(new FakeKinesisProvider())
+            .withProducerProperties(properties);
 
-    thrown.expect(RuntimeException.class);
-    p.run().waitUntilFinish();
+    thrown.expect(IllegalArgumentException.class);
+    write.expand(null);
   }
 
   @Test
@@ -197,7 +181,7 @@ public class KinesisMockWriteTest {
                 .withStreamName(STREAM)
                 .withPartitionKey(PARTITION_KEY)
                 .withAWSClientsProvider(new FakeKinesisProvider().setFailedFlush(true))
-                .withRetries(1));
+                .withRetries(2));
 
     thrown.expect(RuntimeException.class);
     p.run().waitUntilFinish();

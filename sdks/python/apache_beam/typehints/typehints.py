@@ -525,6 +525,7 @@ class UnionHint(CompositeTypeHint):
 
     # Flatten nested Union's and duplicated repeated type hints.
     params = set()
+    dict_union = None
     for t in type_params:
       validate_composite_type_param(
           t, error_msg_prefix='All parameters to a Union hint'
@@ -532,8 +533,17 @@ class UnionHint(CompositeTypeHint):
 
       if isinstance(t, self.UnionConstraint):
         params |= t.union_types
+      elif isinstance(t, DictConstraint):
+        if dict_union is None:
+          dict_union = t
+        else:
+          dict_union.key_type = Union[dict_union.key_type, t.key_type]
+          dict_union.value_type = Union[dict_union.value_type, t.value_type]
       else:
         params.add(t)
+
+    if dict_union is not None:
+      params.add(dict_union)
 
     if Any in params:
       return Any
@@ -1135,11 +1145,17 @@ def is_consistent_with(sub, base):
   return issubclass(sub, base)
 
 
-def coerce_to_kv_type(element_type, label=None):
+def coerce_to_kv_type(element_type, label=None, side_input_producer=None):
   """Attempts to coerce element_type to a compatible kv type.
 
   Raises an error on failure.
   """
+  if side_input_producer:
+    consumer = 'side-input of %r (producer: %r)' % (label,
+                                                    side_input_producer)
+  else:
+    consumer = '%r' % label
+
   # If element_type is not specified, then treat it as `Any`.
   if not element_type:
     return KV[Any, Any]
@@ -1148,8 +1164,8 @@ def coerce_to_kv_type(element_type, label=None):
       return element_type
     else:
       raise ValueError(
-          "Tuple input to %r must be have two components. "
-          "Found %s." % (label, element_type))
+          "Tuple input to %s must have two components. "
+          "Found %s." % (consumer, element_type))
   elif isinstance(element_type, AnyTypeConstraint):
     # `Any` type needs to be replaced with a KV[Any, Any] to
     # satisfy the KV form.
@@ -1163,5 +1179,5 @@ def coerce_to_kv_type(element_type, label=None):
   else:
     # TODO: Possibly handle other valid types.
     raise ValueError(
-        "Input to %r must be compatible with KV[Any, Any]. "
-        "Found %s." % (label, element_type))
+        "Input to %s must be compatible with KV[Any, Any]. "
+        "Found %s." % (consumer, element_type))

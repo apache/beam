@@ -91,7 +91,7 @@ public class GroupIntoBatchesTest implements Serializable {
             .apply(GroupIntoBatches.ofSize(BATCH_SIZE))
             // set output coder
             .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())));
-    PAssert.that("Incorrect batch size in one ore more elements", collection)
+    PAssert.that("Incorrect batch size in one or more elements", collection)
         .satisfies(
             new SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void>() {
 

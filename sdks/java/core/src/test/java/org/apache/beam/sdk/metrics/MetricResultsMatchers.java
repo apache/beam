@@ -58,9 +58,8 @@ public class MetricResultsMatchers {
       @Override
       protected boolean matchesSafely(MetricResult<T> item) {
         final T metricValue = isCommitted ? item.getCommitted() : item.getAttempted();
-        return Objects.equals(namespace, item.getName().getNamespace())
-            && Objects.equals(name, item.getName().getName())
-            && item.getStep().contains(step)
+        return MetricFiltering.matches(MetricsFilter.builder().addStep(step).build(), item.getKey())
+            && Objects.equals(MetricName.named(namespace, name), item.getName())
             && metricResultsEqual(value, metricValue);
       }
 
@@ -136,9 +135,8 @@ public class MetricResultsMatchers {
       @Override
       protected boolean matchesSafely(MetricResult<DistributionResult> item) {
         DistributionResult metricValue = isCommitted ? item.getCommitted() : item.getAttempted();
-        return Objects.equals(namespace, item.getName().getNamespace())
-            && Objects.equals(name, item.getName().getName())
-            && item.getStep().contains(step)
+        return MetricFiltering.matches(MetricsFilter.builder().addStep(step).build(), item.getKey())
+            && Objects.equals(MetricName.named(namespace, name), item.getName())
             && Objects.equals(min, metricValue.getMin())
             && Objects.equals(max, metricValue.getMax());
       }
@@ -194,28 +192,13 @@ public class MetricResultsMatchers {
       String namespace,
       String name,
       String step) {
-    if (!Objects.equals(namespace, item.getName().getNamespace())) {
+    MetricKey key = MetricKey.create(step, MetricName.named(namespace, name));
+    if (!Objects.equals(key, item.getKey())) {
       mismatchDescription
-          .appendText("inNamespace: ")
-          .appendValue(namespace)
+          .appendText("inKey: ")
+          .appendValue(key)
           .appendText(" != ")
-          .appendValue(item.getName().getNamespace());
-    }
-
-    if (!Objects.equals(name, item.getName().getName())) {
-      mismatchDescription
-          .appendText("name: ")
-          .appendValue(name)
-          .appendText(" != ")
-          .appendValue(item.getName().getName());
-    }
-
-    if (!item.getStep().contains(step)) {
-      mismatchDescription
-          .appendText("step: ")
-          .appendValue(step)
-          .appendText(" != ")
-          .appendValue(item.getStep());
+          .appendValue(item.getKey());
     }
   }
 }

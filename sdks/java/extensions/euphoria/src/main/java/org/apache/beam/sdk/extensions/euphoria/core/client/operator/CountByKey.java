@@ -185,10 +185,10 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
     public <T> WindowByBuilder<T> keyBy(
         UnaryFunction<InputT, T> keyExtractor, @Nullable TypeDescriptor<T> keyType) {
       @SuppressWarnings("unchecked")
-      final Builder<InputT, T> casted = (Builder<InputT, T>) this;
-      casted.keyExtractor = requireNonNull(keyExtractor);
-      casted.keyType = keyType;
-      return casted;
+      final Builder<InputT, T> cast = (Builder<InputT, T>) this;
+      cast.keyExtractor = requireNonNull(keyExtractor);
+      cast.keyType = keyType;
+      return cast;
     }
 
     @Override
@@ -265,14 +265,14 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
         .of(PCollectionLists.getOnlyElement(inputs))
         .keyBy(getKeyExtractor(), getKeyType().orElse(null))
         .valueBy(v -> 1L, TypeDescriptors.longs())
-        .combineBy(Sums.ofLongs(), TypeDescriptors.longs())
+        .combineBy(Sums.ofLongs())
         .applyIf(
             getWindow().isPresent(),
             builder -> {
               @SuppressWarnings("unchecked")
-              final ReduceByKey.WindowByInternalBuilder<InputT, KeyT, Long> casted =
+              final ReduceByKey.WindowByInternalBuilder<InputT, KeyT, Long> cast =
                   (ReduceByKey.WindowByInternalBuilder) builder;
-              return casted.windowBy(
+              return cast.windowBy(
                   getWindow()
                       .orElseThrow(
                           () ->

@@ -64,14 +64,14 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * PCollection<KV<String, Iterable<Doc>>> urlToDocs =
  *     urlDocPairs.apply(GroupByKey.<String, Doc>create());
  * PCollection<R> results =
- *     urlToDocs.apply(ParDo.of(new DoFn<KV<String, Iterable<Doc>>, R>() {
- *      {@literal @}ProcessElement
+ *     urlToDocs.apply(ParDo.of(new DoFn<KV<String, Iterable<Doc>>, R>() }{
+ *      {@code @ProcessElement
  *       public void processElement(ProcessContext c) {
  *         String url = c.element().getKey();
  *         Iterable<Doc> docsWithThatUrl = c.element().getValue();
  *         ... process all docs having that url ...
- *       }}));
- * }</pre>
+ *       }}}));
+ * </pre>
  *
  * <p>{@code GroupByKey} is a key primitive in data-parallel processing, since it is the main way to
  * efficiently bring associated data together into one location. It is also a key determiner of the

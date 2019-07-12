@@ -17,21 +17,15 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.model.pipeline.v1.MetricsApi.monitoringInfoSpec;
+
 import java.time.Instant;
 import java.util.HashMap;
 import javax.annotation.Nullable;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo.MonitoringInfoLabels;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoLabelProps;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoSpec;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoSpecs;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoTypeUrns;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoUrns;
-import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpec;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Simplified building of MonitoringInfo fields, allows setting one field at a time with simpler
@@ -48,41 +42,17 @@ import org.slf4j.LoggerFactory;
  *
  * <p>SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
  * builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN); builder.setInt64Value(1);
- * builder.setPTransformLabel("myTransform"); builder.setPCollectionLabel("myPcollection");
- * MonitoringInfo mi = builder.build();
- *
- * <p>Example Usage (ElementCount counter):
- *
- * <p>SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
- * builder.setUrn(SimpleMonitoringInfoBuilder.setUrnForUserMetric("myNamespace", "myName"));
- * builder.setInt64Value(1); MonitoringInfo mi = builder.build();
+ * builder.setPTransformLabel("myTransform");
+ * builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "myTransform"); MonitoringInfo mi =
+ * builder.build();
  */
 public class SimpleMonitoringInfoBuilder {
-  public static final String ELEMENT_COUNT_URN =
-      BeamUrns.getUrn(MonitoringInfoUrns.Enum.ELEMENT_COUNT);
-  public static final String START_BUNDLE_MSECS_URN =
-      BeamUrns.getUrn(MonitoringInfoUrns.Enum.START_BUNDLE_MSECS);
-  public static final String PROCESS_BUNDLE_MSECS_URN =
-      BeamUrns.getUrn(MonitoringInfoUrns.Enum.PROCESS_BUNDLE_MSECS);
-  public static final String FINISH_BUNDLE_MSECS_URN =
-      BeamUrns.getUrn(MonitoringInfoUrns.Enum.FINISH_BUNDLE_MSECS);
-  public static final String USER_COUNTER_URN_PREFIX =
-      BeamUrns.getUrn(MonitoringInfoUrns.Enum.USER_COUNTER_URN_PREFIX);
-  public static final String SUM_INT64_TYPE_URN =
-      BeamUrns.getUrn(MonitoringInfoTypeUrns.Enum.SUM_INT64_TYPE);
+  private final boolean validateAndDropInvalid;
 
   private static final HashMap<String, MonitoringInfoSpec> specs =
       new HashMap<String, MonitoringInfoSpec>();
 
-  public static final String PCOLLECTION_LABEL = getLabelString(MonitoringInfoLabels.PCOLLECTION);
-  public static final String PTRANSFORM_LABEL = getLabelString(MonitoringInfoLabels.TRANSFORM);
-
-  private final boolean validateAndDropInvalid;
-
-  private static final Logger LOG = LoggerFactory.getLogger(SimpleMonitoringInfoBuilder.class);
-
   private MonitoringInfo.Builder builder;
-
   private SpecMonitoringInfoValidator validator = new SpecMonitoringInfoValidator();
 
   static {
@@ -91,17 +61,10 @@ public class SimpleMonitoringInfoBuilder {
       // the proto files.
       if (!val.name().equals("UNRECOGNIZED")) {
         MonitoringInfoSpec spec =
-            val.getValueDescriptor().getOptions().getExtension(BeamFnApi.monitoringInfoSpec);
+            val.getValueDescriptor().getOptions().getExtension(monitoringInfoSpec);
         SimpleMonitoringInfoBuilder.specs.put(spec.getUrn(), spec);
       }
     }
-  }
-
-  /** Returns the label string constant defined in the MonitoringInfoLabel enum proto. */
-  private static String getLabelString(MonitoringInfoLabels label) {
-    MonitoringInfoLabelProps props =
-        label.getValueDescriptor().getOptions().getExtension(BeamFnApi.labelProps);
-    return props.getName();
   }
 
   public SimpleMonitoringInfoBuilder() {
@@ -113,18 +76,6 @@ public class SimpleMonitoringInfoBuilder {
     this.validateAndDropInvalid = validateAndDropInvalid;
   }
 
-  /** @return The metric URN for a user metric, with a proper URN prefix. */
-  public static String userMetricUrn(String metricNamespace, String metricName) {
-    String fixedMetricNamespace = metricNamespace.replace(':', '_');
-    String fixedMetricName = metricName.replace(':', '_');
-    StringBuilder sb = new StringBuilder();
-    sb.append(USER_COUNTER_URN_PREFIX);
-    sb.append(fixedMetricNamespace);
-    sb.append(':');
-    sb.append(fixedMetricName);
-    return sb.toString();
-  }
-
   /**
    * Sets the urn of the MonitoringInfo.
    *
@@ -132,17 +83,6 @@ public class SimpleMonitoringInfoBuilder {
    */
   public SimpleMonitoringInfoBuilder setUrn(String urn) {
     this.builder.setUrn(urn);
-    return this;
-  }
-
-  /**
-   * Sets the urn of the MonitoringInfo to a proper user metric URN for the given params.
-   *
-   * @param namespace
-   * @param name
-   */
-  public SimpleMonitoringInfoBuilder setUrnForUserMetric(String namespace, String name) {
-    this.builder.setUrn(userMetricUrn(namespace, name));
     return this;
   }
 
@@ -160,22 +100,32 @@ public class SimpleMonitoringInfoBuilder {
     return this;
   }
 
+  /**
+   * Sets the IntDistributionData of the DistributionData in the MonitoringInfo, and the appropriate
+   * type URN.
+   */
+  public SimpleMonitoringInfoBuilder setInt64DistributionValue(DistributionData data) {
+    this.builder
+        .getMetricBuilder()
+        .getDistributionDataBuilder()
+        .getIntDistributionDataBuilder()
+        .setCount(data.count())
+        .setSum(data.sum())
+        .setMin(data.min())
+        .setMax(data.max());
+    this.setInt64DistributionTypeUrn();
+    return this;
+  }
+
+  /** Sets the the appropriate type URN for int64 distribution tuples. */
+  public SimpleMonitoringInfoBuilder setInt64DistributionTypeUrn() {
+    this.builder.setType(MonitoringInfoConstants.TypeUrns.DISTRIBUTION_INT64);
+    return this;
+  }
+
   /** Sets the the appropriate type URN for sum int64 counters. */
   public SimpleMonitoringInfoBuilder setInt64TypeUrn() {
-    this.builder.setType(SUM_INT64_TYPE_URN);
-    return this;
-  }
-
-  /** Sets the PTRANSFORM MonitoringInfo label to the given param. */
-  public SimpleMonitoringInfoBuilder setPTransformLabel(String pTransform) {
-    // TODO(ajamato): Add validation that it is a valid pTransform name in the bundle descriptor.
-    setLabel(PTRANSFORM_LABEL, pTransform);
-    return this;
-  }
-
-  /** Sets the PCOLLECTION MonitoringInfo label to the given param. */
-  public SimpleMonitoringInfoBuilder setPCollectionLabel(String pCollection) {
-    setLabel(PCOLLECTION_LABEL, pCollection);
+    this.builder.setType(MonitoringInfoConstants.TypeUrns.SUM_INT64);
     return this;
   }
 
@@ -185,9 +135,11 @@ public class SimpleMonitoringInfoBuilder {
     return this;
   }
 
-  /** Clear the builder and merge from the provided monitoringInfo. */
-  public void clearAndMerge(MonitoringInfo monitoringInfo) {
+  public void clear() {
     this.builder = MonitoringInfo.newBuilder();
+  }
+  /** Clear the builder and merge from the provided monitoringInfo. */
+  public void merge(MonitoringInfo monitoringInfo) {
     this.builder.mergeFrom(monitoringInfo);
   }
 
@@ -196,7 +148,7 @@ public class SimpleMonitoringInfoBuilder {
    *     MonitoringInfos.
    */
   @VisibleForTesting
-  public static MonitoringInfo clearTimestamp(MonitoringInfo input) {
+  public static MonitoringInfo copyAndClearTimestamp(MonitoringInfo input) {
     MonitoringInfo.Builder builder = MonitoringInfo.newBuilder();
     builder.mergeFrom(input);
     builder.clearTimestamp();

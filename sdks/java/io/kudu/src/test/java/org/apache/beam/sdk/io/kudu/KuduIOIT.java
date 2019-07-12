@@ -50,6 +50,8 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,6 +88,7 @@ import org.slf4j.LoggerFactory;
  *   127.0.0.1 localhost e94929167e2a
  * </pre>
  */
+@RunWith(JUnit4.class)
 public class KuduIOIT {
   private static final Logger LOG = LoggerFactory.getLogger(KuduIOIT.class);
 

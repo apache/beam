@@ -33,8 +33,11 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for {@link MutationKeyEncoder}. */
+@RunWith(JUnit4.class)
 public class MutationKeyEncoderTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -393,6 +396,52 @@ public class MutationKeyEncoderTest {
                 .to((Boolean) null)
                 .set("boolkeydesc")
                 .to(false)
+                .build());
+
+    verifyEncodedOrdering(schema, sortedMutations);
+  }
+
+  @Test
+  public void unspecifiedStringKeys() throws Exception {
+    SpannerSchema.Builder builder = SpannerSchema.builder();
+
+    builder.addColumn("test", "key", "STRING");
+    builder.addKeyPart("test", "key", false);
+
+    builder.addColumn("test", "keydesc", "STRING");
+    builder.addKeyPart("test", "keydesc", true);
+
+    SpannerSchema schema = builder.build();
+
+    List<Mutation> sortedMutations =
+        Arrays.asList(
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to("a")
+                .set("keydesc")
+                .to("b")
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to("a")
+                .set("keydesc")
+                .to("a")
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to("b")
+                // leave keydesc value unspecified --> maxvalue descending.
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to("b")
+                .set("keydesc")
+                .to("a")
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                // leave 'key' value unspecified -> maxvalue
+                .set("keydesc")
+                .to("a")
                 .build());
 
     verifyEncodedOrdering(schema, sortedMutations);

@@ -18,34 +18,67 @@
 package org.apache.beam.runners.samza.container;
 
 import java.time.Duration;
-import org.apache.samza.application.StreamApplication;
+import org.apache.samza.application.SamzaApplication;
+import org.apache.samza.application.descriptors.ApplicationDescriptor;
+import org.apache.samza.application.descriptors.ApplicationDescriptorImpl;
+import org.apache.samza.application.descriptors.ApplicationDescriptorUtil;
 import org.apache.samza.config.Config;
 import org.apache.samza.config.ShellCommandConfig;
+import org.apache.samza.context.ExternalContext;
 import org.apache.samza.job.ApplicationStatus;
-import org.apache.samza.runtime.LocalContainerRunner;
+import org.apache.samza.runtime.ApplicationRunner;
+import org.apache.samza.runtime.ContainerLaunchUtil;
+import org.apache.samza.util.SamzaUncaughtExceptionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Runs the beam Yarn container, using the static global job model. */
-public class BeamContainerRunner extends LocalContainerRunner {
+public class BeamContainerRunner implements ApplicationRunner {
   private static final Logger LOG = LoggerFactory.getLogger(ContainerCfgFactory.class);
 
-  public BeamContainerRunner(Config config) {
-    super(ContainerCfgFactory.jobModel, System.getenv(ShellCommandConfig.ENV_CONTAINER_ID()));
+  private final ApplicationDescriptorImpl<? extends ApplicationDescriptor> appDesc;
+
+  public BeamContainerRunner(SamzaApplication app, Config config) {
+    this.appDesc = ApplicationDescriptorUtil.getAppDescriptor(app, config);
   }
 
   @Override
-  public ApplicationStatus status(StreamApplication app) {
+  public void run(ExternalContext externalContext) {
+    Thread.setDefaultUncaughtExceptionHandler(
+        new SamzaUncaughtExceptionHandler(
+            () -> {
+              LOG.info("Exiting process now.");
+              System.exit(1);
+            }));
+
+    ContainerLaunchUtil.run(
+        appDesc,
+        System.getenv(ShellCommandConfig.ENV_CONTAINER_ID()),
+        ContainerCfgFactory.jobModel);
+  }
+
+  @Override
+  public void kill() {
+    // Do nothing. Yarn will kill the container.
+  }
+
+  @Override
+  public ApplicationStatus status() {
+    // The container is running during the life span of this object.
     return ApplicationStatus.Running;
   }
 
   @Override
   public void waitForFinish() {
+    // Container run is synchronous
+    // so calling waitForFinish() after run() should return immediately
     LOG.info("Container has stopped");
   }
 
   @Override
   public boolean waitForFinish(Duration timeout) {
+    // Container run is synchronous
+    // so calling waitForFinish() after run() should return immediately
     LOG.info("Container has stopped");
     return true;
   }

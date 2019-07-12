@@ -105,7 +105,7 @@ public class DataflowMetricsTest {
     when(dataflowClient.getJobMetrics(JOB_ID)).thenReturn(jobMetrics);
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
-    MetricQueryResults result = dataflowMetrics.queryMetrics(null);
+    MetricQueryResults result = dataflowMetrics.allMetrics();
     assertThat(ImmutableList.copyOf(result.getCounters()), is(empty()));
     assertThat(ImmutableList.copyOf(result.getDistributions()), is(empty()));
   }
@@ -129,9 +129,9 @@ public class DataflowMetricsTest {
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
     verify(dataflowClient, times(0)).getJobMetrics(JOB_ID);
-    dataflowMetrics.queryMetrics(null);
+    dataflowMetrics.allMetrics();
     verify(dataflowClient, times(1)).getJobMetrics(JOB_ID);
-    dataflowMetrics.queryMetrics(null);
+    dataflowMetrics.allMetrics();
     verify(dataflowClient, times(1)).getJobMetrics(JOB_ID);
   }
 
@@ -207,7 +207,7 @@ public class DataflowMetricsTest {
     when(dataflowClient.getJobMetrics(JOB_ID)).thenReturn(jobMetrics);
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
-    MetricQueryResults result = dataflowMetrics.queryMetrics(null);
+    MetricQueryResults result = dataflowMetrics.allMetrics();
     assertThat(
         result.getCounters(),
         containsInAnyOrder(
@@ -245,7 +245,7 @@ public class DataflowMetricsTest {
             makeCounterMetricUpdate("otherCounter[MIN]", "otherNamespace", "s2", 0L, true)));
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
-    MetricQueryResults result = dataflowMetrics.queryMetrics(null);
+    MetricQueryResults result = dataflowMetrics.allMetrics();
     assertThat(
         result.getCounters(),
         containsInAnyOrder(
@@ -283,7 +283,7 @@ public class DataflowMetricsTest {
                 "distributionName", "distributionNamespace", "s2", 18L, 2L, 2L, 16L, true)));
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
-    MetricQueryResults result = dataflowMetrics.queryMetrics(null);
+    MetricQueryResults result = dataflowMetrics.allMetrics();
     assertThat(
         result.getDistributions(),
         contains(
@@ -329,7 +329,7 @@ public class DataflowMetricsTest {
                 "distributionName", "distributionNamespace", "s2", 18L, 2L, 2L, 16L, true)));
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
-    MetricQueryResults result = dataflowMetrics.queryMetrics(null);
+    MetricQueryResults result = dataflowMetrics.allMetrics();
     try {
       result.getDistributions().iterator().next().getCommitted();
       fail("Expected UnsupportedOperationException");
@@ -388,7 +388,7 @@ public class DataflowMetricsTest {
             makeCounterMetricUpdate("lostName", "otherNamespace", "s5", 1200L, true)));
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
-    MetricQueryResults result = dataflowMetrics.queryMetrics(null);
+    MetricQueryResults result = dataflowMetrics.allMetrics();
     assertThat(
         result.getCounters(),
         containsInAnyOrder(
@@ -438,7 +438,7 @@ public class DataflowMetricsTest {
             makeCounterMetricUpdate("counterName", "otherNamespace", "s4", 1233L, true)));
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
-    MetricQueryResults result = dataflowMetrics.queryMetrics(null);
+    MetricQueryResults result = dataflowMetrics.allMetrics();
     try {
       result.getCounters().iterator().next().getCommitted();
       fail("Expected UnsupportedOperationException");

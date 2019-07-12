@@ -39,7 +39,7 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
@@ -261,25 +261,14 @@ public class Nodes {
   @AutoValue
   public abstract static class RemoteGrpcPortNode extends Node {
     public static RemoteGrpcPortNode create(
-        BeamFnApi.RemoteGrpcPort port,
-        String primitiveTransformId,
-        String functionSpecId,
-        String inputId,
-        String outputId) {
+        BeamFnApi.RemoteGrpcPort port, String primitiveTransformId) {
       checkNotNull(port);
-      return new AutoValue_Nodes_RemoteGrpcPortNode(
-          port, primitiveTransformId, functionSpecId, inputId, outputId);
+      return new AutoValue_Nodes_RemoteGrpcPortNode(port, primitiveTransformId);
     }
 
     public abstract BeamFnApi.RemoteGrpcPort getRemoteGrpcPort();
 
     public abstract String getPrimitiveTransformId();
-
-    public abstract String getFunctionSpecId();
-
-    public abstract String getInputId();
-
-    public abstract String getOutputId();
   }
 
   /** A node that stores {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterRequest}s. */
@@ -289,14 +278,16 @@ public class Nodes {
         BeamFnApi.RegisterRequest request,
         Map<String, NameContext> ptransformIdToPartialNameContextMap,
         Map<String, Iterable<SideInputInfo>> ptransformIdToSideInputInfoMap,
-        Map<String, Iterable<PCollectionView<?>>> pTransformIdToPCollectionViewMap) {
+        Map<String, Iterable<PCollectionView<?>>> ptransformIdToPCollectionViewMap,
+        Map<String, NameContext> pcollectionToPartialNameContextMap) {
       checkNotNull(request);
       checkNotNull(ptransformIdToPartialNameContextMap);
       return new AutoValue_Nodes_RegisterRequestNode(
           request,
           ptransformIdToPartialNameContextMap,
           ptransformIdToSideInputInfoMap,
-          pTransformIdToPCollectionViewMap);
+          ptransformIdToPCollectionViewMap,
+          pcollectionToPartialNameContextMap);
     }
 
     public abstract BeamFnApi.RegisterRequest getRegisterRequest();
@@ -306,6 +297,8 @@ public class Nodes {
     public abstract Map<String, Iterable<SideInputInfo>> getPTransformIdToSideInputInfoMap();
 
     public abstract Map<String, Iterable<PCollectionView<?>>> getPTransformIdToPCollectionViewMap();
+
+    public abstract Map<String, NameContext> getPCollectionToPartialNameContextMap();
 
     @Override
     public String toString() {
@@ -319,16 +312,25 @@ public class Nodes {
   public abstract static class ExecutableStageNode extends Node {
     public static ExecutableStageNode create(
         ExecutableStage executableStage,
-        Map<String, NameContext> ptransformIdToPartialNameContextMap) {
+        Map<String, NameContext> ptransformIdToPartialNameContextMap,
+        Map<String, Iterable<SideInputInfo>> ptransformIdToSideInputInfoMap,
+        Map<String, Iterable<PCollectionView<?>>> pTransformIdToPCollectionViewMap) {
       checkNotNull(executableStage);
       checkNotNull(ptransformIdToPartialNameContextMap);
       return new AutoValue_Nodes_ExecutableStageNode(
-          executableStage, ptransformIdToPartialNameContextMap);
+          executableStage,
+          ptransformIdToPartialNameContextMap,
+          ptransformIdToSideInputInfoMap,
+          pTransformIdToPCollectionViewMap);
     }
 
     public abstract ExecutableStage getExecutableStage();
 
     public abstract Map<String, NameContext> getPTransformIdToPartialNameContextMap();
+
+    public abstract Map<String, Iterable<SideInputInfo>> getPTransformIdToSideInputInfoMap();
+
+    public abstract Map<String, Iterable<PCollectionView<?>>> getPTransformIdToPCollectionViewMap();
 
     @Override
     public String toString() {

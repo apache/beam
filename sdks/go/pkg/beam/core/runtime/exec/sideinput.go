@@ -36,15 +36,16 @@ type SideInputAdapter interface {
 }
 
 type sideInputAdapter struct {
-	sid StreamID
-	wc  WindowEncoder
-	kc  ElementEncoder
-	ec  ElementDecoder
+	sid         StreamID
+	sideInputID string
+	wc          WindowEncoder
+	kc          ElementEncoder
+	ec          ElementDecoder
 }
 
 // NewSideInputAdapter returns a side input adapter for the given StreamID and coder.
 // It expects a W<KV<K,V>> coder, because the protocol supports MultiSet access only.
-func NewSideInputAdapter(sid StreamID, c *coder.Coder) SideInputAdapter {
+func NewSideInputAdapter(sid StreamID, sideInputID string, c *coder.Coder) SideInputAdapter {
 	if !coder.IsW(c) || !coder.IsKV(coder.SkipW(c)) {
 		panic(fmt.Sprintf("expected WKV coder for side input %v: %v", sid, c))
 	}
@@ -52,7 +53,7 @@ func NewSideInputAdapter(sid StreamID, c *coder.Coder) SideInputAdapter {
 	wc := MakeWindowEncoder(c.Window)
 	kc := MakeElementEncoder(coder.SkipW(c).Components[0])
 	ec := MakeElementDecoder(coder.SkipW(c).Components[1])
-	return &sideInputAdapter{sid: sid, wc: wc, kc: kc, ec: ec}
+	return &sideInputAdapter{sid: sid, sideInputID: sideInputID, wc: wc, kc: kc, ec: ec}
 }
 
 func (s *sideInputAdapter) NewIterable(ctx context.Context, reader SideInputReader, w typex.Window) (ReStream, error) {
@@ -66,7 +67,7 @@ func (s *sideInputAdapter) NewIterable(ctx context.Context, reader SideInputRead
 	}
 	return &proxyReStream{
 		open: func() (Stream, error) {
-			r, err := reader.Open(ctx, s.sid, key, win)
+			r, err := reader.Open(ctx, s.sid, s.sideInputID, key, win)
 			if err != nil {
 				return nil, err
 			}
@@ -76,7 +77,7 @@ func (s *sideInputAdapter) NewIterable(ctx context.Context, reader SideInputRead
 }
 
 func (s *sideInputAdapter) String() string {
-	return fmt.Sprintf("SideInputAdapter[%v]", s.sid)
+	return fmt.Sprintf("SideInputAdapter[%v, %v]", s.sid, s.sideInputID)
 }
 
 // proxyReStream is a simple wrapper of an open function.
@@ -98,7 +99,7 @@ func (s *elementStream) Close() error {
 	return s.r.Close()
 }
 
-func (s *elementStream) Read() (FullValue, error) {
+func (s *elementStream) Read() (*FullValue, error) {
 	// We should see a stream of unwindowed values -- no sizes, no key.
 	return s.ec.Decode(s.r)
 }
@@ -125,10 +126,10 @@ func (n *FixedKey) StartBundle(ctx context.Context, id string, data DataContext)
 	return n.Out.StartBundle(ctx, id, data)
 }
 
-func (n *FixedKey) ProcessElement(ctx context.Context, elm FullValue, values ...ReStream) error {
+func (n *FixedKey) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	// Transform: V to KV<K,V>
 
-	v := FullValue{
+	v := &FullValue{
 		Elm:       n.Key,
 		Elm2:      elm,
 		Timestamp: elm.Timestamp,

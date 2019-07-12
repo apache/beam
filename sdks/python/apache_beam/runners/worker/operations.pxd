@@ -38,6 +38,10 @@ cdef class ConsumerSet(Receiver):
   cpdef update_counters_finish(self)
 
 
+cdef class SingletonConsumerSet(ConsumerSet):
+  cdef Operation consumer
+
+
 cdef class Operation(object):
   cdef readonly name_context
   cdef readonly operation_name
@@ -64,10 +68,11 @@ cdef class Operation(object):
   cpdef start(self)
   cpdef process(self, WindowedValue windowed_value)
   cpdef finish(self)
+  cpdef teardown(self)
   cpdef output(self, WindowedValue windowed_value, int output_index=*)
   cpdef execution_time_monitoring_infos(self, transform_id)
   cpdef user_monitoring_infos(self, transform_id)
-  cpdef element_count_monitoring_infos(self, transform_id)
+  cpdef pcollection_count_monitoring_infos(self, transform_id)
   cpdef monitoring_infos(self, transform_id)
 
 
@@ -93,8 +98,9 @@ cdef class DoOperation(Operation):
   cdef public object input_info
 
 
-cdef class SdfProcessElements(DoOperation):
-  pass
+cdef class SdfProcessSizedElements(DoOperation):
+  cdef object lock
+  cdef object element_start_output_bytes
 
 
 cdef class CombineOperation(Operation):

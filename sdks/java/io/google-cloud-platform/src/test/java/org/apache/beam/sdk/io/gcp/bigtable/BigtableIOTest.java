@@ -37,6 +37,7 @@ import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
@@ -1287,7 +1288,7 @@ public class BigtableIOTest {
     BigtableIO.Write write = BigtableIO.write().withBigtableOptions(optionsBuilder.build());
 
     BigtableOptions options = write.getBigtableOptions();
-    assertEquals(true, options.getBulkOptions().useBulkApi());
+    assertTrue(options.getBulkOptions().useBulkApi());
     assertEquals(maxInflightRpcs, options.getBulkOptions().getMaxInflightRpcs());
     assertEquals(initialBackoffMillis, options.getRetryOptions().getInitialBackoffMillis());
 

@@ -116,7 +116,7 @@ For a detailed introduction to the Beam concepts used in these examples, see the
 
 ## Run WordCount
 
-A single Beam pipeline can run on multiple Beam [runners]({{ site.baseurl }}/documentation#runners), including the [ApexRunner]({{ site.baseurl }}/documentation/runners/apex), [FlinkRunner]({{ site.baseurl }}/documentation/runners/flink), [SparkRunner]({{ site.baseurl }}/documentation/runners/spark), [NemoRunner]({{ site.baseurl }}/documentation/runners/nemo), or [DataflowRunner]({{ site.baseurl }}/documentation/runners/dataflow). The [DirectRunner]({{ site.baseurl }}/documentation/runners/direct) is a common runner for getting started, as it runs locally on your machine and requires no specific setup.
+A single Beam pipeline can run on multiple Beam [runners]({{ site.baseurl }}/documentation#runners), including the [ApexRunner]({{ site.baseurl }}/documentation/runners/apex), [FlinkRunner]({{ site.baseurl }}/documentation/runners/flink), [SparkRunner]({{ site.baseurl }}/documentation/runners/spark), [NemoRunner]({{ site.baseurl }}/documentation/runners/nemo), [JetRunner]({{ site.baseurl }}/documentation/runners/jet), or [DataflowRunner]({{ site.baseurl }}/documentation/runners/dataflow). The [DirectRunner]({{ site.baseurl }}/documentation/runners/direct) is a common runner for getting started, as it runs locally on your machine and requires no specific setup.
 
 After you've chosen which runner you'd like to use:
 
@@ -185,6 +185,17 @@ $ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar o
      --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
 ```
 
+{:.runner-jet}
+```
+$ mvn package -Pjet-runner -DskipTests
+$ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
+     --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/pom.xml --output=counts
+     
+Please note that the Jet Runner will be present in released versions of Beam 
+only starting with 2.14.0. Until then SNAPSHOT versions need to be used when 
+generating the above Maven archetype for the examples code. 
+```
+
 For Windows PowerShell:
 
 {:.runner-direct}
@@ -244,6 +255,17 @@ PS> java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.Wor
       --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
 ```
 
+{:.runner-jet}
+```
+PS> mvn package -P jet-runner -DskipTests
+PS> java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
+      --runner=JetRunner --jetLocalMode=3 --inputFile=$pwd/pom.xml --output=counts
+     
+Please note that the Jet Runner will be present in released versions of Beam 
+only starting with 2.14.0. Until then SNAPSHOT versions need to be used when 
+generating the above Maven archetype for the examples code. 
+```
+
 ## Inspect the results
 
 Once the pipeline has completed, you can view the output. You'll notice that there may be multiple output files prefixed by `count`. The exact number of these files is decided by the runner, giving it the flexibility to do efficient, distributed execution.
@@ -284,6 +306,11 @@ $ ls /tmp/counts*
 ```
 
 {:.runner-nemo}
+```
+$ ls counts*
+```
+
+{:.runner-jet}
 ```
 $ ls counts*
 ```
@@ -392,6 +419,22 @@ finalName: 2
 Adds: 2
 java: 7
 xml: 1
+...
+```
+
+{:.runner-jet}
+```
+$ more counts*
+FlinkRunner: 1
+cleanupDaemonThreads: 2
+sdks: 4
+unit: 1
+Apache: 3
+IO: 2
+copyright: 1
+governing: 1
+overrides: 1
+YARN: 1
 ...
 ```
 

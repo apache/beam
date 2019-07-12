@@ -80,6 +80,10 @@ if [[ -z `which cython` ]]; then
     sudo `which pip` install cython
     sudo apt-get install gcc
     sudo apt-get install python-dev
+    sudo apt-get install python3-dev
+    sudo apt-get install python3.5-dev
+    sudo apt-get install python3.6-dev
+    sudo apt-get install python3.7-dev
   fi
 else
   cython --version
@@ -137,7 +141,6 @@ echo "==============================================================="
 echo "======================Starting Release Build==================="
 git clean -fdx
 ./gradlew clean
-gpg --output ~/doc.sig --sign ~/.bashrc
 # If build fails, we want to catch as much errors as possible once.
 ./gradlew build -PisRelease --scan --stacktrace --no-parallel --continue
 echo "==============================================================="

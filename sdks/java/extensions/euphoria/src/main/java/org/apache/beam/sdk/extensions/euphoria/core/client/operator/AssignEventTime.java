@@ -28,9 +28,11 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operato
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.joda.time.Duration;
 
 /**
  * A convenient alias for assignment of event time.
@@ -90,6 +92,15 @@ public class AssignEventTime<InputT> extends Operator<InputT>
      * @see FlatMap.EventTimeBuilder#eventTimeBy(ExtractEventTime)
      */
     Builders.Output<InputT> using(ExtractEventTime<InputT> fn);
+
+    /**
+     * @param fn the event time extraction function
+     * @param allowedTimestampSkew allowed timestamp skew when assigning timestamps back in time
+     *     {@link DoFn#getAllowedTimestampSkew}.
+     * @return the next builder to complete the setup
+     * @see FlatMap.EventTimeBuilder#eventTimeBy(ExtractEventTime)
+     */
+    Builders.Output<InputT> using(ExtractEventTime<InputT> fn, Duration allowedTimestampSkew);
   }
 
   /**
@@ -102,6 +113,7 @@ public class AssignEventTime<InputT> extends Operator<InputT>
     @Nullable private final String name;
     private PCollection<InputT> input;
     private ExtractEventTime<InputT> eventTimeExtractor;
+    @Nullable private Duration allowedTimestampSkew = null;
 
     private Builder(@Nullable String name) {
       this.name = name;
@@ -110,9 +122,9 @@ public class AssignEventTime<InputT> extends Operator<InputT>
     @Override
     public <T> UsingBuilder<T> of(PCollection<T> input) {
       @SuppressWarnings("unchecked")
-      final Builder<T> casted = (Builder<T>) this;
-      casted.input = input;
-      return casted;
+      final Builder<T> cast = (Builder<T>) this;
+      cast.input = input;
+      return cast;
     }
 
     @Override
@@ -122,21 +134,32 @@ public class AssignEventTime<InputT> extends Operator<InputT>
     }
 
     @Override
+    public Builders.Output<InputT> using(
+        ExtractEventTime<InputT> eventTimeExtractor, Duration allowedTimestampSkew) {
+      this.allowedTimestampSkew = allowedTimestampSkew;
+      return using(eventTimeExtractor);
+    }
+
+    @Override
     public PCollection<InputT> output(OutputHint... outputHints) {
       return OperatorTransform.apply(
-          new AssignEventTime<>(name, eventTimeExtractor, input.getTypeDescriptor()),
+          new AssignEventTime<>(
+              name, eventTimeExtractor, allowedTimestampSkew, input.getTypeDescriptor()),
           PCollectionList.of(input));
     }
   }
 
   private final ExtractEventTime<InputT> eventTimeExtractor;
+  private final @Nullable Duration allowedTimestampSkew;
 
   private AssignEventTime(
       @Nullable String name,
       ExtractEventTime<InputT> eventTimeExtractor,
+      @Nullable Duration allowedTimestampSkew,
       @Nullable TypeDescriptor<InputT> outputType) {
     super(name, outputType);
     this.eventTimeExtractor = eventTimeExtractor;
+    this.allowedTimestampSkew = allowedTimestampSkew;
   }
 
   /**
@@ -155,7 +178,7 @@ public class AssignEventTime<InputT> extends Operator<InputT>
         .using(
             (InputT element, Collector<InputT> coll) -> coll.collect(element),
             input.getTypeDescriptor())
-        .eventTimeBy(getEventTimeExtractor())
+        .eventTimeBy(getEventTimeExtractor(), allowedTimestampSkew)
         .output();
   }
 }

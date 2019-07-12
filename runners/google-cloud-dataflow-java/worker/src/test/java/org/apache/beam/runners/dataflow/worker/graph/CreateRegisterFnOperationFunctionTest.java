@@ -23,7 +23,6 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.model.InstructionOutput;
@@ -32,8 +31,8 @@ import com.google.api.services.dataflow.model.ParallelInstruction;
 import com.google.api.services.dataflow.model.ReadInstruction;
 import com.google.auto.value.AutoValue;
 import java.util.List;
-import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.DefaultEdge;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.HappensBeforeEdge;
@@ -60,7 +59,7 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class CreateRegisterFnOperationFunctionTest {
 
-  @Mock private BiFunction<String, String, Node> portSupplier;
+  @Mock private Supplier<Node> portSupplier;
   @Mock private Function<MutableNetwork<Node, Edge>, Node> registerFnOperationFunction;
   private Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>>
       createRegisterFnOperation;
@@ -167,7 +166,7 @@ public class CreateRegisterFnOperationFunctionTest {
 
     Node firstPort = TestNode.create("FirstPort");
     Node secondPort = TestNode.create("SecondPort");
-    when(portSupplier.apply(anyString(), anyString())).thenReturn(firstPort, secondPort);
+    when(portSupplier.get()).thenReturn(firstPort, secondPort);
 
     Node readNode = createReadNode("Read", Nodes.ExecutionLocation.RUNNER_HARNESS);
     Edge readNodeEdge = DefaultEdge.create();
@@ -257,7 +256,7 @@ public class CreateRegisterFnOperationFunctionTest {
 
     Node firstPort = TestNode.create("FirstPort");
     Node secondPort = TestNode.create("SecondPort");
-    when(portSupplier.apply(anyString(), anyString())).thenReturn(firstPort, secondPort);
+    when(portSupplier.get()).thenReturn(firstPort, secondPort);
 
     Node readNode = createReadNode("Read", Nodes.ExecutionLocation.SDK_HARNESS);
     Edge readNodeEdge = DefaultEdge.create();
@@ -372,7 +371,7 @@ public class CreateRegisterFnOperationFunctionTest {
 
     Node firstPort = TestNode.create("FirstPort");
     Node secondPort = TestNode.create("SecondPort");
-    when(portSupplier.apply(anyString(), anyString())).thenReturn(firstPort, secondPort);
+    when(portSupplier.get()).thenReturn(firstPort, secondPort);
 
     Node runnerReadNode = createReadNode("RunnerRead", Nodes.ExecutionLocation.RUNNER_HARNESS);
     Edge runnerReadNodeEdge = DefaultEdge.create();

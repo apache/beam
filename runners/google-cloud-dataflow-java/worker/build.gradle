@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 
 // Set a specific version of 'com.google.apis:google-api-services-dataflow'
 // by adding -Pdataflow.version=<version> in Gradle command. Otherwise,
@@ -27,9 +27,10 @@ def DATAFLOW_VERSION = "dataflow.version"
 def google_api_services_dataflow = project.hasProperty(DATAFLOW_VERSION) ? "com.google.apis:google-api-services-dataflow:" + getProperty(DATAFLOW_VERSION) : library.java.google_api_services_dataflow
 
 applyJavaNature(
+  archivesBaseName: 'beam-runners-google-cloud-dataflow-java-fn-api-worker',
   publish: false,
   exportJavadoc: false,
-  enableFindbugs: true,
+  enableSpotbugs: true,
   validateShadowJar: false,
   shadowClosure: {
     // In the case of the Fn API worker jar we are creating an application so we rely on
@@ -52,7 +53,7 @@ configurations {
 
   // Ban these dependencies from all configurations
   all {
-    // Ban the usage of AppleJavaExtensions in findbugs.
+    // Ban the usage of AppleJavaExtensions in spotbugs.
     exclude group: "com.apple", module: "AppleJavaExtensions"
   }
 }
@@ -64,17 +65,17 @@ dependencies {
   //
   // All main sourceset dependencies here should be listed as compile scope so that the dependencies
   // are all packaged into a single uber jar allowing the jar to serve as an application.
-  compile project(path: ":beam-runners-google-cloud-dataflow-java", configuration: "shadow")
-  compile project(path: ":beam-sdks-java-core", configuration: "shadow")
-  compile project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
-  compile project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
-  compile project(path: ":beam-model-fn-execution", configuration: "shadow")
-  compile project(path: ":beam-model-pipeline", configuration: "shadow")
-  compile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  compile project(path: ":beam-runners-core-java", configuration: "shadow")
-  compile project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
-  compile project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
-  compile project(path: ":beam-runners-google-cloud-dataflow-java-windmill", configuration: "shadow")
+  compile project(":runners:google-cloud-dataflow-java")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":sdks:java:extensions:google-cloud-platform-core")
+  compile project(":sdks:java:io:google-cloud-platform")
+  compile project(path: ":model:fn-execution", configuration: "shadow")
+  compile project(path: ":model:pipeline", configuration: "shadow")
+  compile project(":runners:core-construction-java")
+  compile project(":runners:core-java")
+  compile project(":runners:java-fn-execution")
+  compile project(":sdks:java:fn-execution")
+  compile project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
   compile library.java.vendored_grpc_1_13_1
   compile google_api_services_dataflow
   compile library.java.avro
@@ -96,11 +97,11 @@ dependencies {
 
   // All test sourceset dependencies can be marked as shadowTest since we create an uber jar without
   // relocating any code.
-  shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
-  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  shadowTest project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadowTest")
-  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
-  shadowTest library.java.guava_testlib
+  shadowTest project(path: ":runners:core-java", configuration: "testRuntime")
+  shadowTest project(path: ":sdks:java:harness", configuration: "shadowTest")
+  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
+  shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
+  shadowTest project(path: ":runners:direct-java", configuration: "shadow")
   shadowTest library.java.hamcrest_core
   shadowTest library.java.hamcrest_library
   shadowTest library.java.junit

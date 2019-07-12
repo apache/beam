@@ -18,6 +18,7 @@
 
 import CommonJobProperties as commonJobProperties
 import CommonTestProperties.Runner
+import CommonTestProperties.SDK
 import CommonTestProperties.TriggeringContext
 
 // Class for building NEXMark jobs and suites.
@@ -33,33 +34,34 @@ class NexmarkBuilder {
           'monitorJobs'            : true
   ]
 
-  static void standardJob(context, Runner runner, Map<String, Object> jobSpecificOptions, TriggeringContext triggeringContext) {
+  static void standardJob(context, Runner runner, SDK sdk, Map<String, Object> jobSpecificOptions, TriggeringContext triggeringContext) {
     Map<String, Object> options = getFullOptions(jobSpecificOptions, runner, triggeringContext)
 
     options.put('streaming', false)
-    suite(context, "NEXMARK IN BATCH MODE USING ${runner} RUNNER", runner, options)
+    suite(context, "NEXMARK IN BATCH MODE USING ${runner} RUNNER", runner, sdk, options)
 
     options.put('streaming', true)
-    suite(context, "NEXMARK IN STREAMING MODE USING ${runner} RUNNER", runner, options)
+    suite(context, "NEXMARK IN STREAMING MODE USING ${runner} RUNNER", runner, sdk, options)
 
     options.put('queryLanguage', 'sql')
 
     options.put('streaming', false)
-    suite(context, "NEXMARK IN SQL BATCH MODE USING ${runner} RUNNER", runner, options)
+    suite(context, "NEXMARK IN SQL BATCH MODE USING ${runner} RUNNER", runner, sdk, options)
 
     options.put('streaming', true)
-    suite(context, "NEXMARK IN SQL STREAMING MODE USING ${runner} RUNNER", runner, options)
+    suite(context, "NEXMARK IN SQL STREAMING MODE USING ${runner} RUNNER", runner, sdk, options)
   }
 
   static void batchOnlyJob(context, Map<String, Object> jobSpecificOptions, TriggeringContext triggeringContext) {
     Runner runner = Runner.SPARK
+    SDK sdk = SDK.JAVA
     Map<String, Object> options = getFullOptions(jobSpecificOptions, runner, triggeringContext)
     options.put('streaming', false)
 
-    suite(context, "NEXMARK IN BATCH MODE USING ${runner} RUNNER", runner, options)
+    suite(context, "NEXMARK IN BATCH MODE USING ${runner} RUNNER", runner, sdk, options)
 
     options.put('queryLanguage', 'sql')
-    suite(context, "NEXMARK IN SQL BATCH MODE USING ${runner} RUNNER", runner, options)
+    suite(context, "NEXMARK IN SQL BATCH MODE USING ${runner} RUNNER", runner, sdk, options)
   }
 
   private
@@ -72,14 +74,14 @@ class NexmarkBuilder {
   }
 
 
-  static void suite(context, String title, Runner runner, Map<String, Object> options) {
+  static void suite(context, String title, Runner runner, SDK sdk, Map<String, Object> options) {
     context.steps {
       shell("echo *** RUN ${title} ***")
       gradle {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
-        tasks(':beam-sdks-java-nexmark:run')
+        tasks(':sdks:java:testing:nexmark:run')
         commonJobProperties.setGradleSwitches(delegate)
-        switches("-Pnexmark.runner=${runner.dependency}")
+        switches("-Pnexmark.runner=${runner.getDepenedencyBySDK(sdk)}")
         switches("-Pnexmark.args=\"${parseOptions(options)}\"")
       }
     }

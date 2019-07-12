@@ -82,7 +82,7 @@ public class ApexRunnerTest {
     ApexPipelineOptions options = PipelineOptionsFactory.as(ApexPipelineOptions.class);
     DAG dag = TestApexRunner.translate(p, options);
 
-    String[] expectedThreadLocal = {"/CreateActual/FilterActuals/Window.Assign"};
+    String[] expectedThreadLocal = {"/GroupGlobally/RewindowActuals/Window.Assign"};
     Set<String> actualThreadLocal = Sets.newHashSet();
     for (DAG.StreamMeta sm : dag.getAllStreamsMeta()) {
       DAG.OutputPortMeta opm = sm.getSource();

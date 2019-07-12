@@ -26,8 +26,9 @@ import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -158,45 +159,138 @@ public class MetricsContainerImplTest {
     c1.inc(3L);
 
     SimpleMonitoringInfoBuilder builder1 = new SimpleMonitoringInfoBuilder();
-    builder1.setUrnForUserMetric("ns", "name1");
-    builder1.setInt64Value(5);
-    builder1.setPTransformLabel("step1");
-    builder1.build();
+    builder1
+        .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
+        .setLabel(MonitoringInfoConstants.Labels.NAME, "name1")
+        .setInt64Value(5)
+        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step1");
 
     SimpleMonitoringInfoBuilder builder2 = new SimpleMonitoringInfoBuilder();
-    builder2.setUrnForUserMetric("ns", "name2");
-    builder2.setInt64Value(4);
-    builder2.setPTransformLabel("step1");
-    builder2.build();
+    builder2
+        .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
+        .setLabel(MonitoringInfoConstants.Labels.NAME, "name2")
+        .setInt64Value(4)
+        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step1");
 
     ArrayList<MonitoringInfo> actualMonitoringInfos = new ArrayList<MonitoringInfo>();
     for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
-      actualMonitoringInfos.add(SimpleMonitoringInfoBuilder.clearTimestamp(mi));
+      actualMonitoringInfos.add(SimpleMonitoringInfoBuilder.copyAndClearTimestamp(mi));
     }
 
     assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build(), builder2.build()));
   }
 
   @Test
+  public void testMonitoringInfosArePopulatedForUserDistributions() {
+    MetricsContainerImpl testObject = new MetricsContainerImpl("step1");
+    DistributionCell c1 = testObject.getDistribution(MetricName.named("ns", "name1"));
+    DistributionCell c2 = testObject.getDistribution(MetricName.named("ns", "name2"));
+    c1.update(5L);
+    c2.update(4L);
+
+    SimpleMonitoringInfoBuilder builder1 = new SimpleMonitoringInfoBuilder();
+    builder1
+        .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_COUNTER)
+        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
+        .setLabel(MonitoringInfoConstants.Labels.NAME, "name1")
+        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step1")
+        .setInt64DistributionValue(DistributionData.create(5, 1, 5, 5));
+
+    SimpleMonitoringInfoBuilder builder2 = new SimpleMonitoringInfoBuilder();
+    builder2
+        .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_COUNTER)
+        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
+        .setLabel(MonitoringInfoConstants.Labels.NAME, "name2")
+        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step1")
+        .setInt64DistributionValue(DistributionData.create(4, 1, 4, 4));
+
+    ArrayList<MonitoringInfo> actualMonitoringInfos = new ArrayList<MonitoringInfo>();
+    for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
+      actualMonitoringInfos.add(SimpleMonitoringInfoBuilder.copyAndClearTimestamp(mi));
+    }
+
+    assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build(), builder2.build()));
+  }
+
+  @Test
+  public void testMonitoringInfosArePopulatedForSystemDistributions() {
+    MetricsContainerImpl testObject = new MetricsContainerImpl("step1");
+    HashMap<String, String> labels = new HashMap<>();
+    labels.put(MonitoringInfoConstants.Labels.PCOLLECTION, "pcoll1");
+    DistributionCell c1 =
+        testObject.getDistribution(
+            MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.SAMPLED_BYTE_SIZE, labels));
+    c1.update(5L);
+
+    SimpleMonitoringInfoBuilder builder1 = new SimpleMonitoringInfoBuilder();
+    builder1
+        .setUrn(MonitoringInfoConstants.Urns.SAMPLED_BYTE_SIZE)
+        .setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, "pcoll1")
+        .setInt64DistributionValue(DistributionData.create(5, 1, 5, 5));
+
+    ArrayList<MonitoringInfo> actualMonitoringInfos = new ArrayList<MonitoringInfo>();
+    for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
+      actualMonitoringInfos.add(SimpleMonitoringInfoBuilder.copyAndClearTimestamp(mi));
+    }
+
+    assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build()));
+  }
+
+  @Test
   public void testMonitoringInfosArePopulatedForABeamCounter() {
     MetricsContainerImpl testObject = new MetricsContainerImpl("step1");
     HashMap<String, String> labels = new HashMap<String, String>();
-    labels.put(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, "pcollection");
+    labels.put(MonitoringInfoConstants.Labels.PCOLLECTION, "pcollection");
     MetricName name =
-        MonitoringInfoMetricName.named(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, labels);
+        MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.ELEMENT_COUNT, labels);
     CounterCell c1 = testObject.getCounter(name);
     c1.inc(2L);
 
     SimpleMonitoringInfoBuilder builder1 = new SimpleMonitoringInfoBuilder();
-    builder1.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
-    builder1.setPCollectionLabel("pcollection");
+    builder1.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
+    builder1.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, "pcollection");
     builder1.setInt64Value(2);
-    builder1.build();
 
     ArrayList<MonitoringInfo> actualMonitoringInfos = new ArrayList<MonitoringInfo>();
     for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
-      actualMonitoringInfos.add(SimpleMonitoringInfoBuilder.clearTimestamp(mi));
+      actualMonitoringInfos.add(SimpleMonitoringInfoBuilder.copyAndClearTimestamp(mi));
     }
     assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build()));
+  }
+
+  @Test
+  public void testEquals() {
+    MetricsContainerImpl metricsContainerImpl = new MetricsContainerImpl("stepName");
+    MetricsContainerImpl equal = new MetricsContainerImpl("stepName");
+    Assert.assertEquals(metricsContainerImpl, equal);
+    Assert.assertEquals(metricsContainerImpl.hashCode(), equal.hashCode());
+  }
+
+  @Test
+  public void testNotEquals() {
+    MetricsContainerImpl metricsContainerImpl = new MetricsContainerImpl("stepName");
+
+    Assert.assertNotEquals(metricsContainerImpl, new Object());
+
+    MetricsContainerImpl differentStepName = new MetricsContainerImpl("DIFFERENT");
+    Assert.assertNotEquals(metricsContainerImpl, differentStepName);
+    Assert.assertNotEquals(metricsContainerImpl.hashCode(), differentStepName.hashCode());
+
+    MetricsContainerImpl differentCounters = new MetricsContainerImpl("stepName");
+    differentCounters.getCounter(MetricName.named("namespace", "name"));
+    Assert.assertNotEquals(metricsContainerImpl, differentCounters);
+    Assert.assertNotEquals(metricsContainerImpl.hashCode(), differentCounters.hashCode());
+
+    MetricsContainerImpl differentDistributions = new MetricsContainerImpl("stepName");
+    differentDistributions.getDistribution(MetricName.named("namespace", "name"));
+    Assert.assertNotEquals(metricsContainerImpl, differentDistributions);
+    Assert.assertNotEquals(metricsContainerImpl.hashCode(), differentDistributions.hashCode());
+
+    MetricsContainerImpl differentGauges = new MetricsContainerImpl("stepName");
+    differentGauges.getGauge(MetricName.named("namespace", "name"));
+    Assert.assertNotEquals(metricsContainerImpl, differentGauges);
+    Assert.assertNotEquals(metricsContainerImpl.hashCode(), differentGauges.hashCode());
   }
 }

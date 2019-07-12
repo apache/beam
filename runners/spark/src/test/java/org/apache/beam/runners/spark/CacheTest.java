@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import org.apache.beam.runners.spark.translation.Dataset;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
@@ -30,6 +31,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Create.Values;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.junit.Test;
@@ -42,10 +45,8 @@ public class CacheTest {
    * pipeline.
    */
   @Test
-  public void cacheCandidatesUpdaterTest() throws Exception {
-    SparkPipelineOptions options =
-        PipelineOptionsFactory.create().as(TestSparkPipelineOptions.class);
-    options.setRunner(TestSparkRunner.class);
+  public void cacheCandidatesUpdaterTest() {
+    SparkPipelineOptions options = createOptions();
     Pipeline pipeline = Pipeline.create(options);
     PCollection<String> pCollection = pipeline.apply(Create.of("foo", "bar"));
     // first read
@@ -64,21 +65,31 @@ public class CacheTest {
   }
 
   @Test
-  public void cacheDisabledOptionTest() {
-    SparkPipelineOptions options =
-        PipelineOptionsFactory.create().as(TestSparkPipelineOptions.class);
-    options.setRunner(TestSparkRunner.class);
+  public void shouldCacheTest() {
+    SparkPipelineOptions options = createOptions();
     options.setCacheDisabled(true);
     Pipeline pipeline = Pipeline.create(options);
-    PCollection<String> pCollection = pipeline.apply(Create.of("foo", "bar"));
+
+    Values<String> valuesTransform = Create.of("foo", "bar");
+    PCollection pCollection = mock(PCollection.class);
 
     JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
     EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, options);
     ctxt.getCacheCandidates().put(pCollection, 2L);
 
-    assertFalse(ctxt.shouldCache(pCollection));
+    assertFalse(ctxt.shouldCache(valuesTransform, pCollection));
 
     options.setCacheDisabled(false);
-    assertTrue(ctxt.shouldCache(pCollection));
+    assertTrue(ctxt.shouldCache(valuesTransform, pCollection));
+
+    GroupByKey<String, String> gbkTransform = GroupByKey.create();
+    assertFalse(ctxt.shouldCache(gbkTransform, pCollection));
+  }
+
+  private SparkPipelineOptions createOptions() {
+    SparkPipelineOptions options =
+        PipelineOptionsFactory.create().as(TestSparkPipelineOptions.class);
+    options.setRunner(TestSparkRunner.class);
+    return options;
   }
 }

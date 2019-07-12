@@ -181,7 +181,8 @@ public class ElasticsearchIO {
     return mapper.readValue(responseEntity.getContent(), JsonNode.class);
   }
 
-  static void checkForErrors(HttpEntity responseEntity, int backendVersion) throws IOException {
+  static void checkForErrors(HttpEntity responseEntity, int backendVersion, boolean partialUpdate)
+      throws IOException {
     JsonNode searchResult = parseResponse(responseEntity);
     boolean errors = searchResult.path("errors").asBoolean();
     if (errors) {
@@ -192,10 +193,15 @@ public class ElasticsearchIO {
       for (JsonNode item : items) {
 
         String errorRootName = "";
-        if (backendVersion == 2) {
-          errorRootName = "create";
-        } else if (backendVersion == 5 || backendVersion == 6) {
-          errorRootName = "index";
+        // when use partial update, the response items includes all the update.
+        if (partialUpdate) {
+          errorRootName = "update";
+        } else {
+          if (backendVersion == 2) {
+            errorRootName = "create";
+          } else if (backendVersion == 5 || backendVersion == 6) {
+            errorRootName = "index";
+          }
         }
         JsonNode errorRoot = item.path(errorRootName);
         JsonNode error = errorRoot.get("error");
@@ -1007,7 +1013,7 @@ public class ElasticsearchIO {
      * docs (like Elasticsearch bulk size advice). See
      * https://www.elastic.co/guide/en/elasticsearch/guide/current/bulk.html Depending on the
      * execution engine, size of bundles may vary, this sets the maximum size. Change this if you
-     * need to have smaller ElasticSearch bulks.
+     * need to have smaller Elasticsearch bulks.
      *
      * @param batchSize maximum batch size in number of documents
      * @return the {@link Write} with connection batch size set
@@ -1023,7 +1029,7 @@ public class ElasticsearchIO {
      * (like Elasticsearch bulk size advice). See
      * https://www.elastic.co/guide/en/elasticsearch/guide/current/bulk.html Depending on the
      * execution engine, size of bundles may vary, this sets the maximum size. Change this if you
-     * need to have smaller ElasticSearch bulks.
+     * need to have smaller Elasticsearch bulks.
      *
      * @param batchSizeBytes maximum batch size in bytes
      * @return the {@link Write} with connection batch size in bytes set
@@ -1288,7 +1294,7 @@ public class ElasticsearchIO {
             && spec.getRetryConfiguration().getRetryPredicate().test(responseEntity)) {
           responseEntity = handleRetry("POST", endPoint, Collections.emptyMap(), requestBody);
         }
-        checkForErrors(responseEntity, backendVersion);
+        checkForErrors(responseEntity, backendVersion, spec.getUsePartialUpdate());
       }
 
       /** retry request based on retry configuration policy. */

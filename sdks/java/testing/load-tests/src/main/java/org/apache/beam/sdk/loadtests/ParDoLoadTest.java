@@ -18,11 +18,15 @@
 package org.apache.beam.sdk.loadtests;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
-import org.apache.beam.sdk.loadtests.metrics.ByteMonitor;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.Validation;
+import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -38,10 +42,11 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>To run it manually, use the following command:
  *
  * <pre>
- *    ./gradlew :beam-sdks-java-load-tests:run -PloadTest.args='
+ *    ./gradlew :sdks:java:testing:load-tests:run -PloadTest.args='
  *      --numberOfCounterOperations=1
  *      --sourceOptions={"numRecords":1000,...}
- *      --stepOptions={"outputRecordsPerInputRecord":2...}'
+ *      --numberOfCounters=1
+ *      --iterations=1'
  *      -PloadTest.mainClass="org.apache.beam.sdk.loadtests.ParDoLoadTest"
  * </pre>
  */
@@ -50,18 +55,24 @@ public class ParDoLoadTest extends LoadTest<ParDoLoadTest.Options> {
   private static final String METRICS_NAMESPACE = "pardo";
 
   /** Pipeline options specific for this test. */
-  interface Options extends LoadTestOptions {
+  public interface Options extends LoadTestOptions {
 
-    @Description("Number consequent of ParDo operations (SyntheticSteps) to be performed.")
-    @Default.Integer(1)
+    @Description("Number of operations on counters to be performed in one ParDo.")
+    @Default.Integer(0)
     Integer getNumberOfCounterOperations();
 
     void setNumberOfCounterOperations(Integer count);
 
-    @Override
-    @Description("Options for synthetic step")
-    @Validation.Required
-    String getStepOptions();
+    @Description("Number of counters to be included in the ParDo operation")
+    @Default.Integer(1)
+    Integer getNumberOfCounters();
+
+    void setNumberOfCounters(Integer count);
+
+    @Description("Number of subsequent ParDo operations to be performed")
+    Integer getIterations();
+
+    void setIterations(Integer iterations);
   }
 
   private ParDoLoadTest(String[] args) throws IOException {
@@ -76,8 +87,13 @@ public class ParDoLoadTest extends LoadTest<ParDoLoadTest.Options> {
             .apply(ParDo.of(runtimeMonitor))
             .apply(ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")));
 
-    for (int i = 0; i < options.getNumberOfCounterOperations(); i++) {
-      input = input.apply(String.format("Step: %d", i), ParDo.of(new SyntheticStep(stepOptions)));
+    for (int i = 0; i < options.getIterations(); i++) {
+      input =
+          input.apply(
+              String.format("Step: %d", i),
+              ParDo.of(
+                  new CounterOperation<>(
+                      options.getNumberOfCounters(), options.getNumberOfCounterOperations())));
     }
 
     input.apply(ParDo.of(runtimeMonitor));
@@ -85,5 +101,27 @@ public class ParDoLoadTest extends LoadTest<ParDoLoadTest.Options> {
 
   public static void main(String[] args) throws IOException {
     new ParDoLoadTest(args).run();
+  }
+
+  private static class CounterOperation<T> extends DoFn<T, T> {
+    private Integer numberOfOperations;
+    private List<Counter> counters = new ArrayList<>();
+
+    CounterOperation(Integer numberOfCounters, Integer numberOfOperations) {
+      for (int i = 0; i < numberOfCounters; i++) {
+        counters.add(Metrics.counter("namespace", "name-" + i));
+      }
+      this.numberOfOperations = numberOfOperations;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext processContext) {
+      for (int i = 0; i < numberOfOperations; i++) {
+        for (Counter counter : counters) {
+          counter.inc();
+        }
+      }
+      processContext.output(processContext.element());
+    }
   }
 }

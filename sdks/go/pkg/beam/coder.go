@@ -18,12 +18,15 @@ package beam
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/coderx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -68,20 +71,56 @@ func (c Coder) String() string {
 	return c.coder.String()
 }
 
-// TODO(herohde) 4/4/2017: for convenience, we use the magic json coding
-// everywhere. To be replaced by Coder registry, sharing, etc.
+// NewElementEncoder returns a new encoding function for the given type.
+func NewElementEncoder(t reflect.Type) ElementEncoder {
+	c, err := inferCoder(typex.New(t))
+	if err != nil {
+		panic(err)
+	}
+	return &execEncoder{enc: exec.MakeElementEncoder(c)}
+}
 
-// TODO: select optimal coder based on type, notably handling int, string, etc.
+// execEncoder wraps an exec.ElementEncoder to implement the ElementDecoder interface
+// in this package.
+type execEncoder struct {
+	enc   exec.ElementEncoder
+	coder *coder.Coder
+}
 
-// TODO(herohde) 7/11/2017: figure out best way to let transformation use
-// coders (like passert). For now, we just allow them to grab in the internal
-// coder. Maybe it's cleaner to pull Encode/Decode into beam instead, if
-// adequate. The issue is that we would need non-windowed coding. Maybe focus on
-// coder registry and construction: then type -> coder might be adequate.
+func (e *execEncoder) Encode(element interface{}, w io.Writer) error {
+	return e.enc.Encode(&exec.FullValue{Elm: element}, w)
+}
 
-// UnwrapCoder returns the internal coder.
-func UnwrapCoder(c Coder) *coder.Coder {
-	return c.coder
+func (e *execEncoder) String() string {
+	return e.coder.String()
+}
+
+// NewElementDecoder returns an ElementDecoder the given type.
+func NewElementDecoder(t reflect.Type) ElementDecoder {
+	c, err := inferCoder(typex.New(t))
+	if err != nil {
+		panic(err)
+	}
+	return &execDecoder{dec: exec.MakeElementDecoder(c)}
+}
+
+// execDecoder wraps an exec.ElementDecoder to implement the ElementDecoder interface
+// in this package.
+type execDecoder struct {
+	dec   exec.ElementDecoder
+	coder *coder.Coder
+}
+
+func (d *execDecoder) Decode(r io.Reader) (interface{}, error) {
+	fv, err := d.dec.Decode(r)
+	if err != nil {
+		return nil, err
+	}
+	return fv.Elm, nil
+}
+
+func (d *execDecoder) String() string {
+	return d.coder.String()
 }
 
 // NewCoder infers a Coder for any bound full type.
@@ -97,7 +136,10 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 	switch t.Class() {
 	case typex.Concrete, typex.Container:
 		switch t.Type() {
-		case reflectx.Int, reflectx.Int8, reflectx.Int16, reflectx.Int32, reflectx.Int64:
+		case reflectx.Int64:
+			// use the beam varint coder.
+			return &coder.Coder{Kind: coder.VarInt, T: t}, nil
+		case reflectx.Int, reflectx.Int8, reflectx.Int16, reflectx.Int32:
 			c, err := coderx.NewVarIntZ(t.Type())
 			if err != nil {
 				return nil, err
@@ -132,7 +174,7 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 			// Interface types that implement JSON marshalling can be handled by the default coder.
 			// otherwise, inference needs to fail here.
 			if et.Kind() == reflect.Interface && !et.Implements(jsonCoderType) {
-				return nil, fmt.Errorf("inferCoder failed: interface type %v has no coder registered", et)
+				return nil, errors.Errorf("inferCoder failed: interface type %v has no coder registered", et)
 			}
 
 			c, err := newJSONCoder(et)
@@ -179,14 +221,14 @@ func inferCoders(list []FullType) ([]*coder.Coder, error) {
 	return ret, nil
 }
 
-// TODO(herohde) 4/5/2017: decide whether we want an Encoded form. For now,
-// we'll use exploded form coders only using typex.T. We might also need a
-// form that doesn't require LengthPrefix'ing to cut up the bytestream from
-// the FnHarness.
-
 // protoEnc marshals the supplied proto.Message.
 func protoEnc(in T) ([]byte, error) {
-	return proto.Marshal(in.(proto.Message))
+	buf := proto.NewBuffer(nil)
+	buf.SetDeterministic(true)
+	if err := buf.Marshal(in.(proto.Message)); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // protoDec unmarshals the supplied bytes into an instance of the supplied
@@ -219,7 +261,7 @@ func jsonDec(t reflect.Type, in []byte) (T, error) {
 func newJSONCoder(t reflect.Type) (*coder.CustomCoder, error) {
 	c, err := coder.NewCustomCoder("json", t, jsonEnc, jsonDec)
 	if err != nil {
-		return nil, fmt.Errorf("invalid coder: %v", err)
+		return nil, errors.Wrapf(err, "invalid coder")
 	}
 	return c, nil
 }

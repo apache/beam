@@ -22,6 +22,7 @@ from __future__ import division
 import threading
 from builtins import object
 
+from apache_beam.io.iobase import RestrictionProgress
 from apache_beam.io.iobase import RestrictionTracker
 from apache_beam.io.range_trackers import OffsetRangeTracker
 
@@ -79,6 +80,7 @@ class OffsetRestrictionTracker(RestrictionTracker):
   def __init__(self, start_position, stop_position):
     self._range = OffsetRange(start_position, stop_position)
     self._current_position = None
+    self._current_watermark = None
     self._last_claim_attempt = None
     self._deferred_residual = None
     self._checkpointed = False
@@ -98,6 +100,22 @@ class OffsetRestrictionTracker(RestrictionTracker):
     with self._lock:
       return (self._range.start, self._range.stop)
 
+  def current_watermark(self):
+    return self._current_watermark
+
+  def current_progress(self):
+    with self._lock:
+      if self._current_position is None:
+        fraction = 0.0
+      elif self._range.stop == self._range.start:
+        # If self._current_position is not None, we must be done.
+        fraction = 1.0
+      else:
+        fraction = (
+            float(self._current_position - self._range.start)
+            / (self._range.stop - self._range.start))
+    return RestrictionProgress(fraction=fraction)
+
   def start_position(self):
     with self._lock:
       return self._range.start
@@ -105,6 +123,9 @@ class OffsetRestrictionTracker(RestrictionTracker):
   def stop_position(self):
     with self._lock:
       return self._range.stop
+
+  def default_size(self):
+    return self._range.stop - self._range.start
 
   def try_claim(self, position):
     with self._lock:
@@ -127,6 +148,20 @@ class OffsetRestrictionTracker(RestrictionTracker):
 
       return False
 
+  def try_split(self, fraction_of_remainder):
+    with self._lock:
+      if not self._checkpointed:
+        if self._current_position is None:
+          cur = self._range.start - 1
+        else:
+          cur = self._current_position
+        split_point = (
+            cur + int(max(1, (self._range.stop - cur) * fraction_of_remainder)))
+        if split_point < self._range.stop:
+          prev_stop, self._range.stop = self._range.stop, split_point
+          return (self._range.start, split_point), (split_point, prev_stop)
+
+  # TODO(SDF): Replace all calls with try_claim(0).
   def checkpoint(self):
     with self._lock:
       # If self._current_position is 'None' no records have been claimed so
@@ -143,7 +178,7 @@ class OffsetRestrictionTracker(RestrictionTracker):
 
   def defer_remainder(self, watermark=None):
     with self._lock:
-      self._deferred_watermark = watermark
+      self._deferred_watermark = watermark or self._current_watermark
       self._deferred_residual = self.checkpoint()
 
   def deferred_status(self):

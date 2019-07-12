@@ -236,14 +236,19 @@ class CommonJobProperties {
       project: 'apache-beam-testing',
       dpb_log_level: 'INFO',
       bigquery_table: 'beam_performance.pkb_results',
-      k8s_get_retry_count: 36, // wait up to 6 minutes for K8s LoadBalancer
+      // wait up to 6 minutes for K8s LoadBalancer
+      k8s_get_retry_count: 36,
       k8s_get_wait_interval: 10,
-      python_binary: '$WORKSPACE/.beam_env/bin/python',
       temp_dir: '$WORKSPACE',
       // Use source cloned by Jenkins and not clone it second time (redundantly).
       beam_location: '$WORKSPACE/src',
       // Publishes results with official tag, for use in dashboards.
-      official: 'true'
+      official: 'true',
+      // dpb_service_zone is required in Perfkit BaseDpbService which Beam Perfkit benchmarks
+      // depends on. However, it doesn't get used in Beam. Passing a fake value from here is to
+      // avoid breakage.
+      // TODO(BEAM-7347): Remove this flag after dpb_service_zone is not required.
+      dpb_service_zone: 'fake_zone',
     ]
     // Note: in case of key collision, keys present in ArgMap win.
     LinkedHashMap<String, String> joinedArgs = standardArgs.plus(argMap)
@@ -281,7 +286,7 @@ class CommonJobProperties {
   static def buildPerformanceTest(def context, def argMap) {
     def pkbArgs = genPerformanceArgs(argMap)
 
-    // Absolute path of project root and virtualenv path of Beam and Perfkit.
+    // Absolute path of project root and virtualenv path of Perfkit.
     def perfkit_root = makePathAbsolute("PerfKitBenchmarker")
     def perfkit_env = makePathAbsolute("env/.perfkit_env")
 
@@ -290,8 +295,9 @@ class CommonJobProperties {
         shell("rm -rf ${perfkit_root}")
         shell("rm -rf ${perfkit_env}")
 
-        // create new VirtualEnv
-        shell("virtualenv ${perfkit_env}")
+        // create new VirtualEnv for Perfkit framework. Explicitly pin to python2.7
+        // here otherwise python3 is used by default.
+        shell("virtualenv ${perfkit_env} --python=python2.7")
 
         // update setuptools and pip
         shell("${perfkit_env}/bin/pip install --upgrade setuptools pip")

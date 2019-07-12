@@ -23,7 +23,6 @@ import com.google.api.services.dataflow.model.ParallelInstruction;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
@@ -75,7 +74,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork
 public class CreateRegisterFnOperationFunction
     implements Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> {
   private final IdGenerator idGenerator;
-  private final BiFunction<String, String, Node> portSupplier;
+  private final Supplier<Node> portSupplier;
   private final Function<MutableNetwork<Node, Edge>, Node> registerFnOperationFunction;
   private final boolean useExecutableStageBundleExecution;
 
@@ -92,7 +91,7 @@ public class CreateRegisterFnOperationFunction
    */
   public CreateRegisterFnOperationFunction(
       IdGenerator idGenerator,
-      BiFunction<String, String, Node> portSupplier,
+      Supplier<Node> portSupplier,
       Function<MutableNetwork<Node, Edge>, Node> registerFnOperationFunction,
       boolean useExecutableStageBundleExecution) {
     this.idGenerator = idGenerator;
@@ -266,9 +265,7 @@ public class CreateRegisterFnOperationFunction
     InstructionOutputNode portOutputNode =
         InstructionOutputNode.create(
             outputNode.getInstructionOutput(), outputNode.getPcollectionId());
-    String predecessorPortEdgeId = idGenerator.getId();
-    String successorPortEdgeId = idGenerator.getId();
-    Node portNode = portSupplier.apply(predecessorPortEdgeId, successorPortEdgeId);
+    Node portNode = portSupplier.get();
     network.addNode(newPredecessorOutputNode);
     network.addNode(portNode);
     for (Node predecessor : predecessors) {
@@ -292,11 +289,11 @@ public class CreateRegisterFnOperationFunction
     network.addEdge(
         newPredecessorOutputNode,
         portNode,
-        MultiOutputInfoEdge.create(new MultiOutputInfo().setTag(predecessorPortEdgeId)));
+        MultiOutputInfoEdge.create(new MultiOutputInfo().setTag(idGenerator.getId())));
     network.addEdge(
         portNode,
         portOutputNode,
-        MultiOutputInfoEdge.create(new MultiOutputInfo().setTag(successorPortEdgeId)));
+        MultiOutputInfoEdge.create(new MultiOutputInfo().setTag(idGenerator.getId())));
     for (Node successor : successors) {
       for (Edge edge : ImmutableList.copyOf(network.edgesConnecting(outputNode, successor))) {
         network.addEdge(portOutputNode, successor, edge.clone());

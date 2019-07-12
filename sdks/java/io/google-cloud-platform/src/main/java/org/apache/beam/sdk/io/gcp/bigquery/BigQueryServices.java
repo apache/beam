@@ -28,10 +28,17 @@ import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.CreateReadSessionRequest;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsRequest;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsResponse;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamRequest;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamResponse;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
 /** An interface for real, mock, or fake implementations of Cloud BigQuery services. */
@@ -42,6 +49,10 @@ public interface BigQueryServices extends Serializable {
 
   /** Returns a real, mock, or fake {@link DatasetService}. */
   DatasetService getDatasetService(BigQueryOptions bqOptions);
+
+  /** Returns a real, mock, or fake {@link StorageClient}. */
+  @Experimental(Experimental.Kind.SOURCE_SINK)
+  StorageClient getStorageClient(BigQueryOptions bqOptions) throws IOException;
 
   /** An interface for the Cloud BigQuery load service. */
   interface JobService {
@@ -88,6 +99,10 @@ public interface BigQueryServices extends Serializable {
      */
     @Nullable
     Table getTable(TableReference tableRef) throws InterruptedException, IOException;
+
+    @Nullable
+    Table getTable(TableReference tableRef, List<String> selectedFields)
+        throws InterruptedException, IOException;
 
     /** Creates the specified table if it does not exist. */
     void createTable(Table table) throws InterruptedException, IOException;
@@ -149,5 +164,39 @@ public interface BigQueryServices extends Serializable {
     /** Patch BigQuery {@link Table} description. */
     Table patchTableDescription(TableReference tableReference, @Nullable String tableDescription)
         throws IOException, InterruptedException;
+  }
+
+  /**
+   * Container for reading data from streaming endpoints.
+   *
+   * <p>An implementation does not need to be thread-safe.
+   */
+  interface BigQueryServerStream<T> extends Iterable<T>, Serializable {
+    /**
+     * Cancels the stream, releasing any client- and server-side resources. This method may be
+     * called multiple times and from any thread.
+     */
+    void cancel();
+  }
+
+  /** An interface representing a client object for making calls to the BigQuery Storage API. */
+  @Experimental(Experimental.Kind.SOURCE_SINK)
+  interface StorageClient extends AutoCloseable {
+    /** Create a new read session against an existing table. */
+    ReadSession createReadSession(CreateReadSessionRequest request);
+
+    /** Read rows in the context of a specific read stream. */
+    BigQueryServerStream<ReadRowsResponse> readRows(ReadRowsRequest request);
+
+    SplitReadStreamResponse splitReadStream(SplitReadStreamRequest request);
+
+    /**
+     * Close the client object.
+     *
+     * <p>The override is required since {@link AutoCloseable} allows the close method to raise an
+     * exception.
+     */
+    @Override
+    void close();
   }
 }

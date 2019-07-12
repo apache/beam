@@ -18,13 +18,12 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import java.nio.ByteBuffer;
+import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
 /**
@@ -42,14 +41,13 @@ public class KvToByteBufferKeySelector<K, V>
   }
 
   @Override
-  public ByteBuffer getKey(WindowedValue<KV<K, V>> value) throws Exception {
+  public ByteBuffer getKey(WindowedValue<KV<K, V>> value) {
     K key = value.getValue().getKey();
-    byte[] keyBytes = CoderUtils.encodeToByteArray(keyCoder, key);
-    return ByteBuffer.wrap(keyBytes);
+    return FlinkKeyUtils.encodeKey(key, keyCoder);
   }
 
   @Override
   public TypeInformation<ByteBuffer> getProducedType() {
-    return new GenericTypeInfo<>(ByteBuffer.class);
+    return new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of());
   }
 }

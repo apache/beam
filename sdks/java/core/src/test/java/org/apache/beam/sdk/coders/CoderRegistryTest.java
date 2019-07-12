@@ -77,6 +77,10 @@ public class CoderRegistryTest {
   public void testSimpleDefaultCoder() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
     assertEquals(StringUtf8Coder.of(), registry.getCoder(String.class));
+    assertEquals(VarIntCoder.of(), registry.getCoder(Integer.class));
+    assertEquals(VarLongCoder.of(), registry.getCoder(Long.class));
+    assertEquals(FloatCoder.of(), registry.getCoder(Float.class));
+    assertEquals(DoubleCoder.of(), registry.getCoder(Double.class));
   }
 
   @Test

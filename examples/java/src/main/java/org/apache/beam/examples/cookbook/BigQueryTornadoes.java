@@ -20,10 +20,13 @@ package org.apache.beam.examples.cookbook;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -35,6 +38,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
 /**
  * An example that reads the public samples of weather data from BigQuery, counts the number of
@@ -130,11 +134,17 @@ public class BigQueryTornadoes {
    * <p>Inherits standard configuration options.
    */
   public interface Options extends PipelineOptions {
-    @Description("Table to read from, specified as " + "<project_id>:<dataset_id>.<table_id>")
+    @Description("Table to read from, specified as <project_id>:<dataset_id>.<table_id>")
     @Default.String(WEATHER_SAMPLES_TABLE)
     String getInput();
 
     void setInput(String value);
+
+    @Description("Mode to use when reading from BigQuery")
+    @Default.Enum("EXPORT")
+    TypedRead.Method getReadMethod();
+
+    void setReadMethod(TypedRead.Method value);
 
     @Description(
         "BigQuery table to write to, specified as "
@@ -154,7 +164,34 @@ public class BigQueryTornadoes {
     fields.add(new TableFieldSchema().setName("tornado_count").setType("INTEGER"));
     TableSchema schema = new TableSchema().setFields(fields);
 
-    p.apply(BigQueryIO.readTableRows().from(options.getInput()))
+    PCollection<TableRow> rowsFromBigQuery;
+
+    switch (options.getReadMethod()) {
+      case DIRECT_READ:
+        // Build the read options proto for the read operation.
+        TableReadOptions tableReadOptions =
+            TableReadOptions.newBuilder()
+                .addAllSelectedFields(Lists.newArrayList("month", "tornado"))
+                .build();
+
+        rowsFromBigQuery =
+            p.apply(
+                BigQueryIO.readTableRows()
+                    .from(options.getInput())
+                    .withMethod(Method.DIRECT_READ)
+                    .withReadOptions(tableReadOptions));
+        break;
+
+      default:
+        rowsFromBigQuery =
+            p.apply(
+                BigQueryIO.readTableRows()
+                    .from(options.getInput())
+                    .withMethod(options.getReadMethod()));
+        break;
+    }
+
+    rowsFromBigQuery
         .apply(new CountTornadoes())
         .apply(
             BigQueryIO.writeTableRows()

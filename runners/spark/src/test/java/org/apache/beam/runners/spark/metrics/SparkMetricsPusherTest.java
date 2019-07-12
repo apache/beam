@@ -30,7 +30,7 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.testing.UsesMetricsPusher;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -113,7 +113,7 @@ public class SparkMetricsPusherTest {
     }
   }
 
-  @Category(ValidatesRunner.class)
+  @Category(UsesMetricsPusher.class)
   @Test
   public void testInSBatchMode() throws Exception {
     pipeline.apply(Create.of(1, 2, 3, 4, 5, 6)).apply(ParDo.of(new CountingDoFn()));

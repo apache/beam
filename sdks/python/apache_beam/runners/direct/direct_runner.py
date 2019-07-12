@@ -69,11 +69,6 @@ class SwitchingDirectRunner(PipelineRunner):
   """
 
   def run_pipeline(self, pipeline, options):
-    use_fnapi_runner = True
-
-    # Streaming mode is not yet supported on the FnApiRunner.
-    if options.view_as(StandardOptions).streaming:
-      use_fnapi_runner = False
 
     from apache_beam.pipeline import PipelineVisitor
     from apache_beam.runners.dataflow.native_io.iobase import NativeSource
@@ -113,8 +108,9 @@ class SwitchingDirectRunner(PipelineRunner):
               self.supported_by_fnapi_runner = False
 
     # Check whether all transforms used in the pipeline are supported by the
-    # FnApiRunner.
-    use_fnapi_runner = _FnApiRunnerSupportVisitor().accept(pipeline)
+    # FnApiRunner, and the pipeline was not meant to be run as streaming.
+    use_fnapi_runner = (
+        _FnApiRunnerSupportVisitor().accept(pipeline))
 
     # Also ensure grpc is available.
     try:

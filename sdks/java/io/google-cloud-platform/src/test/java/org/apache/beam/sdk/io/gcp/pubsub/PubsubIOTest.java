@@ -52,8 +52,6 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -63,7 +61,6 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
@@ -223,7 +220,6 @@ public class PubsubIOTest {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesUnboundedPCollections.class})
   public void testPrimitiveReadDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     Set<DisplayData> displayData;
@@ -248,6 +244,23 @@ public class PubsubIOTest {
   }
 
   @Test
+  public void testReadWithPubsubGrpcClientFactory() {
+    String topic = "projects/project/topics/topic";
+    PubsubIO.Read<String> read =
+        PubsubIO.readStrings()
+            .fromTopic(StaticValueProvider.of(topic))
+            .withClientFactory(PubsubGrpcClient.FACTORY)
+            .withTimestampAttribute("myTimestamp")
+            .withIdAttribute("myId");
+
+    DisplayData displayData = DisplayData.from(read);
+
+    assertThat(displayData, hasDisplayItem("topic", topic));
+    assertThat(displayData, hasDisplayItem("timestampAttribute", "myTimestamp"));
+    assertThat(displayData, hasDisplayItem("idAttribute", "myId"));
+  }
+
+  @Test
   public void testWriteDisplayData() {
     String topic = "projects/project/topics/topic";
     PubsubIO.Write<?> write =
@@ -264,7 +277,6 @@ public class PubsubIOTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
   public void testPrimitiveWriteDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     PubsubIO.Write<?> write = PubsubIO.writeStrings().to("projects/project/topics/topic");
@@ -439,5 +451,22 @@ public class PubsubIOTest {
                 .withClientFactory(clientFactory));
     PAssert.that(read).containsInAnyOrder(inputs);
     readPipeline.run();
+  }
+
+  @Test
+  public void testWriteWithPubsubGrpcClientFactory() {
+    String topic = "projects/project/topics/topic";
+    PubsubIO.Write<?> write =
+        PubsubIO.writeStrings()
+            .to(topic)
+            .withClientFactory(PubsubGrpcClient.FACTORY)
+            .withTimestampAttribute("myTimestamp")
+            .withIdAttribute("myId");
+
+    DisplayData displayData = DisplayData.from(write);
+
+    assertThat(displayData, hasDisplayItem("topic", topic));
+    assertThat(displayData, hasDisplayItem("timestampAttribute", "myTimestamp"));
+    assertThat(displayData, hasDisplayItem("idAttribute", "myId"));
   }
 }

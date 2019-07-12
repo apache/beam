@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.schemas.Schema.FieldType;
 import static org.apache.beam.sdk.schemas.Schema.TypeName;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
@@ -28,12 +27,16 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.util.AbstractList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamJavaTypeFactory;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateType;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeWithLocalTzType;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimestampWithLocalTzType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -154,7 +157,7 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
               new InputGetterImpl(input, upstream.getSchema()),
               null);
 
-      // output = Row.withSchema(outputSchema)
+      // Expressions.call is equivalent to: output = Row.withSchema(outputSchema)
       Expression output = Expressions.call(Row.class, "withSchema", outputSchemaParam);
       Method addValue = Types.lookupMethod(Row.Builder.class, "addValue", Object.class);
 
@@ -162,17 +165,18 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
         Expression value = expressions.get(index);
         FieldType toType = outputSchema.getField(index).getType();
 
-        // .addValue(value)
+        // Expressions.call is equivalent to: .addValue(value)
         output = Expressions.call(output, addValue, castOutput(value, toType));
       }
 
-      // .build();
+      // Expressions.call is equivalent to: .build();
       output = Expressions.call(output, "build");
 
-      // if (condition) {
-      //   c.output(output);
-      // }
       builder.add(
+          // Expressions.ifThen is equivalent to:
+          //   if (condition) {
+          //     c.output(output);
+          //   }
           Expressions.ifThen(
               condition,
               Expressions.makeGoto(
@@ -265,7 +269,7 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
     if (value.getType() == Object.class || !(value.getType() instanceof Class)) {
       // fast copy path, just pass object through
       return value;
-    } else if (toType.getTypeName().isDateType()
+    } else if (CalciteUtils.isDateTimeType(toType)
         && !Types.isAssignableFrom(ReadableInstant.class, (Class) value.getType())) {
       return castOutputTime(value, toType);
 
@@ -301,8 +305,7 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
       }
       valueDateTime = Expressions.multiply(valueDateTime, Expressions.constant(MILLIS_PER_DAY));
     } else {
-      throw new IllegalArgumentException(
-          "Unknown DateTime type " + new String(toType.getMetadata(), UTF_8));
+      throw new IllegalArgumentException("Unknown DateTime type " + toType);
     }
 
     // Second, convert to joda DateTime
@@ -343,6 +346,15 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
             .put(TypeName.ROW, "getRow")
             .build();
 
+    private static final Map<String, String> logicalTypeGetterMap =
+        ImmutableMap.<String, String>builder()
+            .put(DateType.IDENTIFIER, "getDateTime")
+            .put(TimeType.IDENTIFIER, "getDateTime")
+            .put(TimeWithLocalTzType.IDENTIFIER, "getDateTime")
+            .put(TimestampWithLocalTzType.IDENTIFIER, "getDateTime")
+            .put(CharType.IDENTIFIER, "getString")
+            .build();
+
     private final Expression input;
     private final Schema inputSchema;
 
@@ -363,28 +375,52 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
             Expressions.call(expression, "getValue", Expressions.constant(index)), Object.class);
       }
       FieldType fromType = inputSchema.getField(index).getType();
-      String getter = typeGetterMap.get(fromType.getTypeName());
+      String getter;
+      if (fromType.getTypeName().isLogicalType()) {
+        getter = logicalTypeGetterMap.get(fromType.getLogicalType().getIdentifier());
+      } else {
+        getter = typeGetterMap.get(fromType.getTypeName());
+      }
       if (getter == null) {
         throw new IllegalArgumentException("Unable to get " + fromType.getTypeName());
       }
-
       Expression field = Expressions.call(expression, getter, Expressions.constant(index));
-      if (fromType.getTypeName().isDateType()) {
-        field = Expressions.call(field, "getMillis");
-        if (Arrays.equals(fromType.getMetadata(), CalciteUtils.TIME.getMetadata())) {
-          field = Expressions.convert_(field, int.class);
-        } else if (Arrays.equals(fromType.getMetadata(), CalciteUtils.DATE.getMetadata())) {
+      if (fromType.getTypeName().isLogicalType()) {
+        Expression millisField = Expressions.call(field, "getMillis");
+        String logicalId = fromType.getLogicalType().getIdentifier();
+        if (logicalId.equals(TimeType.IDENTIFIER)) {
           field =
-              Expressions.convert_(
-                  Expressions.modulo(field, Expressions.constant(MILLIS_PER_DAY)), int.class);
-        } else if (fromType.getMetadata() != null) {
+              Expressions.condition(
+                  Expressions.equal(field, Expressions.constant(null)),
+                  Expressions.constant(null),
+                  Expressions.box(Expressions.convert_(millisField, int.class)));
+        } else if (logicalId.equals(DateType.IDENTIFIER)) {
+          field =
+              Expressions.condition(
+                  Expressions.equal(field, Expressions.constant(null)),
+                  Expressions.constant(null),
+                  Expressions.box(
+                      Expressions.convert_(
+                          Expressions.divide(millisField, Expressions.constant(MILLIS_PER_DAY)),
+                          int.class)));
+        } else if (!logicalId.equals(CharType.IDENTIFIER)) {
           throw new IllegalArgumentException(
-              "Unknown DateTime type " + new String(fromType.getMetadata(), UTF_8));
+              "Unknown LogicalType " + fromType.getLogicalType().getIdentifier());
         }
+      } else if (CalciteUtils.isDateTimeType(fromType)) {
+        field =
+            Expressions.condition(
+                Expressions.equal(field, Expressions.constant(null)),
+                Expressions.constant(null),
+                Expressions.box(Expressions.call(field, "getMillis")));
       } else if (fromType.getTypeName().isCompositeType()
           || (fromType.getTypeName().isCollectionType()
               && fromType.getCollectionElementType().getTypeName().isCompositeType())) {
-        field = Expressions.call(WrappedList.class, "of", field);
+        field =
+            Expressions.condition(
+                Expressions.equal(field, Expressions.constant(null)),
+                Expressions.constant(null),
+                Expressions.call(WrappedList.class, "of", field));
       }
       return field;
     }

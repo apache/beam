@@ -18,9 +18,8 @@
 package org.apache.beam.runners.core.construction;
 
 import static junit.framework.TestCase.assertTrue;
-import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 
 import java.io.File;
 import java.io.IOException;
@@ -77,17 +76,17 @@ public class PipelineResourcesTest {
   }
 
   @Test
-  public void testRemovingNonexistentFilesFromFilesToStage() throws IOException {
+  public void testFailOnNonExistingPaths() throws IOException {
     String nonexistentFilePath = tmpFolder.getRoot().getPath() + "/nonexistent/file";
     String existingFilePath = tmpFolder.newFile("existingFile").getAbsolutePath();
     String temporaryLocation = tmpFolder.newFolder().getAbsolutePath();
 
     List<String> filesToStage = Arrays.asList(nonexistentFilePath, existingFilePath);
-    List<String> expectedFilesToStage = Arrays.asList(existingFilePath);
 
-    List<String> result = PipelineResources.prepareFilesForStaging(filesToStage, temporaryLocation);
-
-    assertThat(result, is(expectedFilesToStage));
+    assertThrows(
+        "To-be-staged file does not exist: ",
+        IllegalStateException.class,
+        () -> PipelineResources.prepareFilesForStaging(filesToStage, temporaryLocation));
   }
 
   @Test

@@ -16,12 +16,11 @@
 package graphx
 
 import (
-	"fmt"
-
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // TODO(herohde) 7/17/2018: move CoderRef to dataflowlib once Dataflow
@@ -95,7 +94,7 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 
 	case coder.KV:
 		if len(c.Components) != 2 {
-			return nil, fmt.Errorf("bad KV: %v", c)
+			return nil, errors.Errorf("bad KV: %v", c)
 		}
 
 		key, err := EncodeCoderRef(c.Components[0])
@@ -110,7 +109,7 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 
 	case coder.CoGBK:
 		if len(c.Components) < 2 {
-			return nil, fmt.Errorf("bad CoGBK: %v", c)
+			return nil, errors.Errorf("bad CoGBK: %v", c)
 		}
 
 		refs, err := EncodeCoderRefs(c.Components)
@@ -131,7 +130,7 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 
 	case coder.WindowedValue:
 		if len(c.Components) != 1 || c.Window == nil {
-			return nil, fmt.Errorf("bad windowed value: %v", c)
+			return nil, errors.Errorf("bad windowed value: %v", c)
 		}
 
 		elm, err := EncodeCoderRef(c.Components[0])
@@ -152,7 +151,7 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 		return &CoderRef{Type: varIntType}, nil
 
 	default:
-		return nil, fmt.Errorf("bad coder kind: %v", c.Kind)
+		return nil, errors.Errorf("bad coder kind: %v", c.Kind)
 	}
 }
 
@@ -180,7 +179,7 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 
 	case pairType:
 		if len(c.Components) != 2 {
-			return nil, fmt.Errorf("bad pair: %+v", c)
+			return nil, errors.Errorf("bad pair: %+v", c)
 		}
 
 		key, err := DecodeCoderRef(c.Components[0])
@@ -223,12 +222,12 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 
 	case lengthPrefixType:
 		if len(c.Components) != 1 {
-			return nil, fmt.Errorf("bad length prefix: %+v", c)
+			return nil, errors.Errorf("bad length prefix: %+v", c)
 		}
 
 		var ref v1.CustomCoder
 		if err := protox.DecodeBase64(c.Components[0].Type, &ref); err != nil {
-			return nil, fmt.Errorf("base64 decode for %v failed: %v", c.Components[0].Type, err)
+			return nil, errors.Wrapf(err, "base64 decode for %v failed", c.Components[0].Type)
 		}
 		custom, err := decodeCustomCoder(&ref)
 		if err != nil {
@@ -239,7 +238,7 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 
 	case windowedValueType:
 		if len(c.Components) != 2 {
-			return nil, fmt.Errorf("bad windowed value: %+v", c)
+			return nil, errors.Errorf("bad windowed value: %+v", c)
 		}
 
 		elm, err := DecodeCoderRef(c.Components[0])
@@ -255,10 +254,10 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 		return &coder.Coder{Kind: coder.WindowedValue, T: t, Components: []*coder.Coder{elm}, Window: w}, nil
 
 	case streamType:
-		return nil, fmt.Errorf("stream must be pair value: %+v", c)
+		return nil, errors.Errorf("stream must be pair value: %+v", c)
 
 	default:
-		return nil, fmt.Errorf("custom coders must be length prefixed: %+v", c)
+		return nil, errors.Errorf("custom coders must be length prefixed: %+v", c)
 	}
 }
 
@@ -283,7 +282,7 @@ func encodeWindowCoder(w *coder.WindowCoder) (*CoderRef, error) {
 	case coder.IntervalWindow:
 		return &CoderRef{Type: intervalWindowType}, nil
 	default:
-		return nil, fmt.Errorf("bad window kind: %v", w.Kind)
+		return nil, errors.Errorf("bad window kind: %v", w.Kind)
 	}
 }
 
@@ -296,6 +295,6 @@ func decodeWindowCoder(w *CoderRef) (*coder.WindowCoder, error) {
 	case intervalWindowType:
 		return coder.NewIntervalWindow(), nil
 	default:
-		return nil, fmt.Errorf("bad window: %v", w.Type)
+		return nil, errors.Errorf("bad window: %v", w.Type)
 	}
 }

@@ -149,6 +149,25 @@ public interface DataflowPipelineOptions
 
   void setDataflowWorkerJar(String dataflowWorkerJar);
 
+  /** Set of available Flexible Resource Scheduling goals. */
+  enum FlexResourceSchedulingGoal {
+    /** No goal specified. */
+    UNSPECIFIED,
+
+    /** Optimize for lower execution time. */
+    SPEED_OPTIMIZED,
+
+    /** Optimize for lower cost. */
+    COST_OPTIMIZED,
+  }
+
+  /** This option controls Flexible Resource Scheduling mode. */
+  @Description("Controls the Flexible Resource Scheduling mode.")
+  @Default.Enum("UNSPECIFIED")
+  FlexResourceSchedulingGoal getFlexRSGoal();
+
+  void setFlexRSGoal(FlexResourceSchedulingGoal goal);
+
   /** Returns a default staging location under {@link GcpOptions#getGcpTempLocation}. */
   class StagingLocationFactory implements DefaultValueFactory<String> {
     private static final Logger LOG = LoggerFactory.getLogger(StagingLocationFactory.class);

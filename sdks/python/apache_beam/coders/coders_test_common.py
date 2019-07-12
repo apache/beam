@@ -24,10 +24,9 @@ import sys
 import unittest
 from builtins import range
 
-import dill
-
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coders
+from apache_beam.internal import pickler
 from apache_beam.runners import pipeline_context
 from apache_beam.transforms import window
 from apache_beam.transforms.window import GlobalWindow
@@ -68,8 +67,10 @@ class CodersTest(unittest.TestCase):
                    if isinstance(c, type) and issubclass(c, coders.Coder) and
                    'Base' not in c.__name__)
     standard -= set([coders.Coder,
+                     coders.DeterministicProtoCoder,
                      coders.FastCoder,
                      coders.ProtoCoder,
+                     coders.RunnerAPICoderHolder,
                      coders.ToStringCoder])
     assert not standard - cls.seen, standard - cls.seen
     assert not standard - cls.seen_nested, standard - cls.seen_nested
@@ -100,7 +101,7 @@ class CodersTest(unittest.TestCase):
                          coder.get_impl().estimate_size(v))
         self.assertEqual(coder.get_impl().get_estimated_size_and_observables(v),
                          (coder.get_impl().estimate_size(v), []))
-      copy1 = dill.loads(dill.dumps(coder))
+      copy1 = pickler.loads(pickler.dumps(coder))
     copy2 = coders.Coder.from_runner_api(coder.to_runner_api(context), context)
     for v in values:
       self.assertEqual(v, copy1.decode(copy2.encode(v)))
@@ -193,13 +194,13 @@ class CodersTest(unittest.TestCase):
 
   def test_timestamp_coder(self):
     self.check_coder(coders.TimestampCoder(),
-                     *[timestamp.Timestamp(micros=x) for x in range(-100, 100)])
+                     *[timestamp.Timestamp(micros=x) for x in (-1000, 0, 1000)])
     self.check_coder(coders.TimestampCoder(),
-                     timestamp.Timestamp(micros=-1234567890),
-                     timestamp.Timestamp(micros=1234567890))
+                     timestamp.Timestamp(micros=-1234567000),
+                     timestamp.Timestamp(micros=1234567000))
     self.check_coder(coders.TimestampCoder(),
-                     timestamp.Timestamp(micros=-1234567890123456789),
-                     timestamp.Timestamp(micros=1234567890123456789))
+                     timestamp.Timestamp(micros=-1234567890123456000),
+                     timestamp.Timestamp(micros=1234567890123456000))
     self.check_coder(
         coders.TupleCoder((coders.TimestampCoder(), coders.BytesCoder())),
         (timestamp.Timestamp.of(27), b'abc'))
@@ -208,10 +209,10 @@ class CodersTest(unittest.TestCase):
     self.check_coder(coders._TimerCoder(coders.BytesCoder()),
                      *[{'timestamp': timestamp.Timestamp(micros=x),
                         'payload': b'xyz'}
-                       for x in range(-3, 3)])
+                       for x in (-3000, 0, 3000)])
     self.check_coder(
         coders.TupleCoder((coders._TimerCoder(coders.VarIntCoder()),)),
-        ({'timestamp': timestamp.Timestamp.of(37), 'payload': 389},))
+        ({'timestamp': timestamp.Timestamp.of(37000), 'payload': 389},))
 
   def test_tuple_coder(self):
     kv_coder = coders.TupleCoder((coders.VarIntCoder(), coders.BytesCoder()))

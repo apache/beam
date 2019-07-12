@@ -242,30 +242,30 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
     public <T> ValueByBuilder<InputT, T> keyBy(
         UnaryFunction<InputT, T> keyExtractor, @Nullable TypeDescriptor<T> keyType) {
       @SuppressWarnings("unchecked")
-      final Builder<InputT, T, ?, ?> casted = (Builder) this;
-      casted.keyExtractor = requireNonNull(keyExtractor);
-      casted.keyType = keyType;
-      return casted;
+      final Builder<InputT, T, ?, ?> cast = (Builder) this;
+      cast.keyExtractor = requireNonNull(keyExtractor);
+      cast.keyType = keyType;
+      return cast;
     }
 
     @Override
     public <T> ScoreBy<InputT, KeyT, T> valueBy(
         UnaryFunction<InputT, T> valueExtractor, @Nullable TypeDescriptor<T> valueType) {
       @SuppressWarnings("unchecked")
-      final Builder<InputT, KeyT, T, ?> casted = (Builder) this;
-      casted.valueExtractor = requireNonNull(valueExtractor);
-      casted.valueType = valueType;
-      return casted;
+      final Builder<InputT, KeyT, T, ?> cast = (Builder) this;
+      cast.valueExtractor = requireNonNull(valueExtractor);
+      cast.valueType = valueType;
+      return cast;
     }
 
     @Override
     public <T extends Comparable<T>> WindowByBuilder<KeyT, ValueT, T> scoreBy(
         UnaryFunction<InputT, T> scoreExtractor, @Nullable TypeDescriptor<T> scoreType) {
       @SuppressWarnings("unchecked")
-      final Builder<InputT, KeyT, ValueT, T> casted = (Builder) this;
-      casted.scoreExtractor = requireNonNull(scoreExtractor);
-      casted.scoreType = scoreType;
-      return casted;
+      final Builder<InputT, KeyT, ValueT, T> cast = (Builder) this;
+      cast.scoreExtractor = requireNonNull(scoreExtractor);
+      cast.scoreType = scoreType;
+      return cast;
     }
 
     @Override
@@ -399,8 +399,8 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
             builder -> {
               @SuppressWarnings("unchecked")
               final ReduceByKey.WindowByInternalBuilder<InputT, KeyT, Triple<KeyT, ValueT, ScoreT>>
-                  casted = (ReduceByKey.WindowByInternalBuilder) builder;
-              return casted.windowBy(
+                  cast = (ReduceByKey.WindowByInternalBuilder) builder;
+              return cast.windowBy(
                   getWindow()
                       .orElseThrow(
                           () ->

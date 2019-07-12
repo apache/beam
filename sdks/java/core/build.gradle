@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(shadowClosure: {
   dependencies {
     include(dependency(library.java.protobuf_java))
     include(dependency(library.java.byte_buddy))
@@ -60,22 +60,20 @@ test {
 dependencies {
   antlr library.java.antlr
   // Required to load constants from the model, e.g. max timestamp for global window
-  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
-  shadow project(path: ":beam-model-job-management", configuration: "shadow")
+  shadow project(path: ":model:pipeline", configuration: "shadow")
+  shadow project(path: ":model:job-management", configuration: "shadow")
   shadow library.java.vendored_guava_20_0
   compile library.java.antlr_runtime
   compile library.java.protobuf_java
   compile library.java.byte_buddy
   compile library.java.commons_compress
   compile library.java.commons_lang3
-  compile library.java.guava_testlib
   shadow library.java.jackson_core
   shadow library.java.jackson_annotations
   shadow library.java.jackson_databind
   shadow library.java.slf4j_api
   shadow library.java.avro
   shadow library.java.snappy_java
-  shadow library.java.zstd_jni
   shadow library.java.joda_time
   shadow "org.tukaani:xz:1.8"
   provided library.java.junit
@@ -83,11 +81,12 @@ dependencies {
   provided library.java.hamcrest_library
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest library.java.guava_testlib
-  shadowTest library.java.slf4j_jdk14
   shadowTest library.java.mockito_core
   shadowTest library.java.hamcrest_core
   shadowTest library.java.hamcrest_library
   shadowTest "com.esotericsoftware.kryo:kryo:2.21"
   shadowTest library.java.quickcheck_core
   shadowTest library.java.avro_tests
+  shadowTest library.java.zstd_jni
+  testRuntimeOnly library.java.slf4j_jdk14
 }

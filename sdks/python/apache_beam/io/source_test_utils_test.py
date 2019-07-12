@@ -82,8 +82,8 @@ class SourceTestUtilsTest(unittest.TestCase):
     result2 = source_test_utils.assert_split_at_fraction_behavior(
         source, 20, 0.5,
         source_test_utils.ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT)
-    self.assertEquals(result1, result2)
-    self.assertEquals(100, result1[0] + result1[1])
+    self.assertEqual(result1, result2)
+    self.assertEqual(100, result1[0] + result1[1])
 
     result3 = source_test_utils.assert_split_at_fraction_behavior(
         source, 30, 0.8,
@@ -91,8 +91,8 @@ class SourceTestUtilsTest(unittest.TestCase):
     result4 = source_test_utils.assert_split_at_fraction_behavior(
         source, 50, 0.8,
         source_test_utils.ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT)
-    self.assertEquals(result3, result4)
-    self.assertEquals(100, result3[0] + result4[1])
+    self.assertEqual(result3, result4)
+    self.assertEqual(100, result3[0] + result4[1])
 
     self.assertTrue(result1[0] < result3[0])
     self.assertTrue(result1[1] > result3[1])
@@ -103,8 +103,8 @@ class SourceTestUtilsTest(unittest.TestCase):
 
     result = source_test_utils.assert_split_at_fraction_behavior(
         source, 90, 0.1, source_test_utils.ExpectedSplitOutcome.MUST_FAIL)
-    self.assertEquals(result[0], 100)
-    self.assertEquals(result[1], -1)
+    self.assertEqual(result[0], 100)
+    self.assertEqual(result[1], -1)
 
     with self.assertRaises(ValueError):
       source_test_utils.assert_split_at_fraction_behavior(

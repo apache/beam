@@ -20,9 +20,11 @@ package org.apache.beam.runners.dataflow.worker.fn.control;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
+import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /**
@@ -33,38 +35,49 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
 public class FnApiMonitoringInfoToCounterUpdateTransformer
     implements MonitoringInfoToCounterUpdateTransformer {
 
-  final UserMonitoringInfoToCounterUpdateTransformer userCounterTransformer;
   final Map<String, MonitoringInfoToCounterUpdateTransformer> counterTransformers = new HashMap<>();
 
   public FnApiMonitoringInfoToCounterUpdateTransformer(
-      Map<String, DataflowStepContext> stepContextMap) {
+      Map<String, DataflowStepContext> stepContextMap,
+      Map<String, NameContext> sdkPCollectionIdToNameContext) {
     SpecMonitoringInfoValidator specValidator = new SpecMonitoringInfoValidator();
-    this.userCounterTransformer =
+
+    UserMonitoringInfoToCounterUpdateTransformer userCounterTransformer =
         new UserMonitoringInfoToCounterUpdateTransformer(specValidator, stepContextMap);
+    counterTransformers.put(userCounterTransformer.getSupportedUrnPrefix(), userCounterTransformer);
+
+    UserDistributionMonitoringInfoToCounterUpdateTransformer userDistributionCounterTransformer =
+        new UserDistributionMonitoringInfoToCounterUpdateTransformer(specValidator, stepContextMap);
+    counterTransformers.put(
+        userDistributionCounterTransformer.getSupportedUrnPrefix(),
+        userDistributionCounterTransformer);
 
     MSecMonitoringInfoToCounterUpdateTransformer msecTransformer =
         new MSecMonitoringInfoToCounterUpdateTransformer(specValidator, stepContextMap);
     for (String urn : msecTransformer.getSupportedUrns()) {
       this.counterTransformers.put(urn, msecTransformer);
     }
+    this.counterTransformers.put(
+        ElementCountMonitoringInfoToCounterUpdateTransformer.getSupportedUrn(),
+        new ElementCountMonitoringInfoToCounterUpdateTransformer(
+            specValidator, sdkPCollectionIdToNameContext));
+    this.counterTransformers.put(
+        MeanByteCountMonitoringInfoToCounterUpdateTransformer.getSupportedUrn(),
+        new MeanByteCountMonitoringInfoToCounterUpdateTransformer(
+            specValidator, sdkPCollectionIdToNameContext));
   }
 
   /** Allows for injection of user and generic counter transformers for more convenient testing. */
   @VisibleForTesting
   public FnApiMonitoringInfoToCounterUpdateTransformer(
-      UserMonitoringInfoToCounterUpdateTransformer userCounterTransformer,
       Map<String, MonitoringInfoToCounterUpdateTransformer> counterTransformers) {
-    this.userCounterTransformer = userCounterTransformer;
     this.counterTransformers.putAll(counterTransformers);
   }
 
   @Override
+  @Nullable
   public CounterUpdate transform(MonitoringInfo src) {
     String urn = src.getUrn();
-    if (urn.startsWith(userCounterTransformer.getSupportedUrnPrefix())) {
-      return userCounterTransformer.transform(src);
-    }
-
     MonitoringInfoToCounterUpdateTransformer transformer = counterTransformers.get(urn);
     return transformer == null ? null : transformer.transform(src);
   }

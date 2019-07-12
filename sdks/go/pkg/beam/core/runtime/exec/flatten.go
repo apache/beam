@@ -52,7 +52,7 @@ func (m *Flatten) StartBundle(ctx context.Context, id string, data DataContext) 
 	return m.Out.StartBundle(ctx, id, data)
 }
 
-func (m *Flatten) ProcessElement(ctx context.Context, elm FullValue, values ...ReStream) error {
+func (m *Flatten) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	return m.Out.ProcessElement(ctx, elm, values...)
 }
 

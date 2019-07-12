@@ -26,6 +26,18 @@ import math
 from builtins import object
 from builtins import range
 
+# Constants used in batched mutation RPCs:
+WRITE_BATCH_INITIAL_SIZE = 200
+# Max allowed Datastore writes per batch, and max bytes per batch.
+# Note that the max bytes per batch set here is lower than the 10MB limit
+# actually enforced by the API, to leave space for the CommitRequest wrapper
+# around the mutations.
+# https://cloud.google.com/datastore/docs/concepts/limits
+WRITE_BATCH_MAX_SIZE = 500
+WRITE_BATCH_MAX_BYTES_SIZE = 9000000
+WRITE_BATCH_MIN_SIZE = 10
+WRITE_BATCH_TARGET_LATENCY_MS = 5000
+
 
 class MovingSum(object):
   """Class that keeps track of a rolling window sum.
@@ -98,3 +110,33 @@ class MovingSum(object):
 
   def has_data(self, now):
     return self.count(now) > 0
+
+
+class DynamicBatchSizer(object):
+  """Determines request sizes for future Datastore RPCs."""
+  def __init__(self):
+    self._commit_time_per_entity_ms = MovingSum(window_ms=120000,
+                                                bucket_ms=10000)
+
+  def get_batch_size(self, now):
+    """Returns the recommended size for datastore RPCs at this time."""
+    if not self._commit_time_per_entity_ms.has_data(now):
+      return WRITE_BATCH_INITIAL_SIZE
+
+    recent_mean_latency_ms = (self._commit_time_per_entity_ms.sum(now)
+                              // self._commit_time_per_entity_ms.count(now))
+    return max(WRITE_BATCH_MIN_SIZE,
+               min(WRITE_BATCH_MAX_SIZE,
+                   WRITE_BATCH_TARGET_LATENCY_MS
+                   // max(recent_mean_latency_ms, 1)
+                  ))
+
+  def report_latency(self, now, latency_ms, num_mutations):
+    """Report the latency of a Datastore RPC.
+
+    Args:
+      now: double, completion time of the RPC as seconds since the epoch.
+      latency_ms: double, the observed latency in milliseconds for this RPC.
+      num_mutations: int, number of mutations contained in the RPC.
+    """
+    self._commit_time_per_entity_ms.add(now, latency_ms / num_mutations)

@@ -27,6 +27,7 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
+import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -135,16 +136,23 @@ public final class TranslationUtils {
 
   /** {@link KV} to pair flatmap function. */
   public static <K, V> PairFlatMapFunction<Iterator<KV<K, V>>, K, V> toPairFlatMapFunction() {
-    return itr -> {
-      final Iterator<Tuple2<K, V>> outputItr =
-          Iterators.transform(itr, kv -> new Tuple2<>(kv.getKey(), kv.getValue()));
-      return outputItr;
-    };
+    return itr -> Iterators.transform(itr, kv -> new Tuple2<>(kv.getKey(), kv.getValue()));
   }
 
   /** A pair to {@link KV} function . */
-  static <K, V> Function<Tuple2<K, V>, KV<K, V>> fromPairFunction() {
-    return t2 -> KV.of(t2._1(), t2._2());
+  static class FromPairFunction<K, V>
+      implements Function<Tuple2<K, V>, KV<K, V>>,
+          org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function<
+              Tuple2<K, V>, KV<K, V>> {
+    @Override
+    public KV<K, V> call(Tuple2<K, V> t2) {
+      return KV.of(t2._1(), t2._2());
+    }
+
+    @Override
+    public KV<K, V> apply(Tuple2<K, V> t2) {
+      return call(t2);
+    }
   }
 
   /** A pair to {@link KV} flatmap function . */
@@ -154,17 +162,30 @@ public final class TranslationUtils {
 
   /** Extract key from a {@link WindowedValue} {@link KV} into a pair. */
   public static <K, V>
-      PairFunction<WindowedValue<KV<K, V>>, K, WindowedValue<KV<K, V>>>
-          toPairByKeyInWindowedValue() {
-    return windowedKv -> new Tuple2<>(windowedKv.getValue().getKey(), windowedKv);
+      PairFunction<WindowedValue<KV<K, V>>, ByteArray, WindowedValue<KV<K, V>>>
+          toPairByKeyInWindowedValue(final Coder<K> keyCoder) {
+    return windowedKv ->
+        new Tuple2<>(
+            new ByteArray(CoderHelpers.toByteArray(windowedKv.getValue().getKey(), keyCoder)),
+            windowedKv);
   }
 
   /** Extract window from a {@link KV} with {@link WindowedValue} value. */
-  static <K, V> Function<KV<K, WindowedValue<V>>, WindowedValue<KV<K, V>>> toKVByWindowInValue() {
-    return kv -> {
+  static class ToKVByWindowInValueFunction<K, V>
+      implements Function<KV<K, WindowedValue<V>>, WindowedValue<KV<K, V>>>,
+          org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function<
+              KV<K, WindowedValue<V>>, WindowedValue<KV<K, V>>> {
+
+    @Override
+    public WindowedValue<KV<K, V>> call(KV<K, WindowedValue<V>> kv) {
       WindowedValue<V> wv = kv.getValue();
       return wv.withValue(KV.of(kv.getKey(), wv.getValue()));
-    };
+    }
+
+    @Override
+    public WindowedValue<KV<K, V>> apply(KV<K, WindowedValue<V>> kv) {
+      return call(kv);
+    }
   }
 
   /**
@@ -272,19 +293,16 @@ public final class TranslationUtils {
    */
   public static <T, K, V> PairFlatMapFunction<Iterator<T>, K, V> pairFunctionToPairFlatMapFunction(
       final PairFunction<T, K, V> pairFunction) {
-    return itr -> {
-      final Iterator<Tuple2<K, V>> outputItr =
-          Iterators.transform(
-              itr,
-              t -> {
-                try {
-                  return pairFunction.call(t);
-                } catch (Exception e) {
-                  throw new RuntimeException(e);
-                }
-              });
-      return outputItr;
-    };
+    return itr ->
+        Iterators.transform(
+            itr,
+            t -> {
+              try {
+                return pairFunction.call(t);
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+            });
   }
 
   /**
@@ -301,19 +319,16 @@ public final class TranslationUtils {
   public static <InputT, OutputT>
       FlatMapFunction<Iterator<InputT>, OutputT> functionToFlatMapFunction(
           final Function<InputT, OutputT> func) {
-    return itr -> {
-      final Iterator<OutputT> outputItr =
-          Iterators.transform(
-              itr,
-              t -> {
-                try {
-                  return func.call(t);
-                } catch (Exception e) {
-                  throw new RuntimeException(e);
-                }
-              });
-      return outputItr;
-    };
+    return itr ->
+        Iterators.transform(
+            itr,
+            t -> {
+              try {
+                return func.call(t);
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+            });
   }
 
   /**
@@ -346,13 +361,16 @@ public final class TranslationUtils {
    * @param coderMap - mapping between TupleTag and a coder
    * @return a pair function to convert value to bytes via coder
    */
-  public static PairFunction<Tuple2<TupleTag<?>, WindowedValue<?>>, TupleTag<?>, byte[]>
+  public static PairFunction<
+          Tuple2<TupleTag<?>, WindowedValue<?>>,
+          TupleTag<?>,
+          ValueAndCoderLazySerializable<WindowedValue<?>>>
       getTupleTagEncodeFunction(final Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap) {
     return tuple2 -> {
       TupleTag<?> tupleTag = tuple2._1;
       WindowedValue<?> windowedValue = tuple2._2;
       return new Tuple2<>(
-          tupleTag, CoderHelpers.toByteArray(windowedValue, coderMap.get(tupleTag)));
+          tupleTag, ValueAndCoderLazySerializable.of(windowedValue, coderMap.get(tupleTag)));
     };
   }
 
@@ -362,23 +380,30 @@ public final class TranslationUtils {
    * @param coderMap - mapping between TupleTag and a coder
    * @return a pair function to convert bytes to value via coder
    */
-  public static PairFunction<Tuple2<TupleTag<?>, byte[]>, TupleTag<?>, WindowedValue<?>>
+  public static PairFunction<
+          Tuple2<TupleTag<?>, ValueAndCoderLazySerializable<WindowedValue<?>>>,
+          TupleTag<?>,
+          WindowedValue<?>>
       getTupleTagDecodeFunction(final Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap) {
     return tuple2 -> {
       TupleTag<?> tupleTag = tuple2._1;
-      byte[] windowedByteValue = tuple2._2;
-      return new Tuple2<>(
-          tupleTag, CoderHelpers.fromByteArray(windowedByteValue, coderMap.get(tupleTag)));
+      ValueAndCoderLazySerializable<WindowedValue<?>> windowedByteValue = tuple2._2;
+      return new Tuple2<>(tupleTag, windowedByteValue.getOrDecode(coderMap.get(tupleTag)));
     };
   }
 
   /**
-   * checking if we can avoid Serialization - relevant to RDDs. DStreams are memory ser in spark.
+   * Check if we can avoid Serialization. It is only relevant to RDDs. DStreams are memory ser in
+   * spark.
+   *
+   * <p>See <a
+   * href="https://spark.apache.org/docs/latest/rdd-programming-guide.html#rdd-persistence">Spark
+   * RDD programming guide</a> for more details.
    *
    * @param level StorageLevel required
    * @return true if the level is memory only
    */
-  public static boolean avoidRddSerialization(StorageLevel level) {
-    return level.equals(StorageLevel.MEMORY_ONLY()) || level.equals(StorageLevel.MEMORY_ONLY_2());
+  static boolean canAvoidRddSerialization(StorageLevel level) {
+    return level.equals(StorageLevel.MEMORY_ONLY());
   }
 }

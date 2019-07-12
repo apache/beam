@@ -22,7 +22,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
@@ -104,7 +103,10 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
     try {
       descriptor =
           ProcessBundleDescriptors.fromExecutableStage(
-              idGenerator.getId(), stage, dataService.getApiServiceDescriptor());
+              idGenerator.getId(),
+              stage,
+              dataService.getApiServiceDescriptor(),
+              stateService.getApiServiceDescriptor());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -150,21 +152,21 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
         OutputReceiverFactory outputReceiverFactory,
         StateRequestHandler stateRequestHandler,
         BundleProgressHandler progressHandler) {
-      Map<Target, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
-      for (Map.Entry<Target, Coder<WindowedValue<?>>> targetCoders :
-          descriptor.getOutputTargetCoders().entrySet()) {
+      Map<String, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
+      for (Map.Entry<String, Coder<WindowedValue<?>>> remoteOutputCoder :
+          descriptor.getRemoteOutputCoders().entrySet()) {
         String bundleOutputPCollection =
             Iterables.getOnlyElement(
                 descriptor
                     .getProcessBundleDescriptor()
-                    .getTransformsOrThrow(targetCoders.getKey().getPrimitiveTransformReference())
+                    .getTransformsOrThrow(remoteOutputCoder.getKey())
                     .getInputsMap()
                     .values());
         FnDataReceiver<WindowedValue<?>> outputReceiver =
             outputReceiverFactory.create(bundleOutputPCollection);
         outputReceivers.put(
-            targetCoders.getKey(),
-            RemoteOutputReceiver.of(targetCoders.getValue(), outputReceiver));
+            remoteOutputCoder.getKey(),
+            RemoteOutputReceiver.of(remoteOutputCoder.getValue(), outputReceiver));
       }
       return processor.newBundle(outputReceivers, stateRequestHandler, progressHandler);
     }

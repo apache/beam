@@ -21,9 +21,7 @@ from __future__ import absolute_import
 
 import copy
 import logging
-import os
 import platform
-import sys
 import unittest
 from builtins import object
 from builtins import range
@@ -378,7 +376,7 @@ class PipelineTest(unittest.TestCase):
                | 'NoOp' >> beam.Map(lambda x: x))
 
       p.replace_all([override])
-      self.assertEquals(pcoll.producer.inputs[0].element_type, expected_type)
+      self.assertEqual(pcoll.producer.inputs[0].element_type, expected_type)
 
 
 class DoFnTest(unittest.TestCase):
@@ -393,9 +391,6 @@ class DoFnTest(unittest.TestCase):
     assert_that(pcoll, equal_to([11, 12]))
     pipeline.run()
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.')
   def test_side_input_no_tag(self):
     class TestDoFn(DoFn):
       def process(self, element, prefix, suffix):
@@ -411,9 +406,6 @@ class DoFnTest(unittest.TestCase):
     assert_that(result, equal_to(['zyx-%s-xyz' % x for x in words_list]))
     pipeline.run()
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.')
   def test_side_input_tagged(self):
     class TestDoFn(DoFn):
       def process(self, element, prefix, suffix=DoFn.SideInputParam):
@@ -490,29 +482,29 @@ class PipelineOptionsTest(unittest.TestCase):
 
   def test_flag_parsing(self):
     options = Breakfast(['--slices=3', '--style=sunny side up', '--ignored'])
-    self.assertEquals(3, options.slices)
-    self.assertEquals('sunny side up', options.style)
+    self.assertEqual(3, options.slices)
+    self.assertEqual('sunny side up', options.style)
 
   def test_keyword_parsing(self):
     options = Breakfast(
         ['--slices=3', '--style=sunny side up', '--ignored'],
         slices=10)
-    self.assertEquals(10, options.slices)
-    self.assertEquals('sunny side up', options.style)
+    self.assertEqual(10, options.slices)
+    self.assertEqual('sunny side up', options.style)
 
   def test_attribute_setting(self):
     options = Breakfast(slices=10)
-    self.assertEquals(10, options.slices)
+    self.assertEqual(10, options.slices)
     options.slices = 20
-    self.assertEquals(20, options.slices)
+    self.assertEqual(20, options.slices)
 
   def test_view_as(self):
     generic_options = PipelineOptions(['--slices=3'])
-    self.assertEquals(3, generic_options.view_as(Bacon).slices)
-    self.assertEquals(3, generic_options.view_as(Breakfast).slices)
+    self.assertEqual(3, generic_options.view_as(Bacon).slices)
+    self.assertEqual(3, generic_options.view_as(Breakfast).slices)
 
     generic_options.view_as(Breakfast).slices = 10
-    self.assertEquals(10, generic_options.view_as(Bacon).slices)
+    self.assertEqual(10, generic_options.view_as(Bacon).slices)
 
     with self.assertRaises(AttributeError):
       generic_options.slices  # pylint: disable=pointless-statement
@@ -522,17 +514,17 @@ class PipelineOptionsTest(unittest.TestCase):
 
   def test_defaults(self):
     options = Breakfast(['--slices=3'])
-    self.assertEquals(3, options.slices)
-    self.assertEquals('scrambled', options.style)
+    self.assertEqual(3, options.slices)
+    self.assertEqual('scrambled', options.style)
 
   def test_dir(self):
     options = Breakfast()
-    self.assertEquals(
+    self.assertEqual(
         set(['from_dictionary', 'get_all_options', 'slices', 'style',
              'view_as', 'display_data']),
         set([attr for attr in dir(options) if not attr.startswith('_') and
              attr != 'next']))
-    self.assertEquals(
+    self.assertEqual(
         set(['from_dictionary', 'get_all_options', 'style', 'view_as',
              'display_data']),
         set([attr for attr in dir(options.view_as(Eggs))
@@ -553,8 +545,8 @@ class RunnerApiTest(unittest.TestCase):
     p = Pipeline.from_runner_api(
         Pipeline.to_runner_api(p, use_fake_coders=True), None, None)
     self.assertIsNotNone(p.transforms_stack[0].parts[0].parent)
-    self.assertEquals(p.transforms_stack[0].parts[0].parent,
-                      p.transforms_stack[0])
+    self.assertEqual(p.transforms_stack[0].parts[0].parent,
+                     p.transforms_stack[0])
 
 
 class DirectRunnerRetryTests(unittest.TestCase):

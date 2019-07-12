@@ -19,6 +19,7 @@ package org.apache.beam.runners.fnexecution.jobsubmission;
 
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.hamcrest.core.Is.is;
+import static org.hamcrest.core.Is.isA;
 import static org.hamcrest.core.IsNull.notNullValue;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
@@ -31,6 +32,7 @@ import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.StatusException;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
 import org.junit.Before;
 import org.junit.Test;
@@ -62,6 +64,35 @@ public class InMemoryJobServiceTest {
         InMemoryJobService.create(stagingServiceDescriptor, session -> "token", null, invoker);
     when(invoker.invoke(TEST_PIPELINE, TEST_OPTIONS, TEST_RETRIEVAL_TOKEN)).thenReturn(invocation);
     when(invocation.getId()).thenReturn(TEST_JOB_ID);
+    when(invocation.getPipeline()).thenReturn(TEST_PIPELINE);
+  }
+
+  private JobApi.PrepareJobResponse prepareJob() {
+    JobApi.PrepareJobRequest request =
+        JobApi.PrepareJobRequest.newBuilder()
+            .setJobName(TEST_JOB_NAME)
+            .setPipeline(RunnerApi.Pipeline.getDefaultInstance())
+            .setPipelineOptions(Struct.getDefaultInstance())
+            .build();
+    RecordingObserver<JobApi.PrepareJobResponse> recorder = new RecordingObserver<>();
+    service.prepare(request, recorder);
+    return recorder.values.get(0);
+  }
+
+  private JobApi.RunJobResponse runJob(String preparationId) {
+    JobApi.RunJobRequest runRequest =
+        JobApi.RunJobRequest.newBuilder()
+            .setPreparationId(preparationId)
+            .setRetrievalToken(TEST_RETRIEVAL_TOKEN)
+            .build();
+    RecordingObserver<JobApi.RunJobResponse> recorder = new RecordingObserver<>();
+    service.run(runRequest, recorder);
+    return recorder.values.get(0);
+  }
+
+  private JobApi.RunJobResponse prepareAndRunJob() {
+    JobApi.PrepareJobResponse prepareResponse = prepareJob();
+    return runJob(prepareResponse.getPreparationId());
   }
 
   @Test
@@ -82,17 +113,36 @@ public class InMemoryJobServiceTest {
   }
 
   @Test
+  public void testGetPipelineFailure() {
+    prepareJob();
+
+    JobApi.GetJobPipelineRequest request =
+        JobApi.GetJobPipelineRequest.newBuilder().setJobId(TEST_JOB_ID).build();
+    RecordingObserver<JobApi.GetJobPipelineResponse> recorder = new RecordingObserver<>();
+    service.getPipeline(request, recorder);
+    // job has not been run yet
+    assertThat(recorder.isSuccessful(), is(false));
+    assertThat(recorder.error, isA(StatusException.class));
+  }
+
+  @Test
+  public void testGetPipelineIsSuccessful() throws Exception {
+    prepareAndRunJob();
+
+    JobApi.GetJobPipelineRequest request =
+        JobApi.GetJobPipelineRequest.newBuilder().setJobId(TEST_JOB_ID).build();
+    RecordingObserver<JobApi.GetJobPipelineResponse> recorder = new RecordingObserver<>();
+    service.getPipeline(request, recorder);
+    assertThat(recorder.isSuccessful(), is(true));
+    assertThat(recorder.values, hasSize(1));
+    JobApi.GetJobPipelineResponse response = recorder.values.get(0);
+    assertThat(response.getPipeline(), is(TEST_PIPELINE));
+  }
+
+  @Test
   public void testJobSubmissionUsesJobInvokerAndIsSuccess() throws Exception {
-    // prepare job
-    JobApi.PrepareJobRequest prepareRequest =
-        JobApi.PrepareJobRequest.newBuilder()
-            .setJobName(TEST_JOB_NAME)
-            .setPipeline(RunnerApi.Pipeline.getDefaultInstance())
-            .setPipelineOptions(Struct.getDefaultInstance())
-            .build();
-    RecordingObserver<JobApi.PrepareJobResponse> prepareRecorder = new RecordingObserver<>();
-    service.prepare(prepareRequest, prepareRecorder);
-    JobApi.PrepareJobResponse prepareResponse = prepareRecorder.values.get(0);
+    JobApi.PrepareJobResponse prepareResponse = prepareJob();
+
     // run job
     JobApi.RunJobRequest runRequest =
         JobApi.RunJobRequest.newBuilder()

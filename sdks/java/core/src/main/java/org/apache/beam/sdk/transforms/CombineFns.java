@@ -59,37 +59,37 @@ public class CombineFns {
    *
    * <p>Example:
    *
-   * <pre>{@code
-   * PCollection<Integer> globalLatencies = ...;
+   * <pre>{@code  PCollection<Integer> globalLatencies = ...;
    *
-   * TupleTag<Integer> maxLatencyTag = new TupleTag<Integer>();
-   * TupleTag<Double> meanLatencyTag = new TupleTag<Double>();
+   *  TupleTag<Integer> maxLatencyTag = new TupleTag<Integer>();
+   *  TupleTag<Double> meanLatencyTag = new TupleTag<Double>();}
    *
-   * SimpleFunction<Integer, Integer> identityFn =
-   *     new SimpleFunction<Integer, Integer>() {
-   *       {@literal @}Override
+   * {@code SimpleFunction<Integer, Integer> identityFn =
+   *     new SimpleFunction<Integer, Integer>() }{
+   *      {@code @Override
    *       public Integer apply(Integer input) {
    *           return input;
-   *       }};
-   * PCollection<CoCombineResult> maxAndMean = globalLatencies.apply(
+   *       }}};
+   *
+   * {@code PCollection<CoCombineResult> maxAndMean = globalLatencies.apply(
    *     Combine.globally(
    *         CombineFns.compose()
    *            .with(identityFn, new MaxIntegerFn(), maxLatencyTag)
-   *            .with(identityFn, new MeanFn<Integer>(), meanLatencyTag)));
+   *            .with(identityFn, new MeanFn<Integer>(), meanLatencyTag)))};
    *
-   * PCollection<T> finalResultCollection = maxAndMean
+   * {@code PCollection<T> finalResultCollection = maxAndMean
    *     .apply(ParDo.of(
-   *         new DoFn<CoCombineResult, T>() {
-   *          {@literal @}ProcessElement
-   *           public void processElement(
-   *            {@literal @}Element CoCombineResult e, OutputReceiver<T> r) throws Exception {
-   *             Integer maxLatency = e.get(maxLatencyTag);
-   *             Double meanLatency = e.get(meanLatencyTag);
-   *             .... Do Something ....
-   *             r.output(...some T...);
-   *           }
-   *         }));
-   * }</pre>
+   *         new DoFn<CoCombineResult, T>() }{
+   *            {@code @ProcessElement
+   *             public void processElement(}
+   *                  {@code @Element CoCombineResult e, OutputReceiver<T> r) throws Exception {
+   *                 Integer maxLatency = e.get(maxLatencyTag);
+   *                 Double meanLatency = e.get(meanLatencyTag);
+   *                 .... Do Something ....
+   *                 r.output(...some T...);
+   *              }
+   *         }}));
+   * </pre>
    */
   public static ComposeCombineFnBuilder compose() {
     return new ComposeCombineFnBuilder();

@@ -188,13 +188,17 @@ a command-line argument.
 
 You can add your own custom options in addition to the standard
 `PipelineOptions`. To add your own options, define an interface with getter and
-setter methods for each option, as in the following example:
+setter methods for each option, as in the following example for
+adding `input` and `output` custom options:
 
 ```java
 public interface MyOptions extends PipelineOptions {
-    String getMyCustomOption();
-    void setMyCustomOption(String myCustomOption);
-  }
+    String getInput();
+    void setInput(String input);
+    
+    String getOutput();
+    void setOutput(String output);
+}
 ```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipeline_options_define_custom
@@ -214,11 +218,16 @@ You set the description and default value using annotations, as follows:
 
 ```java
 public interface MyOptions extends PipelineOptions {
-    @Description("My custom command line argument.")
-    @Default.String("DEFAULT")
-    String getMyCustomOption();
-    void setMyCustomOption(String myCustomOption);
-  }
+    @Description("Input for the pipeline")
+    @Default.String("gs://my-bucket/input")
+    String getInput();
+    void setInput(String input);
+
+    @Description("Output for the pipeline")
+    @Default.String("gs://my-bucket/input")
+    String getOutput();
+    void setOutput(String output);
+}
 ```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipeline_options_define_custom_with_help_and_default
@@ -226,8 +235,8 @@ public interface MyOptions extends PipelineOptions {
 ```
 ```go
 var (
-  input = flag.String("input", "gs://my-bucket/input", "File(s) to read.")
-  output = flag.String("output", "gs://my-bucket/output", "Output file.")
+  input = flag.String("input", "gs://my-bucket/input", "Input for the pipeline")
+  output = flag.String("output", "gs://my-bucket/output", "Output for the pipeline")
 )
 ```
 
@@ -251,7 +260,7 @@ MyOptions options = PipelineOptionsFactory.fromArgs(args)
                                                 .as(MyOptions.class);
 ```
 
-Now your pipeline can accept `--myCustomOption=value` as a command-line argument.
+Now your pipeline can accept `--input=value` and `--output=value` as command-line arguments.
 
 ## 3. PCollections {#pcollections}
 
@@ -302,7 +311,7 @@ public static void main(String[] args) {
 
     // Create the PCollection 'lines' by applying a 'Read' transform.
     PCollection<String> lines = p.apply(
-      "ReadMyFile", TextIO.read().from("protocol://path/to/some/inputData.txt"));
+      "ReadMyFile", TextIO.read().from("gs://some/inputData.txt"));
 }
 ```
 ```py
@@ -310,7 +319,7 @@ public static void main(String[] args) {
 %}
 ```
 ```go
-lines := textio.Read(s, "protocol://path/to/some/inputData.txt")
+lines := textio.Read(s, "gs://some/inputData.txt")
 ```
 
 See the [section on I/O](#pipeline-io) to learn more about how to read from the
@@ -339,7 +348,7 @@ The following example code shows how to create a `PCollection` from an in-memory
 ```java
 public static void main(String[] args) {
     // Create a Java Collection, in this case a List of Strings.
-    static final List<String> LINES = Arrays.asList(
+    final List<String> LINES = Arrays.asList(
       "To be, or not to be: that is the question: ",
       "Whether 'tis nobler in the mind to suffer ",
       "The slings and arrows of outrageous fortune, ",
@@ -351,7 +360,7 @@ public static void main(String[] args) {
     Pipeline p = Pipeline.create(options);
 
     // Apply Create, passing the list and the coder, to create the PCollection.
-    p.apply(Create.of(LINES)).setCoder(StringUtf8Coder.of())
+    p.apply(Create.of(LINES)).setCoder(StringUtf8Coder.of());
 }
 ```
 ```py
@@ -514,12 +523,14 @@ that you can apply multiple transforms to the same input `PCollection` to create
 a branching pipeline, like so:
 
 ```java
-[Output PCollection 1] = [Input PCollection].apply([Transform 1])
-[Output PCollection 2] = [Input PCollection].apply([Transform 2])
+[PCollection of database table rows] = [Database Table Reader].apply([Read Transform])
+[PCollection of 'A' names] = [PCollection of database table rows].apply([Transform A])
+[PCollection of 'B' names] = [PCollection of database table rows].apply([Transform B])
 ```
 ```py
-[Output PCollection 1] = [Input PCollection] | [Transform 1]
-[Output PCollection 2] = [Input PCollection] | [Transform 2]
+[PCollection of database table rows] = [Database Table Reader] | [Read Transform]
+[PCollection of 'A' names] = [PCollection of database table rows] | [Transform A]
+[PCollection of 'B' names] = [PCollection of database table rows] | [Transform B]
 ```
 
 The resulting workflow graph from the branching pipeline above looks like this.
@@ -1079,12 +1090,6 @@ pc = ...
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:combine_custom_average_define
 %}```
 
-If you are combining a `PCollection` of key-value pairs, [per-key
-combining](#combining-values-in-a-keyed-pcollection) is often enough. If
-you need the combining strategy to change based on the key (for example, MIN for
-some users and MAX for other users), you can define a `KeyedCombineFn` to access
-the key within the combining strategy.
-
 ##### 4.2.4.3. Combining a PCollection into a single value {#combining-pcollection}
 
 Use the global combine to transform all of the elements in a given `PCollection`
@@ -1194,7 +1199,7 @@ player_accuracies = ...
 #### 4.2.5. Flatten {#flatten}
 
 <span class="language-java">[`Flatten`](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Flatten.html)</span>
-<span class="language-py">[`Flatten`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span> and
+<span class="language-py">[`Flatten`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span>
 is a Beam transform for `PCollection` objects that store the same data type.
 `Flatten` merges multiple `PCollection` objects into a single logical
 `PCollection`.
@@ -1524,7 +1529,7 @@ together.
 #### 4.5.2. Emitting to multiple outputs in your DoFn {#multiple-outputs-dofn}
 
 ```java
-// Inside your ParDo's DoFn, you can emit an element to a specific output PCollection by providing a 
+// Inside your ParDo's DoFn, you can emit an element to a specific output PCollection by providing a
 // MultiOutputReceiver to your process method, and passing in the appropriate TupleTag to obtain an OutputReceiver.
 // After your ParDo, extract the resulting output PCollections from the returned PCollectionTuple.
 // Based on the previous example, this shows the DoFn emitting to the main output and two additional outputs.
@@ -1591,7 +1596,16 @@ are being used, the window is of type `IntervalWindow`.
      public void processElement(@Element String word, IntervalWindow window) {
   }})
 ```
+```py
+import apache_beam as beam
 
+class ProcessRecord(beam.DoFn):
+
+  def process(self, element, window=beam.DoFn.WindowParam):
+     # access window e.g window.end.micros
+     pass  
+  
+```
 {:.language-java}
 **PaneInfo:**
 When triggers are used, Beam provides a `PaneInfo` object that contains information about the current firing. Using `PaneInfo`
@@ -1613,12 +1627,68 @@ The `PipelineOptions` for the current pipeline can always be accessed in a proce
 ```
 
 {:.language-java}
-`@OnTimer` methods can also access many of these parameters. Timestamp, window, `PipelineOptions`, `OutputReceiver`, and
+`@OnTimer` methods can also access many of these parameters. Timestamp, Window, key, `PipelineOptions`, `OutputReceiver`, and
 `MultiOutputReceiver` parameters can all be accessed in an `@OnTimer` method. In addition, an `@OnTimer` method can take
 a parameter of type `TimeDomain` which tells whether the timer is based on event time or processing time.
-Timers are explained in more detail in the 
+Timers are explained in more detail in the
 [Timely (and Stateful) Processing with Apache Beam]({{ site.baseurl }}/blog/2017/08/28/timely-processing.html) blog post.
+```py
 
+class StatefulDoFn(beam.DoFn):
+  """An example stateful DoFn with state and timer"""
+
+  BUFFER_STATE_1 = BagStateSpec('buffer1', beam.BytesCoder())
+  BUFFER_STATE_2 = BagStateSpec('buffer2', beam.VarIntCoder())
+  WATERMARK_TIMER = TimerSpec('watermark_timer', TimeDomain.WATERMARK)
+
+  def process(self,
+              element,
+              timestamp=beam.DoFn.TimestampParam,
+              window=beam.DoFn.WindowParam,
+              buffer_1=beam.DoFn.StateParam(BUFFER_STATE_1),
+              buffer_2=beam.DoFn.StateParam(BUFFER_STATE_2),
+              watermark_timer=beam.DoFn.TimerParam(WATERMARK_TIMER)):
+
+    # Do you processing here
+    key, value = element
+    # Read all the data from buffer1
+    all_values_in_buffer_1 = [x for x in buffer_1.read()]
+
+    if StatefulDoFn._is_clear_buffer_1_required(all_values_in_buffer_1):
+        # clear the buffer data if required conditions are met.
+        buffer_1.clear()
+
+    # add the value to buffer 2
+    buffer_2.add(value)
+
+    if StatefulDoFn._all_condition_met():
+      # Clear the timer if certain condition met and you don't want to trigger
+      # the callback method.
+      watermark_timer.clear()
+
+    yield element
+
+  @on_timer(WATERMARK_TIMER)
+  def on_expiry_1(self,
+                  timestamp=beam.DoFn.TimestampParam,
+                  window=beam.DoFn.WindowParam,
+                  key=beam.DoFn.KeyParam,
+                  buffer_1=beam.DoFn.StateParam(BUFFER_STATE_1),
+                  buffer_2=beam.DoFn.StateParam(BUFFER_STATE_2)):
+    # Window and key parameters are really useful especially for debugging issues.
+    yield 'expired1'
+
+  @staticmethod
+  def _all_condition_met():
+      # some logic
+      return True
+
+  @staticmethod
+  def _is_clear_buffer_1_required(buffer_1_data):
+      # Some business logic
+      return True
+
+```
 ### 4.6. Composite transforms {#composite-transforms}
 
 Transforms can have a nested structure, where a complex transform performs
@@ -2340,12 +2410,12 @@ for more information.
 #### 7.3.1. Fixed-time windows {#using-fixed-time-windows}
 
 The following example code shows how to apply `Window` to divide a `PCollection`
-into fixed windows, each one minute in length:
+into fixed windows, each 60 seconds in length:
 
 ```java
     PCollection<String> items = ...;
     PCollection<String> fixedWindowedItems = items.apply(
-        Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))));
+        Window.<String>into(FixedWindows.of(Duration.standardSeconds(60))));
 ```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:setting_fixed_windows
@@ -2372,12 +2442,12 @@ begins every five seconds:
 
 The following example code shows how to apply `Window` to divide a `PCollection`
 into session windows, where each session must be separated by a time gap of at
-least 10 minutes:
+least 10 minutes (600 seconds):
 
 ```java
     PCollection<String> items = ...;
     PCollection<String> sessionWindowedItems = items.apply(
-        Window.<String>into(Sessions.withGapDuration(Duration.standardMinutes(10))));
+        Window.<String>into(Sessions.withGapDuration(Duration.standardSeconds(600))));
 ```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:setting_session_windows

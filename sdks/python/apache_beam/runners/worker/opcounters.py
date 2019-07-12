@@ -182,7 +182,8 @@ class OperationCounters(object):
     self.element_counter = counter_factory.get_counter(
         '%s-out%s-ElementCount' % (step_name, output_index), Counter.SUM)
     self.mean_byte_counter = counter_factory.get_counter(
-        '%s-out%s-MeanByteCount' % (step_name, output_index), Counter.MEAN)
+        '%s-out%s-MeanByteCount' % (step_name, output_index),
+        Counter.BEAM_DISTRIBUTION)
     self.coder_impl = coder.get_impl() if coder else None
     self.active_accumulator = None
     self.current_size = None
@@ -292,6 +293,9 @@ class OperationCounters(object):
     # We create this separate method because the above "_should_sample()" method
     # is marked as inline in Cython and thus can't be exposed to Python code.
     return self._should_sample()
+
+  def restart_sampling(self):
+    self._sample_counter = 0
 
   def __str__(self):
     return '<%s [%s]>' % (self.__class__.__name__,

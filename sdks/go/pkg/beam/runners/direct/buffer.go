@@ -50,8 +50,8 @@ func (n *buffer) StartBundle(ctx context.Context, id string, data exec.DataConte
 	return nil
 }
 
-func (n *buffer) ProcessElement(ctx context.Context, elm exec.FullValue, values ...exec.ReStream) error {
-	n.buf = append(n.buf, elm)
+func (n *buffer) ProcessElement(ctx context.Context, elm *exec.FullValue, values ...exec.ReStream) error {
+	n.buf = append(n.buf, *elm)
 	return nil
 }
 
@@ -113,7 +113,7 @@ func (w *wait) notify(ctx context.Context) error {
 		return err
 	}
 	for _, elm := range w.buf {
-		if err := w.next.ProcessElement(ctx, elm); err != nil {
+		if err := w.next.ProcessElement(ctx, &elm); err != nil {
 			return err
 		}
 	}
@@ -136,10 +136,10 @@ func (w *wait) StartBundle(ctx context.Context, id string, data exec.DataContext
 	return nil // done in notify
 }
 
-func (w *wait) ProcessElement(ctx context.Context, elm exec.FullValue, values ...exec.ReStream) error {
+func (w *wait) ProcessElement(ctx context.Context, elm *exec.FullValue, values ...exec.ReStream) error {
 	if w.ready < w.need {
 		// log.Printf("buffer[%v]: %v", w.UID, elm)
-		w.buf = append(w.buf, elm)
+		w.buf = append(w.buf, *elm)
 		return nil
 	}
 

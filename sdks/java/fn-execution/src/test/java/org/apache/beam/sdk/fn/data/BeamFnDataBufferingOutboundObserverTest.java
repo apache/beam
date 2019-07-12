@@ -30,7 +30,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
@@ -45,10 +44,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link BeamFnDataBufferingOutboundObserver}. */
 @RunWith(JUnit4.class)
 public class BeamFnDataBufferingOutboundObserverTest {
-  private static final LogicalEndpoint OUTPUT_LOCATION =
-      LogicalEndpoint.of(
-          "777L",
-          Target.newBuilder().setPrimitiveTransformReference("555L").setName("Test").build());
+  private static final LogicalEndpoint OUTPUT_LOCATION = LogicalEndpoint.of("777L", "555L");
   private static final Coder<WindowedValue<byte[]>> CODER =
       LengthPrefixCoder.of(WindowedValue.getValueOnlyCoder(ByteArrayCoder.of()));
 
@@ -145,7 +141,7 @@ public class BeamFnDataBufferingOutboundObserverTest {
             .addData(
                 BeamFnApi.Elements.Data.newBuilder()
                     .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
-                    .setTarget(OUTPUT_LOCATION.getTarget()))
+                    .setPtransformId(OUTPUT_LOCATION.getPTransformId()))
             .build(),
         Iterables.get(values, 1));
   }
@@ -159,7 +155,7 @@ public class BeamFnDataBufferingOutboundObserverTest {
         .addData(
             BeamFnApi.Elements.Data.newBuilder()
                 .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
-                .setTarget(OUTPUT_LOCATION.getTarget())
+                .setPtransformId(OUTPUT_LOCATION.getPTransformId())
                 .setData(output.toByteString()))
         .build();
   }

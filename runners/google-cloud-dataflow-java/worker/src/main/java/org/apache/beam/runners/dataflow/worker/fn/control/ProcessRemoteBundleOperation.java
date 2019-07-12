@@ -18,18 +18,23 @@
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
 import java.io.Closeable;
+import java.io.IOException;
+import java.util.*;
+import java.util.EnumMap;
 import java.util.Map;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.dataflow.worker.DataflowOperationContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReceivingOperation;
-import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
-import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
-import org.apache.beam.runners.fnexecution.control.RemoteBundle;
-import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
+import org.apache.beam.runners.fnexecution.control.*;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,25 +53,59 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
       new OutputReceiverFactory() {
         @Override
         public FnDataReceiver<?> create(String pCollectionId) {
-          return receivedElement -> {
-            LOG.debug("Consume element {}", receivedElement);
-            outputReceiverMap.get(pCollectionId).process((WindowedValue<?>) receivedElement);
-          };
+          return receivedElement -> receive(pCollectionId, receivedElement);
         }
       };
   private final StateRequestHandler stateRequestHandler;
   private final BundleProgressHandler progressHandler;
   private RemoteBundle remoteBundle;
+  private ExecutableStage executableStage;
+
+  private final TimerReceiver timerReceiver;
 
   public ProcessRemoteBundleOperation(
-      OperationContext context,
+      ExecutableStage executableStage,
+      DataflowOperationContext operationContext,
       StageBundleFactory stageBundleFactory,
-      Map<String, OutputReceiver> outputReceiverMap) {
-    super(EMPTY_RECEIVER_ARRAY, context);
+      Map<String, OutputReceiver> outputReceiverMap,
+      TimerReceiver timerReceiver,
+      Map<String, SideInputReader> ptransformIdToSideInputReader,
+      Map<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>>
+          sideInputIdToPCollectionViewMap) {
+    super(EMPTY_RECEIVER_ARRAY, operationContext);
+
+    this.timerReceiver = timerReceiver;
     this.stageBundleFactory = stageBundleFactory;
-    this.outputReceiverMap = outputReceiverMap;
-    this.stateRequestHandler = StateRequestHandler.unsupported();
     this.progressHandler = BundleProgressHandler.ignored();
+    this.executableStage = executableStage;
+    this.outputReceiverMap = outputReceiverMap;
+
+    StateRequestHandlers.SideInputHandlerFactory sideInputHandlerFactory =
+        DataflowSideInputHandlerFactory.of(
+            ptransformIdToSideInputReader, sideInputIdToPCollectionViewMap);
+
+    stateRequestHandler = getStateRequestHandler(executableStage, sideInputHandlerFactory);
+  }
+
+  private StateRequestHandler getStateRequestHandler(
+      ExecutableStage executableStage,
+      StateRequestHandlers.SideInputHandlerFactory sideInputHandlerFactory) {
+    final StateRequestHandler sideInputHandler;
+
+    try {
+      sideInputHandler =
+          StateRequestHandlers.forSideInputHandlerFactory(
+              ProcessBundleDescriptors.getSideInputs(executableStage), sideInputHandlerFactory);
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to setup state handler", e);
+    }
+
+    EnumMap<BeamFnApi.StateKey.TypeCase, StateRequestHandler> handlerMap =
+        new EnumMap<BeamFnApi.StateKey.TypeCase, StateRequestHandler>(
+            BeamFnApi.StateKey.TypeCase.class);
+    handlerMap.put(BeamFnApi.StateKey.TypeCase.MULTIMAP_SIDE_INPUT, sideInputHandler);
+
+    return StateRequestHandlers.delegateBasedUponType(handlerMap);
   }
 
   @Override
@@ -84,10 +123,20 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
 
   @Override
   public void process(Object inputElement) throws Exception {
-    LOG.debug(String.format("Sending value: %s", inputElement));
+    LOG.debug("Sending element: {}", inputElement);
+    String mainInputPCollectionId = executableStage.getInputPCollection().getId();
+    FnDataReceiver<WindowedValue<?>> mainInputReceiver =
+        remoteBundle.getInputReceivers().get(mainInputPCollectionId);
+
     try (Closeable scope = context.enterProcess()) {
-      Iterables.getOnlyElement(remoteBundle.getInputReceivers().values())
-          .accept((WindowedValue<InputT>) inputElement);
+      mainInputReceiver.accept((WindowedValue<InputT>) inputElement);
+    } catch (Exception e) {
+      String err =
+          String.format(
+              "Could not process element %s to receiver %s for pcollection %s with error %s",
+              inputElement.toString(), mainInputReceiver.toString(), mainInputPCollectionId, e);
+      LOG.error(err);
+      throw new RuntimeException(err, e);
     }
   }
 
@@ -100,6 +149,16 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
       } catch (Exception e) {
         throw new RuntimeException("Failed to finish remote bundle", e);
       }
+
+      // Wait until all timer elements are received and scheduled, then fire the timers.
+      timerReceiver.finish();
+    }
+  }
+
+  private void receive(String pCollectionId, Object receivedElement) throws Exception {
+    LOG.debug("Received element {} for pcollection {}", receivedElement, pCollectionId);
+    if (!timerReceiver.receive(pCollectionId, receivedElement)) {
+      outputReceiverMap.get(pCollectionId).process((WindowedValue<?>) receivedElement);
     }
   }
 }

@@ -18,7 +18,7 @@
 
 import groovy.json.JsonOutput
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature()
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
@@ -44,19 +44,18 @@ configurations.testRuntimeClasspath {
 }
 
 dependencies {
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow library.java.vendored_guava_20_0
-  shadow library.java.slf4j_api
-  shadow project(path: ":beam-sdks-java-io-hadoop-common", configuration: "shadow")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.vendored_guava_20_0
+  compile library.java.slf4j_api
+  compile project(":sdks:java:io:hadoop-common")
   provided library.java.hadoop_common
   provided library.java.hadoop_hdfs
   provided library.java.hadoop_mapreduce_client_core
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
-  testCompile project(path: ":beam-sdks-java-io-jdbc", configuration: "shadow")
-  testCompile project(path: ":beam-examples-java", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
+  testCompile project(":sdks:java:io:jdbc")
+  testCompile project(path: ":examples:java", configuration: "testRuntime")
 
   testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
   testCompile "org.elasticsearch.client:transport:$elastic_search_version"
@@ -79,18 +78,19 @@ dependencies {
   testCompile "org.apache.cassandra:cassandra-all:3.11.3"
   testCompile library.java.postgres
   testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
-  testCompile library.java.slf4j_jdk14
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  shadow library.java.commons_io_2x
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(":runners:direct-java")
+  compile library.java.commons_io_2x
 
-  delegate.add("sparkRunner", project(path: ":beam-sdks-java-io-hadoop-format", configuration: "shadow"))
-  delegate.add("sparkRunner", project(path: ":beam-sdks-java-io-hadoop-format", configuration: "shadowTest"))
+  delegate.add("sparkRunner", project(":sdks:java:io:hadoop-format"))
+  delegate.add("sparkRunner", project(path: ":sdks:java:io:hadoop-format", configuration: "testRuntime"))
 
-  sparkRunner project(path: ":beam-examples-java", configuration: "shadowTest")
-  sparkRunner project(path: ":beam-runners-spark", configuration: "shadow")
-  sparkRunner project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: "shadow")
+  sparkRunner project(path: ":examples:java", configuration: "testRuntime")
+  sparkRunner project(":runners:spark")
+  sparkRunner project(":sdks:java:io:hadoop-file-system")
   sparkRunner library.java.spark_streaming
   sparkRunner library.java.spark_core
 }

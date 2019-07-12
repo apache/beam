@@ -164,6 +164,17 @@ if 'save_module' in dir(dill.dill):
     obj_id = id(obj)
     if not known_module_dicts or '__file__' in obj or '__package__' in obj:
       if obj_id not in known_module_dicts:
+        # Trigger loading of lazily loaded modules (such as pytest vendored
+        # modules).
+        # This first pass over sys.modules needs to iterate on a copy of
+        # sys.modules since lazy loading modifies the dictionary, hence the use
+        # of list().
+        for m in list(sys.modules.values()):
+          try:
+            _ = m.__dict__
+          except AttributeError:
+            pass
+
         for m in sys.modules.values():
           try:
             if (m

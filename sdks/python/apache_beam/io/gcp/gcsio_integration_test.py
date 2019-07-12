@@ -31,9 +31,9 @@ The project's Cloud Storage service account requires Encrypter/Decrypter
 permissions for the key specified in --kms_key_name.
 
 To run these tests manually:
-  ./gradlew beam-sdks-python:integrationTest \
-    -Ptests=apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest \
-    -PkmsKeyName=KMS_KEY_NAME
+  ./gradlew :sdks:python:integrationTest \
+    -Dtests=apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest \
+    -DkmsKeyName=KMS_KEY_NAME
 """
 
 from __future__ import absolute_import
@@ -85,7 +85,13 @@ class GcsIOIntegrationTest(unittest.TestCase):
     src_checksum = self.gcsio.checksum(src)
     dst_checksum = self.gcsio.checksum(dst)
     self.assertEqual(src_checksum, dst_checksum)
-    self.assertEqual(self.gcsio.kms_key(dst), dst_kms_key_name)
+    actual_dst_kms_key = self.gcsio.kms_key(dst)
+    if actual_dst_kms_key is None:
+      self.assertEqual(actual_dst_kms_key, dst_kms_key_name)
+    else:
+      self.assertTrue(actual_dst_kms_key.startswith(dst_kms_key_name),
+                      "got: %s, wanted startswith: %s" % (actual_dst_kms_key,
+                                                          dst_kms_key_name))
 
   def _test_copy(self, name, kms_key_name=None,
                  max_bytes_rewritten_per_call=None, src=None):

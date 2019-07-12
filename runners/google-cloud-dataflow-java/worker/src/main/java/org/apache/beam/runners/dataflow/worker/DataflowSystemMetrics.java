@@ -35,6 +35,7 @@ public class DataflowSystemMetrics {
     WINDMILL_SHUFFLE_BYTES_READ("WindmillShuffleBytesRead"),
     WINDMILL_STATE_BYTES_READ("WindmillStateBytesRead"),
     WINDMILL_STATE_BYTES_WRITTEN("WindmillStateBytesWritten"),
+    WINDMILL_MAX_WORK_ITEM_COMMIT_BYTES("WindmillMaxWorkItemCommitBytes"),
     JAVA_HARNESS_USED_MEMORY("dataflow_java_harness_used_memory"),
     JAVA_HARNESS_MAX_MEMORY("dataflow_java_harness_max_memory"),
     JAVA_HARNESS_RESTARTS("dataflow_java_harness_restarts"),

@@ -55,6 +55,7 @@ import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -309,7 +310,8 @@ public class UserParDoFnFactoryTest {
             windowingStrategy,
             null /* side input views */,
             null /* input coder */,
-            new TupleTag<>(PropertyNames.OUTPUT) /* main output id */);
+            new TupleTag<>(PropertyNames.OUTPUT) /* main output id */,
+            DoFnSchemaInformation.create());
     object.set(
         PropertyNames.SERIALIZED_FN,
         StringUtils.byteArrayToJsonString(SerializableUtils.serializeToByteArray(info)));

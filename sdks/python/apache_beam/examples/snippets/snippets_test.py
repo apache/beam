@@ -631,6 +631,10 @@ class SnippetsTest(unittest.TestCase):
     snippets.model_textio_compressed(
         {'read': gzip_file_name}, ['aa', 'bb', 'cc'])
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-4543')
   @unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
   def test_model_datastoreio(self):
     # We cannot test DatastoreIO functionality in unit tests, therefore we limit
@@ -758,9 +762,9 @@ class SnippetsTest(unittest.TestCase):
 
     # Test basic execution.
     input_topic = 'projects/fake-beam-test-project/topic/intopic'
-    input_values = [TimestampedValue('a a b', 1),
+    input_values = [TimestampedValue(b'a a b', 1),
                     TimestampedValue(u'🤷 ¯\\_(ツ)_/¯ b b '.encode('utf-8'), 12),
-                    TimestampedValue('a b c c c', 20)]
+                    TimestampedValue(b'a b c c c', 20)]
     output_topic = 'projects/fake-beam-test-project/topic/outtopic'
     output_values = ['a: 1', 'a: 2', 'b: 1', 'b: 3', 'c: 3']
     beam.io.ReadFromPubSub = (

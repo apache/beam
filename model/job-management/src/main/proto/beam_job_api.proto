@@ -32,7 +32,7 @@ option java_outer_classname = "JobApi";
 import "beam_runner_api.proto";
 import "endpoints.proto";
 import "google/protobuf/struct.proto";
-
+import "metrics.proto";
 
 // Job Service for running RunnerAPI pipelines
 service JobService {
@@ -46,6 +46,9 @@ service JobService {
   // Get the current state of the job
   rpc GetState (GetJobStateRequest) returns (GetJobStateResponse);
 
+  // Get the job's pipeline
+  rpc GetPipeline (GetJobPipelineRequest) returns (GetJobPipelineResponse);
+
   // Cancel the job
   rpc Cancel (CancelJobRequest) returns (CancelJobResponse);
 
@@ -54,6 +57,9 @@ service JobService {
 
   // Subscribe to a stream of state changes and messages from the job
   rpc GetMessageStream (JobMessagesRequest) returns (stream JobMessagesResponse);
+
+  // Fetch metrics for a given job
+  rpc GetJobMetrics (GetJobMetricsRequest) returns (GetJobMetricsResponse);
 
   // Get the supported pipeline options of the runner
   rpc DescribePipelineOptions (DescribePipelineOptionsRequest) returns (DescribePipelineOptionsResponse);
@@ -131,6 +137,19 @@ message GetJobStateResponse {
 }
 
 
+// GetPipeline is a synchronus request that returns a pipeline back
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+// Throws error NOT_FOUND if the jobId is not found
+message GetJobPipelineRequest {
+  string job_id = 1; // (required)
+
+}
+
+message GetJobPipelineResponse {
+  org.apache.beam.model.pipeline.v1.Pipeline pipeline = 1; // (required)
+}
+
+
 // GetJobMessages is a streaming api for streaming job messages from the service
 // One request will connect you to the job and you'll get a stream of job state
 // and job messages back; one is used for logging and the other for detecting
@@ -177,6 +196,21 @@ message JobState {
     STARTING = 9;
     CANCELLING = 10;
   }
+}
+
+
+message GetJobMetricsRequest {
+  string job_id = 1; // (required)
+}
+
+message GetJobMetricsResponse {
+  MetricResults metrics = 1;
+}
+
+// All metrics for a given job.  Runners may support one or the other or both.
+message MetricResults {
+  repeated org.apache.beam.model.pipeline.v1.MonitoringInfo attempted = 1;
+  repeated org.apache.beam.model.pipeline.v1.MonitoringInfo committed = 2;
 }
 
 

@@ -206,7 +206,21 @@ func TestSatisfy(t *testing.T) {
 
 	for _, test := range tests {
 		if err := Satisfy(test.Fn, test.Sig); (err == nil) != test.Ok {
-			t.Errorf("Satisfy(%v, %v) = %v, want (err==nil)==%v", reflect.ValueOf(test.Fn).Type(), test.Sig, err, test.Ok)
+			t.Errorf("iface: Satisfy(%v, %v) = %v, want (err==nil)==%v", reflect.ValueOf(test.Fn).Type(), test.Sig, err, test.Ok)
+		}
+
+		rfn := reflectx.MakeFunc(test.Fn)
+		if err := Satisfy(rfn, test.Sig); (err == nil) != test.Ok {
+			t.Errorf("reflectx.Func: Satisfy(%v, %v) = %v, want (err==nil)==%v", reflect.ValueOf(test.Fn).Type(), test.Sig, err, test.Ok)
+		}
+
+		fx, err := New(rfn)
+		if err != nil {
+			t.Errorf("Unable to create New Fn from reflectx.Func %v: %v", rfn.Name(), err)
+			continue
+		}
+		if err := Satisfy(fx, test.Sig); (err == nil) != test.Ok {
+			t.Errorf("*funcx.Fn:Satisfy(%v, %v) = %v, want (err==nil)==%v", reflect.ValueOf(test.Fn).Type(), test.Sig, err, test.Ok)
 		}
 	}
 }

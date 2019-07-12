@@ -74,13 +74,8 @@ func (f *meanFn) AddInput(a meanAccum, val beam.T) meanAccum {
 	return a
 }
 
-func (f *meanFn) MergeAccumulators(list []meanAccum) meanAccum {
-	var ret meanAccum
-	for _, a := range list {
-		ret.Count += a.Count
-		ret.Sum += a.Sum
-	}
-	return ret
+func (f *meanFn) MergeAccumulators(a, b meanAccum) meanAccum {
+	return meanAccum{Count: a.Count + b.Count, Sum: a.Sum + b.Sum}
 }
 
 func (f *meanFn) ExtractOutput(a meanAccum) float64 {

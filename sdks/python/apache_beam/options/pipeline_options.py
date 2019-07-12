@@ -70,9 +70,9 @@ class _BeamArgumentParser(argparse.ArgumentParser):
       @classmethod
 
       def _add_argparse_args(cls, parser):
-        parser.add_value_provider_argument('--vp-arg1', default='start')
-        parser.add_value_provider_argument('--vp-arg2')
-        parser.add_argument('--non-vp-arg')
+        parser.add_value_provider_argument('--vp_arg1', default='start')
+        parser.add_value_provider_argument('--vp_arg2')
+        parser.add_argument('--non_vp_arg')
 
   """
   def add_value_provider_argument(self, *args, **kwargs):
@@ -117,11 +117,13 @@ class _BeamArgumentParser(argparse.ArgumentParser):
 
 
 class PipelineOptions(HasDisplayData):
-  """Pipeline options class used as container for command line options.
+  """This class and subclasses are used as containers for command line options.
 
-  The class is essentially a wrapper over the standard argparse Python module
+  These classes are wrappers over the standard argparse Python module
   (see https://docs.python.org/3/library/argparse.html).  To define one option
-  or a group of options you subclass from PipelineOptions::
+  or a group of options, create a subclass from PipelineOptions.
+
+  Example Usage::
 
     class XyzOptions(PipelineOptions):
 
@@ -134,11 +136,19 @@ class PipelineOptions(HasDisplayData):
   described in the argparse public documentation.
 
   Pipeline objects require an options object during initialization.
-  This is obtained simply by initializing an options class as defined above::
+  This is obtained simply by initializing an options class as defined above.
+
+  Example Usage::
 
     p = Pipeline(options=XyzOptions())
     if p.options.xyz == 'end':
       raise ValueError('Option xyz has an invalid value.')
+
+  Instances of PipelineOptions or any of its subclass have access to values
+  defined by other PipelineOption subclasses (see get_all_options()), and
+  can be converted to an instance of another PipelineOptions subclass
+  (see view_as()). All views share the underlying data structure that stores
+  option key-value pairs.
 
   By default the options classes will use command line arguments to initialize
   the options.
@@ -150,7 +160,7 @@ class PipelineOptions(HasDisplayData):
     arguments and then parse the command line specified by flags or by default
     the one obtained from sys.argv.
 
-    The subclasses are not expected to require a redefinition of __init__.
+    The subclasses of PipelineOptions do not need to redefine __init__.
 
     Args:
       flags: An iterable of command line arguments to be used. If not specified
@@ -158,19 +168,39 @@ class PipelineOptions(HasDisplayData):
 
       **kwargs: Add overrides for arguments passed in flags.
     """
+    # self._flags stores a list of not yet parsed arguments, typically,
+    # command-line flags. This list is shared across different views.
+    # See: view_as().
     self._flags = flags
-    self._all_options = kwargs
-    parser = _BeamArgumentParser()
 
+    # Build parser that will parse options recognized by the [sub]class of
+    # PipelineOptions whose object is being instantiated.
+    parser = _BeamArgumentParser()
     for cls in type(self).mro():
       if cls == PipelineOptions:
         break
       elif '_add_argparse_args' in cls.__dict__:
         cls._add_argparse_args(parser)
-    # The _visible_options attribute will contain only those options from the
-    # flags (i.e., command line) that can be recognized. The _all_options
-    # field contains additional overrides.
+
+    # The _visible_options attribute will contain options that were recognized
+    # by the parser.
     self._visible_options, _ = parser.parse_known_args(flags)
+
+    # self._all_options is initialized with overrides to flag values,
+    # provided in kwargs, and will store key-value pairs for options recognized
+    # by current PipelineOptions [sub]class and its views that may be created.
+    # See: view_as().
+    # This dictionary is shared across different views, and is lazily updated
+    # as each new views are created.
+    # Users access this dictionary store via __getattr__ / __setattr__ methods.
+    self._all_options = kwargs
+
+    # Initialize values of keys defined by this class.
+    for option_name in self._visible_option_list():
+      # Note that options specified in kwargs will not be overwritten.
+      if option_name not in self._all_options:
+        self._all_options[option_name] = getattr(self._visible_options,
+                                                 option_name)
 
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -246,7 +276,40 @@ class PipelineOptions(HasDisplayData):
     return self.get_all_options(True)
 
   def view_as(self, cls):
+    """Returns a view of current object as provided PipelineOption subclass.
+
+    Example Usage::
+
+      options = PipelineOptions(['--runner', 'Direct', '--streaming'])
+      standard_options = options.view_as(StandardOptions)
+      if standard_options.streaming:
+        # ... start a streaming job ...
+
+    Note that options objects may have multiple views, and modifications
+    of values in any view-object will apply to current object and other
+    view-objects.
+
+    Args:
+      cls: PipelineOptions class or any of its subclasses.
+
+    Returns:
+      An instance of cls that is intitialized using options contained in current
+      object.
+
+    """
     view = cls(self._flags)
+    for option_name in view._visible_option_list():
+      # Initialize values of keys defined by a cls.
+      #
+      # Note that we do initialization only once per key to make sure that
+      # values in _all_options dict are not-recreated with each new view.
+      # This is important to make sure that values of multi-options keys are
+      # backed by the same list across multiple views, and that any overrides of
+      # pipeline options already stored in _all_options are preserved.
+      if option_name not in self._all_options:
+        self._all_options[option_name] = getattr(view._visible_options,
+                                                 option_name)
+    # Note that views will still store _all_options of the source object.
     view._all_options = self._all_options
     return view
 
@@ -264,7 +327,7 @@ class PipelineOptions(HasDisplayData):
     if name[:2] == name[-2:] == '__':
       return object.__getattribute__(self, name)
     elif name in self._visible_option_list():
-      return self._all_options.get(name, getattr(self._visible_options, name))
+      return self._all_options[name]
     else:
       raise AttributeError("'%s' object has no attribute '%s'" %
                            (type(self).__name__, name))
@@ -342,6 +405,11 @@ class DirectOptions(PipelineOptions):
         default=0,
         help='replay every bundle this many extra times, for profiling'
         'and debugging')
+    parser.add_argument(
+        '--direct_num_workers',
+        type=int,
+        default=1,
+        help='number of parallel running workers.')
 
 
 class GoogleCloudOptions(PipelineOptions):
@@ -418,6 +486,10 @@ class GoogleCloudOptions(PipelineOptions):
                         default=None,
                         help='Set a Google Cloud KMS key name to be used in '
                         'Dataflow state operations (GBK, Streaming).')
+    parser.add_argument('--flexrs_goal',
+                        default=None,
+                        choices=['COST_OPTIMIZED', 'SPEED_OPTIMIZED'],
+                        help='Set the Flexible Resource Scheduling mode')
 
   def validate(self, validator):
     errors = []
@@ -491,7 +563,7 @@ class WorkerOptions(PipelineOptions):
         help=
         ('If and how to autoscale the workerpool.'))
     parser.add_argument(
-        '--worker_machine_type',
+        '--worker_machine_type', '--machine_type',
         dest='machine_type',
         default=None,
         help=('Machine type to create Dataflow worker VMs as. See '
@@ -507,7 +579,7 @@ class WorkerOptions(PipelineOptions):
         ('Remote worker disk size, in gigabytes, or 0 to use the default size. '
          'If not set, the Dataflow service will use a reasonable default.'))
     parser.add_argument(
-        '--worker_disk_type',
+        '--worker_disk_type', '--disk_type',
         dest='disk_type',
         default=None,
         help=('Specifies what type of persistent disk should be used.'))
@@ -589,6 +661,13 @@ class DebugOptions(PipelineOptions):
         ('Runners may provide a number of experimental features that can be '
          'enabled with this flag. Please sync with the owners of the runner '
          'before enabling any experiments.'))
+
+  def add_experiment(self, experiment):
+    # pylint: disable=access-member-before-definition
+    if self.experiments is None:
+      self.experiments = []
+    if experiment not in self.experiments:
+      self.experiments.append(experiment)
 
   def lookup_experiment(self, key, default=None):
     if not self.experiments:
@@ -706,7 +785,9 @@ class SetupOptions(PipelineOptions):
 
 
 class PortableOptions(PipelineOptions):
-
+  """Portable options are common options expected to be understood by most of
+  the portable runners.
+  """
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument('--job_endpoint',
@@ -726,19 +807,16 @@ class PortableOptions(PipelineOptions):
               '"<process to execute>", "env":{"<Environment variables 1>": '
               '"<ENV_VAL>"} }. All fields in the json are optional except '
               'command.'))
-
-
-class RunnerOptions(PipelineOptions):
-  """Runner options are provided by the job service.
-
-  The SDK has no a priori knowledge of runner options.
-  It should be able to work with any portable runner.
-  Runner specific options are discovered from the job service endpoint.
-  """
-  @classmethod
-  def _add_argparse_args(cls, parser):
-    # TODO: help option to display discovered options
-    pass
+    parser.add_argument(
+        '--sdk_worker_parallelism', default=0,
+        help=('Sets the number of sdk worker processes that will run on each '
+              'worker node. Default is 0. If 0, it will be automatically set '
+              'by the runner by looking at different parameters (e.g. number '
+              'of CPU cores on the worker machine or configuration).'))
+    parser.add_argument(
+        '--environment_cache_millis', default=0,
+        help=('Duration in milliseconds for environment cache within a job. '
+              '0 means no caching.'))
 
 
 class TestOptions(PipelineOptions):

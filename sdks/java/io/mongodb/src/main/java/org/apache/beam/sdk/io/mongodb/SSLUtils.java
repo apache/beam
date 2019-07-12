@@ -26,10 +26,10 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
 /** Utility class for registration of ssl context, and to allow all certificate requests. */
-public class SSLUtils {
+class SSLUtils {
 
   /** static class to allow all requests. */
-  static TrustManager[] trustAllCerts =
+  private static final TrustManager[] trustAllCerts =
       new TrustManager[] {
         new X509TrustManager() {
           @Override
@@ -50,7 +50,7 @@ public class SSLUtils {
    *
    * @return SSLContext
    */
-  public static SSLContext ignoreSSLCertificate() {
+  static SSLContext ignoreSSLCertificate() {
     try {
       // Install the all-trusting trust manager
       SSLContext sc = SSLContext.getInstance("TLS");

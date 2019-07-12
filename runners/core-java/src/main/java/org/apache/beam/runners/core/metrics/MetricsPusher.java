@@ -29,7 +29,6 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.metrics.MetricsSink;
 import org.apache.beam.sdk.util.InstanceBuilder;
@@ -96,8 +95,7 @@ public class MetricsPusher implements Serializable {
       try {
         // merge metrics
         MetricResults metricResults = asAttemptedOnlyMetricResults(metricsContainerStepMap);
-        MetricQueryResults metricQueryResults =
-            metricResults.queryMetrics(MetricsFilter.builder().build());
+        MetricQueryResults metricQueryResults = metricResults.allMetrics();
         if ((Iterables.size(metricQueryResults.getDistributions()) != 0)
             || (Iterables.size(metricQueryResults.getGauges()) != 0)
             || (Iterables.size(metricQueryResults.getCounters()) != 0)) {
