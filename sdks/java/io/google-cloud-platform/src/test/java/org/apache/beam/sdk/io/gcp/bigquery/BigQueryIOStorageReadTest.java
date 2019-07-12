@@ -812,6 +812,146 @@ public class BigQueryIOStorageReadTest {
   }
 
   @Test
+  public void testStreamSourceSplitAtFractionRepeated() throws Exception {
+    List<Stream> streams =
+        Lists.newArrayList(
+            Stream.newBuilder().setName("stream1").build(),
+            Stream.newBuilder().setName("stream2").build(),
+            Stream.newBuilder().setName("stream3").build());
+
+    StorageClient fakeStorageClient = mock(StorageClient.class);
+
+    // Mock the initial ReadRows call.
+    when(fakeStorageClient.readRows(
+            ReadRowsRequest.newBuilder()
+                .setReadPosition(StreamPosition.newBuilder().setStream(streams.get(0)))
+                .build()))
+        .thenReturn(
+            new FakeBigQueryServerStream<>(
+                Lists.newArrayList(
+                    createResponse(
+                        AVRO_SCHEMA,
+                        Lists.newArrayList(
+                            createRecord("A", 1, AVRO_SCHEMA), createRecord("B", 2, AVRO_SCHEMA))),
+                    createResponse(
+                        AVRO_SCHEMA,
+                        Lists.newArrayList(
+                            createRecord("C", 3, AVRO_SCHEMA), createRecord("D", 4, AVRO_SCHEMA))),
+                    createResponse(
+                        AVRO_SCHEMA,
+                        Lists.newArrayList(
+                            createRecord("E", 5, AVRO_SCHEMA),
+                            createRecord("F", 6, AVRO_SCHEMA))))));
+
+    // Mock the first SplitReadStream call.
+    when(fakeStorageClient.splitReadStream(
+            SplitReadStreamRequest.newBuilder()
+                .setOriginalStream(streams.get(0))
+                // TODO(aryann): Once we rebuild the generated client code, we should change this to
+                // use setFraction().
+                .setUnknownFields(
+                    UnknownFieldSet.newBuilder()
+                        .addField(
+                            2,
+                            UnknownFieldSet.Field.newBuilder()
+                                .addFixed32(java.lang.Float.floatToIntBits(0.83f))
+                                .build())
+                        .build())
+                .build()))
+        .thenReturn(
+            SplitReadStreamResponse.newBuilder()
+                .setPrimaryStream(streams.get(1))
+                .setRemainderStream(Stream.newBuilder().setName("ignored"))
+                .build());
+
+    // Mock the second ReadRows call.
+    when(fakeStorageClient.readRows(
+            ReadRowsRequest.newBuilder()
+                .setReadPosition(StreamPosition.newBuilder().setStream(streams.get(1)).setOffset(1))
+                .build()))
+        .thenReturn(
+            new FakeBigQueryServerStream<>(
+                Lists.newArrayList(
+                    createResponse(
+                        AVRO_SCHEMA,
+                        Lists.newArrayList(
+                            createRecord("B", 2, AVRO_SCHEMA), createRecord("C", 3, AVRO_SCHEMA))),
+                    createResponse(
+                        AVRO_SCHEMA,
+                        Lists.newArrayList(
+                            createRecord("D", 4, AVRO_SCHEMA),
+                            createRecord("E", 5, AVRO_SCHEMA))))));
+
+    // Mock the second SplitReadStream call.
+    when(fakeStorageClient.splitReadStream(
+            SplitReadStreamRequest.newBuilder()
+                .setOriginalStream(streams.get(1))
+                // TODO(aryann): Once we rebuild the generated client code, we should change this to
+                // use setFraction().
+                .setUnknownFields(
+                    UnknownFieldSet.newBuilder()
+                        .addField(
+                            2,
+                            UnknownFieldSet.Field.newBuilder()
+                                .addFixed32(java.lang.Float.floatToIntBits(0.75f))
+                                .build())
+                        .build())
+                .build()))
+        .thenReturn(
+            SplitReadStreamResponse.newBuilder()
+                .setPrimaryStream(streams.get(2))
+                .setRemainderStream(Stream.newBuilder().setName("ignored"))
+                .build());
+
+    // Mock the third ReadRows call.
+    when(fakeStorageClient.readRows(
+            ReadRowsRequest.newBuilder()
+                .setReadPosition(StreamPosition.newBuilder().setStream(streams.get(2)).setOffset(2))
+                .build()))
+        .thenReturn(
+            new FakeBigQueryServerStream<>(
+                Lists.newArrayList(
+                    createResponse(
+                        AVRO_SCHEMA,
+                        Lists.newArrayList(
+                            createRecord("C", 3, AVRO_SCHEMA),
+                            createRecord("D", 4, AVRO_SCHEMA))))));
+
+    BoundedSource<TableRow> source =
+        BigQueryStorageStreamSource.create(
+            ReadSession.newBuilder()
+                .setName("readSession")
+                .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING))
+                .build(),
+            streams.get(0),
+            TABLE_SCHEMA,
+            new TableRowParser(),
+            TableRowJsonCoder.of(),
+            new FakeBigQueryServices().withStorageClient(fakeStorageClient));
+
+    BoundedReader<TableRow> reader = source.createReader(options);
+    assertTrue(reader.start());
+    assertEquals("A", reader.getCurrent().get("name"));
+
+    BoundedSource<TableRow> residualSource = reader.splitAtFraction(0.83f);
+    assertNotNull(residualSource);
+    assertEquals("A", reader.getCurrent().get("name"));
+
+    assertTrue(reader.advance());
+    assertEquals("B", reader.getCurrent().get("name"));
+
+    residualSource = reader.splitAtFraction(0.75f);
+    assertNotNull(residualSource);
+    assertEquals("B", reader.getCurrent().get("name"));
+
+    assertTrue(reader.advance());
+    assertEquals("C", reader.getCurrent().get("name"));
+    assertTrue(reader.advance());
+    assertEquals("D", reader.getCurrent().get("name"));
+    assertFalse(reader.advance());
+  }
+
+  @Test
   public void testStreamSourceSplitAtFractionFailsWhenSplitIsNotPossible() throws Exception {
     Stream parentStream = Stream.newBuilder().setName("parent").build();
 
