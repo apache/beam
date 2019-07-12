@@ -20,23 +20,11 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import logging
-import os
-import shutil
-
-from distutils.version import LooseVersion
-from future.moves.urllib.request import urlopen, URLError
-
-from apache_beam.version import __version__ as beam_version
 from apache_beam.options import pipeline_options
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_runner
 
 PUBLISHED_FLINK_VERSIONS = ['1.6', '1.7', '1.8']
-MAVEN_REPOSITORY = 'https://repo.maven.apache.org/maven2/org/apache/beam/'
-MAVEN_FLINK_JOB_SERVER_TEMPLATE = '{maven_repo}beam-runners-flink-{flink_version}-job-server/{beam_version}/beam-runners-flink-{flink_version}-job-server-{beam_version}.jar'
-DEV_FLINK_JOB_SERVER_TEMPLATE = '{project_root}/runners/flink/{flink_version}/job-server/build/libs/beam-runners-flink-{flink_version}-job-server-{beam_version}-SNAPSHOT.jar'
-JAR_CACHE = os.path.expanduser("~/.apache_beam/cache")
 
 
 class FlinkRunner(portable_runner.PortableRunner):
@@ -56,72 +44,26 @@ class FlinkRunnerOptions(pipeline_options.PipelineOptions):
                         help='Path or URL to a flink jobserver jar.')
 
 
-
-class FlinkJarJobServer(job_server.SubprocessJobServer):
+class FlinkJarJobServer(job_server.JavaJarJobServer):
   def __init__(self, options):
     super(FlinkJarJobServer, self).__init__()
     options = options.view_as(FlinkRunnerOptions)
-    self._jar = self.local_jar(self.flink_jar(options))
+    self._jar = options.flink_job_server_jar
     self._master_url = options.flink_master_url
+    self._flink_version = options.flink_version
 
-  def flink_jar(self, options):
-    if options.flink_job_server_jar:
-      return options.flink_job_server_jar
+  def path_to_jar(self):
+    if self._jar:
+      return self._jar
     else:
-      if beam_version.endswith('.dev'):
-        # TODO: Attempt to use nightly snapshots?
-        project_root = os.path.sep.join(__file__.split(os.path.sep)[:-6])
-        dev_path = DEV_FLINK_JOB_SERVER_TEMPLATE.format(
-            project_root=project_root,
-            flink_version=options.flink_version,
-            beam_version=beam_version[:-4])
-        if os.path.exists(dev_path):
-          logging.warning(
-              'Using pre-built flink job server snapshot at %s', dev_path)
-          return dev_path
-        else:
-          raise RuntimeError(
-              'Please build the flink job server with '
-              'cd %s; ./gradlew runners:flink:%s:job-server:shadowJar' % (
-                  os.path.abspath(project_root), options.flink_version))
-      else:
-        return MAVEN_FLINK_JOB_SERVER_TEMPLATE.format(
-            maven_repo=MAVEN_REPOSITORY,
-            flink_version=options.flink_version,
-            beam_version=beam_version)
+      return self.path_to_gradle_target_jar(
+          'runners:flink:%s:job-server:shadowJar' % self._flink_version)
 
-  def local_jar(self, url):
-    # TODO: Verify checksum?
-    if os.path.exists(url):
-      return url
-    else:
-      cached_jar = os.path.join(JAR_CACHE, os.path.basename(url))
-      if not os.path.exists(cached_jar):
-        if not os.path.exists(JAR_CACHE):
-          os.makedirs(JAR_CACHE)
-          # TODO: Clean up this cache according to some policy.
-        try:
-          url_read = urlopen(url)
-          with open(cached_jar + '.tmp', 'wb') as jar_write:
-            shutil.copyfileobj(url_read, jar_write, length=1 << 20)
-          os.rename(cached_jar + '.tmp', cached_jar)
-        except URLError as e:
-          raise RuntimeError(
-              'Unable to fetch remote flink job server jar at %s: %s' % (url, e))
-      return cached_jar
-
-  def subprocess_cmd_and_endpoint(self):
-    artifacts_dir = self.local_temp_dir(prefix='artifacts')
-    job_port, = job_server._pick_port(None)
-    return (
-        [
-            'java',
-            '-jar',
-            self._jar,
-            '--flink-master-url', self._master_url,
-            '--artifacts-dir', artifacts_dir,
-            '--job-port', job_port,
-            '--artifact-port', 0,
-            '--expansion-port', 0
-        ],
-        'localhost:%s' % job_port)
+  def java_arguments(self, job_port, artifacts_dir):
+    return [
+        '--flink-master-url', self._master_url,
+        '--artifacts-dir', artifacts_dir,
+        '--job-port', job_port,
+        '--artifact-port', 0,
+        '--expansion-port', 0
+    ]
