@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import re
+import sys
 from builtins import object
 
 
@@ -76,3 +77,12 @@ class RecursiveClass(object):
 
 
 RecursiveClass.SELF_TYPE = RecursiveClass
+
+# pylint: disable=exec-used
+if sys.version_info >= (3, 7):
+  # create dataclass to be pickled
+  exec('''
+from dataclasses import dataclass
+@dataclass
+class DataClass:
+  datum: str''')
