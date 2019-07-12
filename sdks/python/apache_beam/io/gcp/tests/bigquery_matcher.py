@@ -20,9 +20,9 @@
 from __future__ import absolute_import
 
 import logging
+import sys
 import time
 
-import six
 from hamcrest.core.base_matcher import BaseMatcher
 
 from apache_beam.io.gcp import bigquery_tools
@@ -193,7 +193,7 @@ class BigqueryFullResultStreamingMatcher(BigqueryFullResultMatcher):
       if len(response) >= len(self.expected_data):
         return response
       time.sleep(1)
-    if six.PY3:
+    if sys.version_info >= (3,):
       raise TimeoutError('Timeout exceeded for matcher.') # noqa: F821
     else:
       raise RuntimeError('Timeout exceeded for matcher.')

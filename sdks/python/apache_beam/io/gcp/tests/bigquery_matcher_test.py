@@ -20,10 +20,10 @@
 from __future__ import absolute_import
 
 import logging
+import sys
 import unittest
 
 import mock
-import six
 from hamcrest import assert_that as hc_assert_that
 
 from apache_beam.io.gcp import bigquery_tools
@@ -127,7 +127,7 @@ class BigqueryFullResultStreamingMatcher(unittest.TestCase):
     mock__query_with_retry.side_effect = lambda _: []
     matcher = bq_verifier.BigqueryFullResultStreamingMatcher(
         'some-project', 'some-query', [1, 2, 3], timeout=self.timeout)
-    if six.PY3:
+    if sys.version_info >= (3,):
       with self.assertRaises(TimeoutError): # noqa: F821
         matcher._get_query_result(None)
     else:
