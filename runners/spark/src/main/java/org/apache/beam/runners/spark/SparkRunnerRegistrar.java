@@ -18,6 +18,7 @@
 package org.apache.beam.runners.spark;
 
 import com.google.auto.service.AutoService;
+import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -50,7 +51,8 @@ public final class SparkRunnerRegistrar {
   public static class Options implements PipelineOptionsRegistrar {
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-      return ImmutableList.of(SparkPipelineOptions.class);
+      return ImmutableList.of(
+          SparkPipelineOptions.class, SparkStructuredStreamingPipelineOptions.class);
     }
   }
 }
