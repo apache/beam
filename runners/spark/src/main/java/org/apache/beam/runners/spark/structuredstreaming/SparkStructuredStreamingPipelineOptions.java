@@ -32,4 +32,10 @@ public interface SparkStructuredStreamingPipelineOptions extends SparkCommonPipe
   Boolean getEnableSparkMetricSinks();
 
   void setEnableSparkMetricSinks(Boolean enableSparkMetricSinks);
+
+  /** Set to true to run the job in test mode. */
+  @Default.Boolean(false)
+  boolean getTestMode();
+
+  void setTestMode(boolean testMode);
 }

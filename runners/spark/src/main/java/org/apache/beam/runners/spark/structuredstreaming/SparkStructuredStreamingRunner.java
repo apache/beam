@@ -19,6 +19,9 @@ package org.apache.beam.runners.spark.structuredstreaming;
 
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.spark.structuredstreaming.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.AggregatorMetricSource;
@@ -131,12 +134,21 @@ public final class SparkStructuredStreamingRunner
     AggregatorsAccumulator.clear();
     MetricsAccumulator.clear();
 
-    TranslationContext translationContext = translatePipeline(pipeline);
-    // TODO initialise other services: checkpointing, metrics system, listeners, ...
-    // TODO pass testMode using pipelineOptions
-    translationContext.startPipeline(true);
+    final TranslationContext translationContext = translatePipeline(pipeline);
 
-    SparkStructuredStreamingPipelineResult result = new SparkStructuredStreamingPipelineResult();
+    final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    final Future<?> submissionFuture =
+        executorService.submit(
+            () -> {
+              // TODO initialise other services: checkpointing, metrics system, listeners, ...
+              translationContext.startPipeline();
+            });
+    executorService.shutdown();
+
+    // TODO: Streaming.
+    SparkStructuredStreamingPipelineResult result =
+        new SparkStructuredStreamingPipelineResult(
+            submissionFuture, translationContext.getSparkSession());
 
     if (options.getEnableSparkMetricSinks()) {
       registerMetricsSource(options.getAppName());
@@ -146,6 +158,11 @@ public final class SparkStructuredStreamingRunner
         new MetricsPusher(
             MetricsAccumulator.getInstance().value(), options.as(MetricsOptions.class), result);
     metricsPusher.start();
+
+    if (options.getTestMode()) {
+      result.waitUntilFinish();
+      result.stop();
+    }
 
     return result;
   }

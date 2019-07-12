@@ -170,6 +170,7 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
   group = "Verification"
   def pipelineOptions = JsonOutput.toJson([
           "--runner=SparkStructuredStreamingRunner",
+          "--testMode=true",
           "--streaming=false",
   ])
   systemProperty "beamTestPipelineOptions", pipelineOptions
