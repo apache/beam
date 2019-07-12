@@ -30,11 +30,12 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
  *
  * <pre>{@code
  * CREATE TABLE ORDERS(
- *   ID INT COMMENT 'this is the primary key',
- *   NAME VARCHAR(127) COMMENT 'this is the name'
+ *   name VARCHAR,
+ *   favorite_color VARCHAR,
+ *   favorite_numbers ARRAY<INTEGER>
  * )
  * TYPE 'parquet'
- * LOCATION '/home/admin/orders'
+ * LOCATION '/home/admin/users.parquet'
  * }</pre>
  */
 @AutoService(TableProvider.class)

@@ -38,6 +38,7 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** Test for ParquetTable. */
 @RunWith(JUnit4.class)
 public class ParquetTableReadTest {
   private static final Logger LOG = LoggerFactory.getLogger(ParquetTableReadTest.class);
@@ -63,11 +64,6 @@ public class ParquetTableReadTest {
     return tempFilePath.toString();
   }
 
-  /**
-   * Tests {@code CREATE EXTERNAL TABLE TYPE text} with no format reads a default CSV.
-   *
-   * <p>The default format ignores empty lines, so that is an important part of this test.
-   */
   @Test
   public void testReadParquet() throws IOException {
     String parquetPath = extractParquetFile("users.parquet");
@@ -79,7 +75,8 @@ public class ParquetTableReadTest {
             SQL_PARQUET_FIELD, parquetPath));
 
     PCollection<Row> rows =
-        BeamSqlRelUtils.toPCollection(pipeline, env.parseQuery("SELECT * FROM users"));
+        BeamSqlRelUtils.toPCollection(
+            pipeline, env.parseQuery("SELECT name, favorite_color, favorite_numbers FROM users"));
 
     PAssert.that(rows)
         .containsInAnyOrder(

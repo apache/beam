@@ -30,6 +30,7 @@ import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
 import org.junit.Test;
 
+/** Unit tests for {@link GenericRecordReadConverter}. */
 public class GenericRecordToRowTest implements Serializable {
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 

@@ -29,9 +29,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 
-/**
- * {@link ParquetTable} is a {@link org.apache.beam.sdk.extensions.sql.BeamSqlTable}.
- */
+/** {@link ParquetTable} is a {@link org.apache.beam.sdk.extensions.sql.BeamSqlTable}. */
 public class ParquetTable extends BaseBeamTable implements Serializable {
   private final String filePattern;
 
