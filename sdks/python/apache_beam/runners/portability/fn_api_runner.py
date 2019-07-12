@@ -1517,7 +1517,7 @@ class BundleManager(object):
           self._get_buffer(
               expected_outputs[output.ptransform_id]).append(output.data)
 
-      logging.debug('Wait for the bundle to finish.')
+      logging.debug('Wait for the bundle %s to finish.' % process_bundle_id)
       result = result_future.get()
 
     if result.error:

@@ -1282,12 +1282,13 @@ class FnApiRunnerSplitTest(unittest.TestCase):
     element_counter = ElementCounter()
 
     def split_manager(num_elements):
-      element_counter.reset()
-      breakpoint = element_counter.set_breakpoint(1)
-      yield
-      breakpoint.wait()
-      yield 0
-      breakpoint.clear()
+      if num_elements > 0:
+        element_counter.reset()
+        breakpoint = element_counter.set_breakpoint(1)
+        yield
+        breakpoint.wait()
+        yield 0
+        breakpoint.clear()
 
     # Everything should be perfectly split.
     elements = [2, 3]
@@ -1301,7 +1302,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
     is_first_bundle = [True]  # emulate nonlocal for Python 2
 
     def split_manager(num_elements):
-      if is_first_bundle:
+      if is_first_bundle and num_elements > 0:
         del is_first_bundle[:]
         breakpoint = element_counter.set_breakpoint(1)
         yield
@@ -1331,14 +1332,15 @@ class FnApiRunnerSplitTest(unittest.TestCase):
     element_counter = ElementCounter()
 
     def split_manager(num_elements):
-      element_counter.reset()
-      wait_for = r.randrange(num_elements)
-      breakpoint = element_counter.set_breakpoint(wait_for)
-      yield
-      breakpoint.wait()
-      yield r.random()
-      yield r.random()
-      breakpoint.clear()
+      if num_elements > 0:
+        element_counter.reset()
+        wait_for = r.randrange(num_elements)
+        breakpoint = element_counter.set_breakpoint(wait_for)
+        yield
+        breakpoint.wait()
+        yield r.random()
+        yield r.random()
+        breakpoint.clear()
 
     try:
       elements = [r.randrange(5, 10) for _ in range(5)]
@@ -1528,13 +1530,7 @@ class FnApiRunnerTestWithMultiWorkers(FnApiRunnerSplitTest):
   def test_checkpoint(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
-  def test_checkpoint_sdf(self):
-    raise unittest.SkipTest("This test is for a single worker only.")
-
   def test_split_half(self):
-    raise unittest.SkipTest("This test is for a single worker only.")
-
-  def test_split_crazy_sdf(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
 
