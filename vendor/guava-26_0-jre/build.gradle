@@ -29,6 +29,13 @@ vendorJava(
     "com.google.common": "org.apache.beam.vendor.guava.v26_0_jre.com.google.common",
     "com.google.thirdparty": "org.apache.beam.vendor.guava.v26_0_jre.com.google.thirdparty",
   ],
+  exclusions: [
+    "com/google/errorprone/**",
+    "com/google/j2objc/annotations/**",
+    "javax/annotation/**",
+    "org/checkerframework/**",
+    "org/codehaus/mojo/animal_sniffer/**",
+  ],
   groupId: group,
   artifactId: "beam-vendor-guava-26_0-jre",
   version: version,
