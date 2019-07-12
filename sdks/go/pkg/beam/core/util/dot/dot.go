@@ -19,6 +19,7 @@ package dot
 import (
 	"fmt"
 	"io"
+	"path"
 	"text/template"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
@@ -45,13 +46,16 @@ digraph execution_plan {
 
 	nodeText = `  "{{.Name}}" [ shape="ellipse" fillcolor = "lightblue" label="{{.Label}}"]
 `
+	edgeDefnText = `  "{{.Name}}" [ label="{{.Label}}" ]
+`
 	edgeText = `  "{{.From}}" -> "{{.To}}"
 `
 	footer = `
 }
 `
-	nodeTmpl = template.Must(template.New("node").Parse(nodeText))
-	edgeTmpl = template.Must(template.New("edge").Parse(edgeText))
+	nodeTmpl     = template.Must(template.New("node").Parse(nodeText))
+	edgeDefnTmpl = template.Must(template.New("edge_defn").Parse(edgeDefnText))
+	edgeTmpl     = template.Must(template.New("edge").Parse(edgeText))
 )
 
 type nodeLinks struct {
@@ -112,6 +116,13 @@ func Render(edges []*graph.MultiEdge, nodes []*graph.Node, w io.Writer) error {
 
 	for _, edge := range edges {
 		e := fmt.Sprintf("%d: %s", edge.ID(), edge.Op)
+		label := fmt.Sprint(edge.Op)
+		if name := path.Base(edge.Name()); name != label {
+			label = fmt.Sprintf("%s\n%s", edge.Op, name)
+		}
+		if err := edgeDefnTmpl.Execute(w, struct{ Name, Label string }{e, label}); err != nil {
+			return errors.Wrap(err, "render DOT failed")
+		}
 		for _, ib := range edge.Input {
 			err := edgeTmpl.Execute(w, struct{ From, To string }{ib.From.String(), e})
 			if err != nil {
