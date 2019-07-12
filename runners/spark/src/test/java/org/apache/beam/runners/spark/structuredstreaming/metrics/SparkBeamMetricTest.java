@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.metrics;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
+
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.junit.Test;
-
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 /** Test SparkBeamMetric. */
 public class SparkBeamMetricTest {

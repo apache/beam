@@ -17,15 +17,14 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming;
 
+import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
+
 import java.io.IOException;
 import javax.annotation.Nullable;
-
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.joda.time.Duration;
-
-import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
 /** Represents a Spark pipeline execution result. */
 class SparkStructuredStreamingPipelineResult implements PipelineResult {

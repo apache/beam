@@ -17,6 +17,10 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.aggregators.metrics.sink;
 
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
+import static org.junit.Assert.assertThat;
+
 import org.apache.beam.runners.spark.structuredstreaming.examples.WordCount;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
@@ -30,14 +34,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExternalResource;
 
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
-
 /**
  * TODO: add testInStreamingMode() once streaming support will be implemented.
  *
- * A test that verifies Beam metrics are reported to Spark's metrics sink in both batch and
+ * <p>A test that verifies Beam metrics are reported to Spark's metrics sink in both batch and
  * streaming modes.
  */
 public class SparkMetricsSinkTest {

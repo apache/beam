@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.metrics;
 
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
+
 import org.apache.beam.runners.core.metrics.TestMetricsSink;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -33,18 +36,14 @@ import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
-
 /**
  * TODO: add testInStreamingMode() once streaming support will be implemented.
  *
- * A test that verifies that metrics push system works in spark runner.
+ * <p>A test that verifies that metrics push system works in spark runner.
  */
 public class SparkMetricsPusherTest {
 
-  private static final Logger LOG = LoggerFactory.getLogger(
-      SparkMetricsPusherTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SparkMetricsPusherTest.class);
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
@@ -56,8 +55,7 @@ public class SparkMetricsPusherTest {
   }
 
   private static class CountingDoFn extends DoFn<Integer, Integer> {
-    private final Counter counter = Metrics.counter(
-        SparkMetricsPusherTest.class, "counter");
+    private final Counter counter = Metrics.counter(SparkMetricsPusherTest.class, "counter");
 
     @ProcessElement
     public void processElement(ProcessContext context) {
