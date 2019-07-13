@@ -20,6 +20,8 @@
 from __future__ import absolute_import
 
 import unittest
+
+from pkg_resources import DistributionNotFound
 from pkg_resources import get_distribution
 
 from apache_beam.tools import coders_microbenchmark
@@ -37,15 +39,15 @@ class MicrobenchmarksTest(unittest.TestCase):
     try:
       get_distribution('cython')
       return True
-    except:
+    except DistributionNotFound:
       return False
 
   def test_check_compiled(self):
     if self.is_cython_installed():
-      utils.check_compiled('apache_beam.transforms.cy_dataflow_distribution_counter')
+      utils.check_compiled('apache_beam.runners.worker.opcounters')
     else:
       with self.assertRaises(RuntimeError):
-        utils.check_compiled('apache_beam.transforms.cy_dataflow_distribution_counter')
+        utils.check_compiled('apache_beam.runners.worker.opcounters')
 
 
 if __name__ == '__main__':
