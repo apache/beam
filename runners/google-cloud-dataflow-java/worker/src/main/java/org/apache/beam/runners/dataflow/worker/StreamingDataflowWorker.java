@@ -1034,7 +1034,11 @@ public class StreamingDataflowWorker {
             }
           }
         };
-    computationState.activateWork(workItem.getKey(), work);
+    if (!computationState.activateWork(workItem.getKey(), work)) {
+      // Free worker if the work was not activated.
+      // This can happen if it's duplicate work or some other reason.
+      sdkHarnessRegistry.completeWork(worker);
+    }
   }
 
   abstract static class Work implements Runnable {
@@ -1998,7 +2002,7 @@ public class StreamingDataflowWorker {
     }
 
     /** Mark the given key and work as active. */
-    public void activateWork(ByteString key, Work work) {
+    public boolean activateWork(ByteString key, Work work) {
       synchronized (activeWork) {
         Queue<Work> queue = activeWork.get(key);
         if (queue == null) {
@@ -2008,12 +2012,16 @@ public class StreamingDataflowWorker {
           // Fall through to execute without the lock held.
         } else {
           if (queue.peek().getWorkItem().getWorkToken() != work.getWorkItem().getWorkToken()) {
+            // Queue the work for later processing.
             queue.add(work);
+            return true;
           }
-          return;
+          // Skip the work if duplicate
+          return false;
         }
       }
       executor.execute(work);
+      return true;
     }
 
     /** Marks the work for a the given key as complete. Schedules queued work for the key if any. */
