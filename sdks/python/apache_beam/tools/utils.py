@@ -21,6 +21,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import importlib
 import collections
 import gc
 import os
@@ -34,7 +35,7 @@ def check_compiled(module):
   Args:
     module: string, module name
   """
-  check_module = __import__(module, globals(), locals())
+  check_module = importlib.import_module(module)
   ext = os.path.splitext(check_module.__file__)[-1]
   if ext in ('.py', '.pyc'):
     raise RuntimeError(
