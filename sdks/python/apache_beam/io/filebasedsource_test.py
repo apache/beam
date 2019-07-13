@@ -67,9 +67,7 @@ class LineSource(FileBasedSource):
         start += len(line)
       current = start
       line = f.readline()
-      while line:
-        if not range_tracker.try_claim(current):
-          return
+      while range_tracker.try_claim(current):
         yield line.rstrip(b'\n')
         current += len(line)
         line = f.readline()

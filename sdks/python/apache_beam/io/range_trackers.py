@@ -61,6 +61,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
     self._stop_offset = end
 
     self._last_record_start = -1
+    self._last_attempted_record_start = -1
     self._offset_of_last_split_point = -1
     self._lock = threading.Lock()
 
@@ -77,11 +78,21 @@ class OffsetRangeTracker(iobase.RangeTracker):
   def last_record_start(self):
     return self._last_record_start
 
+  @property
+  def last_attempted_record_start(self):
+    return self._last_attempted_record_start
+
   def _validate_record_start(self, record_start, split_point):
     # This function must only be called under the lock self.lock.
     if not self._lock.locked():
       raise ValueError(
           'This function must only be called under the lock self.lock.')
+
+    if record_start < self._last_attempted_record_start:
+      raise ValueError(
+          'Trying to return a record [starting at %d] which is before the '
+          'last-attempted record [starting at %d]' %
+          (record_start, self._last_attempted_record_start))
 
     if record_start < self._last_record_start:
       raise ValueError(
@@ -103,6 +114,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
   def try_claim(self, record_start):
     with self._lock:
       self._validate_record_start(record_start, True)
+      self._last_attempted_record_start = record_start
       if record_start >= self.stop_position():
         return False
       self._offset_of_last_split_point = record_start

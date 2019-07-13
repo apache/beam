@@ -45,6 +45,17 @@ class OffsetRangeTrackerTest(unittest.TestCase):
     self.assertTrue(tracker.try_claim(5))
     self.assertFalse(tracker.try_claim(6))
 
+  def test_try_claim_update_last_attempt(self):
+    tracker = range_trackers.OffsetRangeTracker(1, 2)
+    self.assertTrue(tracker.try_claim(1))
+    self.assertEqual(1, tracker.last_attempted_record_start)
+
+    self.assertFalse(tracker.try_claim(3))
+    self.assertEqual(3, tracker.last_attempted_record_start)
+
+    self.assertFalse(tracker.try_claim(6))
+    self.assertEqual(6, tracker.last_attempted_record_start)
+
   def test_try_return_record_continuous_until_split_point(self):
     tracker = range_trackers.OffsetRangeTracker(9, 18)
     # Return records with gaps of 2; every 3rd record is a split point.
