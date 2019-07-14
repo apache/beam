@@ -76,6 +76,31 @@ class SetStateSpec(StateSpec):
             element_coder_id=context.coders.get_id(self.coder)))
 
 
+class ReadModifyWriteStateSpec(StateSpec):
+  """
+  Specification of a user DoFn read modify write State Cell.
+  """
+  def __init__(self, name, coder):
+    """
+    Initialize the specification for Read modify write state.
+
+    Args:
+    name (str): The name by which the state is identified.
+    coder (Coder): Coder specifying how to encode the value.
+    """
+    if not isinstance(name, str):
+      raise TypeError("ReadModifyWriteState name is not a string")
+    if not isinstance(coder, Coder):
+      raise TypeError("ReadModifyWriteState coder is not of type Coder")
+    self.name = name
+    self.coder = coder
+
+  def to_runner_api(self, context):
+    return beam_runner_api_pb2.StateSpec(
+        read_modify_write_spec=beam_runner_api_pb2.ReadModifyWriteStateSpec(
+            coder_id=context.coders.get_id(self.coder)))
+
+
 class CombiningValueStateSpec(StateSpec):
   """Specification for a user DoFn combining value state cell."""
 
@@ -267,6 +292,7 @@ class RuntimeTimer(object):
 
 class RuntimeState(object):
   """State interface object passed to user code."""
+
   def prefetch(self):
     # The default implementation here does nothing.
     pass
@@ -289,6 +315,10 @@ class BagRuntimeState(AccumulatingRuntimeState):
 
 class SetRuntimeState(AccumulatingRuntimeState):
   """Set state interface object passed to user code."""
+
+
+class ReadModifyWriteRuntimeState(AccumulatingRuntimeState):
+  """ReadModifyWrite state information object passed to user code."""
 
 
 class CombiningValueRuntimeState(AccumulatingRuntimeState):

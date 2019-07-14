@@ -23,6 +23,7 @@ import itertools
 from apache_beam.transforms import userstate
 from apache_beam.transforms.trigger import _ListStateTag
 from apache_beam.transforms.trigger import _SetStateTag
+from apache_beam.transforms.trigger import _ReadModifyWriteStateTag
 
 
 class DirectRuntimeState(userstate.RuntimeState):
@@ -40,6 +41,11 @@ class DirectRuntimeState(userstate.RuntimeState):
                                         current_value_accessor)
     elif isinstance(state_spec, userstate.SetStateSpec):
       return SetRuntimeState(state_spec, state_tag, current_value_accessor)
+
+    elif isinstance(state_spec, userstate.ReadModifyWriteStateSpec):
+      return ReadModifyWriteRuntimeState(state_spec,
+                                         state_tag,
+                                         current_value_accessor)
     else:
       raise ValueError('Invalid state spec: %s' % state_spec)
 
@@ -110,6 +116,36 @@ class SetRuntimeState(DirectRuntimeState, userstate.SetRuntimeState):
     return self._modified
 
 
+class ReadModifyWriteRuntimeState(DirectRuntimeState,
+                                  userstate.ReadModifyWriteRuntimeState):
+  """Read modify write state interface object passed to user code."""
+
+  def __init__(self, state_spec, state_tag, current_value_accessor):
+    super(ReadModifyWriteRuntimeState, self).__init__(
+        state_spec, state_tag, current_value_accessor)
+    self._value = UNREAD_VALUE
+    self._modified = False
+    self._cleared = False
+
+  def read(self):
+    if self._value is UNREAD_VALUE:
+      self._value = self._decode(self._current_value_accessor())
+
+    return self._value
+
+  def add(self, value):
+    self._modified = True
+    self._value = value
+
+  def clear(self):
+    self._cleared = True
+    self._value = UNREAD_VALUE
+    self._modified = False
+
+  def is_modified(self):
+    return self._modified and self._value is not UNREAD_VALUE
+
+
 class CombiningValueRuntimeState(
     DirectRuntimeState, userstate.CombiningValueRuntimeState):
   """Combining value state interface object passed to user code."""
@@ -169,6 +205,8 @@ class DirectUserStateContext(userstate.UserStateContext):
         state_tag = _ListStateTag(state_key)
       elif isinstance(state_spec, userstate.SetStateSpec):
         state_tag = _SetStateTag(state_key)
+      elif isinstance(state_spec, userstate.ReadModifyWriteStateSpec):
+        state_tag = _ReadModifyWriteStateTag(state_key)
       else:
         raise ValueError('Invalid state spec: %s' % state_spec)
       self.state_tags[state_spec] = state_tag
@@ -225,6 +263,14 @@ class DirectUserStateContext(userstate.UserStateContext):
           for new_value in runtime_state._current_accumulator:
             state.add_state(
                 window, state_tag, state_spec.coder.encode(new_value))
+      elif isinstance(state_spec, userstate.ReadModifyWriteStateSpec):
+        if runtime_state._cleared:
+          state.clear_state(window, state_tag)
+
+        if runtime_state.is_modified():
+          state.add_state(window,
+                          state_tag,
+                          state_spec.coder.encode(runtime_state._value))
       else:
         raise ValueError('Invalid state spec: %s' % state_spec)
 
