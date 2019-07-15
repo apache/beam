@@ -759,7 +759,7 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 
 <p>The container class must have a private constructor, so it can’t be instantiated directly.</p>
 
-<p>Document common stuff at <code class="highlighter-rouge">BlahIO</code> level, and each factory method individually.</p>
+<p>Document common stuff at <code class="highlighter-rouge">FooIO</code> level, and each factory method individually.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="cm">/** Transforms for clustering data. */</span>
 <span class="kd">public</span> <span class="kd">class</span> <span class="nc">Cluster</span> <span class="o">{</span>
@@ -775,7 +775,7 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
   <span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">Hierarchically</span> <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;...&gt;</span> <span class="o">{</span> <span class="o">...</span> <span class="o">}</span>
 <span class="o">}</span>
 
-<span class="kd">public</span> <span class="n">lass</span> <span class="n">FooIO</span> <span class="o">{</span>
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">FooIO</span> <span class="o">{</span>
   <span class="c1">// Force use of static factory methods.</span>
   <span class="kd">private</span> <span class="nf">FooIO</span><span class="o">()</span> <span class="o">{}</span>
 
