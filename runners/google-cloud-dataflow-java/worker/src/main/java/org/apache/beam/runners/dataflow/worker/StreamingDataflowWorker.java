@@ -415,6 +415,7 @@ public class StreamingDataflowWorker {
   private final Counter<Long, Long> javaHarnessUsedMemory;
   private final Counter<Long, Long> javaHarnessMaxMemory;
   private final Counter<Integer, Integer> windmillMaxObservedWorkItemCommitBytes;
+  private final Counter<Integer, Integer> memoryThrashing;
   private Timer refreshActiveWorkTimer;
   private Timer statusPageTimer;
 
@@ -593,6 +594,9 @@ public class StreamingDataflowWorker {
     this.windmillMaxObservedWorkItemCommitBytes =
         pendingCumulativeCounters.intMax(
             StreamingSystemCounterNames.WINDMILL_MAX_WORK_ITEM_COMMIT_BYTES.counterName());
+    this.memoryThrashing =
+        pendingCumulativeCounters.intSum(
+            StreamingSystemCounterNames.MEMORY_THRASHING.counterName());
     this.isDoneFuture = new CompletableFuture<>();
 
     this.threadFactory =
@@ -1851,6 +1855,9 @@ public class StreamingDataflowWorker {
 
     // Throttle time is tracked by the windmillServer but is reported to DFE here.
     windmillQuotaThrottling.addValue(windmillServer.getAndResetThrottleTime());
+    if (memoryMonitor.isThrashing()) {
+      memoryThrashing.addValue(1);
+    }
 
     List<CounterUpdate> counterUpdates = new ArrayList<>(128);
 
