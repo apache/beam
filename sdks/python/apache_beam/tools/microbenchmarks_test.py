@@ -21,7 +21,11 @@ from __future__ import absolute_import
 
 import unittest
 
+from pkg_resources import DistributionNotFound
+from pkg_resources import get_distribution
+
 from apache_beam.tools import coders_microbenchmark
+from apache_beam.tools import utils
 
 
 class MicrobenchmarksTest(unittest.TestCase):
@@ -30,6 +34,20 @@ class MicrobenchmarksTest(unittest.TestCase):
     # microbenchmark code can successfully run.
     coders_microbenchmark.run_coder_benchmarks(
         num_runs=1, input_size=10, seed=1, verbose=False)
+
+  def is_cython_installed(self):
+    try:
+      get_distribution('cython')
+      return True
+    except DistributionNotFound:
+      return False
+
+  def test_check_compiled(self):
+    if self.is_cython_installed():
+      utils.check_compiled('apache_beam.runners.worker.opcounters')
+    else:
+      with self.assertRaises(RuntimeError):
+        utils.check_compiled('apache_beam.runners.worker.opcounters')
 
 
 if __name__ == '__main__':
