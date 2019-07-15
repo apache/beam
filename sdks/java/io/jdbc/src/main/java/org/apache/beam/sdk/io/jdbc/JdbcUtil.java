@@ -21,10 +21,10 @@ import java.sql.Date;
 import java.sql.JDBCType;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.Calendar;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Calendar;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -184,7 +184,8 @@ public class JdbcUtil {
 
   private static void validateLogicalTypeLength(Schema.Field field, Integer length) {
     try {
-      if (field.getType().getTypeName().isLogicalType() && !field.getType().getLogicalType().getArgument().isEmpty()) {
+      if (field.getType().getTypeName().isLogicalType()
+          && !field.getType().getLogicalType().getArgument().isEmpty()) {
         int maxLimit = Integer.parseInt(field.getType().getLogicalType().getArgument());
         if (field.getType().getTypeName().isLogicalType() && length >= maxLimit) {
           throw new RuntimeException(
