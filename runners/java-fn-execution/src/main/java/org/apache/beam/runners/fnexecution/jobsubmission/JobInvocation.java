@@ -53,7 +53,7 @@ public class JobInvocation {
   private List<Consumer<Enum>> stateObservers;
   private List<Consumer<JobMessage>> messageObservers;
   private JobState.Enum jobState;
-  @Nullable private ListenableFuture<PipelineResult> invocationFuture;
+  @Nullable private ListenableFuture<PortablePipelineResult> invocationFuture;
 
   public JobInvocation(
       JobInfo jobInfo,
@@ -70,7 +70,7 @@ public class JobInvocation {
     this.jobState = JobState.Enum.STOPPED;
   }
 
-  private PipelineResult runPipeline() throws Exception {
+  private PortablePipelineResult runPipeline() throws Exception {
     return pipelineRunner.run(pipeline, jobInfo);
   }
 
@@ -86,9 +86,9 @@ public class JobInvocation {
     setState(JobState.Enum.RUNNING);
     Futures.addCallback(
         invocationFuture,
-        new FutureCallback<PipelineResult>() {
+        new FutureCallback<PortablePipelineResult>() {
           @Override
-          public void onSuccess(PipelineResult pipelineResult) {
+          public void onSuccess(PortablePipelineResult pipelineResult) {
             if (pipelineResult != null) {
               switch (pipelineResult.getState()) {
                 case DONE:
@@ -148,9 +148,9 @@ public class JobInvocation {
       this.invocationFuture.cancel(true /* mayInterruptIfRunning */);
       Futures.addCallback(
           invocationFuture,
-          new FutureCallback<PipelineResult>() {
+          new FutureCallback<PortablePipelineResult>() {
             @Override
-            public void onSuccess(PipelineResult pipelineResult) {
+            public void onSuccess(PortablePipelineResult pipelineResult) {
               // Do not cancel when we are already done.
               if (pipelineResult != null
                   && pipelineResult.getState() != PipelineResult.State.DONE) {
