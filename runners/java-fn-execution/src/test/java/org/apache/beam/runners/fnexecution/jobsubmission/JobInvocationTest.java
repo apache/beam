@@ -135,21 +135,22 @@ public class JobInvocationTest {
   private static class ControllablePipelineRunner implements PortablePipelineRunner {
 
     private final CountDownLatch latch = new CountDownLatch(1);
-    private volatile PipelineResult result;
+    private volatile PortablePipelineResult result;
 
     @Override
-    public PipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo) throws Exception {
+    public PortablePipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo)
+        throws Exception {
       latch.await();
       return result;
     }
 
-    void setResult(PipelineResult pipelineResult) {
+    void setResult(PortablePipelineResult pipelineResult) {
       result = pipelineResult;
       latch.countDown();
     }
   }
 
-  private static class TestPipelineResult implements PipelineResult {
+  private static class TestPipelineResult implements PortablePipelineResult {
 
     private final State state;
     private final CountDownLatch cancelLatch = new CountDownLatch(1);
@@ -181,6 +182,11 @@ public class JobInvocationTest {
 
     @Override
     public MetricResults metrics() {
+      return null;
+    }
+
+    @Override
+    public JobApi.MetricResults portableMetrics() {
       return null;
     }
   }
