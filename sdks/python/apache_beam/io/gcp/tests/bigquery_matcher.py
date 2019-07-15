@@ -22,6 +22,7 @@ from __future__ import absolute_import
 import logging
 import sys
 import time
+import traceback
 
 from hamcrest.core.base_matcher import BaseMatcher
 
@@ -84,6 +85,9 @@ class BigqueryMatcher(BaseMatcher):
     response = self._query_with_retry(bigquery_client)
     logging.info('Read from given query (%s), total rows %d',
                  self.query, len(response))
+    logging.info(time.time())
+    logging.info(response)
+    traceback.print_stack()
 
     # Compute checksum
     self.checksum = compute_hash(response)
@@ -98,6 +102,7 @@ class BigqueryMatcher(BaseMatcher):
   def _query_with_retry(self, bigquery_client):
     """Run Bigquery query with retry if got error http response"""
     query_job = bigquery_client.query(self.query)
+    logging.info("query table")
     return [row.values() for row in query_job]
 
   def describe_to(self, description):
@@ -141,6 +146,9 @@ class BigqueryFullResultMatcher(BaseMatcher):
     response = self._get_query_result(bigquery_client)
     logging.info('Read from given query (%s), total rows %d',
                  self.query, len(response))
+    logging.info(time.time())
+    logging.info(response)
+    traceback.print_stack()
 
     self.actual_data = response
 
@@ -156,6 +164,7 @@ class BigqueryFullResultMatcher(BaseMatcher):
   def _query_with_retry(self, bigquery_client):
     """Run Bigquery query with retry if got error http response"""
     query_job = bigquery_client.query(self.query)
+    logging.info("query table")
     return [row.values() for row in query_job]
 
   def describe_to(self, description):
