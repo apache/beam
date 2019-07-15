@@ -52,6 +52,8 @@ class LineSource(iobase.BoundedSource):
       current = start
       line  = f.readline()
       while range_tracker.try_claim(current):
+        if not line:
+          return
         yield line.rstrip(b'\n')
         current += len(line)
         line = f.readline()
