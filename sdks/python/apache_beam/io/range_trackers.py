@@ -88,12 +88,6 @@ class OffsetRangeTracker(iobase.RangeTracker):
       raise ValueError(
           'This function must only be called under the lock self.lock.')
 
-    if record_start <= self._last_attempted_record_start:
-      raise ValueError(
-          'Trying to return a record [starting at %d] which is not greater than'
-          'the last-attempted record [starting at %d]' %
-          (record_start, self._last_attempted_record_start))
-
     if record_start < self._last_record_start:
       raise ValueError(
           'Trying to return a record [starting at %d] which is before the '
@@ -113,6 +107,12 @@ class OffsetRangeTracker(iobase.RangeTracker):
 
   def try_claim(self, record_start):
     with self._lock:
+      # Attempted claim should be monotonous.
+      if record_start <= self._last_attempted_record_start:
+        raise ValueError(
+            'Trying to return a record [starting at %d] which is not greater'
+            'than the last-attempted record [starting at %d]' %
+            (record_start, self._last_attempted_record_start))
       self._validate_record_start(record_start, True)
       self._last_attempted_record_start = record_start
       if record_start >= self.stop_position():
