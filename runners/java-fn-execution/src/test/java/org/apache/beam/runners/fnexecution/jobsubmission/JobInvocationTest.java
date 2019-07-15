@@ -18,7 +18,10 @@
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.core.Is.is;
+import static org.hamcrest.core.IsSame.sameInstance;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -125,6 +128,22 @@ public class JobInvocationTest {
     assertThat(pipelineResult.cancelLatch.getCount(), is(1L));
   }
 
+  @Test(timeout = 10_000)
+  public void testReturnsMetricsFromJobInvocationAfterSuccess() throws Exception {
+    JobApi.MetricResults expectedMonitoringInfos = JobApi.MetricResults.newBuilder().build();
+    TestPipelineResult result =
+        new TestPipelineResult(PipelineResult.State.DONE, expectedMonitoringInfos);
+
+    jobInvocation.start();
+    runner.setResult(result);
+
+    awaitJobState(jobInvocation, JobApi.JobState.Enum.DONE);
+
+    assertThat(
+        jobInvocation.getMetrics(),
+        allOf(is(notNullValue()), is(sameInstance(result.portableMetrics()))));
+  }
+
   private static void awaitJobState(JobInvocation jobInvocation, JobApi.JobState.Enum jobState)
       throws Exception {
     while (jobInvocation.getState() != jobState) {
@@ -154,9 +173,15 @@ public class JobInvocationTest {
 
     private final State state;
     private final CountDownLatch cancelLatch = new CountDownLatch(1);
+    private JobApi.MetricResults monitoringInfos;
+
+    private TestPipelineResult(State state, JobApi.MetricResults monitoringInfos) {
+      this.state = state;
+      this.monitoringInfos = monitoringInfos;
+    }
 
     private TestPipelineResult(State state) {
-      this.state = state;
+      this(state, JobApi.MetricResults.newBuilder().build());
     }
 
     @Override
@@ -187,7 +212,7 @@ public class JobInvocationTest {
 
     @Override
     public JobApi.MetricResults portableMetrics() {
-      return null;
+      return monitoringInfos;
     }
   }
 }
