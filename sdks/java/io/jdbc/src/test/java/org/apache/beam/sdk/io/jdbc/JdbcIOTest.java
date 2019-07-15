@@ -46,6 +46,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Calendar;
+import java.util.TimeZone;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -762,7 +764,11 @@ public class JdbcIOTest implements Serializable {
 
     verify(psMocked, times(1)).setDate(1, new Date(row.getDateTime(0).getMillis()));
     verify(psMocked, times(1)).setTime(2, new Time(row.getDateTime(1).getMillis()));
-    verify(psMocked, times(1)).setTimestamp(3, new Timestamp(row.getDateTime(2).getMillis()));
+
+    Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+    cal.setTimeInMillis(epochMilli);
+
+    verify(psMocked, times(1)).setTimestamp(3, new Timestamp(cal.getTime().getTime()), cal);
   }
 
   @Test

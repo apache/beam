@@ -24,10 +24,13 @@ import java.sql.Timestamp;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Calendar;
+import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.joda.time.DateTime;
 
 /** Provides utility functions for working with {@link JdbcIO}. */
 public class JdbcUtil {
@@ -122,18 +125,29 @@ public class JdbcUtil {
             case DATE:
               return (element, ps, i, fieldWithIndex) -> {
                 ps.setDate(
-                    i + 1, new Date(element.getDateTime(fieldWithIndex.getIndex()).getMillis()));
+                    i + 1,
+                    new Date(
+                        getDateOrTimeOnly(
+                                element.getDateTime(fieldWithIndex.getIndex()).toDateTime(), true)
+                            .getTime()
+                            .getTime()));
               };
             case TIME:
               return (element, ps, i, fieldWithIndex) -> {
                 ps.setTime(
-                    i + 1, new Time(element.getDateTime(fieldWithIndex.getIndex()).getMillis()));
+                    i + 1,
+                    new Time(
+                        getDateOrTimeOnly(
+                                element.getDateTime(fieldWithIndex.getIndex()).toDateTime(), false)
+                            .getTime()
+                            .getTime()));
               };
             case TIMESTAMP_WITH_TIMEZONE:
               return (element, ps, i, fieldWithIndex) -> {
-                ps.setTimestamp(
-                    i + 1,
-                    new Timestamp(element.getDateTime(fieldWithIndex.getIndex()).getMillis()));
+                Calendar calendar =
+                    withTimestampAndTimezone(
+                        element.getDateTime(fieldWithIndex.getIndex()).toDateTime());
+                ps.setTimestamp(i + 1, new Timestamp(calendar.getTime().getTime()), calendar);
               };
             default:
               return getPreparedStatementSetCaller(fieldType.getLogicalType().getBaseType());
@@ -169,11 +183,52 @@ public class JdbcUtil {
   }
 
   private static void validateLogicalTypeLength(Schema.Field field, Integer length) {
-    if (field.getType().getTypeName().isLogicalType()
-        && length >= Integer.parseInt(field.getType().getLogicalType().getArgument())) {
-      throw new RuntimeException(
-          String.format(
-              "Length of Schema.Field[%s] data exceeds database column capacity", field.getName()));
+    try {
+      if (field.getType().getTypeName().isLogicalType() && !field.getType().getLogicalType().getArgument().isEmpty()) {
+        int maxLimit = Integer.parseInt(field.getType().getLogicalType().getArgument());
+        if (field.getType().getTypeName().isLogicalType() && length >= maxLimit) {
+          throw new RuntimeException(
+              String.format(
+                  "Length of Schema.Field[%s] data exceeds database column capacity",
+                  field.getName()));
+        }
+      }
+    } catch (NumberFormatException e) {
+      // if argument is not set or not integer then do nothing and proceed with the insertion
     }
+  }
+
+  private static Calendar getDateOrTimeOnly(DateTime dateTime, boolean wantDateOnly) {
+    Calendar cal = Calendar.getInstance();
+    cal.setTimeZone(TimeZone.getTimeZone(dateTime.getZone().getID()));
+
+    if (wantDateOnly) { // return date only
+      cal.set(Calendar.YEAR, dateTime.getYear());
+      cal.set(Calendar.MONTH, dateTime.getMonthOfYear() - 1);
+      cal.set(Calendar.DATE, dateTime.getDayOfMonth());
+
+      cal.set(Calendar.HOUR_OF_DAY, 0);
+      cal.set(Calendar.MINUTE, 0);
+      cal.set(Calendar.SECOND, 0);
+      cal.set(Calendar.MILLISECOND, 0);
+    } else { // return time only
+      cal.set(Calendar.YEAR, 1970);
+      cal.set(Calendar.MONTH, Calendar.JANUARY);
+      cal.set(Calendar.DATE, 1);
+
+      cal.set(Calendar.HOUR_OF_DAY, dateTime.getHourOfDay());
+      cal.set(Calendar.MINUTE, dateTime.getMinuteOfHour());
+      cal.set(Calendar.SECOND, dateTime.getSecondOfMinute());
+      cal.set(Calendar.MILLISECOND, dateTime.getMillisOfSecond());
+    }
+
+    return cal;
+  }
+
+  private static Calendar withTimestampAndTimezone(DateTime dateTime) {
+    Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone(dateTime.getZone().getID()));
+    calendar.setTimeInMillis(dateTime.getMillis());
+
+    return calendar;
   }
 }
