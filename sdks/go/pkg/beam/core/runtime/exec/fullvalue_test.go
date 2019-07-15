@@ -46,6 +46,16 @@ func makeValues(vs ...interface{}) []FullValue {
 	return ret
 }
 
+func makeValuesNoWindowOrTime(vs ...interface{}) []FullValue {
+	var ret []FullValue
+	for _, v := range vs {
+		ret = append(ret, FullValue{
+			Elm: v,
+		})
+	}
+	return ret
+}
+
 // makeKVValues returns a list of KV<K,V> inputs as a list of main inputs.
 func makeKVInput(key interface{}, vs ...interface{}) []MainInput {
 	var ret []MainInput
