@@ -19,6 +19,7 @@
 import org.apache.tools.ant.taskdefs.condition.Os
 
 plugins { id 'org.apache.beam.module' }
+
 applyPythonNature()
 enablePythonPerformanceTest()
 
@@ -75,15 +76,6 @@ task preCommitPy2() {
   dependsOn "testPython2"
   dependsOn "testPy2Gcp"
   dependsOn "lint"
-}
-
-addPortableWordCountTasks()
-
-task portablePreCommitPy2() {
-  dependsOn ':runners:flink:1.5:job-server-container:docker'
-  dependsOn ':sdks:python:container:docker'
-  dependsOn portableWordCountBatch
-  dependsOn portableWordCountStreaming
 }
 
 
@@ -164,9 +156,7 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
 //    ./gradlew :sdks:python:portableWordCount -PjobEndpoint=localhost:8099
 //
 
-task portableWordCount {
-  dependsOn project.hasProperty("streaming") ? portableWordCountStreaming : portableWordCountBatch
-}
+
 
 // Run PostCommit integration tests on default runner (TestDataflowRunner)
 task postCommitIT(dependsOn: ['installGcpTest', 'sdist']) {
@@ -255,64 +245,35 @@ task sparkValidatesRunner() {
   }
 }
 
-class CompatibilityMatrixConfig {
-  // Execute batch or streaming pipelines.
-  boolean streaming = false
-  // Execute on Docker or Process based environment.
-  SDK_WORKER_TYPE workerType = SDK_WORKER_TYPE.DOCKER
-
-  enum SDK_WORKER_TYPE {
-    DOCKER, PROCESS, LOOPBACK
-  }
-
-  // Whether to pre-optimize the pipeline with the Python optimizer.
-  boolean preOptimize = false
-}
-
-def flinkCompatibilityMatrix = {
-  def config = it ? it as CompatibilityMatrixConfig : new CompatibilityMatrixConfig()
-  def workerType = config.workerType.name()
-  def streaming = config.streaming
-  def environment_config = config.workerType == CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS ? "--environment_config='{\"command\": \"${project(":sdks:python").buildDir.absolutePath}/sdk_worker.sh\"}'" : ""
-  def name = "flinkCompatibilityMatrix${streaming ? 'Streaming' : 'Batch'}${config.preOptimize ? 'PreOptimize' : ''}${workerType}"
-  def extra_experiments = []
-  if (config.preOptimize)
-    extra_experiments.add('pre_optimize=all')
-  tasks.create(name: name) {
-    dependsOn 'setupVirtualenv'
-    dependsOn ':runners:flink:1.5:job-server:shadowJar'
-    dependsOn ':sdks:java:container:docker'
-    if (workerType.toLowerCase() == 'docker')
-      dependsOn ':sdks:python:container:docker'
-    else if (workerType.toLowerCase() == 'process')
-      dependsOn 'createProcessWorker'
-    doLast {
-      exec {
-        executable 'sh'
-        args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.runners.portability.flink_runner_test --flink_job_server_jar=${project(":runners:flink:1.5:job-server:").shadowJar.archivePath} --environment_type=${workerType} ${environment_config} ${streaming ? '--streaming' : ''} ${extra_experiments ? '--extra_experiments=' + extra_experiments.join(',') : ''}"
-      }
+// taskA.mustRunAfter taskB ensures that those tasks are ran after one another,
+// but not that there dependencies run sequentially. This needs to be manually
+// enforced. Note that only the first level of nested dependencies are made
+// to run sequentially in makeTasksFullySequential (so they are not fullyfully
+// sequential).
+def makeDependenciesSequential = { String pathOfFormer, String pathOfLatter ->
+  tasks.getByPath(pathOfFormer).dependsOn.each{
+    def (dummyLatter, pathLatter) = "$it".tokenize( ' ' )
+    def taskLatter = tasks.getByPath("$pathLatter"[1..-2])
+    tasks.getByPath(pathOfLatter).dependsOn.each{
+      def (dummyFormer, pathFormer) = "$it".tokenize( ' ' )
+      def taskFormer = tasks.getByPath("$pathFormer"[1..-2])
+      taskLatter.mustRunAfter taskFormer
     }
   }
-}
 
-task flinkCompatibilityMatrixDocker() {
-  dependsOn flinkCompatibilityMatrix(streaming: false)
-  dependsOn flinkCompatibilityMatrix(streaming: true)
-}
-
-task flinkCompatibilityMatrixProcess() {
-  dependsOn flinkCompatibilityMatrix(streaming: false, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS)
-  dependsOn flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS)
-}
-
-task flinkCompatibilityMatrixLoopback() {
-  dependsOn flinkCompatibilityMatrix(streaming: false, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.LOOPBACK)
-  dependsOn flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.LOOPBACK)
-  dependsOn flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.LOOPBACK, preOptimize: true)
 }
 
 task flinkValidatesRunner() {
-  dependsOn 'flinkCompatibilityMatrixLoopback'
+  dependsOn ':sdks:python:test-suites:portable:py27:flinkCompatibilityMatrixLoopback'
+  dependsOn ':sdks:python:test-suites:portable:py35:flinkCompatibilityMatrixLoopback'
+  dependsOn ':sdks:python:test-suites:portable:py36:flinkCompatibilityMatrixLoopback'
+  dependsOn ':sdks:python:test-suites:portable:py37:flinkCompatibilityMatrixLoopback'
+  makeDependenciesSequential(':sdks:python:test-suites:portable:py35:flinkCompatibilityMatrixLoopback',
+                             ':sdks:python:test-suites:portable:py27:flinkCompatibilityMatrixLoopback')
+  makeDependenciesSequential(':sdks:python:test-suites:portable:py36:flinkCompatibilityMatrixLoopback',
+                             ':sdks:python:test-suites:portable:py35:flinkCompatibilityMatrixLoopback')
+  makeDependenciesSequential(':sdks:python:test-suites:portable:py37:flinkCompatibilityMatrixLoopback',
+                              ':sdks:python:test-suites:portable:py36:flinkCompatibilityMatrixLoopback')
 }
 
 task postCommit() {

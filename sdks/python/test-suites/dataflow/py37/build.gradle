@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 enablePythonPerformanceTest()

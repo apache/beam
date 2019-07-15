@@ -19,7 +19,7 @@
 plugins { id 'org.apache.beam.module' }
 
 project.ext {
-  pythonVersion = '3.5'
+  pythonVersion = '2.7'
 }
 
 def basePath = '..'
@@ -29,9 +29,12 @@ addPortableWordCountTasks()
 
 task portablePreCommitPy() {
   dependsOn ':runners:flink:1.5:job-server-container:docker'
-  dependsOn ':sdks:python:container:py3:docker'
-  dependsOn portableWordCountBatch35
-  dependsOn portableWordCountStreaming35
+  dependsOn ':sdks:python:container:docker'
+  dependsOn portableWordCountBatch27
+  dependsOn portableWordCountStreaming27
 }
+
+
+
 
 
