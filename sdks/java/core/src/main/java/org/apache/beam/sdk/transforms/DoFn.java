@@ -586,6 +586,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *
    * <ul>
    *   <li>It <i>must</i> define a {@link GetInitialRestriction} method.
+   *   <li>It <i>may</i> define a {@link GetSize} method.
+   *   <li>It <i>may</i> define a {@link GetPartitition} method.
    *   <li>It <i>may</i> define a {@link SplitRestriction} method.
    *   <li>It <i>may</i> define a {@link NewTracker} method returning a subtype of {@code
    *       RestrictionTracker<R>} where {@code R} is the restriction type returned by {@link
@@ -722,6 +724,75 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Target(ElementType.METHOD)
   @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface GetInitialRestriction {}
+
+  /**
+   * Annotation for the method that returns the corresponding size for an element and restriction
+   * pair.
+   *
+   * <p>Signature: {@code double getSize(InputT element, RestrictionT restriction);}
+   *
+   * <p>Returns a double representing the size of the element and restriction.
+   *
+   * <p>A representation for the amount of known work represented as a size. Size representations
+   * should preferably represent a linear space and be comparable within the same partition (see
+   * {@link GetPartition} for details on partition identifiers}).
+   *
+   * <p>Splittable {@link DoFn}s should only provide this method if the default implementation
+   * within the {@link RestrictionTracker} is an inaccurate representation of known work.
+   *
+   * <p>It is up to each splittable {@DoFn} to convert between their natural representation of
+   * outstanding work and this representation. For example:
+   *
+   * <ul>
+   *   <li>Block based file source (e.g. Avro): From the end of the current block, the remaining
+   *       number of bytes to the end of the restriction.
+   *   <li>Pull based queue based source (e.g. Pubsub): The local/global size available in number of
+   *       messages or number of {@code message bytes} that have not been processed.
+   *   <li>Key range based source (e.g. Shuffle, Bigtable, ...): Scale the start key to be one and
+   *       end key to be zero and interpolate the position of the next splittable key as the size.
+   *       If information about the probability density function or cumulative distribution function
+   *       is available, size interpolation can be improved. Alternatively, if the number of encoded
+   *       bytes for the keys and values is known for the key range, the number of remaining bytes
+   *       can be used.
+   * </ul>
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  @Experimental(Kind.SPLITTABLE_DO_FN)
+  public @interface GetSize {}
+
+  /**
+   * Annotation for the method that returns the corresponding partition identifier for an element
+   * and restriction pair.
+   *
+   * <p>Signature: {@code byte[] getPartitition(InputT element, RestrictionT restriction);}
+   *
+   * <p>Returns an immutable representation of the partition identifier as a byte[].
+   *
+   * <p>By default, the partition identifier is represented as the encoded element and restriction
+   * pair and should only be provided if the splittable {@link DoFn} can only provide a size over a
+   * shared resource such as a message queue that potentially multiple element and restriction pairs
+   * are doing work on. The partition identifier is used by runners for various size calculations.
+   * Sizes reported with the same partition identifier represent a point in time reporting of the
+   * size for that partition. For example, a runner can compute a global size by summing all
+   * reported sizes over all unique partition identifiers while it can compute the size of a
+   * specific partition based upon the last reported value.
+   *
+   * <p>For example splittable {@link DoFn}s which consume elements from:
+   *
+   * <ul>
+   *   <li>a globally shared resource such as a Pubsub queue should set this to "".
+   *   <li>a shared partitioned resource should use the partition identifier.
+   *   <li>a uniquely partitioned resource such as a file and offset range should not override this
+   *       since the default element and restriction pair should suffice.
+   * </ul>
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  @Experimental(Kind.SPLITTABLE_DO_FN)
+  public @interface GetPartition {}
 
   /**
    * Annotation for the method that returns the coder to use for the restriction of a <a

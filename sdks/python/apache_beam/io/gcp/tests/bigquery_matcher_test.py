@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import logging
+import sys
 import unittest
 
 import mock
@@ -111,6 +112,27 @@ class BigqueryTableMatcherTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       hc_assert_that(self._mock_result, matcher)
     self.assertEqual(bq_verifier.MAX_RETRIES + 1, mock_query.call_count)
+
+
+@unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
+@mock.patch.object(
+    bq_verifier.BigqueryFullResultStreamingMatcher,
+    '_query_with_retry')
+class BigqueryFullResultStreamingMatcher(unittest.TestCase):
+
+  def setUp(self):
+    self.timeout = 5
+
+  def test__get_query_result_timeout(self, mock__query_with_retry):
+    mock__query_with_retry.side_effect = lambda _: []
+    matcher = bq_verifier.BigqueryFullResultStreamingMatcher(
+        'some-project', 'some-query', [1, 2, 3], timeout=self.timeout)
+    if sys.version_info >= (3,):
+      with self.assertRaises(TimeoutError): # noqa: F821
+        matcher._get_query_result(None)
+    else:
+      with self.assertRaises(RuntimeError):
+        matcher._get_query_result(None)
 
 
 if __name__ == '__main__':

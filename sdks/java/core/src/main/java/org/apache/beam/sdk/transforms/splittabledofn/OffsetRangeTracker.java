@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import java.math.BigDecimal;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
@@ -31,7 +30,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
  * increasing fashion.
  */
 public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
-    implements Backlogs.HasBacklog {
+    implements Sizes.HasSize {
   private OffsetRange range;
   @Nullable private Long lastClaimedOffset = null;
   @Nullable private Long lastAttemptedOffset = null;
@@ -101,14 +100,14 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
   }
 
   @Override
-  public Backlog getBacklog() {
+  public double getSize() {
     // If we have never attempted an offset, we return the length of the entire range.
     if (lastAttemptedOffset == null) {
-      return Backlog.of(BigDecimal.valueOf(range.getTo() - range.getFrom()));
+      return range.getTo() - range.getFrom();
     }
 
     // Otherwise we return the length from where we are to where we are attempting to get to
     // with a minimum of zero in case we have claimed beyond the end of the range.
-    return Backlog.of(BigDecimal.valueOf(Math.max(range.getTo() - lastAttemptedOffset, 0)));
+    return Math.max(range.getTo() - lastAttemptedOffset, 0);
   }
 }

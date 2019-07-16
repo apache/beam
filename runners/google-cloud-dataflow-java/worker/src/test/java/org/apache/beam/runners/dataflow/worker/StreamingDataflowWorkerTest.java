@@ -2093,22 +2093,22 @@ public class StreamingDataflowWorkerTest {
     ByteString key2 = ByteString.copyFromUtf8("key2");
 
     MockWork m1 = new MockWork(1);
-    computationState.activateWork(key1, m1);
+    assertTrue(computationState.activateWork(key1, m1));
     Mockito.verify(mockExecutor).execute(m1);
     computationState.completeWork(key1, 1);
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     // Verify work queues.
     MockWork m2 = new MockWork(2);
-    computationState.activateWork(key1, m2);
+    assertTrue(computationState.activateWork(key1, m2));
     Mockito.verify(mockExecutor).execute(m2);
     MockWork m3 = new MockWork(3);
-    computationState.activateWork(key1, m3);
+    assertTrue(computationState.activateWork(key1, m3));
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     // Verify another key is a separate queue.
     MockWork m4 = new MockWork(4);
-    computationState.activateWork(key2, m4);
+    assertTrue(computationState.activateWork(key2, m4));
     Mockito.verify(mockExecutor).execute(m4);
     computationState.completeWork(key2, 4);
     Mockito.verifyNoMoreInteractions(mockExecutor);
@@ -2118,9 +2118,12 @@ public class StreamingDataflowWorkerTest {
     computationState.completeWork(key1, 3);
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
+    // Verify duplicate work dropped.
     MockWork m5 = new MockWork(5);
     computationState.activateWork(key1, m5);
     Mockito.verify(mockExecutor).execute(m5);
+    assertFalse(computationState.activateWork(key1, m5));
+    Mockito.verifyNoMoreInteractions(mockExecutor);
     computationState.completeWork(key1, 5);
     Mockito.verifyNoMoreInteractions(mockExecutor);
   }

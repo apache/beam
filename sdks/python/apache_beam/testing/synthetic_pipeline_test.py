@@ -57,7 +57,7 @@ class SyntheticPipelineTest(unittest.TestCase):
 
   # pylint: disable=expression-not-assigned
 
-  def testSyntheticStep(self):
+  def test_synthetic_step(self):
     start = time.time()
     with beam.Pipeline() as p:
       pcoll = p | beam.Create(list(range(10))) | beam.ParDo(
@@ -69,11 +69,11 @@ class SyntheticPipelineTest(unittest.TestCase):
     # TODO(chamikaramj): Fix the flaky time based bounds.
     self.assertTrue(0.5 <= elapsed <= 3, elapsed)
 
-  def testSyntheticSDFStep(self):
+  def test_synthetic_sdf_step(self):
     start = time.time()
     with beam.Pipeline() as p:
       pcoll = p | beam.Create(list(range(10))) | beam.ParDo(
-          synthetic_pipeline.getSyntheticSDFStep(0, 0.5, 10))
+          synthetic_pipeline.get_synthetic_sdf_step(0, 0.5, 10))
       assert_that(
           pcoll | beam.combiners.Count.Globally(), equal_to([100]))
 
@@ -81,7 +81,7 @@ class SyntheticPipelineTest(unittest.TestCase):
     # TODO(chamikaramj): Fix the flaky time based bounds.
     self.assertTrue(0.5 <= elapsed <= 3, elapsed)
 
-  def testSyntheticStepSplitProvider(self):
+  def test_synthetic_step_split_provider(self):
     provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(
         5, 2, False, False, None)
 
@@ -132,7 +132,7 @@ class SyntheticPipelineTest(unittest.TestCase):
     self.verify_random_splits(provider, 0, 1, 1)
     self.verify_random_splits(provider, 0, bundles - 2, bundles)
 
-  def testSyntheticStepSplitProviderNoLiquidSharding(self):
+  def test_synthetic_step_split_provider_no_liquid_sharding(self):
     # Verify Liquid Sharding Works
     provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(
         5, 5, True, False, None)
@@ -147,7 +147,7 @@ class SyntheticPipelineTest(unittest.TestCase):
     tracker.try_claim(2)
     self.assertEqual(tracker.try_split(3), None)
 
-  def testSyntheticSource(self):
+  def test_synthetic_source(self):
     def assert_size(element, expected_size):
       assert len(element) == expected_size
     with beam.Pipeline() as p:
@@ -161,7 +161,7 @@ class SyntheticPipelineTest(unittest.TestCase):
       assert_that(pcoll | beam.combiners.Count.Globally(),
                   equal_to([300]))
 
-  def testSyntheticSourceSplitEven(self):
+  def test_synthetic_source_split_even(self):
     source = synthetic_pipeline.SyntheticSource(
         input_spec(1000, 1, 1, 'const', 0))
     splits = source.split(100)
@@ -171,7 +171,7 @@ class SyntheticPipelineTest(unittest.TestCase):
     source_test_utils.assert_sources_equal_reference_source(
         (source, None, None), sources_info)
 
-  def testSyntheticSourceSplitUneven(self):
+  def test_synthetic_source_split_uneven(self):
     source = synthetic_pipeline.SyntheticSource(
         input_spec(1000, 1, 1, 'zipf', 3, 10))
     splits = source.split(100)
@@ -181,7 +181,7 @@ class SyntheticPipelineTest(unittest.TestCase):
     source_test_utils.assert_sources_equal_reference_source(
         (source, None, None), sources_info)
 
-  def testSplitAtFraction(self):
+  def test_split_at_fraction(self):
     source = synthetic_pipeline.SyntheticSource(input_spec(10, 1, 1))
     source_test_utils.assert_split_at_fraction_exhaustive(source)
     source_test_utils.assert_split_at_fraction_fails(source, 5, 0.3)
@@ -213,22 +213,22 @@ class SyntheticPipelineTest(unittest.TestCase):
 
       self.assertEqual(10, len(read_output))
 
-  def testPipelineShuffle(self):
+  def test_pipeline_shuffle(self):
     self.run_pipeline('shuffle')
 
-  def testPipelineSideInput(self):
+  def test_pipeline_side_input(self):
     self.run_pipeline('side-input')
 
-  def testPipelineExpandGBK(self):
+  def test_pipeline_expand_gbk(self):
     self.run_pipeline('expand-gbk', False)
 
-  def testPipelineExpandSideOutput(self):
+  def test_pipeline_expand_side_output(self):
     self.run_pipeline('expand-second-output', False)
 
-  def testPipelineMergeGBK(self):
+  def test_pipeline_merge_gbk(self):
     self.run_pipeline('merge-gbk')
 
-  def testPipelineMergeSideInput(self):
+  def test_pipeline_merge_side_input(self):
     self.run_pipeline('merge-side-input')
 
 

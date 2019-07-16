@@ -1884,7 +1884,7 @@ class BeamModulePlugin implements Plugin<Project> {
             else
               // workaround for local file output in docker container
               options += [
-                "--environment_cache_millis=10000"
+                "--environment_cache_millis=60000"
               ]
             if (project.hasProperty("jobEndpoint"))
               options += [

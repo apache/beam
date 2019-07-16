@@ -386,27 +386,41 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
       }
       Expression field = Expressions.call(expression, getter, Expressions.constant(index));
       if (fromType.getTypeName().isLogicalType()) {
-        field = Expressions.call(field, "getMillis");
+        Expression millisField = Expressions.call(field, "getMillis");
         String logicalId = fromType.getLogicalType().getIdentifier();
         if (logicalId.equals(TimeType.IDENTIFIER)) {
-          field = Expressions.convert_(field, int.class);
+          field = nullOr(field, Expressions.convert_(millisField, int.class));
         } else if (logicalId.equals(DateType.IDENTIFIER)) {
           field =
-              Expressions.convert_(
-                  Expressions.modulo(field, Expressions.constant(MILLIS_PER_DAY)), int.class);
+              nullOr(
+                  field,
+                  Expressions.convert_(
+                      Expressions.divide(millisField, Expressions.constant(MILLIS_PER_DAY)),
+                      int.class));
         } else if (!logicalId.equals(CharType.IDENTIFIER)) {
           throw new IllegalArgumentException(
               "Unknown LogicalType " + fromType.getLogicalType().getIdentifier());
         }
       } else if (CalciteUtils.isDateTimeType(fromType)) {
-        field = Expressions.call(field, "getMillis");
+        field = nullOr(field, Expressions.call(field, "getMillis"));
       } else if (fromType.getTypeName().isCompositeType()
           || (fromType.getTypeName().isCollectionType()
               && fromType.getCollectionElementType().getTypeName().isCompositeType())) {
-        field = Expressions.call(WrappedList.class, "of", field);
+        field =
+            Expressions.condition(
+                Expressions.equal(field, Expressions.constant(null)),
+                Expressions.constant(null),
+                Expressions.call(WrappedList.class, "of", field));
       }
       return field;
     }
+  }
+
+  private static Expression nullOr(Expression field, Expression ifNotNull) {
+    return Expressions.condition(
+        Expressions.equal(field, Expressions.constant(null)),
+        Expressions.constant(null),
+        Expressions.box(ifNotNull));
   }
 
   private static final DataContext CONTEXT_INSTANCE = new SlimDataContext();

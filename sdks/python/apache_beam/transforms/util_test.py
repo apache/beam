@@ -563,7 +563,6 @@ class ReifyTest(unittest.TestCase):
       reified_pc = pc | util.Reify.Timestamp()
       assert_that(reified_pc, equal_to(expected), reify_windows=True)
 
-  @unittest.skip('BEAM-7499')
   def test_window(self):
     l = [GlobalWindows.windowed_value('a', 100),
          GlobalWindows.windowed_value('b', 200),

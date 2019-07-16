@@ -20,6 +20,8 @@
 from __future__ import absolute_import
 
 import logging
+import sys
+import time
 
 from hamcrest.core.base_matcher import BaseMatcher
 
@@ -128,7 +130,6 @@ class BigqueryFullResultMatcher(BaseMatcher):
     if not query or not isinstance(query, str):
       raise ValueError(
           'Invalid argument: query. Please use non-empty string')
-
     self.project = project
     self.query = query
     self.expected_data = data
@@ -137,7 +138,7 @@ class BigqueryFullResultMatcher(BaseMatcher):
     logging.info('Start verify Bigquery data.')
     # Run query
     bigquery_client = bigquery.Client(project=self.project)
-    response = self._query_with_retry(bigquery_client)
+    response = self._get_query_result(bigquery_client)
     logging.info('Read from given query (%s), total rows %d',
                  self.query, len(response))
 
@@ -145,6 +146,9 @@ class BigqueryFullResultMatcher(BaseMatcher):
 
     # Verify result
     return sorted(self.expected_data) == sorted(self.actual_data)
+
+  def _get_query_result(self, bigquery_client):
+    return self._query_with_retry(bigquery_client)
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -163,6 +167,36 @@ class BigqueryFullResultMatcher(BaseMatcher):
     mismatch_description \
       .append_text("Actual data is ") \
       .append_text(self.actual_data)
+
+
+class BigqueryFullResultStreamingMatcher(BigqueryFullResultMatcher):
+  """
+  Matcher that verifies Bigquery data with given query.
+
+  Fetch Bigquery data with given query, compare to the expected data.
+  This matcher polls BigQuery until the no. of records in BigQuery is
+  equal to the no. of records in expected data.
+  A timeout can be specified.
+  """
+
+  DEFAULT_TIMEOUT = 5*60
+
+  def __init__(self, project, query, data, timeout=DEFAULT_TIMEOUT):
+    super(BigqueryFullResultStreamingMatcher, self).__init__(
+        project, query, data)
+    self.timeout = timeout
+
+  def _get_query_result(self, bigquery_client):
+    start_time = time.time()
+    while time.time() - start_time <= self.timeout:
+      response = self._query_with_retry(bigquery_client)
+      if len(response) >= len(self.expected_data):
+        return response
+      time.sleep(1)
+    if sys.version_info >= (3,):
+      raise TimeoutError('Timeout exceeded for matcher.') # noqa: F821
+    else:
+      raise RuntimeError('Timeout exceeded for matcher.')
 
 
 class BigQueryTableMatcher(BaseMatcher):
