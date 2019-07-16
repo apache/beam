@@ -184,6 +184,7 @@ public class TranslationContext {
     try {
       SparkStructuredStreamingPipelineOptions options =
           serializablePipelineOptions.get().as(SparkStructuredStreamingPipelineOptions.class);
+      int datasetIndex = 0;
       for (Dataset<?> dataset : leaves) {
         if (options.isStreaming()) {
           // TODO: deal with Beam Discarding, Accumulating and Accumulating & Retracting	outputmodes
@@ -198,6 +199,7 @@ public class TranslationContext {
           dataStreamWriter.foreach(new NoOpForeachWriter<>()).start().awaitTermination();
         } else {
           if (options.getTestMode()) {
+            LOG.debug("**** dataset {}", ++datasetIndex);
             dataset.explain(true);
             // cannot use dataset.show because dataset schema is binary so it will print binary
             // code.
