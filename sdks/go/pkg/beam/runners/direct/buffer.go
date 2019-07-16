@@ -64,7 +64,7 @@ func (n *buffer) Down(ctx context.Context) error {
 	return nil
 }
 
-func (n *buffer) NewIterable(ctx context.Context, reader exec.SideInputReader, w typex.Window) (exec.ReStream, error) {
+func (n *buffer) NewIterable(ctx context.Context, reader exec.StateReader, w typex.Window) (exec.ReStream, error) {
 	if !n.done {
 		panic(fmt.Sprintf("buffer[%v] incomplete: %v", n.uid, len(n.buf)))
 	}

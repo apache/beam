@@ -194,10 +194,10 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		}
 
 		data := NewScopedDataManager(c.data, id)
-		side := NewScopedSideInputReader(c.state, id)
-		err := plan.Execute(ctx, id, exec.DataContext{Data: data, SideInput: side})
+		state := NewScopedStateReader(c.state, id)
+		err := plan.Execute(ctx, id, exec.DataContext{Data: data, State: state})
 		data.Close()
-		side.Close()
+		state.Close()
 
 		m := plan.Metrics()
 		// Move the plan back to the candidate state
