@@ -359,6 +359,7 @@ public class KafkaIO {
 
     abstract Builder<K, V> toBuilder();
 
+    @Experimental
     @AutoValue.Builder
     abstract static class Builder<K, V>
         implements ExternalTransformBuilder<External.Configuration, PBegin, PCollection<KV<K, V>>> {
@@ -464,6 +465,7 @@ public class KafkaIO {
      * Exposes {@link KafkaIO.TypedWithoutMetadata} as an external transform for cross-language
      * usage.
      */
+    @Experimental
     @AutoService(ExternalTransformRegistrar.class)
     public static class External implements ExternalTransformRegistrar {
 
@@ -1350,6 +1352,7 @@ public class KafkaIO {
 
     abstract Builder<K, V> toBuilder();
 
+    @Experimental
     @AutoValue.Builder
     abstract static class Builder<K, V>
         implements ExternalTransformBuilder<External.Configuration, PCollection<KV<K, V>>, PDone> {
@@ -1387,6 +1390,7 @@ public class KafkaIO {
     }
 
     /** Exposes {@link KafkaIO.Write} as an external transform for cross-language usage. */
+    @Experimental
     @AutoService(ExternalTransformRegistrar.class)
     public static class External implements ExternalTransformRegistrar {
 
