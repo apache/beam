@@ -159,7 +159,7 @@ type FixedSideInputAdapter struct {
 	Val ReStream
 }
 
-func (a *FixedSideInputAdapter) NewIterable(ctx context.Context, reader SideInputReader, w typex.Window) (ReStream, error) {
+func (a *FixedSideInputAdapter) NewIterable(ctx context.Context, reader StateReader, w typex.Window) (ReStream, error) {
 	return a.Val, nil
 }
 
