@@ -700,10 +700,7 @@ class PerWindowInvoker(DoFnInvoker):
       # Temporary workaround for [BEAM-7473]: get current_watermark before
       # split, in case watermark gets advanced before getting split results.
       # In worst case, current_watermark is always stale, which is ok.
-      # If no current watermark reported, use MIN_TIMESTAMP by default.
-      current_watermark = (restriction_tracker.current_watermark()
-                           if restriction_tracker.current_watermark()
-                           else timestamp.MIN_TIMESTAMP)
+      current_watermark = restriction_tracker.current_watermark()
       split = restriction_tracker.try_split(fraction)
       if split:
         primary, residual = split
