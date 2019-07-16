@@ -22,7 +22,6 @@ import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowParser;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
@@ -46,20 +45,24 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Integration tests for {@link BigQueryIO#readTableRows()} using {@link Method#DIRECT_READ} in
- * combination with {@link TableRowParser} to generate output in {@link TableRow} form.
+ * Integration tests for {@link BigQueryIO#readTableRows()} using {@link Method#EXPORT} and {@link
+ * Method#DIRECT_READ} to ensure that both methods return exactly the same data.
+ *
+ * <p>Note that we use a relatively large table for this test because we want to exercise the
+ * sharding of data that the BigQuery Storage API server performs.
  */
 @RunWith(JUnit4.class)
-public class BigQueryIOStorageReadTableRowIT {
+public class BigQueryIOStorageReadCorrectnessIT {
 
-  private static final String DATASET_ID = "big_query_import_export";
-  private static final String TABLE_PREFIX = "parallel_read_table_row_";
+  private static final String DATASET_ID = "big_query_storage";
+  private static final String TABLE_ID = "storage_read_1G";
 
   private BigQueryIOStorageReadTableRowOptions options;
 
   /** Private pipeline options for the test. */
   public interface BigQueryIOStorageReadTableRowOptions
       extends TestPipelineOptions, ExperimentalOptions {
+
     @Description("The table to be read")
     @Validation.Required
     String getInputTable();
@@ -68,21 +71,19 @@ public class BigQueryIOStorageReadTableRowIT {
   }
 
   private static class TableRowToKVPairFn extends SimpleFunction<TableRow, KV<String, String>> {
+
     @Override
     public KV<String, String> apply(TableRow input) {
-      CharSequence sampleString = (CharSequence) input.get("sample_string");
-      String key = sampleString != null ? sampleString.toString() : "null";
-      return KV.of(key, BigQueryHelpers.toJsonString(input));
+      CharSequence key = (CharSequence) input.get("string_field");
+      if (key == null) {
+        throw new NullPointerException(
+            "Found row that did not contain a value for field 'string_field'.");
+      }
+      return KV.of(key.toString(), BigQueryHelpers.toJsonString(input));
     }
   }
 
-  private void setUpTestEnvironment(String tableName) {
-    PipelineOptionsFactory.register(BigQueryIOStorageReadTableRowOptions.class);
-    options = TestPipeline.testingPipelineOptions().as(BigQueryIOStorageReadTableRowOptions.class);
-    String project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
-    options.setInputTable(project + ":" + DATASET_ID + "." + TABLE_PREFIX + tableName);
-    options.setTempLocation(options.getTempRoot() + "/temp-it/");
-  }
+  private void setUpTestEnvironment(String tableName) {}
 
   private static void runPipeline(BigQueryIOStorageReadTableRowOptions pipelineOptions) {
     Pipeline pipeline = Pipeline.create(pipelineOptions);
@@ -147,20 +148,12 @@ public class BigQueryIOStorageReadTableRowIT {
   }
 
   @Test
-  public void testBigQueryStorageReadTableRow1() throws Exception {
-    setUpTestEnvironment("1");
-    runPipeline(options);
-  }
-
-  @Test
-  public void testBigQueryStorageReadTableRow10k() throws Exception {
-    setUpTestEnvironment("10k");
-    runPipeline(options);
-  }
-
-  @Test
-  public void testBigQueryStorageReadTableRow100k() throws Exception {
-    setUpTestEnvironment("100k");
+  public void testBigQueryStorageReadCorrectness() throws Exception {
+    PipelineOptionsFactory.register(BigQueryIOStorageReadTableRowOptions.class);
+    options = TestPipeline.testingPipelineOptions().as(BigQueryIOStorageReadTableRowOptions.class);
+    String project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+    options.setInputTable(project + ":" + DATASET_ID + "." + TABLE_ID);
+    options.setTempLocation(options.getTempRoot() + "/temp-it/");
     runPipeline(options);
   }
 }
