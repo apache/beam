@@ -44,7 +44,7 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
-from apache_beam.utils import timestamp
+from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
 
@@ -201,7 +201,7 @@ class MethodWrapper(object):
         kwargs[kw] = user_state_context.get_timer(timer_spec, key, window)
 
     if self.timestamp_arg_name:
-      kwargs[self.timestamp_arg_name] = timestamp.Timestamp(seconds=timestamp)
+      kwargs[self.timestamp_arg_name] = Timestamp(seconds=timestamp)
     if self.window_arg_name:
       kwargs[self.window_arg_name] = window
     if self.key_arg_name:
