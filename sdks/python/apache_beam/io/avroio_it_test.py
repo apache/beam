@@ -190,8 +190,8 @@ class AvroITTestBase(object):
          | 'ExtractNumber' >> Map(lambda x: x['number'])
          | 'CalculateMean' >> Mean.Globally()
          | 'MeanIsCorrect' >> Map(
-             lambda x: check(x, multiplier *
-                             ((len(batches) * batch_size) - 1)/2))
+             lambda x: check(x, multiplier/2 *
+                             ((len(batches) * batch_size) - 1)))
         )
 
     _ = (read_pcol
