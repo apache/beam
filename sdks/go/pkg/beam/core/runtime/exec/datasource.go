@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
@@ -37,6 +38,7 @@ type DataSource struct {
 	Out   Node
 
 	source   DataManager
+	state    StateReader
 	count    int64
 	splitPos int64
 	start    time.Time
@@ -44,17 +46,21 @@ type DataSource struct {
 	mu sync.Mutex
 }
 
+// ID returns the UnitID for this node.
 func (n *DataSource) ID() UnitID {
 	return n.UID
 }
 
+// Up initializes this datasource.
 func (n *DataSource) Up(ctx context.Context) error {
 	return nil
 }
 
+// StartBundle initializes this datasource for the bundle.
 func (n *DataSource) StartBundle(ctx context.Context, id string, data DataContext) error {
 	n.mu.Lock()
 	n.source = data.Data
+	n.state = data.State
 	n.start = time.Now()
 	n.count = 0
 	n.splitPos = math.MaxInt64
@@ -154,6 +160,27 @@ func (n *DataSource) makeReStream(ctx context.Context, key *FullValue, cv Elemen
 				if err != nil {
 					return nil, err
 				}
+			case chunk == -1: // State backed iterable!
+				chunk, err := coder.DecodeVarInt(r)
+				if err != nil {
+					return nil, err
+				}
+				token, err := ioutilx.ReadN(r, (int)(chunk))
+				if err != nil {
+					return nil, err
+				}
+				return &concatReStream{
+					first: &FixedReStream{Buf: buf},
+					next: &proxyReStream{
+						open: func() (Stream, error) {
+							r, err := n.state.OpenIterable(ctx, n.SID, token)
+							if err != nil {
+								return nil, err
+							}
+							return &elementStream{r: r, ec: cv}, nil
+						},
+					},
+				}, nil
 			default:
 				return nil, errors.Errorf("multi-chunk stream with invalid chunk size of %d", chunk)
 			}
@@ -174,6 +201,7 @@ func readStreamToBuffer(cv ElementDecoder, r io.ReadCloser, size int64, buf []Fu
 	return buf, nil
 }
 
+// FinishBundle resets the source and metric counters.
 func (n *DataSource) FinishBundle(ctx context.Context) error {
 	n.mu.Lock()
 	defer n.mu.Unlock()
@@ -185,6 +213,7 @@ func (n *DataSource) FinishBundle(ctx context.Context) error {
 	return err
 }
 
+// Down resets the source.
 func (n *DataSource) Down(ctx context.Context) error {
 	n.source = nil
 	return nil
@@ -252,4 +281,61 @@ func (n *DataSource) Split(splits []int64, frac float32) (int64, error) {
 	// If we can't find a suitable split point from the requested choices,
 	// return an error.
 	return 0, fmt.Errorf("failed to split at requested splits: {%v}, DataSource at index: %v", splits, c)
+}
+
+type concatReStream struct {
+	first, next ReStream
+}
+
+func (c *concatReStream) Open() (Stream, error) {
+	firstStream, err := c.first.Open()
+	if err != nil {
+		return nil, err
+	}
+	return &concatStream{first: firstStream, nextStream: c.next}, nil
+}
+
+type concatStream struct {
+	first      Stream
+	nextStream ReStream
+}
+
+// Close nils the stream.
+func (s *concatStream) Close() error {
+	if s.first == nil {
+		return nil
+	}
+	defer func() {
+		s.first = nil
+		s.nextStream = nil
+	}()
+	return s.first.Close()
+}
+
+func (s *concatStream) Read() (*FullValue, error) {
+	if s.first == nil { // When the stream is closed.
+		return nil, io.EOF
+	}
+	fv, err := s.first.Read()
+	if err == nil {
+		return fv, nil
+	}
+	if err == io.EOF {
+		if err := s.first.Close(); err != nil {
+			s.nextStream = nil
+			return nil, err
+		}
+		if s.nextStream == nil {
+			s.first = nil
+			return nil, io.EOF
+		}
+		s.first, err = s.nextStream.Open()
+		s.nextStream = nil
+		if err != nil {
+			return nil, err
+		}
+		fv, err := s.first.Read()
+		return fv, err
+	}
+	return nil, err
 }
