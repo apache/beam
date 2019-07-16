@@ -1,3 +1,18 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package exec
 
 import (
@@ -76,14 +91,14 @@ func TestDataSource_Iterators(t *testing.T) {
 		name       string
 		keys, vals []interface{}
 		Coder      *coder.Coder
-		driver     func(c *coder.Coder, dmw io.WriteCloser, ks, vs []interface{})
+		driver     func(c *coder.Coder, dmw io.WriteCloser, siwFn func() io.WriteCloser, ks, vs []interface{})
 	}{
 		{
 			name:  "beam:coder:iterable:v1-singleChunk",
 			keys:  []interface{}{int64(42), int64(53)},
 			vals:  []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)},
 			Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
-			driver: func(c *coder.Coder, dmw io.WriteCloser, ks, vs []interface{}) {
+			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []interface{}) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
 					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, dmw)
@@ -101,18 +116,44 @@ func TestDataSource_Iterators(t *testing.T) {
 			keys:  []interface{}{int64(42), int64(53)},
 			vals:  []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)},
 			Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
-			driver: func(c *coder.Coder, dmw io.WriteCloser, ks, vs []interface{}) {
+			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []interface{}) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
 					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, dmw)
 					kc.Encode(&FullValue{Elm: k}, dmw)
 
-					coder.EncodeInt32(-1, dmw) // Mark this as a multi-Chunk (though beam, runner says to use 0)
+					coder.EncodeInt32(-1, dmw) // Mark this as a multi-Chunk (though beam runner proto says to use 0)
 					for _, v := range vs {
 						coder.EncodeVarInt(1, dmw) // Number of elements in this chunk.
 						vc.Encode(&FullValue{Elm: v}, dmw)
 					}
 					coder.EncodeVarInt(0, dmw) // Terminate the multi-chunk for this key.
+				}
+				dmw.Close()
+			},
+		},
+		{
+			name:  "beam:coder:state_backed_iterable:v1",
+			keys:  []interface{}{int64(42), int64(53)},
+			vals:  []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)},
+			Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
+			driver: func(c *coder.Coder, dmw io.WriteCloser, swFn func() io.WriteCloser, ks, vs []interface{}) {
+				wc, kc, vc := extractCoders(c)
+				for _, k := range ks {
+					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, dmw)
+					kc.Encode(&FullValue{Elm: k}, dmw)
+					coder.EncodeInt32(-1, dmw)  // Mark as multi-chunk (though beam, runner says to use 0)
+					coder.EncodeVarInt(-1, dmw) // Mark subsequent chunks as "state backed"
+
+					token := []byte(tokenString)
+					coder.EncodeVarInt(int64(len(token)), dmw) // token.
+					dmw.Write(token)
+					// Each state stream needs to be a different writer, so get a new writer.
+					sw := swFn()
+					for _, v := range vs {
+						vc.Encode(&FullValue{Elm: v}, sw)
+					}
+					sw.Close()
 				}
 				dmw.Close()
 			},
@@ -132,10 +173,18 @@ func TestDataSource_Iterators(t *testing.T) {
 			}
 			dmr, dmw := io.Pipe()
 
-			go test.driver(source.Coder, dmw, test.keys, test.vals)
+			// Simulate individual state channels with pipes and a channel.
+			sRc := make(chan io.ReadCloser)
+			swFn := func() io.WriteCloser {
+				sr, sw := io.Pipe()
+				sRc <- sr
+				return sw
+			}
+			go test.driver(source.Coder, dmw, swFn, test.keys, test.vals)
 
 			constructAndExecutePlanWithContext(t, []Unit{out, source}, DataContext{
-				Data: &TestDataManager{R: dmr},
+				Data:  &TestDataManager{R: dmr},
+				State: &TestStateReader{Rc: sRc},
 			})
 			if len(out.CapturedInputs) == 0 {
 				t.Fatal("did not capture source output")
@@ -172,6 +221,16 @@ func (dm *TestDataManager) OpenRead(ctx context.Context, id StreamID) (io.ReadCl
 
 func (dm *TestDataManager) OpenWrite(ctx context.Context, id StreamID) (io.WriteCloser, error) {
 	return nil, nil
+}
+
+// TestSideInputReader simulates state reads using channels.
+type TestStateReader struct {
+	StateReader
+	Rc <-chan io.ReadCloser
+}
+
+func (si *TestStateReader) OpenIterable(ctx context.Context, id StreamID, key []byte) (io.ReadCloser, error) {
+	return <-si.Rc, nil
 }
 
 func constructAndExecutePlanWithContext(t *testing.T, us []Unit, dc DataContext) {

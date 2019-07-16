@@ -20,7 +20,7 @@ import (
 	"fmt"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
+	v1 "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -31,12 +31,13 @@ import (
 const (
 	// Model constants
 
-	urnBytesCoder         = "beam:coder:bytes:v1"
-	urnVarIntCoder        = "beam:coder:varint:v1"
-	urnLengthPrefixCoder  = "beam:coder:length_prefix:v1"
-	urnKVCoder            = "beam:coder:kv:v1"
-	urnIterableCoder      = "beam:coder:iterable:v1"
-	urnWindowedValueCoder = "beam:coder:windowed_value:v1"
+	urnBytesCoder               = "beam:coder:bytes:v1"
+	urnVarIntCoder              = "beam:coder:varint:v1"
+	urnLengthPrefixCoder        = "beam:coder:length_prefix:v1"
+	urnKVCoder                  = "beam:coder:kv:v1"
+	urnIterableCoder            = "beam:coder:iterable:v1"
+	urnStateBackedIterableCoder = "beam:coder:state_backed_iterable:v1"
+	urnWindowedValueCoder       = "beam:coder:windowed_value:v1"
 
 	urnGlobalWindow   = "beam:coder:global_window:v1"
 	urnIntervalWindow = "beam:coder:interval_window:v1"
@@ -175,8 +176,9 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 		if err != nil {
 			return nil, err
 		}
-		isGBK := elm.GetSpec().GetUrn() == urnIterableCoder
-		if isGBK {
+
+		switch elm.GetSpec().GetUrn() {
+		case urnIterableCoder, urnStateBackedIterableCoder:
 			id = elm.GetComponentCoderIds()[0]
 			kind = coder.CoGBK
 			root = typex.CoGBKType
@@ -352,6 +354,7 @@ func (b *CoderMarshaller) Add(c *coder.Coder) string {
 			value = b.internBuiltInCoder(urnLengthPrefixCoder, union)
 		}
 
+		// SDKs always provide iterableCoder to runners, but can receive StateBackedIterables in return.
 		stream := b.internBuiltInCoder(urnIterableCoder, value)
 		return b.internBuiltInCoder(urnKVCoder, comp[0], stream)
 
