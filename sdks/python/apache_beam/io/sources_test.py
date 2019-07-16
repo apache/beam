@@ -50,7 +50,7 @@ class LineSource(iobase.BoundedSource):
         start -= 1
         start += len(f.readline())
       current = start
-      line  = f.readline()
+      line = f.readline()
       while range_tracker.try_claim(current):
         if not line:
           return
