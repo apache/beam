@@ -46,6 +46,8 @@ class GenerateSequence(ptransform.PTransform):
 
     Note: Runners need to support translating Read operations in order to use
     this source. At the moment only the Flink Runner supports this.
+
+    Experimental; no backwards compatibility guarantees.
   """
 
   def __init__(self, start, stop=None,
