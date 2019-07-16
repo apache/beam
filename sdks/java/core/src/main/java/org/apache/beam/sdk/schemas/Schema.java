@@ -302,7 +302,7 @@ public class Schema implements Serializable {
     return equivalent(other, EquivalenceNullablePolicy.WEAKEN);
   }
 
-  /** Returns true if this Schema can be assigned to another Schema, igmoring nullable. * */
+  /** Returns true if this Schema can be assigned to another Schema, ignoring nullable. * */
   public boolean assignableToIgnoreNullable(Schema other) {
     return equivalent(other, EquivalenceNullablePolicy.IGNORE);
   }
