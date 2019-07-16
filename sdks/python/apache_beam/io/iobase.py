@@ -1465,6 +1465,7 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
     return SDFBoundedSourceDoFn(self.source)
 
   def expand(self, pbegin):
+    assert isinstance(pbegin, pvalue.PBegin)
     return (pbegin
             | core.Impulse()
             | core.ParDo(self._create_sdf_bounded_source_dofn()))

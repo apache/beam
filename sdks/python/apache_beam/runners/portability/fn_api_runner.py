@@ -339,13 +339,6 @@ class FnApiRunner(runner.PipelineRunner):
     MetricsEnvironment.set_metrics_supported(False)
     RuntimeValueProvider.set_runtime_options({})
 
-    # Setup "beam_fn_api" experiment options if lacked.
-    experiments = (options.view_as(pipeline_options.DebugOptions).experiments
-                   or [])
-    if not 'beam_fn_api' in experiments:
-      experiments.append('beam_fn_api')
-    options.view_as(pipeline_options.DebugOptions).experiments = experiments
-
     # This is sometimes needed if type checking is disabled
     # to enforce that the inputs (and outputs) of GroupByKey operations
     # are known to be KVs.
@@ -359,6 +352,8 @@ class FnApiRunner(runner.PipelineRunner):
     self._profiler_factory = profiler.Profile.factory_from_options(
         options.view_as(pipeline_options.ProfilingOptions))
 
+    experiments = (options.view_as(pipeline_options.DebugOptions).experiments
+                   or [])
     if 'use_sdf_bounded_source' in experiments:
       pipeline.replace_all(DataflowRunner._SDF_PTRANSFORM_OVERRIDES)
 
