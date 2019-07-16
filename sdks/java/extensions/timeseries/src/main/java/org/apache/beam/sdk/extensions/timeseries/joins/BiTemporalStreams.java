@@ -129,8 +129,7 @@ public class BiTemporalStreams {
 
       return l.apply(Flatten.pCollections())
           .apply(Window.into(FixedWindows.of(window)))
-          .apply(
-              ParDo.of(new StreamMatcher<>(input.getKeyCoder(), leftCoder, rightCoder)));
+          .apply(ParDo.of(new StreamMatcher<>(input.getKeyCoder(), leftCoder, rightCoder)));
     }
 
     public static class CreateStreamDataLeft<K, V1, V2>
@@ -147,7 +146,7 @@ public class BiTemporalStreams {
         o.output(
             KV.of(
                 c.element().getKey(),
-                new BiTemporalJoinResult<K,V1,V2>().setLeftData(c.element(), c.timestamp())));
+                new BiTemporalJoinResult<K, V1, V2>().setLeftData(c.element(), c.timestamp())));
       }
     }
 
@@ -164,7 +163,7 @@ public class BiTemporalStreams {
         o.output(
             KV.of(
                 c.element().getKey(),
-                new BiTemporalJoinResult<K,V1,V2>().setRightData(c.element(), c.timestamp())));
+                new BiTemporalJoinResult<K, V1, V2>().setRightData(c.element(), c.timestamp())));
       }
     }
 
@@ -210,7 +209,7 @@ public class BiTemporalStreams {
         this.dataKey = StateSpecs.value(keyCoder);
       }
 
-      private static <K, V1, V2> BiTemporalJoinResult <K,V1,V2>createMatch(
+      private static <K, V1, V2> BiTemporalJoinResult<K, V1, V2> createMatch(
           K key, List<TimestampedValue<V2>> right, TimestampedValue<V1> left, int idx) {
 
         BiTemporalJoinResult<K, V1, V2> m = new BiTemporalJoinResult<>();
