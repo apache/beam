@@ -575,6 +575,12 @@ class ReifyTest(unittest.TestCase):
                                   [GlobalWindow()])]
     with TestPipeline() as p:
       pc = p | beam.Create(l)
+      # Map(lambda x: x) PTransform is added after Create here, because when
+      # a PCollection of WindowedValues is created with Create PTransform,
+      # the windows are not assigned to it. Adding a Map forces the
+      # PCollection to go through a DoFn so that the PCollection consists of
+      # the elements with timestamps assigned to them instead of a PCollection
+      # of WindowedValue(element, timestamp, window).
       pc = pc | beam.Map(lambda x: x)
       reified_pc = pc | util.Reify.Window()
       assert_that(reified_pc, equal_to(expected), reify_windows=True)
