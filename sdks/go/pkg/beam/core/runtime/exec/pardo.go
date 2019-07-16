@@ -43,7 +43,7 @@ type ParDo struct {
 	ctx      context.Context
 	inv      *invoker
 
-	side  SideInputReader
+	side  StateReader
 	cache *cacheElm
 
 	status Status
@@ -93,7 +93,7 @@ func (n *ParDo) StartBundle(ctx context.Context, id string, data DataContext) er
 		return errors.Errorf("invalid status for pardo %v: %v, want Up", n.UID, n.status)
 	}
 	n.status = Active
-	n.side = data.SideInput
+	n.side = data.State
 	// Allocating contexts all the time is expensive, but we seldom re-write them,
 	// and never accept modified contexts from users, so we will cache them per-bundle
 	// per-unit, to avoid the constant allocation overhead.
