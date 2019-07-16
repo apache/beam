@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import argparse
+import json
 import logging
 from builtins import list
 from builtins import object
@@ -476,7 +477,16 @@ class GoogleCloudOptions(PipelineOptions):
                         action='store_true',
                         help='Update an existing streaming Cloud Dataflow job. '
                         'Experimental. '
-                        'See https://cloud.google.com/dataflow/pipelines/'
+                        'See https://cloud.google.com/dataflow/docs/guides/'
+                        'updating-a-pipeline')
+    parser.add_argument('--transform_name_mapping',
+                        default=None,
+                        type=json.loads,
+                        help='The transform mapping that maps the named '
+                        'transforms in your prior pipeline code to names '
+                        'in your replacement pipeline code.'
+                        'Experimental. '
+                        'See https://cloud.google.com/dataflow/docs/guides/'
                         'updating-a-pipeline')
     parser.add_argument('--enable_streaming_engine',
                         default=False,

@@ -23,6 +23,9 @@ import logging
 import unittest
 from builtins import object
 
+from hamcrest import assert_that
+from hamcrest import contains_string
+from hamcrest import only_contains
 from hamcrest.core.base_matcher import BaseMatcher
 
 from apache_beam.internal import pickler
@@ -332,6 +335,35 @@ class SetupTest(unittest.TestCase):
       errors = get_validator(case['on_success_matcher']).validate()
       self.assertEqual(
           self.check_errors_for_arguments(errors, case['errors']), [])
+
+  def test_transform_name_mapping_without_update(self):
+    options = ['--project=example:example',
+               '--staging_location=gs://foo/bar',
+               '--temp_location=gs://foo/bar',
+               '--transform_name_mapping={\"fromPardo\":\"toPardo\"}']
+
+    pipeline_options = PipelineOptions(options)
+    runner = MockRunners.DataflowRunner()
+    validator = PipelineOptionsValidator(pipeline_options, runner)
+    errors = validator.validate()
+    assert_that(errors, only_contains(
+        contains_string('Transform name mapping option is only useful when '
+                        '--update is specified')))
+
+  def test_transform_name_mapping_invalid_format(self):
+    options = ['--project=example:example',
+               '--staging_location=gs://foo/bar',
+               '--temp_location=gs://foo/bar',
+               '--update',
+               '--job_name=test',
+               '--transform_name_mapping={\"fromPardo\":123}']
+
+    pipeline_options = PipelineOptions(options)
+    runner = MockRunners.DataflowRunner()
+    validator = PipelineOptionsValidator(pipeline_options, runner)
+    errors = validator.validate()
+    assert_that(errors, only_contains(
+        contains_string('Invalid transform name mapping format.')))
 
 
 if __name__ == '__main__':

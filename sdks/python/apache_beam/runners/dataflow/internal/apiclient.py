@@ -404,7 +404,14 @@ class Job(object):
       self.proto.type = dataflow.Job.TypeValueValuesEnum.JOB_TYPE_BATCH
     if self.google_cloud_options.update:
       self.proto.replaceJobId = self.job_id_for_name(self.proto.name)
-
+      if self.google_cloud_options.transform_name_mapping:
+        self.proto.transformNameMapping = (
+            dataflow.Job.TransformNameMappingValue())
+        for _, (key, value) in enumerate(
+            self.google_cloud_options.transform_name_mapping.items()):
+          self.proto.transformNameMapping.additionalProperties.append(
+              dataflow.Job.TransformNameMappingValue
+              .AdditionalProperty(key=key, value=value))
     # Labels.
     if self.google_cloud_options.labels:
       self.proto.labels = dataflow.Job.LabelsValue()
