@@ -575,6 +575,7 @@ class ReifyTest(unittest.TestCase):
                                   [GlobalWindow()])]
     with TestPipeline() as p:
       pc = p | beam.Create(l)
+      pc = pc | beam.Map(lambda x: x)
       reified_pc = pc | util.Reify.Window()
       assert_that(reified_pc, equal_to(expected), reify_windows=True)
 
