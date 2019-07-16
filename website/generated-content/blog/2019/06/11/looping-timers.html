@@ -337,45 +337,52 @@ side-input into the FanOut DoFn.</p>
 
 <p>So how do timers help? Well let’s have a look at a new transform:</p>
 
+<p>Edit: Looping Timer State changed from Boolean to Long to allow for min value check.</p>
+
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">LoopingStatefulTimer</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;,</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="o">{</span>
 
-  <span class="n">Instant</span> <span class="n">stopTimerTime</span><span class="o">;</span>
+    <span class="n">Instant</span> <span class="n">stopTimerTime</span><span class="o">;</span>
 
-  <span class="n">LoopingStatefulTimer</span><span class="o">(</span><span class="n">Instant</span> <span class="n">stopTime</span><span class="o">){</span>
-    <span class="k">this</span><span class="o">.</span><span class="na">stopTimerTime</span> <span class="o">=</span> <span class="n">stopTime</span><span class="o">;</span>
-  <span class="o">}</span>
+    <span class="n">LoopingStatefulTimer</span><span class="o">(</span><span class="n">Instant</span> <span class="n">stopTime</span><span class="o">){</span>
+      <span class="k">this</span><span class="o">.</span><span class="na">stopTimerTime</span> <span class="o">=</span> <span class="n">stopTime</span><span class="o">;</span>
+    <span class="o">}</span>
 
-  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"timerRunning"</span><span class="o">)</span>
-    <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Boolean</span><span class="o">&gt;&gt;</span> <span class="n">timerRunning</span> <span class="o">=</span>
-      <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">(</span><span class="n">BooleanCoder</span><span class="o">.</span><span class="na">of</span><span class="o">());</span>
+    <span class="nd">@StateId</span><span class="o">(</span><span class="s">"loopingTimerTime"</span><span class="o">)</span>
+    <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">loopingTimerTime</span> <span class="o">=</span>
+        <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">(</span><span class="n">BigEndianLongCoder</span><span class="o">.</span><span class="na">of</span><span class="o">());</span>
 
-  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"key"</span><span class="o">)</span>
+    <span class="nd">@StateId</span><span class="o">(</span><span class="s">"key"</span><span class="o">)</span>
     <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">key</span> <span class="o">=</span>
-      <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">(</span><span class="n">StringUtf8Coder</span><span class="o">.</span><span class="na">of</span><span class="o">());</span>
+        <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">(</span><span class="n">StringUtf8Coder</span><span class="o">.</span><span class="na">of</span><span class="o">());</span>
 
-  <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"loopingTimer"</span><span class="o">)</span>
+    <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"loopingTimer"</span><span class="o">)</span>
     <span class="kd">private</span> <span class="kd">final</span> <span class="n">TimerSpec</span> <span class="n">loopingTimer</span> <span class="o">=</span>
-      <span class="n">TimerSpecs</span><span class="o">.</span><span class="na">timer</span><span class="o">(</span><span class="n">TimeDomain</span><span class="o">.</span><span class="na">EVENT_TIME</span><span class="o">);</span>
+        <span class="n">TimerSpecs</span><span class="o">.</span><span class="na">timer</span><span class="o">(</span><span class="n">TimeDomain</span><span class="o">.</span><span class="na">EVENT_TIME</span><span class="o">);</span>
 
-  <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">,</span> <span class="nd">@StateId</span><span class="o">(</span><span class="s">"key"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">key</span><span class="o">,</span>
-        <span class="nd">@StateId</span><span class="o">(</span><span class="s">"timerRunning"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Boolean</span><span class="o">&gt;</span> <span class="n">timerRunning</span><span class="o">,</span>
+    <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">,</span> <span class="nd">@StateId</span><span class="o">(</span><span class="s">"key"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">key</span><span class="o">,</span>
+        <span class="nd">@StateId</span><span class="o">(</span><span class="s">"loopingTimerTime"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;</span> <span class="n">loopingTimerTime</span><span class="o">,</span>
         <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"loopingTimer"</span><span class="o">)</span> <span class="n">Timer</span> <span class="n">loopingTimer</span><span class="o">)</span> <span class="o">{</span>
 
-    <span class="c1">// If the timer has been set already, do not reset</span>
-    <span class="k">if</span> <span class="o">(</span><span class="n">timerRunning</span><span class="o">.</span><span class="na">read</span><span class="o">()</span> <span class="o">==</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
-      <span class="n">loopingTimer</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">timestamp</span><span class="o">().</span><span class="na">plus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">)));</span>
-      <span class="n">timerRunning</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
+      <span class="c1">// If the timer has been set already, or if the value is smaller than</span>
+      <span class="c1">// the current element + window duration, do not set</span>
+      <span class="n">Long</span> <span class="n">currentTimerValue</span> <span class="o">=</span> <span class="n">loopingTimerTime</span><span class="o">.</span><span class="na">read</span><span class="o">();</span>
+      <span class="n">Instant</span> <span class="n">nextTimerTimeBasedOnCurrentElement</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="na">timestamp</span><span class="o">().</span><span class="na">plus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">));</span>
+
+      <span class="k">if</span> <span class="o">(</span><span class="n">currentTimerValue</span> <span class="o">==</span> <span class="kc">null</span> <span class="o">||</span> <span class="n">currentTimerValue</span> <span class="o">&gt;</span>
+          <span class="n">nextTimerTimeBasedOnCurrentElement</span><span class="o">.</span><span class="na">getMillis</span><span class="o">())</span> <span class="o">{</span>
+        <span class="n">loopingTimer</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">nextTimerTimeBasedOnCurrentElement</span><span class="o">);</span>
+        <span class="n">loopingTimerTime</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="n">nextTimerTimeBasedOnCurrentElement</span><span class="o">.</span><span class="na">getMillis</span><span class="o">());</span>
+      <span class="o">}</span>
+
+      <span class="c1">// We need this value so that we can output a value for the correct key in OnTimer</span>
+      <span class="k">if</span> <span class="o">(</span><span class="n">key</span><span class="o">.</span><span class="na">read</span><span class="o">()</span> <span class="o">==</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+        <span class="n">key</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">getKey</span><span class="o">());</span>
+      <span class="o">}</span>
+
+      <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
     <span class="o">}</span>
 
-    <span class="c1">// We need this value so that we can output a value for the correct key in OnTimer</span>
-    <span class="k">if</span> <span class="o">(</span><span class="n">key</span><span class="o">.</span><span class="na">read</span><span class="o">()</span> <span class="o">==</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
-      <span class="n">key</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">getKey</span><span class="o">());</span>
-    <span class="o">}</span>
-
-    <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
-  <span class="o">}</span>
-
-  <span class="nd">@OnTimer</span><span class="o">(</span><span class="s">"loopingTimer"</span><span class="o">)</span>
+    <span class="nd">@OnTimer</span><span class="o">(</span><span class="s">"loopingTimer"</span><span class="o">)</span>
     <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onTimer</span><span class="o">(</span>
         <span class="n">OnTimerContext</span> <span class="n">c</span><span class="o">,</span>
         <span class="nd">@StateId</span><span class="o">(</span><span class="s">"key"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">key</span><span class="o">,</span>
@@ -387,14 +394,14 @@ side-input into the FanOut DoFn.</p>
       <span class="c1">// If we do not put in a “time to live” value, then the timer would loop forever</span>
       <span class="n">Instant</span> <span class="n">nextTimer</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="na">timestamp</span><span class="o">().</span><span class="na">plus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">));</span>
       <span class="k">if</span> <span class="o">(</span><span class="n">nextTimer</span><span class="o">.</span><span class="na">isBefore</span><span class="o">(</span><span class="n">stopTimerTime</span><span class="o">))</span> <span class="o">{</span>
-          <span class="n">loopingTimer</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">nextTimer</span><span class="o">);</span>
+        <span class="n">loopingTimer</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">nextTimer</span><span class="o">);</span>
       <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
         <span class="n">LOG</span><span class="o">.</span><span class="na">info</span><span class="o">(</span>
-          <span class="s">"Timer not being set as exceeded Stop Timer value {} "</span><span class="o">,</span>
-          <span class="n">stopTimerTime</span><span class="o">);</span>
+            <span class="s">"Timer not being set as exceeded Stop Timer value {} "</span><span class="o">,</span>
+            <span class="n">stopTimerTime</span><span class="o">);</span>
       <span class="o">}</span>
-   <span class="o">}</span>
-<span class="o">}</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
 </code></pre>
 </div>
 
