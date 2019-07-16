@@ -37,6 +37,7 @@ dependencies {
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(":sdks:java:io:synthetic")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
   // For testing Cross-language transforms
   testCompile project(":runners:core-construction-java")
   testCompile library.java.hamcrest_core
