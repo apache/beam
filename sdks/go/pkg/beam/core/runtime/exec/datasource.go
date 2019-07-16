@@ -62,6 +62,7 @@ func (n *DataSource) StartBundle(ctx context.Context, id string, data DataContex
 	return n.Out.StartBundle(ctx, id, data)
 }
 
+// Process opens the data source, reads and decodes data, kicking off element processing.
 func (n *DataSource) Process(ctx context.Context) error {
 	r, err := n.source.OpenRead(ctx, n.SID)
 	if err != nil {
@@ -72,115 +73,105 @@ func (n *DataSource) Process(ctx context.Context) error {
 	c := coder.SkipW(n.Coder)
 	wc := MakeWindowDecoder(n.Coder.Window)
 
+	var cp ElementDecoder    // Decoder for the primary element or the key in CoGBKs.
+	var cvs []ElementDecoder // Decoders for each value stream in CoGBKs.
+
 	switch {
 	case coder.IsCoGBK(c):
-		ck := MakeElementDecoder(c.Components[0])
-		cv := MakeElementDecoder(c.Components[1])
+		cp = MakeElementDecoder(c.Components[0])
 
-		for {
-			if n.IncrementCountAndCheckSplit(ctx) {
+		// TODO(BEAM-490): Support multiple value streams (coder components) with
+		// with CoGBK.
+		cvs = []ElementDecoder{MakeElementDecoder(c.Components[1])}
+	default:
+		cp = MakeElementDecoder(c)
+	}
+
+	for {
+		if n.IncrementCountAndCheckSplit(ctx) {
+			return nil
+		}
+		ws, t, err := DecodeWindowedValueHeader(wc, r)
+		if err != nil {
+			if err == io.EOF {
 				return nil
 			}
-			ws, t, err := DecodeWindowedValueHeader(wc, r)
-			if err != nil {
-				if err == io.EOF {
-					return nil
-				}
-				return errors.Wrap(err, "source failed")
-			}
-
-			// Decode key
-
-			key, err := ck.Decode(r)
-			if err != nil {
-				return errors.Wrap(err, "source decode failed")
-			}
-			key.Timestamp = t
-			key.Windows = ws
-
-			// TODO(herohde) 4/30/2017: the State API will be handle re-iterations
-			// and only "small" value streams would be inline. Presumably, that
-			// would entail buffering the whole stream. We do that for now.
-
-			var buf []FullValue
-
-			size, err := coder.DecodeInt32(r)
-			if err != nil {
-				return errors.Wrap(err, "stream size decoding failed")
-			}
-
-			if size > -1 {
-				// Single chunk stream.
-
-				// log.Printf("Fixed size=%v", size)
-				for i := int32(0); i < size; i++ {
-					value, err := cv.Decode(r)
-					if err != nil {
-						return errors.Wrap(err, "stream value decode failed")
-					}
-					buf = append(buf, *value)
-				}
-			} else {
-				// Multi-chunked stream.
-
-				for {
-					chunk, err := coder.DecodeVarUint64(r)
-					if err != nil {
-						return errors.Wrap(err, "stream chunk size decoding failed")
-					}
-
-					// log.Printf("Chunk size=%v", chunk)
-
-					if chunk == 0 {
-						break
-					}
-
-					for i := uint64(0); i < chunk; i++ {
-						value, err := cv.Decode(r)
-						if err != nil {
-							return errors.Wrap(err, "stream value decode failed")
-						}
-						buf = append(buf, *value)
-					}
-				}
-			}
-
-			values := &FixedReStream{Buf: buf}
-			if err := n.Out.ProcessElement(ctx, key, values); err != nil {
-				return err
-			}
+			return errors.Wrap(err, "source failed")
 		}
 
-	default:
-		ec := MakeElementDecoder(c)
+		// Decode key or parallel element.
+		pe, err := cp.Decode(r)
+		if err != nil {
+			return errors.Wrap(err, "source decode failed")
+		}
+		pe.Timestamp = t
+		pe.Windows = ws
 
-		for {
-			if n.IncrementCountAndCheckSplit(ctx) {
-				return nil
-			}
-
-			ws, t, err := DecodeWindowedValueHeader(wc, r)
+		var valReStreams []ReStream
+		for _, cv := range cvs {
+			values, err := n.makeReStream(ctx, pe, cv, r)
 			if err != nil {
-				if err == io.EOF {
-					return nil
-				}
-				return errors.Wrap(err, "source failed")
-			}
-
-			elm, err := ec.Decode(r)
-			if err != nil {
-				return errors.Wrap(err, "source decode failed")
-			}
-			elm.Timestamp = t
-			elm.Windows = ws
-
-			// log.Printf("READ: %v %v", elm.Key.Type(), elm.Key.Interface())
-
-			if err := n.Out.ProcessElement(ctx, elm); err != nil {
 				return err
 			}
+			valReStreams = append(valReStreams, values)
+		}
+
+		if err := n.Out.ProcessElement(ctx, pe, valReStreams...); err != nil {
+			return err
 		}
 	}
+}
+
+func (n *DataSource) makeReStream(ctx context.Context, key *FullValue, cv ElementDecoder, r io.ReadCloser) (ReStream, error) {
+	size, err := coder.DecodeInt32(r)
+	if err != nil {
+		return nil, errors.Wrap(err, "stream size decoding failed")
+	}
+
+	switch {
+	case size >= 0:
+		// Single chunk streams are fully read in and buffered in memory.
+		var buf []FullValue
+		buf, err = readStreamToBuffer(cv, r, int64(size), buf)
+		if err != nil {
+			return nil, err
+		}
+		return &FixedReStream{Buf: buf}, nil
+	case size == -1: // Shouldn't this be 0?
+		// Multi-chunked stream.
+		var buf []FullValue
+		for {
+			chunk, err := coder.DecodeVarInt(r)
+			if err != nil {
+				return nil, errors.Wrap(err, "stream chunk size decoding failed")
+			}
+			// All done, escape out.
+			switch {
+			case chunk == 0: // End of stream, return buffer.
+				return &FixedReStream{Buf: buf}, nil
+			case chunk > 0: // Non-zero chunk, read that many elements from the stream, and buffer them.
+				buf, err = readStreamToBuffer(cv, r, chunk, buf)
+				if err != nil {
+					return nil, err
+				}
+			default:
+				return nil, errors.Errorf("multi-chunk stream with invalid chunk size of %d", chunk)
+			}
+		}
+	default:
+		return nil, errors.Errorf("received stream with marker size of %d", size)
+	}
+}
+
+func readStreamToBuffer(cv ElementDecoder, r io.ReadCloser, size int64, buf []FullValue) ([]FullValue, error) {
+	for i := int64(0); i < size; i++ {
+		value, err := cv.Decode(r)
+		if err != nil {
+			return nil, errors.Wrap(err, "stream value decode failed")
+		}
+		buf = append(buf, *value)
+	}
+	return buf, nil
 }
 
 func (n *DataSource) FinishBundle(ctx context.Context) error {
