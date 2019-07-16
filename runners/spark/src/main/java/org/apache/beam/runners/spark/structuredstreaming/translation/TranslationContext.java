@@ -37,6 +37,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.function.ForeachFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.ForeachWriter;
@@ -210,7 +211,9 @@ public class TranslationContext {
           } else {
             // apply a dummy fn just to apply for each action that will trigger the pipeline run in
             // spark
-            dataset.foreachPartition(t -> {});
+            // TODO: foreachPartition is too lazy to materialize everything.  Check out / compare
+            // foreach or another technique.  StructuredStreamingPipelineStateTest can help validate
+            dataset.foreach((ForeachFunction) t -> {});
           }
         }
       }
