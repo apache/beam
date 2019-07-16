@@ -96,7 +96,8 @@ public class DoFnSignatures {
               Parameter.PaneInfoParameter.class,
               Parameter.PipelineOptionsParameter.class,
               Parameter.TimerParameter.class,
-              Parameter.StateParameter.class);
+              Parameter.StateParameter.class,
+              Parameter.SideInputParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
@@ -896,6 +897,8 @@ public class DoFnSignatures {
       return Parameter.timestampParameter();
     } else if (rawType.equals(TimeDomain.class)) {
       return Parameter.timeDomainParameter();
+    } else if (hasSideInputAnnotation(param.getAnnotations())) {
+      return Parameter.sideInputParameter();
     } else if (rawType.equals(PaneInfo.class)) {
       return Parameter.paneInfoParameter();
     } else if (rawType.equals(DoFn.ProcessContext.class)) {
@@ -1060,6 +1063,10 @@ public class DoFnSignatures {
 
   private static boolean hasTimestampAnnotation(List<Annotation> annotations) {
     return annotations.stream().anyMatch(a -> a.annotationType().equals(DoFn.Timestamp.class));
+  }
+
+  private static boolean hasSideInputAnnotation(List<Annotation> annotations) {
+    return annotations.stream().anyMatch(a -> a.annotationType().equals(DoFn.SideInput.class));
   }
 
   @Nullable

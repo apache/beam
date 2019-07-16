@@ -62,6 +62,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimeDomain
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimestampParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -110,10 +111,12 @@ public class DoFnSignaturesTest {
                   BoundedWindow window,
                   PaneInfo paneInfo,
                   OutputReceiver<String> receiver,
-                  PipelineOptions options) {}
+                  PipelineOptions options,
+                  @SideInput("tag1") String input1,
+                  @SideInput("tag2") Integer input2) {}
             }.getClass());
 
-    assertThat(sig.processElement().extraParameters().size(), equalTo(6));
+    assertThat(sig.processElement().extraParameters().size(), equalTo(8));
     assertThat(sig.processElement().extraParameters().get(0), instanceOf(ElementParameter.class));
     assertThat(sig.processElement().extraParameters().get(1), instanceOf(TimestampParameter.class));
     assertThat(sig.processElement().extraParameters().get(2), instanceOf(WindowParameter.class));
@@ -122,6 +125,8 @@ public class DoFnSignaturesTest {
         sig.processElement().extraParameters().get(4), instanceOf(OutputReceiverParameter.class));
     assertThat(
         sig.processElement().extraParameters().get(5), instanceOf(PipelineOptionsParameter.class));
+    assertThat(sig.processElement().extraParameters().get(6), instanceOf(SideInputParameter.class));
+      assertThat(sig.processElement().extraParameters().get(7), instanceOf(SideInputParameter.class));
   }
 
   @Test
