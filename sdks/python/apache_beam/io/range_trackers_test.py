@@ -118,8 +118,8 @@ class OffsetRangeTrackerTest(unittest.TestCase):
     # offset.
     self.assertFalse(tracker.try_claim(150))
     self.assertFalse(tracker.try_claim(151))
-    # Should accept non-splitpoint records starting after stop offset.
     tracker.set_current_position(135)
+    # Should accept non-splitpoint records starting after stop offset.
     tracker.set_current_position(152)
     tracker.set_current_position(160)
     tracker.set_current_position(171)
