@@ -60,6 +60,21 @@ class BagStateSpec(StateSpec):
             element_coder_id=context.coders.get_id(self.coder)))
 
 
+class SetStateSpec(StateSpec):
+  """Specification for a user DoFn Set State cell"""
+
+  def __init__(self, name, coder):
+    assert isinstance(name, str)
+    assert isinstance(coder, Coder)
+    self.name = name
+    self.coder = coder
+
+  def to_runner_api(self, context):
+    return beam_runner_api_pb2.StateSpec(
+        set_spec=beam_runner_api_pb2.SetStateSpec(
+            element_coder_id=context.coders.get_id(self.coder)))
+
+
 class CombiningValueStateSpec(StateSpec):
   """Specification for a user DoFn combining value state cell."""
 
@@ -264,6 +279,8 @@ class RuntimeState(object):
     elif isinstance(state_spec, CombiningValueStateSpec):
       return CombiningValueRuntimeState(state_spec, state_tag,
                                         current_value_accessor)
+    elif isinstance(state_spec, SetStateSpec):
+      return SetRuntimeState(state_spec, state_tag, current_value_accessor)
     else:
       raise ValueError('Invalid state spec: %s' % state_spec)
 
@@ -308,6 +325,40 @@ class BagRuntimeState(RuntimeState):
     self._cleared = True
     self._cached_value = []
     self._new_values = []
+
+
+class SetRuntimeState(RuntimeState):
+  """Set state interface object passed to user code."""
+
+  def __init__(self, state_spec, state_tag, current_value_accessor):
+    super(SetRuntimeState, self).__init__(
+        state_spec, state_tag, current_value_accessor)
+    # TODO: What is current_value_accessor? where does cached value is stored?
+
+    self._current_accumulator = UNREAD_VALUE
+    self._modified = False
+
+  def _read_initial_value(self):
+    if self._current_accumulator is UNREAD_VALUE:
+      self._current_accumulator = {
+          self._decode(a) for a in self._current_value_accessor()
+      }
+
+  def read(self):
+    self._read_initial_value()
+    return self._current_accumulator
+
+  def add(self, value):
+    self._read_initial_value()
+    self._modified = True
+    self._current_accumulator.add(value)
+
+  def clear(self):
+    self._current_accumulator = set()
+    self._modified = True
+
+  def is_modified(self):
+    return self._modified
 
 
 class CombiningValueRuntimeState(RuntimeState):

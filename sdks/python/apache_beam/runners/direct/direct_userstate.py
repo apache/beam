@@ -20,6 +20,7 @@ from __future__ import absolute_import
 
 from apache_beam.transforms import userstate
 from apache_beam.transforms.trigger import _ListStateTag
+from apache_beam.transforms.trigger import _SetStateTag
 
 
 class DirectUserStateContext(userstate.UserStateContext):
@@ -43,6 +44,8 @@ class DirectUserStateContext(userstate.UserStateContext):
         state_tag = _ListStateTag(state_key)
       elif isinstance(state_spec, userstate.CombiningValueStateSpec):
         state_tag = _ListStateTag(state_key)
+      elif isinstance(state_spec, userstate.SetStateSpec):
+        state_tag = _SetStateTag(state_key)
       else:
         raise ValueError('Invalid state spec: %s' % state_spec)
       self.state_tags[state_spec] = state_tag
@@ -93,6 +96,13 @@ class DirectUserStateContext(userstate.UserStateContext):
           state.add_state(
               window, state_tag,
               state_spec.coder.encode(runtime_state._current_accumulator))
+      elif isinstance(state_spec, userstate.SetStateSpec):
+        if runtime_state.is_modified():
+          state.clear_state(window, state_tag)
+          for new_value in runtime_state._current_accumulator:
+            # TODO: Need to confirm that this logic is fine.
+            state.add_state(
+                window, state_tag, state_spec.coder.encode(new_value))
       else:
         raise ValueError('Invalid state spec: %s' % state_spec)
 

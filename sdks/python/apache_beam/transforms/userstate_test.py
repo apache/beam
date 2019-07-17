@@ -41,6 +41,7 @@ from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import CombiningValueStateSpec
+from apache_beam.transforms.userstate import SetStateSpec
 from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.userstate import get_dofn_specs
 from apache_beam.transforms.userstate import is_stateful_dofn
@@ -114,7 +115,13 @@ class InterfaceTest(unittest.TestCase):
       CombiningValueStateSpec(123, VarIntCoder(), TopCombineFn(10))
     with self.assertRaises(TypeError):
       CombiningValueStateSpec('statename', VarIntCoder(), object())
-    # BagStateSpec('bag', )
+    SetStateSpec('setstatename', VarIntCoder())
+
+    with self.assertRaises(AssertionError):
+      SetStateSpec(123, VarIntCoder())
+    with self.assertRaises(AssertionError):
+      SetStateSpec('setstatename', object())
+
     # TODO: add more spec tests
     with self.assertRaises(ValueError):
       DoFn.TimerParam(BagStateSpec('elements', BytesCoder()))
@@ -409,6 +416,82 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
       _ = (p
            | test_stream
            | beam.ParDo(BagStateClearingStatefulDoFn())
+           | beam.ParDo(self.record_dofn()))
+
+    self.assertEqual(
+        ['extra'],
+        StatefulDoFnOnDirectRunnerTest.all_records)
+
+  def test_simple_set_stateful_dofn(self):
+    class SimpleTestSetStatefulDoFn(DoFn):
+      BUFFER_STATE = SetStateSpec('buffer', BytesCoder())
+      EXPIRY_TIMER = TimerSpec('expiry', TimeDomain.WATERMARK)
+
+      def process(self, element, buffer=DoFn.StateParam(BUFFER_STATE),
+                  timer1=DoFn.TimerParam(EXPIRY_TIMER)):
+        unused_key, value = element
+        buffer.add(str(value).encode('latin1'))
+        timer1.set(20)
+
+      @on_timer(EXPIRY_TIMER)
+      def expiry_callback(self, buffer=DoFn.StateParam(BUFFER_STATE)):
+        yield b''.join(sorted(buffer.read()))
+
+    with TestPipeline() as p:
+      test_stream = (TestStream()
+                     .advance_watermark_to(10)
+                     .add_elements([1, 2, 3])
+                     .add_elements([2])
+                     .advance_watermark_to(24))
+      (p
+       | test_stream
+       | beam.Map(lambda x: ('mykey', x))
+       | beam.ParDo(SimpleTestSetStatefulDoFn())
+       | beam.ParDo(self.record_dofn()))
+
+    # Two firings should occur: once after element 3 since the timer should
+    # fire after the watermark passes time 20, and another time after element
+    # 4, since the timer issued at that point should fire immediately.
+    self.assertEqual(
+        [b'123'],
+        StatefulDoFnOnDirectRunnerTest.all_records)
+
+  def test_clearing_set_state(self):
+    class SetStateClearingStatefulDoFn(beam.DoFn):
+
+      SET_STATE = SetStateSpec('buffer', StrUtf8Coder())
+      EMIT_TIMER = TimerSpec('emit_timer', TimeDomain.WATERMARK)
+      CLEAR_TIMER = TimerSpec('clear_timer', TimeDomain.WATERMARK)
+
+      def process(self,
+                  element,
+                  set_state=beam.DoFn.StateParam(SET_STATE),
+                  emit_timer=beam.DoFn.TimerParam(EMIT_TIMER),
+                  clear_timer=beam.DoFn.TimerParam(CLEAR_TIMER)):
+        value = element[1]
+        set_state.add(value)
+        clear_timer.set(100)
+        emit_timer.set(1000)
+
+      @on_timer(EMIT_TIMER)
+      def emit_values(self, bag_state=beam.DoFn.StateParam(SET_STATE)):
+        for value in bag_state.read():
+          yield value
+        yield 'extra'
+
+      @on_timer(CLEAR_TIMER)
+      def clear_values(self, bag_state=beam.DoFn.StateParam(SET_STATE)):
+        bag_state.clear()
+
+    with TestPipeline() as p:
+      test_stream = (TestStream()
+                     .advance_watermark_to(0)
+                     .add_elements([('key1', 'value1')])
+                     .advance_watermark_to(100))
+
+      _ = (p
+           | test_stream
+           | beam.ParDo(SetStateClearingStatefulDoFn())
            | beam.ParDo(self.record_dofn()))
 
     self.assertEqual(
