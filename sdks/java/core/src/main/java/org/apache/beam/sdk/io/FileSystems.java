@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verify;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
@@ -348,6 +349,9 @@ public class FileSystems {
               .filter(matchResult -> !matchResult.status().equals(Status.NOT_FOUND))
               .transformAndConcat(
                   new Function<MatchResult, Iterable<Metadata>>() {
+                    @SuppressFBWarnings(
+                        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+                        justification = "https://github.com/google/guava/issues/920")
                     @Nonnull
                     @Override
                     public Iterable<Metadata> apply(@Nonnull MatchResult input) {
@@ -362,6 +366,9 @@ public class FileSystems {
                   })
               .transform(
                   new Function<Metadata, ResourceId>() {
+                    @SuppressFBWarnings(
+                        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+                        justification = "https://github.com/google/guava/issues/920")
                     @Nonnull
                     @Override
                     public ResourceId apply(@Nonnull Metadata input) {

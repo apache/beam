@@ -35,9 +35,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 class ConstantAvroDestination<UserT, OutputT>
     extends DynamicAvroDestinations<UserT, Void, OutputT> {
   private static class SchemaFunction implements Serializable, Function<String, Schema> {
-    @Nullable
     @Override
-    public Schema apply(@Nullable String input) {
+    public Schema apply(String input) {
       return new Schema.Parser().parse(input);
     }
   }

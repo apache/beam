@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -31,6 +32,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagBag;
@@ -354,8 +356,11 @@ class WindmillStateReader {
       this.elemCoder = elemCoder;
     }
 
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public Iterable<T> apply(ValuesAndContPosition<T> valuesAndContPosition) {
+    public Iterable<T> apply(@Nonnull ValuesAndContPosition<T> valuesAndContPosition) {
       if (valuesAndContPosition.continuationPosition == null) {
         // Number of values is small enough Windmill sent us the entire bag in one response.
         reader = null;

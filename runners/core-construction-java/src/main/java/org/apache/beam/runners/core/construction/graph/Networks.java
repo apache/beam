@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction.graph;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -32,6 +33,7 @@ import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
 import java.util.function.Function;
+import javax.annotation.Nonnull;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
@@ -224,8 +226,11 @@ public class Networks {
 
     Ordering<NodeT> maximumOrdering =
         new Ordering<NodeT>() {
+          @SuppressFBWarnings(
+              value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+              justification = "https://github.com/google/guava/issues/920")
           @Override
-          public int compare(NodeT t0, NodeT t1) {
+          public int compare(@Nonnull NodeT t0, @Nonnull NodeT t1) {
             return (network.outDegree(t0) - network.inDegree(t0))
                 - (network.outDegree(t1) - network.inDegree(t1));
           }

@@ -21,6 +21,7 @@ import static java.util.Arrays.asList;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
@@ -51,6 +52,9 @@ public class ReflectHelpers {
   /** A {@link Function} that turns a method into a simple method signature. */
   public static final Function<Method, String> METHOD_FORMATTER =
       new Function<Method, String>() {
+        @SuppressFBWarnings(
+            value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+            justification = "https://github.com/google/guava/issues/920")
         @Override
         public String apply(@Nonnull Method input) {
           String parameterTypes =
@@ -64,6 +68,9 @@ public class ReflectHelpers {
   /** A {@link Function} that turns a method into the declaring class + method signature. */
   public static final Function<Method, String> CLASS_AND_METHOD_FORMATTER =
       new Function<Method, String>() {
+        @SuppressFBWarnings(
+            value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+            justification = "https://github.com/google/guava/issues/920")
         @Override
         public String apply(@Nonnull Method input) {
           return String.format(
@@ -91,6 +98,9 @@ public class ReflectHelpers {
   /** A {@link Function} that formats types. */
   public static final Function<Type, String> TYPE_SIMPLE_DESCRIPTION =
       new Function<Type, String>() {
+        @SuppressFBWarnings(
+            value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+            justification = "https://github.com/google/guava/issues/920")
         @Override
         @Nullable
         public String apply(@Nonnull Type input) {

@@ -24,6 +24,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.beans.BeanInfo;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
@@ -1072,6 +1073,9 @@ public class PipelineOptionsFactory {
               FluentIterable.from(gettersWithTheAnnotation)
                   .transformAndConcat(
                       new Function<Method, Iterable<? extends Annotation>>() {
+                        @SuppressFBWarnings(
+                            value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+                            justification = "https://github.com/google/guava/issues/920")
                         @Nonnull
                         @Override
                         public Iterable<? extends Annotation> apply(@Nonnull Method method) {
@@ -1088,6 +1092,9 @@ public class PipelineOptionsFactory {
                 FluentIterable.from(gettersWithTheAnnotation)
                     .transformAndConcat(
                         new Function<Method, Iterable<String>>() {
+                          @SuppressFBWarnings(
+                              value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+                              justification = "https://github.com/google/guava/issues/920")
                           @Nonnull
                           @Override
                           public Iterable<String> apply(final @Nonnull Method method) {
@@ -1095,6 +1102,10 @@ public class PipelineOptionsFactory {
                                 .filter(annotationPredicates.forAnnotation)
                                 .transform(
                                     new Function<Annotation, String>() {
+                                      @SuppressFBWarnings(
+                                          value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+                                          justification =
+                                              "https://github.com/google/guava/issues/920")
                                       @Nonnull
                                       @Override
                                       public String apply(@Nonnull Annotation annotation) {
@@ -1448,8 +1459,11 @@ public class PipelineOptionsFactory {
   private static class ReturnTypeFetchingFunction implements Function<Method, Class<?>> {
     static final ReturnTypeFetchingFunction INSTANCE = new ReturnTypeFetchingFunction();
 
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public Class<?> apply(Method input) {
+    public Class<?> apply(@Nonnull Method input) {
       return input.getReturnType();
     }
   }
@@ -1458,8 +1472,11 @@ public class PipelineOptionsFactory {
   private static class MethodToDeclaringClassFunction implements Function<Method, Class<?>> {
     static final MethodToDeclaringClassFunction INSTANCE = new MethodToDeclaringClassFunction();
 
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public Class<?> apply(Method input) {
+    public Class<?> apply(@Nonnull Method input) {
       return input.getDeclaringClass();
     }
   }

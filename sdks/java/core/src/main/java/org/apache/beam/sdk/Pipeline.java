@@ -21,11 +21,13 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.transform;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -664,8 +666,11 @@ public class Pipeline {
       this.instances = instancePerName;
     }
 
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public String apply(final Map.Entry<String, Collection<PTransform<?, ?>>> input) {
+    public String apply(@Nonnull final Map.Entry<String, Collection<PTransform<?, ?>>> input) {
       final Collection<PTransform<?, ?>> values = instances.get(input.getKey());
       return "- name="
           + input.getKey()
@@ -676,15 +681,21 @@ public class Pipeline {
 
   private static class KeysExtractor
       implements Function<Map.Entry<String, Collection<PTransform<?, ?>>>, String> {
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public String apply(final Map.Entry<String, Collection<PTransform<?, ?>>> input) {
+    public String apply(@Nonnull final Map.Entry<String, Collection<PTransform<?, ?>>> input) {
       return input.getKey();
     }
   }
 
   private static class IsUnique<K, V> implements Predicate<Map.Entry<K, Collection<V>>> {
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public boolean apply(final Map.Entry<K, Collection<V>> input) {
+    public boolean apply(@Nonnull final Map.Entry<K, Collection<V>> input) {
       return input != null && input.getValue().size() == 1;
     }
   }

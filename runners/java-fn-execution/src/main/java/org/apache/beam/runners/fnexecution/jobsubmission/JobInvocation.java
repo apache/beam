@@ -88,7 +88,7 @@ public class JobInvocation {
         invocationFuture,
         new FutureCallback<PipelineResult>() {
           @Override
-          public void onSuccess(@Nullable PipelineResult pipelineResult) {
+          public void onSuccess(PipelineResult pipelineResult) {
             if (pipelineResult != null) {
               switch (pipelineResult.getState()) {
                 case DONE:
@@ -150,7 +150,7 @@ public class JobInvocation {
           invocationFuture,
           new FutureCallback<PipelineResult>() {
             @Override
-            public void onSuccess(@Nullable PipelineResult pipelineResult) {
+            public void onSuccess(PipelineResult pipelineResult) {
               // Do not cancel when we are already done.
               if (pipelineResult != null
                   && pipelineResult.getState() != PipelineResult.State.DONE) {

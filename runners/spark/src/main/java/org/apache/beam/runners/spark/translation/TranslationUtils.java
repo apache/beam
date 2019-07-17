@@ -17,11 +17,13 @@
  */
 package org.apache.beam.runners.spark.translation;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
@@ -149,8 +151,11 @@ public final class TranslationUtils {
       return KV.of(t2._1(), t2._2());
     }
 
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public KV<K, V> apply(Tuple2<K, V> t2) {
+    public KV<K, V> apply(@Nonnull Tuple2<K, V> t2) {
       return call(t2);
     }
   }
@@ -182,8 +187,11 @@ public final class TranslationUtils {
       return wv.withValue(KV.of(kv.getKey(), wv.getValue()));
     }
 
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public WindowedValue<KV<K, V>> apply(KV<K, WindowedValue<V>> kv) {
+    public WindowedValue<KV<K, V>> apply(@Nonnull KV<K, WindowedValue<V>> kv) {
       return call(kv);
     }
   }
