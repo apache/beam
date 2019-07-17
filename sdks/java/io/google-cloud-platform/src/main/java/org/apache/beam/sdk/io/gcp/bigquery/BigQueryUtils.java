@@ -34,6 +34,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.IntStream;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.schemas.LogicalTypes;
 import org.apache.beam.sdk.schemas.Schema;
@@ -553,16 +554,17 @@ public class BigQueryUtils {
     return new Instant((long) value / 1000);
   }
 
-  private static Object convertAvroArray(Field beamField, Object value, BigQueryUtils.ConversionOptions options) {
+  private static Object convertAvroArray(
+      Field beamField, Object value, BigQueryUtils.ConversionOptions options) {
     // Check whether the type of array element is equal.
     List<Object> values = (List<Object>) value;
     List<Object> ret = new ArrayList();
     for (Object v : values) {
       FieldType arrayElementType = beamField.getType().getCollectionElementType();
-      TypeName elementTypeName = arrayElementType.getName();
+      TypeName elementTypeName = arrayElementType.getTypeName();
       if (elementTypeName.equals(TypeName.ROW)) {
         GenericData.Record record = (GenericData.Record) v;
-        ret.add(toBeamRow(record, arrayElementType.getRowSchema(), options))
+        ret.add(toBeamRow(record, arrayElementType.getRowSchema(), options));
       } else {
         ret.add(convertAvroPrimitiveTypes(elementTypeName, v));
       }
