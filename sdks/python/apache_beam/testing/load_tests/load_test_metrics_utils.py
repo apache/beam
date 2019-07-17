@@ -249,3 +249,29 @@ class MeasureTime(beam.DoFn):
 
   def process(self, element):
     yield element
+
+
+class MeasureBytes(beam.DoFn):
+  LABEL = 'total_bytes'
+
+  def __init__(self, namespace, extractor=None):
+    self.namespace = namespace
+    self.counter = Metrics.counter(self.namespace, self.LABEL)
+    self.extractor = extractor if extractor else lambda x: (yield x)
+
+  def process(self, element, *args):
+    for value in self.extractor(element, *args):
+      self.counter.inc(len(value))
+    yield element
+
+
+class CountMessages(beam.DoFn):
+  LABEL = 'total_messages'
+
+  def __init__(self, namespace):
+    self.namespace = namespace
+    self.counter = Metrics.counter(self.namespace, self.LABEL)
+
+  def process(self, element):
+    self.counter.inc(1)
+    yield element
