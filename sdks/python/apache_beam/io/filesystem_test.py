@@ -391,6 +391,79 @@ atomized in instants hammered around the
         if not line:
           break
 
+  def test_concatenated_compressed_file(self):
+    # The test apache_beam.io.textio_test.test_read_gzip_concat
+    # does not encounter the problem in the Beam 2.13 and earlier
+    # code base because the test data is too small: the data is
+    # smaller than read_size, so it goes through logic in the code
+    # that avoids the problem in the code.  So, this test sets
+    # read_size smaller and test data bigger, in order to
+    # encounter the problem. It would be difficult to test in the
+    # textio_test module, because you'd need very large test data
+    # because default read_size is 16MiB, and the ReadFromText
+    # interface does not allow you to modify the read_size.
+    import random
+    import signal
+    from six import int2byte
+    num_test_lines = 10
+    timeout = 30
+    read_size = (64<<10) # set much smaller than the line size
+    byte_table = tuple(int2byte(i) for i in range(32, 96))
+
+    def generate_random_line():
+      byte_list = list(b
+                       for i in range(4096)
+                       for b in random.sample(byte_table, 64)
+                      )
+      byte_list.append(b'\n')
+      return b''.join(byte_list)
+
+    def create_test_file(compression_type, lines):
+      filenames = list()
+      file_name = self._create_temp_file()
+      if compression_type == CompressionTypes.BZIP2:
+        compress_factory = bz2.BZ2File
+      elif compression_type == CompressionTypes.GZIP:
+        compress_factory = gzip.open
+      else:
+        assert False, "Invalid compression type: %s" % compression_type
+      for line in lines:
+        filenames.append(self._create_temp_file())
+        with compress_factory(filenames[-1], 'wb') as f:
+          f.write(line)
+      with open(file_name, 'wb') as o:
+        for name in filenames:
+          with open(name, 'rb') as i:
+            o.write(i.read())
+      return file_name
+
+    # I remember some time ago when a job ran with a real concatenated
+    # gzip file, I got into an endless loop in the beam filesystem module.
+    # That's why I put this handler in to trap an endless loop. However,
+    # this unit test doesn't encounter an endless loop, it encounters a
+    # different error, in the Beam 2.13 and earlier implementation.
+    # So it's not strictly necessary to have this handler in this unit test.
+
+    def alarm_handler(signum, frame):
+      self.fail('Timed out reading compressed file.')
+      raise IOError('Exiting due to likley infinite loop logic in code.')
+
+    old_handler = signal.signal(signal.SIGALRM, alarm_handler)
+    try:
+      test_lines = tuple(generate_random_line() for i in range(num_test_lines))
+      for compression_type in [CompressionTypes.BZIP2, CompressionTypes.GZIP]:
+        file_name = create_test_file(compression_type, test_lines)
+        signal.alarm(timeout)
+        with open(file_name, 'rb') as f:
+          data = CompressedFile(f, compression_type, read_size=read_size)
+          for written_line in test_lines:
+            read_line = data.readline()
+            self.assertEqual(written_line, read_line)
+        signal.alarm(0)
+    finally:
+      signal.alarm(0)
+      signal.signal(signal.SIGALRM, old_handler)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
