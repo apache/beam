@@ -505,7 +505,7 @@ public class BigQueryUtils {
       case STRING:
         return convertAvroPrimitiveTypes(beamFieldTypeName, avroValue);
       case ARRAY:
-        return convertAvroArray(beamField, avroValue);
+        return convertAvroArray(beamField, avroValue, options);
       case LOGICAL_TYPE:
         String identifier = beamField.getType().getLogicalType().getIdentifier();
         if (SQL_DATE_TIME_TYPES.contains(identifier)) {
@@ -553,14 +553,19 @@ public class BigQueryUtils {
     return new Instant((long) value / 1000);
   }
 
-  private static Object convertAvroArray(Field beamField, Object value) {
+  private static Object convertAvroArray(Field beamField, Object value, BigQueryUtils.ConversionOptions options) {
     // Check whether the type of array element is equal.
     List<Object> values = (List<Object>) value;
     List<Object> ret = new ArrayList();
     for (Object v : values) {
-      ret.add(
-          convertAvroPrimitiveTypes(
-              beamField.getType().getCollectionElementType().getTypeName(), v));
+      FieldType arrayElementType = beamField.getType().getCollectionElementType();
+      TypeName elementTypeName = arrayElementType.getName();
+      if (elementTypeName.equals(TypeName.ROW)) {
+        GenericData.Record record = (GenericData.Record) v;
+        ret.add(toBeamRow(record, arrayElementType.getRowSchema(), options))
+      } else {
+        ret.add(convertAvroPrimitiveTypes(elementTypeName, v));
+      }
     }
     return (Object) ret;
   }
