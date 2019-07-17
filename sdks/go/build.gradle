@@ -21,14 +21,22 @@ applyGoNature()
 
 description = "Apache Beam :: SDKs :: Go"
 
+task goModDownload(type: com.github.blindpirate.gogradle.Go) {
+  environment 'GO111MODULE', 'on'
+  go 'mod download'
+}
+
+
 golang {
   packagePath = 'github.com/apache/beam/sdks/go'
 
   goTest {
+    dependsOn ':sdks:go:goModDownload'
     environment 'GO111MODULE', 'on'
   }
 
   goBuild {
+    dependsOn goModDownload
     environment 'GO111MODULE', 'on'
     // The symlinks makes it hard (impossible?) to do a wildcard build
     // of pkg. Go build refuses to follow symlinks. Drop for now. The files

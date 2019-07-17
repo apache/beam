@@ -33,21 +33,20 @@ dependencies {
 
 golang {
   packagePath = 'github.com/apache/beam/sdks/go/container'
-
   goBuild {
-    // TODO(herohde): build local platform + linux-amd64, if possible.
+    dependsOn ':sdks:go:goModDownload'
     environment 'GO111MODULE', 'on'
-    environment 'GOARCH', 'amd64'
-    environment 'GOOS', 'darwin'
-    go 'build -o ./build/target/${GOOS}_${GOARCH}/boot .'
-    environment 'GOOS', 'linux'
+    targetPlatform = ['linux-amd64', 'darwin-amd64']
     go 'build -o ./build/target/${GOOS}_${GOARCH}/boot .'
   }
 }
+
 
 docker {
   name containerImageName(name: "go")
   files "./build/"
 }
+
+goPrepare.dependsOn ':sdks:go:goPrepare'
 // Ensure that making the docker image builds any required artifacts
 dockerPrepare.dependsOn goBuild

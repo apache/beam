@@ -57,6 +57,17 @@ if (isCIBuild) {
   }
 }
 
+project.gradle.buildFinished {
+  new File("${project.rootDir}").eachDirRecurse() { dir ->
+    if (dir.path ==~ '.*\\.gogradle$') {
+      project.exec {
+        executable 'sh'
+        args '-c', "chmod -R 700 ${dir.path} || true"
+      }
+    }
+  }
+}
+
 rat {
   // Set input directory to that of the root project instead of the CWD. This
   // makes .gitignore rules (added below) work properly.

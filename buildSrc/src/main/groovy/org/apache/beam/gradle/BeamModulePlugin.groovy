@@ -1733,6 +1733,7 @@ class BeamModulePlugin implements Plugin<Project> {
                 '**/dist/**',
                 '**/target/**',
                 'sdks/python/test-suites/**',
+                '**/.gogradle/**'
               ])
               )
       def copiedSrcRoot = "${project.buildDir}/srcs"

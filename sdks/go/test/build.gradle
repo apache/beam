@@ -33,9 +33,11 @@ dependencies {
 golang {
   packagePath = 'github.com/apache/beam/sdks/go/test'
   goTest {
+    dependsOn ':sdks:go:goModDownload'
     environment 'GO111MODULE', 'on'
   }
   goBuild {
+    dependsOn ':sdks:go:goModDownload'
     environment 'GO111MODULE', 'on'
     // Build the linux-amd64 worker. The native version is built in the parent to
     // have a fixed name, which is not possible with multiple target platforms. The

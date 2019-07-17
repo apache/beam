@@ -82,7 +82,7 @@ class CommonJobProperties {
         absolute(defaultTimeout)
         abortBuild()
       }
-
+      golang('Go 1.12.7')
       // Set SPARK_LOCAL_IP for spark tests.
       environmentVariables {
         env('SPARK_LOCAL_IP', '127.0.0.1')

@@ -49,11 +49,9 @@ task copyDockerfileDependencies(type: Copy, dependsOn: goBuild) {
 golang {
   packagePath = 'github.com/apache/beam/sdks/python/container'
   goBuild {
+    dependsOn ':sdks:go:goModDownload'
     environment 'GO111MODULE', 'on'
-    environment 'GOARCH', 'amd64'
-    environment 'GOOS', 'darwin'
-    go 'build -o ./build/target/launcher/${GOOS}_${GOARCH}/boot .'
-    environment 'GOOS', 'linux'
+    targetPlatform = ['linux-amd64', 'darwin-amd64']
     go 'build -o ./build/target/launcher/${GOOS}_${GOARCH}/boot .'
   }
 }
@@ -66,7 +64,7 @@ docker {
 artifacts {
   sdkHarnessLauncher file: file('./build/target/launcher'), builtBy: goBuild
 }
-
+goPrepare.dependsOn ':sdks:go:goPrepare'
 // Ensure that making the docker image builds any required artifacts
 dockerPrepare.dependsOn goBuild
 dockerPrepare.dependsOn copyDockerfileDependencies
