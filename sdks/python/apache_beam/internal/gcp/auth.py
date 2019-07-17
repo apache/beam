@@ -117,7 +117,8 @@ def get_service_credentials():
         'https://www.googleapis.com/auth/cloud-platform',
         'https://www.googleapis.com/auth/devstorage.full_control',
         'https://www.googleapis.com/auth/userinfo.email',
-        'https://www.googleapis.com/auth/datastore'
+        'https://www.googleapis.com/auth/datastore',
+        'https://www.googleapis.com/auth/spanner'
     ]
 
     try:
