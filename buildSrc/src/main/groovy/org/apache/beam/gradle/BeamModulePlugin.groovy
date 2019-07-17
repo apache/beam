@@ -731,46 +731,42 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: "net.ltgt.apt"
       // let idea apt plugin handle the ide integration
       project.apply plugin: "net.ltgt.apt-idea"
-      project.dependencies {
-        // Note that these plugins specifically use the compileOnly and testCompileOnly
-        // configurations because they are never required to be shaded or become a
-        // dependency of the output.
-        def auto_value = "com.google.auto.value:auto-value:1.6.3"
-        def auto_value_annotations = "com.google.auto.value:auto-value-annotations:1.6.3"
-        def auto_service = "com.google.auto.service:auto-service:1.0-rc2"
-        def j2objc_annotations = "com.google.j2objc:j2objc-annotations:1.3"
 
-        compileOnly auto_value_annotations
-        testCompileOnly auto_value_annotations
-        annotationProcessor auto_value
-        testAnnotationProcessor auto_value
-
-        compileOnly auto_service
-        testCompileOnly auto_service
-        annotationProcessor auto_service
-        testAnnotationProcessor auto_service
-
-        compileOnly j2objc_annotations
-        testCompileOnly j2objc_annotations
-        annotationProcessor j2objc_annotations
-        testAnnotationProcessor j2objc_annotations
-
+      // Note that these plugins specifically use the compileOnly and testCompileOnly
+      // configurations because they are never required to be shaded or become a
+      // dependency of the output.
+      def compileOnlyAnnotationDeps = [
+        "com.google.auto.value:auto-value-annotations:1.6.3",
+        "com.google.auto.service:auto-service-annotations:1.0-rc6",
+        "com.google.j2objc:j2objc-annotations:1.3",
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
         // also to include the annotations to suppress warnings.
         //
         // spotbugs-annotations artifact is licensed under LGPL and cannot be included in the
         // Apache Beam distribution, but may be relied on during build.
         // See: https://www.apache.org/legal/resolved.html#prohibited
-        def spotbugs_annotations = "com.github.spotbugs:spotbugs-annotations:3.1.11"
-        def jcip_annotations = "net.jcip:jcip-annotations:1.0"
-        compileOnly spotbugs_annotations
-        compileOnly jcip_annotations
-        testCompileOnly spotbugs_annotations
-        testCompileOnly jcip_annotations
-        annotationProcessor spotbugs_annotations
-        annotationProcessor jcip_annotations
-        testAnnotationProcessor spotbugs_annotations
-        testAnnotationProcessor jcip_annotations
+        "com.github.spotbugs:spotbugs-annotations:3.1.11",
+        "net.jcip:jcip-annotations:1.0",
+      ]
+
+      project.dependencies {
+        compileOnlyAnnotationDeps.each { dep ->
+          compileOnly dep
+          testCompileOnly dep
+          annotationProcessor dep
+          testAnnotationProcessor dep
+        }
+
+        // Add common annotation processors to all Java projects
+        def annotationProcessorDeps = [
+          "com.google.auto.value:auto-value:1.6.3",
+          "com.google.auto.service:auto-service:1.0-rc6",
+        ]
+
+        annotationProcessorDeps.each { dep ->
+          annotationProcessor dep
+          testAnnotationProcessor dep
+        }
       }
 
       // Add the optional and provided configurations for dependencies
@@ -839,7 +835,7 @@ class BeamModulePlugin implements Plugin<Project> {
         project.apply plugin: 'com.github.spotbugs'
         project.dependencies {
           spotbugs "com.github.spotbugs:spotbugs:3.1.10"
-          spotbugs "com.google.auto.value:auto-value-annotations:1.6.3"
+          compileOnlyAnnotationDeps.each { dep -> spotbugs dep }
         }
         project.spotbugs {
           excludeFilter = project.rootProject.file('sdks/java/build-tools/src/main/resources/beam/spotbugs-filter.xml')
@@ -853,6 +849,15 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
+      // Disregard unused but declared (test) compile only dependencies used
+      // for common annotation classes used during compilation such as annotation
+      // processing or post validation such as spotbugs.
+      project.dependencies {
+        compileOnlyAnnotationDeps.each { dep ->
+          permitUnusedDeclared dep
+          permitTestUnusedDeclared dep
+        }
+      }
       if (configuration.enableStrictDependencies) {
         project.tasks.analyzeClassesDependencies.enabled = true
         project.tasks.analyzeDependencies.enabled = true
