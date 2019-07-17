@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink;
 
 import java.util.Map;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
+import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,8 +35,10 @@ public class FlinkPortableRunnerResult extends FlinkRunnerResult implements Port
 
   @Override
   public JobApi.MetricResults portableMetrics() throws UnsupportedOperationException {
-    LOG.warn("Collecting monitoring infos is not implemented yet in Flink portable runner.");
-    return JobApi.MetricResults.newBuilder().build();
+    Iterable<MetricsApi.MonitoringInfo> monitoringInfos =
+        this.getMetricsContainerStepMap().getMonitoringInfos();
+
+    return JobApi.MetricResults.newBuilder().addAllAttempted(monitoringInfos).build();
   }
 
   static class Detached extends FlinkDetachedRunnerResult implements PortablePipelineResult {
