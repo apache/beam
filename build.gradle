@@ -203,16 +203,22 @@ task pythonPreCommit() {
   // have caught. Note that the same tests will still run in postcommit.
 }
 
-task pythonPostCommit() {
+task python2PostCommit() {
   dependsOn ":sdks:python:postCommit"
 }
 
-task python3PostCommit() {
+task python35PostCommit() {
   dependsOn ":sdks:python:test-suites:dataflow:py35:postCommitIT"
-  dependsOn ":sdks:python:test-suites:dataflow:py36:postCommitIT"
-  dependsOn ":sdks:python:test-suites:dataflow:py37:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py35:postCommitIT"
+}
+
+task python36PostCommit() {
+  dependsOn ":sdks:python:test-suites:dataflow:py36:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py36:postCommitIT"
+}
+
+task python37PostCommit() {
+  dependsOn ":sdks:python:test-suites:dataflow:py37:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py37:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py37:hdfsIntegrationTest"
 }

@@ -20,11 +20,11 @@ import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
 // This job defines the Python postcommit tests.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Verify', 'Run Python PostCommit',
-  'Python SDK PostCommit Tests', this) {
-  description('Runs postcommit tests on the Python SDK.')
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python35', 'Run Python 3.5 PostCommit',
+  'Python35_PC("Run Python 3.5 PostCommit")', this) {
+  description('Runs Python postcommit tests using Python 3.5.')
 
-  previousNames('beam_PostCommit_PythonVerify')
+  previousNames('/beam_PostCommit_Python3_Verify/')
 
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate)
@@ -37,7 +37,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Verify', 'Run Python 
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':pythonPostCommit')
+      tasks(':python35PostCommit')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }
