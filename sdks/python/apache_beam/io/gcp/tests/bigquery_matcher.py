@@ -43,7 +43,7 @@ except ImportError:
   bigquery = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
-MAX_RETRIES = 4
+MAX_RETRIES = 5
 
 
 def retry_on_http_and_value_error(exception):
@@ -143,6 +143,7 @@ class BigqueryFullResultMatcher(BaseMatcher):
     response = self._get_query_result(bigquery_client)
     logging.info('Read from given query (%s), total rows %d',
                  self.query, len(response))
+    logging.info('Response from BigQuery is %r', response)
 
     self.actual_data = response
 
@@ -161,7 +162,9 @@ class BigqueryFullResultMatcher(BaseMatcher):
       retry_filter=retry_on_http_and_value_error)
   def _query_with_retry(self, bigquery_client):
     """Run Bigquery query with retry if got error http response"""
+    logging.info('Attempting to perform query %s to BQ', self.query)
     query_job = bigquery_client.query(self.query)
+    logging.info('Result of query is: %r', query_job)
     return [row.values() for row in query_job]
 
   def describe_to(self, description):
