@@ -67,9 +67,9 @@ class OffsetRangeTrackerTest(unittest.TestCase):
       tracker.set_current_position(1)
 
     self.assertFalse(tracker.try_claim(10))
-    tracker.set_current_position(3)
+    tracker.set_current_position(11)
     self.assertEqual(10, tracker.last_attempted_record_start)
-    self.assertEqual(3, tracker.last_record_start)
+    self.assertEqual(11, tracker.last_record_start)
 
   def test_try_return_record_continuous_until_split_point(self):
     tracker = range_trackers.OffsetRangeTracker(9, 18)
@@ -118,7 +118,6 @@ class OffsetRangeTrackerTest(unittest.TestCase):
     # offset.
     self.assertFalse(tracker.try_claim(150))
     self.assertFalse(tracker.try_claim(151))
-    tracker.set_current_position(135)
     # Should accept non-splitpoint records starting after stop offset.
     tracker.set_current_position(152)
     tracker.set_current_position(160)
