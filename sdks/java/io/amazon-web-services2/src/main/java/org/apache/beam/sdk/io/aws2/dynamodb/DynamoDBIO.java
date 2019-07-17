@@ -15,21 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws.dynamodb;
+package org.apache.beam.sdk.io.aws2.dynamodb;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.amazonaws.regions.Regions;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import com.amazonaws.services.dynamodbv2.model.AmazonDynamoDBException;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import com.amazonaws.services.dynamodbv2.model.BatchWriteItemRequest;
-import com.amazonaws.services.dynamodbv2.model.ScanRequest;
-import com.amazonaws.services.dynamodbv2.model.ScanResult;
-import com.amazonaws.services.dynamodbv2.model.WriteRequest;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -65,12 +58,45 @@ import org.apache.http.HttpStatus;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.DynamoDbException;
+import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
+import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
+import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
 
 /**
- * {@link PTransform}s to read/write from/to <a
- * href="https://aws.amazon.com/dynamodb/">DynamoDB</a>.
  *
- * <h3>Writing to DynamoDB</h3>
+ *
+ * <h3>Reading from DynamoDb</h3>
+ *
+ * <p>Example usage:
+ *
+ * <pre>{@code
+ * PCollection<List<Map<String, AttributeValue>>> output =
+ *     pipeline.apply(
+ *             DynamoDBIO.<List<Map<String, AttributeValue>>>read()
+ *                 .withDynamoDbClientProvider(new BasicDynamoDbClientProvider(dynamoDbClientProvider, region))
+ *                 .withScanRequestFn(
+ *                     (SerializableFunction<Void, ScanRequest>)
+ *                         input -> new ScanRequest(tableName).withTotalSegments(1))
+ *                 .items());
+ * }</pre>
+ *
+ * <p>As a client, you need to provide at least the following things:
+ *
+ * <ul>
+ *   <li>Specify DynamoDbClientProvider. You can pass on the default one BasicDynamoDbClientProvider
+ *   <li>ScanRequestFn, which you build a ScanRequest object with at least table name and total
+ *       number of segment. Note This number should base on the number of your workers
+ * </ul>
+ *
+ * {@link PTransform}s to read/write from/to <a
+ * href="https://aws.amazon.com/dynamodb/">DynamoDb</a>.
+ *
+ * <h3>Writing to DynamoDb</h3>
  *
  * <p>Example usage:
  *
@@ -84,39 +110,16 @@ import org.slf4j.LoggerFactory;
  *                       t -> KV.of(tableName, writeRequest))
  *               .withRetryConfiguration(
  *                    DynamoDBIO.RetryConfiguration.create(5, Duration.standardMinutes(1)))
- *               .withAwsClientsProvider(new BasicDynamoDbProvider(accessKey, secretKey, region));
+ *               .withDynamoDbClientProvider(new BasicDynamoDbClientProvider(dynamoDbClientProvider, region));
  * }</pre>
  *
  * <p>As a client, you need to provide at least the following things:
  *
  * <ul>
  *   <li>Retry configuration
- *   <li>Specify AwsClientsProvider. You can pass on the default one BasicDynamoDbProvider
+ *   <li>Specify DynamoDbClientProvider. You can pass on the default one BasicDynamoDbClientProvider
  *   <li>Mapper function with a table name to map or transform your object into KV<tableName,
  *       writeRequest>
- * </ul>
- *
- * <h3>Reading from DynamoDB</h3>
- *
- * <p>Example usage:
- *
- * <pre>{@code
- * PCollection<List<Map<String, AttributeValue>>> output =
- *     pipeline.apply(
- *             DynamoDBIO.<List<Map<String, AttributeValue>>>read()
- *                 .withAwsClientsProvider(new BasicDynamoDBProvider(accessKey, secretKey, region))
- *                 .withScanRequestFn(
- *                     (SerializableFunction<Void, ScanRequest>)
- *                         input -> new ScanRequest(tableName).withTotalSegments(1))
- *                 .items());
- * }</pre>
- *
- * <p>As a client, you need to provide at least the following things:
- *
- * <ul>
- *   <li>Specify AwsClientsProvider. You can pass on the default one BasicDynamoDBProvider
- *   <li>ScanRequestFn, which you build a ScanRequest object with at least table name and total
- *       number of segment. Note This number should base on the number of your workers
  * </ul>
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
@@ -129,11 +132,11 @@ public final class DynamoDBIO {
     return new AutoValue_DynamoDBIO_Write.Builder().build();
   }
 
-  /** Read data from DynamoDB and return ScanResult. */
+  /** Read data from DynamoDb and return ScanResult. */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
     @Nullable
-    abstract AwsClientsProvider getAwsClientsProvider();
+    abstract DynamoDbClientProvider getDynamoDbClientProvider();
 
     @Nullable
     abstract SerializableFunction<Void, ScanRequest> getScanRequestFn();
@@ -142,7 +145,7 @@ public final class DynamoDBIO {
     abstract Integer getSegmentId();
 
     @Nullable
-    abstract SerializableFunction<ScanResult, T> getScanResultMapperFn();
+    abstract SerializableFunction<ScanResponse, T> getScanResponseMapperFn();
 
     @Nullable
     abstract Coder<T> getCoder();
@@ -152,33 +155,33 @@ public final class DynamoDBIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
 
-      abstract Builder<T> setAwsClientsProvider(AwsClientsProvider awsClientsProvider);
+      abstract Builder<T> setDynamoDbClientProvider(DynamoDbClientProvider dynamoDbClientProvider);
 
       abstract Builder<T> setScanRequestFn(SerializableFunction<Void, ScanRequest> fn);
 
       abstract Builder<T> setSegmentId(Integer segmentId);
 
-      abstract Builder<T> setScanResultMapperFn(
-          SerializableFunction<ScanResult, T> scanResultMapperFn);
+      abstract Builder<T> setScanResponseMapperFn(
+          SerializableFunction<ScanResponse, T> scanResponseMapperFn);
 
       abstract Builder<T> setCoder(Coder<T> coder);
 
       abstract Read<T> build();
     }
 
-    public Read<T> withAwsClientsProvider(AwsClientsProvider awsClientsProvider) {
-      return toBuilder().setAwsClientsProvider(awsClientsProvider).build();
+    public Read<T> withDynamoDbClientProvider(DynamoDbClientProvider dynamoDbClientProvider) {
+      return toBuilder().setDynamoDbClientProvider(dynamoDbClientProvider).build();
     }
 
-    public Read<T> withAwsClientsProvider(
-        String awsAccessKey, String awsSecretKey, Regions region, String serviceEndpoint) {
-      return withAwsClientsProvider(
-          new BasicDynamoDBProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint));
+    public Read<T> withDynamoDbClientProvider(
+        AwsCredentialsProvider credentialsProvider, String region, URI serviceEndpoint) {
+      return withDynamoDbClientProvider(
+          new BasicDynamoDbClientProvider(credentialsProvider, region, serviceEndpoint));
     }
 
-    public Read<T> withAwsClientsProvider(
-        String awsAccessKey, String awsSecretKey, Regions region) {
-      return withAwsClientsProvider(awsAccessKey, awsSecretKey, region, null);
+    public Read<T> withDynamoDbClientProvider(
+        AwsCredentialsProvider credentialsProvider, String region) {
+      return withDynamoDbClientProvider(credentialsProvider, region, null);
     }
 
     /**
@@ -194,13 +197,14 @@ public final class DynamoDBIO {
       return toBuilder().setSegmentId(segmentId).build();
     }
 
-    public Read<T> withScanResultMapperFn(SerializableFunction<ScanResult, T> scanResultMapperFn) {
+    public Read<T> withScanResponseMapperFn(
+        SerializableFunction<ScanResponse, T> scanResultMapperFn) {
       checkArgument(scanResultMapperFn != null, "scanResultMapper can not be null");
-      return toBuilder().setScanResultMapperFn(scanResultMapperFn).build();
+      return toBuilder().setScanResponseMapperFn(scanResultMapperFn).build();
     }
 
     public Read<List<Map<String, AttributeValue>>> items() {
-      return withScanResultMapperFn(new DynamoDBIO.Read.ItemsMapper())
+      return withScanResponseMapperFn(new ItemsMapper())
           .withCoder(ListCoder.of(MapCoder.of(StringUtf8Coder.of(), AttributeValueCoder.of())));
     }
 
@@ -212,10 +216,11 @@ public final class DynamoDBIO {
     @Override
     public PCollection<T> expand(PBegin input) {
       checkArgument((getScanRequestFn() != null), "withScanRequestFn() is required");
-      checkArgument((getAwsClientsProvider() != null), "withAwsClientsProvider() is required");
+      checkArgument(
+          (getDynamoDbClientProvider() != null), "withDynamoDbClientProvider() is required");
       ScanRequest scanRequest = getScanRequestFn().apply(null);
       checkArgument(
-          (scanRequest.getTotalSegments() != null && scanRequest.getTotalSegments() > 0),
+          (scanRequest.totalSegments() != null && scanRequest.totalSegments() > 0),
           "TotalSegments is required with withScanRequestFn() and greater zero");
 
       PCollection<Read<T>> splits =
@@ -237,32 +242,35 @@ public final class DynamoDBIO {
       @ProcessElement
       public void processElement(@Element Read<T> spec, OutputReceiver<Read<T>> out) {
         ScanRequest scanRequest = spec.getScanRequestFn().apply(null);
-        for (int i = 0; i < scanRequest.getTotalSegments(); i++) {
+        for (int i = 0; i < scanRequest.totalSegments(); i++) {
           out.output(spec.withSegmentId(i));
         }
       }
     }
 
-    /** A {@link DoFn} executing the ScanRequest to read from DynamoDB. */
+    /** A {@link DoFn} executing the ScanRequest to read from DynamoDb. */
     private static class ReadFn<T> extends DoFn<Read<T>, T> {
       @ProcessElement
       public void processElement(@Element Read<T> spec, OutputReceiver<T> out) {
-        AmazonDynamoDB client = spec.getAwsClientsProvider().createDynamoDB();
+        DynamoDbClient client = spec.getDynamoDbClientProvider().getDynamoDbClient();
+
         ScanRequest scanRequest = spec.getScanRequestFn().apply(null);
-        scanRequest.setSegment(spec.getSegmentId());
-        ScanResult scanResult = client.scan(scanRequest);
-        out.output(spec.getScanResultMapperFn().apply(scanResult));
+        ScanRequest scanRequestWithSegment =
+            scanRequest.toBuilder().segment(spec.getSegmentId()).build();
+
+        ScanResponse scanResponse = client.scan(scanRequestWithSegment);
+        out.output(spec.getScanResponseMapperFn().apply(scanResponse));
       }
     }
 
     static final class ItemsMapper<T>
-        implements SerializableFunction<ScanResult, List<Map<String, AttributeValue>>> {
+        implements SerializableFunction<ScanResponse, List<Map<String, AttributeValue>>> {
       @Override
-      public List<Map<String, AttributeValue>> apply(@Nullable ScanResult scanResult) {
-        if (scanResult == null) {
+      public List<Map<String, AttributeValue>> apply(@Nullable ScanResponse scanResponse) {
+        if (scanResponse == null) {
           return Collections.emptyList();
         }
-        return scanResult.getItems();
+        return scanResponse.items();
       }
     }
   }
@@ -285,32 +293,23 @@ public final class DynamoDBIO {
 
     abstract Duration getMaxDuration();
 
-    abstract DynamoDBIO.RetryConfiguration.RetryPredicate getRetryPredicate();
+    abstract RetryPredicate getRetryPredicate();
 
-    abstract DynamoDBIO.RetryConfiguration.Builder builder();
+    abstract Builder toBuilder();
 
-    public static DynamoDBIO.RetryConfiguration create(int maxAttempts, Duration maxDuration) {
-      checkArgument(maxAttempts > 0, "maxAttempts should be greater than 0");
-      checkArgument(
-          maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
-          "maxDuration should be greater than 0");
-      return new AutoValue_DynamoDBIO_RetryConfiguration.Builder()
-          .setMaxAttempts(maxAttempts)
-          .setMaxDuration(maxDuration)
-          .setRetryPredicate(DEFAULT_RETRY_PREDICATE)
-          .build();
+    public static Builder builder() {
+      return new AutoValue_DynamoDBIO_RetryConfiguration.Builder();
     }
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract DynamoDBIO.RetryConfiguration.Builder setMaxAttempts(int maxAttempts);
+      abstract Builder setMaxAttempts(int maxAttempts);
 
-      abstract DynamoDBIO.RetryConfiguration.Builder setMaxDuration(Duration maxDuration);
+      abstract Builder setMaxDuration(Duration maxDuration);
 
-      abstract DynamoDBIO.RetryConfiguration.Builder setRetryPredicate(
-          RetryPredicate retryPredicate);
+      abstract Builder setRetryPredicate(RetryPredicate retryPredicate);
 
-      abstract DynamoDBIO.RetryConfiguration build();
+      abstract RetryConfiguration build();
     }
 
     /**
@@ -328,9 +327,9 @@ public final class DynamoDBIO {
       @Override
       public boolean test(Throwable throwable) {
         return (throwable instanceof IOException
-            || (throwable instanceof AmazonDynamoDBException)
-            || (throwable instanceof AmazonDynamoDBException
-                && ELIGIBLE_CODES.contains(((AmazonDynamoDBException) throwable).getStatusCode())));
+            || (throwable instanceof DynamoDbException)
+            || (throwable instanceof DynamoDbException
+                && ELIGIBLE_CODES.contains(((DynamoDbException) throwable).statusCode())));
       }
     }
   }
@@ -340,7 +339,7 @@ public final class DynamoDBIO {
   public abstract static class Write<T> extends PTransform<PCollection<T>, PCollection<Void>> {
 
     @Nullable
-    abstract AwsClientsProvider getAwsClientsProvider();
+    abstract DynamoDbClientProvider getDynamoDbClientProvider();
 
     @Nullable
     abstract RetryConfiguration getRetryConfiguration();
@@ -348,12 +347,12 @@ public final class DynamoDBIO {
     @Nullable
     abstract SerializableFunction<T, KV<String, WriteRequest>> getWriteItemMapperFn();
 
-    abstract Builder<T> builder();
+    abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder<T> {
 
-      abstract Builder<T> setAwsClientsProvider(AwsClientsProvider awsClientsProvider);
+      abstract Builder<T> setDynamoDbClientProvider(DynamoDbClientProvider dynamoDbClientProvider);
 
       abstract Builder<T> setRetryConfiguration(RetryConfiguration retryConfiguration);
 
@@ -363,23 +362,23 @@ public final class DynamoDBIO {
       abstract Write<T> build();
     }
 
-    public Write<T> withAwsClientsProvider(AwsClientsProvider awsClientsProvider) {
-      return builder().setAwsClientsProvider(awsClientsProvider).build();
+    public Write<T> withDynamoDbClientProvider(DynamoDbClientProvider dynamoDbClientProvider) {
+      return toBuilder().setDynamoDbClientProvider(dynamoDbClientProvider).build();
     }
 
-    public Write<T> withAwsClientsProvider(
-        String awsAccessKey, String awsSecretKey, Regions region, String serviceEndpoint) {
-      return withAwsClientsProvider(
-          new BasicDynamoDBProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint));
+    public Write<T> withDynamoDbClientProvider(
+        AwsCredentialsProvider credentialsProvider, String region, URI serviceEndpoint) {
+      return withDynamoDbClientProvider(
+          new BasicDynamoDbClientProvider(credentialsProvider, region, serviceEndpoint));
     }
 
-    public Write<T> withAwsClientsProvider(
-        String awsAccessKey, String awsSecretKey, Regions region) {
-      return withAwsClientsProvider(awsAccessKey, awsSecretKey, region, null);
+    public Write<T> withDynamoDbClientProvider(
+        AwsCredentialsProvider credentialsProvider, String region) {
+      return withDynamoDbClientProvider(credentialsProvider, region, null);
     }
 
     /**
-     * Provides configuration to retry a failed request to publish a set of records to DynamoDB.
+     * Provides configuration to retry a failed request to publish a set of records to DynamoDb.
      * Users should consider that retrying might compound the underlying problem which caused the
      * initial failure. Users should also be aware that once retrying is exhausted the error is
      * surfaced to the runner which <em>may</em> then opt to retry the current partition in entirety
@@ -396,16 +395,16 @@ public final class DynamoDBIO {
      * }</pre>
      *
      * @param retryConfiguration the rules which govern the retry behavior
-     * @return the {@link DynamoDBIO.Write} with retrying configured
+     * @return the {@link Write} with retrying configured
      */
     public Write<T> withRetryConfiguration(RetryConfiguration retryConfiguration) {
       checkArgument(retryConfiguration != null, "retryConfiguration is required");
-      return builder().setRetryConfiguration(retryConfiguration).build();
+      return toBuilder().setRetryConfiguration(retryConfiguration).build();
     }
 
     public Write<T> withWriteRequestMapperFn(
         SerializableFunction<T, KV<String, WriteRequest>> writeItemMapperFn) {
-      return builder().setWriteItemMapperFn(writeItemMapperFn).build();
+      return toBuilder().setWriteItemMapperFn(writeItemMapperFn).build();
     }
 
     @Override
@@ -415,7 +414,7 @@ public final class DynamoDBIO {
 
     static class WriteFn<T> extends DoFn<T, Void> {
       @VisibleForTesting
-      static final String RETRY_ATTEMPT_LOG = "Error writing to DynamoDB. Retry attempt[%d]";
+      static final String RETRY_ATTEMPT_LOG = "Error writing to DynamoDb. Retry attempt[%d]";
 
       private static final Duration RETRY_INITIAL_BACKOFF = Duration.standardSeconds(5);
       private transient FluentBackoff retryBackoff; // defaults to no retries
@@ -424,17 +423,17 @@ public final class DynamoDBIO {
           Metrics.counter(WriteFn.class, "DynamoDB_Write_Failures");
 
       private static final int BATCH_SIZE = 25;
-      private transient AmazonDynamoDB client;
-      private final DynamoDBIO.Write spec;
+      private transient DynamoDbClient client;
+      private final Write spec;
       private List<KV<String, WriteRequest>> batch;
 
-      WriteFn(DynamoDBIO.Write spec) {
+      WriteFn(Write spec) {
         this.spec = spec;
       }
 
       @Setup
       public void setup() {
-        client = spec.getAwsClientsProvider().createDynamoDB();
+        client = spec.getDynamoDbClientProvider().getDynamoDbClient();
         retryBackoff =
             FluentBackoff.DEFAULT
                 .withMaxRetries(0) // default to no retrying
@@ -481,11 +480,8 @@ public final class DynamoDBIO {
                       Collectors.groupingBy(
                           KV::getKey, Collectors.mapping(KV::getValue, Collectors.toList())));
 
-          BatchWriteItemRequest batchRequest = new BatchWriteItemRequest();
-          mapTableRequest
-              .entrySet()
-              .forEach(
-                  entry -> batchRequest.addRequestItemsEntry(entry.getKey(), entry.getValue()));
+          BatchWriteItemRequest batchRequest =
+              BatchWriteItemRequest.builder().requestItems(mapTableRequest).build();
 
           Sleeper sleeper = Sleeper.DEFAULT;
           BackOff backoff = retryBackoff.backoff();
@@ -502,7 +498,7 @@ public final class DynamoDBIO {
                 DYNAMO_DB_WRITE_FAILURES.inc();
                 LOG.info(
                     "Unable to write batch items {} due to {} ",
-                    batchRequest.getRequestItems().entrySet(),
+                    batchRequest.requestItems().entrySet(),
                     ex);
                 throw new IOException("Error writing to DyanmoDB (no attempt made to retry)", ex);
               }
@@ -527,8 +523,7 @@ public final class DynamoDBIO {
       @Teardown
       public void tearDown() {
         if (client != null) {
-          client.shutdown();
-          client = null;
+          client.close();
         }
       }
     }

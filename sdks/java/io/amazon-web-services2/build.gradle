@@ -29,6 +29,8 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.aws_java_sdk2_apache_client
   compile library.java.aws_java_sdk2_auth
+  compile library.java.aws_java_sdk2_cloudwatch
+  compile library.java.aws_java_sdk2_dynamodb
   compile library.java.aws_java_sdk2_sdk_core
   compile library.java.jackson_core
   compile library.java.jackson_annotations
@@ -37,6 +39,7 @@ dependencies {
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
+  testCompile 'org.testcontainers:testcontainers:1.11.3'
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(":runners:direct-java")
 }
