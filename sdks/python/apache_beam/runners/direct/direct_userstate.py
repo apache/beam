@@ -100,7 +100,6 @@ class DirectUserStateContext(userstate.UserStateContext):
         if runtime_state.is_modified():
           state.clear_state(window, state_tag)
           for new_value in runtime_state._current_accumulator:
-            # TODO: Need to confirm that this logic is fine.
             state.add_state(
                 window, state_tag, state_spec.coder.encode(new_value))
       else:
