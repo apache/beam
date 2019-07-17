@@ -32,9 +32,9 @@ import org.apache.beam.sdk.testing.TestPipeline
 import org.apache.beam.sdk.testing.TestPipelineOptions
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow
 import org.apache.beam.sdk.util.*
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists
 import org.hamcrest.Description
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.TypeSafeMatcher
