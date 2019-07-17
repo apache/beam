@@ -134,6 +134,7 @@ from apache_beam import coders
 from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
@@ -771,6 +772,7 @@ class BigQueryWrapper(object):
 
   def __init__(self, client=None):
     self.client = client or bigquery.BigqueryV2(
+        http=get_new_http(),
         credentials=auth.get_service_credentials())
     self._unique_row_id = 0
     # For testing scenarios where we pass in a client we do not want a
@@ -1214,7 +1216,7 @@ class BigQueryWriteFn(DoFn):
   """
 
   def __init__(self, table_id, dataset_id, project_id, batch_size, schema,
-               create_disposition, write_disposition, client):
+               create_disposition, write_disposition, test_client):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -1250,7 +1252,7 @@ class BigQueryWriteFn(DoFn):
     self.dataset_id = dataset_id
     self.project_id = project_id
     self.schema = schema
-    self.client = client
+    self.test_client = test_client
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
     self._rows_buffer = []
@@ -1280,7 +1282,7 @@ class BigQueryWriteFn(DoFn):
     self._rows_buffer = []
     self.table_schema = self.get_table_schema(self.schema)
 
-    self.bigquery_wrapper = BigQueryWrapper(client=self.client)
+    self.bigquery_wrapper = BigQueryWrapper(client=self.test_client)
     self.bigquery_wrapper.get_or_create_table(
         self.project_id, self.dataset_id, self.table_id, self.table_schema,
         self.create_disposition, self.write_disposition)
@@ -1460,7 +1462,7 @@ bigquery_v2_messages.TableSchema):
         schema=self.get_dict_table_schema(self.schema),
         create_disposition=self.create_disposition,
         write_disposition=self.write_disposition,
-        client=self.test_client)
+        test_client=self.test_client)
     return pcoll | 'WriteToBigQuery' >> ParDo(bigquery_write_fn)
 
   def display_data(self):
