@@ -30,8 +30,6 @@ applyJavaNature(
   shadowClosure: {
     dependencies {
       include(dependency(library.java.guava))
-      include(dependency(library.java.protobuf_java))
-      include(dependency(library.java.protobuf_java_util))
       include(dependency("org.apache.calcite:.*"))
       include(dependency("org.apache.calcite.avatica:.*"))
       include(dependency("org.codehaus.janino:.*"))
@@ -46,7 +44,6 @@ applyJavaNature(
     }
     relocate "com.google.thirdparty", project.getJavaRelocatedPath("com.google.thirdparty")
 
-    relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
     relocate "org.apache.calcite", getJavaRelocatedPath("org.apache.calcite")
 
   // Looking up the compiler factory in Calcite depends on having a properties
