@@ -310,8 +310,6 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
         // Cancels the parent stream before replacing it with the primary stream.
         responseStream.cancel();
-
-        currentOffset++;
         source = source.fromExisting(splitResponse.getPrimaryStream());
         responseStream = newResponseStream;
         responseIterator = newResponseIterator;
