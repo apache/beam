@@ -56,6 +56,8 @@ class ReadFromKafka(ptransform.PTransform):
 
     Note: Runners need to support translating Read operations in order to use
     this source. At the moment only the Flink Runner supports this.
+
+    Experimental; no backwards compatibility guarantees.
   """
 
   # Returns the key/value data as raw byte arrays
@@ -122,6 +124,8 @@ class WriteToKafka(ptransform.PTransform):
     An external PTransform which writes KV data to a specified Kafka topic.
     If no Kafka Serializer for key/value is provided, then key/value are
     assumed to be byte arrays.
+
+    Experimental; no backwards compatibility guarantees.
   """
 
   # Default serializer which passes raw bytes to Kafka

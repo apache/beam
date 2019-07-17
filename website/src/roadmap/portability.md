@@ -144,25 +144,34 @@ their respective components.
 
 MVP, and FeatureCompletness nearly done (missing SDF, timers) for
 SDKs, Python ULR, and shared java runners library.
-Flink is the first runner to fully leverage this, with focus moving to
-Performance.
+Currently, the Flink and Spark runners support portable pipeline execution.
 See the
 [Portability support table](https://s.apache.org/apache-beam-portability-support-table)
 for details.
 
-### Running Python wordcount on Flink or Spark {#python-on-flink}
+### Running Python wordcount on Flink {#python-on-flink}
 
-Currently, the Flink and Spark runners support portable pipeline execution.
-To run a basic Python wordcount (in batch mode) with embedded Flink or Spark:
+To run a basic Python wordcount (in batch mode) with embedded Flink:
 
 1. Run once to build the SDK harness container: `./gradlew :sdks:python:container:docker`
-2. Choose one:
- * Start the Flink portable JobService endpoint: `./gradlew :runners:flink:1.5:job-server:runShadow`
- * Or start the Spark portable JobService endpoint: `./gradlew :runners:spark:job-server:runShadow`
-3. Submit the wordcount pipeline to above endpoint: `./gradlew :sdks:python:portableWordCount -PjobEndpoint=localhost:8099 -PenvironmentType=LOOPBACK`
+2. Start the Flink portable JobService endpoint: `./gradlew :runners:flink:1.5:job-server:runShadow`
+3. In a new terminal, submit the wordcount pipeline to above endpoint: `./gradlew :sdks:python:portableWordCount -PjobEndpoint=localhost:8099 -PenvironmentType=LOOPBACK`
 
-To run the pipeline in streaming mode (currently only supported on Flink): `./gradlew :sdks:python:portableWordCount -PjobEndpoint=localhost:8099 -Pstreaming`
+To run the pipeline in streaming mode: `./gradlew :sdks:python:portableWordCount -PjobEndpoint=localhost:8099 -Pstreaming`
 
 Please see the [Flink Runner page]({{ site.baseurl }}/documentation/runners/flink/) for more information on
 how to run portable pipelines on top of Flink.
+
+### Running Python wordcount on Spark {#python-on-spark}
+
+To run a basic Python wordcount (in batch mode) with embedded Spark:
+
+1. Run once to build the SDK harness container: `./gradlew :sdks:python:container:docker`
+2. Start the Spark portable JobService endpoint: `./gradlew :runners:spark:job-server:runShadow`
+3. In a new terminal, submit the wordcount pipeline to above endpoint: `./gradlew :sdks:python:portableWordCount -PjobEndpoint=localhost:8099 -PenvironmentType=LOOPBACK`
+
+Python streaming mode is not yet supported on Spark.
+
+Please see the [Spark Runner page]({{ site.baseurl }}/documentation/runners/spark/) for more information on
+how to run portable pipelines on top of Spark.
 

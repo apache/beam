@@ -170,46 +170,53 @@ side-input into the FanOut DoFn.
 
 So how do timers help? Well let's have a look at a new transform:
 
+Edit: Looping Timer State changed from Boolean to Long to allow for min value check.  
+
 ```java
 public static class LoopingStatefulTimer extends DoFn<KV<String, Integer>, KV<String, Integer>> {
 
-  Instant stopTimerTime;
+    Instant stopTimerTime;
 
-  LoopingStatefulTimer(Instant stopTime){
-    this.stopTimerTime = stopTime;
-  }
+    LoopingStatefulTimer(Instant stopTime){
+      this.stopTimerTime = stopTime;
+    }
 
-  @StateId("timerRunning")
-    private final StateSpec<ValueState<Boolean>> timerRunning =
-      StateSpecs.value(BooleanCoder.of());
+    @StateId("loopingTimerTime")
+    private final StateSpec<ValueState<Long>> loopingTimerTime =
+        StateSpecs.value(BigEndianLongCoder.of());
 
-  @StateId("key")
+    @StateId("key")
     private final StateSpec<ValueState<String>> key =
-      StateSpecs.value(StringUtf8Coder.of());
+        StateSpecs.value(StringUtf8Coder.of());
 
-  @TimerId("loopingTimer")
+    @TimerId("loopingTimer")
     private final TimerSpec loopingTimer =
-      TimerSpecs.timer(TimeDomain.EVENT_TIME);
+        TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-  @ProcessElement public void process(ProcessContext c, @StateId("key") ValueState<String> key,
-        @StateId("timerRunning") ValueState<Boolean> timerRunning,
+    @ProcessElement public void process(ProcessContext c, @StateId("key") ValueState<String> key,
+        @StateId("loopingTimerTime") ValueState<Long> loopingTimerTime,
         @TimerId("loopingTimer") Timer loopingTimer) {
 
-    // If the timer has been set already, do not reset
-    if (timerRunning.read() == null) {
-      loopingTimer.set(c.timestamp().plus(Duration.standardMinutes(1)));
-      timerRunning.write(true);
+      // If the timer has been set already, or if the value is smaller than
+      // the current element + window duration, do not set
+      Long currentTimerValue = loopingTimerTime.read();
+      Instant nextTimerTimeBasedOnCurrentElement = c.timestamp().plus(Duration.standardMinutes(1));
+
+      if (currentTimerValue == null || currentTimerValue >
+          nextTimerTimeBasedOnCurrentElement.getMillis()) {
+        loopingTimer.set(nextTimerTimeBasedOnCurrentElement);
+        loopingTimerTime.write(nextTimerTimeBasedOnCurrentElement.getMillis());
+      }
+
+      // We need this value so that we can output a value for the correct key in OnTimer
+      if (key.read() == null) {
+        key.write(c.element().getKey());
+      }
+
+      c.output(c.element());
     }
 
-    // We need this value so that we can output a value for the correct key in OnTimer
-    if (key.read() == null) {
-      key.write(c.element().getKey());
-    }
-
-    c.output(c.element());
-  }
-
-  @OnTimer("loopingTimer")
+    @OnTimer("loopingTimer")
     public void onTimer(
         OnTimerContext c,
         @StateId("key") ValueState<String> key,
@@ -221,14 +228,14 @@ public static class LoopingStatefulTimer extends DoFn<KV<String, Integer>, KV<St
       // If we do not put in a “time to live” value, then the timer would loop forever
       Instant nextTimer = c.timestamp().plus(Duration.standardMinutes(1));
       if (nextTimer.isBefore(stopTimerTime)) {
-          loopingTimer.set(nextTimer);
+        loopingTimer.set(nextTimer);
       } else {
         LOG.info(
-          "Timer not being set as exceeded Stop Timer value {} ",
-          stopTimerTime);
+            "Timer not being set as exceeded Stop Timer value {} ",
+            stopTimerTime);
       }
-   }
-}
+    }
+  }
 ```
 
 There are two data values that the state API needs to keep:

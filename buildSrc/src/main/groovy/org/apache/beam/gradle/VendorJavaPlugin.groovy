@@ -146,6 +146,8 @@ artifactId=${project.name}
       // Only publish vendored dependencies if specifically requested.
       if (project.hasProperty("vendoredDependenciesOnly")) {
         project.apply plugin: 'maven-publish'
+        // Ensure that we validate the contents of the jar before publishing
+        project.publish.dependsOn project.check
 
         // Have the shaded jar include both the generate pom.xml and its properties file
         // emulating the behavior of the maven-archiver plugin.
