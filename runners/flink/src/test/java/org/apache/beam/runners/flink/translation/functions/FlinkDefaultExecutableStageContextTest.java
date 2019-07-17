@@ -23,7 +23,7 @@ import org.apache.beam.runners.flink.translation.functions.ReferenceCountingFlin
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;

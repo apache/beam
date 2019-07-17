@@ -84,23 +84,23 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.CallCredentials;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Channel;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.auth.MoreCallCredentials;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.netty.GrpcSslContexts;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.netty.NegotiationType;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.netty.NettyChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Verify;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.CallCredentials;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.auth.MoreCallCredentials;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.netty.GrpcSslContexts;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.netty.NegotiationType;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.netty.NettyChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -233,11 +233,11 @@ public class GrpcWindmillServer extends WindmillServerStub {
    */
   private static class VendoredRequestMetadataCallbackAdapter
       implements com.google.auth.RequestMetadataCallback {
-    private final org.apache.beam.vendor.grpc.v1p13p1.com.google.auth.RequestMetadataCallback
+    private final org.apache.beam.vendor.grpc.v1p21p0.com.google.auth.RequestMetadataCallback
         callback;
 
     private VendoredRequestMetadataCallbackAdapter(
-        org.apache.beam.vendor.grpc.v1p13p1.com.google.auth.RequestMetadataCallback callback) {
+        org.apache.beam.vendor.grpc.v1p21p0.com.google.auth.RequestMetadataCallback callback) {
       this.callback = callback;
     }
 
@@ -261,7 +261,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
    * delegate to reduce maintenance burden.
    */
   private static class VendoredCredentialsAdapter
-      extends org.apache.beam.vendor.grpc.v1p13p1.com.google.auth.Credentials {
+      extends org.apache.beam.vendor.grpc.v1p21p0.com.google.auth.Credentials {
     private final com.google.auth.Credentials credentials;
 
     private VendoredCredentialsAdapter(com.google.auth.Credentials credentials) {
@@ -282,7 +282,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
     public void getRequestMetadata(
         final URI uri,
         Executor executor,
-        final org.apache.beam.vendor.grpc.v1p13p1.com.google.auth.RequestMetadataCallback
+        final org.apache.beam.vendor.grpc.v1p21p0.com.google.auth.RequestMetadataCallback
             callback) {
       credentials.getRequestMetadata(
           uri, executor, new VendoredRequestMetadataCallbackAdapter(callback));
@@ -316,7 +316,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
     this.syncStubList.clear();
     this.endpoints = ImmutableSet.<HostAndPort>copyOf(endpoints);
     for (HostAndPort endpoint : this.endpoints) {
-      if ("localhost".equals(endpoint.getHostText())) {
+      if ("localhost".equals(endpoint.getHost())) {
         initializeLocalHost(endpoint.getPort());
       } else {
         CallCredentials creds =
@@ -348,7 +348,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
   }
 
   private Channel remoteChannel(HostAndPort endpoint) throws IOException {
-    return NettyChannelBuilder.forAddress(endpoint.getHostText(), endpoint.getPort())
+    return NettyChannelBuilder.forAddress(endpoint.getHost(), endpoint.getPort())
         .maxInboundMessageSize(java.lang.Integer.MAX_VALUE)
         .negotiationType(NegotiationType.TLS)
         // Set ciphers(null) to not use GCM, which is disabled for Dataflow

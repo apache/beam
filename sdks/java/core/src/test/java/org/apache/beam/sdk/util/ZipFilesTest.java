@@ -35,9 +35,9 @@ import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteSource;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CharSource;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteSource;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CharSource;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -280,7 +280,7 @@ public class ZipFilesTest {
   // This is not generally safe as it does not handle symlinks, etc. However it is safe
   // enough for these tests.
   private static void removeRecursive(Path path) throws IOException {
-    Iterable<File> files = Files.fileTreeTraverser().postOrderTraversal(path.toFile());
+    Iterable<File> files = Files.fileTraverser().depthFirstPostOrder(path.toFile());
     for (File f : files) {
       java.nio.file.Files.delete(f.toPath());
     }

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark.coders;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -149,7 +149,7 @@ public final class CoderHelpers {
    */
   public static class FromByteFunction<K, V>
       implements PairFunction<Tuple2<ByteArray, byte[]>, K, V>,
-          org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function<
+          org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function<
               Tuple2<ByteArray, byte[]>, Tuple2<K, V>> {
     private final Coder<K> keyCoder;
     private final Coder<V> valueCoder;

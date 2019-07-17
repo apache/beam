@@ -18,11 +18,11 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-    exportJavadoc: false,
-    shadowClosure: {
+  exportJavadoc: false,
+  shadowClosure: {
     dependencies {
-        include(dependency('com.google.guava:guava:20.0'))
-        include(dependency('com.google.protobuf:protobuf-java:3.5.1'))
+        include(dependency('com.google.guava:guava:26.0-jre'))
+        include(dependency('com.google.protobuf:protobuf-java:3.7.1'))
     }
     // We specifically relocate beam-sdks-extensions-protobuf under a vendored namespace
     // but also vendor guava and protobuf to the same vendored namespace as the model/*
@@ -31,11 +31,11 @@ applyJavaNature(
     relocate "org.apache.beam.sdk.extensions.protobuf", "org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf"
 
     // guava uses the com.google.common and com.google.thirdparty package namespaces
-    relocate "com.google.common", "org.apache.beam.vendor.grpc.v1p13p1.com.google.common"
-    relocate "com.google.thirdparty", "org.apache.beam.vendor.grpc.v1p13p1.com.google.thirdparty"
+    relocate "com.google.common", "org.apache.beam.vendor.grpc.v1p21p0.com.google.common"
+    relocate "com.google.thirdparty", "org.apache.beam.vendor.grpc.v1p21p0.com.google.thirdparty"
 
-    relocate "com.google.protobuf", "org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf"
-    }
+    relocate "com.google.protobuf", "org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf"
+  }
 )
 
 description = "Apache Beam :: Vendored Dependencies :: SDKs :: Java :: Extensions :: Protobuf"
@@ -53,7 +53,7 @@ compileJava {
 }
 
 dependencies {
-    compile 'com.google.guava:guava:20.0'
-    compile 'com.google.protobuf:protobuf-java:3.5.1'
+    compile 'com.google.guava:guava:26.0-jre'
+    compile 'com.google.protobuf:protobuf-java:3.7.1'
     shadow project(path: ":sdks:java:core", configuration: "shadow")
 }
