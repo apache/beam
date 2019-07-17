@@ -41,7 +41,8 @@ task preCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
     def cmdArgs = project.mapToArgString([
         "test_opts": testOpts,
         "sdk_location": "${project.buildDir}/apache-beam.tar.gz",
-        "worker_jar": dataflowWorkerJar
+        "worker_jar": dataflowWorkerJar,
+        "suite": "preCommitIT-df"
     ])
 
     exec {

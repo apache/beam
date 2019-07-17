@@ -52,7 +52,8 @@ task preCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
     def cmdArgs = project.mapToArgString([
         "test_opts": testOpts,
         "sdk_location": "${project.buildDir}/apache-beam.tar.gz",
-        "worker_jar": dataflowWorkerJar
+        "worker_jar": dataflowWorkerJar,
+        "suite": "preCommitIT-df-py37"
     ])
 
     exec {
@@ -73,7 +74,8 @@ task postCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
      def cmdArgs = project.mapToArgString([
         "test_opts": testOpts,
         "sdk_location": "${project.buildDir}/apache-beam.tar.gz",
-        "worker_jar": dataflowWorkerJar
+        "worker_jar": dataflowWorkerJar,
+        "suite": "postCommitIT-df-py37"
     ])
     exec {
       executable 'sh'
@@ -92,7 +94,8 @@ task validatesRunnerBatchTests(dependsOn: ['installGcpTest', 'sdist']) {
     def cmdArgs = project.mapToArgString([
         "test_opts": testOpts,
         "sdk_location": "${project.buildDir}/apache-beam.tar.gz",
-        "worker_jar": dataflowWorkerJar
+        "worker_jar": dataflowWorkerJar,
+        "suite": "validatesRunnerBatchTests-df-py37"
     ])
     exec {
       executable 'sh'
@@ -112,7 +115,8 @@ task validatesRunnerStreamingTests(dependsOn: ['installGcpTest', 'sdist']) {
     def argMap = ["test_opts": testOpts,
                   "streaming": "true",
                   "sdk_location": "${project.buildDir}/apache-beam.tar.gz",
-                  "worker_jar": dataflowWorkerJar]
+                  "worker_jar": dataflowWorkerJar,
+                  "suite": "validatesRunnerStreamingTests-df-py37"]
     def cmdArgs = project.mapToArgString(argMap)
     exec {
       executable 'sh'
