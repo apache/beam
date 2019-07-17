@@ -738,6 +738,7 @@ class BeamModulePlugin implements Plugin<Project> {
         def auto_value = "com.google.auto.value:auto-value:1.6.3"
         def auto_value_annotations = "com.google.auto.value:auto-value-annotations:1.6.3"
         def auto_service = "com.google.auto.service:auto-service:1.0-rc2"
+        def j2objc_annotations = "com.google.j2objc:j2objc-annotations:1.3"
 
         compileOnly auto_value_annotations
         testCompileOnly auto_value_annotations
@@ -748,6 +749,11 @@ class BeamModulePlugin implements Plugin<Project> {
         testCompileOnly auto_service
         annotationProcessor auto_service
         testAnnotationProcessor auto_service
+
+        compileOnly j2objc_annotations
+        testCompileOnly j2objc_annotations
+        annotationProcessor j2objc_annotations
+        testAnnotationProcessor j2objc_annotations
 
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
         // also to include the annotations to suppress warnings.
@@ -831,6 +837,10 @@ class BeamModulePlugin implements Plugin<Project> {
       // This plugin is configured to only analyze the "main" source set.
       if (configuration.enableSpotbugs) {
         project.apply plugin: 'com.github.spotbugs'
+        project.dependencies {
+          spotbugs "com.github.spotbugs:spotbugs:3.1.10"
+          spotbugs "com.google.auto.value:auto-value-annotations:1.6.3"
+        }
         project.spotbugs {
           excludeFilter = project.rootProject.file('sdks/java/build-tools/src/main/resources/beam/spotbugs-filter.xml')
           sourceSets = [sourceSets.main]
