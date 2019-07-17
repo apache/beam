@@ -61,6 +61,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
     self._stop_offset = end
 
     self._last_record_start = -1
+    # Records a position that tried be claimed as long as it's a valid position.
     self._last_attempted_record_start = -1
     self._offset_of_last_split_point = -1
     self._lock = threading.Lock()
