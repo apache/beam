@@ -299,7 +299,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // Maven artifacts.
     def generated_grpc_beta_version = "0.19.0"
     def generated_grpc_ga_version = "1.18.0"
-    def google_cloud_bigdataoss_version = "1.9.0"
+    def google_cloud_bigdataoss_version = "1.9.13"
     def bigtable_version = "1.4.0"
     def google_clients_version = "1.23.0"
     def google_auth_version = "0.10.0"
