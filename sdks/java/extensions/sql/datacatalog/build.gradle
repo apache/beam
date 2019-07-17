@@ -35,7 +35,7 @@ dependencies {
 
   // Dependencies for the example
   provided project(":sdks:java:io:google-cloud-platform")
-  provided library.java.vendored_guava_20_0
+  provided library.java.vendored_guava_26_0_jre
   provided library.java.slf4j_api
   testRuntimeOnly library.java.slf4j_simple
 }

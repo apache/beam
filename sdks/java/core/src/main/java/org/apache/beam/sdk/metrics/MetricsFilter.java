@@ -21,7 +21,7 @@ import com.google.auto.value.AutoValue;
 import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /** Simple POJO representing a filter for querying metrics. */
 @Experimental(Kind.METRICS)

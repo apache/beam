@@ -25,7 +25,7 @@ ext.summary = "IO to read and write on Parquet storage format."
 def parquet_version = "1.10.0"
 
 dependencies {
-  compile library.java.vendored_guava_20_0
+  compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.slf4j_api
   compile "org.apache.parquet:parquet-avro:$parquet_version"

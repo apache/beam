@@ -57,13 +57,13 @@ configurations {
 }
 
 dependencies {
-  shadow library.java.vendored_guava_20_0
+  shadow library.java.vendored_guava_26_0_jre
   shadow project(path: ":model:pipeline", configuration: "shadow")
   dependOnProjects.each {
     compile project(it)
   }
   shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow library.java.vendored_grpc_1_13_1
+  shadow library.java.vendored_grpc_1_21_0
   shadow library.java.joda_time
   shadow library.java.slf4j_api
   shadow library.java.args4j

@@ -19,12 +19,13 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.api.services.dataflow.model.Source;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.AbstractList;
 import java.util.AbstractMap;
@@ -44,6 +45,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.dataflow.internal.IsmFormat;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecord;
@@ -72,16 +74,16 @@ import org.apache.beam.sdk.values.PCollectionViews.MapViewFn;
 import org.apache.beam.sdk.values.PCollectionViews.MultimapViewFn;
 import org.apache.beam.sdk.values.PCollectionViews.SingletonViewFn;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Ints;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
 
 /**
  * A side input reader over a set of {@link IsmFormat} files constructed by Dataflow. This reader
@@ -1012,8 +1014,11 @@ public class IsmSideInputReader implements SideInputReader {
   private static class MapToValue<K, V>
       implements Function<KV<K, IsmReader<WindowedValue<V>>.IsmPrefixReaderIterator>, V> {
 
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public V apply(KV<K, IsmReader<WindowedValue<V>>.IsmPrefixReaderIterator> input) {
+    public V apply(@Nonnull KV<K, IsmReader<WindowedValue<V>>.IsmPrefixReaderIterator> input) {
       IsmReader<WindowedValue<V>>.IsmPrefixReaderIterator startedReader = input.getValue();
       WindowedValue<IsmRecord<WindowedValue<V>>> value = startedReader.getCurrent();
       return value.getValue().getValue().getValue();
@@ -1026,8 +1031,13 @@ public class IsmSideInputReader implements SideInputReader {
    */
   private class MapToIterable<K, V>
       implements Function<KV<K, IsmReader<WindowedValue<V>>.IsmPrefixReaderIterator>, Iterable<V>> {
+
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public Iterable<V> apply(KV<K, IsmReader<WindowedValue<V>>.IsmPrefixReaderIterator> input) {
+    public Iterable<V> apply(
+        @Nonnull KV<K, IsmReader<WindowedValue<V>>.IsmPrefixReaderIterator> input) {
       try {
         return Iterables.unmodifiableIterable(
             new ListOverReaderIterators<>(

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.range;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.ByteString.ByteIterator;
