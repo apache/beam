@@ -43,7 +43,7 @@ sdks/python/NOTICE
 sdks/python/README.md
 sdks/python/apache_beam/portability/api/*pb2*.*
 sdks/python/apache_beam/portability/api/*.yaml
-sdks/python/nosetests.xml
+sdks/python/nosetests*.xml
 sdks/python/postcommit_requirements.txt
 
 # Ignore IntelliJ files.

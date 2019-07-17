@@ -43,7 +43,8 @@ task postCommitIT(dependsOn: 'installGcpTest') {
         "--process-timeout=4500", // timeout of whole command execution
     ]
     def argMap = ["runner": "TestDirectRunner",
-                  "test_opts": testOpts]
+                  "test_opts": testOpts,
+                  "suite": "postCommitIT-direct-py36"]
     def batchCmdArgs = project.mapToArgString(argMap)
     exec {
       executable 'sh'
