@@ -488,7 +488,8 @@ class GcsDownloader(Downloader):
     # Initialize read buffer state.
     self._download_stream = io.BytesIO()
     self._downloader = transfer.Download(
-        self._download_stream, auto_transfer=False, chunksize=self._buffer_size)
+        self._download_stream, auto_transfer=False, chunksize=self._buffer_size,
+        num_retries=20)
     self._client.objects.Get(self._get_request, download=self._downloader)
 
   @retry.with_exponential_backoff(
