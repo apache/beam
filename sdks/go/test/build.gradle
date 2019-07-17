@@ -21,11 +21,6 @@ applyGoNature()
 
 description = "Apache Beam :: SDKs :: Go :: Test"
 
-// Figure out why the golang plugin does not add a build dependency between projects.
-// Without the line below, we get spurious errors about not being able to resolve
-// "./github.com/apache/beam/sdks/go"
-resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
-
 dependencies {
   golang {
     // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
@@ -37,7 +32,11 @@ dependencies {
 
 golang {
   packagePath = 'github.com/apache/beam/sdks/go/test'
+  goTest {
+    environment 'GO111MODULE', 'on'
+  }
   goBuild {
+    environment 'GO111MODULE', 'on'
     // Build the linux-amd64 worker. The native version is built in the parent to
     // have a fixed name, which is not possible with multiple target platforms. The
     // script would otherwise have to figure out which arch/platform binary to invoke.

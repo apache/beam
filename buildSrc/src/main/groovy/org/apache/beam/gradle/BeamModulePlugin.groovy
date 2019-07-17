@@ -1386,7 +1386,14 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: 'base'
 
       project.apply plugin: "com.github.blindpirate.gogradle"
-      project.golang { goVersion = '1.10' }
+      project.golang { goVersion = '1.12.7' }
+      // Disable dependency management, we're letting go modules handle it
+      project.resolveBuildDependencies.enabled = false
+      project.resolveTestDependencies.enabled = false
+      project.installDependencies.enabled = false
+      project.goVendor.enabled = false
+      // goVet is outdated, we can manually call it if needed
+      project.goVet.enabled = false
 
       project.repositories {
         golang {

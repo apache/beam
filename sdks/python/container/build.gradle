@@ -22,11 +22,6 @@ applyDockerNature()
 
 description = "Apache Beam :: SDKs :: Python :: Container"
 
-// Figure out why the golang plugin does not add a build dependency between projects.
-// Without the line below, we get spurious errors about not being able to resolve
-// "./github.com/apache/beam/sdks/go"
-resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
-
 configurations {
   sdkSourceTarball
   sdkHarnessLauncher
@@ -52,11 +47,14 @@ task copyDockerfileDependencies(type: Copy, dependsOn: goBuild) {
 }
 
 golang {
-  packagePath = 'github.com/apache/beam/sdks/python/boot'
+  packagePath = 'github.com/apache/beam/sdks/python/container'
   goBuild {
-    // Build for linux and mac.
-    targetPlatform = ['linux-amd64', 'darwin-amd64']
-    outputLocation = './build/target/launcher/${GOOS}_${GOARCH}/boot'
+    environment 'GO111MODULE', 'on'
+    environment 'GOARCH', 'amd64'
+    environment 'GOOS', 'darwin'
+    go 'build -o ./build/target/launcher/${GOOS}_${GOARCH}/boot .'
+    environment 'GOOS', 'linux'
+    go 'build -o ./build/target/launcher/${GOOS}_${GOARCH}/boot .'
   }
 }
 

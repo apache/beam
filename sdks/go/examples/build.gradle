@@ -27,11 +27,6 @@ def getLocalPlatform = {
   return hostOs + '-' + hostArch
 }
 
-// Figure out why the golang plugin does not add a build dependency between projects.
-// Without the line below, we get spurious errors about not being able to resolve
-// "./github.com/apache/beam/sdks/go"
-resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
-
 dependencies {
   golang {
     // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
@@ -44,14 +39,34 @@ dependencies {
 golang {
   packagePath = 'github.com/apache/beam/sdks/go/examples'
   goBuild {
+    environment 'GO111MODULE', 'on'
     // We always want to build linux-amd64 in addition to the user host platform
     // so we can submit this as the remote binary used within the Go container.
     //
     // TODO: Move this into build_rules.gradle applyGoNature. This currently
     // can't be done because com.github.blindpirate.gogradle.crossplatform.*
     // is not found within when invoked from within build_rules.gradle applyGoNature
-    targetPlatform = [getLocalPlatform(), 'linux-amd64']
-
+    environment 'GOOS', '${com.github.blindpirate.gogradle.crossplatform.Os.getHostOs()}'
+    environment 'GOARCH', '${com.github.blindpirate.gogradle.crossplatform.Arch.getHostArch()}'
+    // Build all the examples
+    go 'build -o ./build/bin/${GOOS}_${GOARCH}/autocomplete github.com/apache/beam/sdks/go/examples/complete/autocomplete'
+    go 'build -o ./build/bin/${GOOS}_${GOARCH}/combine github.com/apache/beam/sdks/go/examples/cookbook/combine'
+    go 'build -o ./build/bin/${GOOS}_${GOARCH}/contains github.com/apache/beam/sdks/go/examples/contains'
+    go 'build -o ./build/bin/${GOOS}_${GOARCH}/debugging_wordcount github.com/apache/beam/sdks/go/examples/debugging_wordcount'
+    go 'build -o ./build/bin/${GOOS}_${GOARCH}/filter github.com/apache/beam/sdks/go/examples/cookbook/filter'
+    go 'build -o ./build/bin/${GOOS}_${GOARCH}/forest github.com/apache/beam/sdks/go/examples/forest'
+    go 'build -o ./build/bin/${GOOS}_${GOARCH}/grades github.com/apache/beam/sdks/go/examples/grades'
+    go 'build -o ./build/bin/${GOOS}_${GOARCH}/join github.com/apache/beam/sdks/go/examples/cookbook/join'
+    go 'build -o ./build/bin/${GOOS}_${GOARCH}/max github.com/apache/beam/sdks/go/examples/cookbook/max'
+    go 'build -o ./build/bin/${GOOS}_${GOARCH}/minimal_wordcount github.com/apache/beam/sdks/go/examples/minimal_wordcount'
+    go 'build -o ./build/bin/${GOOS}_${GOARCH}/pingpong github.com/apache/beam/sdks/go/examples/pingpong'
+    go 'build -o ./build/bin/${GOOS}_${GOARCH}/tornadoes github.com/apache/beam/sdks/go/examples/cookbook/tornadoes'
+    go 'build -o ./build/bin/${GOOS}_${GOARCH}/windowed_wordcount github.com/apache/beam/sdks/go/examples/windowed_wordcount'
+    go 'build -o ./build/bin/${GOOS}_${GOARCH}/wordcount github.com/apache/beam/sdks/go/examples/wordcount'
+    go 'build -o ./build/bin/${GOOS}_${GOARCH}/yatzy github.com/apache/beam/sdks/go/examples/yatzy'
+    // TODO: clean up
+    environment 'GOOS', 'linux'
+    environment 'GOARCH', 'amd64'
     // Build all the examples
     go 'build -o ./build/bin/${GOOS}_${GOARCH}/autocomplete github.com/apache/beam/sdks/go/examples/complete/autocomplete'
     go 'build -o ./build/bin/${GOOS}_${GOARCH}/combine github.com/apache/beam/sdks/go/examples/cookbook/combine'

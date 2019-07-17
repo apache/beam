@@ -30,13 +30,14 @@ clean {
 
 golang {
   packagePath = 'github.com/apache/beam/.test-infra/tools'
+  goBuild {
+    environment 'GO111MODULE', 'on'
+  }
 }
 
 check.dependsOn goTest
 
 task cancelStaleDataflowJobs(type: com.github.blindpirate.gogradle.Go) {
-  dependsOn goVendor
-  go('get golang.org/x/oauth2/google')
-  go('get google.golang.org/api/dataflow/v1b3')
+  environment 'GO111MODULE', 'on'
   go('run stale_dataflow_jobs_cleaner.go')
 }
