@@ -25,6 +25,8 @@ import org.apache.beam.sdk.extensions.sql.impl.rule.BeamBasicAggregationRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamEnumerableConverterRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIntersectRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamJoinAssociateRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamJoinPushThroughJoinRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamJoinRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamMinusRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamSortRule;
@@ -46,6 +48,7 @@ import org.apache.calcite.rel.rules.FilterJoinRule;
 import org.apache.calcite.rel.rules.FilterProjectTransposeRule;
 import org.apache.calcite.rel.rules.FilterSetOpTransposeRule;
 import org.apache.calcite.rel.rules.FilterToCalcRule;
+import org.apache.calcite.rel.rules.JoinCommuteRule;
 import org.apache.calcite.rel.rules.JoinPushExpressionsRule;
 import org.apache.calcite.rel.rules.ProjectCalcMergeRule;
 import org.apache.calcite.rel.rules.ProjectFilterTransposeRule;
@@ -103,6 +106,10 @@ public class BeamRuleSets {
 
           // join rules
           JoinPushExpressionsRule.INSTANCE,
+          JoinCommuteRule.INSTANCE,
+          BeamJoinAssociateRule.INSTANCE,
+          BeamJoinPushThroughJoinRule.RIGHT,
+          BeamJoinPushThroughJoinRule.LEFT,
 
           // remove union with only a single child
           UnionEliminatorRule.INSTANCE,

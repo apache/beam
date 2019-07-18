@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.service.AutoService;
 import java.io.Serializable;
+import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -30,9 +31,11 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.impl.BeamRowCountStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.Create;
@@ -134,6 +137,12 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
           tableWithRows.table.getSchema(),
           SerializableFunctions.identity(),
           SerializableFunctions.identity());
+    }
+
+    @Override
+    public BeamRowCountStatistics getRowCount(PipelineOptions options) {
+      return BeamRowCountStatistics.createBoundedTableStatistics(
+          BigInteger.valueOf(tableWithRows.getRows().size()));
     }
 
     @Override
