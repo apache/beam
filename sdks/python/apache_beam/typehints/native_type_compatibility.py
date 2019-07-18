@@ -37,6 +37,8 @@ _TypeMapEntry = collections.namedtuple(
 
 
 def _get_compatible_args(typ):
+  if isinstance(typ, typing.TypeVar):
+    return (typ.__name__,)
   # On Python versions < 3.5.3, the Tuple and Union type from typing do
   # not have an __args__ attribute, but a __tuple_params__, and a
   # __union_params__ argument respectively.
@@ -140,6 +142,9 @@ def convert_to_beam_type(typ):
   Raises:
     ~exceptions.ValueError: The type was malformed.
   """
+  if isinstance(typ, typing.TypeVar):
+    # This is a special case, as it's not parameterized by types.
+    return typehints.TypeVariable(typ.__name__)
 
   type_map = [
       _TypeMapEntry(

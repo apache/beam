@@ -66,7 +66,12 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         ('complex dict',
          typing.Dict[bytes, typing.List[typing.Tuple[bytes, _TestClass]]],
          typehints.Dict[bytes, typehints.List[typehints.Tuple[
-             bytes, _TestClass]]])
+             bytes, _TestClass]]]),
+        ('type var', typing.TypeVar('T'), typehints.TypeVariable('T')),
+        ('nested type var',
+         typing.Tuple[typing.TypeVar('K'), typing.TypeVar('V')],
+         typehints.Tuple[typehints.TypeVariable('K'),
+                         typehints.TypeVariable('V')]),
     ]
 
     for test_case in test_cases:
