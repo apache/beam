@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rule;
 
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -85,25 +84,28 @@ public class JoinReorderingTest {
     createThreeTables(tableProvider);
 
     Assert.assertEquals(
-        BigInteger.ONE,
+        1d,
         tableProvider
             .buildBeamSqlTable(tableProvider.getTable("small_table"))
             .getRowCount(null)
-            .getRowCount());
+            .getRowCount(),
+        0.01);
 
     Assert.assertEquals(
-        BigInteger.valueOf(3),
+        3d,
         tableProvider
             .buildBeamSqlTable(tableProvider.getTable("medium_table"))
             .getRowCount(null)
-            .getRowCount());
+            .getRowCount(),
+        0.01);
 
     Assert.assertEquals(
-        BigInteger.valueOf(100),
+        100d,
         tableProvider
             .buildBeamSqlTable(tableProvider.getTable("large_table"))
             .getRowCount(null)
-            .getRowCount());
+            .getRowCount(),
+        0.01);
   }
 
   @Test
