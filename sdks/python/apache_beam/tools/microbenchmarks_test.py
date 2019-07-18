@@ -45,9 +45,11 @@ class MicrobenchmarksTest(unittest.TestCase):
   def test_check_compiled(self):
     if self.is_cython_installed():
       utils.check_compiled('apache_beam.runners.worker.opcounters')
-    else:
-      with self.assertRaises(RuntimeError):
-        utils.check_compiled('apache_beam.runners.worker.opcounters')
+    # Unfortunately, if cython is not installed, that doesn't mean we we
+    # can rule out compiled modules (e.g. if Beam was installed from a wheel).
+    # Technically the other way around could be true as well, e.g. if
+    # Cython was installed after Beam, but this is rarer and more easily
+    # remedied.
 
 
 if __name__ == '__main__':
