@@ -37,6 +37,7 @@ from typing import Union
 
 from past.builtins import long
 
+from apache_beam import typehints
 from apache_beam.transforms import core
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms import ptransform
@@ -131,7 +132,7 @@ class Count(object):
     """combiners.Count.PerElement counts how many times each element occurs."""
 
     def expand(self, pcoll):
-      paired_with_void_type = Tuple[pcoll.element_type, Any]
+      paired_with_void_type = typehints.Tuple[pcoll.element_type, Any]
       return (pcoll
               | ('%s:PairWithVoid' % self.label >> core.Map(lambda x: (x, None))
                  .with_output_types(paired_with_void_type))

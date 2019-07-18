@@ -550,11 +550,11 @@ class Pipeline(object):
         and isinstance(result_pcollection, pvalue.PCollection)
         and (not result_pcollection.element_type
              # TODO(robertwb): Ideally we'd do intersection here.
-             or result_pcollection.element_type == typing.Any)):
+             or result_pcollection.element_type == typehints.Any)):
       input_element_type = (
           inputs[0].element_type
           if len(inputs) == 1
-          else typing.Any)
+          else typehints.Any)
       type_hints = transform.get_type_hints()
       declared_output_type = type_hints.simple_output_type(transform.label)
       if declared_output_type:
