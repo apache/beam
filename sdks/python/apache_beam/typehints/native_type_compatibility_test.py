@@ -46,6 +46,7 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         ('simple dict', typing.Dict[bytes, int],
          typehints.Dict[bytes, int]),
         ('simple list', typing.List[int], typehints.List[int]),
+        ('simple iterable', typing.Iterable[int], typehints.Iterable[int]),
         ('simple optional', typing.Optional[int], typehints.Optional[int]),
         ('simple set', typing.Set[float], typehints.Set[float]),
         ('simple unary tuple', typing.Tuple[bytes],
