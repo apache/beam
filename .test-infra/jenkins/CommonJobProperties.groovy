@@ -77,12 +77,17 @@ class CommonJobProperties {
     }
 
     context.wrappers {
+      preScmSteps {
+        steps {
+          shell('find ${WORKSPACE} -type d -readable -a ! -writable | xargs -I{} chmod 0755 {}')
+        }
+        failOnError()
+      }
       // Abort the build if it's stuck for more minutes than specified.
       timeout {
         absolute(defaultTimeout)
         abortBuild()
       }
-
       // Set SPARK_LOCAL_IP for spark tests.
       environmentVariables {
         env('SPARK_LOCAL_IP', '127.0.0.1')
@@ -92,6 +97,15 @@ class CommonJobProperties {
         string("SLACK_WEBHOOK_URL", "beam-slack-webhook-url")
       }
       timestamps()
+    }
+
+    context.publishers {
+      postBuildScripts {
+        steps {
+          shell('find ${WORKSPACE} -type d -readable -a ! -writable | xargs -I{} chmod 0755 {}')
+        }
+        onlyIfBuildSucceeds(false)
+      }
     }
   }
 
