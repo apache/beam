@@ -31,6 +31,7 @@ from apache_beam.typehints import Any
 from apache_beam.typehints import Tuple
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import Union
+from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 from apache_beam.typehints.decorators import GeneratorWrapper
@@ -98,11 +99,13 @@ class SubClass(SuperClass):
 class TypeHintTestCase(unittest.TestCase):
 
   def assertCompatible(self, base, sub):  # pylint: disable=invalid-name
+    base, sub = native_type_compatibility.convert_to_beam_types([base, sub])
     self.assertTrue(
         is_consistent_with(sub, base),
         '%s is not consistent with %s' % (sub, base))
 
   def assertNotCompatible(self, base, sub):  # pylint: disable=invalid-name
+    base, sub = native_type_compatibility.convert_to_beam_type([base, sub])
     self.assertFalse(
         is_consistent_with(sub, base),
         '%s is consistent with %s' % (sub, base))
