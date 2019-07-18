@@ -200,25 +200,25 @@ public class TranslationContext {
           dataStreamWriter.foreach(new NoOpForeachWriter<>()).start().awaitTermination();
         } else {
           if (options.getTestMode()) {
-            LOG.debug("**** dataset {}", ++datasetIndex);
+            LOG.debug("**** dataset {} catalyst execution plans ****", ++datasetIndex);
             dataset.explain(true);
-            // cannot use dataset.show because dataset schema is binary so it will print binary
-            // code.
-            List<WindowedValue> windowedValues = ((Dataset<WindowedValue>) dataset).collectAsList();
-            for (WindowedValue windowedValue : windowedValues) {
-              LOG.debug("**** dataset content {} ****", windowedValue.toString());
-            }
-          } else {
-            // apply a dummy fn just to apply for each action that will trigger the pipeline run in
-            // spark
-            // TODO: foreachPartition is too lazy to materialize everything.  Check out / compare
-            // foreach or another technique.  StructuredStreamingPipelineStateTest can help validate
-            dataset.foreach((ForeachFunction) t -> {});
           }
+          // apply a dummy fn just to apply foreach action that will trigger the pipeline run in
+          // spark
+          dataset.foreach((ForeachFunction) t -> {});
         }
       }
     } catch (StreamingQueryException e) {
       throw new RuntimeException("Pipeline execution failed: " + e);
+    }
+  }
+
+  public static void printDatasetContent(Dataset<WindowedValue> dataset) {
+    // cannot use dataset.show because dataset schema is binary so it will print binary
+    // code.
+    List<WindowedValue> windowedValues = dataset.collectAsList();
+    for (WindowedValue windowedValue : windowedValues) {
+      LOG.debug("**** dataset content {} ****", windowedValue.toString());
     }
   }
 
