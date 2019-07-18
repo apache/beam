@@ -51,7 +51,7 @@ public class ReferenceCountingExecutableStageContextFactoryTest {
         .thenReturn(c3)
         .thenReturn(c4);
     ReferenceCountingExecutableStageContextFactory factory =
-        ReferenceCountingExecutableStageContextFactory.create(creator, (caller) -> true);
+        ReferenceCountingExecutableStageContextFactory.create(creator);
     JobInfo jobA = mock(JobInfo.class);
     when(jobA.jobId()).thenReturn("jobA");
     JobInfo jobB = mock(JobInfo.class);
@@ -97,7 +97,7 @@ public class ReferenceCountingExecutableStageContextFactoryTest {
       // throw an Throwable and ensure that it is caught and logged.
       doThrow(new NoClassDefFoundError()).when(c1).close();
       ReferenceCountingExecutableStageContextFactory factory =
-          ReferenceCountingExecutableStageContextFactory.create(creator, (caller) -> true);
+          ReferenceCountingExecutableStageContextFactory.create(creator);
       JobInfo jobA = mock(JobInfo.class);
       when(jobA.jobId()).thenReturn("jobA");
       ExecutableStageContext ac1A = factory.get(jobA);
