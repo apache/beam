@@ -60,7 +60,7 @@ class SyntheticPipelineTest(unittest.TestCase):
   def test_count_elements_after_synthetic_step(self):
     with beam.Pipeline() as p:
       pcoll = p | beam.Create(list(range(10))) | beam.ParDo(
-          synthetic_pipeline.SyntheticStep(0, 0.5, 10))
+          synthetic_pipeline.SyntheticStep(0, 0, 10))
       assert_that(
           pcoll | beam.combiners.Count.Globally(), equal_to([100]))
 
@@ -72,12 +72,12 @@ class SyntheticPipelineTest(unittest.TestCase):
 
     elapsed = time.time() - start
 
-    self.assertTrue(elapsed >= 0.5, elapsed)
+    self.assertGreaterEqual(elapsed, 0.5, elapsed)
 
   def test_count_elements_after_synthetic_sdf_step(self):
     with beam.Pipeline() as p:
       pcoll = p | beam.Create(list(range(10))) | beam.ParDo(
-          synthetic_pipeline.get_synthetic_sdf_step(0, 0.5, 10))
+          synthetic_pipeline.get_synthetic_sdf_step(0, 0, 10))
       assert_that(
           pcoll | beam.combiners.Count.Globally(), equal_to([100]))
 
@@ -89,7 +89,7 @@ class SyntheticPipelineTest(unittest.TestCase):
 
     elapsed = time.time() - start
 
-    self.assertTrue(elapsed >= 0.5, elapsed)
+    self.assertGreaterEqual(elapsed, 0.5, elapsed)
 
   def test_synthetic_step_split_provider(self):
     provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(
