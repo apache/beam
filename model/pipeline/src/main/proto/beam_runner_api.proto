@@ -579,7 +579,7 @@ message StandardCoders {
     // If the length is unknown, it is batched up into groups of size b1..bM
     // and encoded as
     //
-    //     fixed32(0)
+    //     fixed32(-1)
     //     varInt64(b1) encode(e1) encode(e2) ... encode(e_b1)
     //     varInt64(b2) encode(e_(b1+1)) encode(e_(b1+2)) ... encode(e_(b1+b2))
     //     ...
