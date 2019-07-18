@@ -52,6 +52,7 @@ import os
 import re
 import shutil
 import tempfile
+import typing
 from builtins import object
 from builtins import zip
 
@@ -550,11 +551,11 @@ class Pipeline(object):
         and isinstance(result_pcollection, pvalue.PCollection)
         and (not result_pcollection.element_type
              # TODO(robertwb): Ideally we'd do intersection here.
-             or result_pcollection.element_type == typehints.Any)):
+             or result_pcollection.element_type == typing.Any)):
       input_element_type = (
           inputs[0].element_type
           if len(inputs) == 1
-          else typehints.Any)
+          else typing.Any)
       type_hints = transform.get_type_hints()
       declared_output_type = type_hints.simple_output_type(transform.label)
       if declared_output_type:

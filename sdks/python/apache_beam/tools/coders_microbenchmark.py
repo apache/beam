@@ -36,6 +36,7 @@ import random
 import re
 import string
 import sys
+import typing
 
 from past.builtins import unicode
 
@@ -179,7 +180,7 @@ def run_coder_benchmarks(
   random.seed(seed)
 
   # TODO(BEAM-4441): Pick coders using type hints, for example:
-  # tuple_coder = typecoders.registry.get_coder(typehints.Tuple[int, ...])
+  # tuple_coder = typecoders.registry.get_coder(typing.Tuple[int, ...])
   benchmarks = [
       coder_benchmark_factory(
           coders.FastPrimitivesCoder(), small_int),

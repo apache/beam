@@ -26,6 +26,7 @@ import logging
 import os
 import sys
 import tempfile
+import typing
 import unittest
 import uuid
 from builtins import map
@@ -321,10 +322,10 @@ class TypeHintsTest(unittest.TestCase):
     # One can assert outputs and apply them to transforms as well.
     # Helps document the contract and checks it at pipeline construction time.
     # [START type_hints_transform]
-    T = beam.typehints.TypeVariable('T')
+    T = typing.TypeVar('T')
 
     @beam.typehints.with_input_types(T)
-    @beam.typehints.with_output_types(beam.typehints.Tuple[int, T])
+    @beam.typehints.with_output_types(typing.Tuple[int, T])
     class MyTransform(beam.PTransform):
       def expand(self, pcoll):
         return pcoll | beam.Map(lambda x: (len(x), x))
@@ -335,7 +336,7 @@ class TypeHintsTest(unittest.TestCase):
     # pylint: disable=expression-not-assigned
     with self.assertRaises(typehints.TypeCheckError):
       words_with_lens | beam.Map(lambda x: x).with_input_types(
-          beam.typehints.Tuple[int, int])
+          typing.Tuple[int, int])
 
   def test_runtime_checks_off(self):
     # We do not run the following pipeline, as it has incorrect type
@@ -391,7 +392,7 @@ class TypeHintsTest(unittest.TestCase):
           lines
           | beam.Map(parse_player_and_score)
           | beam.CombinePerKey(sum).with_input_types(
-              beam.typehints.Tuple[Player, int]))
+              typing.Tuple[Player, int]))
       # [END type_hints_deterministic_key]
 
       assert_that(

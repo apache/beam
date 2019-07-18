@@ -38,9 +38,9 @@ import apache_beam as beam
 from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.typehints import Any
-from apache_beam.typehints import Iterable
-from apache_beam.typehints import Tuple
+from typing import Any
+from typing import Iterable
+from typing import Tuple
 
 
 @beam.typehints.with_output_types(Tuple[int, int, int])

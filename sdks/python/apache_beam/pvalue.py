@@ -309,7 +309,7 @@ class AsSideInput(object):
 
   @property
   def element_type(self):
-    return typehints.Any
+    return typing.Any
 
   # TODO(robertwb): Get rid of _from_runtime_iterable and _view_options
   # in favor of _side_input_data().
@@ -463,7 +463,7 @@ class AsIter(AsSideInput):
 
   @property
   def element_type(self):
-    return typehints.Iterable[self.pvalue.element_type]
+    return typing.Iterable[self.pvalue.element_type]
 
 
 class AsList(AsSideInput):
