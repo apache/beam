@@ -35,14 +35,14 @@ from apache_beam.transforms import cy_combiners
 from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.typehints import KV
-from apache_beam.typehints import Any
-from apache_beam.typehints import Dict
-from apache_beam.typehints import Iterable
-from apache_beam.typehints import List
-from apache_beam.typehints import Tuple
-from apache_beam.typehints import TypeVariable
-from apache_beam.typehints import Union
+from typing import Tuple
+from typing import Any
+from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Tuple
+from typing import TypeVar
+from typing import Union
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 from apache_beam.utils.timestamp import Duration
@@ -59,9 +59,9 @@ __all__ = [
     ]
 
 # Type variables
-T = TypeVariable('T')
-K = TypeVariable('K')
-V = TypeVariable('V')
+T = TypeVar('T')
+K = TypeVar('K')
+V = TypeVar('V')
 TimestampType = Union[int, long, float, Timestamp, Duration]
 
 
@@ -132,7 +132,7 @@ class Count(object):
     """combiners.Count.PerElement counts how many times each element occurs."""
 
     def expand(self, pcoll):
-      paired_with_void_type = KV[pcoll.element_type, Any]
+      paired_with_void_type = Tuple[pcoll.element_type, Any]
       return (pcoll
               | ('%s:PairWithVoid' % self.label >> core.Map(lambda x: (x, None))
                  .with_output_types(paired_with_void_type))
@@ -316,7 +316,7 @@ class Top(object):
       """Expands the transform.
 
       Raises TypeCheckError: If the output type of the input PCollection is not
-      compatible with KV[A, B].
+      compatible with Tuple[A, B].
 
       Args:
         pcoll: PCollection to process
@@ -354,7 +354,7 @@ class Top(object):
 
 
 @with_input_types(T)
-@with_output_types(KV[None, List[T]])
+@with_output_types(Tuple[None, List[T]])
 class _TopPerBundle(core.DoFn):
   def __init__(self, n, less_than, key):
     self._n = n
@@ -389,7 +389,7 @@ class _TopPerBundle(core.DoFn):
           (None, self._heap))
 
 
-@with_input_types(KV[None, Iterable[List[T]]])
+@with_input_types(Tuple[None, Iterable[List[T]]])
 @with_output_types(List[T])
 class _MergeTopPerBundle(core.DoFn):
   def __init__(self, n, less_than, key):
@@ -883,8 +883,8 @@ class Latest(object):
               .with_output_types(Tuple[T, TimestampType])
               | core.CombineGlobally(LatestCombineFn()))
 
-  @with_input_types(KV[K, V])
-  @with_output_types(KV[K, V])
+  @with_input_types(Tuple[K, V])
+  @with_output_types(Tuple[K, V])
   class PerKey(ptransform.PTransform):
     """Compute elements with the latest timestamp for each key
     from a keyed PCollection"""
@@ -897,7 +897,7 @@ class Latest(object):
     def expand(self, pcoll):
       return (pcoll
               | core.ParDo(self.add_timestamp)
-              .with_output_types(KV[K, Tuple[T, TimestampType]])
+              .with_output_types(Tuple[K, Tuple[T, TimestampType]])
               | core.CombinePerKey(LatestCombineFn()))
 
 

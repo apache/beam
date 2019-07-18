@@ -23,6 +23,7 @@ import collections
 import logging
 import random
 import time
+import typing
 from builtins import object
 
 from future.utils import iteritems
@@ -602,11 +603,11 @@ class _ParDoEvaluator(_TransformEvaluator):
     self.user_timer_map = {}
     if is_stateful_dofn(dofn):
       kv_type_hint = self._applied_ptransform.inputs[0].element_type
-      if kv_type_hint and kv_type_hint != typehints.Any:
+      if kv_type_hint and kv_type_hint != typing.Any:
         coder = coders.registry.get_coder(kv_type_hint)
         self.key_coder = coder.key_coder()
       else:
-        self.key_coder = coders.registry.get_coder(typehints.Any)
+        self.key_coder = coders.registry.get_coder(typing.Any)
 
       self.user_state_context = DirectUserStateContext(
           self._step_context, dofn, self.key_coder)
@@ -669,7 +670,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
     assert len(self._outputs) == 1
     self.output_pcollection = list(self._outputs)[0]
 
-    # The output type of a GroupByKey will be KV[Any, Any] or more specific.
+    # The output type of a GroupByKey will be Tuple[Any, Any] or more specific.
     # TODO(BEAM-2717): Infer coders earlier.
     kv_type_hint = (
         self._applied_ptransform.outputs[None].element_type
@@ -759,10 +760,10 @@ class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
     assert len(self._outputs) == 1
     self.output_pcollection = list(self._outputs)[0]
 
-    # The input type of a GroupByKey will be KV[Any, Any] or more specific.
+    # The input type of a GroupByKey will be Tuple[Any, Any] or more specific.
     kv_type_hint = self._applied_ptransform.inputs[0].element_type
     key_type_hint = (kv_type_hint.tuple_types[0] if kv_type_hint
-                     else typehints.Any)
+                     else typing.Any)
     self.key_coder = coders.registry.get_coder(key_type_hint)
 
   def process_element(self, element):
@@ -815,10 +816,10 @@ class _StreamingGroupAlsoByWindowEvaluator(_TransformEvaluator):
     self.keyed_holds = {}
 
     # The input type (which is the same as the output type) of a
-    # GroupAlsoByWindow will be KV[Any, Iter[Any]] or more specific.
+    # GroupAlsoByWindow will be Tuple[Any, Iter[Any]] or more specific.
     kv_type_hint = self._applied_ptransform.outputs[None].element_type
     key_type_hint = (kv_type_hint.tuple_types[0] if kv_type_hint
-                     else typehints.Any)
+                     else typing.Any)
     self.key_coder = coders.registry.get_coder(key_type_hint)
 
   def process_element(self, element):
