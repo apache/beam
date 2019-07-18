@@ -61,7 +61,6 @@ class OffsetRangeTracker(iobase.RangeTracker):
     self._stop_offset = end
 
     self._last_record_start = -1
-    # Records a position that tried be claimed as long as it's a valid position.
     self._last_attempted_record_start = -1
     self._offset_of_last_split_point = -1
     self._lock = threading.Lock()
@@ -81,6 +80,12 @@ class OffsetRangeTracker(iobase.RangeTracker):
 
   @property
   def last_attempted_record_start(self):
+    """Return current value of last_attempted_record_start.
+
+    last_attempted_record_start records a valid position that tried to be
+    claimed by calling try_claim(). This value is only updated by `try_claim()`
+    no matter `try_claim()` returns `True` or `False`.
+    """
     return self._last_attempted_record_start
 
   def _validate_record_start(self, record_start, split_point):
