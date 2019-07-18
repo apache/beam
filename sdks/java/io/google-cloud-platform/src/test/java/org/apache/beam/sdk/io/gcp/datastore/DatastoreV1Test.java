@@ -402,8 +402,8 @@ public class DatastoreV1Test {
     Entity entity = Entity.newBuilder().setKey(key).build();
     UpsertFn upsertFn = new UpsertFn();
 
-    Mutation exceptedMutation = makeUpsert(entity).build();
-    assertEquals(upsertFn.apply(entity), exceptedMutation);
+    Mutation expectedMutation = makeUpsert(entity).build();
+    assertEquals(upsertFn.apply(entity), expectedMutation);
   }
 
   /** Test that entities with incomplete keys cannot be deleted. */
@@ -426,8 +426,8 @@ public class DatastoreV1Test {
     Entity entity = Entity.newBuilder().setKey(key).build();
     DeleteEntityFn deleteEntityFn = new DeleteEntityFn();
 
-    Mutation exceptedMutation = makeDelete(entity.getKey()).build();
-    assertEquals(deleteEntityFn.apply(entity), exceptedMutation);
+    Mutation expectedMutation = makeDelete(entity.getKey()).build();
+    assertEquals(deleteEntityFn.apply(entity), expectedMutation);
   }
 
   /** Test that incomplete keys cannot be deleted. */
@@ -448,8 +448,8 @@ public class DatastoreV1Test {
     Key key = makeKey("bird", "finch").build();
     DeleteKeyFn deleteKeyFn = new DeleteKeyFn();
 
-    Mutation exceptedMutation = makeDelete(key).build();
-    assertEquals(deleteKeyFn.apply(key), exceptedMutation);
+    Mutation expectedMutation = makeDelete(key).build();
+    assertEquals(deleteKeyFn.apply(key), expectedMutation);
   }
 
   @Test
