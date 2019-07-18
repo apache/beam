@@ -198,6 +198,13 @@ if 'save_module' in dir(dill.dill):
       return old_save_module_dict(pickler, obj)
   dill.dill.save_module_dict = new_save_module_dict
 
+  if hasattr(types, "MappingProxyType"):
+    @dill.dill.register(types.MappingProxyType)
+    def save_mappingproxy(pickler, obj):
+      # pickling mappingproxy AS IS, not as dict
+      # inspired from https://github.com/cloudpipe/cloudpickle/pull/245
+      pickler.save_reduce(types.MappingProxyType, (dict(obj),), obj=obj)
+
   def _nest_dill_logging():
     """Prefix all dill logging with its depth in the callstack.
 
