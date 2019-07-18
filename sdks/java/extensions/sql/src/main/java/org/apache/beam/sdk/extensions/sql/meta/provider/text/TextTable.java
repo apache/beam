@@ -18,9 +18,8 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
 import java.io.IOException;
-import java.math.BigInteger;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.extensions.sql.impl.BeamRowCountStatistics;
+import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.TextRowCountEstimator;
@@ -51,7 +50,7 @@ public class TextTable extends BaseBeamTable {
   private static final TextRowCountEstimator.SamplingStrategy DEFAULT_SAMPLING_STRATEGY =
       new TextRowCountEstimator.LimitNumberOfTotalBytes(1024 * 1024L);
   private final String filePattern;
-  private BeamRowCountStatistics rowCountStatistics = null;
+  private BeamTableStatistics rowCountStatistics = null;
   private static final Logger LOGGER = LoggerFactory.getLogger(TextTable.class);
 
   /** Text table with the specified read and write transforms. */
@@ -71,7 +70,7 @@ public class TextTable extends BaseBeamTable {
   }
 
   @Override
-  public BeamRowCountStatistics getRowCount(PipelineOptions options) {
+  public BeamTableStatistics getRowCount(PipelineOptions options) {
     if (rowCountStatistics == null) {
       rowCountStatistics = getTextRowEstimate(options, getFilePattern());
     }
@@ -79,7 +78,7 @@ public class TextTable extends BaseBeamTable {
     return rowCountStatistics;
   }
 
-  private static BeamRowCountStatistics getTextRowEstimate(
+  private static BeamTableStatistics getTextRowEstimate(
       PipelineOptions options, String filePattern) {
     TextRowCountEstimator textRowCountEstimator =
         TextRowCountEstimator.builder()
@@ -87,12 +86,12 @@ public class TextTable extends BaseBeamTable {
             .setSamplingStrategy(DEFAULT_SAMPLING_STRATEGY)
             .build();
     try {
-      Long rows = textRowCountEstimator.estimateRowCount(options);
-      return BeamRowCountStatistics.createBoundedTableStatistics(BigInteger.valueOf(rows));
+      Double rows = textRowCountEstimator.estimateRowCount(options);
+      return BeamTableStatistics.createBoundedTableStatistics(rows);
     } catch (IOException | TextRowCountEstimator.NoEstimationException e) {
       LOGGER.warn("Could not get the row count for the text table " + filePattern, e);
     }
-    return BeamRowCountStatistics.UNKNOWN;
+    return BeamTableStatistics.UNKNOWN;
   }
 
   @Override
