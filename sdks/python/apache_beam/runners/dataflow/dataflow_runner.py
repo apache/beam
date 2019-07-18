@@ -1269,7 +1269,7 @@ class DataflowPipelineResult(PipelineResult):
 
     # TODO: Move this table to a another location.
     # Ordered by the enum values.
-    api_jobstate_map = {
+    api_jobstate_map = defaultdict(lambda: PipelineState.UNKNOWN, {
         values_enum.JOB_STATE_UNKNOWN: PipelineState.UNKNOWN,
         values_enum.JOB_STATE_STOPPED: PipelineState.STOPPED,
         values_enum.JOB_STATE_RUNNING: PipelineState.RUNNING,
@@ -1281,7 +1281,7 @@ class DataflowPipelineResult(PipelineResult):
         values_enum.JOB_STATE_DRAINED: PipelineState.DRAINED,
         values_enum.JOB_STATE_PENDING: PipelineState.PENDING,
         values_enum.JOB_STATE_CANCELLING: PipelineState.CANCELLING,
-    }
+    })
 
     return (api_jobstate_map[self._job.currentState] if self._job.currentState
             else PipelineState.UNKNOWN)
