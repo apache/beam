@@ -50,17 +50,13 @@ public class ReferenceCountingExecutableStageContextFactory
   private final Creator creator;
   private transient volatile ScheduledExecutorService executor;
   private transient volatile ConcurrentHashMap<String, WrappedContext> keyRegistry;
-  private final SerializableFunction<Object, Boolean> isReleaseSynchronous;
 
-  public static ReferenceCountingExecutableStageContextFactory create(
-      Creator creator, SerializableFunction<Object, Boolean> isReleaseSynchronous) {
-    return new ReferenceCountingExecutableStageContextFactory(creator, isReleaseSynchronous);
+  public static ReferenceCountingExecutableStageContextFactory create(Creator creator) {
+    return new ReferenceCountingExecutableStageContextFactory(creator);
   }
 
-  private ReferenceCountingExecutableStageContextFactory(
-      Creator creator, SerializableFunction<Object, Boolean> isReleaseSynchronous) {
+  private ReferenceCountingExecutableStageContextFactory(Creator creator) {
     this.creator = creator;
-    this.isReleaseSynchronous = isReleaseSynchronous;
   }
 
   @Override
@@ -84,7 +80,8 @@ public class ReferenceCountingExecutableStageContextFactory
                   jobInfo.jobId(),
                   jobId -> {
                     try {
-                      return new WrappedContext(jobInfo, creator.apply(jobInfo));
+                      return new WrappedContext(
+                          jobInfo, creator.apply(jobInfo), isReleaseSynchronous);
                     } catch (Exception e) {
                       throw new RuntimeException(
                           "Unable to create context for job " + jobInfo.jobId(), e);
@@ -109,7 +106,8 @@ public class ReferenceCountingExecutableStageContextFactory
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
-  private void scheduleRelease(JobInfo jobInfo) {
+  private void scheduleRelease(
+      JobInfo jobInfo, SerializableFunction<Object, Boolean> isReleaseSynchronous) {
     WrappedContext wrapper = getCache().get(jobInfo.jobId());
     Preconditions.checkState(
         wrapper != null, "Releasing context for unknown job: " + jobInfo.jobId());
@@ -186,12 +184,17 @@ public class ReferenceCountingExecutableStageContextFactory
     private JobInfo jobInfo;
     private AtomicInteger referenceCount;
     @VisibleForTesting ExecutableStageContext context;
+    private SerializableFunction<Object, Boolean> isReleaseSynchronous;
 
     /** {@link WrappedContext#equals(Object)} is only based on {@link JobInfo#jobId()}. */
-    WrappedContext(JobInfo jobInfo, ExecutableStageContext context) {
+    WrappedContext(
+        JobInfo jobInfo,
+        ExecutableStageContext context,
+        SerializableFunction<Object, Boolean> isReleaseSynchronous) {
       this.jobInfo = jobInfo;
       this.context = context;
       this.referenceCount = new AtomicInteger(0);
+      this.isReleaseSynchronous = isReleaseSynchronous;
     }
 
     @Override
@@ -202,7 +205,7 @@ public class ReferenceCountingExecutableStageContextFactory
     @Override
     public void close() {
       // Just schedule the context as we want to reuse it if possible.
-      scheduleRelease(jobInfo);
+      scheduleRelease(jobInfo, isReleaseSynchronous);
     }
 
     private void closeActual() throws Exception {

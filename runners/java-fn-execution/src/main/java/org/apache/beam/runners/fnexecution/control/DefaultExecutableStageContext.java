@@ -70,15 +70,14 @@ class DefaultExecutableStageContext implements ExecutableStageContext, AutoClose
       }
     }
 
-    private synchronized ExecutableStageContext.Factory getFactory(
-        SerializableFunction<Object, Boolean> isReleaseSynchronous) {
+    private synchronized ExecutableStageContext.Factory getFactory() {
       ReferenceCountingExecutableStageContextFactory factory;
       // If we haven't yet created maxFactories factories, create a new one. Otherwise use an
       // existing one from factories.
       if (factories.size() < maxFactories) {
         factory =
             ReferenceCountingExecutableStageContextFactory.create(
-                DefaultExecutableStageContext::create, isReleaseSynchronous);
+                DefaultExecutableStageContext::create);
         factories.add(factory);
       } else {
         factory = factories.get(index);
@@ -116,7 +115,7 @@ class DefaultExecutableStageContext implements ExecutableStageContext, AutoClose
                         .intValue());
               });
 
-      return state.getFactory(isReleaseSynchronous).get(jobInfo, isReleaseSynchronous);
+      return state.getFactory().get(jobInfo, isReleaseSynchronous);
     }
   }
 }

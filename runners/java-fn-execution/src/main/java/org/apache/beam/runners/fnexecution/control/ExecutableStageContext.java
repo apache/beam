@@ -37,7 +37,7 @@ public interface ExecutableStageContext extends AutoCloseable {
         JobInfo jobInfo, SerializableFunction<Object, Boolean> isReleaseSynchronous);
 
     default ExecutableStageContext get(JobInfo jobInfo) {
-      return get(jobInfo, (caller) -> true /* always release context synchronously */);
+      return get(jobInfo, (caller) -> false /* always release context asynchronously */);
     }
   }
 
