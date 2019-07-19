@@ -19,6 +19,7 @@
 
 from __future__ import absolute_import
 
+import importlib
 import logging
 import os
 import shelve
@@ -29,45 +30,26 @@ from builtins import object
 __all__ = ['PipelineRunner', 'PipelineState', 'PipelineResult']
 
 
-def _get_runner_map(runner_names, module_path):
-  """Create a map of runner name in lower case to full import path to the
-  runner class.
-  """
-  return {runner_name.lower(): module_path + runner_name
-          for runner_name in runner_names}
-
-
-_DIRECT_RUNNER_PATH = 'apache_beam.runners.direct.direct_runner.'
-_DATAFLOW_RUNNER_PATH = (
-    'apache_beam.runners.dataflow.dataflow_runner.')
-_TEST_RUNNER_PATH = 'apache_beam.runners.test.'
-_PYTHON_RPC_DIRECT_RUNNER = (
-    'apache_beam.runners.experimental.python_rpc_direct.'
-    'python_rpc_direct_runner.')
-_PORTABLE_RUNNER_PATH = ('apache_beam.runners.portability.portable_runner.')
-
-_KNOWN_PYTHON_RPC_DIRECT_RUNNER = ('PythonRPCDirectRunner',)
-_KNOWN_DIRECT_RUNNERS = ('DirectRunner', 'BundleBasedDirectRunner',
-                         'SwitchingDirectRunner')
-_KNOWN_DATAFLOW_RUNNERS = ('DataflowRunner',)
-_KNOWN_TEST_RUNNERS = ('TestDataflowRunner', 'TestDirectRunner')
-_KNOWN_PORTABLE_RUNNERS = ('PortableRunner',)
-
-_RUNNER_MAP = {}
-_RUNNER_MAP.update(_get_runner_map(_KNOWN_DIRECT_RUNNERS,
-                                   _DIRECT_RUNNER_PATH))
-_RUNNER_MAP.update(_get_runner_map(_KNOWN_DATAFLOW_RUNNERS,
-                                   _DATAFLOW_RUNNER_PATH))
-_RUNNER_MAP.update(_get_runner_map(_KNOWN_PYTHON_RPC_DIRECT_RUNNER,
-                                   _PYTHON_RPC_DIRECT_RUNNER))
-_RUNNER_MAP.update(_get_runner_map(_KNOWN_TEST_RUNNERS,
-                                   _TEST_RUNNER_PATH))
-_RUNNER_MAP.update(_get_runner_map(_KNOWN_PORTABLE_RUNNERS,
-                                   _PORTABLE_RUNNER_PATH))
-
 _ALL_KNOWN_RUNNERS = (
-    _KNOWN_DIRECT_RUNNERS + _KNOWN_DATAFLOW_RUNNERS + _KNOWN_TEST_RUNNERS +
-    _KNOWN_PORTABLE_RUNNERS)
+    'apache_beam.runners.dataflow.dataflow_runner.DataflowRunner',
+    'apache_beam.runners.direct.direct_runner.BundleBasedDirectRunner',
+    'apache_beam.runners.direct.direct_runner.DirectRunner',
+    'apache_beam.runners.direct.direct_runner.SwitchingDirectRunner',
+    'apache_beam.runners.portability.flink_runner.FlinkRunner',
+    'apache_beam.runners.portability.portable_runner.PortableRunner',
+    'apache_beam.runners.test.TestDirectRunner',
+    'apache_beam.runners.test.TestDataflowRunner',
+)
+
+_KNOWN_RUNNER_NAMES = [path.split('.')[-1] for path in _ALL_KNOWN_RUNNERS]
+
+_RUNNER_MAP = {path.split('.')[-1].lower(): path
+               for path in _ALL_KNOWN_RUNNERS}
+
+# Allow this alias, but don't make public.
+_RUNNER_MAP['pythonrpcdirectrunner'] = (
+    'apache_beam.runners.experimental'
+    '.python_rpc_direct.python_rpc_direct_runner.PythonRPCDirectRunner')
 
 
 def create_runner(runner_name):
@@ -96,9 +78,9 @@ def create_runner(runner_name):
   if '.' in runner_name:
     module, runner = runner_name.rsplit('.', 1)
     try:
-      return getattr(__import__(module, {}, {}, [runner], 0), runner)()
+      return getattr(importlib.import_module(module), runner)()
     except ImportError:
-      if runner_name in _KNOWN_DATAFLOW_RUNNERS:
+      if 'dataflow' in runner_name.lower():
         raise ImportError(
             'Google Cloud Dataflow runner not available, '
             'please install apache_beam[gcp]')
@@ -108,7 +90,7 @@ def create_runner(runner_name):
     raise ValueError(
         'Unexpected pipeline runner: %s. Valid values are %s '
         'or the fully qualified name of a PipelineRunner subclass.' % (
-            runner_name, ', '.join(_ALL_KNOWN_RUNNERS)))
+            runner_name, ', '.join(_KNOWN_RUNNER_NAMES)))
 
 
 class PipelineRunner(object):
