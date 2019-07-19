@@ -53,7 +53,7 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
          typehints.Tuple[bytes]),
         ('simple union', typing.Union[int, bytes, float],
          typehints.Union[int, bytes, float]),
-        ('namedtuple', _TestNamedTuple, typehints.Any),
+        ('namedtuple', _TestNamedTuple, _TestNamedTuple),
         ('test class', _TestClass, _TestClass),
         ('test class in list', typing.List[_TestClass],
          typehints.List[_TestClass]),
