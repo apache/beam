@@ -348,7 +348,7 @@ class SetupTest(unittest.TestCase):
     errors = validator.validate()
     assert_that(errors, only_contains(
         contains_string('Transform name mapping option is only useful when '
-                        '--update is specified')))
+                        '--update and --streaming is specified')))
 
   def test_transform_name_mapping_invalid_format(self):
     options = ['--project=example:example',
@@ -356,6 +356,7 @@ class SetupTest(unittest.TestCase):
                '--temp_location=gs://foo/bar',
                '--update',
                '--job_name=test',
+               '--streaming',
                '--transform_name_mapping={\"fromPardo\":123}']
 
     pipeline_options = PipelineOptions(options)
