@@ -27,6 +27,13 @@ import sys
 import warnings
 from builtins import object
 from builtins import zip
+from typing import Any
+from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Tuple
+from typing import TypeVar
+from typing import Union
 
 from past.builtins import long
 
@@ -35,14 +42,6 @@ from apache_beam.transforms import cy_combiners
 from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
-from typing import Tuple
-from typing import Any
-from typing import Dict
-from typing import Iterable
-from typing import List
-from typing import Tuple
-from typing import TypeVar
-from typing import Union
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 from apache_beam.utils.timestamp import Duration

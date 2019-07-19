@@ -1168,7 +1168,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | _GroupByKeyOnly())
 
     # Output type should correctly be deduced.
-    # GBK-only should deduce that Tuple[A, B] is turned into Tuple[A, Iterable[B]].
+    # GBK-only should deduce that Tuple[A, B] is turned into
+    # Tuple[A, Iterable[B]].
     self.assertCompatible(typing.Tuple[str, typing.Iterable[str]],
                           d.element_type)
 
@@ -1197,8 +1198,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.args[0])
 
   def test_group_by_does_not_type_check(self):
-    # Create is returning a List[int, str], rather than a Tuple[int, str] that is
-    # aliased to Tuple[int, str].
+    # Create is returning a List[int, str], rather than a Tuple[int, str]
+    # that is aliased to Tuple[int, str].
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
        | (beam.Create([[1], [2]])

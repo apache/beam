@@ -36,7 +36,6 @@ import random
 import re
 import string
 import sys
-import typing
 
 from past.builtins import unicode
 

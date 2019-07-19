@@ -33,14 +33,14 @@ import logging
 import random
 from builtins import object
 from builtins import range
+from typing import Any
+from typing import Iterable
+from typing import Tuple
 
 import apache_beam as beam
 from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
-from typing import Any
-from typing import Iterable
-from typing import Tuple
 
 
 @beam.typehints.with_output_types(Tuple[int, int, int])
