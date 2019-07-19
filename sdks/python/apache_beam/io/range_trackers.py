@@ -140,7 +140,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
           'already past proposed stop offset', split_offset, self)
       return False
     if (split_offset < self.start_position()
-          or split_offset >= self.stop_position()):
+        or split_offset >= self.stop_position()):
       logging.debug(
           'Split position %s at %s is not valid: '
           'proposed split position out of range', split_offset, self)
