@@ -319,6 +319,11 @@ period.</p>
   <th>Artifact Id</th>
 </tr>
 <tr>
+  <td>&gt;=2.14.0</td>
+  <td>1.9.x</td>
+  <td>beam-runners-flink-1.9</td>
+</tr>
+<tr>
   <td>&gt;=2.13.0</td>
   <td>1.8.x</td>
   <td>beam-runners-flink-1.8</td>
@@ -484,9 +489,8 @@ provided with the Flink JobManager address.
 <span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="kn">import</span> <span class="n">PipelineOptions</span>
 
 <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">([</span><span class="s">"--runner=PortableRunner"</span><span class="p">,</span> <span class="s">"--job_endpoint=localhost:8099"</span><span class="p">])</span>
-<span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
-<span class="o">..</span>
-<span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+    <span class="o">...</span>
 </code></pre>
 </div>
 
@@ -502,6 +506,19 @@ To run on a separate <a href="https://ci.apache.org/projects/flink/flink-docs-re
 
 <p><span class="language-py">3. Submit the pipeline as above.
 </span></p>
+
+<p><span class="language-py">As of Beam 2.15.0, steps 2 and 3 can be automated in Python by using the <code class="highlighter-rouge">FlinkRunner</code>,
+plus the optional <code class="highlighter-rouge">flink_version</code> and <code class="highlighter-rouge">flink_master_url</code> options if required, i.e.
+</span></p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="kn">import</span> <span class="n">PipelineOptions</span>
+
+<span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">([</span><span class="s">"--runner=FlinkRunner"</span><span class="p">,</span> <span class="s">"--flink_version=1.8"</span><span class="p">,</span> <span class="s">"--flink_master_url=localhost:8081"</span><span class="p">])</span>
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+    <span class="o">...</span>
+</code></pre>
+</div>
 
 <h2 id="additional-information-and-caveats">Additional information and caveats</h2>
 
