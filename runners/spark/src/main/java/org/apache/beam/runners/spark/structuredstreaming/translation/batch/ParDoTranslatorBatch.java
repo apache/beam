@@ -137,9 +137,11 @@ class ParDoTranslatorBatch<InputT, OutputT>
         pruneOutputFilteredByTag(context, allOutputs, output);
       }
     } else {
-      Dataset<WindowedValue<?>> outputDataset = allOutputs.map(
-          (MapFunction<Tuple2<TupleTag<?>, WindowedValue<?>>, WindowedValue<?>>) value -> value._2,
-          EncoderHelpers.windowedValueEncoder());
+      Dataset<WindowedValue<?>> outputDataset =
+          allOutputs.map(
+              (MapFunction<Tuple2<TupleTag<?>, WindowedValue<?>>, WindowedValue<?>>)
+                  value -> value._2,
+              EncoderHelpers.windowedValueEncoder());
       context.putDatasetWildcard(outputs.entrySet().iterator().next().getValue(), outputDataset);
     }
   }
