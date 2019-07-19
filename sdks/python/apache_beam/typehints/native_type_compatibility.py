@@ -107,7 +107,7 @@ def _match_same_type(match_against):
 
 def _match_is_exactly_iterable(user_type):
   # Avoid unintentionally catching all subtypes (e.g. strings and mappings).
-  if sys.version_info < (3,7):
+  if sys.version_info < (3, 7):
     expected_origin = typing.Iterable
   else:
     expected_origin = collections.abc.Iterable
@@ -156,14 +156,15 @@ def convert_to_beam_type(typ):
   """
   if isinstance(typ, typing.TypeVar):
     # This is a special case, as it's not parameterized by types.
-    # Also, identity must be preserved through conversion.
+    # Also, identity must be preserved through conversion (i.e. the same
+    # TypeVar instance must get converted into the same TypeVariable instance).
     # A global cache should be OK as the number of distinct type variables
     # is generally small.
     if id(typ) not in _type_var_cache:
       _type_var_cache[id(typ)] = typehints.TypeVariable(typ.__name__)
     return _type_var_cache[id(typ)]
-  elif getattr(typ, '__module__', None) in ('__builtin__', 'builtins'):
-    # Don't translate base types.
+  elif getattr(typ, '__module__', None) != 'typing':
+    # Only tranlsate types from the typing module.
     return typ
 
   type_map = [
