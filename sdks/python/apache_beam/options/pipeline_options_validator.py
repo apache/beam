@@ -180,9 +180,9 @@ class PipelineOptionsValidator(object):
         errors.extend(self._validate_error(
             'Existing job name must be provided when updating a pipeline.'))
     if view.transform_name_mapping:
-      if not view.update:
+      if not view.update or not self.options.view_as(StandardOptions).streaming:
         errors.append('Transform name mapping option is only useful when '
-                      '--update is specified')
+                      '--update and --streaming is specified')
       for _, (key, value) in enumerate(view.transform_name_mapping.items()):
         if not isinstance(key, (str, unicode)) \
             or not isinstance(value, (str, unicode)):
