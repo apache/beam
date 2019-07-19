@@ -52,7 +52,6 @@ import os
 import re
 import shutil
 import tempfile
-import typing
 from builtins import object
 from builtins import zip
 

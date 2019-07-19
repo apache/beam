@@ -39,7 +39,6 @@ from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.typehints import typehints
 from apache_beam.typehints.decorators import with_output_types
 
 

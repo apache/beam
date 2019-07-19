@@ -31,7 +31,6 @@ from future.utils import iteritems
 import apache_beam.io as io
 from apache_beam import coders
 from apache_beam import pvalue
-from apache_beam import typehints
 from apache_beam.internal import pickler
 from apache_beam.runners import common
 from apache_beam.runners.common import DoFnRunner
