@@ -37,8 +37,8 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -135,17 +135,15 @@ public class KinesisMockWriteTest {
     Properties properties = new Properties();
     properties.setProperty("KinesisPort", "qwe");
 
-    Iterable<byte[]> data = ImmutableList.of("1".getBytes(StandardCharsets.UTF_8));
-    p.apply(Create.of(data))
-        .apply(
-            KinesisIO.write()
-                .withStreamName(STREAM)
-                .withPartitionKey(PARTITION_KEY)
-                .withAWSClientsProvider(new FakeKinesisProvider())
-                .withProducerProperties(properties));
+    KinesisIO.Write write =
+        KinesisIO.write()
+            .withStreamName(STREAM)
+            .withPartitionKey(PARTITION_KEY)
+            .withAWSClientsProvider(new FakeKinesisProvider())
+            .withProducerProperties(properties);
 
-    thrown.expect(RuntimeException.class);
-    p.run().waitUntilFinish();
+    thrown.expect(IllegalArgumentException.class);
+    write.expand(null);
   }
 
   @Test
@@ -183,7 +181,7 @@ public class KinesisMockWriteTest {
                 .withStreamName(STREAM)
                 .withPartitionKey(PARTITION_KEY)
                 .withAWSClientsProvider(new FakeKinesisProvider().setFailedFlush(true))
-                .withRetries(1));
+                .withRetries(2));
 
     thrown.expect(RuntimeException.class);
     p.run().waitUntilFinish();

@@ -82,7 +82,8 @@ class StreamingWordCountIT(unittest.TestCase):
   @attr('IT')
   def test_streaming_wordcount_it(self):
     # Build expected dataset.
-    expected_msg = [('%d: 1' % num) for num in range(DEFAULT_INPUT_NUMBERS)]
+    expected_msg = [('%d: 1' % num).encode('utf-8')
+                    for num in range(DEFAULT_INPUT_NUMBERS)]
 
     # Set extra options to the pipeline for test purpose
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)

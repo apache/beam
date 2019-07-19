@@ -22,8 +22,8 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.util.SerializableThrowable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 
 /** Output of {@link PAssert}. Passed to a conclude function to act upon. */
 @DefaultCoder(SerializableCoder.class)

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
@@ -29,6 +29,7 @@ import com.google.api.client.util.Sleeper;
 import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.api.gax.rpc.HeaderProvider;
+import com.google.api.gax.rpc.ServerStream;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.Bigquery.Tables;
 import com.google.api.services.bigquery.model.Dataset;
@@ -56,11 +57,14 @@ import com.google.cloud.bigquery.storage.v1beta1.Storage.CreateReadSessionReques
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsResponse;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamRequest;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamResponse;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -83,8 +87,8 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -984,6 +988,25 @@ class BigQueryServicesImpl implements BigQueryServices {
     return builder.build();
   }
 
+  static class BigQueryServerStreamImpl<T> implements BigQueryServerStream<T> {
+
+    private final ServerStream serverStream;
+
+    public BigQueryServerStreamImpl(ServerStream serverStream) {
+      this.serverStream = serverStream;
+    }
+
+    @Override
+    public Iterator<T> iterator() {
+      return serverStream.iterator();
+    }
+
+    @Override
+    public void cancel() {
+      serverStream.cancel();
+    }
+  }
+
   @Experimental(Experimental.Kind.SOURCE_SINK)
   static class StorageClientImpl implements StorageClient {
 
@@ -1011,8 +1034,13 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @Override
-    public Iterable<ReadRowsResponse> readRows(ReadRowsRequest request) {
-      return client.readRowsCallable().call(request);
+    public BigQueryServerStream<ReadRowsResponse> readRows(ReadRowsRequest request) {
+      return new BigQueryServerStreamImpl(client.readRowsCallable().call(request));
+    }
+
+    @Override
+    public SplitReadStreamResponse splitReadStream(SplitReadStreamRequest request) {
+      return client.splitReadStream(request);
     }
 
     @Override

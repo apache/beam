@@ -53,6 +53,8 @@ No backward compatibility guarantees. Everything in this module is experimental.
 
 from __future__ import absolute_import
 
+import logging
+
 from bson import objectid
 from pymongo import MongoClient
 from pymongo import ReplaceOne
@@ -352,7 +354,11 @@ class _MongoSink(object):
           ReplaceOne(filter={'_id': doc.get('_id', None)},
                      replacement=doc,
                      upsert=True))
-    self.client[self.db][self.coll].bulk_write(requests)
+    resp = self.client[self.db][self.coll].bulk_write(requests)
+    logging.debug('BulkWrite to MongoDB result in nModified:%d, nUpserted:%d, '
+                  'nMatched:%d, Errors:%s' %
+                  (resp.modified_count, resp.upserted_count, resp.matched_count,
+                   resp.bulk_api_result.get('writeErrors')))
 
   def __enter__(self):
     if self.client is None:

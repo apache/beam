@@ -378,6 +378,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def apex_core_version = "3.7.0"
     def apex_malhar_version = "3.4.0"
     def aws_java_sdk_version = "1.11.519"
+    def aws_java_sdk2_version = "2.5.71"
     def cassandra_driver_version = "3.6.0"
     def generated_grpc_beta_version = "0.44.0"
     def generated_grpc_ga_version = "1.43.0"
@@ -429,6 +430,11 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk_s3                             : "com.amazonaws:aws-java-sdk-s3:$aws_java_sdk_version",
         aws_java_sdk_sns                            : "com.amazonaws:aws-java-sdk-sns:$aws_java_sdk_version",
         aws_java_sdk_sqs                            : "com.amazonaws:aws-java-sdk-sqs:$aws_java_sdk_version",
+        aws_java_sdk2_apache_client                 : "software.amazon.awssdk:apache-client:$aws_java_sdk2_version",
+        aws_java_sdk2_auth                          : "software.amazon.awssdk:auth:$aws_java_sdk2_version",
+        aws_java_sdk2_cloudwatch                    : "software.amazon.awssdk:cloudwatch:$aws_java_sdk2_version",
+        aws_java_sdk2_dynamodb                      : "software.amazon.awssdk:dynamodb:$aws_java_sdk2_version",
+        aws_java_sdk2_sdk_core                      : "software.amazon.awssdk:sdk-core:$aws_java_sdk2_version",
         bigdataoss_gcsio                            : "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         bigtable_client_core                        : "com.google.cloud.bigtable:bigtable-client-core:1.8.0",
@@ -527,8 +533,8 @@ class BeamModulePlugin implements Plugin<Project> {
         spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:3.1.4",
-        vendored_grpc_1_13_1                        : "org.apache.beam:beam-vendor-grpc-1_13_1:0.2",
-        vendored_guava_20_0                         : "org.apache.beam:beam-vendor-guava-20_0:0.1",
+        vendored_grpc_1_21_0                        : "org.apache.beam:beam-vendor-grpc-1_21_0:0.1",
+        vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
         zstd_jni                                    : "com.github.luben:zstd-jni:1.3.8-3",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
@@ -725,40 +731,42 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: "net.ltgt.apt"
       // let idea apt plugin handle the ide integration
       project.apply plugin: "net.ltgt.apt-idea"
-      project.dependencies {
-        // Note that these plugins specifically use the compileOnly and testCompileOnly
-        // configurations because they are never required to be shaded or become a
-        // dependency of the output.
-        def auto_value = "com.google.auto.value:auto-value:1.6.3"
-        def auto_value_annotations = "com.google.auto.value:auto-value-annotations:1.6.3"
-        def auto_service = "com.google.auto.service:auto-service:1.0-rc2"
 
-        compileOnly auto_value_annotations
-        testCompileOnly auto_value_annotations
-        annotationProcessor auto_value
-        testAnnotationProcessor auto_value
-
-        compileOnly auto_service
-        testCompileOnly auto_service
-        annotationProcessor auto_service
-        testAnnotationProcessor auto_service
-
+      // Note that these plugins specifically use the compileOnly and testCompileOnly
+      // configurations because they are never required to be shaded or become a
+      // dependency of the output.
+      def compileOnlyAnnotationDeps = [
+        "com.google.auto.value:auto-value-annotations:1.6.3",
+        "com.google.auto.service:auto-service-annotations:1.0-rc6",
+        "com.google.j2objc:j2objc-annotations:1.3",
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
         // also to include the annotations to suppress warnings.
         //
         // spotbugs-annotations artifact is licensed under LGPL and cannot be included in the
         // Apache Beam distribution, but may be relied on during build.
         // See: https://www.apache.org/legal/resolved.html#prohibited
-        def spotbugs_annotations = "com.github.spotbugs:spotbugs-annotations:3.1.11"
-        def jcip_annotations = "net.jcip:jcip-annotations:1.0"
-        compileOnly spotbugs_annotations
-        compileOnly jcip_annotations
-        testCompileOnly spotbugs_annotations
-        testCompileOnly jcip_annotations
-        annotationProcessor spotbugs_annotations
-        annotationProcessor jcip_annotations
-        testAnnotationProcessor spotbugs_annotations
-        testAnnotationProcessor jcip_annotations
+        "com.github.spotbugs:spotbugs-annotations:3.1.11",
+        "net.jcip:jcip-annotations:1.0",
+      ]
+
+      project.dependencies {
+        compileOnlyAnnotationDeps.each { dep ->
+          compileOnly dep
+          testCompileOnly dep
+          annotationProcessor dep
+          testAnnotationProcessor dep
+        }
+
+        // Add common annotation processors to all Java projects
+        def annotationProcessorDeps = [
+          "com.google.auto.value:auto-value:1.6.3",
+          "com.google.auto.service:auto-service:1.0-rc6",
+        ]
+
+        annotationProcessorDeps.each { dep ->
+          annotationProcessor dep
+          testAnnotationProcessor dep
+        }
       }
 
       // Add the optional and provided configurations for dependencies
@@ -816,13 +824,8 @@ class BeamModulePlugin implements Plugin<Project> {
           project.sourceSets.each { sourceSet ->
             targetFiles += sourceSet.allJava
           }
-          target targetFiles.matching {
-            include '**/*.java'
-            exclude '**/archetype-resources/src/**'
-            exclude '**/build/generated/**'
-            exclude '**/build/generated-src/**'
-            exclude '**/build/generated-*-avro-*/**'
-          }
+
+          target targetFiles.matching { include 'src/*/java/**/*.java' }
         }
       }
 
@@ -830,6 +833,11 @@ class BeamModulePlugin implements Plugin<Project> {
       // This plugin is configured to only analyze the "main" source set.
       if (configuration.enableSpotbugs) {
         project.apply plugin: 'com.github.spotbugs'
+        project.dependencies {
+          spotbugs "com.github.spotbugs:spotbugs:3.1.10"
+          spotbugs "com.google.auto.value:auto-value:1.6.3"
+          compileOnlyAnnotationDeps.each { dep -> spotbugs dep }
+        }
         project.spotbugs {
           excludeFilter = project.rootProject.file('sdks/java/build-tools/src/main/resources/beam/spotbugs-filter.xml')
           sourceSets = [sourceSets.main]
@@ -842,6 +850,15 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
+      // Disregard unused but declared (test) compile only dependencies used
+      // for common annotation classes used during compilation such as annotation
+      // processing or post validation such as spotbugs.
+      project.dependencies {
+        compileOnlyAnnotationDeps.each { dep ->
+          permitUnusedDeclared dep
+          permitTestUnusedDeclared dep
+        }
+      }
       if (configuration.enableStrictDependencies) {
         project.tasks.analyzeClassesDependencies.enabled = true
         project.tasks.analyzeDependencies.enabled = true
@@ -1532,7 +1549,7 @@ class BeamModulePlugin implements Plugin<Project> {
               shadowClosure: GrpcVendoring.shadowClosure() << {
                 // We perform all the code relocations but don't include
                 // any of the actual dependencies since they will be supplied
-                // by org.apache.beam:beam-vendor-grpc-v1p13p1:0.1
+                // by org.apache.beam:beam-vendor-grpc-v1p21p0:0.1
                 dependencies {
                   include(dependency { return false })
                 }
@@ -1548,14 +1565,14 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: "com.google.protobuf"
       project.protobuf {
         protoc { // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:3.6.0" }
+          artifact = "com.google.protobuf:protoc:3.7.1" }
 
         // Configure the codegen plugins
         plugins {
           // An artifact spec for a protoc plugin, with "grpc" as
           // the identifier, which can be referred to in the "plugins"
           // container of the "generateProtoTasks" closure.
-          grpc { artifact = "io.grpc:protoc-gen-grpc-java:1.13.1" }
+          grpc { artifact = "io.grpc:protoc-gen-grpc-java:1.21.0" }
         }
 
         generateProtoTasks {
@@ -1569,7 +1586,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      project.dependencies GrpcVendoring.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_13_1 }
+      project.dependencies GrpcVendoring.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_21_0 }
     }
 
     /** ***********************************************************************************************/
@@ -1847,6 +1864,7 @@ class BeamModulePlugin implements Plugin<Project> {
               argMap["pipeline_opts"] = config.pipelineOptions
             if (config.kmsKeyName)
               argMap["kms_key_name"] = config.kmsKeyName
+            argMap["suite"] = "integrationTest-perf"
 
             def cmdArgs = project.mapToArgString(argMap)
             def runScriptsDir = "${pythonRootDir}/scripts"
@@ -1883,7 +1901,7 @@ class BeamModulePlugin implements Plugin<Project> {
             else
               // workaround for local file output in docker container
               options += [
-                "--environment_cache_millis=10000"
+                "--environment_cache_millis=60000"
               ]
             if (project.hasProperty("jobEndpoint"))
               options += [

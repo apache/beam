@@ -109,7 +109,8 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
     ]
     def batchTestOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
     def argMap = ["runner": "TestDirectRunner",
-                  "test_opts": batchTestOpts]
+                  "test_opts": batchTestOpts,
+                  "suite": "directRunnerIT-batch"]
     def batchCmdArgs = project.mapToArgString(argMap)
     exec {
       executable 'sh'
@@ -123,12 +124,13 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
         "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
         "apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest",
         "apache_beam.io.gcp.bigquery_test:BigQueryStreamingInsertTransformIntegrationTests\
-.test_multiple_destinations_transform_streaming",
+.test_multiple_destinations_transform",
     ]
     def streamingTestOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
     def argMap = ["runner": "TestDirectRunner",
                   "streaming": "true",
-                  "test_opts": streamingTestOpts]
+                  "test_opts": streamingTestOpts,
+                  "suite": "directRunnerIT-streaming"]
     def streamingCmdArgs = project.mapToArgString(argMap)
     exec {
       executable 'sh'
@@ -177,7 +179,8 @@ task postCommitIT(dependsOn: ['installGcpTest', 'sdist']) {
   doLast {
     def testOpts = basicTestOpts + ["--attr=IT"]
     def cmdArgs = project.mapToArgString(["test_opts": testOpts,
-                                          "worker_jar": dataflowWorkerJar])
+                                          "worker_jar": dataflowWorkerJar,
+                                          "suite": "postCommitIT-df"])
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"
@@ -193,7 +196,8 @@ task validatesRunnerBatchTests(dependsOn: ['installGcpTest', 'sdist']) {
   doLast {
     def testOpts = basicTestOpts + ["--attr=ValidatesRunner"]
     def cmdArgs = project.mapToArgString(["test_opts": testOpts,
-                                          "worker_jar": dataflowWorkerJar])
+                                          "worker_jar": dataflowWorkerJar,
+                                          "suite": "validatesRunnerBatchTests-df"])
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"
@@ -211,7 +215,8 @@ task validatesRunnerStreamingTests(dependsOn: ['installGcpTest', 'sdist']) {
     def testOpts = basicTestOpts + ["--attr=ValidatesRunner,!sickbay-streaming"]
     def argMap = ["test_opts": testOpts,
                   "streaming": "true",
-                  "worker_jar": dataflowWorkerJar]
+                  "worker_jar": dataflowWorkerJar,
+                  "suite": "validatesRunnerStreamingTests-df"]
     def cmdArgs = project.mapToArgString(argMap)
     exec {
       executable 'sh'
@@ -224,7 +229,7 @@ task hdfsIntegrationTest(dependsOn: 'installGcpTest') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ./apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh"
+      args '-c', ". ${project.ext.envdir}/bin/activate && ./apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh python:2"
     }
   }
 }
@@ -320,6 +325,7 @@ task postCommit() {
   dependsOn "directRunnerIT"
   dependsOn "hdfsIntegrationTest"
   dependsOn "postCommitIT"
+  dependsOn "mongodbioIT"
 }
 
 
@@ -429,4 +435,35 @@ project.task('crossLanguagePortableWordCount') {
 project.task('crossLanguageTests') {
   dependsOn "crossLanguagePythonJavaFlink"
   dependsOn "crossLanguagePortableWordCount"
+}
+
+project.task('mongodbioIT') {
+  dependsOn 'setupVirtualenv'
+
+  Random r = new Random()
+  def port = r.nextInt(1000) + 27017
+  def containerName = "mongoioit" + port
+
+  def options = [
+        "--mongo_uri=mongodb://localhost:" + port
+  ]
+
+  // Pull the latest mongodb docker image and run
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', "docker pull mongo && docker run --name ${containerName} -p ${port}:27017 -d mongo:latest"
+      }
+  }
+
+  doLast {
+      exec {
+        executable 'sh'
+        args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.io.mongodbio_it_test ${options.join(' ')}"
+      }
+      exec {
+        executable 'sh'
+        args '-c', "docker stop ${containerName} && docker rm ${containerName}"
+      }
+  }
 }

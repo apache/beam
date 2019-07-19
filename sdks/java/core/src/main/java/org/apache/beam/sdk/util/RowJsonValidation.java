@@ -29,7 +29,7 @@ import static org.apache.beam.sdk.schemas.Schema.TypeName.STRING;
 
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /**
  * Validates if the types specified in {@link Row} {@link Schema} are supported for conversion from

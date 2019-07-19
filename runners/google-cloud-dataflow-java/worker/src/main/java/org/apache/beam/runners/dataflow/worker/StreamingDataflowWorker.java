@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow.worker;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.runners.dataflow.DataflowRunner.hasExperiment;
 import static org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.THROTTLING_MSECS_METRIC_NAME;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterUpdate;
@@ -126,20 +126,20 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.TextFormat;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.EvictingQueue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.MultimapBuilder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.EvictingQueue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.MultimapBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -415,6 +415,7 @@ public class StreamingDataflowWorker {
   private final Counter<Long, Long> javaHarnessUsedMemory;
   private final Counter<Long, Long> javaHarnessMaxMemory;
   private final Counter<Integer, Integer> windmillMaxObservedWorkItemCommitBytes;
+  private final Counter<Integer, Integer> memoryThrashing;
   private Timer refreshActiveWorkTimer;
   private Timer statusPageTimer;
 
@@ -593,6 +594,9 @@ public class StreamingDataflowWorker {
     this.windmillMaxObservedWorkItemCommitBytes =
         pendingCumulativeCounters.intMax(
             StreamingSystemCounterNames.WINDMILL_MAX_WORK_ITEM_COMMIT_BYTES.counterName());
+    this.memoryThrashing =
+        pendingCumulativeCounters.intSum(
+            StreamingSystemCounterNames.MEMORY_THRASHING.counterName());
     this.isDoneFuture = new CompletableFuture<>();
 
     this.threadFactory =
@@ -1034,7 +1038,11 @@ public class StreamingDataflowWorker {
             }
           }
         };
-    computationState.activateWork(workItem.getKey(), work);
+    if (!computationState.activateWork(workItem.getKey(), work)) {
+      // Free worker if the work was not activated.
+      // This can happen if it's duplicate work or some other reason.
+      sdkHarnessRegistry.completeWork(worker);
+    }
   }
 
   abstract static class Work implements Runnable {
@@ -1847,6 +1855,9 @@ public class StreamingDataflowWorker {
 
     // Throttle time is tracked by the windmillServer but is reported to DFE here.
     windmillQuotaThrottling.addValue(windmillServer.getAndResetThrottleTime());
+    if (memoryMonitor.isThrashing()) {
+      memoryThrashing.addValue(1);
+    }
 
     List<CounterUpdate> counterUpdates = new ArrayList<>(128);
 
@@ -1998,7 +2009,7 @@ public class StreamingDataflowWorker {
     }
 
     /** Mark the given key and work as active. */
-    public void activateWork(ByteString key, Work work) {
+    public boolean activateWork(ByteString key, Work work) {
       synchronized (activeWork) {
         Queue<Work> queue = activeWork.get(key);
         if (queue == null) {
@@ -2008,12 +2019,16 @@ public class StreamingDataflowWorker {
           // Fall through to execute without the lock held.
         } else {
           if (queue.peek().getWorkItem().getWorkToken() != work.getWorkItem().getWorkToken()) {
+            // Queue the work for later processing.
             queue.add(work);
+            return true;
           }
-          return;
+          // Skip the work if duplicate
+          return false;
         }
       }
       executor.execute(work);
+      return true;
     }
 
     /** Marks the work for a the given key as complete. Schedules queued work for the key if any. */

@@ -43,10 +43,10 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
@@ -473,6 +473,14 @@ public class BigQueryUtils {
   public static Object convertAvroFormat(
       Field beamField, Object avroValue, BigQueryUtils.ConversionOptions options) {
     TypeName beamFieldTypeName = beamField.getType().getTypeName();
+    if (avroValue == null) {
+      if (beamField.getType().getNullable()) {
+        return null;
+      } else {
+        throw new IllegalArgumentException(
+            String.format("Field %s not nullable", beamField.getName()));
+      }
+    }
     switch (beamFieldTypeName) {
       case INT16:
       case INT32:

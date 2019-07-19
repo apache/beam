@@ -23,13 +23,14 @@ import com.google.api.services.bigquery.model.TableRow;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** A fake implementation of BigQuery's query service.. */
 @Experimental(Experimental.Kind.SOURCE_SINK)
@@ -66,6 +67,27 @@ public class FakeBigQueryServices implements BigQueryServices {
   @Override
   public StorageClient getStorageClient(BigQueryOptions bqOptions) {
     return storageClient;
+  }
+
+  /**
+   * An implementation of {@link BigQueryServerStream} which takes a {@link List} as the {@link
+   * Iterable} to simulate a server stream. {@link #FakeBigQueryServerStream} is a no-op.
+   */
+  public static class FakeBigQueryServerStream<T> implements BigQueryServerStream<T> {
+
+    private final List<T> items;
+
+    public FakeBigQueryServerStream(List<T> items) {
+      this.items = items;
+    }
+
+    @Override
+    public Iterator<T> iterator() {
+      return items.iterator();
+    }
+
+    @Override
+    public void cancel() {}
   }
 
   static String encodeQueryResult(Table table) throws IOException {

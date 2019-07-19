@@ -28,7 +28,7 @@ import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -131,26 +131,27 @@ public class WindmillStateCacheTest {
   @Before
   public void setUp() {
     cache = new WindmillStateCache();
-    keyCache = cache.forComputation(COMPUTATION).forKey(KEY, STATE_FAMILY, 0L);
     assertEquals(0, cache.getWeight());
   }
 
   @Test
   public void testBasic() throws Exception {
+    keyCache = cache.forComputation(COMPUTATION).forKey(KEY, STATE_FAMILY, 0L, 1L);
     assertNull(keyCache.get(StateNamespaces.global(), new TestStateTag("tag1")));
     assertNull(keyCache.get(windowNamespace(0), new TestStateTag("tag2")));
     assertNull(keyCache.get(triggerNamespace(0, 0), new TestStateTag("tag3")));
     assertNull(keyCache.get(triggerNamespace(0, 0), new TestStateTag("tag2")));
 
     keyCache.put(StateNamespaces.global(), new TestStateTag("tag1"), new TestState("g1"), 2);
-    assertEquals(121, cache.getWeight());
+    assertEquals(129, cache.getWeight());
     keyCache.put(windowNamespace(0), new TestStateTag("tag2"), new TestState("w2"), 2);
-    assertEquals(242, cache.getWeight());
+    assertEquals(258, cache.getWeight());
     keyCache.put(triggerNamespace(0, 0), new TestStateTag("tag3"), new TestState("t3"), 2);
-    assertEquals(260, cache.getWeight());
+    assertEquals(276, cache.getWeight());
     keyCache.put(triggerNamespace(0, 0), new TestStateTag("tag2"), new TestState("t2"), 2);
-    assertEquals(278, cache.getWeight());
+    assertEquals(294, cache.getWeight());
 
+    keyCache = cache.forComputation(COMPUTATION).forKey(KEY, STATE_FAMILY, 0L, 2L);
     assertEquals(
         new TestState("g1"), keyCache.get(StateNamespaces.global(), new TestStateTag("tag1")));
     assertEquals(new TestState("w2"), keyCache.get(windowNamespace(0), new TestStateTag("tag2")));
@@ -163,14 +164,17 @@ public class WindmillStateCacheTest {
   /** Verifies that values are cached in the appropriate namespaces. */
   @Test
   public void testInvalidation() throws Exception {
+    keyCache = cache.forComputation(COMPUTATION).forKey(KEY, STATE_FAMILY, 0L, 1L);
     assertNull(keyCache.get(StateNamespaces.global(), new TestStateTag("tag1")));
     keyCache.put(StateNamespaces.global(), new TestStateTag("tag1"), new TestState("g1"), 2);
-    assertEquals(121, cache.getWeight());
+
+    keyCache = cache.forComputation(COMPUTATION).forKey(KEY, STATE_FAMILY, 0L, 2L);
+    assertEquals(129, cache.getWeight());
     assertEquals(
         new TestState("g1"), keyCache.get(StateNamespaces.global(), new TestStateTag("tag1")));
 
-    keyCache = cache.forComputation(COMPUTATION).forKey(KEY, STATE_FAMILY, 1L);
-    assertEquals(121, cache.getWeight());
+    keyCache = cache.forComputation(COMPUTATION).forKey(KEY, STATE_FAMILY, 1L, 3L);
+    assertEquals(129, cache.getWeight());
     assertNull(keyCache.get(StateNamespaces.global(), new TestStateTag("tag1")));
     assertEquals(0, cache.getWeight());
   }
@@ -178,45 +182,102 @@ public class WindmillStateCacheTest {
   /** Verifies that the cache is invalidated when the cache token changes. */
   @Test
   public void testEviction() throws Exception {
+    keyCache = cache.forComputation(COMPUTATION).forKey(KEY, STATE_FAMILY, 0L, 1L);
     keyCache.put(windowNamespace(0), new TestStateTag("tag2"), new TestState("w2"), 2);
-    assertEquals(121, cache.getWeight());
+    assertEquals(129, cache.getWeight());
     keyCache.put(triggerNamespace(0, 0), new TestStateTag("tag3"), new TestState("t3"), 2000000000);
     assertEquals(0, cache.getWeight());
     // Eviction is atomic across the whole window.
+    keyCache = cache.forComputation(COMPUTATION).forKey(KEY, STATE_FAMILY, 0L, 2L);
     assertNull(keyCache.get(windowNamespace(0), new TestStateTag("tag2")));
     assertNull(keyCache.get(triggerNamespace(0, 0), new TestStateTag("tag3")));
+  }
+
+  /** Verifies that the cache does not vend for stale work tokens. */
+  @Test
+  public void testStaleWorkItem() throws Exception {
+    TestStateTag tag = new TestStateTag("tag2");
+
+    keyCache = cache.forComputation(COMPUTATION).forKey(KEY, STATE_FAMILY, 0L, 2L);
+    keyCache.put(windowNamespace(0), tag, new TestState("w2"), 2);
+    assertEquals(129, cache.getWeight());
+    // Same cache.
+    assertNull(keyCache.get(windowNamespace(0), tag));
+
+    // Previous work token.
+    keyCache = cache.forComputation(COMPUTATION).forKey(KEY, STATE_FAMILY, 0L, 1L);
+    assertNull(keyCache.get(windowNamespace(0), tag));
+
+    // Retry of work token that inserted.
+    keyCache = cache.forComputation(COMPUTATION).forKey(KEY, STATE_FAMILY, 0L, 2L);
+    assertNull(keyCache.get(windowNamespace(0), tag));
+
+    keyCache = cache.forComputation(COMPUTATION).forKey(KEY, STATE_FAMILY, 0L, 10L);
+    assertEquals(new TestState("w2"), keyCache.get(windowNamespace(0), tag));
+    keyCache.put(windowNamespace(0), tag, new TestState("w3"), 2);
+
+    // Ensure that second put updated work token.
+    keyCache = cache.forComputation(COMPUTATION).forKey(KEY, STATE_FAMILY, 0L, 5L);
+    assertNull(keyCache.get(windowNamespace(0), tag));
+
+    keyCache = cache.forComputation(COMPUTATION).forKey(KEY, STATE_FAMILY, 0L, 15L);
+    assertEquals(new TestState("w3"), keyCache.get(windowNamespace(0), tag));
   }
 
   /** Verifies that caches are kept independently per-key. */
   @Test
   public void testMultipleKeys() throws Exception {
-    WindmillStateCache.ForKey keyCache1 =
-        cache.forComputation("comp1").forKey(ByteString.copyFromUtf8("key1"), STATE_FAMILY, 0L);
-    WindmillStateCache.ForKey keyCache2 =
-        cache.forComputation("comp1").forKey(ByteString.copyFromUtf8("key2"), STATE_FAMILY, 0L);
-    WindmillStateCache.ForKey keyCache3 =
-        cache.forComputation("comp2").forKey(ByteString.copyFromUtf8("key1"), STATE_FAMILY, 0L);
+    TestStateTag tag = new TestStateTag("tag1");
 
-    keyCache1.put(StateNamespaces.global(), new TestStateTag("tag1"), new TestState("g1"), 2);
-    assertEquals(
-        new TestState("g1"), keyCache1.get(StateNamespaces.global(), new TestStateTag("tag1")));
-    assertNull(keyCache2.get(StateNamespaces.global(), new TestStateTag("tag1")));
-    assertNull(keyCache3.get(StateNamespaces.global(), new TestStateTag("tag1")));
+    WindmillStateCache.ForKey keyCache1 =
+        cache.forComputation("comp1").forKey(ByteString.copyFromUtf8("key1"), STATE_FAMILY, 0L, 0L);
+    WindmillStateCache.ForKey keyCache2 =
+        cache
+            .forComputation("comp1")
+            .forKey(ByteString.copyFromUtf8("key2"), STATE_FAMILY, 0L, 10L);
+    WindmillStateCache.ForKey keyCache3 =
+        cache.forComputation("comp2").forKey(ByteString.copyFromUtf8("key1"), STATE_FAMILY, 0L, 0L);
+
+    TestState state1 = new TestState("g1");
+    keyCache1.put(StateNamespaces.global(), tag, state1, 2);
+    assertNull(keyCache1.get(StateNamespaces.global(), tag));
+    keyCache1 =
+        cache.forComputation("comp1").forKey(ByteString.copyFromUtf8("key1"), STATE_FAMILY, 0L, 1L);
+    assertEquals(state1, keyCache1.get(StateNamespaces.global(), tag));
+    assertNull(keyCache2.get(StateNamespaces.global(), tag));
+    assertNull(keyCache3.get(StateNamespaces.global(), tag));
+
+    TestState state2 = new TestState("g2");
+    keyCache2.put(StateNamespaces.global(), tag, state2, 2);
+    assertNull(keyCache2.get(StateNamespaces.global(), tag));
+    keyCache2 =
+        cache
+            .forComputation("comp1")
+            .forKey(ByteString.copyFromUtf8("key2"), STATE_FAMILY, 0L, 20L);
+    assertEquals(state2, keyCache2.get(StateNamespaces.global(), tag));
+    assertEquals(state1, keyCache1.get(StateNamespaces.global(), tag));
+    assertNull(keyCache3.get(StateNamespaces.global(), tag));
   }
 
   /** Verifies explicit invalidation does indeed invalidate the correct entries. */
   @Test
   public void testExplicitInvalidation() throws Exception {
     WindmillStateCache.ForKey keyCache1 =
-        cache.forComputation("comp1").forKey(ByteString.copyFromUtf8("key1"), STATE_FAMILY, 0L);
+        cache.forComputation("comp1").forKey(ByteString.copyFromUtf8("key1"), STATE_FAMILY, 0L, 0L);
     WindmillStateCache.ForKey keyCache2 =
-        cache.forComputation("comp1").forKey(ByteString.copyFromUtf8("key2"), STATE_FAMILY, 0L);
+        cache.forComputation("comp1").forKey(ByteString.copyFromUtf8("key2"), STATE_FAMILY, 0L, 0L);
     WindmillStateCache.ForKey keyCache3 =
-        cache.forComputation("comp2").forKey(ByteString.copyFromUtf8("key1"), STATE_FAMILY, 0L);
+        cache.forComputation("comp2").forKey(ByteString.copyFromUtf8("key1"), STATE_FAMILY, 0L, 0L);
 
     keyCache1.put(StateNamespaces.global(), new TestStateTag("tag1"), new TestState("g1"), 1);
     keyCache2.put(StateNamespaces.global(), new TestStateTag("tag2"), new TestState("g2"), 2);
     keyCache3.put(StateNamespaces.global(), new TestStateTag("tag3"), new TestState("g3"), 3);
+    keyCache1 =
+        cache.forComputation("comp1").forKey(ByteString.copyFromUtf8("key1"), STATE_FAMILY, 0L, 1L);
+    keyCache2 =
+        cache.forComputation("comp1").forKey(ByteString.copyFromUtf8("key2"), STATE_FAMILY, 0L, 1L);
+    keyCache3 =
+        cache.forComputation("comp2").forKey(ByteString.copyFromUtf8("key1"), STATE_FAMILY, 0L, 1L);
     assertEquals(
         new TestState("g1"), keyCache1.get(StateNamespaces.global(), new TestStateTag("tag1")));
     assertEquals(
@@ -256,10 +317,13 @@ public class WindmillStateCacheTest {
   @Test
   public void testBadCoderEquality() throws Exception {
     WindmillStateCache.ForKey keyCache1 =
-        cache.forComputation("comp1").forKey(ByteString.copyFromUtf8("key1"), STATE_FAMILY, 0L);
+        cache.forComputation("comp1").forKey(ByteString.copyFromUtf8("key1"), STATE_FAMILY, 0L, 0L);
 
     StateTag<TestState> tag = new TestStateTagWithBadEquality("tag1");
     keyCache1.put(StateNamespaces.global(), tag, new TestState("g1"), 1);
+
+    keyCache1 =
+        cache.forComputation("comp1").forKey(ByteString.copyFromUtf8("key1"), STATE_FAMILY, 0L, 1L);
     assertEquals(new TestState("g1"), keyCache1.get(StateNamespaces.global(), tag));
     assertEquals(
         new TestState("g1"),

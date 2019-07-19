@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -33,6 +33,7 @@ import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.generic.IndexedRecord;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -59,11 +60,11 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.joda.time.Duration;
 
 /**
@@ -1698,6 +1699,28 @@ public class AvroIO {
   public static <ElementT> Sink<ElementT> sink(final Class<ElementT> clazz) {
     return new AutoValue_AvroIO_Sink.Builder<ElementT>()
         .setJsonSchema(ReflectData.get().getSchema(clazz).toString())
+        .setMetadata(ImmutableMap.of())
+        .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
+        .build();
+  }
+
+  /**
+   * A {@link Sink} for use with {@link FileIO#write} and {@link FileIO#writeDynamic}, writing
+   * elements with a given (common) schema, like {@link #writeGenericRecords(Schema)}.
+   */
+  @Experimental
+  public static <ElementT extends IndexedRecord> Sink<ElementT> sink(Schema schema) {
+    return sink(schema.toString());
+  }
+
+  /**
+   * A {@link Sink} for use with {@link FileIO#write} and {@link FileIO#writeDynamic}, writing
+   * elements with a given (common) schema, like {@link #writeGenericRecords(String)}.
+   */
+  @Experimental
+  public static <ElementT extends IndexedRecord> Sink<ElementT> sink(String jsonSchema) {
+    return new AutoValue_AvroIO_Sink.Builder<ElementT>()
+        .setJsonSchema(jsonSchema)
         .setMetadata(ImmutableMap.of())
         .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
         .build();

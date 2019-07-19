@@ -40,7 +40,7 @@
           </option>
           <option name="stepikChangeStatus" value="Content changed" />
           <option name="type" value="pycharm11 JAVA 8" />
-          <option name="updateDate" value="1559325078000" />
+          <option name="updateDate" value="1560936271000" />
           <option name="items">
             <list>
               <Section>
@@ -49,9 +49,9 @@
                 <option name="id" value="85639" />
                 <option name="index" value="1" />
                 <option name="name" value="Introduction" />
-                <option name="position" value="0" />
+                <option name="position" value="1" />
                 <option name="stepikChangeStatus" value="Up to date" />
-                <option name="updateDate" value="1558359731000" />
+                <option name="updateDate" value="1559325015000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -59,9 +59,9 @@
                       <option name="id" value="229506" />
                       <option name="index" value="1" />
                       <option name="name" value="Hello Beam" />
-                      <option name="stepikChangeStatus" value="Up to date" />
-                      <option name="updateDate" value="1558359731000" />
-                      <option name="unitId" value="202031" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" value="1559325015000" />
+                      <option name="unitId" value="-1" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -95,7 +95,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1521" />
+                                            <option name="offset" value="1552" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="pipeline.apply(Create.of(&quot;Hello Beam&quot;))" />
@@ -132,7 +132,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325015000" />
+                            <option name="updateDate" value="1560936162000" />
                           </EduTask>
                         </list>
                       </option>
@@ -146,9 +146,9 @@
                 <option name="id" value="85640" />
                 <option name="index" value="2" />
                 <option name="name" value="Core Transforms" />
-                <option name="position" value="0" />
-                <option name="stepikChangeStatus" value="Content changed" />
-                <option name="updateDate" value="1558359740000" />
+                <option name="position" value="2" />
+                <option name="stepikChangeStatus" value="Up to date" />
+                <option name="updateDate" value="1559325050000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -157,8 +157,8 @@
                       <option name="index" value="1" />
                       <option name="name" value="Map" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824502000" />
-                      <option name="unitId" value="202032" />
+                      <option name="updateDate" value="1559325026000" />
+                      <option name="unitId" value="-1" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -192,7 +192,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1721" />
+                                            <option name="offset" value="1752" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(ParDo.of(new DoFn&lt;Integer, Integer&gt;() {&#10;&#10;      @ProcessElement&#10;      public void processElement(@Element Integer number, OutputReceiver&lt;Integer&gt; out) {&#10;        out.output(number * 10);&#10;      }&#10;&#10;    }))" />
@@ -229,7 +229,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325018000" />
+                            <option name="updateDate" value="1560936166000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -262,7 +262,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1746" />
+                                            <option name="offset" value="1777" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(ParDo.of(new DoFn&lt;String, String&gt;() {&#10;&#10;      @ProcessElement&#10;      public void processElement(@Element String sentence, OutputReceiver&lt;String&gt; out) {&#10;        String[] words = sentence.split(&quot; &quot;);&#10;&#10;        for (String word : words) {&#10;          out.output(word);&#10;        }&#10;      }&#10;&#10;    }))" />
@@ -299,7 +299,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325020000" />
+                            <option name="updateDate" value="1560936169000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -332,7 +332,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1745" />
+                                            <option name="offset" value="1776" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(&#10;        MapElements.into(TypeDescriptors.integers())&#10;            .via(number -&gt; number * 5)&#10;    )" />
@@ -369,7 +369,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325023000" />
+                            <option name="updateDate" value="1560936172000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -402,7 +402,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1804" />
+                                            <option name="offset" value="1835" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(&#10;        FlatMapElements.into(TypeDescriptors.strings())&#10;            .via(sentence -&gt; Arrays.asList(sentence.split(&quot; &quot;)))&#10;    )" />
@@ -439,7 +439,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325026000" />
+                            <option name="updateDate" value="1560791586000" />
                           </EduTask>
                         </list>
                       </option>
@@ -450,8 +450,8 @@
                       <option name="index" value="2" />
                       <option name="name" value="GroupByKey" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824519000" />
-                      <option name="unitId" value="202033" />
+                      <option name="updateDate" value="1559325029000" />
+                      <option name="unitId" value="-1" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -485,7 +485,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1994" />
+                                            <option name="offset" value="2025" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input&#10;        .apply(MapElements.into(kvs(strings(), strings()))&#10;            .via(word -&gt; KV.of(word.substring(0, 1), word)))&#10;&#10;        .apply(GroupByKey.create())" />
@@ -522,7 +522,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325029000" />
+                            <option name="updateDate" value="1560936177000" />
                           </EduTask>
                         </list>
                       </option>
@@ -533,8 +533,8 @@
                       <option name="index" value="3" />
                       <option name="name" value="CoGroupByKey" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824522000" />
-                      <option name="unitId" value="202034" />
+                      <option name="updateDate" value="1559325032000" />
+                      <option name="unitId" value="-1" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -568,7 +568,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2387" />
+                                            <option name="offset" value="2418" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="TupleTag&lt;String&gt; fruitsTag = new TupleTag&lt;&gt;();&#10;    TupleTag&lt;String&gt; countriesTag = new TupleTag&lt;&gt;();&#10;&#10;    MapElements&lt;String, KV&lt;String, String&gt;&gt; mapToAlphabetKv =&#10;        MapElements.into(kvs(strings(), strings()))&#10;            .via(word -&gt; KV.of(word.substring(0, 1), word));&#10;&#10;    PCollection&lt;KV&lt;String, String&gt;&gt; fruitsPColl = fruits.apply(&quot;Fruit to KV&quot;, mapToAlphabetKv);&#10;    PCollection&lt;KV&lt;String, String&gt;&gt; countriesPColl = countries&#10;        .apply(&quot;Country to KV&quot;, mapToAlphabetKv);&#10;&#10;    return KeyedPCollectionTuple&#10;        .of(fruitsTag, fruitsPColl)&#10;        .and(countriesTag, countriesPColl)&#10;&#10;        .apply(CoGroupByKey.create())&#10;&#10;        .apply(ParDo.of(new DoFn&lt;KV&lt;String, CoGbkResult&gt;, String&gt;() {&#10;&#10;          @ProcessElement&#10;          public void processElement(&#10;              @Element KV&lt;String, CoGbkResult&gt; element, OutputReceiver&lt;String&gt; out) {&#10;&#10;            String alphabet = element.getKey();&#10;            CoGbkResult coGbkResult = element.getValue();&#10;&#10;            String fruit = coGbkResult.getOnly(fruitsTag);&#10;            String country = coGbkResult.getOnly(countriesTag);&#10;&#10;            out.output(new WordsAlphabet(alphabet, fruit, country).toString());&#10;          }&#10;&#10;        }));" />
@@ -620,7 +620,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325032000" />
+                            <option name="updateDate" value="1560936180000" />
                           </EduTask>
                         </list>
                       </option>
@@ -631,8 +631,8 @@
                       <option name="index" value="4" />
                       <option name="name" value="Combine" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1558359740000" />
-                      <option name="unitId" value="202035" />
+                      <option name="updateDate" value="1559325044000" />
+                      <option name="unitId" value="-1" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -666,7 +666,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1892" />
+                                            <option name="offset" value="1923" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="@Override&#10;    public Integer apply(Iterable&lt;Integer&gt; input) {&#10;      int sum = 0;&#10;&#10;      for (int item : input) {&#10;        sum += item;&#10;      }&#10;&#10;      return sum;&#10;    }" />
@@ -703,7 +703,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325035000" />
+                            <option name="updateDate" value="1560936184000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -736,7 +736,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1931" />
+                                            <option name="offset" value="1962" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="class Accum implements Serializable {&#10;      int sum = 0;&#10;      int count = 0;&#10;&#10;      @Override&#10;      public boolean equals(Object o) {&#10;        if (this == o) {&#10;          return true;&#10;        }&#10;        if (o == null || getClass() != o.getClass()) {&#10;          return false;&#10;        }&#10;        Accum accum = (Accum) o;&#10;        return sum == accum.sum &amp;&amp;&#10;            count == accum.count;&#10;      }&#10;&#10;      @Override&#10;      public int hashCode() {&#10;        return Objects.hash(sum, count);&#10;      }&#10;    }&#10;&#10;    @Override&#10;    public Accum createAccumulator() {&#10;      return new Accum();&#10;    }&#10;&#10;    @Override&#10;    public Accum addInput(Accum accumulator, Integer input) {&#10;      accumulator.sum += input;&#10;      accumulator.count++;&#10;&#10;      return accumulator;&#10;    }&#10;&#10;    @Override&#10;    public Accum mergeAccumulators(Iterable&lt;Accum&gt; accumulators) {&#10;      Accum merged = createAccumulator();&#10;&#10;      for (Accum accumulator : accumulators) {&#10;        merged.sum += accumulator.sum;&#10;        merged.count += accumulator.count;&#10;      }&#10;&#10;      return merged;&#10;    }&#10;&#10;    @Override&#10;    public Double extractOutput(Accum accumulator) {&#10;      return ((double) accumulator.sum) / accumulator.count;&#10;    }" />
@@ -773,7 +773,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325038000" />
+                            <option name="updateDate" value="1560936188000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -806,7 +806,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2094" />
+                                            <option name="offset" value="2125" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="@Override&#10;    public BigInteger apply(BigInteger left, BigInteger right) {&#10;      return left.add(right);&#10;    }" />
@@ -843,7 +843,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325041000" />
+                            <option name="updateDate" value="1560936191000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -855,12 +855,12 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="750324" />
                             <option name="index" value="4" />
                             <option name="name" value="BinaryCombineFn Lambda" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/combine/binarycombinefnlambda/Task.java">
@@ -876,7 +876,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1891" />
+                                            <option name="offset" value="1922" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Combine.globally(BigInteger::add))" />
@@ -913,7 +913,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1560936195000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -946,7 +946,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2124" />
+                                            <option name="offset" value="2155" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Combine.perKey(new SumIntBinaryCombineFn()))" />
@@ -963,7 +963,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2264" />
+                                            <option name="offset" value="2295" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="@Override&#10;    public Integer apply(Integer left, Integer right) {&#10;      return left + right;&#10;    }" />
@@ -1000,7 +1000,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325044000" />
+                            <option name="updateDate" value="1560936199000" />
                           </EduTask>
                         </list>
                       </option>
@@ -1011,8 +1011,8 @@
                       <option name="index" value="5" />
                       <option name="name" value="Flatten" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824540000" />
-                      <option name="unitId" value="202036" />
+                      <option name="updateDate" value="1559325047000" />
+                      <option name="unitId" value="-1" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -1046,7 +1046,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2009" />
+                                            <option name="offset" value="2040" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="PCollectionList.of(words1).and(words2)&#10;        .apply(Flatten.pCollections())" />
@@ -1083,7 +1083,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325047000" />
+                            <option name="updateDate" value="1560936202000" />
                           </EduTask>
                         </list>
                       </option>
@@ -1094,8 +1094,8 @@
                       <option name="index" value="6" />
                       <option name="name" value="Partition" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824556000" />
-                      <option name="unitId" value="202037" />
+                      <option name="updateDate" value="1559325050000" />
+                      <option name="unitId" value="-1" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -1129,7 +1129,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1935" />
+                                            <option name="offset" value="1966" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input&#10;        .apply(Partition.of(2,&#10;            (PartitionFn&lt;Integer&gt;) (number, numPartitions) -&gt; {&#10;              if (number &gt; 100) {&#10;                return 0;&#10;              } else {&#10;                return 1;&#10;              }&#10;            }))" />
@@ -1166,37 +1166,37 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325050000" />
+                            <option name="updateDate" value="1560936206000" />
                           </EduTask>
                         </list>
                       </option>
                     </Lesson>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="0" />
+                      <option name="id" value="237989" />
                       <option name="index" value="7" />
                       <option name="name" value="Side Input" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="0" />
-                      <option name="unitId" value="0" />
+                      <option name="updateDate" value="1560791406453" />
+                      <option name="unitId" value="-1" />
                       <option name="items">
                         <list>
                           <EduTask>
                             <option name="customPresentableName" />
                             <option name="descriptionFormat" value="HTML" />
-                            <option name="descriptionText" value="&lt;!--&#10;  ~ Licensed to the Apache Software Foundation (ASF) under one&#10;  ~ or more contributor license agreements.  See the NOTICE file&#10;  ~ distributed with this work for additional information&#10;  ~ regarding copyright ownership.  The ASF licenses this file&#10;  ~ to you under the Apache License, Version 2.0 (the&#10;  ~ &quot;License&quot;); you may not use this file except in compliance&#10;  ~ with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~     http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~ Unless required by applicable law or agreed to in writing, software&#10;  ~ distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~ See the License for the specific language governing permissions and&#10;  ~ limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Side Input&lt;/h2&gt;&#10;&lt;p&gt;&#10;  In addition to the main input PCollection, you can provide additional inputs to a ParDo transform&#10;  in the form of side inputs. A side input is an additional input that your DoFn can access each&#10;  time it processes an element in the input PCollection. When you specify a side input, you create&#10;  a view of some other data that can be read from within the ParDo transform’s DoFn while&#10;  processing each element.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  Side inputs are useful if your ParDo needs to inject additional data when processing each element&#10;  in the input PCollection, but the additional data needs to be determined at runtime (and not&#10;  hard-coded). Such values might be determined by the input data, or depend on a different branch&#10;  of your pipeline.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Please enrich each Person with the country based on the city he/she lives in.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Override &lt;a href=&quot;https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.process&quot;&gt;&#10;  process&lt;/a&gt; method that also accepts side input argument.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo&quot;&gt;&#10;  ParDo&lt;/a&gt; with&#10;  &lt;a href=&quot;https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn&quot;&gt;&#10;    DoFn&lt;/a&gt; that accepts side input.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Refer to the Beam Programming Guide&#10;  &lt;a href=&quot;https://beam.apache.org/documentation/programming-guide/#side-inputs&quot;&gt;&quot;Side inputs&quot;&lt;/a&gt;&#10;  section for more information.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~ Licensed to the Apache Software Foundation (ASF) under one&#10;  ~ or more contributor license agreements.  See the NOTICE file&#10;  ~ distributed with this work for additional information&#10;  ~ regarding copyright ownership.  The ASF licenses this file&#10;  ~ to you under the Apache License, Version 2.0 (the&#10;  ~ &quot;License&quot;); you may not use this file except in compliance&#10;  ~ with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~     http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~ Unless required by applicable law or agreed to in writing, software&#10;  ~ distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~ See the License for the specific language governing permissions and&#10;  ~ limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Side Input&lt;/h2&gt;&#10;&lt;p&gt;&#10;  In addition to the main input PCollection, you can provide additional inputs to a ParDo transform&#10;  in the form of side inputs. A side input is an additional input that your DoFn can access each&#10;  time it processes an element in the input PCollection. When you specify a side input, you create&#10;  a view of some other data that can be read from within the ParDo transform’s DoFn while&#10;  processing each element.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  Side inputs are useful if your ParDo needs to inject additional data when processing each element&#10;  in the input PCollection, but the additional data needs to be determined at runtime (and not&#10;  hard-coded). Such values might be determined by the input data, or depend on a different branch&#10;  of your pipeline.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Please enrich each Person with the country based on the city he/she lives in.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/View.html&quot;&gt;&#10;  View&lt;/a&gt; to create PCollectionView of citiesToCountries.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ParDo.html&quot;&gt;&#10;  ParDo&lt;/a&gt; with &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.html&quot;&gt;&#10;  DoFn&lt;/a&gt; that accepts&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ParDo.SingleOutput.html#withSideInputs-org.apache.beam.sdk.values.PCollectionView...-&quot;&gt;&#10;  side input&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Refer to the Beam Programming Guide&#10;  &lt;a href=&quot;https://beam.apache.org/documentation/programming-guide/#side-inputs&quot;&gt;&quot;Side inputs&quot;&lt;/a&gt;&#10;  section for more information.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
                             <option name="feedbackLink">
                               <FeedbackLink>
                                 <option name="link" />
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="754085" />
                             <option name="index" value="1" />
                             <option name="name" value="Side Input" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/sideinput/Task.java">
@@ -1212,7 +1212,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2684" />
+                                            <option name="offset" value="2716" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="citiesToCountries.apply(View.asMap())" />
@@ -1229,7 +1229,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2882" />
+                                            <option name="offset" value="2914" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="persons.apply(ParDo.of(new DoFn&lt;Person, Person&gt;() {&#10;&#10;      @ProcessElement&#10;      public void processElement(@Element Person person, OutputReceiver&lt;Person&gt; out,&#10;          ProcessContext context) {&#10;        Map&lt;String, String&gt; citiesToCountries = context.sideInput(citiesToCountriesView);&#10;        String city = person.getCity();&#10;        String country = citiesToCountries.get(city);&#10;&#10;        out.output(new Person(person.getName(), city, country));&#10;      }&#10;&#10;    }).withSideInputs(citiesToCountriesView))" />
@@ -1281,19 +1281,19 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1560936210000" />
                           </EduTask>
                         </list>
                       </option>
                     </Lesson>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="0" />
+                      <option name="id" value="237990" />
                       <option name="index" value="8" />
                       <option name="name" value="Side Output" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="0" />
-                      <option name="unitId" value="0" />
+                      <option name="updateDate" value="1560791445676" />
+                      <option name="unitId" value="-1" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -1306,12 +1306,12 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="754087" />
                             <option name="index" value="1" />
                             <option name="name" value="Side Output" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/sideoutput/Task.java">
@@ -1327,7 +1327,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2222" />
+                                            <option name="offset" value="2253" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="numbers.apply(ParDo.of(new DoFn&lt;Integer, Integer&gt;() {&#10;&#10;      @ProcessElement&#10;      public void processElement(@Element Integer number, MultiOutputReceiver out) {&#10;        if (number &lt;= 100) {&#10;          out.get(numBelow100Tag).output(number);&#10;        } else {&#10;          out.get(numAbove100Tag).output(number);&#10;        }&#10;      }&#10;&#10;    }).withOutputTags(numBelow100Tag, TupleTagList.of(numAbove100Tag)))" />
@@ -1364,19 +1364,19 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1560936215000" />
                           </EduTask>
                         </list>
                       </option>
                     </Lesson>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="0" />
+                      <option name="id" value="237991" />
                       <option name="index" value="9" />
                       <option name="name" value="Branching" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="0" />
-                      <option name="unitId" value="0" />
+                      <option name="updateDate" value="1560791458069" />
+                      <option name="unitId" value="-1" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -1389,12 +1389,12 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="754088" />
                             <option name="index" value="1" />
                             <option name="name" value="Branching" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/branching/Task.java">
@@ -1410,7 +1410,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1963" />
+                                            <option name="offset" value="1994" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(&quot;Multiply by 5&quot;, MapElements.into(integers()).via(num -&gt; num * 5))" />
@@ -1427,7 +1427,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2144" />
+                                            <option name="offset" value="2175" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(&quot;Multiply by 10&quot;, MapElements.into(integers()).via(num -&gt; num * 10))" />
@@ -1464,19 +1464,19 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1560936219000" />
                           </EduTask>
                         </list>
                       </option>
                     </Lesson>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="0" />
+                      <option name="id" value="237192" />
                       <option name="index" value="10" />
                       <option name="name" value="Composite Transform" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="0" />
-                      <option name="unitId" value="0" />
+                      <option name="updateDate" value="1560431460000" />
+                      <option name="unitId" value="-1" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -1489,12 +1489,12 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="750323" />
                             <option name="index" value="1" />
                             <option name="name" value="Composite Transform" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/org/apache/beam/learning/katas/coretransforms/composite/Task.java">
@@ -1510,10 +1510,10 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1989" />
+                                            <option name="offset" value="1929" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
-                                            <option name="possibleAnswer" value="input&#10;          .apply(ParDo.of(new DoFn&lt;String, Integer&gt;() {&#10;&#10;            @ProcessElement&#10;            public void processElement(@Element String numbers, OutputReceiver&lt;Integer&gt; out) {&#10;              Arrays.stream(numbers.split(&quot;,&quot;))&#10;                  .forEach(numStr -&gt; out.output(Integer.parseInt(numStr)));&#10;            }&#10;&#10;          }))&#10;&#10;          .apply(MapElements.into(integers()).via(number -&gt; number * 10))" />
+                                            <option name="possibleAnswer" value="@Override&#10;    public PCollection&lt;Integer&gt; expand(PCollection&lt;String&gt; input) {&#10;      return input&#10;          .apply(ParDo.of(new DoFn&lt;String, Integer&gt;() {&#10;&#10;            @ProcessElement&#10;            public void processElement(@Element String numbers, OutputReceiver&lt;Integer&gt; out) {&#10;              Arrays.stream(numbers.split(&quot;,&quot;))&#10;                  .forEach(numStr -&gt; out.output(Integer.parseInt(numStr)));&#10;            }&#10;&#10;          }))&#10;&#10;          .apply(MapElements.into(integers()).via(number -&gt; number * 10));&#10;    }" />
                                             <option name="selected" value="false" />
                                             <option name="status" value="Unchecked" />
                                             <option name="studentAnswer" />
@@ -1547,7 +1547,72 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1560791618000" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="237765" />
+                      <option name="index" value="11" />
+                      <option name="name" value="DoFn Additional Parameters" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" value="0" />
+                      <option name="unitId" value="-1" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~ Licensed to the Apache Software Foundation (ASF) under one&#10;  ~ or more contributor license agreements.  See the NOTICE file&#10;  ~ distributed with this work for additional information&#10;  ~ regarding copyright ownership.  The ASF licenses this file&#10;  ~ to you under the Apache License, Version 2.0 (the&#10;  ~ &quot;License&quot;); you may not use this file except in compliance&#10;  ~ with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~     http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~ Unless required by applicable law or agreed to in writing, software&#10;  ~ distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~ See the License for the specific language governing permissions and&#10;  ~ limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;DoFn Additional Parameters&lt;/h2&gt;&#10;&lt;p&gt;&#10;  In addition to the element and the OutputReceiver, Beam will populate other parameters to your&#10;  DoFn’s @ProcessElement method. Any combination of these parameters can be added to your process&#10;  method in any order.&#10;&lt;/p&gt;&#10;&lt;div&gt;&#10;  &lt;ul&gt;&#10;    &lt;li&gt;&#10;      &lt;b&gt;Timestamp&lt;/b&gt;: To access the timestamp of an input element, add a parameter annotated with&#10;      @Timestamp of type Instant&#10;    &lt;/li&gt;&#10;    &lt;li&gt;&#10;      &lt;b&gt;Window&lt;/b&gt;: To access the window an input element falls into, add a parameter of the type of the&#10;      window used for the input PCollection.&#10;    &lt;/li&gt;&#10;    &lt;li&gt;&#10;      &lt;b&gt;PaneInfo&lt;/b&gt;: When triggers are used, Beam provides a PaneInfo object that contains information&#10;      about the current firing. Using PaneInfo you can determine whether this is an early or a&#10;      late firing, and how many times this window has already fired for this key.&#10;    &lt;/li&gt;&#10;    &lt;li&gt;&#10;      &lt;b&gt;PipelineOptions&lt;/b&gt;: The PipelineOptions for the current pipeline can always be accessed in a&#10;      process method by adding it as a parameter.&#10;    &lt;/li&gt;&#10;  &lt;/ul&gt;&#10;&lt;/div&gt;&#10;&lt;p&gt;&#10;  Refer to the Beam Programming Guide&#10;  &lt;a href=&quot;https://beam.apache.org/documentation/programming-guide/#other-dofn-parameters&quot;&gt;&#10;    &quot;Accessing additional parameters in your DoFn&quot;&lt;/a&gt; section for more information.&#10;&lt;/p&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="753154" />
+                            <option name="index" value="1" />
+                            <option name="name" value="DoFn Additional Parameters" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/org/apache/beam/learning/katas/coretransforms/dofnadditionalparams/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/coretransforms/dofnadditionalparams/Task.java" />
+                                      <option name="text" value="public class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/org/apache/beam/learning/katas/coretransforms/dofnadditionalparams/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/coretransforms/dofnadditionalparams/TaskTest.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1560699463688" />
                           </EduTask>
                         </list>
                       </option>
@@ -1561,9 +1626,9 @@
                 <option name="id" value="85641" />
                 <option name="index" value="3" />
                 <option name="name" value="Common Transforms" />
-                <option name="position" value="0" />
+                <option name="position" value="3" />
                 <option name="stepikChangeStatus" value="Up to date" />
-                <option name="updateDate" value="1557824583000" />
+                <option name="updateDate" value="1559325072000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -1572,14 +1637,14 @@
                       <option name="index" value="1" />
                       <option name="name" value="Filter" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824569000" />
+                      <option name="updateDate" value="1559325056000" />
                       <option name="unitId" value="202038" />
                       <option name="items">
                         <list>
                           <EduTask>
                             <option name="customPresentableName" />
                             <option name="descriptionFormat" value="HTML" />
-                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Filter using ParDo&lt;/h2&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Implement a filter function that filters out the even numbers by using&#10;  &lt;a href=&quot;https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo&quot;&gt;&#10;    ParDo&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Override &lt;a href=&quot;https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.process&quot;&gt;&#10;  process&lt;/a&gt; method. You can use &quot;yield&quot; for each intended element.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Filter using ParDo&lt;/h2&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Implement a filter function that filters out the even numbers by using&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.html&quot;&gt;&#10;    DoFn&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ParDo.html&quot;&gt;&#10;  ParDo&lt;/a&gt; with&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.html&quot;&gt;&#10;    DoFn&lt;/a&gt; and only output the intended element.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
                             <option name="feedbackLink">
                               <FeedbackLink>
                                 <option name="link" />
@@ -1607,7 +1672,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1721" />
+                                            <option name="offset" value="1752" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(ParDo.of(&#10;        new DoFn&lt;Integer, Integer&gt;() {&#10;&#10;          @ProcessElement&#10;          public void processElement(@Element Integer number, OutputReceiver&lt;Integer&gt; out) {&#10;            if (number % 2 == 1) {&#10;              out.output(number);&#10;            }&#10;          }&#10;        })&#10;    )" />
@@ -1644,12 +1709,12 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325053000" />
+                            <option name="updateDate" value="1560936224000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
                             <option name="descriptionFormat" value="HTML" />
-                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Filter&lt;/h2&gt;&#10;&lt;p&gt;&#10;  The Beam SDKs provide language-specific ways to simplify how you provide your DoFn implementation.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Implement a filter function that filters out the odd numbers by using&#10;  &lt;a href=&quot;https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter&quot;&gt;&#10;    Filter&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter&quot;&gt;&#10;  Filter&lt;/a&gt; with a lambda.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Filter&lt;/h2&gt;&#10;&lt;p&gt;&#10;  The Beam SDKs provide language-specific ways to simplify how you provide your DoFn implementation.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Implement a filter function that filters out the odd numbers by using&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Filter.html&quot;&gt;&#10;    Filter&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Filter.html&quot;&gt;&#10;  Filter.by(...)&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
                             <option name="feedbackLink">
                               <FeedbackLink>
                                 <option name="link" />
@@ -1677,7 +1742,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1687" />
+                                            <option name="offset" value="1718" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Filter.by(number -&gt; number % 2 == 0))" />
@@ -1714,7 +1779,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325056000" />
+                            <option name="updateDate" value="1560936227000" />
                           </EduTask>
                         </list>
                       </option>
@@ -1725,14 +1790,14 @@
                       <option name="index" value="2" />
                       <option name="name" value="Aggregation" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824583000" />
+                      <option name="updateDate" value="1559325072000" />
                       <option name="unitId" value="202039" />
                       <option name="items">
                         <list>
                           <EduTask>
                             <option name="customPresentableName" />
                             <option name="descriptionFormat" value="HTML" />
-                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Aggregation - Count&lt;/h2&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Count the number of elements from an input.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.combiners.html#apache_beam.transforms.combiners.Count&quot;&gt;&#10;  Count&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Aggregation - Count&lt;/h2&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Count the number of elements from an input.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Count.html&quot;&gt;&#10;  Count&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
                             <option name="feedbackLink">
                               <FeedbackLink>
                                 <option name="link" />
@@ -1760,7 +1825,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1676" />
+                                            <option name="offset" value="1707" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Count.globally())" />
@@ -1797,12 +1862,12 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325060000" />
+                            <option name="updateDate" value="1560936231000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
                             <option name="descriptionFormat" value="HTML" />
-                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Aggregation - Sum&lt;/h2&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Compute the sum of all elements from an input.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.CombineGlobally&quot;&gt;&#10;  CombineGlobally&lt;/a&gt; and Python built-in&#10;  &lt;a href=&quot;https://docs.python.org/2/library/functions.html#sum&quot;&gt;sum&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Aggregation - Sum&lt;/h2&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Compute the sum of all elements from an input.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Sum.html&quot;&gt;&#10;  Sum&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
                             <option name="feedbackLink">
                               <FeedbackLink>
                                 <option name="link" />
@@ -1830,7 +1895,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1678" />
+                                            <option name="offset" value="1709" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Sum.integersGlobally())" />
@@ -1867,12 +1932,12 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325063000" />
+                            <option name="updateDate" value="1560936235000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
                             <option name="descriptionFormat" value="HTML" />
-                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Aggregation - Mean&lt;/h2&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Compute the mean/average of all elements from an input.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.combiners.html#apache_beam.transforms.combiners.Mean&quot;&gt;&#10;  Mean&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Aggregation - Mean&lt;/h2&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Compute the mean/average of all elements from an input.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Mean.html&quot;&gt;&#10;  Mean&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
                             <option name="feedbackLink">
                               <FeedbackLink>
                                 <option name="link" />
@@ -1900,7 +1965,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1678" />
+                                            <option name="offset" value="1709" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Mean.globally())" />
@@ -1937,7 +2002,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325066000" />
+                            <option name="updateDate" value="1560936238000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -1970,7 +2035,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1678" />
+                                            <option name="offset" value="1709" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Min.integersGlobally())" />
@@ -2007,7 +2072,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325069000" />
+                            <option name="updateDate" value="1560936242000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -2040,7 +2105,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1678" />
+                                            <option name="offset" value="1709" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(Max.integersGlobally())" />
@@ -2077,7 +2142,90 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1559325072000" />
+                            <option name="updateDate" value="1560936246000" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="237992" />
+                      <option name="index" value="3" />
+                      <option name="name" value="WithKeys" />
+                      <option name="stepikChangeStatus" value="Info and Content changed" />
+                      <option name="updateDate" value="1560791491864" />
+                      <option name="unitId" value="-1" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~ Licensed to the Apache Software Foundation (ASF) under one&#10;  ~ or more contributor license agreements.  See the NOTICE file&#10;  ~ distributed with this work for additional information&#10;  ~ regarding copyright ownership.  The ASF licenses this file&#10;  ~ to you under the Apache License, Version 2.0 (the&#10;  ~ &quot;License&quot;); you may not use this file except in compliance&#10;  ~ with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~     http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~ Unless required by applicable law or agreed to in writing, software&#10;  ~ distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~ See the License for the specific language governing permissions and&#10;  ~ limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;WithKeys&lt;/h2&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Convert each fruit name into a KV of its first letter and itself, e.g.&#10;  &lt;code&gt;apple =&gt; KV.of(&quot;a&quot;, &quot;apple&quot;)&lt;/code&gt;&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/WithKeys.html&quot;&gt;&#10;  WithKeys&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  If using a lambda in Java 8, &lt;code&gt;withKeyType(TypeDescriptor)&lt;/code&gt; must be called on the&#10;  result PTransform.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="754089" />
+                            <option name="index" value="1" />
+                            <option name="name" value="WithKeys" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/org/apache/beam/learning/katas/commontransforms/withkeys/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1875" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="input&#10;        .apply(WithKeys.&lt;String, String&gt;of(fruit -&gt; fruit.substring(0, 1))&#10;            .withKeyType(strings()))" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/commontransforms/withkeys/Task.java" />
+                                      <option name="text" value="public class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/org/apache/beam/learning/katas/commontransforms/withkeys/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/commontransforms/withkeys/TaskTest.java" />
+                                      <option name="text" value="import org.junit.Assert;&#10;import org.junit.Test;&#10;&#10;public class Tests {&#10;  @Test&#10;  public void testSolution() {&#10;    // put your test here&#10;    Assert.fail(&quot;Tests not implemented for the task&quot;);&#10;  }&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1560936249000" />
                           </EduTask>
                         </list>
                       </option>
@@ -2088,22 +2236,22 @@
               <Section>
                 <option name="courseId" value="54530" />
                 <option name="customPresentableName" />
-                <option name="id" value="0" />
+                <option name="id" value="88010" />
                 <option name="index" value="4" />
                 <option name="name" value="IO" />
-                <option name="position" value="0" />
-                <option name="stepikChangeStatus" value="Content changed" />
-                <option name="updateDate" value="0" />
+                <option name="position" value="4" />
+                <option name="stepikChangeStatus" value="Up to date" />
+                <option name="updateDate" value="1560431425000" />
                 <option name="items">
                   <list>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="0" />
+                      <option name="id" value="237187" />
                       <option name="index" value="1" />
                       <option name="name" value="TextIO" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="0" />
-                      <option name="unitId" value="0" />
+                      <option name="updateDate" value="1560431430000" />
+                      <option name="unitId" value="209563" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -2116,12 +2264,12 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="750317" />
                             <option name="index" value="1" />
                             <option name="name" value="TextIO Read" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="countries.txt">
@@ -2152,7 +2300,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1579" />
+                                            <option name="offset" value="1615" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="TextIO.read().from(FILE_PATH)" />
@@ -2169,7 +2317,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="1819" />
+                                            <option name="offset" value="1855" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input.apply(MapElements.into(strings()).via(String::toUpperCase))" />
@@ -2206,19 +2354,19 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1560936253000" />
                           </EduTask>
                         </list>
                       </option>
                     </Lesson>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="0" />
+                      <option name="id" value="237188" />
                       <option name="index" value="2" />
                       <option name="name" value="Built-in IOs" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="0" />
-                      <option name="unitId" value="0" />
+                      <option name="updateDate" value="1560431436000" />
+                      <option name="unitId" value="209564" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -2231,22 +2379,22 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="750319" />
                             <option name="index" value="1" />
                             <option name="name" value="Built-in IOs" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
-                                <entry key="src/Task.java">
+                                <entry key="src/org/apache/beam/learning/katas/io/builtinios/Task.java">
                                   <value>
                                     <TaskFile>
                                       <option name="answerPlaceholders">
                                         <list />
                                       </option>
                                       <option name="highlightErrors" value="true" />
-                                      <option name="name" value="src/Task.java" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/io/builtinios/Task.java" />
                                       <option name="text" value="" />
                                       <option name="trackChanges" value="true" />
                                       <option name="trackLengths" value="true" />
@@ -2254,9 +2402,642 @@
                                     </TaskFile>
                                   </value>
                                 </entry>
+                                <entry key="test/org/apache/beam/learning/katas/io/builtinios/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/io/builtinios/TaskTest.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1560936257000" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                  </list>
+                </option>
+              </Section>
+              <Section>
+                <option name="courseId" value="54530" />
+                <option name="customPresentableName" />
+                <option name="id" value="88156" />
+                <option name="index" value="5" />
+                <option name="name" value="Windowing" />
+                <option name="position" value="5" />
+                <option name="stepikChangeStatus" value="Up to date" />
+                <option name="updateDate" value="1560698891352" />
+                <option name="items">
+                  <list>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="237760" />
+                      <option name="index" value="1" />
+                      <option name="name" value="Adding Timestamp" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" value="0" />
+                      <option name="unitId" value="210092" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~ Licensed to the Apache Software Foundation (ASF) under one&#10;  ~ or more contributor license agreements.  See the NOTICE file&#10;  ~ distributed with this work for additional information&#10;  ~ regarding copyright ownership.  The ASF licenses this file&#10;  ~ to you under the Apache License, Version 2.0 (the&#10;  ~ &quot;License&quot;); you may not use this file except in compliance&#10;  ~ with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~     http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~ Unless required by applicable law or agreed to in writing, software&#10;  ~ distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~ See the License for the specific language governing permissions and&#10;  ~ limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Adding Timestamp - ParDo&lt;/h2&gt;&#10;&lt;p&gt;&#10;  Bounded sources (such as a file from TextIO) do not provide timestamps for elements. If you need&#10;  timestamps, you must add them to your PCollection’s elements.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  You can assign new timestamps to the elements of a PCollection by applying a ParDo transform that&#10;  outputs new elements with timestamps that you set.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Please assign each element a timestamp based on the the &lt;code&gt;Event.getDate()&lt;/code&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ParDo.html&quot;&gt;&#10;  ParDo&lt;/a&gt;&#10;  with &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.html&quot;&gt;&#10;  DoFn&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.OutputReceiver.html#outputWithTimestamp-T-org.joda.time.Instant-&quot;&gt;&#10;  OutputReceiver.outputWithTimestamp&lt;/a&gt; method to assign timestamp to the element.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Refer to the Beam Programming Guide&#10;  &lt;a href=&quot;https://beam.apache.org/documentation/programming-guide/#adding-timestamps-to-a-pcollections-elements&quot;&gt;&#10;    &quot;Adding timestamps to a PCollection’s elements&quot;&lt;/a&gt; section for more information.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="753142" />
+                            <option name="index" value="1" />
+                            <option name="name" value="ParDo" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/org/apache/beam/learning/katas/windowing/addingtimestamp/pardo/Event.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/windowing/addingtimestamp/pardo/Event.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="src/org/apache/beam/learning/katas/windowing/addingtimestamp/pardo/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="2249" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="events.apply(ParDo.of(new DoFn&lt;Event, Event&gt;() {&#10;&#10;      @ProcessElement&#10;      public void processElement(@Element Event event, OutputReceiver&lt;Event&gt; out) {&#10;        out.outputWithTimestamp(event, event.getDate().toInstant());&#10;      }&#10;&#10;    }))" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/windowing/addingtimestamp/pardo/Task.java" />
+                                      <option name="text" value="public class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/org/apache/beam/learning/katas/windowing/addingtimestamp/pardo/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/windowing/addingtimestamp/pardo/TaskTest.java" />
+                                      <option name="text" value="import org.junit.Assert;&#10;import org.junit.Test;&#10;&#10;public class Tests {&#10;  @Test&#10;  public void testSolution() {&#10;    // put your test here&#10;    Assert.fail(&quot;Tests not implemented for the task&quot;);&#10;  }&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1560698905262" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~ Licensed to the Apache Software Foundation (ASF) under one&#10;  ~ or more contributor license agreements.  See the NOTICE file&#10;  ~ distributed with this work for additional information&#10;  ~ regarding copyright ownership.  The ASF licenses this file&#10;  ~ to you under the Apache License, Version 2.0 (the&#10;  ~ &quot;License&quot;); you may not use this file except in compliance&#10;  ~ with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~     http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~ Unless required by applicable law or agreed to in writing, software&#10;  ~ distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~ See the License for the specific language governing permissions and&#10;  ~ limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Adding Timestamp - WithTimestamps&lt;/h2&gt;&#10;&lt;p&gt;&#10;  Bounded sources (such as a file from TextIO) do not provide timestamps for elements. If you need&#10;  timestamps, you must add them to your PCollection’s elements.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  You can assign new timestamps to the elements of a PCollection by applying a ParDo transform that&#10;  outputs new elements with timestamps that you set.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Please assign each element a timestamp based on the the &lt;code&gt;Event.getDate()&lt;/code&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/WithTimestamps.html&quot;&gt;&#10;  WithTimestamps&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Refer to the Beam Programming Guide&#10;  &lt;a href=&quot;https://beam.apache.org/documentation/programming-guide/#adding-timestamps-to-a-pcollections-elements&quot;&gt;&#10;    &quot;Adding timestamps to a PCollection’s elements&quot;&lt;/a&gt; section for more information.&#10;&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="753143" />
+                            <option name="index" value="2" />
+                            <option name="name" value="WithTimestamps" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/org/apache/beam/learning/katas/windowing/addingtimestamp/withtimestamps/Event.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/windowing/addingtimestamp/withtimestamps/Event.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="src/org/apache/beam/learning/katas/windowing/addingtimestamp/withtimestamps/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="2223" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="events.apply(WithTimestamps.of(event -&gt; event.getDate().toInstant()))" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/windowing/addingtimestamp/withtimestamps/Task.java" />
+                                      <option name="text" value="public class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/org/apache/beam/learning/katas/windowing/addingtimestamp/withtimestamps/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/windowing/addingtimestamp/withtimestamps/TaskTest.java" />
+                                      <option name="text" value="import org.junit.Assert;&#10;import org.junit.Test;&#10;&#10;public class Tests {&#10;  @Test&#10;  public void testSolution() {&#10;    // put your test here&#10;    Assert.fail(&quot;Tests not implemented for the task&quot;);&#10;  }&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1560698907450" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="237761" />
+                      <option name="index" value="2" />
+                      <option name="name" value="Fixed Time Window" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" value="0" />
+                      <option name="unitId" value="210093" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~ Licensed to the Apache Software Foundation (ASF) under one&#10;  ~ or more contributor license agreements.  See the NOTICE file&#10;  ~ distributed with this work for additional information&#10;  ~ regarding copyright ownership.  The ASF licenses this file&#10;  ~ to you under the Apache License, Version 2.0 (the&#10;  ~ &quot;License&quot;); you may not use this file except in compliance&#10;  ~ with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~     http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~ Unless required by applicable law or agreed to in writing, software&#10;  ~ distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~ See the License for the specific language governing permissions and&#10;  ~ limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Fixed Time Window&lt;/h2&gt;&#10;&lt;p&gt;&#10;  Windowing subdivides a PCollection according to the timestamps of its individual elements.&#10;  Transforms that aggregate multiple elements, such as GroupByKey and Combine, work implicitly on&#10;  a per-window basis — they process each PCollection as a succession of multiple, finite windows,&#10;  though the entire collection itself may be of unbounded size.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  In the Beam model, any PCollection (including unbounded PCollections) can be subdivided into&#10;  logical windows. Each element in a PCollection is assigned to one or more windows according to&#10;  the PCollection’s windowing function, and each individual window contains a finite number of&#10;  elements. Grouping transforms then consider each PCollection’s elements on a per-window basis.&#10;  GroupByKey, for example, implicitly groups the elements of a PCollection by key and window.&#10;&lt;/p&gt;&#10;&lt;div&gt;&#10;  Beam provides several windowing functions, including:&#10;  &lt;ul&gt;&#10;    &lt;li&gt;Fixed Time Windows&lt;/li&gt;&#10;    &lt;li&gt;Sliding Time Windows&lt;/li&gt;&#10;    &lt;li&gt;Per-Session Windows&lt;/li&gt;&#10;    &lt;li&gt;Single Global Window&lt;/li&gt;&#10;  &lt;/ul&gt;&#10;&lt;/div&gt;&#10;&lt;p&gt;&#10;  The simplest form of windowing is using fixed time windows. A fixed time window represents a&#10;  consistent duration, non overlapping time interval in the data stream.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Please count the number of events that happened based on fixed window with&#10;  1-day duration.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/FixedWindows.html&quot;&gt;&#10;  FixedWindows&lt;/a&gt; with 1-day duration.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Refer to the Beam Programming Guide&#10;  &lt;a href=&quot;https://beam.apache.org/documentation/programming-guide/#fixed-time-windows&quot;&gt;&#10;    &quot;Fixed time windows&quot;&lt;/a&gt; section for more information.&#10;&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="753144" />
+                            <option name="index" value="1" />
+                            <option name="name" value="Fixed Time Window" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/org/apache/beam/learning/katas/windowing/fixedwindow/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="2906" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="events&#10;        .apply(Window.into(FixedWindows.of(Duration.standardDays(1))))&#10;        .apply(Count.perElement())" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/windowing/fixedwindow/Task.java" />
+                                      <option name="text" value="public class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/org/apache/beam/learning/katas/windowing/fixedwindow/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/windowing/fixedwindow/TaskTest.java" />
+                                      <option name="text" value="import org.junit.Assert;&#10;import org.junit.Test;&#10;&#10;public class Tests {&#10;  @Test&#10;  public void testSolution() {&#10;    // put your test here&#10;    Assert.fail(&quot;Tests not implemented for the task&quot;);&#10;  }&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/org/apache/beam/learning/katas/windowing/fixedwindow/WindowedEvent.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/windowing/fixedwindow/WindowedEvent.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1560698912954" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                  </list>
+                </option>
+              </Section>
+              <Section>
+                <option name="courseId" value="54530" />
+                <option name="customPresentableName" />
+                <option name="id" value="88157" />
+                <option name="index" value="6" />
+                <option name="name" value="Triggers" />
+                <option name="position" value="6" />
+                <option name="stepikChangeStatus" value="Up to date" />
+                <option name="updateDate" value="1560923505422" />
+                <option name="items">
+                  <list>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="237762" />
+                      <option name="index" value="1" />
+                      <option name="name" value="Event Time Triggers" />
+                      <option name="stepikChangeStatus" value="Up to date" />
+                      <option name="updateDate" value="1560923508379" />
+                      <option name="unitId" value="210094" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~ Licensed to the Apache Software Foundation (ASF) under one&#10;  ~ or more contributor license agreements.  See the NOTICE file&#10;  ~ distributed with this work for additional information&#10;  ~ regarding copyright ownership.  The ASF licenses this file&#10;  ~ to you under the Apache License, Version 2.0 (the&#10;  ~ &quot;License&quot;); you may not use this file except in compliance&#10;  ~ with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~     http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~ Unless required by applicable law or agreed to in writing, software&#10;  ~ distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~ See the License for the specific language governing permissions and&#10;  ~ limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Event Time Triggers&lt;/h2&gt;&#10;&lt;p&gt;&#10;  When collecting and grouping data into windows, Beam uses triggers to determine when to emit the&#10;  aggregated results of each window (referred to as a pane). If you use Beam’s default windowing&#10;  configuration and default trigger, Beam outputs the aggregated result when it estimates all data&#10;  has arrived, and discards all subsequent data for that window.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  You can set triggers for your PCollections to change this default behavior. Beam provides a&#10;  number of pre-built triggers that you can set:&#10;&lt;/p&gt;&#10;&lt;div&gt;&#10;  &lt;ul&gt;&#10;    &lt;li&gt;Event time triggers&lt;/li&gt;&#10;    &lt;li&gt;Processing time triggers&lt;/li&gt;&#10;    &lt;li&gt;Data-driven triggers&lt;/li&gt;&#10;    &lt;li&gt;Composite triggers&lt;/li&gt;&#10;  &lt;/ul&gt;&#10;&lt;/div&gt;&#10;&lt;p&gt;&#10;  Event time triggers operate on the event time, as indicated by the timestamp on each data&#10;  element. Beam’s default trigger is event time-based.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  The AfterWatermark trigger operates on event time. The AfterWatermark trigger emits the contents&#10;  of a window after the watermark passes the end of the window, based on the timestamps attached&#10;  to the data elements. The watermark is a global progress metric, and is Beam’s notion of input&#10;  completeness within your pipeline at any given point. AfterWatermark.pastEndOfWindow() only fires&#10;  when the watermark passes the end of the window.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Given that events are being generated every second, please implement a trigger that&#10;  emits the number of events count within a fixed window of 5-second duration.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/FixedWindows.html&quot;&gt;&#10;  FixedWindows&lt;/a&gt; with 5-second duration using&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/AfterWatermark.html#pastEndOfWindow--&quot;&gt;&#10;  AfterWatermark.pastEndOfWindow()&lt;/a&gt; trigger.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Set the &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/Window.html#withAllowedLateness-org.joda.time.Duration-&quot;&gt;&#10;  allowed lateness&lt;/a&gt; to 0 with&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/Window.html#discardingFiredPanes--&quot;&gt;&#10;    discarding accumulation mode&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Combine.html#globally-org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn-&quot;&gt;&#10;  Combine.globally&lt;/a&gt; and&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Count.html#combineFn--&quot;&gt;&#10;    Count.combineFn&lt;/a&gt; to calculate the count of events.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Refer to the Beam Programming Guide&#10;  &lt;a href=&quot;https://beam.apache.org/documentation/programming-guide/#event-time-triggers&quot;&gt;&#10;    &quot;Event time triggers&quot;&lt;/a&gt; section for more information.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="753145" />
+                            <option name="index" value="1" />
+                            <option name="name" value="Event Time Triggers" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/org/apache/beam/learning/katas/triggers/eventtimetriggers/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1905" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="events&#10;        .apply(&#10;            Window.&lt;String&gt;into(FixedWindows.of(Duration.standardSeconds(5)))&#10;                .triggering(AfterWatermark.pastEndOfWindow())&#10;                .withAllowedLateness(Duration.ZERO)&#10;                .discardingFiredPanes())&#10;&#10;        .apply(Combine.globally(Count.&lt;String&gt;combineFn()).withoutDefaults())" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/triggers/eventtimetriggers/Task.java" />
+                                      <option name="text" value="public class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="src/org/apache/beam/learning/katas/triggers/eventtimetriggers/GenerateEvent.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/triggers/eventtimetriggers/GenerateEvent.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/org/apache/beam/learning/katas/triggers/eventtimetriggers/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/triggers/eventtimetriggers/TaskTest.java" />
+                                      <option name="text" value="import org.junit.Assert;&#10;import org.junit.Test;&#10;&#10;public class Tests {&#10;  @Test&#10;  public void testSolution() {&#10;    // put your test here&#10;    Assert.fail(&quot;Tests not implemented for the task&quot;);&#10;  }&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1560923517000" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="237763" />
+                      <option name="index" value="2" />
+                      <option name="name" value="Early Triggers" />
+                      <option name="stepikChangeStatus" value="Up to date" />
+                      <option name="updateDate" value="1560923523075" />
+                      <option name="unitId" value="210095" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~ Licensed to the Apache Software Foundation (ASF) under one&#10;  ~ or more contributor license agreements.  See the NOTICE file&#10;  ~ distributed with this work for additional information&#10;  ~ regarding copyright ownership.  The ASF licenses this file&#10;  ~ to you under the Apache License, Version 2.0 (the&#10;  ~ &quot;License&quot;); you may not use this file except in compliance&#10;  ~ with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~     http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~ Unless required by applicable law or agreed to in writing, software&#10;  ~ distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~ See the License for the specific language governing permissions and&#10;  ~ limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Early Triggers&lt;/h2&gt;&#10;&lt;p&gt;&#10;  Triggers allow Beam to emit early results, before all the data in a given window has arrived.&#10;  For example, emitting after a certain amount of time elapses, or after a certain number of&#10;  elements arrives.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Given that events are being generated every second and a fixed window of 1-day&#10;  duration, please implement an early trigger that emits the number of events count immediately&#10;  after new element is processed.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/AfterWatermark.AfterWatermarkEarlyAndLate.html#withEarlyFirings-org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger-&quot;&gt;&#10;  withEarlyFirings&lt;/a&gt; to set early firing triggers.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/FixedWindows.html&quot;&gt;&#10;  FixedWindows&lt;/a&gt; with 1-day duration using&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/AfterWatermark.html#pastEndOfWindow--&quot;&gt;&#10;    AfterWatermark.pastEndOfWindow()&lt;/a&gt; trigger.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Set the &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/Window.html#withAllowedLateness-org.joda.time.Duration-&quot;&gt;&#10;  allowed lateness&lt;/a&gt; to 0 with&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/Window.html#discardingFiredPanes--&quot;&gt;&#10;    discarding accumulation mode&lt;/a&gt;.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Combine.html#globally-org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn-&quot;&gt;&#10;  Combine.globally&lt;/a&gt; and&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Count.html#combineFn--&quot;&gt;&#10;    Count.combineFn&lt;/a&gt; to calculate the count of events.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Refer to the Beam Programming Guide&#10;  &lt;a href=&quot;https://beam.apache.org/documentation/programming-guide/#event-time-triggers&quot;&gt;&#10;    &quot;Event time triggers&quot;&lt;/a&gt; section for more information.&#10;&lt;/div&gt;&#10;&lt;/html&gt;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="753146" />
+                            <option name="index" value="1" />
+                            <option name="name" value="Early Triggers" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="resources/log4j2.xml">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="false" />
+                                      <option name="name" value="resources/log4j2.xml" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="src/org/apache/beam/learning/katas/triggers/earlytriggers/GenerateEvent.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/triggers/earlytriggers/GenerateEvent.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="src/org/apache/beam/learning/katas/triggers/earlytriggers/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1970" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="events&#10;        .apply(&#10;            Window.&lt;String&gt;into(FixedWindows.of(Duration.standardDays(1)))&#10;                .triggering(&#10;                    AfterWatermark.pastEndOfWindow()&#10;                    .withEarlyFirings(&#10;                        AfterProcessingTime.pastFirstElementInPane()))&#10;                .withAllowedLateness(Duration.ZERO)&#10;                .discardingFiredPanes())&#10;&#10;        .apply(Combine.globally(Count.&lt;String&gt;combineFn()).withoutDefaults())" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/triggers/earlytriggers/Task.java" />
+                                      <option name="text" value="public class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/org/apache/beam/learning/katas/triggers/earlytriggers/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/triggers/earlytriggers/TaskTest.java" />
+                                      <option name="text" value="import org.junit.Assert;&#10;import org.junit.Test;&#10;&#10;public class Tests {&#10;  @Test&#10;  public void testSolution() {&#10;    // put your test here&#10;    Assert.fail(&quot;Tests not implemented for the task&quot;);&#10;  }&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1560923531000" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="237764" />
+                      <option name="index" value="3" />
+                      <option name="name" value="Window Accumulation Mode" />
+                      <option name="stepikChangeStatus" value="Up to date" />
+                      <option name="updateDate" value="1560923537697" />
+                      <option name="unitId" value="210096" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~ Licensed to the Apache Software Foundation (ASF) under one&#10;  ~ or more contributor license agreements.  See the NOTICE file&#10;  ~ distributed with this work for additional information&#10;  ~ regarding copyright ownership.  The ASF licenses this file&#10;  ~ to you under the Apache License, Version 2.0 (the&#10;  ~ &quot;License&quot;); you may not use this file except in compliance&#10;  ~ with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~     http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~ Unless required by applicable law or agreed to in writing, software&#10;  ~ distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~ See the License for the specific language governing permissions and&#10;  ~ limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Window Accumulation Mode&lt;/h2&gt;&#10;&lt;p&gt;&#10;  When you specify a trigger, you must also set the the window’s accumulation mode. When a trigger&#10;  fires, it emits the current contents of the window as a pane. Since a trigger can fire multiple&#10;  times, the accumulation mode determines whether the system accumulates the window panes as the&#10;  trigger fires, or discards them.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  &lt;b&gt;Kata:&lt;/b&gt; Given that events are being generated every second and a fixed window of 1-day&#10;  duration, please implement an early trigger that emits the number of events count immediately&#10;  after new element is processed in accumulating mode.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.13.0/org/apache/beam/sdk/transforms/windowing/Window.html#accumulatingFiredPanes--&quot;&gt;&#10;  accumulatingFiredPanes()&lt;/a&gt; to set a window to accumulate the panes that are produced when the&#10;  trigger fires.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/AfterWatermark.AfterWatermarkEarlyAndLate.html#withEarlyFirings-org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger-&quot;&gt;&#10;  withEarlyFirings&lt;/a&gt; to set early firing triggers.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/FixedWindows.html&quot;&gt;&#10;  FixedWindows&lt;/a&gt; with 1-day duration using&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/AfterWatermark.html#pastEndOfWindow--&quot;&gt;&#10;    AfterWatermark.pastEndOfWindow()&lt;/a&gt; trigger.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Set the &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/Window.html#withAllowedLateness-org.joda.time.Duration-&quot;&gt;&#10;  allowed lateness&lt;/a&gt; to 0.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Combine.html#globally-org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn-&quot;&gt;&#10;  Combine.globally&lt;/a&gt; and&#10;  &lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Count.html#combineFn--&quot;&gt;&#10;    Count.combineFn&lt;/a&gt; to calculate the count of events.&#10;&lt;/div&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Refer to the Beam Programming Guide&#10;  &lt;a href=&quot;https://beam.apache.org/documentation/programming-guide/#event-time-triggers&quot;&gt;&#10;    &quot;Event time triggers&quot;&lt;/a&gt; section for more information.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="753147" />
+                            <option name="index" value="1" />
+                            <option name="name" value="Window Accumulation Mode" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="src/org/apache/beam/learning/katas/triggers/windowaccummode/GenerateEvent.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/triggers/windowaccummode/GenerateEvent.java" />
+                                      <option name="text" value="" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="src/org/apache/beam/learning/katas/triggers/windowaccummode/Task.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1972" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="events&#10;        .apply(&#10;            Window.&lt;String&gt;into(FixedWindows.of(Duration.standardDays(1)))&#10;                .triggering(&#10;                    AfterWatermark.pastEndOfWindow()&#10;                        .withEarlyFirings(&#10;                            AfterProcessingTime.pastFirstElementInPane()))&#10;                .withAllowedLateness(Duration.ZERO)&#10;                .accumulatingFiredPanes())&#10;&#10;        .apply(Combine.globally(Count.&lt;String&gt;combineFn()).withoutDefaults())" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="src/org/apache/beam/learning/katas/triggers/windowaccummode/Task.java" />
+                                      <option name="text" value="public class Task {&#10;  //put your task here&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="test/org/apache/beam/learning/katas/triggers/windowaccummode/TaskTest.java">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="test/org/apache/beam/learning/katas/triggers/windowaccummode/TaskTest.java" />
+                                      <option name="text" value="import org.junit.Assert;&#10;import org.junit.Test;&#10;&#10;public class Tests {&#10;  @Test&#10;  public void testSolution() {&#10;    // put your test here&#10;    Assert.fail(&quot;Tests not implemented for the task&quot;);&#10;  }&#10;}" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="1560923544000" />
                           </EduTask>
                         </list>
                       </option>
@@ -2268,9 +3049,9 @@
                 <option name="courseId" value="54530" />
                 <option name="customPresentableName" />
                 <option name="id" value="85642" />
-                <option name="index" value="5" />
+                <option name="index" value="7" />
                 <option name="name" value="Examples" />
-                <option name="position" value="0" />
+                <option name="position" value="7" />
                 <option name="stepikChangeStatus" value="Up to date" />
                 <option name="updateDate" value="1557824624000" />
                 <option name="items">
@@ -2316,7 +3097,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2044" />
+                                            <option name="offset" value="2075" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="input&#10;&#10;        .apply(FlatMapElements.into(TypeDescriptors.strings())&#10;            .via(line -&gt; Arrays.asList(line.split(&quot; &quot;))))&#10;&#10;        .apply(Count.perElement())&#10;&#10;        .apply(ParDo.of(new DoFn&lt;KV&lt;String, Long&gt;, String&gt;() {&#10;&#10;          @ProcessElement&#10;          public void processElement(&#10;              @Element KV&lt;String, Long&gt; element, OutputReceiver&lt;String&gt; out) {&#10;&#10;            out.output(element.getKey() + &quot;:&quot; + element.getValue());&#10;          }&#10;&#10;        }))" />
@@ -2353,7 +3134,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557823128000" />
+                            <option name="updateDate" value="1560936261000" />
                           </EduTask>
                         </list>
                       </option>

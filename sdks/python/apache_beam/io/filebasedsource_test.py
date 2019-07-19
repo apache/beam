@@ -67,8 +67,10 @@ class LineSource(FileBasedSource):
         start += len(line)
       current = start
       line = f.readline()
-      while line:
-        if not range_tracker.try_claim(current):
+      while range_tracker.try_claim(current):
+        # When the source is unsplittable, try_claim is not enough to determine
+        # whether the file has reached to the end.
+        if not line:
           return
         yield line.rstrip(b'\n')
         current += len(line)

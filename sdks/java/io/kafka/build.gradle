@@ -18,12 +18,14 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature()
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Kafka"
 ext.summary = "Library to read Kafka topics."
 
 dependencies {
-  compile library.java.vendored_guava_20_0
+  compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   // Get back to "provided" since 2.14
   provided library.java.kafka_clients
@@ -33,6 +35,9 @@ dependencies {
   compile library.java.jackson_databind
   compile "org.springframework:spring-expression:4.3.18.RELEASE"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(":sdks:java:io:synthetic")
+  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
   // For testing Cross-language transforms
   testCompile project(":runners:core-construction-java")
   testCompile library.java.hamcrest_core

@@ -203,14 +203,14 @@ class SyntheticSDFStepRestrictionProvider(RestrictionProvider):
     return (restriction[1] - restriction[0]) * element_size
 
 
-def getSyntheticSDFStep(per_element_delay_sec=0,
-                        per_bundle_delay_sec=0,
-                        output_records_per_input_record=1,
-                        output_filter_ratio=0,
-                        initial_splitting_num_bundles=8,
-                        initial_splitting_uneven_chunks=False,
-                        disable_liquid_sharding=False,
-                        size_estimate_override=None,):
+def get_synthetic_sdf_step(per_element_delay_sec=0,
+                           per_bundle_delay_sec=0,
+                           output_records_per_input_record=1,
+                           output_filter_ratio=0,
+                           initial_splitting_num_bundles=8,
+                           initial_splitting_uneven_chunks=False,
+                           disable_liquid_sharding=False,
+                           size_estimate_override=None,):
   """A function which returns a SyntheticSDFStep with given parameters. """
 
   class SyntheticSDFStep(beam.DoFn):
@@ -780,7 +780,7 @@ def run(argv=None):
       new_pc_list = []
       for pc_no, pc in enumerate(pc_list):
         if steps['splittable']:
-          step = getSyntheticSDFStep(
+          step = get_synthetic_sdf_step(
               per_element_delay_sec=steps['per_element_delay'],
               per_bundle_delay_sec=steps['per_bundle_delay'],
               output_records_per_input_record=

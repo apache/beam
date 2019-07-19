@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.elasticsearch;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -63,7 +63,7 @@ import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
@@ -1013,7 +1013,7 @@ public class ElasticsearchIO {
      * docs (like Elasticsearch bulk size advice). See
      * https://www.elastic.co/guide/en/elasticsearch/guide/current/bulk.html Depending on the
      * execution engine, size of bundles may vary, this sets the maximum size. Change this if you
-     * need to have smaller ElasticSearch bulks.
+     * need to have smaller Elasticsearch bulks.
      *
      * @param batchSize maximum batch size in number of documents
      * @return the {@link Write} with connection batch size set
@@ -1029,7 +1029,7 @@ public class ElasticsearchIO {
      * (like Elasticsearch bulk size advice). See
      * https://www.elastic.co/guide/en/elasticsearch/guide/current/bulk.html Depending on the
      * execution engine, size of bundles may vary, this sets the maximum size. Change this if you
-     * need to have smaller ElasticSearch bulks.
+     * need to have smaller Elasticsearch bulks.
      *
      * @param batchSizeBytes maximum batch size in bytes
      * @return the {@link Write} with connection batch size in bytes set

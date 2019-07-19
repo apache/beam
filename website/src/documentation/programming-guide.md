@@ -1090,12 +1090,6 @@ pc = ...
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:combine_custom_average_define
 %}```
 
-If you are combining a `PCollection` of key-value pairs, [per-key
-combining](#combining-values-in-a-keyed-pcollection) is often enough. If
-you need the combining strategy to change based on the key (for example, MIN for
-some users and MAX for other users), you can define a `KeyedCombineFn` to access
-the key within the combining strategy.
-
 ##### 4.2.4.3. Combining a PCollection into a single value {#combining-pcollection}
 
 Use the global combine to transform all of the elements in a given `PCollection`

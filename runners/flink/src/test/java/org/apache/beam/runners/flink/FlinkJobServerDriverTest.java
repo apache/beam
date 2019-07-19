@@ -24,7 +24,7 @@ import static org.hamcrest.core.Is.is;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

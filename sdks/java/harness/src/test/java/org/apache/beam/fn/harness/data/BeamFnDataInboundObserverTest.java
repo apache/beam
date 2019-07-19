@@ -36,7 +36,7 @@ import org.apache.beam.sdk.fn.data.CompletableFutureInboundDataClient;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

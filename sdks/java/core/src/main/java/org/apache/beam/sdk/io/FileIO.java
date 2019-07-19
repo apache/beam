@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
 import static org.apache.beam.sdk.transforms.Contextful.fn;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -72,10 +72,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -729,6 +729,55 @@ public class FileIO {
       builder.add(DisplayData.item("directoryTreatment", getDirectoryTreatment().toString()));
     }
 
+    /**
+     * @return True if metadata is a directory and directory Treatment is SKIP.
+     * @throws java.lang.IllegalArgumentException if metadata is a directory and directoryTreatment
+     *     is Prohibited.
+     * @throws java.lang.UnsupportedOperationException if metadata is a directory and
+     *     directoryTreatment is not SKIP or PROHIBIT.
+     */
+    static boolean shouldSkipDirectory(
+        MatchResult.Metadata metadata, DirectoryTreatment directoryTreatment) {
+      if (metadata.resourceId().isDirectory()) {
+        switch (directoryTreatment) {
+          case SKIP:
+            return true;
+          case PROHIBIT:
+            throw new IllegalArgumentException(
+                "Trying to read " + metadata.resourceId() + " which is a directory");
+
+          default:
+            throw new UnsupportedOperationException(
+                "Unknown DirectoryTreatment: " + directoryTreatment);
+        }
+      }
+
+      return false;
+    }
+
+    /**
+     * Converts metadata to readableFile. Make sure {@link
+     * #shouldSkipDirectory(org.apache.beam.sdk.io.fs.MatchResult.Metadata,
+     * org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment)} returns false before using.
+     */
+    static ReadableFile matchToReadableFile(
+        MatchResult.Metadata metadata, Compression compression) {
+
+      compression =
+          (compression == Compression.AUTO)
+              ? Compression.detect(metadata.resourceId().getFilename())
+              : compression;
+      return new ReadableFile(
+          MatchResult.Metadata.builder()
+              .setResourceId(metadata.resourceId())
+              .setSizeBytes(metadata.sizeBytes())
+              .setLastModifiedMillis(metadata.lastModifiedMillis())
+              .setIsReadSeekEfficient(
+                  metadata.isReadSeekEfficient() && compression == Compression.UNCOMPRESSED)
+              .build(),
+          compression);
+    }
+
     private static class ToReadableFileFn extends DoFn<MatchResult.Metadata, ReadableFile> {
       private final ReadMatches spec;
 
@@ -738,36 +787,11 @@ public class FileIO {
 
       @ProcessElement
       public void process(ProcessContext c) {
-        MatchResult.Metadata metadata = c.element();
-        if (metadata.resourceId().isDirectory()) {
-          switch (spec.getDirectoryTreatment()) {
-            case SKIP:
-              return;
-
-            case PROHIBIT:
-              throw new IllegalArgumentException(
-                  "Trying to read " + metadata.resourceId() + " which is a directory");
-
-            default:
-              throw new UnsupportedOperationException(
-                  "Unknown DirectoryTreatment: " + spec.getDirectoryTreatment());
-          }
+        if (shouldSkipDirectory(c.element(), spec.getDirectoryTreatment())) {
+          return;
         }
-
-        Compression compression =
-            (spec.getCompression() == Compression.AUTO)
-                ? Compression.detect(metadata.resourceId().getFilename())
-                : spec.getCompression();
-        c.output(
-            new ReadableFile(
-                MatchResult.Metadata.builder()
-                    .setResourceId(metadata.resourceId())
-                    .setSizeBytes(metadata.sizeBytes())
-                    .setLastModifiedMillis(metadata.lastModifiedMillis())
-                    .setIsReadSeekEfficient(
-                        metadata.isReadSeekEfficient() && compression == Compression.UNCOMPRESSED)
-                    .build(),
-                compression));
+        ReadableFile r = matchToReadableFile(c.element(), spec.getCompression());
+        c.output(r);
       }
     }
   }

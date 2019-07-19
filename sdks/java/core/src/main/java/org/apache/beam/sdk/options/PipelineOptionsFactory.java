@@ -18,12 +18,13 @@
 package org.apache.beam.sdk.options;
 
 import static java.util.Locale.ROOT;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.beans.BeanInfo;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
@@ -64,30 +65,30 @@ import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.CaseFormat;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicate;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableListMultimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSortedSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.RowSortedTable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.SortedSetMultimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.TreeBasedTable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.TreeMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableListMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSortedSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.RowSortedTable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.SortedSetMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeBasedTable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeMultimap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1072,6 +1073,9 @@ public class PipelineOptionsFactory {
               FluentIterable.from(gettersWithTheAnnotation)
                   .transformAndConcat(
                       new Function<Method, Iterable<? extends Annotation>>() {
+                        @SuppressFBWarnings(
+                            value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+                            justification = "https://github.com/google/guava/issues/920")
                         @Nonnull
                         @Override
                         public Iterable<? extends Annotation> apply(@Nonnull Method method) {
@@ -1088,6 +1092,9 @@ public class PipelineOptionsFactory {
                 FluentIterable.from(gettersWithTheAnnotation)
                     .transformAndConcat(
                         new Function<Method, Iterable<String>>() {
+                          @SuppressFBWarnings(
+                              value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+                              justification = "https://github.com/google/guava/issues/920")
                           @Nonnull
                           @Override
                           public Iterable<String> apply(final @Nonnull Method method) {
@@ -1095,6 +1102,10 @@ public class PipelineOptionsFactory {
                                 .filter(annotationPredicates.forAnnotation)
                                 .transform(
                                     new Function<Annotation, String>() {
+                                      @SuppressFBWarnings(
+                                          value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+                                          justification =
+                                              "https://github.com/google/guava/issues/920")
                                       @Nonnull
                                       @Override
                                       public String apply(@Nonnull Annotation annotation) {
@@ -1448,8 +1459,11 @@ public class PipelineOptionsFactory {
   private static class ReturnTypeFetchingFunction implements Function<Method, Class<?>> {
     static final ReturnTypeFetchingFunction INSTANCE = new ReturnTypeFetchingFunction();
 
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public Class<?> apply(Method input) {
+    public Class<?> apply(@Nonnull Method input) {
       return input.getReturnType();
     }
   }
@@ -1458,8 +1472,11 @@ public class PipelineOptionsFactory {
   private static class MethodToDeclaringClassFunction implements Function<Method, Class<?>> {
     static final MethodToDeclaringClassFunction INSTANCE = new MethodToDeclaringClassFunction();
 
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public Class<?> apply(Method input) {
+    public Class<?> apply(@Nonnull Method input) {
       return input.getDeclaringClass();
     }
   }

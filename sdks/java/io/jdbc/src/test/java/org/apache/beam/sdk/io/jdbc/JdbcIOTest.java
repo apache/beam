@@ -19,19 +19,35 @@ package org.apache.beam.sdk.io.jdbc;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.io.PrintWriter;
 import java.io.Serializable;
 import java.io.StringWriter;
+import java.math.BigDecimal;
 import java.net.InetAddress;
+import java.nio.charset.Charset;
+import java.sql.Array;
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.JDBCType;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collections;
+import java.util.List;
+import java.util.TimeZone;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -52,16 +68,20 @@ import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.commons.dbcp2.PoolingDataSource;
 import org.apache.derby.drda.NetworkServerControl;
 import org.apache.derby.jdbc.ClientDataSource;
+import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
+import org.joda.time.chrono.ISOChronology;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
@@ -84,6 +104,8 @@ public class JdbcIOTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Rule public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(JdbcIO.class);
+
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @BeforeClass
   public static void beforeClass() throws Exception {
@@ -487,6 +509,345 @@ public class JdbcIOTest implements Serializable {
       DatabaseTestHelper.deleteTable(dataSource, BACKOFF_TABLE);
     } catch (Exception e) {
       // nothing to do
+    }
+  }
+
+  @Test
+  public void testWriteWithoutPreparedStatement() throws Exception {
+    final int rowsToAdd = 10;
+
+    Schema.Builder schemaBuilder = Schema.builder();
+    schemaBuilder.addField(Schema.Field.of("column_boolean", Schema.FieldType.BOOLEAN));
+    schemaBuilder.addField(Schema.Field.of("column_string", Schema.FieldType.STRING));
+    schemaBuilder.addField(Schema.Field.of("column_int", Schema.FieldType.INT32));
+    schemaBuilder.addField(Schema.Field.of("column_long", Schema.FieldType.INT64));
+    schemaBuilder.addField(Schema.Field.of("column_float", Schema.FieldType.FLOAT));
+    schemaBuilder.addField(Schema.Field.of("column_double", Schema.FieldType.DOUBLE));
+    schemaBuilder.addField(Schema.Field.of("column_bigdecimal", Schema.FieldType.DECIMAL));
+    schemaBuilder.addField(Schema.Field.of("column_date", LogicalTypes.JDBC_DATE_TYPE));
+    schemaBuilder.addField(Schema.Field.of("column_time", LogicalTypes.JDBC_TIME_TYPE));
+    schemaBuilder.addField(
+        Schema.Field.of("column_timestamptz", LogicalTypes.JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE));
+    schemaBuilder.addField(Schema.Field.of("column_timestamp", Schema.FieldType.DATETIME));
+    schemaBuilder.addField(Schema.Field.of("column_short", Schema.FieldType.INT16));
+    Schema schema = schemaBuilder.build();
+
+    String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE_PS");
+    StringBuilder stmt = new StringBuilder("CREATE TABLE ");
+    stmt.append(tableName);
+    stmt.append(" (");
+    stmt.append("column_boolean       BOOLEAN,"); // boolean
+    stmt.append("column_string        VARCHAR(254),"); // String
+    stmt.append("column_int           INTEGER,"); // int
+    stmt.append("column_long          BIGINT,"); // long
+    stmt.append("column_float         REAL,"); // float
+    stmt.append("column_double        DOUBLE PRECISION,"); // double
+    stmt.append("column_bigdecimal    DECIMAL(13,0),"); // BigDecimal
+    stmt.append("column_date          DATE,"); // Date
+    stmt.append("column_time          TIME,"); // Time
+    stmt.append("column_timestamptz   TIMESTAMP,"); // Timestamp
+    stmt.append("column_timestamp     TIMESTAMP,"); // Timestamp
+    stmt.append("column_short         SMALLINT"); // short
+    stmt.append(" )");
+    DatabaseTestHelper.createTableWithStatement(dataSource, stmt.toString());
+    try {
+      ArrayList<Row> data = getRowsToWrite(rowsToAdd, schema);
+      pipeline
+          .apply(Create.of(data))
+          .setRowSchema(schema)
+          .apply(
+              JdbcIO.<Row>write()
+                  .withDataSourceConfiguration(
+                      JdbcIO.DataSourceConfiguration.create(
+                          "org.apache.derby.jdbc.ClientDriver",
+                          "jdbc:derby://localhost:" + port + "/target/beam"))
+                  .withBatchSize(10L)
+                  .withTable(tableName));
+      pipeline.run();
+      assertRowCount(tableName, rowsToAdd);
+    } finally {
+      DatabaseTestHelper.deleteTable(dataSource, tableName);
+    }
+  }
+
+  @Test
+  public void testWriteWithoutPreparedStatementWithReadRows() throws Exception {
+    SerializableFunction<Void, DataSource> dataSourceProvider = ignored -> dataSource;
+    PCollection<Row> rows =
+        pipeline.apply(
+            JdbcIO.readRows()
+                .withDataSourceProviderFn(dataSourceProvider)
+                .withQuery(String.format("select name,id from %s where name = ?", readTableName))
+                .withStatementPreparator(
+                    preparedStatement ->
+                        preparedStatement.setString(1, TestRow.getNameForSeed(1))));
+
+    String writeTableName = DatabaseTestHelper.getTestTableName("UT_WRITE_PS_WITH_READ_ROWS");
+    DatabaseTestHelper.createTableForRowWithSchema(dataSource, writeTableName);
+    try {
+      rows.apply(
+          JdbcIO.<Row>write()
+              .withDataSourceConfiguration(
+                  JdbcIO.DataSourceConfiguration.create(
+                      "org.apache.derby.jdbc.ClientDriver",
+                      "jdbc:derby://localhost:" + port + "/target/beam"))
+              .withBatchSize(10L)
+              .withTable(writeTableName));
+      pipeline.run();
+    } finally {
+      DatabaseTestHelper.deleteTable(dataSource, writeTableName);
+    }
+  }
+
+  @Test
+  public void testWriteWithoutPsWithNonNullableTableField() throws Exception {
+    final int rowsToAdd = 10;
+
+    Schema.Builder schemaBuilder = Schema.builder();
+    schemaBuilder.addField(Schema.Field.of("column_boolean", Schema.FieldType.BOOLEAN));
+    schemaBuilder.addField(Schema.Field.of("column_string", Schema.FieldType.STRING));
+    Schema schema = schemaBuilder.build();
+
+    String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
+    StringBuilder stmt = new StringBuilder("CREATE TABLE ");
+    stmt.append(tableName);
+    stmt.append(" (");
+    stmt.append("column_boolean       BOOLEAN,");
+    stmt.append("column_int           INTEGER NOT NULL");
+    stmt.append(" )");
+    DatabaseTestHelper.createTableWithStatement(dataSource, stmt.toString());
+    try {
+      ArrayList<Row> data = getRowsToWrite(rowsToAdd, schema);
+      pipeline
+          .apply(Create.of(data))
+          .setRowSchema(schema)
+          .apply(
+              JdbcIO.<Row>write()
+                  .withDataSourceConfiguration(
+                      JdbcIO.DataSourceConfiguration.create(
+                          "org.apache.derby.jdbc.ClientDriver",
+                          "jdbc:derby://localhost:" + port + "/target/beam"))
+                  .withBatchSize(10L)
+                  .withTable(tableName));
+      pipeline.run();
+    } finally {
+      DatabaseTestHelper.deleteTable(dataSource, tableName);
+      thrown.expect(RuntimeException.class);
+    }
+  }
+
+  @Test
+  public void testWriteWithoutPreparedStatementAndNonRowType() throws Exception {
+    final int rowsToAdd = 10;
+
+    String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE_PS_NON_ROW");
+    DatabaseTestHelper.createTableForRowWithSchema(dataSource, tableName);
+    try {
+      List<RowWithSchema> data = getRowsWithSchemaToWrite(rowsToAdd);
+
+      pipeline
+          .apply(Create.of(data))
+          .apply(
+              JdbcIO.<RowWithSchema>write()
+                  .withDataSourceConfiguration(
+                      JdbcIO.DataSourceConfiguration.create(
+                          "org.apache.derby.jdbc.ClientDriver",
+                          "jdbc:derby://localhost:" + port + "/target/beam"))
+                  .withBatchSize(10L)
+                  .withTable(tableName));
+      pipeline.run();
+      assertRowCount(tableName, rowsToAdd);
+    } finally {
+      DatabaseTestHelper.deleteTable(dataSource, tableName);
+    }
+  }
+
+  @Test
+  public void testGetPreparedStatementSetCaller() throws Exception {
+
+    Schema schema =
+        Schema.builder()
+            .addField("bigint_col", Schema.FieldType.INT64)
+            .addField("binary_col", Schema.FieldType.BYTES)
+            .addField("bit_col", Schema.FieldType.BOOLEAN)
+            .addField("char_col", Schema.FieldType.STRING)
+            .addField("decimal_col", Schema.FieldType.DECIMAL)
+            .addField("double_col", Schema.FieldType.DOUBLE)
+            .addField("float_col", Schema.FieldType.FLOAT)
+            .addField("integer_col", Schema.FieldType.INT32)
+            .addField("datetime_col", Schema.FieldType.DATETIME)
+            .addField("int16_col", Schema.FieldType.INT16)
+            .addField("byte_col", Schema.FieldType.BYTE)
+            .build();
+    Row row =
+        Row.withSchema(schema)
+            .addValues(
+                42L,
+                "binary".getBytes(Charset.forName("UTF-8")),
+                true,
+                "char",
+                BigDecimal.valueOf(25L),
+                20.5D,
+                15.5F,
+                10,
+                new DateTime(),
+                (short) 5,
+                Byte.parseByte("1", 2))
+            .build();
+
+    PreparedStatement psMocked = mock(PreparedStatement.class);
+
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.INT64)
+        .set(row, psMocked, 0, SchemaUtil.FieldWithIndex.of(schema.getField(0), 0));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.BYTES)
+        .set(row, psMocked, 1, SchemaUtil.FieldWithIndex.of(schema.getField(1), 1));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.BOOLEAN)
+        .set(row, psMocked, 2, SchemaUtil.FieldWithIndex.of(schema.getField(2), 2));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.STRING)
+        .set(row, psMocked, 3, SchemaUtil.FieldWithIndex.of(schema.getField(3), 3));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.DECIMAL)
+        .set(row, psMocked, 4, SchemaUtil.FieldWithIndex.of(schema.getField(4), 4));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.DOUBLE)
+        .set(row, psMocked, 5, SchemaUtil.FieldWithIndex.of(schema.getField(5), 5));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.FLOAT)
+        .set(row, psMocked, 6, SchemaUtil.FieldWithIndex.of(schema.getField(6), 6));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.INT32)
+        .set(row, psMocked, 7, SchemaUtil.FieldWithIndex.of(schema.getField(7), 7));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.DATETIME)
+        .set(row, psMocked, 8, SchemaUtil.FieldWithIndex.of(schema.getField(8), 8));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.INT16)
+        .set(row, psMocked, 9, SchemaUtil.FieldWithIndex.of(schema.getField(9), 9));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.BYTE)
+        .set(row, psMocked, 10, SchemaUtil.FieldWithIndex.of(schema.getField(10), 10));
+
+    verify(psMocked, times(1)).setLong(1, 42L);
+    verify(psMocked, times(1)).setBytes(2, "binary".getBytes(Charset.forName("UTF-8")));
+    verify(psMocked, times(1)).setBoolean(3, true);
+    verify(psMocked, times(1)).setString(4, "char");
+    verify(psMocked, times(1)).setBigDecimal(5, BigDecimal.valueOf(25L));
+    verify(psMocked, times(1)).setDouble(6, 20.5D);
+    verify(psMocked, times(1)).setFloat(7, 15.5F);
+    verify(psMocked, times(1)).setInt(8, 10);
+    verify(psMocked, times(1))
+        .setTimestamp(9, new Timestamp(row.getDateTime("datetime_col").getMillis()));
+    verify(psMocked, times(1)).setInt(10, (short) 5);
+    verify(psMocked, times(1)).setByte(11, Byte.parseByte("1", 2));
+  }
+
+  @Test
+  public void testGetPreparedStatementSetCallerForLogicalTypes() throws Exception {
+
+    Schema schema =
+        Schema.builder()
+            .addField("logical_date_col", LogicalTypes.JDBC_DATE_TYPE)
+            .addField("logical_time_col", LogicalTypes.JDBC_TIME_TYPE)
+            .addField("logical_time_with_tz_col", LogicalTypes.JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE)
+            .build();
+
+    long epochMilli = 1558719710000L;
+    DateTime dateTime = new DateTime(epochMilli, ISOChronology.getInstanceUTC());
+
+    Row row =
+        Row.withSchema(schema)
+            .addValues(
+                dateTime.withTimeAtStartOfDay(), dateTime.withDate(new LocalDate(0L)), dateTime)
+            .build();
+
+    PreparedStatement psMocked = mock(PreparedStatement.class);
+
+    JdbcUtil.getPreparedStatementSetCaller(LogicalTypes.JDBC_DATE_TYPE)
+        .set(row, psMocked, 0, SchemaUtil.FieldWithIndex.of(schema.getField(0), 0));
+    JdbcUtil.getPreparedStatementSetCaller(LogicalTypes.JDBC_TIME_TYPE)
+        .set(row, psMocked, 1, SchemaUtil.FieldWithIndex.of(schema.getField(1), 1));
+    JdbcUtil.getPreparedStatementSetCaller(LogicalTypes.JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE)
+        .set(row, psMocked, 2, SchemaUtil.FieldWithIndex.of(schema.getField(2), 2));
+
+    verify(psMocked, times(1)).setDate(1, new Date(row.getDateTime(0).getMillis()));
+    verify(psMocked, times(1)).setTime(2, new Time(row.getDateTime(1).getMillis()));
+
+    Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+    cal.setTimeInMillis(epochMilli);
+
+    verify(psMocked, times(1)).setTimestamp(3, new Timestamp(cal.getTime().getTime()), cal);
+  }
+
+  @Test
+  public void testGetPreparedStatementSetCallerForArray() throws Exception {
+
+    Schema schema =
+        Schema.builder()
+            .addField("string_array_col", Schema.FieldType.array(Schema.FieldType.STRING))
+            .build();
+
+    List<String> stringList = Arrays.asList("string 1", "string 2");
+
+    Row row = Row.withSchema(schema).addValues(stringList).build();
+
+    PreparedStatement psMocked = mock(PreparedStatement.class);
+    Connection connectionMocked = mock(Connection.class);
+    Array arrayMocked = mock(Array.class);
+
+    when(psMocked.getConnection()).thenReturn(connectionMocked);
+    when(connectionMocked.createArrayOf(anyString(), any())).thenReturn(arrayMocked);
+
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.array(Schema.FieldType.STRING))
+        .set(row, psMocked, 0, SchemaUtil.FieldWithIndex.of(schema.getField(0), 0));
+
+    verify(psMocked, times(1)).setArray(1, arrayMocked);
+  }
+
+  private static ArrayList<Row> getRowsToWrite(long rowsToAdd, Schema schema) {
+
+    ArrayList<Row> data = new ArrayList<>();
+    for (int i = 0; i < rowsToAdd; i++) {
+      List<Object> fields = new ArrayList<>();
+
+      Row row =
+          schema.getFields().stream()
+              .map(field -> dummyFieldValue(field.getType()))
+              .collect(Row.toRow(schema));
+      data.add(row);
+    }
+    return data;
+  }
+
+  private static ArrayList<RowWithSchema> getRowsWithSchemaToWrite(long rowsToAdd) {
+
+    ArrayList<RowWithSchema> data = new ArrayList<>();
+    for (int i = 0; i < rowsToAdd; i++) {
+      data.add(new RowWithSchema("Test", i));
+    }
+    return data;
+  }
+
+  private static Object dummyFieldValue(Schema.FieldType fieldType) {
+    long epochMilli = 1558719710000L;
+    if (fieldType.equals(Schema.FieldType.STRING)) {
+      return "string value";
+    } else if (fieldType.equals(Schema.FieldType.INT32)) {
+      return 100;
+    } else if (fieldType.equals(Schema.FieldType.DOUBLE)) {
+      return 20.5D;
+    } else if (fieldType.equals(Schema.FieldType.BOOLEAN)) {
+      return Boolean.TRUE;
+    } else if (fieldType.equals(Schema.FieldType.INT16)) {
+      return Short.MAX_VALUE;
+    } else if (fieldType.equals(Schema.FieldType.INT64)) {
+      return Long.MAX_VALUE;
+    } else if (fieldType.equals(Schema.FieldType.FLOAT)) {
+      return 15.5F;
+    } else if (fieldType.equals(Schema.FieldType.DECIMAL)) {
+      return BigDecimal.ONE;
+    } else if (fieldType.equals(LogicalTypes.JDBC_DATE_TYPE)) {
+      return new DateTime(epochMilli, ISOChronology.getInstanceUTC()).withTimeAtStartOfDay();
+    } else if (fieldType.equals(LogicalTypes.JDBC_TIME_TYPE)) {
+      return new DateTime(epochMilli, ISOChronology.getInstanceUTC()).withDate(new LocalDate(0L));
+    } else if (fieldType.equals(LogicalTypes.JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE)) {
+      return new DateTime(epochMilli, ISOChronology.getInstanceUTC());
+    } else if (fieldType.equals(Schema.FieldType.DATETIME)) {
+      return new DateTime(epochMilli, ISOChronology.getInstanceUTC());
+    } else {
+      return null;
     }
   }
 

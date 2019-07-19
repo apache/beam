@@ -34,7 +34,7 @@ String flinkDownloadUrl = 'https://archive.apache.org/dist/flink/flink-1.7.0/fli
 
 int parallelism = 5
 
-def testConfiguration =
+def testConfiguration = { datasetName ->
         [
                 title        : 'Load test: 2GB of 10B records',
                 itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
@@ -44,7 +44,7 @@ def testConfiguration =
                         job_name            : "load_tests_Python_Flink_Batch_GBK_1_${now}",
                         publish_to_big_query: false,
                         project             : 'apache-beam-testing',
-                        metrics_dataset     : 'load_test',
+                        metrics_dataset     : datasetName,
                         metrics_table       : "python_flink_batch_GBK_1",
                         input_options       : '\'{"num_records": 200000000,"key_size": 1,"value_size":9}\'',
                         iterations          : 1,
@@ -55,17 +55,20 @@ def testConfiguration =
                         environment_type: 'DOCKER'
 
                 ]
-        ]
+        ]}
 
 def loadTest = { scope, triggeringContext ->
   scope.description('Runs Java GBK load tests on Flink runner in batch mode')
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
-  infra.prepareSDKHarness(scope, testConfiguration.sdk, dockerRegistryRoot, 'latest')
+  def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
+  def testConfig = testConfiguration(datasetName)
+
+  infra.prepareSDKHarness(scope, testConfig.sdk, dockerRegistryRoot, 'latest')
   infra.prepareFlinkJobServer(scope, flinkVersion, dockerRegistryRoot, 'latest')
   infra.setupFlinkCluster(scope, jenkinsJobName, flinkDownloadUrl, pythonHarnessImageTag, jobServerImageTag, parallelism)
 
-  loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, testConfiguration.sdk, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
+  loadTestsBuilder.loadTest(scope, testConfig.title, testConfig.runner, testConfig.sdk, testConfig.jobProperties, testConfig.itClass)
 
   infra.teardownDataproc(scope, jenkinsJobName)
 }

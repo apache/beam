@@ -36,12 +36,12 @@ import javax.annotation.concurrent.Immutable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBiMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /** {@link Schema} describes the fields in {@link Row}. */
 @Experimental(Kind.SCHEMAS)
@@ -302,7 +302,7 @@ public class Schema implements Serializable {
     return equivalent(other, EquivalenceNullablePolicy.WEAKEN);
   }
 
-  /** Returns true if this Schema can be assigned to another Schema, igmoring nullable. * */
+  /** Returns true if this Schema can be assigned to another Schema, ignoring nullable. * */
   public boolean assignableToIgnoreNullable(Schema other) {
     return equivalent(other, EquivalenceNullablePolicy.IGNORE);
   }

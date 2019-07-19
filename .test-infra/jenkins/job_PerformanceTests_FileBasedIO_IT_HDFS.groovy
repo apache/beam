@@ -168,7 +168,7 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
                 beam_it_timeout         : '1200',
                 beam_prebuilt           : 'false',
                 beam_sdk                : 'java',
-                beam_it_module          : 'sdks/java/io/file-based-io-tests',
+                beam_it_module          : ':sdks:java:io:file-based-io-tests',
                 beam_it_class           : testConfiguration.itClass,
                 beam_it_options         : pipelineArgsJoined,
                 beam_extra_properties   : '["filesystem=hdfs"]',

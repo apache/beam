@@ -407,17 +407,20 @@ This runner is not yet available for the Python SDK.
 
 {:.runner-flink-local}
 ```
-This runner is not yet available for the Python SDK.
+Currently, running wordcount.py on Flink requires a full download of the Beam source code.
+See https://beam.apache.org/roadmap/portability/#python-on-flink for more information.
 ```
 
 {:.runner-flink-cluster}
 ```
-This runner is not yet available for the Python SDK.
+Currently, running wordcount.py on Flink requires a full download of the Beam source code.
+See https://beam.apache.org/documentation/runners/flink/ for more information.
 ```
 
 {:.runner-spark}
 ```
-This runner is not yet available for the Python SDK.
+Currently, running wordcount.py on Spark requires a full download of the Beam source code.
+See https://beam.apache.org/roadmap/portability/#python-on-spark for more information.
 ```
 
 {:.runner-dataflow}
@@ -1235,7 +1238,15 @@ public static void main(String[] args) throws IOException {
 ```
 
 ```py
-# This feature is not yet available in the Beam SDK for Python.
+def main(arvg=None):
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--input-file',
+                      dest='input_file',
+                      default='/Users/home/words-example.txt')
+  known_args, pipeline_args = parser.parse_known_args(argv)
+  pipeline_options = PipelineOptions(pipeline_args)
+  p = beam.Pipeline(options=pipeline_options)
+  lines  = p | 'read' >> ReadFromText(known_args.input_file)
 ```
 
 ```go
@@ -1267,7 +1278,7 @@ each element in the `PCollection`.
 ```
 
 ```py
-# This feature is not yet available in the Beam SDK for Python.
+beam.Map(AddTimestampFn(timestamp_seconds))
 ```
 
 ```go
@@ -1308,7 +1319,16 @@ static class AddTimestampFn extends DoFn<String, String> {
 ```
 
 ```py
-# This feature is not yet available in the Beam SDK for Python.
+class AddTimestampFn(beam.DoFn):
+  
+  def __init__(self, min_timestamp, max_timestamp):
+     self.min_timestamp = min_timestamp
+     self.max_timestamp = max_timestamp
+
+  def process(self, element):
+    return window.TimestampedValue(
+       element,
+       random.randint(self.min_timestamp, self.max_timestamp))
 ```
 
 ```go
@@ -1344,7 +1364,7 @@ PCollection<String> windowedWords = input
 ```
 
 ```py
-# This feature is not yet available in the Beam SDK for Python.
+windowed_words = input | beam.WindowInto(window.FixedWindows(60 * window_size_minutes))
 ```
 
 ```go
@@ -1362,7 +1382,7 @@ PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.Cou
 ```
 
 ```py
-# This feature is not yet available in the Beam SDK for Python.
+word_counts = windowed_words | CountWords()
 ```
 
 ```go
