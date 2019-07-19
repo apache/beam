@@ -253,13 +253,13 @@ class GreedyPCollectionFusers {
    */
   private static boolean canFuseCompatibleEnvironment(
       PTransformNode operation,
-      Environment environmemnt,
+      Environment environment,
       @SuppressWarnings("unused") PCollectionNode candidate,
       @SuppressWarnings("unused") Collection<PCollectionNode> stagePCollections,
       QueryablePipeline pipeline) {
     // WindowInto transforms may not have an environment
     Optional<Environment> operationEnvironment = pipeline.getEnvironment(operation);
-    return environmemnt.equals(operationEnvironment.orElse(null));
+    return environment.equals(operationEnvironment.orElse(null));
   }
 
   private static boolean compatibleEnvironments(
