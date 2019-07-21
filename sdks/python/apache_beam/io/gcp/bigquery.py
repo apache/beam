@@ -1006,6 +1006,14 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         passed to the table callable (if one is provided).
       schema_side_inputs: A tuple with ``AsSideInput`` PCollections to be
         passed to the schema callable (if one is provided).
+      triggering_frequency (int): Every triggering_frequency duration, a
+        BigQuery load job will be triggered for all the data written since
+        the last load job. BigQuery has limits on how many load jobs can be
+        triggered per day, so be careful not to set this duration too low, or
+        you may exceed daily quota. Often this is set to 5 or 10 minutes to
+        ensure that the project stays well under the BigQuery quota.
+        See https://cloud.google.com/bigquery/quota-policy for more information
+        about BigQuery quotas.
       validate: Indicates whether to perform validation checks on
         inputs. This parameter is primarily used for testing.
     """
