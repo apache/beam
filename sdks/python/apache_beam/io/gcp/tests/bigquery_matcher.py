@@ -192,6 +192,7 @@ class BigqueryFullResultStreamingMatcher(BigqueryFullResultMatcher):
       response = self._query_with_retry(bigquery_client)
       if len(response) >= len(self.expected_data):
         return response
+      logging.debug('Query result contains %d rows' % len(response))
       time.sleep(1)
     if sys.version_info >= (3,):
       raise TimeoutError('Timeout exceeded for matcher.') # noqa: F821
