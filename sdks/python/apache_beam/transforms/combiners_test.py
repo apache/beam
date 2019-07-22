@@ -20,16 +20,19 @@ from __future__ import absolute_import
 from __future__ import division
 
 import itertools
+import math
 import random
 import sys
 import unittest
 
 import hamcrest as hc
 from future.builtins import range
+from parameterized import parameterized
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import BeamAssertException
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import window
@@ -479,6 +482,240 @@ class LatestCombineFnTest(unittest.TestCase):
       with TestPipeline() as p:
         pc = p | Create(l_3_tuple)
         _ = pc | beam.CombineGlobally(self.fn)
+
+
+def _quantiles_matcher(expected):
+  l = len(expected)
+
+  def assert_true(exp):
+    if not exp:
+      raise BeamAssertException('%s Failed assert True' % repr(exp))
+
+  def match(actual):
+    actual = actual[0]
+    for i in range(l):
+      if isinstance(expected[i], list):
+        assert_true(expected[i][0] <= actual[i] <= expected[i][1])
+      else:
+        equal_to([expected[i]])([actual[i]])
+
+  return match
+
+
+class ApproximateQuantilesTest(unittest.TestCase):
+  _kv_data = [("a", 1), ("a", 2), ("a", 3), ("b", 1), ("b", 10), ("b", 10),
+              ("b", 100)]
+
+  @staticmethod
+  def _approx_quantile_generator(size, num_of_quantiles, absoluteError):
+    quantiles = [0, ]
+    k = 1
+    while k < num_of_quantiles - 1:
+      expected = (size - 1) * k / (num_of_quantiles - 1)
+      quantiles.append([expected - absoluteError, expected + absoluteError])
+      k = k + 1
+    quantiles.append(size - 1)
+    return quantiles
+
+  def test_quantiles_globaly(self):
+    with TestPipeline() as p:
+      pc = p | Create(range(101))
+      quantiles = pc | combine.ApproximateQuantiles.Globally(5)
+      assert_that(quantiles, equal_to([[0, 25, 50, 75, 100]]))
+
+  def test_quantiles_globaly_comparable(self):
+    with TestPipeline() as p:
+      data = range(101)
+      comparator = lambda a, b: b - a  # descending comparator
+      pc = p | Create(data)
+      quantiles = pc | combine.ApproximateQuantiles.Globally(5, comparator)
+      assert_that(quantiles, equal_to([[100, 75, 50, 25, 0]]))
+
+  def test_quantiles_per_key(self):
+    with TestPipeline() as p:
+      data = self._kv_data
+      pc = p | Create(data)
+      quantiles = pc | combine.ApproximateQuantiles.PerKey(2)
+      assert_that(quantiles, equal_to([('a', [1, 3]), ('b', [1, 100])]))
+
+  def test_quantiles_per_key_comparable(self):
+    with TestPipeline() as p:
+      data = self._kv_data
+      comparator = lambda a, b: b - a  # descending comparator
+      pc = p | Create(data)
+      quantiles = pc | combine.ApproximateQuantiles.PerKey(2, comparator)
+      assert_that(quantiles, equal_to([('a', [3, 1]), ('b', [100, 1])]))
+
+  def test_singleton(self):
+    with TestPipeline() as p:
+      data = [389]
+      pc = p | Create(data)
+      qunatiles = pc | combine.ApproximateQuantiles.Globally(5)
+      assert_that(qunatiles, equal_to([[389, 389, 389, 389, 389]]))
+
+  def test_uneven_quantiles(self):
+    with TestPipeline() as p:
+      data = range(5000)
+      pc = p | Create(data)
+      qunatiles = pc | combine.ApproximateQuantiles.Globally(37)
+      aprox_quantiles = self._approx_quantile_generator(size=5000,
+                                                        num_of_quantiles=37,
+                                                        absoluteError=20)
+      assert_that(qunatiles, _quantiles_matcher(aprox_quantiles))
+
+  def test_large_quantiles(self):
+    with TestPipeline() as p:
+      data = range(10001)
+      pc = p | Create(data)
+      qunatiles = pc | combine.ApproximateQuantiles.Globally(50)
+      aprox_quantiles = self._approx_quantile_generator(size=10001,
+                                                        num_of_quantiles=50,
+                                                        absoluteError=20)
+      assert_that(qunatiles, _quantiles_matcher(aprox_quantiles))
+
+  def test_random_combines(self):
+    with TestPipeline() as p:
+      x = list(range(101))
+      random.shuffle(x)
+      pc = p | Create(x)
+      quantiles = pc | combine.ApproximateQuantiles.Globally(5)
+      assert_that(quantiles, equal_to([[0, 25, 50, 75, 100]]))
+
+  def test_duplicats(self):
+    with TestPipeline() as p:
+      y = list(range(101))
+      x = []
+      for _ in range(10):
+        x.extend(y)
+      pc = p | Create(x)
+      quantiles = pc | combine.ApproximateQuantiles.Globally(5)
+      assert_that(quantiles, equal_to([[0, 25, 50, 75, 100]]))
+
+  def test_lots_of_duplicats(self):
+    with TestPipeline() as p:
+      data = [1]
+      data.extend([2 for _ in range(299)])
+      data.extend([3 for _ in range(799)])
+      pc = p | Create(data)
+      quantiles = pc | combine.ApproximateQuantiles.Globally(5)
+      assert_that(quantiles, equal_to([[1, 2, 3, 3, 3]]))
+
+  def test_log_distribution(self):
+    with TestPipeline() as p:
+      data = [int(math.log(x)) for x in range(1, 1000)]
+      pc = p | Create(data)
+      quantiles = pc | combine.ApproximateQuantiles.Globally(5)
+      assert_that(quantiles, equal_to([[0, 5, 6, 6, 6]]))
+
+  def test_zipfian_distribution(self):
+    with TestPipeline() as p:
+      x = []
+      for i in range(1, 1000):
+        x.append(int(1000 / i))
+      pc = p | Create(x)
+      _ = pc | combine.ApproximateQuantiles.Globally(5)
+      assert_that(_, equal_to([[1, 1, 2, 4, 1000]]))
+
+  def test_alternate_comparator(self):
+    data = ["aa", "aaa", "aaaa", "b", "ccccc", "dddd", "zz"]
+    with TestPipeline() as p:
+      pc = p | Create(data)
+      quantiles = pc | combine.ApproximateQuantiles.Globally(3)
+      assert_that(quantiles, equal_to([["aa", "b", "zz"]]))
+
+    with TestPipeline() as p:
+      pc = p | Create(data)
+      comparator = lambda a, b: len(a) - len(b)  # order by length
+      quantiles = pc | combine.ApproximateQuantiles.Globally(3, comparator)
+      assert_that(quantiles, equal_to([["b", "aaa", "ccccc"]]))
+
+  def test_display_data(self):
+
+    comparator = lambda a, b: a - b  # order by length
+    aq = combine.ApproximateQuantiles.Globally(3, comparator)
+    data = DisplayData.create_from(aq)
+    expected_items = [
+        DisplayDataItemMatcher('num_quantiles', aq.num_quantiles),
+        DisplayDataItemMatcher('compare_fn', aq.compare_fn.__class__),
+        DisplayDataItemMatcher('compare_key', aq.key.__class__)
+    ]
+    hc.assert_that(data.items, hc.contains_inanyorder(*expected_items))
+
+
+def _build_buffer_test_data():
+  epsilons = [0.1, 0.05, 0.01, 0.005, 0.001]
+  maxElementExponents = [5, 6, 7, 8, 9]
+
+  expectedNumBuffersValues = [
+      [11, 14, 17, 21, 24],
+      [11, 14, 17, 20, 23],
+      [9, 11, 14, 17, 21],
+      [8, 11, 14, 17, 20],
+      [6, 9, 11, 14, 17]
+  ]
+
+  expectedBufferSizeValues = [
+      [98, 123, 153, 96, 120],
+      [98, 123, 153, 191, 239],
+      [391, 977, 1221, 1526, 954],
+      [782, 977, 1221, 1526, 1908],
+      [3125, 3907, 9766, 12208, 15259]
+  ]
+
+  test_data = list()
+  i = 0
+  for epsilon in epsilons:
+    j = 0
+    for maxElementExponent in maxElementExponents:
+      test_data.append([
+          epsilon,
+          (10 ** maxElementExponent),
+          expectedNumBuffersValues[i][j],
+          expectedBufferSizeValues[i][j]
+      ])
+      j += 1
+    i += 1
+  return test_data
+
+
+class ApproximateQunatilesBufferTests(unittest.TestCase):
+  """
+  Test data taken from "Munro-Paterson Algorithm" reference values table of
+  "Approximate Medians and other Quantiles in One Pass and with Limited Memory"
+  paper. See _ApproximateQuantilesCombineFn for paper reference.
+  """
+
+  @parameterized.expand(_build_buffer_test_data)
+  def test_efficiency(self, epsilon, maxInputSize, expectedNumBuffers,
+                      expectedBufferSize):
+    """
+    Verify the buffers are efficiently calculated according to the reference
+    table values.
+    """
+    combine_fn = combine.ApproximateQuantilesCombineFn.create(
+        num_quantiles=10, compare_fn=None, max_num_elements=maxInputSize,
+        epsilon=epsilon, key=None
+    )
+    self.assertEqual(expectedNumBuffers, combine_fn.num_buffers,
+                     "Number of buffers")
+    self.assertEqual(expectedBufferSize, combine_fn.buffer_size, "Buffer size")
+
+  @parameterized.expand(_build_buffer_test_data)
+  def test_correctness(self, epsilon, maxInputSize, *args):
+    """
+    Verify that buffers are correct according to the two constraint equations.
+    """
+    combine_fn = combine.ApproximateQuantilesCombineFn.create(
+        num_quantiles=10, compare_fn=None, max_num_elements=maxInputSize,
+        epsilon=epsilon, key=None
+    )
+    b = combine_fn.num_buffers
+    k = combine_fn.buffer_size
+    n = maxInputSize
+
+    self.assertLessEqual((b - 2) * (1 << (b - 2)) + 0.5, (epsilon * n),
+                         '(b-2)2^(b-2) + 1/2 <= eN')
+    self.assertGreaterEqual((k * 2) ** (b - 1), n, 'k2^(b-1) >= N')
 
 
 if __name__ == '__main__':
