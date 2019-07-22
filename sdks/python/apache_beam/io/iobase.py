@@ -1452,9 +1452,8 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
           restriction_tracker=core.DoFn.RestrictionParam(
               _SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionProvider(
                   source, chunk_size))):
-        for output in restriction_tracker.get_tracking_source().read(
-            restriction_tracker.get_delegate_range_tracker()):
-          yield output
+        return restriction_tracker.get_tracking_source().read(
+            restriction_tracker.get_delegate_range_tracker())
 
     return SDFBoundedSourceDoFn(self.source)
 
