@@ -120,7 +120,7 @@ REQUIRED_PACKAGES = [
     # [BEAM-6287] pyarrow is not supported on Windows for Python 2
     ('pyarrow>=0.11.1,<0.15.0; python_version >= "3.0" or '
      'platform_system != "Windows"'),
-    'pydot>=1.2.0,<1.3',
+    'pydot>=1.2.0,<2',
     'pytz>=2018.3',
     # [BEAM-5628] Beam VCF IO is not supported in Python 3.
     'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
