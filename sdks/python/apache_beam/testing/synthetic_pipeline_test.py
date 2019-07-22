@@ -57,7 +57,7 @@ class SyntheticPipelineTest(unittest.TestCase):
 
   # pylint: disable=expression-not-assigned
 
-  def test_count_elements_after_synthetic_step(self):
+  def test_synthetic_step_multiplies_output_elements_count(self):
     with beam.Pipeline() as p:
       pcoll = p | beam.Create(list(range(10))) | beam.ParDo(
           synthetic_pipeline.SyntheticStep(0, 0, 10))
@@ -71,10 +71,9 @@ class SyntheticPipelineTest(unittest.TestCase):
           synthetic_pipeline.SyntheticStep(0, 0.5, 10))
 
     elapsed = time.time() - start
-
     self.assertGreaterEqual(elapsed, 0.5, elapsed)
 
-  def test_count_elements_after_synthetic_sdf_step(self):
+  def test_synthetic_sdf_step_multiplies_output_elements_count(self):
     with beam.Pipeline() as p:
       pcoll = p | beam.Create(list(range(10))) | beam.ParDo(
           synthetic_pipeline.get_synthetic_sdf_step(0, 0, 10))
@@ -88,7 +87,6 @@ class SyntheticPipelineTest(unittest.TestCase):
           synthetic_pipeline.get_synthetic_sdf_step(0, 0.5, 10))
 
     elapsed = time.time() - start
-
     self.assertGreaterEqual(elapsed, 0.5, elapsed)
 
   def test_synthetic_step_split_provider(self):
