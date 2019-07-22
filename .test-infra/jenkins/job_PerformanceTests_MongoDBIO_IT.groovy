@@ -15,52 +15,70 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import CommonJobProperties as common
 
-import CommonJobProperties as commonJobProperties
-
+String kubernetesDir = '"$WORKSPACE/src/.test-infra/kubernetes"'
+String kubernetesScript = "${kubernetesDir}/kubernetes.sh"
 String jobName = "beam_PerformanceTests_MongoDBIO_IT"
 
+Map pipelineOptions = [
+        tempRoot       : 'gs://temp-storage-for-perf-tests',
+        project        : 'apache-beam-testing',
+        numberOfRecords: '10000000',
+        bigQueryDataset: 'beam_performance',
+        bigQueryTable  : 'mongodbioit_results',
+        mongoDBDatabaseName: 'beam',
+        mongoDBHostName: "\$LOAD_BALANCER_IP",
+        mongoDBPort: 27017,
+        runner: 'DataflowRunner'
+]
+String namespace = common.getKubernetesNamespace(jobName)
+String kubeconfigPath = common.getKubeconfigLocationForNamespace(namespace)
+
 job(jobName) {
-    // Set default Beam job properties.
-    commonJobProperties.setTopLevelMainJobProperties(delegate)
+  common.setTopLevelMainJobProperties(delegate)
+  common.setAutoJob(delegate,'H */6 * * *')
+  common.enablePhraseTriggeringFromPullRequest(
+          delegate,
+          'Java MongoDBIO Performance Test',
+          'Run Java MongoDBIO Performance Test')
 
-    // Run job in postcommit every 6 hours, don't trigger every push, and
-    // don't email individual committers.
-    commonJobProperties.setAutoJob(
-            delegate,
-            'H */6 * * *')
+  steps {
+    shell("cp /home/jenkins/.kube/config ${kubeconfigPath}")
 
-    commonJobProperties.enablePhraseTriggeringFromPullRequest(
-            delegate,
-            'Java MongoDBIO Performance Test',
-            'Run Java MongoDBIO Performance Test')
+    environmentVariables {
+      env('KUBECONFIG', kubeconfigPath)
+      env('KUBERNETES_NAMESPACE', namespace)
+    }
 
-    def pipelineOptions = [
-            tempRoot       : 'gs://temp-storage-for-perf-tests',
-            project        : 'apache-beam-testing',
-            numberOfRecords: '10000000',
-            bigQueryDataset: 'beam_performance',
-            bigQueryTable  : 'mongodbioit_results'
-    ]
+    shell("${kubernetesScript} createNamespace ${namespace}")
+    shell("${kubernetesScript} apply ${kubernetesDir}/mongodb/load-balancer/mongo.yml")
 
-    String namespace = commonJobProperties.getKubernetesNamespace(jobName)
-    String kubeconfig = commonJobProperties.getKubeconfigLocationForNamespace(namespace)
+    String variableName = "LOAD_BALANCER_IP"
+    String command = "${kubernetesScript} loadBalancerIP mongo-load-balancer-service"
+    shell("set -eo pipefail; eval ${command} | sed 's/^/${variableName}=/' > job.properties")
+    environmentVariables {
+      propertiesFile('job.properties')
+    }
 
-    def testArgs = [
-            kubeconfig              : kubeconfig,
-            beam_it_timeout         : '1800',
-            benchmarks              : 'beam_integration_benchmark',
-            beam_prebuilt           : 'false',
-            beam_sdk                : 'java',
-            beam_it_module          : ':sdks:java:io:mongodb',
-            beam_it_class           : 'org.apache.beam.sdk.io.mongodb.MongoDBIOIT',
-            beam_it_options         : commonJobProperties.joinPipelineOptions(pipelineOptions),
-            beam_kubernetes_scripts : commonJobProperties.makePathAbsolute('src/.test-infra/kubernetes/mongodb/load-balancer/mongo.yml'),
-            beam_options_config_file: commonJobProperties.makePathAbsolute('src/.test-infra/kubernetes/mongodb/load-balancer/pkb-config.yml'),
-            bigquery_table          : 'beam_performance.mongodbioit_pkb_results'
-    ]
+    gradle {
+      rootBuildScriptDir(common.checkoutDir)
+      common.setGradleSwitches(delegate)
+      switches("--info")
+      switches("-DintegrationTestPipelineOptions=\'${common.joinPipelineOptions(pipelineOptions)}\'")
+      switches("-DintegrationTestRunner=dataflow")
+      tasks(":sdks:java:io:mongodb:integrationTest --tests org.apache.beam.sdk.io.mongodb.MongoDBIOIT")
+    }
+  }
 
-    commonJobProperties.setupKubernetes(delegate, namespace, kubeconfig)
-    commonJobProperties.buildPerformanceTest(delegate, testArgs)
-    commonJobProperties.cleanupKubernetes(delegate, namespace, kubeconfig)
+  publishers {
+    postBuildScripts {
+      steps {
+        shell("${kubernetesScript} deleteNamespace ${namespace}")
+        shell("rm ${kubeconfigPath}")
+      }
+      onlyIfBuildSucceeds(false)
+      onlyIfBuildFails(false)
+    }
+  }
 }
