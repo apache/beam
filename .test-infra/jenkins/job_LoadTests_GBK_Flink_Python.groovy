@@ -32,8 +32,6 @@ String pythonHarnessImageTag = "${dockerRegistryRoot}/python:${dockerTag}"
 String flinkVersion = '1.7'
 String flinkDownloadUrl = 'https://archive.apache.org/dist/flink/flink-1.7.0/flink-1.7.0-bin-hadoop28-scala_2.11.tgz'
 
-int parallelism = 5
-
 def testConfiguration = { datasetName -> [
         [
                 title        : 'Load test: 2GB of 10B records',
@@ -49,7 +47,7 @@ def testConfiguration = { datasetName -> [
                         input_options       : '\'{"num_records": 200000000,"key_size": 1,"value_size":9}\'',
                         iterations          : 1,
                         fanout              : 1,
-                        parallelism         : parallelism,
+                        parallelism         : 5,
                         job_endpoint: 'localhost:8099',
                         environment_config : pythonHarnessImageTag,
                         environment_type: 'DOCKER'
@@ -70,7 +68,7 @@ def testConfiguration = { datasetName -> [
                         input_options       : '\'{"num_records": 20000000,"key_size": 10,"value_size":90}\'',
                         iterations          : 1,
                         fanout              : 1,
-                        parallelism         : parallelism,
+                        parallelism         : 5,
                         job_endpoint: 'localhost:8099',
                         environment_config : pythonHarnessImageTag,
                         environment_type: 'DOCKER'
@@ -91,7 +89,7 @@ def testConfiguration = { datasetName -> [
                         input_options       : '\'{"num_records": 2000,"key_size": 100000,"value_size":900000}\'',
                         iterations          : 1,
                         fanout              : 1,
-                        parallelism         : parallelism,
+                        parallelism         : 5,
                         job_endpoint: 'localhost:8099',
                         environment_config : pythonHarnessImageTag,
                         environment_type: 'DOCKER'
@@ -112,7 +110,7 @@ def testConfiguration = { datasetName -> [
                         input_options       : '\'{"num_records": 5000000,"key_size": 10,"value_size":90}\'',
                         iterations          : 1,
                         fanout              : 4,
-                        parallelism         : parallelism,
+                        parallelism         : 16,
                         job_endpoint: 'localhost:8099',
                         environment_config : pythonHarnessImageTag,
                         environment_type: 'DOCKER'
@@ -133,7 +131,7 @@ def testConfiguration = { datasetName -> [
                         input_options       : '\'{"num_records": 2500000,"key_size": 10,"value_size":90}\'',
                         iterations          : 1,
                         fanout              : 8,
-                        parallelism         : parallelism,
+                        parallelism         : 16,
                         job_endpoint: 'localhost:8099',
                         environment_config : pythonHarnessImageTag,
                         environment_type: 'DOCKER'
@@ -150,7 +148,7 @@ def testConfiguration = { datasetName -> [
                         publish_to_big_query: false,
                         project             : 'apache-beam-testing',
                         metrics_dataset     : datasetName,
-                        metrics_table       : "python_flink_batch_GBK_5",
+                        metrics_table       : "python_flink_batch_GBK_6",
                         input_options       : '\'{"num_records": 20000000,"key_size": 10,"value_size":90, "num_hot_keys": 200, "hot_key_fraction": 1}\'',
                         iterations          : 4,
                         fanout              : 1,
@@ -171,7 +169,7 @@ def testConfiguration = { datasetName -> [
                         publish_to_big_query: false,
                         project             : 'apache-beam-testing',
                         metrics_dataset     : datasetName,
-                        metrics_table       : "python_flink_batch_GBK_5",
+                        metrics_table       : "python_flink_batch_GBK_7",
                         input_options       : '\'{"num_records": 20000000,"key_size": 10,"value_size":90, "num_hot_keys": 10, "hot_key_fraction": 1}\'',
                         iterations          : 4,
                         fanout              : 1,
@@ -181,21 +179,31 @@ def testConfiguration = { datasetName -> [
                         environment_type: 'DOCKER'
 
                 ]
-        ],
+        ]
     ]}
+
 
 def loadTest = { scope, triggeringContext ->
   scope.description('Runs Python GBK load tests on Flink runner in batch mode')
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
+  def parametrizedTestConfigurations = testConfiguration(datasetName)
   def sdkName = CommonTestProperties.SDK.PYTHON
 
+  def numberOfWorkers = 16
   infra.prepareSDKHarness(scope, sdkName, dockerRegistryRoot, 'latest')
   infra.prepareFlinkJobServer(scope, flinkVersion, dockerRegistryRoot, 'latest')
-  infra.setupFlinkCluster(scope, jenkinsJobName, flinkDownloadUrl, pythonHarnessImageTag, jobServerImageTag, parallelism)
+  infra.setupFlinkCluster(scope, jenkinsJobName, flinkDownloadUrl, pythonHarnessImageTag, jobServerImageTag, numberOfWorkers)
 
-  loadTestsBuilder.loadTests(scope, sdkName,  testConfiguration(datasetName), "GBK", "batch")
+  def currentTestConfiguration = parametrizedTestConfigurations.findAll { it.jobProperties?.parallelism?.value == numberOfWorkers }
+  loadTestsBuilder.loadTests(scope, sdkName,  currentTestConfiguration, "GBK", "batch")
+
+  numberOfWorkers = 5
+  infra.scaleCluster(scope, jenkinsJobName, numberOfWorkers)
+
+  currentTestConfiguration = parametrizedTestConfigurations.findAll { it.jobProperties?.parallelism?.value == numberOfWorkers }
+  loadTestsBuilder.loadTests(scope, sdkName,  currentTestConfiguration, "GBK", "batch")
 
   infra.teardownDataproc(scope, jenkinsJobName)
 }
