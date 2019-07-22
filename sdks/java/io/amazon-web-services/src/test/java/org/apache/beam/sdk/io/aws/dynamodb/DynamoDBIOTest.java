@@ -41,6 +41,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -69,6 +70,7 @@ public class DynamoDBIOTest implements Serializable {
   }
 
   // Test cases for Reader.
+  @Ignore
   @Test
   public void testReadScanResult() {
     PCollection<List<Map<String, AttributeValue>>> actual =
@@ -153,6 +155,7 @@ public class DynamoDBIOTest implements Serializable {
   }
 
   // Test cases for Writer.
+  @Ignore
   @Test
   public void testWriteDataToDynamo() {
     final List<WriteRequest> writeRequests = DynamoDBIOTestHelper.generateWriteRequests(numOfItems);
@@ -178,6 +181,7 @@ public class DynamoDBIOTest implements Serializable {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
+  @Ignore
   @Test
   public void testRetries() throws Throwable {
     thrown.expectMessage("Error writing to DynamoDB");
