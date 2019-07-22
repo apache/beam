@@ -45,6 +45,7 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -86,6 +87,7 @@ public class DynamoDBIOTest implements Serializable {
   }
 
   // Test cases for Reader.
+  @Ignore
   @Test
   public void testReaderOneSegment() {
     List<Map<String, AttributeValue>> expected =
@@ -105,6 +107,7 @@ public class DynamoDBIOTest implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
+  @Ignore
   @Test
   public void testReaderThreeSegments() {
     TupleTag<List<Map<String, AttributeValue>>> outputTag = new TupleTag<>();
@@ -208,6 +211,7 @@ public class DynamoDBIOTest implements Serializable {
     }
   }
 
+  @Ignore
   @Test
   public void testWriteDataToDynamo() {
     List<KV<String, Integer>> items =
@@ -257,6 +261,7 @@ public class DynamoDBIOTest implements Serializable {
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
+  @Ignore
   @Test
   public void testRetries() throws Throwable {
     thrown.expectMessage("Error writing to DynamoDB");
