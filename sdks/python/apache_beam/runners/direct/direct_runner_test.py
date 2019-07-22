@@ -124,9 +124,9 @@ class DirectPipelineResultTest(unittest.TestCase):
 class BundleBasedRunnerTest(unittest.TestCase):
   def test_type_hints(self):
     with test_pipeline.TestPipeline(runner='BundleBasedDirectRunner') as p:
-      (p
-       | beam.Create([[]]).with_output_types(beam.typehints.List[int])
-       | beam.combiners.Count.Globally())
+      _ = (p
+           | beam.Create([[]]).with_output_types(beam.typehints.List[int])
+           | beam.combiners.Count.Globally())
 
 
 if __name__ == '__main__':
