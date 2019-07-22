@@ -279,6 +279,11 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
     return toBuilder().setAccumulationMode(AccumulationMode.ACCUMULATING_FIRED_PANES).build();
   }
 
+  @Experimental(Kind.TRIGGER)
+  public Window<T> retractingFiredPanes() {
+    return toBuilder().setAccumulationMode(AccumulationMode.RETRACTING_FIRED_PANES).build();
+  }
+
   /**
    * Override the amount of lateness allowed for data elements in the output {@link PCollection} and
    * downstream {@link PCollection PCollections} until explicitly set again. Like the other

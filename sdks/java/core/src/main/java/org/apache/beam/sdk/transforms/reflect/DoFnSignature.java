@@ -66,6 +66,10 @@ public abstract class DoFnSignature {
   /** Details about this {@link DoFn}'s {@link DoFn.ProcessElement} method. */
   public abstract ProcessElementMethod processElement();
 
+  /** Details about this {@link DoFn}'s {@link DoFn.ProcessRetraction} method. */
+  @Nullable
+  public abstract ProcessRetractionMethod processRetraction();
+
   /** Details about the state cells that this {@link DoFn} declares. Immutable. */
   public abstract Map<String, StateDeclaration> stateDeclarations();
 
@@ -143,6 +147,8 @@ public abstract class DoFnSignature {
     abstract Builder setIsBoundedPerElement(PCollection.IsBounded isBounded);
 
     abstract Builder setProcessElement(ProcessElementMethod processElement);
+
+    abstract Builder setProcessRetraction(ProcessRetractionMethod processRetraction);
 
     abstract Builder setStartBundle(BundleMethod startBundle);
 
@@ -648,6 +654,90 @@ public abstract class DoFnSignature {
       TimerParameter() {}
 
       public abstract TimerDeclaration referent();
+    }
+  }
+
+  /** Describes a {@link DoFn.ProcessRetraction} method. */
+  @AutoValue
+  public abstract static class ProcessRetractionMethod implements MethodWithExtraParameters {
+    /** The annotated method itself. */
+    @Override
+    public abstract Method targetMethod();
+
+    /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
+    public abstract List<Parameter> extraParameters();
+
+    /**
+     * Whether this method requires stable input, expressed via {@link
+     * org.apache.beam.sdk.transforms.DoFn.RequiresStableInput}.
+     */
+    public abstract boolean requiresStableInput();
+
+    /** Concrete type of the {@link RestrictionTracker} parameter, if present. */
+    @Nullable
+    public abstract TypeDescriptor<?> trackerT();
+
+    /** The window type used by this method, if any. */
+    @Nullable
+    @Override
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
+    static ProcessRetractionMethod create(
+        Method targetMethod,
+        List<Parameter> extraParameters,
+        boolean requiresStableInput,
+        TypeDescriptor<?> trackerT,
+        @Nullable TypeDescriptor<? extends BoundedWindow> windowT) {
+      return new AutoValue_DoFnSignature_ProcessRetractionMethod(
+          targetMethod,
+          Collections.unmodifiableList(extraParameters),
+          requiresStableInput,
+          trackerT,
+          windowT);
+    }
+
+    /**
+     * Whether this {@link DoFn} observes - directly or indirectly - the window that an element
+     * resides in.
+     *
+     * <p>{@link State} and {@link Timer} parameters indirectly observe the window, because they are
+     * each scoped to a single window.
+     */
+    public boolean observesWindow() {
+      return extraParameters().stream()
+          .anyMatch(
+              Predicates.or(
+                      Predicates.instanceOf(WindowParameter.class),
+                      Predicates.instanceOf(TimerParameter.class),
+                      Predicates.instanceOf(StateParameter.class))
+                  ::apply);
+    }
+
+    @Nullable
+    public List<SchemaElementParameter> getSchemaElementParameters() {
+      return extraParameters().stream()
+          .filter(Predicates.instanceOf(SchemaElementParameter.class)::apply)
+          .map(SchemaElementParameter.class::cast)
+          .collect(Collectors.toList());
+    }
+
+    /** The {@link OutputReceiverParameter} for a main output, or null if there is none. */
+    @Nullable
+    public OutputReceiverParameter getMainOutputReceiver() {
+      Optional<Parameter> parameter =
+          extraParameters().stream()
+              .filter(Predicates.instanceOf(OutputReceiverParameter.class)::apply)
+              .findFirst();
+      return parameter.isPresent() ? ((OutputReceiverParameter) parameter.get()) : null;
+    }
+
+    /**
+     * Whether this {@link DoFn} is <a href="https://s.apache.org/splittable-do-fn">splittable</a>.
+     */
+    public boolean isSplittable() {
+      return extraParameters().stream()
+          .anyMatch(Predicates.instanceOf(RestrictionTrackerParameter.class)::apply);
     }
   }
 

@@ -734,6 +734,8 @@ message AccumulationMode {
 
     // The aggregation is accumulated across outputs
     ACCUMULATING = 2;
+
+    RETRACTING = 3;
   }
 }
 

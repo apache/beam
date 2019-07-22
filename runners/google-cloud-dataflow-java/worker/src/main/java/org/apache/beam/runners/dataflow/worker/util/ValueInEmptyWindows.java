@@ -49,6 +49,11 @@ public class ValueInEmptyWindows<T> extends WindowedValue<T> {
   }
 
   @Override
+  public boolean isRetraction() {
+    return false;
+  }
+
+  @Override
   public T getValue() {
     return value;
   }

@@ -1375,6 +1375,11 @@ class BatchViewOverrides {
     }
 
     @Override
+    public boolean isRetraction() {
+      return false;
+    }
+
+    @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass()).add("value", getValue()).toString();
     }

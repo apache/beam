@@ -287,6 +287,18 @@ public class PAssert {
     IterableAssert<T> inEarlyGlobalWindowPanes();
 
     /**
+     * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
+     * run on additions.
+     */
+    IterableAssert<T> filterAdditions();
+
+    /**
+     * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
+     * run on retractions.
+     */
+    IterableAssert<T> filterRetractions();
+
+    /**
      * Asserts that the iterable in question contains the provided elements.
      *
      * @return the same {@link IterableAssert} builder for further assertions
@@ -507,6 +519,38 @@ public class PAssert {
         PAssertionSite.capture(reason));
   }
 
+  private static <T> DoFn<T, T> filterNoElement() {
+    return new DoFn<T, T>() {
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        c.output(c.element());
+      }
+    };
+  }
+
+  private static <T> DoFn<T, T> filterAdditionsOnly() {
+    return new DoFn<T, T>() {
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        c.output(c.element());
+      }
+    };
+  }
+
+  private static <T> DoFn<T, T> filterRetractionsOnly() {
+    return new DoFn<T, T>() {
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        // do nothing.
+      }
+
+      @ProcessRetraction
+      public void processRetraction(ProcessContext c) {
+        c.output(c.element());
+      }
+    };
+  }
+
   ////////////////////////////////////////////////////////////
 
   /**
@@ -518,20 +562,28 @@ public class PAssert {
     private final AssertionWindows rewindowingStrategy;
     private final SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> paneExtractor;
     private final PAssertionSite site;
+    private final DoFn<T, T> elementFilter;
 
     public PCollectionContentsAssert(PCollection<T> actual, PAssertionSite site) {
-      this(actual, IntoGlobalWindow.of(), PaneExtractors.allPanes(), site);
+      this(actual, IntoGlobalWindow.of(), PaneExtractors.allPanes(), site, filterNoElement());
     }
 
     public PCollectionContentsAssert(
         PCollection<T> actual,
         AssertionWindows rewindowingStrategy,
         SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> paneExtractor,
-        PAssertionSite site) {
+        PAssertionSite site,
+        DoFn<T, T> elementFilter) {
       this.actual = actual;
       this.rewindowingStrategy = rewindowingStrategy;
       this.paneExtractor = paneExtractor;
       this.site = site;
+      this.elementFilter = elementFilter;
+    }
+
+    public PCollectionContentsAssert(
+        PCollection<T> actual, PAssertionSite site, DoFn<T, T> elementFilter) {
+      this(actual, IntoGlobalWindow.of(), PaneExtractors.allPanes(), site, elementFilter);
     }
 
     @Override
@@ -569,6 +621,16 @@ public class PAssert {
       return withPane(GlobalWindow.INSTANCE, PaneExtractors.earlyPanes());
     }
 
+    @Override
+    public IterableAssert<T> filterAdditions() {
+      return new PCollectionContentsAssert(actual, site, filterAdditionsOnly());
+    }
+
+    @Override
+    public IterableAssert<T> filterRetractions() {
+      return new PCollectionContentsAssert(actual, site, filterRetractionsOnly());
+    }
+
     private PCollectionContentsAssert<T> withPane(
         BoundedWindow window,
         SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> paneExtractor) {
@@ -576,7 +638,7 @@ public class PAssert {
       Coder<BoundedWindow> windowCoder =
           (Coder) actual.getWindowingStrategy().getWindowFn().windowCoder();
       return new PCollectionContentsAssert<>(
-          actual, IntoStaticWindows.of(windowCoder, window), paneExtractor, site);
+          actual, IntoStaticWindows.of(windowCoder, window), paneExtractor, site, elementFilter);
     }
 
     /**
@@ -611,7 +673,8 @@ public class PAssert {
         SerializableFunction<Iterable<T>, Void> checkerFn) {
       actual.apply(
           nextAssertionName(),
-          new GroupThenAssert<>(checkerFn, rewindowingStrategy, paneExtractor, site));
+          new GroupThenAssert<>(
+              checkerFn, rewindowingStrategy, paneExtractor, site, elementFilter));
       return this;
     }
 
@@ -653,7 +716,8 @@ public class PAssert {
           (SerializableFunction) new MatcherCheckerFn<>(matcher);
       actual.apply(
           "PAssert$" + (assertCount++),
-          new GroupThenAssert<>(checkerFn, rewindowingStrategy, paneExtractor, site));
+          new GroupThenAssert<>(
+              checkerFn, rewindowingStrategy, paneExtractor, site, elementFilter));
       return this;
     }
 
@@ -764,6 +828,16 @@ public class PAssert {
     @Override
     public IterableAssert<T> inEarlyGlobalWindowPanes() {
       return withPanes(GlobalWindow.INSTANCE, PaneExtractors.earlyPanes());
+    }
+
+    @Override
+    public IterableAssert<T> filterAdditions() {
+      return null;
+    }
+
+    @Override
+    public IterableAssert<T> filterRetractions() {
+      return null;
     }
 
     private PCollectionSingletonIterableAssert<T> withPanes(
@@ -1240,21 +1314,34 @@ public class PAssert {
     private final AssertionWindows rewindowingStrategy;
     private final SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> paneExtractor;
     private final PAssertionSite site;
+    private final DoFn<T, T> elementFilter;
 
     private GroupThenAssert(
         SerializableFunction<Iterable<T>, Void> checkerFn,
         AssertionWindows rewindowingStrategy,
         SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> paneExtractor,
         PAssertionSite site) {
+      this(checkerFn, rewindowingStrategy, paneExtractor, site, filterNoElement());
+    }
+
+    private GroupThenAssert(
+        SerializableFunction<Iterable<T>, Void> checkerFn,
+        AssertionWindows rewindowingStrategy,
+        SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> paneExtractor,
+        PAssertionSite site,
+        DoFn<T, T> elementFilter) {
       this.checkerFn = checkerFn;
       this.rewindowingStrategy = rewindowingStrategy;
       this.paneExtractor = paneExtractor;
       this.site = site;
+      this.elementFilter = elementFilter;
     }
 
     @Override
     public PDone expand(PCollection<T> input) {
       input
+          // TODO: add a filter to get either additions or retractions
+          .apply("ElementFilter", ParDo.of(elementFilter))
           .apply("GroupGlobally", new GroupGlobally<>(rewindowingStrategy))
           .apply("GetPane", MapElements.via(paneExtractor))
           .setCoder(IterableCoder.of(input.getCoder()))

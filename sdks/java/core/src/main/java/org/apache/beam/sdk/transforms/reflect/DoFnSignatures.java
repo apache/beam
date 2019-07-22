@@ -342,6 +342,8 @@ public class DoFnSignatures {
 
     Method processElementMethod =
         findAnnotatedMethod(errors, DoFn.ProcessElement.class, fnClass, true);
+    Method processRetractionMethod =
+        findAnnotatedMethod(errors, DoFn.ProcessRetraction.class, fnClass, false);
     Method startBundleMethod = findAnnotatedMethod(errors, DoFn.StartBundle.class, fnClass, false);
     Method finishBundleMethod =
         findAnnotatedMethod(errors, DoFn.FinishBundle.class, fnClass, false);
@@ -399,6 +401,16 @@ public class DoFnSignatures {
         analyzeProcessElementMethod(
             processElementErrors, fnT, processElementMethod, inputT, outputT, fnContext);
     signatureBuilder.setProcessElement(processElement);
+
+    // TODO: initialization of processRetracitonMethod might be different from processElementMethod.
+    if (processRetractionMethod != null) {
+      ErrorReporter processRetractionErrors =
+          errors.forMethod(DoFn.ProcessRetraction.class, processRetractionMethod);
+      DoFnSignature.ProcessRetractionMethod processRetraction =
+          analyzeProcessRetractionMethod(
+              processRetractionErrors, fnT, processRetractionMethod, inputT, outputT, fnContext);
+      signatureBuilder.setProcessRetraction(processRetraction);
+    }
 
     if (startBundleMethod != null) {
       ErrorReporter startBundleErrors = errors.forMethod(DoFn.StartBundle.class, startBundleMethod);
@@ -778,6 +790,68 @@ public class DoFnSignatures {
 
     return DoFnSignature.OnWindowExpirationMethod.create(
         m, requiresStableInput, windowT, extraParameters);
+  }
+
+  @VisibleForTesting
+  static DoFnSignature.ProcessRetractionMethod analyzeProcessRetractionMethod(
+      ErrorReporter errors,
+      TypeDescriptor<? extends DoFn<?, ?>> fnClass,
+      Method m,
+      TypeDescriptor<?> inputT,
+      TypeDescriptor<?> outputT,
+      FnAnalysisContext fnContext) {
+    errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
+
+    MethodAnalysisContext methodContext = MethodAnalysisContext.create();
+
+    // TODO: does stable input work for processRetraction?
+    boolean requiresStableInput = m.isAnnotationPresent(DoFn.RequiresStableInput.class);
+
+    Type[] params = m.getGenericParameterTypes();
+
+    TypeDescriptor<?> trackerT = getTrackerType(fnClass, m);
+    TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnClass, m);
+    for (int i = 0; i < params.length; ++i) {
+      Parameter extraParam =
+          analyzeExtraParameter(
+              errors.forMethod(DoFn.ProcessRetraction.class, m),
+              fnContext,
+              methodContext,
+              fnClass,
+              ParameterDescription.of(
+                  m,
+                  i,
+                  fnClass.resolveType(params[i]),
+                  Arrays.asList(m.getParameterAnnotations()[i])),
+              inputT,
+              outputT);
+
+      methodContext.addParameter(extraParam);
+    }
+    int schemaElementIndex = 0;
+    for (int i = 0; i < methodContext.getExtraParameters().size(); ++i) {
+      Parameter parameter = methodContext.getExtraParameters().get(i);
+      if (parameter instanceof SchemaElementParameter) {
+        SchemaElementParameter schemaParameter = (SchemaElementParameter) parameter;
+        schemaParameter = schemaParameter.toBuilder().setIndex(schemaElementIndex).build();
+        methodContext.setParameter(i, schemaParameter);
+        ++schemaElementIndex;
+      }
+    }
+
+    // The allowed parameters depend on whether this DoFn is splittable
+    if (methodContext.hasRestrictionTrackerParameter()) {
+      for (Parameter parameter : methodContext.getExtraParameters()) {
+        checkParameterOneOf(errors, parameter, ALLOWED_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS);
+      }
+    } else {
+      for (Parameter parameter : methodContext.getExtraParameters()) {
+        checkParameterOneOf(errors, parameter, ALLOWED_NON_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS);
+      }
+    }
+
+    return DoFnSignature.ProcessRetractionMethod.create(
+        m, methodContext.getExtraParameters(), requiresStableInput, trackerT, windowT);
   }
 
   @VisibleForTesting

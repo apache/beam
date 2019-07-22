@@ -68,6 +68,13 @@ public interface DoFnInvoker<InputT, OutputT> {
    */
   DoFn.ProcessContinuation invokeProcessElement(ArgumentProvider<InputT, OutputT> extra);
 
+  /**
+   * Invoke the {@link DoFn.ProcessRetraction} method on the bound {@link DoFn}.
+   *
+   * @param extra Factory for producing extra parameter objects (such as window), if necessary.
+   */
+  void invokeProcessRetraction(ArgumentProvider<InputT, OutputT> extra);
+
   /** Invoke the appropriate {@link DoFn.OnTimer} method on the bound {@link DoFn}. */
   void invokeOnTimer(String timerId, ArgumentProvider<InputT, OutputT> arguments);
 

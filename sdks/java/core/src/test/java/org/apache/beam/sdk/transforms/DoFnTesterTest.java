@@ -74,6 +74,25 @@ public class DoFnTesterTest {
   }
 
   @Test
+  public void processRetraction() throws Exception {
+    for (DoFnTester.CloningBehavior cloning : DoFnTester.CloningBehavior.values()) {
+      try (DoFnTester<Long, String> tester = DoFnTester.of(new CounterDoFn())) {
+        tester.setCloningBehavior(cloning);
+        tester.processRetraction(2L);
+
+        List<String> take = tester.takeOutputElements();
+
+        assertThat(take, hasItems("2"));
+
+        // Following takeOutputElements(), neither takeOutputElements()
+        // nor peekOutputElements() return anything.
+        assertTrue(tester.takeOutputElements().isEmpty());
+        assertTrue(tester.peekOutputElements().isEmpty());
+      }
+    }
+  }
+
+  @Test
   public void processElementsWithPeeks() throws Exception {
     for (DoFnTester.CloningBehavior cloning : DoFnTester.CloningBehavior.values()) {
       try (DoFnTester<Long, String> tester = DoFnTester.of(new CounterDoFn())) {
@@ -431,6 +450,14 @@ public class DoFnTesterTest {
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
+      checkState(state == LifecycleState.INSIDE_BUNDLE, "Wrong state: %s", state);
+      agg.inc(c.element());
+      Instant instant = new Instant(1000L * c.element());
+      c.outputWithTimestamp(c.element().toString(), instant);
+    }
+
+    @ProcessRetraction
+    public void processRetraction(ProcessContext c) throws Exception {
       checkState(state == LifecycleState.INSIDE_BUNDLE, "Wrong state: %s", state);
       agg.inc(c.element());
       Instant instant = new Instant(1000L * c.element());

@@ -613,6 +613,12 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Target(ElementType.METHOD)
   public @interface ProcessElement {}
 
+  /** Process retraction. */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  public @interface ProcessRetraction {}
+
   /** Parameter annotation for the input element for a {@link ProcessElement} method. */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)

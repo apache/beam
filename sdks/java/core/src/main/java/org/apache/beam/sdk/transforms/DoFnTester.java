@@ -193,6 +193,128 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
   /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
+  public void processRetraction(InputT element) throws Exception {
+    processTimestampedRetraction(TimestampedValue.atMinimumTimestamp(element));
+  }
+
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
+  @Deprecated
+  public void processTimestampedRetraction(TimestampedValue<InputT> element) throws Exception {
+    checkNotNull(element, "Timestamped element cannot be null");
+    processWindowedRetraction(element.getValue(), element.getTimestamp(), GlobalWindow.INSTANCE);
+  }
+
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
+  @Deprecated
+  public void processWindowedRetraction(
+      InputT element, Instant timestamp, final BoundedWindow window) throws Exception {
+    if (state != State.BUNDLE_STARTED) {
+      startBundle();
+    }
+    try {
+      final DoFn<InputT, OutputT>.ProcessContext processContext =
+          createProcessContext(
+              ValueInSingleWindow.of(element, timestamp, window, PaneInfo.NO_FIRING));
+      fnInvoker.invokeProcessRetraction(
+          new DoFnInvoker.ArgumentProvider<InputT, OutputT>() {
+            @Override
+            public BoundedWindow window() {
+              return window;
+            }
+
+            @Override
+            public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
+              return processContext.pane();
+            }
+
+            @Override
+            public PipelineOptions pipelineOptions() {
+              return getPipelineOptions();
+            }
+
+            @Override
+            public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(
+                DoFn<InputT, OutputT> doFn) {
+              throw new UnsupportedOperationException(
+                  "Not expected to access DoFn.StartBundleContext from @ProcessElement");
+            }
+
+            @Override
+            public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
+                DoFn<InputT, OutputT> doFn) {
+              throw new UnsupportedOperationException(
+                  "Not expected to access DoFn.FinishBundleContext from @ProcessElement");
+            }
+
+            @Override
+            public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
+              return processContext;
+            }
+
+            @Override
+            public InputT element(DoFn<InputT, OutputT> doFn) {
+              return processContext.element();
+            }
+
+            @Override
+            public InputT schemaElement(int index) {
+              throw new UnsupportedOperationException("Schemas are not supported by DoFnTester");
+            }
+
+            @Override
+            public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+              return processContext.timestamp();
+            }
+
+            @Override
+            public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
+              throw new UnsupportedOperationException(
+                  "Not expected to access TimeDomain from @ProcessElement");
+            }
+
+            @Override
+            public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+              return DoFnOutputReceivers.windowedReceiver(processContext, null);
+            }
+
+            @Override
+            public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+              throw new UnsupportedOperationException("Schemas are not supported by DoFnTester");
+            }
+
+            @Override
+            public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
+              return DoFnOutputReceivers.windowedMultiReceiver(processContext, null);
+            }
+
+            @Override
+            public OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
+              throw new UnsupportedOperationException("DoFnTester doesn't support timers yet.");
+            }
+
+            @Override
+            public RestrictionTracker<?, ?> restrictionTracker() {
+              throw new UnsupportedOperationException(
+                  "Not expected to access RestrictionTracker from a regular DoFn in DoFnTester");
+            }
+
+            @Override
+            public org.apache.beam.sdk.state.State state(String stateId) {
+              throw new UnsupportedOperationException("DoFnTester doesn't support state yet");
+            }
+
+            @Override
+            public Timer timer(String timerId) {
+              throw new UnsupportedOperationException("DoFnTester doesn't support timers yet");
+            }
+          });
+    } catch (UserCodeException e) {
+      unwrapUserCodeException(e);
+    }
+  }
+
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
+  @Deprecated
   public void processTimestampedElement(TimestampedValue<InputT> element) throws Exception {
     checkNotNull(element, "Timestamped element cannot be null");
     processWindowedElement(element.getValue(), element.getTimestamp(), GlobalWindow.INSTANCE);
@@ -676,6 +798,69 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
                   "Parameter " + p + " not supported by DoFnTester");
             }
           });
+    }
+
+    if (signature.processRetraction() != null) {
+      for (DoFnSignature.Parameter param : signature.processRetraction().extraParameters()) {
+        param.match(
+            new DoFnSignature.Parameter.Cases.WithDefault<Void>() {
+              @Override
+              @Nullable
+              public Void dispatch(DoFnSignature.Parameter.ProcessContextParameter p) {
+                // ProcessContext parameter is obviously supported.
+                return null;
+              }
+
+              @Override
+              @Nullable
+              public Void dispatch(DoFnSignature.Parameter.WindowParameter p) {
+                // We also support the BoundedWindow parameter.
+                return null;
+              }
+
+              @Override
+              @Nullable
+              public Void dispatch(DoFnSignature.Parameter.ElementParameter p) {
+                return null;
+              }
+
+              @Override
+              @Nullable
+              public Void dispatch(DoFnSignature.Parameter.TimestampParameter p) {
+                return null;
+              }
+
+              @Override
+              @Nullable
+              public Void dispatch(DoFnSignature.Parameter.TimeDomainParameter p) {
+                return null;
+              }
+
+              @Override
+              @Nullable
+              public Void dispatch(DoFnSignature.Parameter.OutputReceiverParameter p) {
+                return null;
+              }
+
+              @Override
+              @Nullable
+              public Void dispatch(DoFnSignature.Parameter.TaggedOutputReceiverParameter p) {
+                return null;
+              }
+
+              @Override
+              @Nullable
+              public Void dispatch(DoFnSignature.Parameter.PaneInfoParameter p) {
+                return null;
+              }
+
+              @Override
+              protected Void dispatchDefault(DoFnSignature.Parameter p) {
+                throw new UnsupportedOperationException(
+                    "Parameter " + p + " not supported by DoFnTester");
+              }
+            });
+      }
     }
   }
 

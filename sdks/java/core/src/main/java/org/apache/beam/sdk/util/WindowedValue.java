@@ -141,6 +141,9 @@ public abstract class WindowedValue<T> {
     return false;
   }
 
+  /** Returns {@code true} if this WindowedValue is a retraction. */
+  public abstract boolean isRetraction();
+
   /**
    * Returns a collection of {@link WindowedValue WindowedValues} identical to this one, except each
    * is in exactly one of the windows that this {@link WindowedValue} is in.
@@ -229,9 +232,15 @@ public abstract class WindowedValue<T> {
   /** The representation of a WindowedValue where timestamp == MIN and windows == {GlobalWindow}. */
   private static class ValueInGlobalWindow<T> extends MinTimestampWindowedValue<T>
       implements SingleWindowedValue {
+    private boolean isRetraction;
 
     public ValueInGlobalWindow(T value, PaneInfo pane) {
       super(value, pane);
+    }
+
+    public ValueInGlobalWindow(T value, PaneInfo pane, boolean isRetraction) {
+      super(value, pane);
+      this.isRetraction = isRetraction;
     }
 
     @Override
@@ -252,6 +261,11 @@ public abstract class WindowedValue<T> {
     @Override
     public BoundedWindow getWindow() {
       return GlobalWindow.INSTANCE;
+    }
+
+    @Override
+    public boolean isRetraction() {
+      return isRetraction;
     }
 
     @Override
@@ -300,9 +314,17 @@ public abstract class WindowedValue<T> {
    */
   private static class TimestampedValueInGlobalWindow<T> extends TimestampedWindowedValue<T>
       implements SingleWindowedValue {
+    private boolean isRetraction;
 
     public TimestampedValueInGlobalWindow(T value, Instant timestamp, PaneInfo pane) {
       super(value, timestamp, pane);
+      isRetraction = false;
+    }
+
+    public TimestampedValueInGlobalWindow(
+        T value, Instant timestamp, PaneInfo pane, boolean isRetraction) {
+      super(value, timestamp, pane);
+      this.isRetraction = isRetraction;
     }
 
     @Override
@@ -323,6 +345,11 @@ public abstract class WindowedValue<T> {
     @Override
     public BoundedWindow getWindow() {
       return GlobalWindow.INSTANCE;
+    }
+
+    @Override
+    public boolean isRetraction() {
+      return isRetraction;
     }
 
     @Override
@@ -364,11 +391,20 @@ public abstract class WindowedValue<T> {
       implements SingleWindowedValue {
 
     private final BoundedWindow window;
+    private boolean isRetraction;
 
     public TimestampedValueInSingleWindow(
         T value, Instant timestamp, BoundedWindow window, PaneInfo pane) {
       super(value, timestamp, pane);
       this.window = checkNotNull(window);
+      isRetraction = false;
+    }
+
+    public TimestampedValueInSingleWindow(
+        T value, Instant timestamp, BoundedWindow window, PaneInfo pane, boolean isRetraction) {
+      super(value, timestamp, pane);
+      this.window = checkNotNull(window);
+      this.isRetraction = isRetraction;
     }
 
     @Override
@@ -389,6 +425,11 @@ public abstract class WindowedValue<T> {
     @Override
     public BoundedWindow getWindow() {
       return window;
+    }
+
+    @Override
+    public boolean isRetraction() {
+      return isRetraction;
     }
 
     @Override
@@ -427,11 +468,24 @@ public abstract class WindowedValue<T> {
   /** The representation of a WindowedValue, excluding the special cases captured above. */
   private static class TimestampedValueInMultipleWindows<T> extends TimestampedWindowedValue<T> {
     private Collection<? extends BoundedWindow> windows;
+    private boolean isRetraction;
 
     public TimestampedValueInMultipleWindows(
         T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
       super(value, timestamp, pane);
       this.windows = checkNotNull(windows);
+      this.isRetraction = false;
+    }
+
+    public TimestampedValueInMultipleWindows(
+        T value,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo pane,
+        boolean isRetraction) {
+      super(value, timestamp, pane);
+      this.windows = checkNotNull(windows);
+      this.isRetraction = isRetraction;
     }
 
     @Override
@@ -442,6 +496,11 @@ public abstract class WindowedValue<T> {
     @Override
     public Collection<? extends BoundedWindow> getWindows() {
       return windows;
+    }
+
+    @Override
+    public boolean isRetraction() {
+      return isRetraction;
     }
 
     @Override
