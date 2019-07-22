@@ -510,6 +510,16 @@ class UtilTest(unittest.TestCase):
         env.proto.workerPools[0].workerHarnessContainerImage,
         'some:image')
 
+  @mock.patch('apache_beam.runners.dataflow.internal.apiclient.Job.'
+              'job_id_for_name', return_value='test_id')
+  def test_transform_name_mapping(self, mock_job):
+    pipeline_options = PipelineOptions(
+        ['--project', 'test_project', '--job_name', 'test_job_name',
+         '--temp_location', 'gs://test-location/temp', '--update',
+         '--transform_name_mapping', '{\"from\":\"to\"}'])
+    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    self.assertIsNotNone(job.proto.transformNameMapping)
+
   def test_labels(self):
     pipeline_options = PipelineOptions(
         ['--project', 'test_project', '--job_name', 'test_job_name',

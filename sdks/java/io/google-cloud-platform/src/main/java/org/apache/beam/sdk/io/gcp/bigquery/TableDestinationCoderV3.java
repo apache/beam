@@ -26,16 +26,17 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 /**
- * A {@link Coder} for {@link TableDestination} that includes time partitioning information. It is
- * the default coder for {@link TableDestination} used by {@link BigQueryIO} and does not extend the
- * old {@link TableDestinationCoder}) for compatibility reasons. The old coder is kept around for
- * the same compatibility reasons.
+ * A {@link Coder} for {@link TableDestination} that includes time partitioning and clustering
+ * information. Users must opt in to this version of the coder by setting one of the clustering
+ * options on {@link BigQueryIO.Write}, otherwise {@link TableDestinationCoderV2} will be used and
+ * clustering information will be discarded.
  */
-public class TableDestinationCoderV2 extends AtomicCoder<TableDestination> {
-  private static final TableDestinationCoderV2 INSTANCE = new TableDestinationCoderV2();
+public class TableDestinationCoderV3 extends AtomicCoder<TableDestination> {
+  private static final TableDestinationCoderV3 INSTANCE = new TableDestinationCoderV3();
   private static final Coder<String> timePartitioningCoder = NullableCoder.of(StringUtf8Coder.of());
+  private static final Coder<String> clusteringCoder = NullableCoder.of(StringUtf8Coder.of());
 
-  public static TableDestinationCoderV2 of() {
+  public static TableDestinationCoderV3 of() {
     return INSTANCE;
   }
 
@@ -43,14 +44,19 @@ public class TableDestinationCoderV2 extends AtomicCoder<TableDestination> {
   public void encode(TableDestination value, OutputStream outStream) throws IOException {
     TableDestinationCoder.of().encode(value, outStream);
     timePartitioningCoder.encode(value.getJsonTimePartitioning(), outStream);
+    clusteringCoder.encode(value.getJsonClustering(), outStream);
   }
 
   @Override
   public TableDestination decode(InputStream inStream) throws IOException {
     TableDestination destination = TableDestinationCoder.of().decode(inStream);
     String jsonTimePartitioning = timePartitioningCoder.decode(inStream);
+    String jsonClustering = clusteringCoder.decode(inStream);
     return new TableDestination(
-        destination.getTableSpec(), destination.getTableDescription(), jsonTimePartitioning);
+        destination.getTableSpec(),
+        destination.getTableDescription(),
+        jsonTimePartitioning,
+        jsonClustering);
   }
 
   @Override

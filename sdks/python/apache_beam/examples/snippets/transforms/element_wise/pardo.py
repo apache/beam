@@ -47,10 +47,10 @@ def pardo_dofn(test=None):
 
 
 def pardo_dofn_params(test=None):
+  # pylint: disable=line-too-long
   # [START pardo_dofn_params]
   import apache_beam as beam
 
-  # pylint: disable=line-too-long
   class AnalyzeElement(beam.DoFn):
     def process(self, elem, timestamp=beam.DoFn.TimestampParam, window=beam.DoFn.WindowParam):
       yield '\n'.join([
@@ -66,7 +66,6 @@ def pardo_dofn_params(test=None):
           'window.end -> {} ({})'.format(window.end, window.end.to_utc_datetime()),
           'window.max_timestamp() -> {} ({})'.format(window.max_timestamp(), window.max_timestamp().to_utc_datetime()),
       ])
-  # pylint: enable=line-too-long
 
   with beam.Pipeline() as pipeline:
     dofn_params = (
@@ -79,5 +78,6 @@ def pardo_dofn_params(test=None):
         | beam.Map(print)
     )
     # [END pardo_dofn_params]
+    # pylint: enable=line-too-long
     if test:
       test(dofn_params)

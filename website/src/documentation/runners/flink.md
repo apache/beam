@@ -271,9 +271,8 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 
 options = PipelineOptions(["--runner=PortableRunner", "--job_endpoint=localhost:8099"])
-p = beam.Pipeline(options)
-..
-p.run()
+with beam.Pipeline(options) as p:
+    ...
 ```
 
 <span class="language-py">
@@ -288,6 +287,19 @@ To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-
 
 <span class="language-py">3. Submit the pipeline as above.
 </span>
+
+<span class="language-py">As of Beam 2.15.0, steps 2 and 3 can be automated in Python by using the `FlinkRunner`,
+plus the optional `flink_version` and `flink_master_url` options if required, i.e.
+</span>
+
+```py
+import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+
+options = PipelineOptions(["--runner=FlinkRunner", "--flink_version=1.8", "--flink_master_url=localhost:8081"])
+with beam.Pipeline(options) as p:
+    ...
+```
 
 ## Additional information and caveats
 

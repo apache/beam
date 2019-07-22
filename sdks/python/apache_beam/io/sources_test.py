@@ -50,11 +50,13 @@ class LineSource(iobase.BoundedSource):
         start -= 1
         start += len(f.readline())
       current = start
-      for line in f:
-        if not range_tracker.try_claim(current):
+      line = f.readline()
+      while range_tracker.try_claim(current):
+        if not line:
           return
         yield line.rstrip(b'\n')
         current += len(line)
+        line = f.readline()
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     assert start_position is None
@@ -110,6 +112,8 @@ class SourcesTest(unittest.TestCase):
     result = [line for line in source.read(range_tracker)]
 
     self.assertCountEqual([b'aaaa', b'bbbb', b'cccc', b'dddd'], result)
+    self.assertTrue(range_tracker.last_attempted_record_start
+                    >= range_tracker.stop_position())
 
   def test_source_estimated_size(self):
     file_name = self._create_temp_file(b'aaaa\n')
