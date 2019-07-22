@@ -61,8 +61,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.joda.time.Duration;
@@ -864,7 +866,9 @@ public class AvroIO {
 
     CreateSourceFn(Class<T> recordClass, String jsonSchema) {
       this.recordClass = recordClass;
-      this.schemaSupplier = AvroUtils.serializableSchemaSupplier(jsonSchema);
+      this.schemaSupplier =
+          Suppliers.memoize(
+              Suppliers.compose(new JsonToSchema(), Suppliers.ofInstance(jsonSchema)));
     }
 
     @Override
@@ -874,6 +878,13 @@ public class AvroIO {
           EmptyMatchTreatment.DISALLOW,
           recordClass,
           schemaSupplier.get());
+    }
+
+    private static class JsonToSchema implements Function<String, Schema>, Serializable {
+      @Override
+      public Schema apply(String input) {
+        return new Schema.Parser().parse(input);
+      }
     }
   }
 
