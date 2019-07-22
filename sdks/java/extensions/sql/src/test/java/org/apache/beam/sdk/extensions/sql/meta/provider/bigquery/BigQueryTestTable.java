@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
-import org.apache.beam.sdk.extensions.sql.impl.BeamRowCountStatistics;
+import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -34,7 +34,7 @@ public class BigQueryTestTable extends BigQueryTable {
   }
 
   @Override
-  public BeamRowCountStatistics getRowCount(PipelineOptions options) {
+  public BeamTableStatistics getRowCount(PipelineOptions options) {
     jobName = options.getJobName();
     return super.getRowCount(options);
   }
