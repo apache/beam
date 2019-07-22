@@ -217,10 +217,14 @@ class WithTypeHints(object):
     return None
 
   def with_input_types(self, *arg_hints, **kwarg_hints):
+    arg_hints = native_type_compatibility.convert_to_beam_types(arg_hints)
+    kwarg_hints = native_type_compatibility.convert_to_beam_types(kwarg_hints)
     self._get_or_create_type_hints().set_input_types(*arg_hints, **kwarg_hints)
     return self
 
   def with_output_types(self, *arg_hints, **kwarg_hints):
+    arg_hints = native_type_compatibility.convert_to_beam_types(arg_hints)
+    kwarg_hints = native_type_compatibility.convert_to_beam_types(kwarg_hints)
     self._get_or_create_type_hints().set_output_types(*arg_hints, **kwarg_hints)
     return self
 
