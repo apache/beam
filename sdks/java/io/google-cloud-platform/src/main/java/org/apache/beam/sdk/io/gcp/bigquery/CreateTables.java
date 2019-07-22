@@ -130,6 +130,16 @@ public class CreateTables<DestinationT, ElementT>
           dynamicDestinations,
           tableDestination,
           destination);
+      boolean destinationCoderSupportsClustering =
+          !(dynamicDestinations.getDestinationCoder() instanceof TableDestinationCoderV2);
+      checkArgument(
+          tableDestination.getClustering() == null || destinationCoderSupportsClustering,
+          "DynamicDestinations.getTable() may only return destinations with clustering configured"
+              + " if a destination coder is supplied that supports clustering, but %s is configured"
+              + " to use TableDestinationCoderV2. Set withClustering() on BigQueryIO.write() and, "
+              + " if you provided a custom DynamicDestinations instance, override"
+              + " getDestinationCoder() to return TableDestinationCoderV3.",
+          dynamicDestinations);
       TableReference tableReference = tableDestination.getTableReference().clone();
       if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
         tableReference.setProjectId(
@@ -185,6 +195,9 @@ public class CreateTables<DestinationT, ElementT>
                   .setDescription(tableDestination.getTableDescription());
           if (tableDestination.getTimePartitioning() != null) {
             table.setTimePartitioning(tableDestination.getTimePartitioning());
+            if (tableDestination.getClustering() != null) {
+              table.setClustering(tableDestination.getClustering());
+            }
           }
           if (kmsKey != null) {
             table.setEncryptionConfiguration(new EncryptionConfiguration().setKmsKeyName(kmsKey));

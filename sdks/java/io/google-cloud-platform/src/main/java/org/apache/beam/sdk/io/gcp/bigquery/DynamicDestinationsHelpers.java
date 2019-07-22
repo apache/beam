@@ -28,6 +28,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -95,13 +96,16 @@ class DynamicDestinationsHelpers {
     }
   }
 
-  /** Returns a tables based on a user-supplied function. */
+  /** Returns tables based on a user-supplied function. */
   static class TableFunctionDestinations<T> extends DynamicDestinations<T, TableDestination> {
     private final SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction;
+    private final boolean clusteringEnabled;
 
     TableFunctionDestinations(
-        SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction) {
+        SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction,
+        boolean clusteringEnabled) {
       this.tableFunction = tableFunction;
+      this.clusteringEnabled = clusteringEnabled;
     }
 
     @Override
@@ -127,7 +131,11 @@ class DynamicDestinationsHelpers {
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
-      return TableDestinationCoderV2.of();
+      if (clusteringEnabled) {
+        return TableDestinationCoderV3.of();
+      } else {
+        return TableDestinationCoderV2.of();
+      }
     }
   }
 
@@ -167,6 +175,10 @@ class DynamicDestinationsHelpers {
     @Override
     Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry)
         throws CannotProvideCoderException {
+      Coder<DestinationT> destinationCoder = getDestinationCoder();
+      if (destinationCoder != null) {
+        return destinationCoder;
+      }
       return inner.getDestinationCoderWithDefault(registry);
     }
 
@@ -219,16 +231,19 @@ class DynamicDestinationsHelpers {
       extends DelegatingDynamicDestinations<T, TableDestination> {
 
     @Nullable private final ValueProvider<String> jsonTimePartitioning;
+    @Nullable private final ValueProvider<String> jsonClustering;
 
     ConstantTimePartitioningDestinations(
         DynamicDestinations<T, TableDestination> inner,
-        ValueProvider<String> jsonTimePartitioning) {
+        ValueProvider<String> jsonTimePartitioning,
+        ValueProvider<String> jsonClustering) {
       super(inner);
       checkArgument(jsonTimePartitioning != null, "jsonTimePartitioning provider can not be null");
       if (jsonTimePartitioning.isAccessible()) {
         checkArgument(jsonTimePartitioning.get() != null, "jsonTimePartitioning can not be null");
       }
       this.jsonTimePartitioning = jsonTimePartitioning;
+      this.jsonClustering = jsonClustering;
     }
 
     @Override
@@ -237,20 +252,31 @@ class DynamicDestinationsHelpers {
       String partitioning = this.jsonTimePartitioning.get();
       checkArgument(partitioning != null, "jsonTimePartitioning can not be null");
       return new TableDestination(
-          destination.getTableSpec(), destination.getTableDescription(), partitioning);
+          destination.getTableSpec(),
+          destination.getTableDescription(),
+          partitioning,
+          Optional.ofNullable(jsonClustering).map(ValueProvider::get).orElse(null));
     }
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
-      return TableDestinationCoderV2.of();
+      if (jsonClustering != null) {
+        return TableDestinationCoderV3.of();
+      } else {
+        return TableDestinationCoderV2.of();
+      }
     }
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(this)
-          .add("inner", inner)
-          .add("jsonTimePartitioning", jsonTimePartitioning)
-          .toString();
+      MoreObjects.ToStringHelper helper =
+          MoreObjects.toStringHelper(this)
+              .add("inner", inner)
+              .add("jsonTimePartitioning", jsonTimePartitioning);
+      if (jsonClustering != null) {
+        helper.add("jsonClustering", jsonClustering);
+      }
+      return helper.toString();
     }
   }
 

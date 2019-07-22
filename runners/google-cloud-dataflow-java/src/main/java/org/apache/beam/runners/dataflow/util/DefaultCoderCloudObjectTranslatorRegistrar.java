@@ -43,6 +43,7 @@ import org.apache.beam.sdk.coders.TextualIntegerCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestinationCoderV2;
+import org.apache.beam.sdk.io.gcp.bigquery.TableDestinationCoderV3;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -99,6 +100,7 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           RandomAccessDataCoder.class,
           StringUtf8Coder.class,
           TableDestinationCoderV2.class,
+          TableDestinationCoderV3.class,
           TableRowJsonCoder.class,
           TextualIntegerCoder.class,
           VarIntCoder.class,
