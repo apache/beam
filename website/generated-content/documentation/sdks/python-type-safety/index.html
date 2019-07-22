@@ -368,10 +368,10 @@ evens = numbers | beam.ParDo(FilterEvensDoFn())
 
 <p>You can use type hint annotations to define generic types. The following code specifies an input type hint that asserts the generic type <code class="highlighter-rouge">T</code>, and an output type hint that asserts the type <code class="highlighter-rouge">Tuple[int, T]</code>.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>T = beam.typehints.TypeVariable('T')
+<div class="highlighter-rouge"><pre class="highlight"><code>T = typing.TypeVar('T')
 
 @beam.typehints.with_input_types(T)
-@beam.typehints.with_output_types(beam.typehints.Tuple[int, T])
+@beam.typehints.with_output_types(typing.Tuple[int, T])
 class MyTransform(beam.PTransform):
   def expand(self, pcoll):
     return pcoll | beam.Map(lambda x: (len(x), x))
@@ -484,7 +484,7 @@ totals = (
     lines
     | beam.Map(parse_player_and_score)
     | beam.CombinePerKey(sum).with_input_types(
-        beam.typehints.Tuple[Player, int]))
+        typing.Tuple[Player, int]))
 </code></pre>
 </div>
 
