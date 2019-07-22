@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import org.apache.beam.sdk.extensions.sql.impl.BeamRowCountStatistics;
+import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.PBegin;
@@ -40,7 +40,7 @@ public interface BeamSqlTable {
   Schema getSchema();
 
   /** Estimates the number of rows or returns null if there is no estimation. */
-  default BeamRowCountStatistics getRowCount(PipelineOptions options) {
-    return BeamRowCountStatistics.UNKNOWN;
+  default BeamTableStatistics getRowCount(PipelineOptions options) {
+    return BeamTableStatistics.UNKNOWN;
   }
 }
