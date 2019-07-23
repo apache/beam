@@ -1,46 +1,4 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_BEAMPSQL",
-      "label": "BeamPSQL",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "postgres",
-      "pluginName": "PostgreSQL"
-    }
-  ],
-  "__requires": [
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "5.3.2"
-    },
-    {
-      "type": "panel",
-      "id": "graph",
-      "name": "Graph",
-      "version": "5.0.0"
-    },
-    {
-      "type": "datasource",
-      "id": "postgres",
-      "name": "PostgreSQL",
-      "version": "5.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "singlestat",
-      "name": "Singlestat",
-      "version": "5.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "table",
-      "name": "Table",
-      "version": "5.0.0"
-    }
-  ],
   "annotations": {
     "list": [
       {
@@ -58,7 +16,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": null,
+  "id": 7,
   "links": [],
   "panels": [
     {
@@ -70,7 +28,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "${DS_BEAMPSQL}",
+      "datasource": "BeamPSQL",
       "decimals": null,
       "format": "dthms",
       "gauge": {
@@ -178,7 +136,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "${DS_BEAMPSQL}",
+      "datasource": "BeamPSQL",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -265,7 +223,6 @@
       ],
       "thresholds": "",
       "title": "Oldest Open PR",
-      "transparent": false,
       "type": "singlestat",
       "valueFontSize": "80%",
       "valueMaps": [
@@ -286,7 +243,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "${DS_BEAMPSQL}",
+      "datasource": "BeamPSQL",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -393,7 +350,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "${DS_BEAMPSQL}",
+      "datasource": "BeamPSQL",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -492,7 +449,7 @@
     },
     {
       "columns": [],
-      "datasource": "${DS_BEAMPSQL}",
+      "datasource": "BeamPSQL",
       "description": "Shows open PRs and list of reviewers assigned to PR.\n\nReviewers are calculated in two ways:\n1. beam_reviewers - this is initial algorithm that detects defined patterns in comments.\n2. updated_beam_reviewers_algorithm - this algo lists all mentions (@.*), as well as whoever was assigned as reviewer, reviewed or merged code.",
       "fontSize": "100%",
       "gridPos": {
@@ -605,7 +562,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_BEAMPSQL}",
+      "datasource": "BeamPSQL",
       "description": "Shows total PRs opened and statistics of open/closed PRs per day.",
       "fill": 1,
       "gridPos": {
@@ -719,6 +676,7 @@
       ],
       "thresholds": [],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "PR Activity Trends",
       "tooltip": {
@@ -795,7 +753,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_BEAMPSQL}",
+      "datasource": "BeamPSQL",
       "description": "Shows first non-author activity on PR on sliding window of 7 days.",
       "fill": 0,
       "gridPos": {
@@ -864,6 +822,7 @@
         }
       ],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "Time to First Non-Author PR Response on 7 Day Span",
       "tooltip": {
@@ -908,7 +867,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_BEAMPSQL}",
+      "datasource": "BeamPSQL",
       "decimals": 0,
       "description": "Assignees with less than 5 PRs are not shown.",
       "fill": 0,
@@ -974,6 +933,7 @@
       ],
       "thresholds": [],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "Reviews per Beam Reviewer",
       "tooltip": {
@@ -1018,7 +978,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_BEAMPSQL}",
+      "datasource": "BeamPSQL",
       "decimals": 0,
       "description": "Assignees with less than 5 PRs are not shown.",
       "fill": 0,
@@ -1084,6 +1044,7 @@
       ],
       "thresholds": [],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "Reviews per Mentioned and Assigned",
       "tooltip": {
@@ -1125,7 +1086,7 @@
     }
   ],
   "refresh": false,
-  "schemaVersion": 16,
+  "schemaVersion": 18,
   "style": "dark",
   "tags": [],
   "templating": {
