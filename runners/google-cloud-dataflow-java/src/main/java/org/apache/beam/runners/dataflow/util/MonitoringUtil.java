@@ -219,6 +219,6 @@ public class MonitoringUtil {
   }
 
   public static State toState(String stateName) {
-    return MoreObjects.firstNonNull(DATAFLOW_STATE_TO_JOB_STATE.get(stateName), State.UNKNOWN);
+    return MoreObjects.firstNonNull(DATAFLOW_STATE_TO_JOB_STATE.get(stateName), State.UNRECOGNIZED);
   }
 }
