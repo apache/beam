@@ -301,7 +301,7 @@ class PipelineState(object):
   pipeline in. Currently, it represents the values of the dataflow
   API JobState enum.
   """
-  UNKNOWN = 'UNKNOWN'  # not specified
+  UNKNOWN = 'UNKNOWN'  # not specified by a runner, or unknown to a runner.
   STARTING = 'STARTING'  # not yet started
   STOPPED = 'STOPPED'  # paused or not yet started
   RUNNING = 'RUNNING'  # currently running
@@ -314,6 +314,8 @@ class PipelineState(object):
   PENDING = 'PENDING' # the job has been created but is not yet running.
   CANCELLING = 'CANCELLING' # job has been explicitly cancelled and is
                             # in the process of stopping
+  UNRECOGNIZED = 'UNRECOGNIZED' # the job state reported by a runner cannot be
+                                # interpreted by the SDK.
 
   @classmethod
   def is_terminal(cls, state):

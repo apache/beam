@@ -1268,8 +1268,8 @@ class DataflowPipelineResult(PipelineResult):
     values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
 
     # Ordered by the enum values. Values that may be introduced in
-    # future versions of Dataflow API are considered UNKNOWN by the SDK.
-    api_jobstate_map = defaultdict(lambda: PipelineState.UNKNOWN, {
+    # future versions of Dataflow API are considered UNRECOGNIZED by the SDK.
+    api_jobstate_map = defaultdict(lambda: PipelineState.UNRECOGNIZED, {
         values_enum.JOB_STATE_UNKNOWN: PipelineState.UNKNOWN,
         values_enum.JOB_STATE_STOPPED: PipelineState.STOPPED,
         values_enum.JOB_STATE_RUNNING: PipelineState.RUNNING,
