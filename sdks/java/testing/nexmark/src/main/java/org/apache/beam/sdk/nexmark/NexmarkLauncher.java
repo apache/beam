@@ -499,6 +499,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       boolean running = true;
       switch (state) {
         case UNKNOWN:
+        case UNRECOGNIZED:
         case STOPPED:
         case RUNNING:
           // Keep going.
