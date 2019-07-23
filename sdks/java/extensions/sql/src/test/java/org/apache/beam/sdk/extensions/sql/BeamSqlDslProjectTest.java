@@ -217,4 +217,18 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     pipeline.run();
   }
+
+  @Test
+  public void testBytesLiteral() {
+    Schema outputSchema = Schema.of(Schema.Field.of("c_bytes", Schema.FieldType.BYTES));
+
+    PCollection<Row> result =
+        PCollectionTuple.empty(pipeline).apply(SqlTransform.query("SELECT x'baadcafe' as c_bytes"));
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            Row.withSchema(outputSchema).addValue(new byte[] {-70, -83, -54, -2}).build());
+
+    pipeline.run();
+  }
 }
