@@ -51,7 +51,6 @@ import org.mockito.MockitoAnnotations;
 public class DirectMetricsTest {
 
   @Mock private CommittedBundle<Object> bundle1;
-  @Mock private CommittedBundle<Object> bundle2;
 
   private static final MetricName NAME1 = MetricName.named("ns1", "name1");
   private static final MetricName NAME2 = MetricName.named("ns1", "name2");
