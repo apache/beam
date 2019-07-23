@@ -58,7 +58,6 @@ from apache_beam.internal import util
 from apache_beam.portability import python_urns
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
-from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
@@ -349,8 +348,6 @@ class PTransform(WithTypeHints, HasDisplayData):
       :class:`PTransform` object. This allows chaining type-hinting related
       methods.
     """
-    input_type_hint = native_type_compatibility.convert_to_beam_type(
-        input_type_hint)
     validate_composite_type_param(input_type_hint,
                                   'Type hints for a PTransform')
     return super(PTransform, self).with_input_types(input_type_hint)
@@ -372,7 +369,6 @@ class PTransform(WithTypeHints, HasDisplayData):
       :class:`PTransform` object. This allows chaining type-hinting related
       methods.
     """
-    type_hint = native_type_compatibility.convert_to_beam_type(type_hint)
     validate_composite_type_param(type_hint, 'Type hints for a PTransform')
     return super(PTransform, self).with_output_types(type_hint)
 
@@ -739,11 +735,6 @@ class PTransformWithSideInputs(PTransform):
       methods.
     """
     super(PTransformWithSideInputs, self).with_input_types(input_type_hint)
-
-    side_inputs_arg_hints = native_type_compatibility.convert_to_beam_types(
-        side_inputs_arg_hints)
-    side_input_kwarg_hints = native_type_compatibility.convert_to_beam_types(
-        side_input_kwarg_hints)
 
     for si in side_inputs_arg_hints:
       validate_composite_type_param(si, 'Type hints for a PTransform')

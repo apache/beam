@@ -26,7 +26,6 @@ import tempfile
 import threading
 import time
 import traceback
-import typing
 import unittest
 import uuid
 from builtins import range
@@ -258,10 +257,10 @@ class FnApiRunnerTest(unittest.TestCase):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create(['a', 'b'])
       # The type of this side-input is forced to Any (overriding type
-      # inference). Without type coercion to Tuple[Any, Any], the usage of this
+      # inference). Without type coercion to KV[Any, Any], the usage of this
       # side-input in AsMultiMap() below should fail.
       side = (p | 'side' >> beam.Create([('a', 1), ('b', 2), ('a', 3)])
-              .with_output_types(typing.Any))
+              .with_output_types(beam.typehints.Any))
       assert_that(
           main | beam.Map(lambda k, d: (k, sorted(d[k])),
                           beam.pvalue.AsMultiMap(side)),

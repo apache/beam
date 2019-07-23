@@ -25,7 +25,6 @@ import collections
 import contextlib
 import random
 import time
-import typing
 import warnings
 from builtins import object
 from builtins import range
@@ -78,9 +77,9 @@ __all__ = [
     'GroupIntoBatches'
     ]
 
-K = typing.TypeVar('K')
-V = typing.TypeVar('V')
-T = typing.TypeVar('T')
+K = typehints.TypeVariable('K')
+V = typehints.TypeVariable('V')
+T = typehints.TypeVariable('T')
 
 
 class CoGroupByKey(PTransform):
@@ -481,7 +480,7 @@ class _WindowAwareBatchingDoFn(DoFn):
 
 
 @typehints.with_input_types(T)
-@typehints.with_output_types(typing.List[T])
+@typehints.with_output_types(typehints.List[T])
 class BatchElements(PTransform):
   """A Transform that batches elements for amortized processing.
 
@@ -574,8 +573,8 @@ class _IdentityWindowFn(NonMergingWindowFn):
     return self._window_coder
 
 
-@typehints.with_input_types(typing.Tuple[K, V])
-@typehints.with_output_types(typing.Tuple[K, V])
+@typehints.with_input_types(typehints.KV[K, V])
+@typehints.with_output_types(typehints.KV[K, V])
 class ReshufflePerKey(PTransform):
   """PTransform that returns a PCollection equivalent to its input,
   but operationally provides some of the side effects of a GroupByKey,
@@ -683,7 +682,7 @@ def WithKeys(pcoll, k):
 
 
 @experimental()
-@typehints.with_input_types(typing.Tuple[K, V])
+@typehints.with_input_types(typehints.KV[K, V])
 class GroupIntoBatches(PTransform):
   """PTransform that batches the input into desired batch size. Elements are
   buffered until they are equal to batch size provided in the argument at which
@@ -763,7 +762,7 @@ class ToString(object):
       self.delimiter = delimiter or ","
 
     def expand(self, pcoll):
-      input_type = typing.Tuple[typing.Any, typing.Any]
+      input_type = typehints.KV[typehints.Any, typehints.Any]
       output_type = str
       return (pcoll | ('%s:KeyVaueToString' % self.label >> (Map(
           lambda x: "{}{}{}".format(x[0], self.delimiter, x[1])))
@@ -796,7 +795,7 @@ class ToString(object):
       self.delimiter = delimiter or ","
 
     def expand(self, pcoll):
-      input_type = typing.Iterable[typing.Any]
+      input_type = typehints.Iterable[typehints.Any]
       output_type = str
       return (pcoll | ('%s:IterablesToString' % self.label >> (
           Map(lambda x: self.delimiter.join(str(_x) for _x in x)))
@@ -836,8 +835,8 @@ class Reify(object):
     def expand(self, pcoll):
       return pcoll | ParDo(self.add_window_info)
 
-  @typehints.with_input_types(typing.Tuple[K, V])
-  @typehints.with_output_types(typing.Tuple[K, V])
+  @typehints.with_input_types(typehints.KV[K, V])
+  @typehints.with_output_types(typehints.KV[K, V])
   class TimestampInValue(PTransform):
     """PTransform to wrap the Value in a KV pair in a TimestampedValue with
     the element's associated timestamp."""
@@ -850,8 +849,8 @@ class Reify(object):
     def expand(self, pcoll):
       return pcoll | ParDo(self.add_timestamp_info)
 
-  @typehints.with_input_types(typing.Tuple[K, V])
-  @typehints.with_output_types(typing.Tuple[K, V])
+  @typehints.with_input_types(typehints.KV[K, V])
+  @typehints.with_output_types(typehints.KV[K, V])
   class WindowInValue(PTransform):
     """PTransform to convert the Value in a KV pair into a tuple of
     (value, timestamp, window), with the whole element being wrapped inside a
