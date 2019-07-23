@@ -48,8 +48,10 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -65,6 +67,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.channels.FileChannel;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
@@ -1303,6 +1306,33 @@ public class DataflowRunnerTest implements Serializable {
 
     p.run();
     expectedLogs.verifyInfo("Template successfully created");
+  }
+
+  /**
+   * Tests that the {@link DataflowRunner} with {@code --templateLocation} returns normally when the
+   * runner is successfully run with upload_graph experiment turned on.
+   * The result template should not contain raw steps and stepsLocation file should be set.
+   */
+  @Test
+  public void testTemplateRunnerWithUploadGraph() throws Exception {
+    File existingFile = tmpFolder.newFile();
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setExperiments(Arrays.asList("upload_graph"));
+    options.setJobName("TestJobName");
+    options.setGcpCredential(new TestCredential());
+    options.setPathValidatorClass(NoopPathValidator.class);
+    options.setProject("test-project");
+    options.setRunner(DataflowRunner.class);
+    options.setTemplateLocation(existingFile.getPath());
+    options.setTempLocation(tmpFolder.getRoot().getPath());
+    Pipeline p = Pipeline.create(options);
+    p.apply(Create.of(ImmutableList.of(1)));
+    p.run();
+    expectedLogs.verifyInfo("Template successfully created");
+    ObjectMapper objectMapper = new ObjectMapper();
+    JsonNode node = objectMapper.readTree(existingFile);
+    assertEquals(0, node.get("steps").size());
+    assertNotNull(node.get("stepsLocation"));
   }
 
   /**

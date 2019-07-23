@@ -830,6 +830,19 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       hooks.modifyEnvironmentBeforeSubmission(newJob.getEnvironment());
     }
 
+    // Upload the job to GCS and remove the graph object from the API call.  The graph
+    // will be downloaded from GCS by the service.
+    if (hasExperiment(options, "upload_graph")) {
+      DataflowPackage stagedGraph =
+          options
+              .getStager()
+              .stageToFile(
+                  DataflowPipelineTranslator.jobToString(newJob).getBytes(UTF_8),
+                  DATAFLOW_GRAPH_FILE_NAME);
+      newJob.getSteps().clear();
+      newJob.setStepsLocation(stagedGraph.getLocation());
+    }
+
     if (!isNullOrEmpty(options.getDataflowJobFile())
         || !isNullOrEmpty(options.getTemplateLocation())) {
       boolean isTemplate = !isNullOrEmpty(options.getTemplateLocation());
@@ -876,19 +889,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
     if (options.getCreateFromSnapshot() != null && !options.getCreateFromSnapshot().isEmpty()) {
       newJob.setCreatedFromSnapshotId(options.getCreateFromSnapshot());
-    }
-
-    // Upload the job to GCS and remove the graph object from the API call.  The graph
-    // will be downloaded from GCS by the service.
-    if (hasExperiment(options, "upload_graph")) {
-      DataflowPackage stagedGraph =
-          options
-              .getStager()
-              .stageToFile(
-                  DataflowPipelineTranslator.jobToString(newJob).getBytes(UTF_8),
-                  DATAFLOW_GRAPH_FILE_NAME);
-      newJob.getSteps().clear();
-      newJob.setStepsLocation(stagedGraph.getLocation());
     }
 
     Job jobResult;
