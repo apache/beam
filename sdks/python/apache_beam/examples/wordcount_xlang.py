@@ -116,7 +116,8 @@ def main():
   pipeline_options.view_as(SetupOptions).save_main_session = True
 
   p = beam.Pipeline(options=pipeline_options)
-  p.runner.init_dockerized_job_server()
+  # Preemptively start due to BEAM-6666.
+  p.runner.create_job_service(pipeline_options)
 
   try:
     server = subprocess.Popen([
