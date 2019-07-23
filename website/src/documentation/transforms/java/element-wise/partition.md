@@ -31,6 +31,8 @@ Separates elements in a collection into multiple output collections. The partiti
 
 The number of partitions must be determined at graph construction time. You cannot determine the number of partitions in mid-pipeline.
 
+See more information in the [Beam Programming Guide]({{ site.baseurl }}/documentation/programming-guide/#partition).
+
 ## Examples
 **Example**: dividing a `PCollection` into percentile groups
 

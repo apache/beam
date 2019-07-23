@@ -35,6 +35,8 @@ in the input. It may be combined with windowing to subdivide each key
 based on time or triggering to produce partial aggregations. Either
 windowing or triggering is necessary when processing unbounded collections.
 
+See more information in the [Beam Programming Guide]({{ site.baseurl }}/documentation/programming-guide/#groupbykey).
+
 ## Examples
 **Example 1**: (a, 1), (b, 2), (a, 3) will result into (a, [1, 3]), (b, [2]).
 

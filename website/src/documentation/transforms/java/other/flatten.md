@@ -44,6 +44,8 @@ If your pipeline attempts to use `Flatten` to merge `PCollection` objects
 with incompatible windows, Beam generates an `IllegalStateException` error
 when your pipeline is constructed
 
+See more information in the [Beam Programming Guide]({{ site.baseurl }}/documentation/programming-guide/#flatten).
+
 ## Examples
 **Example**: Apply a `Flatten` transform to merge multiple `PCollection` objects
 

@@ -41,6 +41,8 @@ processed by a single worker. This introduces a lot of communication overhead.
 Using a `CombineFn` requires the code be structured as an associative and
 commumative operation. But, it allows the use of partial sums to be precomputed.
 
+See more information in the [Beam Programming Guide]({{ site.baseurl }}/documentation/programming-guide/#combine).
+
 ## Examples
 **Example 1**: Global combine
 Use the global combine to combine all of the elements in a given `PCollection`

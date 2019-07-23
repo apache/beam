@@ -34,6 +34,8 @@ input values, `CoGroupByKey` operates over multiple input collections. As
 a result, the result for each key is a tuple of the values associated with
 that key in each input collection.
 
+See more information in the [Beam Programming Guide]({{ site.baseurl }}/documentation/programming-guide/#cogroupbykey).
+
 ## Examples
 **Example**: Say you have two different files with user data; one file has
 names and email addresses and the other file has names and phone numbers.
