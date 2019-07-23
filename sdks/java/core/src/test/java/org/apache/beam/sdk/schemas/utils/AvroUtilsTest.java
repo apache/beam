@@ -25,7 +25,6 @@ import static org.junit.Assume.assumeThat;
 import com.pholser.junit.quickcheck.From;
 import com.pholser.junit.quickcheck.Property;
 import com.pholser.junit.quickcheck.runner.JUnitQuickcheck;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -82,8 +81,8 @@ public class AvroUtilsTest {
 
   @Property(trials = 1000)
   @SuppressWarnings("unchecked")
-  public void avroToBeamRoudTrip(
-      @From(RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) throws IOException {
+  public void avroToBeamRoundTrip(
+      @From(RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) {
     // not everything is possible to translate
     assumeThat(avroSchema, not(containsField(AvroUtilsTest::hasNonNullUnion)));
     // roundtrip for enums returns strings because Beam doesn't have enum type
@@ -253,10 +252,10 @@ public class AvroUtilsTest {
         .build();
   }
 
-  static final byte[] BYTE_ARRAY = new byte[] {1, 2, 3, 4};
-  static final DateTime DATE_TIME =
-      new DateTime().withDate(1979, 03, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
-  static final BigDecimal BIG_DECIMAL = new BigDecimal(3600);
+  private static final byte[] BYTE_ARRAY = new byte[] {1, 2, 3, 4};
+  private static final DateTime DATE_TIME =
+      new DateTime().withDate(1979, 3, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
+  private static final BigDecimal BIG_DECIMAL = new BigDecimal(3600);
 
   private Row getBeamRow() {
     Row subRow = Row.withSchema(getBeamSubSchema()).addValues(true, 42).build();
@@ -276,8 +275,7 @@ public class AvroUtilsTest {
         .build();
   }
 
-  private GenericRecord getGenericRecord() {
-
+  private static GenericRecord getGenericRecord() {
     GenericRecord subRecord =
         new GenericRecordBuilder(getAvroSubSchema()).set("bool", true).set("int", 42).build();
 
