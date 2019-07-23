@@ -35,7 +35,7 @@ nums.each {
     // Allows triggering this build against pull requests.
     commonJobProperties.enablePhraseTriggeringFromPullRequest(
       delegate,
-      'Machine Inventory',
+      "Machine Inventory ${machine}",
       "Run Inventory ${machine}")
 
     parameters {
@@ -66,6 +66,7 @@ nums.each {
       shell('virtualenv -p python3.7 test37 && . ./test37/bin/activate && python --version && deactivate || echo "python 3.7 not found"')
       shell('echo "Maven home $MAVEN_HOME"')
       shell('env')
+      shell('docker system prune --all --filter until=24h --force')
     }
   }
 }
