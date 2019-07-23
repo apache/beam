@@ -300,42 +300,35 @@ class GrpcClientDataChannel(_GrpcDataChannel):
 class GrpcServerDataChannel(
     beam_fn_api_pb2_grpc.BeamFnDataServicer, _GrpcDataChannel):
   """A DataChannel wrapping the server side of a BeamFnData connection."""
-
-  def Data(self, elements_iterator, context):
-    self._start_reader(elements_iterator)
-    for elements in self._write_outputs():
-      yield elements
-
-
-class GrpcServerMultiPlexDataChannel(GrpcServerDataChannel):
-  """A DataChannel wrapping the server side of a BeamFnData connection,
-  implementing data multiplexing."""
-
-  def __init__(self, task_worker_mapping):
+  def __init__(self):
     super(GrpcServerDataChannel, self).__init__()
-    self._to_send_per_worker = collections.defaultdict(queue.Queue)
-    self._task_worker_mapping = task_worker_mapping
+    self._conn_handler = ConnectionHandler()
 
   def close(self):
-    for q in self._to_send_per_worker.values():
-      q.put(self._WRITES_FINISHED)
+    for conn_handler in self._conn_handler.get_conn_handlers().values():
+      conn_handler.add(self._WRITES_FINISHED)
     self._closed = True
+    self._conn_handler.close()
 
   def output_stream(self, instruction_id, transform_id):
     def add_to_send_queue(data):
       if data:
-        worker_id = self._task_worker_mapping[instruction_id]
-        self._to_send_per_worker[worker_id].put(
+        worker_id = 'worker_%s' % (int(instruction_id.split('_')[1]) %
+                                   len(self._conn_handler.get_conn_handlers()))
+        channel_conn = self._conn_handler.get_conn_handler_by_id(worker_id)
+        channel_conn.add(
             beam_fn_api_pb2.Elements.Data(
                 instruction_reference=instruction_id,
                 ptransform_id=transform_id,
                 data=data))
 
     def close_callback(data):
-      add_to_send_queue(data)
       # End of stream marker.
-      worker_id = self._task_worker_mapping[instruction_id]
-      self._to_send_per_worker[worker_id].put(
+      worker_id = 'worker_%s' % (int(instruction_id.split('_')[1]) %
+                                 len(self._conn_handler.get_conn_handlers()))
+      add_to_send_queue(data)
+      channel_conn = self._conn_handler.get_conn_handler_by_id(worker_id)
+      channel_conn.add(
           beam_fn_api_pb2.Elements.Data(
               instruction_reference=instruction_id,
               ptransform_id=transform_id,
@@ -346,11 +339,12 @@ class GrpcServerMultiPlexDataChannel(GrpcServerDataChannel):
   def _write_outputs(self, worker_id):
     done = False
     while not done:
-      data = [self._to_send_per_worker[worker_id].get()]
+      channel_conn = self._conn_handler.get_conn_handler_by_id(worker_id)
+      data = [channel_conn.get()]
       try:
         # Coalesce up to 100 other items.
         for _ in range(100):
-          data.append(self._to_send_per_worker[worker_id].get_nowait())
+          data.append(channel_conn.get_nowait())
       except queue.Empty:
         pass
       if data[-1] is self._WRITES_FINISHED:
@@ -361,12 +355,41 @@ class GrpcServerMultiPlexDataChannel(GrpcServerDataChannel):
 
   def Data(self, elements_iterator, context):
     self._start_reader(elements_iterator)
-
-    metadata = dict((k, v) for k, v in context.invocation_metadata())
-    worker_id = metadata.get('worker_id')
-
+    worker_id = dict(context.invocation_metadata()).get('worker_id')
     for elements in self._write_outputs(worker_id):
       yield elements
+
+
+class ConnectionHandler(object):
+
+  _conn_handlers = {}
+
+  def add_conn_handler(self, worker_id):
+    ConnectionHandler._conn_handlers[worker_id] = ChannelConnection()
+
+  def get_conn_handler_by_id(self, worker_id):
+    return ConnectionHandler._conn_handlers[worker_id]
+
+  def get_conn_handlers(self):
+    return ConnectionHandler._conn_handlers
+
+  def close(self):
+    ConnectionHandler._conn_handlers = {}
+
+
+class ChannelConnection(object):
+
+  def __init__(self):
+    self._to_send = queue.Queue()
+
+  def add(self, data):
+    self._to_send.put(data)
+
+  def get(self):
+    return self._to_send.get()
+
+  def get_nowait(self):
+    return self._to_send.get_nowait()
 
 
 class DataChannelFactory(with_metaclass(abc.ABCMeta, object)):
