@@ -1965,10 +1965,10 @@ public class ParDoTest implements Serializable {
     @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesSideInputs.class})
     public void testBagStateSideInput() {
 
-      final PCollectionView<List<Integer>> listView =
-          pipeline.apply("Create list for side input", Create.of(2, 1, 0)).apply(View.asList());
-
+      final String TAG_1 = "sideInput1";
+      final String TAG_2 = "sideInput2";
       final String stateId = "foo";
+
       DoFn<KV<String, Integer>, List<Integer>> fn =
           new DoFn<KV<String, Integer>, List<Integer>>() {
 
@@ -1976,12 +1976,20 @@ public class ParDoTest implements Serializable {
             private final StateSpec<BagState<Integer>> bufferState =
                 StateSpecs.bag(VarIntCoder.of());
 
+            final PCollectionView<List<Integer>> listView =
+                    pipeline.apply("Create list for side input", Create.of(2, 1, 0)).apply(View.asList(TAG_1));
+
+            final PCollectionView<List<Integer>> listView1 =
+                    pipeline.apply("Create list for side input", Create.of(2, 1, 0)).apply(View.asList(TAG_2));
+
             @ProcessElement
             public void processElement(
                 ProcessContext c,
                 @Element KV<String, Integer> element,
                 @StateId(stateId) BagState<Integer> state,
-                OutputReceiver<List<Integer>> r) {
+                OutputReceiver<List<Integer>> r,
+                @SideInput(TAG_1) List<Integer> tag1,
+                @SideInput(TAG_2) List<Integer> tag2) {
               state.add(element.getValue());
               Iterable<Integer> currentValue = state.read();
               if (Iterables.size(currentValue) >= 4) {
@@ -2005,7 +2013,7 @@ public class ParDoTest implements Serializable {
                       KV.of("hello", 42),
                       KV.of("hello", 84),
                       KV.of("hello", 12)))
-              .apply(ParDo.of(fn).withSideInputs(listView));
+              .apply(ParDo.of(fn));
 
       PAssert.that(output)
           .containsInAnyOrder(Lists.newArrayList(12, 42, 84, 97), Lists.newArrayList(0, 1, 2));
