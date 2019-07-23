@@ -302,6 +302,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public InputT sideInput(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+              "SideInput parameters are not supported outside of @ProcessElement method.");
+    }
+
+    @Override
     public Object schemaElement(int index) {
       throw new UnsupportedOperationException(
           "Element parameters are not supported outside of @ProcessElement method.");
@@ -413,6 +419,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public InputT element(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access element outside of @ProcessElement method.");
+    }
+
+    @Override
+    public InputT sideInput(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+              "Cannot access sideInput outside of @ProcessElement method.");
     }
 
     @Override
@@ -632,6 +644,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public InputT sideInput(DoFn<InputT, OutputT> doFn) {
+      return null; //sideInput()
+    }
+
+    @Override
     public Object schemaElement(int index) {
       SerializableFunction converter = doFnSchemaInformation.getElementConverters().get(index);
       return converter.apply(element());
@@ -668,6 +685,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       throw new UnsupportedOperationException(
           "Cannot access OnTimerContext outside of @OnTimer methods.");
     }
+
+    /*@Override
+    public InputT sideInput(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("SideInput parameters are not supported.");
+    }*/
 
     @Override
     public RestrictionTracker<?, ?> restrictionTracker() {
@@ -779,6 +801,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public InputT element(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("Element parameters are not supported.");
+    }
+
+    @Override
+    public InputT sideInput(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("sideInput parameters are not supported.");
     }
 
     @Override

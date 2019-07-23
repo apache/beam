@@ -238,6 +238,11 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public InputT sideInput(DoFn<InputT, OutputT> doFn) {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
       public Object schemaElement(int index) {
         throw new UnsupportedOperationException();
       }

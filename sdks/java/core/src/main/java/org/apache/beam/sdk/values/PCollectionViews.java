@@ -100,6 +100,20 @@ public class PCollectionViews {
   }
 
   /**
+   * Returns a {@code PCollectionView<List<T>>} capable of processing elements windowed using the
+   * provided {@link WindowingStrategy}.
+   */
+  public static <T, W extends BoundedWindow> PCollectionView<List<T>> listView(
+          PCollection<KV<Void, T>> pCollection, WindowingStrategy<?, W> windowingStrategy, String tag) {
+    return new SimplePCollectionView<>(
+            pCollection,
+            new ListViewFn<T>(),
+            windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
+            windowingStrategy,
+            tag);
+  }
+
+  /**
    * Returns a {@code PCollectionView<Map<K, V>>} capable of processing elements windowed using the
    * provided {@link WindowingStrategy}.
    */
@@ -388,6 +402,19 @@ public class PCollectionViews {
         WindowMappingFn<W> windowMappingFn,
         WindowingStrategy<?, W> windowingStrategy) {
       this(pCollection, new TupleTag<>(), viewFn, windowMappingFn, windowingStrategy);
+    }
+
+    /**
+     * Call this constructor to initialize the fields for which this base class provides boilerplate
+     * accessors, with an auto-generated tag.
+     */
+    private SimplePCollectionView(
+            PCollection<ElemT> pCollection,
+            ViewFn<PrimitiveViewT, ViewT> viewFn,
+            WindowMappingFn<W> windowMappingFn,
+            WindowingStrategy<?, W> windowingStrategy,
+            String tag) {
+      this(pCollection, new TupleTag<>(tag), viewFn, windowMappingFn, windowingStrategy);
     }
 
     @Override

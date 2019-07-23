@@ -89,8 +89,10 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowPara
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Primitives;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
 
 /** Dynamically generates a {@link DoFnInvoker} instances for invoking a {@link DoFn}. */
 public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
@@ -112,6 +114,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String RESTRICTION_TRACKER_PARAMETER_METHOD = "restrictionTracker";
   public static final String STATE_PARAMETER_METHOD = "state";
   public static final String TIMER_PARAMETER_METHOD = "timer";
+  public static final String SIDE_INPUT_PARAMETER_METHOD = "sideInput";
 
   /**
    * Returns a {@link ByteBuddyDoFnInvokerFactory} shared with all other invocations, so that its
@@ -786,6 +789,15 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
           @Override
           public StackManipulation dispatch(DoFnSignature.Parameter.PipelineOptionsParameter p) {
             return simpleExtraContextParameter(PIPELINE_OPTIONS_PARAMETER_METHOD);
+          }
+
+          @Override
+          public StackManipulation dispatch(SideInputParameter p) {
+            return new StackManipulation.Compound(
+                    pushDelegate,
+                    MethodInvocation.invoke(
+                            getExtraContextFactoryMethodDescription(
+                                    SIDE_INPUT_PARAMETER_METHOD, DoFn.class)));
           }
         });
   }
