@@ -242,6 +242,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((TaggedOutputReceiverParameter) this);
       } else if (this instanceof TimeDomainParameter) {
         return cases.dispatch((TimeDomainParameter) this);
+      } else if (this instanceof SideInputParameter) {
+        return cases.dispatch((SideInputParameter) this);
       } else {
         throw new IllegalStateException(
             String.format(
@@ -283,6 +285,8 @@ public abstract class DoFnSignature {
       ResultT dispatch(TimerParameter p);
 
       ResultT dispatch(PipelineOptionsParameter p);
+
+      ResultT dispatch(SideInputParameter p);
 
       /** A base class for a visitor with a default method for cases it is not interested in. */
       abstract class WithDefault<ResultT> implements Cases<ResultT> {
@@ -368,6 +372,11 @@ public abstract class DoFnSignature {
         public ResultT dispatch(PipelineOptionsParameter p) {
           return dispatchDefault(p);
         }
+
+        @Override
+        public ResultT dispatch(SideInputParameter p) {
+          return dispatchDefault(p);
+        }
       }
     }
 
@@ -390,8 +399,6 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_TaggedOutputReceiverParameter();
     private static final PipelineOptionsParameter PIPELINE_OPTIONS_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_PipelineOptionsParameter();
-    private static final SideInputParameter SIDE_INPUT_PARAMETER =
-         new AutoValue_DoFnSignature_Parameter_SideInputParameter();
 
     /** Returns a {@link ProcessContextParameter}. */
     public static ProcessContextParameter processContext() {
@@ -415,8 +422,8 @@ public abstract class DoFnSignature {
       return TIMESTAMP_PARAMETER;
     }
 
-    public static SideInputParameter sideInputParameter() {
-      return SIDE_INPUT_PARAMETER;
+    public static SideInputParameter sideInputParameter(TypeDescriptor<?> elementT) {
+      return new AutoValue_DoFnSignature_Parameter_SideInputParameter(elementT);
     }
 
     public static TimeDomainParameter timeDomainParameter() {
@@ -565,6 +572,8 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class SideInputParameter extends Parameter {
       SideInputParameter() {}
+
+      public abstract TypeDescriptor<?> sideInputT();
     }
 
     /**

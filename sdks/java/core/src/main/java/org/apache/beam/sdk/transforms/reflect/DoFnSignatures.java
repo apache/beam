@@ -108,7 +108,8 @@ public class DoFnSignatures {
               Parameter.OutputReceiverParameter.class,
               Parameter.TaggedOutputReceiverParameter.class,
               Parameter.ProcessContextParameter.class,
-              Parameter.RestrictionTrackerParameter.class);
+              Parameter.RestrictionTrackerParameter.class,
+              Parameter.SideInputParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>> ALLOWED_ON_TIMER_PARAMETERS =
       ImmutableList.of(
@@ -898,7 +899,7 @@ public class DoFnSignatures {
     } else if (rawType.equals(TimeDomain.class)) {
       return Parameter.timeDomainParameter();
     } else if (hasSideInputAnnotation(param.getAnnotations())) {
-      return Parameter.sideInputParameter();
+      return Parameter.sideInputParameter(paramT);
     } else if (rawType.equals(PaneInfo.class)) {
       return Parameter.paneInfoParameter();
     } else if (rawType.equals(DoFn.ProcessContext.class)) {

@@ -397,6 +397,11 @@ public class FnApiDoFnRunner<InputT, OutputT>
     }
 
     @Override
+    public InputT sideInput(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
     public Object schemaElement(int index) {
       SerializableFunction converter = doFnSchemaInformation.getElementConverters().get(index);
       return converter.apply(element());
@@ -578,6 +583,11 @@ public class FnApiDoFnRunner<InputT, OutputT>
     @Override
     public InputT element(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("Element parameters are not supported.");
+    }
+
+    @Override
+    public InputT sideInput(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("SideInput parameters are not supported.");
     }
 
     @Override
