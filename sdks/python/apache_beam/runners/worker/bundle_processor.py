@@ -647,12 +647,12 @@ class BundleProcessor(object):
     ptransform_id, main_input_tag, main_input_coder, outputs = op.input_info
     # TODO(SDF): For non-root nodes, need main_input_coder + residual_coder.
     element_and_restriction, watermark = deferred_remainder
-    # If no current watermark reported, use MIN_TIMESTAMP by default.
-    if not watermark:
-      watermark = timestamp.MIN_TIMESTAMP
-    proto_watermark = timestamp_pb2.Timestamp()
-    proto_watermark.FromMicroseconds(watermark.micros)
-    output_watermarks = {output: proto_watermark for output in outputs}
+    if watermark:
+      proto_watermark = timestamp_pb2.Timestamp()
+      proto_watermark.FromMicroseconds(watermark.micros)
+      output_watermarks = {output: proto_watermark for output in outputs}
+    else:
+      output_watermarks = None
     return beam_fn_api_pb2.DelayedBundleApplication(
         application=beam_fn_api_pb2.BundleApplication(
             ptransform_id=ptransform_id,
