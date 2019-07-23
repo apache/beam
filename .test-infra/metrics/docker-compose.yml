@@ -25,12 +25,14 @@ services:
     container_name: beampostgresql
     volumes:
       - beam-postgresql-data:/var/lib/postgresql/data
+      - ./postgres:/docker-entrypoint-initdb.d
     environment:
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=<PGPasswordHere>
       - POSTGRES_DB=beam_metrics
   grafana:
-    image: grafana/grafana
+    image: beamgrafana
+    build: ./grafana
     ports:
       - "3000:3000"
     container_name: beamgrafana
@@ -42,7 +44,11 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=<GrafanaPasswordHere>
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_NAME=Beam
-      - GF_INSTALL_PLUGINS=vonage-status-panel
+      - DB_HOST=beampostgresql
+      - DB_PORT=5432
+      - DB_DBNAME=beam_metrics
+      - DB_DBUSERNAME=admin
+      - DB_DBPWD=<PGPasswordHere>
   syncgithub:
     image: syncgithub
     container_name: beamsyncgithub
@@ -55,7 +61,7 @@ services:
       - DB_DBNAME=beam_metrics
       - DB_DBUSERNAME=admin
       - DB_DBPWD=<PGPasswordHere>
-      - GH_ACCESS_TOKEN=<GitHubAccessToken>
+      - GH_ACCESS_TOKEN=<GithubAccessToken>
   syncjenkins:
     image: syncjenkins
     container_name: beamsyncjenkins

@@ -1,46 +1,4 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_BEAMPSQL",
-      "label": "BeamPSQL",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "postgres",
-      "pluginName": "PostgreSQL"
-    }
-  ],
-  "__requires": [
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "5.3.1"
-    },
-    {
-      "type": "panel",
-      "id": "graph",
-      "name": "Graph",
-      "version": "5.0.0"
-    },
-    {
-      "type": "datasource",
-      "id": "postgres",
-      "name": "PostgreSQL",
-      "version": "5.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "table",
-      "name": "Table",
-      "version": "5.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "text",
-      "name": "Text",
-      "version": "5.0.0"
-    }
-  ],
   "annotations": {
     "list": [
       {
@@ -59,7 +17,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": null,
+  "id": 1,
   "links": [],
   "panels": [
     {
@@ -74,7 +32,6 @@
       "links": [],
       "mode": "markdown",
       "title": "Dashboard guidelines",
-      "transparent": false,
       "type": "text"
     },
     {
@@ -108,14 +65,14 @@
         "frequency": "30m",
         "handler": 1,
         "name": "Post-commit reliability per week alert",
-        "noDataState": "no_data",
+        "noDataState": "keep_state",
         "notifications": []
       },
       "aliasColors": {},
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_BEAMPSQL}",
+      "datasource": "BeamPSQL",
       "decimals": 0,
       "description": "Percent reliability of all post-commit job runs for a given week.\n\nUnreliability of a test suite impact developer productivity by forcing contributors to re-run tests. When tests are consistently unreliable, developers will simply ignore them.\n\nWe aim for >= 70% reliability per test suite.",
       "fill": 0,
@@ -190,6 +147,7 @@
         }
       ],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "Post-commit reliability per week",
       "tooltip": {
@@ -267,7 +225,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_BEAMPSQL}",
+      "datasource": "BeamPSQL",
       "decimals": 0,
       "description": "Percent reliability of all post-commit job runs per-day.\n\nUnreliability of a test suite impact developer productivity by forcing contributors to re-run tests. When tests are consistently unreliable, developers will simply ignore them.\n\nWe aim for >= 70% reliability per test suite.",
       "fill": 0,
@@ -342,6 +300,7 @@
         }
       ],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "Post-commit reliability per day",
       "tooltip": {
@@ -383,7 +342,7 @@
     },
     {
       "columns": [],
-      "datasource": "${DS_BEAMPSQL}",
+      "datasource": "BeamPSQL",
       "description": "List of jobs which have failed. Click on the job to view it in Jenkins.",
       "fontSize": "100%",
       "gridPos": {
@@ -538,7 +497,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_BEAMPSQL}",
+      "datasource": "BeamPSQL",
       "decimals": 1,
       "description": "Execution time for each post-commit job",
       "fill": 0,
@@ -603,6 +562,7 @@
       ],
       "thresholds": [],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "Post-commit job duration",
       "tooltip": {
@@ -647,7 +607,7 @@
       "bars": true,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_BEAMPSQL}",
+      "datasource": "BeamPSQL",
       "decimals": 0,
       "description": "Tracks the count of test failure JIRA issues currently open.",
       "fill": 3,
@@ -755,6 +715,7 @@
       ],
       "thresholds": [],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "Test Failure JIRA issues",
       "tooltip": {
@@ -796,7 +757,7 @@
     }
   ],
   "refresh": false,
-  "schemaVersion": 16,
+  "schemaVersion": 18,
   "style": "dark",
   "tags": [],
   "templating": {
@@ -832,5 +793,5 @@
   "timezone": "",
   "title": "Post-commit Test Reliability",
   "uid": "D81lW0pmk",
-  "version": 45
+  "version": 46
 }
