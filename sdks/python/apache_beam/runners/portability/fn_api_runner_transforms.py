@@ -763,14 +763,14 @@ def expand_sdf(stages, context):
         main_input_id = transform.inputs[main_input_tag]
         element_coder_id = context.components.pcollections[
             main_input_id].coder_id
-        # KV[element, restriction]
+        # Tuple[element, restriction]
         paired_coder_id = context.add_or_get_coder_id(
             beam_runner_api_pb2.Coder(
                 spec=beam_runner_api_pb2.FunctionSpec(
                     urn=common_urns.coders.KV.urn),
                 component_coder_ids=[element_coder_id,
                                      pardo_payload.restriction_coder_id]))
-        # KV[KV[element, restriction], double]
+        # Tuple[Tuple[element, restriction], double]
         sized_coder_id = context.add_or_get_coder_id(
             beam_runner_api_pb2.Coder(
                 spec=beam_runner_api_pb2.FunctionSpec(

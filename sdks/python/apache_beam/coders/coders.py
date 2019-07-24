@@ -23,6 +23,7 @@ from __future__ import absolute_import
 
 import base64
 import sys
+import typing
 from builtins import object
 
 import google.protobuf.wrappers_pb2
@@ -597,7 +598,7 @@ class PickleCoder(_PickleCoderBase):
     return DeterministicFastPrimitivesCoder(self, step_label)
 
   def to_type_hint(self):
-    return typehints.Any
+    return typing.Any
 
 
 class DillCoder(_PickleCoderBase):
@@ -631,7 +632,7 @@ class DeterministicFastPrimitivesCoder(FastCoder):
     return self
 
   def to_type_hint(self):
-    return typehints.Any
+    return typing.Any
 
 
 class FastPrimitivesCoder(FastCoder):
@@ -656,7 +657,7 @@ class FastPrimitivesCoder(FastCoder):
       return DeterministicFastPrimitivesCoder(self, step_label)
 
   def to_type_hint(self):
-    return typehints.Any
+    return typing.Any
 
   def as_cloud_object(self, coders_context=None, is_pair_like=True):
     value = super(FastCoder, self).as_cloud_object(coders_context)
@@ -1187,4 +1188,4 @@ class RunnerAPICoderHolder(Coder):
     return self._proto
 
   def to_type_hint(self):
-    return typehints.Any
+    return typing.Any

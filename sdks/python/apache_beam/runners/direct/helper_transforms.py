@@ -19,6 +19,7 @@ from __future__ import absolute_import
 
 import collections
 import itertools
+import typing
 
 import apache_beam as beam
 from apache_beam import typehints
@@ -81,8 +82,8 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
       args = (typehints.Tuple[K, args[0]],) + args[1:]
       hints.set_input_types(*args, **kwargs)
     else:
-      hints.set_input_types(typehints.Tuple[K, typehints.Any])
-    hints.set_output_types(typehints.Tuple[K, typehints.Any])
+      hints.set_input_types(typehints.Tuple[K, typing.Any])
+    hints.set_output_types(typehints.Tuple[K, typing.Any])
     return hints
 
 
@@ -102,7 +103,7 @@ class FinishCombine(beam.DoFn):
   def default_type_hints(self):
     hints = self._combine_fn.get_type_hints().copy()
     K = typehints.TypeVariable('K')
-    hints.set_input_types(typehints.Tuple[K, typehints.Any])
+    hints.set_input_types(typehints.Tuple[K, typing.Any])
     if hints.output_types:
       main_output_type = hints.simple_output_type('')
       hints.set_output_types(typehints.Tuple[K, main_output_type])

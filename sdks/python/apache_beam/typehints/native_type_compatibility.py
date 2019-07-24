@@ -37,6 +37,8 @@ _TypeMapEntry = collections.namedtuple(
 
 
 def _get_compatible_args(typ):
+  if isinstance(typ, typing.TypeVar):
+    return (typ.__name__,)
   # On Python versions < 3.5.3, the Tuple and Union type from typing do
   # not have an __args__ attribute, but a __tuple_params__, and a
   # __union_params__ argument respectively.
@@ -103,6 +105,15 @@ def _match_same_type(match_against):
   return lambda user_type: type(user_type) == type(match_against)
 
 
+def _match_is_exactly_iterable(user_type):
+  # Avoid unintentionally catching all subtypes (e.g. strings and mappings).
+  if sys.version_info < (3, 7):
+    expected_origin = typing.Iterable
+  else:
+    expected_origin = collections.abc.Iterable
+  return getattr(user_type, '__origin__', None) is expected_origin
+
+
 def _match_is_named_tuple(user_type):
   return (_safe_issubclass(user_type, typing.Tuple) and
           hasattr(user_type, '_field_types'))
@@ -127,6 +138,9 @@ def _match_is_union(user_type):
   return False
 
 
+_type_var_cache = {}
+
+
 def convert_to_beam_type(typ):
   """Convert a given typing type to a Beam type.
 
@@ -140,6 +154,18 @@ def convert_to_beam_type(typ):
   Raises:
     ~exceptions.ValueError: The type was malformed.
   """
+  if isinstance(typ, typing.TypeVar):
+    # This is a special case, as it's not parameterized by types.
+    # Also, identity must be preserved through conversion (i.e. the same
+    # TypeVar instance must get converted into the same TypeVariable instance).
+    # A global cache should be OK as the number of distinct type variables
+    # is generally small.
+    if id(typ) not in _type_var_cache:
+      _type_var_cache[id(typ)] = typehints.TypeVariable(typ.__name__)
+    return _type_var_cache[id(typ)]
+  elif getattr(typ, '__module__', None) != 'typing':
+    # Only tranlsate types from the typing module.
+    return typ
 
   type_map = [
       _TypeMapEntry(
@@ -150,6 +176,10 @@ def convert_to_beam_type(typ):
           match=_match_issubclass(typing.Dict),
           arity=2,
           beam_type=typehints.Dict),
+      _TypeMapEntry(
+          match=_match_is_exactly_iterable,
+          arity=1,
+          beam_type=typehints.Iterable),
       _TypeMapEntry(
           match=_match_issubclass(typing.List),
           arity=1,
