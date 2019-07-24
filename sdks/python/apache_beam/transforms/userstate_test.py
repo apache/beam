@@ -18,14 +18,12 @@
 """Unit tests for the Beam State and Timer API interfaces."""
 from __future__ import absolute_import
 
-from builtins import range
 import unittest
 
 import mock
 
 import apache_beam as beam
 from apache_beam.coders import BytesCoder
-from apache_beam.coders import FastPrimitivesCoder
 from apache_beam.coders import IterableCoder
 from apache_beam.coders import StrUtf8Coder
 from apache_beam.coders import VarIntCoder
@@ -517,7 +515,11 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
         yield aggregated_value
 
     p = TestPipeline()
-    values = p | beam.Create([('key', 1), ('key', 2), ('key', 3), ('key', 4), ('key', 3)])
+    values = p | beam.Create([('key', 1),
+                              ('key', 2),
+                              ('key', 3),
+                              ('key', 4),
+                              ('key', 3)])
     actual_values = (values
                      | beam.ParDo(SetStatefulDoFn()))
 
