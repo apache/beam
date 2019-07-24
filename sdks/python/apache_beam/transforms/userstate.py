@@ -333,8 +333,6 @@ class SetRuntimeState(RuntimeState):
   def __init__(self, state_spec, state_tag, current_value_accessor):
     super(SetRuntimeState, self).__init__(
         state_spec, state_tag, current_value_accessor)
-    # TODO: What is current_value_accessor? where does cached value is stored?
-
     self._current_accumulator = UNREAD_VALUE
     self._modified = False
 
