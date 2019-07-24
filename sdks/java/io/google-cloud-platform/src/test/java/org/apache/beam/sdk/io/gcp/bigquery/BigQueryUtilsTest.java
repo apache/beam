@@ -35,7 +35,6 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
-
 import org.apache.avro.generic.GenericData;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions.TruncateTimestamps;
 import org.apache.beam.sdk.schemas.Schema;
@@ -429,30 +428,26 @@ public class BigQueryUtilsTest {
   @Test
   public void testToBeamRow_repeated_row() {
     Schema type =
-            Schema.builder()
-                    .addNullableField("id", Schema.FieldType.INT64)
-                    .addNullableField("value", Schema.FieldType.DOUBLE)
-                    .addNullableField("name", Schema.FieldType.STRING)
-                    .addNullableField("valid", Schema.FieldType.BOOLEAN)
-                    .build();
-    Row flat_row = Row.withSchema(type).addValues(
-                    123L,
-                    123.456,
-                    "test",
-                    false)
+        Schema.builder()
+            .addNullableField("id", Schema.FieldType.INT64)
+            .addNullableField("value", Schema.FieldType.DOUBLE)
+            .addNullableField("name", Schema.FieldType.STRING)
+            .addNullableField("valid", Schema.FieldType.BOOLEAN)
             .build();
+    Row flat_row = Row.withSchema(type).addValues(123L, 123.456, "test", false).build();
     Schema arrayType = Schema.builder().addArrayField("rows", Schema.FieldType.row(type)).build();
     Row expected = Row.withSchema(arrayType).addValues((Object) Arrays.asList(flat_row)).build();
-
 
     GenericData.Record record = new GenericData.Record(AvroUtils.toAvroSchema(arrayType));
     GenericData.Record flat = new GenericData.Record(AvroUtils.toAvroSchema(type));
     flat.put("id", 123L);
     flat.put("value", 123.456);
-    flat.put("name","test");
+    flat.put("name", "test");
     flat.put("valid", false);
     record.put("rows", Arrays.asList(flat));
-    Row beamRow = BigQueryUtils.toBeamRow(record, arrayType, BigQueryUtils.ConversionOptions.builder().build());
+    Row beamRow =
+        BigQueryUtils.toBeamRow(
+            record, arrayType, BigQueryUtils.ConversionOptions.builder().build());
     assertEquals(expected, beamRow);
   }
 }
