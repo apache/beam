@@ -11,8 +11,8 @@
     { "name": "string", "type": ["string", "null"]},
     { "name": "bytes", "type": ["bytes", "null"]},
     { "name": "fixed", "type": {"type": "fixed", "size": 4, "name": "fixed4"} },
-    { "name": "timestampMillis", "type":
-      [ {"type": "long", "logicalType": "timestamp-millis"}, "null"]},
+    { "name": "date", "type": {"type": "int", "logicalType": "date"} },
+    { "name": "timestampMillis", "type": {"type": "long", "logicalType": "timestamp-millis"} },
     { "name": "row", "type": ["null", {
      "type": "record",
      "name": "TestAvroNested",
