@@ -73,6 +73,21 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.emptyIterable;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.when;
+
 /** Tests for {@link SimplePushbackSideInputDoFnRunner}. */
 @RunWith(JUnit4.class)
 public class SimplePushbackSideInputDoFnRunnerTest {
@@ -133,7 +148,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
   }
 
   private SimplePushbackSideInputDoFnRunner<Integer, Integer> createRunner(
-      ImmutableList<PCollectionView<?>> views) {
+          ImmutableList<PCollectionView<?>> views) {
     SimplePushbackSideInputDoFnRunner<Integer, Integer> runner =
         SimplePushbackSideInputDoFnRunner.create(underlying, views, reader);
     runner.startBundle();
@@ -493,6 +508,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
         null,
         Collections.emptyMap(),
         WINDOWING_STRATEGY,
-        DoFnSchemaInformation.create());
+        DoFnSchemaInformation.create(),
+        Collections.emptyMap());
   }
 }
