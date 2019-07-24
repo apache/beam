@@ -48,6 +48,7 @@ import org.junit.rules.ExpectedException;
 import org.mockito.Mockito;
 
 /** Test Coverage for the IO. */
+@Ignore("[BEAM-7794] DynamoDBIOTest is blocking forever")
 public class DynamoDBIOTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(DynamoDBIO.class);
@@ -70,7 +71,6 @@ public class DynamoDBIOTest implements Serializable {
   }
 
   // Test cases for Reader.
-  @Ignore
   @Test
   public void testReadScanResult() {
     PCollection<List<Map<String, AttributeValue>>> actual =
@@ -155,7 +155,6 @@ public class DynamoDBIOTest implements Serializable {
   }
 
   // Test cases for Writer.
-  @Ignore
   @Test
   public void testWriteDataToDynamo() {
     final List<WriteRequest> writeRequests = DynamoDBIOTestHelper.generateWriteRequests(numOfItems);
@@ -181,7 +180,6 @@ public class DynamoDBIOTest implements Serializable {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  @Ignore
   @Test
   public void testRetries() throws Throwable {
     thrown.expectMessage("Error writing to DynamoDB");

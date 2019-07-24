@@ -59,6 +59,7 @@ import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
 
 /** Test Coverage for the IO. */
+@Ignore("[BEAM-7794] DynamoDBIOTest is blocking forever")
 public class DynamoDBIOTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(DynamoDBIO.class);
@@ -87,7 +88,6 @@ public class DynamoDBIOTest implements Serializable {
   }
 
   // Test cases for Reader.
-  @Ignore
   @Test
   public void testReaderOneSegment() {
     List<Map<String, AttributeValue>> expected =
@@ -107,7 +107,6 @@ public class DynamoDBIOTest implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
-  @Ignore
   @Test
   public void testReaderThreeSegments() {
     TupleTag<List<Map<String, AttributeValue>>> outputTag = new TupleTag<>();
@@ -211,7 +210,6 @@ public class DynamoDBIOTest implements Serializable {
     }
   }
 
-  @Ignore
   @Test
   public void testWriteDataToDynamo() {
     List<KV<String, Integer>> items =
@@ -261,7 +259,6 @@ public class DynamoDBIOTest implements Serializable {
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
-  @Ignore
   @Test
   public void testRetries() throws Throwable {
     thrown.expectMessage("Error writing to DynamoDB");
