@@ -16,24 +16,9 @@
  * limitations under the License.
  */
 import CommonJobProperties as common
+import Kubernetes
 
-String kubernetesDir = '"$WORKSPACE/src/.test-infra/kubernetes"'
-String kubernetesScript = "${kubernetesDir}/kubernetes.sh"
 String jobName = "beam_PerformanceTests_MongoDBIO_IT"
-
-Map pipelineOptions = [
-        tempRoot       : 'gs://temp-storage-for-perf-tests',
-        project        : 'apache-beam-testing',
-        numberOfRecords: '10000000',
-        bigQueryDataset: 'beam_performance',
-        bigQueryTable  : 'mongodbioit_results',
-        mongoDBDatabaseName: 'beam',
-        mongoDBHostName: "\$LOAD_BALANCER_IP",
-        mongoDBPort: 27017,
-        runner: 'DataflowRunner'
-]
-String namespace = common.getKubernetesNamespace(jobName)
-String kubeconfigPath = common.getKubeconfigLocationForNamespace(namespace)
 
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
@@ -43,24 +28,27 @@ job(jobName) {
           'Java MongoDBIO Performance Test',
           'Run Java MongoDBIO Performance Test')
 
+  String namespace = common.getKubernetesNamespace(jobName)
+  String kubeconfigPath = common.getKubeconfigLocationForNamespace(namespace)
+  Kubernetes k8s = Kubernetes.create(delegate, kubeconfigPath, namespace)
+
+  k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/mongodb/load-balancer/mongo.yml"))
+  String mongoHostName = "LOAD_BALANCER_IP"
+  k8s.loadBalancerIP("mongo-load-balancer-service", mongoHostName)
+
+  Map pipelineOptions = [
+          tempRoot       : 'gs://temp-storage-for-perf-tests',
+          project        : 'apache-beam-testing',
+          numberOfRecords: '10000000',
+          bigQueryDataset: 'beam_performance',
+          bigQueryTable  : 'mongodbioit_results',
+          mongoDBDatabaseName: 'beam',
+          mongoDBHostName: "\$${mongoHostName}",
+          mongoDBPort: 27017,
+          runner: 'DataflowRunner'
+  ]
+
   steps {
-    shell("cp /home/jenkins/.kube/config ${kubeconfigPath}")
-
-    environmentVariables {
-      env('KUBECONFIG', kubeconfigPath)
-      env('KUBERNETES_NAMESPACE', namespace)
-    }
-
-    shell("${kubernetesScript} createNamespace ${namespace}")
-    shell("${kubernetesScript} apply ${kubernetesDir}/mongodb/load-balancer/mongo.yml")
-
-    String variableName = "LOAD_BALANCER_IP"
-    String command = "${kubernetesScript} loadBalancerIP mongo-load-balancer-service"
-    shell("set -eo pipefail; eval ${command} | sed 's/^/${variableName}=/' > job.properties")
-    environmentVariables {
-      propertiesFile('job.properties')
-    }
-
     gradle {
       rootBuildScriptDir(common.checkoutDir)
       common.setGradleSwitches(delegate)
@@ -68,17 +56,6 @@ job(jobName) {
       switches("-DintegrationTestPipelineOptions=\'${common.joinPipelineOptions(pipelineOptions)}\'")
       switches("-DintegrationTestRunner=dataflow")
       tasks(":sdks:java:io:mongodb:integrationTest --tests org.apache.beam.sdk.io.mongodb.MongoDBIOIT")
-    }
-  }
-
-  publishers {
-    postBuildScripts {
-      steps {
-        shell("${kubernetesScript} deleteNamespace ${namespace}")
-        shell("rm ${kubeconfigPath}")
-      }
-      onlyIfBuildSucceeds(false)
-      onlyIfBuildFails(false)
     }
   }
 }
