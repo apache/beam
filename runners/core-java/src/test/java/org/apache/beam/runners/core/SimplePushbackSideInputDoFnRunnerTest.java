@@ -17,6 +17,20 @@
  */
 package org.apache.beam.runners.core;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.emptyIterable;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.when;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.coders.Coder;
@@ -59,21 +73,6 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.emptyIterable;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.when;
-
 /** Tests for {@link SimplePushbackSideInputDoFnRunner}. */
 @RunWith(JUnit4.class)
 public class SimplePushbackSideInputDoFnRunnerTest {
@@ -87,14 +86,14 @@ public class SimplePushbackSideInputDoFnRunnerTest {
   private static final long ALLOWED_LATENESS = 1;
 
   private static final IntervalWindow WINDOW_1 =
-          new IntervalWindow(new Instant(0), new Instant(10));
+      new IntervalWindow(new Instant(0), new Instant(10));
 
   private static final IntervalWindow WINDOW_2 =
-          new IntervalWindow(new Instant(10), new Instant(20));
+      new IntervalWindow(new Instant(10), new Instant(20));
 
   private static final WindowingStrategy<?, ?> WINDOWING_STRATEGY =
-          WindowingStrategy.of(FixedWindows.of(Duration.millis(WINDOW_SIZE)))
-                  .withAllowedLateness(Duration.millis(ALLOWED_LATENESS));
+      WindowingStrategy.of(FixedWindows.of(Duration.millis(WINDOW_SIZE)))
+          .withAllowedLateness(Duration.millis(ALLOWED_LATENESS));
 
   private InMemoryStateInternals<String> stateInternals;
   private InMemoryTimerInternals timerInternals;
@@ -124,17 +123,17 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     when(mockStepContext.timerInternals()).thenReturn(timerInternals);
 
     statefulRunner =
-            DoFnRunners.defaultStatefulDoFnRunner(
-                    fn,
-                    getDoFnRunner(fn),
-                    WINDOWING_STRATEGY,
-                    new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, WINDOWING_STRATEGY),
-                    new StatefulDoFnRunner.StateInternalsStateCleaner<>(
-                            fn, stateInternals, (Coder) WINDOWING_STRATEGY.getWindowFn().windowCoder()));
+        DoFnRunners.defaultStatefulDoFnRunner(
+            fn,
+            getDoFnRunner(fn),
+            WINDOWING_STRATEGY,
+            new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, WINDOWING_STRATEGY),
+            new StatefulDoFnRunner.StateInternalsStateCleaner<>(
+                fn, stateInternals, (Coder) WINDOWING_STRATEGY.getWindowFn().windowCoder()));
   }
 
   private SimplePushbackSideInputDoFnRunner<Integer, Integer> createRunner(
-          ImmutableList<PCollectionView<?>> views) {
+      ImmutableList<PCollectionView<?>> views) {
     SimplePushbackSideInputDoFnRunner<Integer, Integer> runner =
         SimplePushbackSideInputDoFnRunner.create(underlying, views, reader);
     runner.startBundle();
@@ -336,161 +335,164 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     }
   }
 
-    private SimplePushbackSideInputDoFnRunner<KV<String, Integer>, Integer> createRunner(
-            DoFnRunner<KV<String, Integer>, Integer> doFnRunner,
-            ImmutableList<PCollectionView<?>> views) {
-        SimplePushbackSideInputDoFnRunner<KV<String, Integer>, Integer> runner =
-                SimplePushbackSideInputDoFnRunner.create(doFnRunner, views, reader);
-        runner.startBundle();
-        return runner;
+  private SimplePushbackSideInputDoFnRunner<KV<String, Integer>, Integer> createRunner(
+      DoFnRunner<KV<String, Integer>, Integer> doFnRunner,
+      ImmutableList<PCollectionView<?>> views) {
+    SimplePushbackSideInputDoFnRunner<KV<String, Integer>, Integer> runner =
+        SimplePushbackSideInputDoFnRunner.create(doFnRunner, views, reader);
+    runner.startBundle();
+    return runner;
+  }
+
+  @Test
+  @Category({ValidatesRunner.class})
+  public void testLateDroppingForStatefulDoFnRunner() throws Exception {
+    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsEnvironment.setCurrentContainer(container);
+
+    timerInternals.advanceInputWatermark(new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE));
+    timerInternals.advanceOutputWatermark(new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE));
+
+    PushbackSideInputDoFnRunner runner =
+        createRunner(statefulRunner, ImmutableList.of(singletonView));
+
+    runner.startBundle();
+
+    when(reader.isReady(Mockito.eq(singletonView), Mockito.any(BoundedWindow.class)))
+        .thenReturn(true);
+
+    WindowedValue<Integer> multiWindow =
+        WindowedValue.of(
+            1,
+            new Instant(0),
+            ImmutableList.of(new IntervalWindow(new Instant(0), new Instant(0L + WINDOW_SIZE))),
+            PaneInfo.ON_TIME_AND_ONLY_FIRING);
+
+    runner.processElementInReadyWindows(multiWindow);
+
+    long droppedValues =
+        container
+            .getCounter(
+                MetricName.named(
+                    StatefulDoFnRunner.class, StatefulDoFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER))
+            .getCumulative();
+    assertEquals(1L, droppedValues);
+
+    runner.finishBundle();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class})
+  public void testGarbageCollectForStatefulDoFnRunner() throws Exception {
+    timerInternals.advanceInputWatermark(new Instant(1L));
+
+    MyDoFn fn = new MyDoFn();
+    StateTag<ValueState<Integer>> stateTag = StateTags.tagForSpec(fn.stateId, fn.intState);
+
+    PushbackSideInputDoFnRunner runner =
+        createRunner(statefulRunner, ImmutableList.of(singletonView));
+
+    Instant elementTime = new Instant(1);
+
+    when(reader.isReady(Mockito.eq(singletonView), Mockito.any(BoundedWindow.class)))
+        .thenReturn(true);
+
+    // first element, key is hello, WINDOW_1
+    runner.processElementInReadyWindows(
+        WindowedValue.of(KV.of("hello", 1), elementTime, WINDOW_1, PaneInfo.NO_FIRING));
+
+    assertEquals(1, (int) stateInternals.state(windowNamespace(WINDOW_1), stateTag).read());
+
+    // second element, key is hello, WINDOW_2
+    runner.processElementInReadyWindows(
+        WindowedValue.of(
+            KV.of("hello", 1), elementTime.plus(WINDOW_SIZE), WINDOW_2, PaneInfo.NO_FIRING));
+
+    runner.processElementInReadyWindows(
+        WindowedValue.of(
+            KV.of("hello", 1), elementTime.plus(WINDOW_SIZE), WINDOW_2, PaneInfo.NO_FIRING));
+
+    assertEquals(2, (int) stateInternals.state(windowNamespace(WINDOW_2), stateTag).read());
+
+    // advance watermark past end of WINDOW_1 + allowed lateness
+    // the cleanup timer is set to window.maxTimestamp() + allowed lateness + 1
+    // to ensure that state is still available when a user timer for window.maxTimestamp() fires
+    advanceInputWatermark(
+        timerInternals,
+        WINDOW_1
+            .maxTimestamp()
+            .plus(ALLOWED_LATENESS)
+            .plus(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS)
+            .plus(1), // so the watermark is past the GC horizon, not on it
+        runner);
+
+    assertTrue(
+        stateInternals.isEmptyForTesting(
+            stateInternals.state(windowNamespace(WINDOW_1), stateTag)));
+
+    assertEquals(2, (int) stateInternals.state(windowNamespace(WINDOW_2), stateTag).read());
+
+    // advance watermark past end of WINDOW_2 + allowed lateness
+    advanceInputWatermark(
+        timerInternals,
+        WINDOW_2
+            .maxTimestamp()
+            .plus(ALLOWED_LATENESS)
+            .plus(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS)
+            .plus(1), // so the watermark is past the GC horizon, not on it
+        runner);
+
+    assertTrue(
+        stateInternals.isEmptyForTesting(
+            stateInternals.state(windowNamespace(WINDOW_2), stateTag)));
+  }
+
+  private static void advanceInputWatermark(
+      InMemoryTimerInternals timerInternals,
+      Instant newInputWatermark,
+      PushbackSideInputDoFnRunner<?, ?> toTrigger)
+      throws Exception {
+    timerInternals.advanceInputWatermark(newInputWatermark);
+    TimerInternals.TimerData timer;
+    while ((timer = timerInternals.removeNextEventTimer()) != null) {
+      StateNamespace namespace = timer.getNamespace();
+      checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
+      BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
+      toTrigger.onTimer(timer.getTimerId(), window, timer.getTimestamp(), timer.getDomain());
     }
+  }
 
-    @Test
-    @Category({ValidatesRunner.class})
-    public void testLateDroppingForStatefulDoFnRunner() throws Exception {
-        MetricsContainerImpl container = new MetricsContainerImpl("any");
-        MetricsEnvironment.setCurrentContainer(container);
+  private static StateNamespace windowNamespace(IntervalWindow window) {
+    return StateNamespaces.window((Coder) WINDOWING_STRATEGY.getWindowFn().windowCoder(), window);
+  }
 
-        timerInternals.advanceInputWatermark(new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE));
-        timerInternals.advanceOutputWatermark(new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE));
+  private static class MyDoFn extends DoFn<KV<String, Integer>, Integer> {
 
-        PushbackSideInputDoFnRunner runner = createRunner(statefulRunner,ImmutableList.of(singletonView));
+    public final String stateId = "foo";
 
-        runner.startBundle();
+    @StateId(stateId)
+    public final StateSpec<ValueState<Integer>> intState = StateSpecs.value(VarIntCoder.of());
 
-        when(reader.isReady(Mockito.eq(singletonView), Mockito.any(BoundedWindow.class)))
-                .thenReturn(true);
-
-        WindowedValue<Integer> multiWindow =
-                WindowedValue.of(
-                        1,
-                        new Instant(0),
-                        ImmutableList.of(
-                                new IntervalWindow(new Instant(0), new Instant(0L + WINDOW_SIZE))),
-                        PaneInfo.ON_TIME_AND_ONLY_FIRING);
-
-        runner.processElementInReadyWindows(multiWindow);
-
-        long droppedValues =
-                container
-                        .getCounter(
-                                MetricName.named(
-                                        StatefulDoFnRunner.class, StatefulDoFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER))
-                        .getCumulative();
-        assertEquals(1L, droppedValues);
-
-        runner.finishBundle();
+    @ProcessElement
+    public void processElement(ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
+      Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
+      state.write(currentValue + 1);
     }
+  }
 
-    @Test
-    @Category({ValidatesRunner.class})
-    public void testGarbageCollectForStatefulDoFnRunner() throws Exception {
-        timerInternals.advanceInputWatermark(new Instant(1L));
-
-        MyDoFn fn = new MyDoFn();
-        StateTag<ValueState<Integer>> stateTag = StateTags.tagForSpec(fn.stateId, fn.intState);
-
-        PushbackSideInputDoFnRunner runner = createRunner(statefulRunner,ImmutableList.of(singletonView));
-
-        Instant elementTime = new Instant(1);
-
-        when(reader.isReady(Mockito.eq(singletonView), Mockito.any(BoundedWindow.class)))
-                .thenReturn(true);
-
-        // first element, key is hello, WINDOW_1
-        runner.processElementInReadyWindows(
-                WindowedValue.of(KV.of("hello", 1), elementTime, WINDOW_1, PaneInfo.NO_FIRING));
-
-        assertEquals(1, (int) stateInternals.state(windowNamespace(WINDOW_1), stateTag).read());
-
-        // second element, key is hello, WINDOW_2
-        runner.processElementInReadyWindows(
-                WindowedValue.of(
-                        KV.of("hello", 1), elementTime.plus(WINDOW_SIZE), WINDOW_2, PaneInfo.NO_FIRING));
-
-        runner.processElementInReadyWindows(
-                WindowedValue.of(
-                        KV.of("hello", 1), elementTime.plus(WINDOW_SIZE), WINDOW_2, PaneInfo.NO_FIRING));
-
-        assertEquals(2, (int) stateInternals.state(windowNamespace(WINDOW_2), stateTag).read());
-
-        // advance watermark past end of WINDOW_1 + allowed lateness
-        // the cleanup timer is set to window.maxTimestamp() + allowed lateness + 1
-        // to ensure that state is still available when a user timer for window.maxTimestamp() fires
-        advanceInputWatermark(
-                timerInternals,
-                WINDOW_1
-                        .maxTimestamp()
-                        .plus(ALLOWED_LATENESS)
-                        .plus(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS)
-                        .plus(1), // so the watermark is past the GC horizon, not on it
-                runner);
-
-        assertTrue(
-                stateInternals.isEmptyForTesting(
-                        stateInternals.state(windowNamespace(WINDOW_1), stateTag)));
-
-        assertEquals(2, (int) stateInternals.state(windowNamespace(WINDOW_2), stateTag).read());
-
-        // advance watermark past end of WINDOW_2 + allowed lateness
-        advanceInputWatermark(
-                timerInternals,
-                WINDOW_2
-                        .maxTimestamp()
-                        .plus(ALLOWED_LATENESS)
-                        .plus(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS)
-                        .plus(1), // so the watermark is past the GC horizon, not on it
-                runner);
-
-        assertTrue(
-                stateInternals.isEmptyForTesting(
-                        stateInternals.state(windowNamespace(WINDOW_2), stateTag)));
-    }
-
-    private static void advanceInputWatermark(
-            InMemoryTimerInternals timerInternals, Instant newInputWatermark, PushbackSideInputDoFnRunner<?, ?> toTrigger)
-            throws Exception {
-        timerInternals.advanceInputWatermark(newInputWatermark);
-        TimerInternals.TimerData timer;
-        while ((timer = timerInternals.removeNextEventTimer()) != null) {
-            StateNamespace namespace = timer.getNamespace();
-            checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
-            BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
-            toTrigger.onTimer(timer.getTimerId(), window, timer.getTimestamp(), timer.getDomain());
-        }
-    }
-
-    private static StateNamespace windowNamespace(IntervalWindow window) {
-        return StateNamespaces.window((Coder) WINDOWING_STRATEGY.getWindowFn().windowCoder(), window);
-    }
-
-    private static class MyDoFn extends DoFn<KV<String, Integer>, Integer> {
-
-      public final String stateId = "foo";
-
-      @StateId(stateId)
-      public final StateSpec<ValueState<Integer>> intState = StateSpecs.value(VarIntCoder.of());
-
-      @ProcessElement
-      public void processElement(ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
-        Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
-        state.write(currentValue + 1);
-      }
-    }
-
-    private DoFnRunner<KV<String, Integer>, Integer> getDoFnRunner(
-            DoFn<KV<String, Integer>, Integer> fn) {
-        return new SimpleDoFnRunner<>(
-                null,
-                fn,
-                NullSideInputReader.empty(),
-                null,
-                null,
-                Collections.emptyList(),
-                mockStepContext,
-                null,
-                Collections.emptyMap(),
-                WINDOWING_STRATEGY,
-                DoFnSchemaInformation.create());
-    }
+  private DoFnRunner<KV<String, Integer>, Integer> getDoFnRunner(
+      DoFn<KV<String, Integer>, Integer> fn) {
+    return new SimpleDoFnRunner<>(
+        null,
+        fn,
+        NullSideInputReader.empty(),
+        null,
+        null,
+        Collections.emptyList(),
+        mockStepContext,
+        null,
+        Collections.emptyMap(),
+        WINDOWING_STRATEGY,
+        DoFnSchemaInformation.create());
+  }
 }
