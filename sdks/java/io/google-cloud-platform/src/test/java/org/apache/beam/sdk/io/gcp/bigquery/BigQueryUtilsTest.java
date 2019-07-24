@@ -434,9 +434,9 @@ public class BigQueryUtilsTest {
             .addNullableField("name", Schema.FieldType.STRING)
             .addNullableField("valid", Schema.FieldType.BOOLEAN)
             .build();
-    Row flat_row = Row.withSchema(type).addValues(123L, 123.456, "test", false).build();
+    Row flatAvroRow = Row.withSchema(type).addValues(123L, 123.456, "test", false).build();
     Schema arrayType = Schema.builder().addArrayField("rows", Schema.FieldType.row(type)).build();
-    Row expected = Row.withSchema(arrayType).addValues((Object) Arrays.asList(flat_row)).build();
+    Row expected = Row.withSchema(arrayType).addValues((Object) Arrays.asList(flatAvroRow)).build();
 
     GenericData.Record record = new GenericData.Record(AvroUtils.toAvroSchema(arrayType));
     GenericData.Record flat = new GenericData.Record(AvroUtils.toAvroSchema(type));
