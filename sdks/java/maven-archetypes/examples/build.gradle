@@ -38,7 +38,7 @@ processResources {
     'spark.version': dependencies.create(project.library.java.spark_core).getVersion(),
     'nemo.version': dependencies.create(project.library.java.nemo_compiler_frontend_beam).getVersion(),
     'hadoop.version': dependencies.create(project.library.java.hadoop_client).getVersion(),
-    'mockito.version': dependencies.create(project.library.java.mockito_core).getVersion(),
+    'mockito.version': dependencies.create(project.library.java.mockito2_core).getVersion(),
     'maven-compiler-plugin.version': dependencies.create(project.library.maven.maven_compiler_plugin).getVersion(),
     'maven-exec-plugin.version': dependencies.create(project.library.maven.maven_exec_plugin).getVersion(),
     'maven-jar-plugin.version': dependencies.create(project.library.maven.maven_jar_plugin).getVersion(),

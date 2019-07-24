@@ -30,7 +30,7 @@ dependencies {
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  testCompile library.java.mockito_core
+  testCompile library.java.mockito2_core
   testCompile library.java.junit
   testRuntimeOnly library.java.slf4j_jdk14
 }

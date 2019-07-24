@@ -45,7 +45,7 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.junit
-  testCompile library.java.mockito_core
+  testCompile library.java.mockito2_core
   testCompile library.java.jackson_annotations
   testCompile library.java.jackson_dataformat_yaml
   testCompile project(path: ":model:fn-execution", configuration: "shadow")

@@ -61,7 +61,7 @@ dependencies {
   testCompile library.java.commons_lang3
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
-  testCompile library.java.mockito_core
+  testCompile library.java.mockito2_core
   testCompile library.java.jackson_dataformat_yaml
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")

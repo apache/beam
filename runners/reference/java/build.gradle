@@ -38,6 +38,5 @@ dependencies {
   testCompile project(path: ":runners:core-construction-java", configuration: "testRuntime")
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
-  testCompile library.java.mockito_core
   testCompile library.java.slf4j_jdk14
 }

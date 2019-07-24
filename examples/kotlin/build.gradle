@@ -70,7 +70,7 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.junit
-  testCompile library.java.mockito_core
+  testCompile library.java.mockito2_core
 
   // Add dependencies for the PreCommit configurations
   // For each runner a project level dependency on the examples project.

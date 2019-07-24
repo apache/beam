@@ -31,7 +31,7 @@ dependencies {
   compile project(":sdks:java:extensions:google-cloud-platform-core")
 
   testCompile library.java.junit
-  testCompile library.java.mockito_core
+  testCompile library.java.mockito2_core
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadowTest")

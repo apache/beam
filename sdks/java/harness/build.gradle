@@ -57,7 +57,8 @@ dependencies {
   }
   compile library.java.jackson_databind
   shadow library.java.vendored_guava_26_0_jre
-  shadowTest library.java.powermock
+  shadowTest library.java.powermock2
+  shadowTest library.java.powermock2_module_junit4
   compile library.java.joda_time
   compile library.java.slf4j_api
   compile library.java.vendored_grpc_1_21_0
@@ -65,7 +66,7 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.junit
-  testCompile library.java.mockito_core
+  testCompile library.java.mockito2_core
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   shadowTestRuntimeClasspath library.java.slf4j_jdk14
 }
