@@ -25,9 +25,9 @@ from __future__ import division
 
 import datetime
 import functools
-import re
 from builtins import object
 
+import dateutil.parser
 import pytz
 from past.builtins import long
 
@@ -75,9 +75,6 @@ class Timestamp(object):
       return seconds
     return Timestamp(seconds)
 
-  RFC_3339_RE = re.compile(
-      r'^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?Z$')
-
   @staticmethod
   def _epoch_datetime_utc():
     return datetime.datetime.fromtimestamp(0, pytz.utc)
@@ -98,20 +95,18 @@ class Timestamp(object):
   def from_rfc3339(cls, rfc3339):
     """Create a ``Timestamp`` instance from an RFC 3339 compliant string.
 
+    .. note::
+      All timezones are implicitly converted to UTC.
+
     Args:
       rfc3339: String in RFC 3339 form.
     """
-    dt_args = []
-    match = cls.RFC_3339_RE.match(rfc3339)
-    if match is None:
-      raise ValueError('Could not parse RFC 3339 string: %s' % rfc3339)
-    for s in match.groups():
-      if s is not None:
-        dt_args.append(int(s))
-      else:
-        dt_args.append(0)
-    dt_args += (pytz.utc, )
-    dt = datetime.datetime(*dt_args)
+    try:
+      dt = dateutil.parser.isoparse(rfc3339).astimezone(pytz.UTC)
+    except ValueError as e:
+      raise ValueError(
+          "Could not parse RFC 3339 string '{}' due to error: '{}'.".format(
+              rfc3339, e))
     return cls.from_utc_datetime(dt)
 
   def predecessor(self):

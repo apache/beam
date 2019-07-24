@@ -455,10 +455,10 @@ class _PubSubReadEvaluator(_TransformEvaluator):
           timestamp_attribute in parsed_message.attributes):
         rfc3339_or_milli = parsed_message.attributes[timestamp_attribute]
         try:
-          timestamp = Timestamp.from_rfc3339(rfc3339_or_milli)
+          timestamp = Timestamp(micros=int(rfc3339_or_milli) * 1000)
         except ValueError:
           try:
-            timestamp = Timestamp(micros=int(rfc3339_or_milli) * 1000)
+            timestamp = Timestamp.from_rfc3339(rfc3339_or_milli)
           except ValueError as e:
             raise ValueError('Bad timestamp value: %s' % e)
       else:
