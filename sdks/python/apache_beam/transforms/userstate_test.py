@@ -18,6 +18,7 @@
 """Unit tests for the Beam State and Timer API interfaces."""
 from __future__ import absolute_import
 
+from builtins import range
 import unittest
 
 import mock
@@ -426,7 +427,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
 
   def test_simple_set_stateful_dofn(self):
     class SimpleTestSetStatefulDoFn(DoFn):
-      BUFFER_STATE = SetStateSpec('buffer', FastPrimitivesCoder())
+      BUFFER_STATE = SetStateSpec('buffer', VarIntCoder())
       EXPIRY_TIMER = TimerSpec('expiry', TimeDomain.WATERMARK)
 
       def process(self, element, buffer=DoFn.StateParam(BUFFER_STATE),
@@ -483,7 +484,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
       @on_timer(CLEAR_TIMER)
       def clear_values(self, set_state=beam.DoFn.StateParam(SET_STATE)):
         set_state.clear()
-        set_state.add('value2')
+        set_state.add('different-value')
 
     with TestPipeline() as p:
       test_stream = (TestStream()
@@ -496,13 +497,14 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
            | beam.ParDo(SetStateClearingStatefulDoFn())
            | beam.ParDo(self.record_dofn()))
 
-    self.assertEqual(['value2'], StatefulDoFnOnDirectRunnerTest.all_records)
+    self.assertEqual(['different-value'],
+                     StatefulDoFnOnDirectRunnerTest.all_records)
 
-  def test_stateful_set_state_fn_runner(self):
+  def test_stateful_set_state_portably(self):
 
-    class SetStateClearingStatefulDoFn(beam.DoFn):
+    class SetStatefulDoFn(beam.DoFn):
 
-      SET_STATE = SetStateSpec('buffer', FastPrimitivesCoder())
+      SET_STATE = SetStateSpec('buffer', VarIntCoder())
 
       def process(self,
                   element,
@@ -515,11 +517,11 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
         yield aggregated_value
 
     p = TestPipeline()
-    values = p | beam.Create([('key', 1), ('key', 2), ('key', 3), ('key', 4)])
+    values = p | beam.Create([('key', 1), ('key', 2), ('key', 3), ('key', 4), ('key', 3)])
     actual_values = (values
-                     | beam.ParDo(SetStateClearingStatefulDoFn()))
+                     | beam.ParDo(SetStatefulDoFn()))
 
-    assert_that(actual_values, equal_to([1, 3, 6, 10]))
+    assert_that(actual_values, equal_to([1, 3, 6, 10, 10]))
 
     result = p.run()
     result.wait_until_finish()
