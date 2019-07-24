@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteTable;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -28,26 +29,35 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.core.TableScan;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /** BeamRelNode to replace a {@code TableScan} node. */
 public class BeamIOSourceRel extends TableScan implements BeamRelNode {
 
-  private final BeamSqlTable sqlTable;
+  private final BeamSqlTable beamTable;
+  private final BeamCalciteTable calciteTable;
   private final Map<String, String> pipelineOptions;
 
   public BeamIOSourceRel(
       RelOptCluster cluster,
       RelOptTable table,
-      BeamSqlTable sqlTable,
-      Map<String, String> pipelineOptions) {
+      BeamSqlTable beamTable,
+      Map<String, String> pipelineOptions,
+      BeamCalciteTable calciteTable) {
     super(cluster, cluster.traitSetOf(BeamLogicalConvention.INSTANCE), table);
-    this.sqlTable = sqlTable;
+    this.beamTable = beamTable;
+    this.calciteTable = calciteTable;
     this.pipelineOptions = pipelineOptions;
   }
 
   @Override
+  public double estimateRowCount(RelMetadataQuery mq) {
+    return super.estimateRowCount(mq);
+  }
+
+  @Override
   public PCollection.IsBounded isBounded() {
-    return sqlTable.isBounded();
+    return beamTable.isBounded();
   }
 
   @Override
@@ -64,12 +74,12 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
           "Should not have received input for %s: %s",
           BeamIOSourceRel.class.getSimpleName(),
           input);
-      return sqlTable.buildIOReader(input.getPipeline().begin());
+      return beamTable.buildIOReader(input.getPipeline().begin());
     }
   }
 
   protected BeamSqlTable getBeamSqlTable() {
-    return sqlTable;
+    return beamTable;
   }
 
   @Override

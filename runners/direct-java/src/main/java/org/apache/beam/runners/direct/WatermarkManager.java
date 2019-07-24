@@ -1155,6 +1155,14 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     }
   }
 
+  void unlockRefresh() {
+    refreshLock.unlock();
+  }
+
+  void lockRefresh() {
+    refreshLock.lock();
+  }
+
   /**
    * A (key, Instant) pair that holds the watermark. Holds are per-key, but the watermark is global,
    * and as such the watermark manager must track holds and the release of holds on a per-key basis.

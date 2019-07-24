@@ -167,13 +167,13 @@ task javaPostCommitPortabilityApi () {
 task goPreCommit() {
   dependsOn ":sdks:go:goTest"
 
-  dependsOn ":sdks:go:examples:build"
-  dependsOn ":sdks:go:test:build"
+  dependsOn ":sdks:go:examples:goBuild"
+  dependsOn ":sdks:go:test:goBuild"
 
   // Ensure all container Go boot code builds as well.
-  dependsOn ":sdks:java:container:build"
-  dependsOn ":sdks:python:container:build"
-  dependsOn ":sdks:go:container:build"
+  dependsOn ":sdks:java:container:goBuild"
+  dependsOn ":sdks:python:container:goBuild"
+  dependsOn ":sdks:go:container:goBuild"
 }
 
 task goPostCommit() {

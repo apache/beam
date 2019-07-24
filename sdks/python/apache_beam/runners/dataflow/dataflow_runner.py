@@ -1267,9 +1267,9 @@ class DataflowPipelineResult(PipelineResult):
   def _get_job_state(self):
     values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
 
-    # TODO: Move this table to a another location.
-    # Ordered by the enum values.
-    api_jobstate_map = {
+    # Ordered by the enum values. Values that may be introduced in
+    # future versions of Dataflow API are considered UNKNOWN by the SDK.
+    api_jobstate_map = defaultdict(lambda: PipelineState.UNKNOWN, {
         values_enum.JOB_STATE_UNKNOWN: PipelineState.UNKNOWN,
         values_enum.JOB_STATE_STOPPED: PipelineState.STOPPED,
         values_enum.JOB_STATE_RUNNING: PipelineState.RUNNING,
@@ -1281,7 +1281,7 @@ class DataflowPipelineResult(PipelineResult):
         values_enum.JOB_STATE_DRAINED: PipelineState.DRAINED,
         values_enum.JOB_STATE_PENDING: PipelineState.PENDING,
         values_enum.JOB_STATE_CANCELLING: PipelineState.CANCELLING,
-    }
+    })
 
     return (api_jobstate_map[self._job.currentState] if self._job.currentState
             else PipelineState.UNKNOWN)

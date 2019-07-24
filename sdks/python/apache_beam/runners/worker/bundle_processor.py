@@ -32,7 +32,7 @@ from builtins import next
 from builtins import object
 
 from future.utils import itervalues
-from google import protobuf
+from google.protobuf import timestamp_pb2
 
 import apache_beam as beam
 from apache_beam import coders
@@ -648,7 +648,7 @@ class BundleProcessor(object):
     # TODO(SDF): For non-root nodes, need main_input_coder + residual_coder.
     element_and_restriction, watermark = deferred_remainder
     if watermark:
-      proto_watermark = protobuf.Timestamp()
+      proto_watermark = timestamp_pb2.Timestamp()
       proto_watermark.FromMicroseconds(watermark.micros)
       output_watermarks = {output: proto_watermark for output in outputs}
     else:

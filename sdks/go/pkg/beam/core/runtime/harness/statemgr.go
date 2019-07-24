@@ -30,9 +30,9 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-// ScopedSideInputReader scopes the global gRPC state manager to a single instruction
+// ScopedStateReader scopes the global gRPC state manager to a single instruction
 // for side input use. The indirection makes it easier to control access.
-type ScopedSideInputReader struct {
+type ScopedStateReader struct {
 	mgr    *StateChannelManager
 	instID string
 
@@ -41,12 +41,26 @@ type ScopedSideInputReader struct {
 	mu     sync.Mutex
 }
 
-// NewScopedSideInputReader returns a ScopedSideInputReader for the given instruction.
-func NewScopedSideInputReader(mgr *StateChannelManager, instID string) *ScopedSideInputReader {
-	return &ScopedSideInputReader{mgr: mgr, instID: instID}
+// NewScopedStateReader returns a ScopedStateReader for the given instruction.
+func NewScopedStateReader(mgr *StateChannelManager, instID string) *ScopedStateReader {
+	return &ScopedStateReader{mgr: mgr, instID: instID}
 }
 
-func (s *ScopedSideInputReader) Open(ctx context.Context, id exec.StreamID, sideInputID string, key, w []byte) (io.ReadCloser, error) {
+// OpenSideInput opens a byte stream for reading iterable side input.
+func (s *ScopedStateReader) OpenSideInput(ctx context.Context, id exec.StreamID, sideInputID string, key, w []byte) (io.ReadCloser, error) {
+	return s.openReader(ctx, id, func(ch *StateChannel) *stateKeyReader {
+		return newSideInputReader(ch, id, sideInputID, s.instID, key, w)
+	})
+}
+
+// OpenIterable opens a byte stream for reading unwindowed iterables from the runner.
+func (s *ScopedStateReader) OpenIterable(ctx context.Context, id exec.StreamID, key []byte) (io.ReadCloser, error) {
+	return s.openReader(ctx, id, func(ch *StateChannel) *stateKeyReader {
+		return newRunnerReader(ch, s.instID, key)
+	})
+}
+
+func (s *ScopedStateReader) openReader(ctx context.Context, id exec.StreamID, readerFn func(*StateChannel) *stateKeyReader) (*stateKeyReader, error) {
 	ch, err := s.open(ctx, id.Port)
 	if err != nil {
 		return nil, err
@@ -57,13 +71,13 @@ func (s *ScopedSideInputReader) Open(ctx context.Context, id exec.StreamID, side
 		s.mu.Unlock()
 		return nil, errors.Errorf("instruction %v no longer processing", s.instID)
 	}
-	ret := newSideInputReader(ch, id, sideInputID, s.instID, key, w)
+	ret := readerFn(ch)
 	s.opened = append(s.opened, ret)
 	s.mu.Unlock()
 	return ret, nil
 }
 
-func (s *ScopedSideInputReader) open(ctx context.Context, port exec.Port) (*StateChannel, error) {
+func (s *ScopedStateReader) open(ctx context.Context, port exec.Port) (*StateChannel, error) {
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
@@ -75,7 +89,8 @@ func (s *ScopedSideInputReader) open(ctx context.Context, port exec.Port) (*Stat
 	return local.Open(ctx, port) // don't hold lock over potentially slow operation
 }
 
-func (s *ScopedSideInputReader) Close() error {
+// Close closes all open readers.
+func (s *ScopedStateReader) Close() error {
 	s.mu.Lock()
 	s.closed = true
 	s.mgr = nil
@@ -87,7 +102,7 @@ func (s *ScopedSideInputReader) Close() error {
 	return nil
 }
 
-type sideInputReader struct {
+type stateKeyReader struct {
 	instID string
 	key    *pb.StateKey
 
@@ -100,7 +115,7 @@ type sideInputReader struct {
 	mu     sync.Mutex
 }
 
-func newSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, instID string, k, w []byte) *sideInputReader {
+func newSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, instID string, k, w []byte) *stateKeyReader {
 	key := &pb.StateKey{
 		Type: &pb.StateKey_MultimapSideInput_{
 			MultimapSideInput: &pb.StateKey_MultimapSideInput{
@@ -111,14 +126,29 @@ func newSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, 
 			},
 		},
 	}
-	return &sideInputReader{
+	return &stateKeyReader{
 		instID: instID,
 		key:    key,
 		ch:     ch,
 	}
 }
 
-func (r *sideInputReader) Read(buf []byte) (int, error) {
+func newRunnerReader(ch *StateChannel, instID string, k []byte) *stateKeyReader {
+	key := &pb.StateKey{
+		Type: &pb.StateKey_Runner_{
+			Runner: &pb.StateKey_Runner{
+				Key: k,
+			},
+		},
+	}
+	return &stateKeyReader{
+		instID: instID,
+		key:    key,
+		ch:     ch,
+	}
+}
+
+func (r *stateKeyReader) Read(buf []byte) (int, error) {
 	if r.buf == nil {
 		if r.eof {
 			return 0, io.EOF
@@ -149,8 +179,12 @@ func (r *sideInputReader) Read(buf []byte) (int, error) {
 			return 0, err
 		}
 		get := resp.GetGet()
-		r.token = get.ContinuationToken
-		r.buf = get.Data
+		if get == nil { // no data associated with this segment.
+			r.eof = true
+			return 0, io.EOF
+		}
+		r.token = get.GetContinuationToken()
+		r.buf = get.GetData()
 
 		if r.token == nil {
 			r.eof = true // no token == this is the last segment.
@@ -167,7 +201,7 @@ func (r *sideInputReader) Read(buf []byte) (int, error) {
 	return n, nil
 }
 
-func (r *sideInputReader) Close() error {
+func (r *stateKeyReader) Close() error {
 	r.mu.Lock()
 	r.closed = true
 	r.ch = nil

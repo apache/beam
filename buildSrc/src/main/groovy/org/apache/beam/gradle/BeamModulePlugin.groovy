@@ -708,6 +708,9 @@ class BeamModulePlugin implements Plugin<Project> {
         include "**/*Test.class"
         include "**/*Tests.class"
         include "**/*TestCase.class"
+        // fixes issues with test filtering on multi-module project
+        // see https://discuss.gradle.org/t/multi-module-build-fails-with-tests-filter/25835
+        filter { setFailOnNoMatchingTests(false) }
       }
 
       project.tasks.withType(Test) {
@@ -1404,7 +1407,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: 'base'
 
       project.apply plugin: "com.github.blindpirate.gogradle"
-      project.golang { goVersion = '1.10' }
+      project.golang { goVersion = '1.12' }
 
       project.repositories {
         golang {
