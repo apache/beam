@@ -1309,8 +1309,8 @@ public class DataflowRunnerTest implements Serializable {
 
   /**
    * Tests that the {@link DataflowRunner} with {@code --templateLocation} returns normally when the
-   * runner is successfully run with upload_graph experiment turned on.
-   * The result template should not contain raw steps and stepsLocation file should be set.
+   * runner is successfully run with upload_graph experiment turned on. The result template should
+   * not contain raw steps and stepsLocation file should be set.
    */
   @Test
   public void testTemplateRunnerWithUploadGraph() throws Exception {
