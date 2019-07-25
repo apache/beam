@@ -2019,8 +2019,7 @@ public class BigQueryIO {
       return toBuilder().setBigQueryServices(testServices).build();
     }
 
-    @VisibleForTesting
-    Write<T> withMaxFilesPerBundle(int maxFilesPerBundle) {
+    public Write<T> withMaxFilesPerBundle(int maxFilesPerBundle) {
       checkArgument(
           maxFilesPerBundle > 0, "maxFilesPerBundle must be > 0, but was: %s", maxFilesPerBundle);
       return toBuilder().setMaxFilesPerBundle(maxFilesPerBundle).build();
