@@ -357,14 +357,6 @@ class EvaluationContext {
     return metrics;
   }
 
-  void lockWatermarkUpdates() {
-    watermarkManager.lockRefresh();
-  }
-
-  void unlockWatermarkUpdates() {
-    watermarkManager.unlockRefresh();
-  }
-
   @VisibleForTesting
   void forceRefresh() {
     watermarkManager.refreshAll();
