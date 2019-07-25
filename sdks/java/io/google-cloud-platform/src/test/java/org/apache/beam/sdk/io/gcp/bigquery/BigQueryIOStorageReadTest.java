@@ -49,6 +49,7 @@ import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamRequest;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamResponse;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.Stream;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.StreamPosition;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.StreamStatus;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnknownFieldSet;
 import io.grpc.Status;
@@ -609,7 +610,8 @@ public class BigQueryIOStorageReadTest {
   private static final EncoderFactory ENCODER_FACTORY = EncoderFactory.get();
 
   private static ReadRowsResponse createResponse(
-      Schema schema, Collection<GenericRecord> genericRecords) throws Exception {
+      Schema schema, Collection<GenericRecord> genericRecords, double fractionConsumed)
+      throws Exception {
     GenericDatumWriter<GenericRecord> writer = new GenericDatumWriter<>(schema);
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     Encoder binaryEncoder = ENCODER_FACTORY.binaryEncoder(outputStream, null);
@@ -624,7 +626,25 @@ public class BigQueryIOStorageReadTest {
             AvroRows.newBuilder()
                 .setSerializedBinaryRows(ByteString.copyFrom(outputStream.toByteArray()))
                 .setRowCount(genericRecords.size()))
+        .setStatus(
+            StreamStatus.newBuilder()
+                // TODO(aryann): Once we rebuild the generated client code, we should change this to
+                // use setFractionConsumed().
+                .setUnknownFields(
+                    UnknownFieldSet.newBuilder()
+                        .addField(
+                            2,
+                            UnknownFieldSet.Field.newBuilder()
+                                .addFixed32(
+                                    java.lang.Float.floatToIntBits((float) fractionConsumed))
+                                .build())
+                        .build()))
         .build();
+  }
+
+  private static ReadRowsResponse createResponse(
+      Schema schema, Collection<GenericRecord> genericRecords) throws Exception {
+    return createResponse(schema, genericRecords, 0.0);
   }
 
   @Test
@@ -706,6 +726,83 @@ public class BigQueryIOStorageReadTest {
     System.out.println("Rows: " + rows);
 
     assertEquals(3, rows.size());
+  }
+
+  @Test
+  public void testFractionConsumed() throws Exception {
+    ReadSession readSession =
+        ReadSession.newBuilder()
+            .setName("readSession")
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING))
+            .build();
+
+    Stream stream = Stream.newBuilder().setName("stream").build();
+
+    ReadRowsRequest expectedRequest =
+        ReadRowsRequest.newBuilder()
+            .setReadPosition(StreamPosition.newBuilder().setStream(stream))
+            .build();
+
+    List<GenericRecord> records =
+        Lists.newArrayList(
+            createRecord("A", 1, AVRO_SCHEMA),
+            createRecord("B", 2, AVRO_SCHEMA),
+            createRecord("C", 3, AVRO_SCHEMA),
+            createRecord("D", 4, AVRO_SCHEMA),
+            createRecord("E", 5, AVRO_SCHEMA),
+            createRecord("F", 6, AVRO_SCHEMA),
+            createRecord("G", 7, AVRO_SCHEMA));
+
+    List<ReadRowsResponse> responses =
+        Lists.newArrayList(
+            // N.B.: All floating point numbers used in this test can be represented without
+            // a loss of precision.
+            createResponse(AVRO_SCHEMA, records.subList(0, 2), 0.25),
+            createResponse(AVRO_SCHEMA, records.subList(2, 4), 0.50),
+            createResponse(AVRO_SCHEMA, records.subList(4, 7), 0.9375));
+
+    StorageClient fakeStorageClient = mock(StorageClient.class);
+    when(fakeStorageClient.readRows(expectedRequest))
+        .thenReturn(new FakeBigQueryServerStream<>(responses));
+
+    BigQueryStorageStreamSource<TableRow> streamSource =
+        BigQueryStorageStreamSource.create(
+            readSession,
+            stream,
+            TABLE_SCHEMA,
+            new TableRowParser(),
+            TableRowJsonCoder.of(),
+            new FakeBigQueryServices().withStorageClient(fakeStorageClient));
+
+    List<TableRow> rows = new ArrayList<>();
+    BoundedReader<TableRow> reader = streamSource.createReader(options);
+
+    // Before call to BoundedReader#start, fraction consumed must be zero.
+    assertEquals(Double.valueOf(0.00), reader.getFractionConsumed());
+
+    // Read A and B.
+    assertTrue(reader.start());
+    assertEquals(Double.valueOf(0.00), reader.getFractionConsumed());
+    assertTrue(reader.advance());
+    assertEquals(Double.valueOf(0.00), reader.getFractionConsumed());
+
+    // Read C and D.
+    assertTrue(reader.advance());
+    assertEquals(Double.valueOf(0.25), reader.getFractionConsumed());
+    assertTrue(reader.advance());
+    assertEquals(Double.valueOf(0.25), reader.getFractionConsumed());
+
+    // Read E, F, and G.
+    assertTrue(reader.advance());
+    assertEquals(Double.valueOf(0.50), reader.getFractionConsumed());
+    assertTrue(reader.advance());
+    assertEquals(Double.valueOf(0.50), reader.getFractionConsumed());
+    assertTrue(reader.advance());
+    assertEquals(Double.valueOf(0.50), reader.getFractionConsumed());
+    assertFalse(reader.advance());
+
+    // We are done with the stream, so we should report 100% consumption.
+    assertEquals(Double.valueOf(1.00), reader.getFractionConsumed());
   }
 
   @Test
