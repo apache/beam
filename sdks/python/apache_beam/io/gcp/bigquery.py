@@ -895,6 +895,11 @@ class WriteToBigQuery(PTransform):
   This transform receives a PCollection of elements to be inserted into BigQuery
   tables. The elements would come in as Python dictionaries, or as `TableRow`
   instances.
+
+  Known Limitations/Edge Cases:
+    1. [BEAM-7822] In file loads method of writing to BigQuery,
+       copying from temp_tables to destination_table is not atomic.
+       See: https://issues.apache.org/jira/browse/BEAM-7822
   """
 
   class Method(object):
