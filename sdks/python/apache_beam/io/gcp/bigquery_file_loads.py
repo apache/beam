@@ -362,8 +362,7 @@ class TriggerLoadJobs(beam.DoFn):
   def start_bundle(self):
     self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
 
-  def process(self, element, load_job_name_prefix, is_streaming_pipeline,
-              *schema_side_inputs):
+  def process(self, element, load_job_name_prefix, *schema_side_inputs):
     destination = element[0]
     files = iter(element[1])
 
@@ -381,7 +380,6 @@ class TriggerLoadJobs(beam.DoFn):
     else:
       additional_parameters = self.additional_bq_parameters
 
-    job_count = 0
     batch_of_files = list(itertools.islice(files, _MAXIMUM_SOURCE_URIS))
     while batch_of_files:
 
@@ -392,14 +390,12 @@ class TriggerLoadJobs(beam.DoFn):
       # Load jobs for a single destination are always triggered from the same
       # worker. This means that we can generate a deterministic numbered job id,
       # and not need to worry.
-      if is_streaming_pipeline:
-        identifier = _bq_uuid()
-      else:
-        identifier = _bq_uuid('%s:%s.%s' % (table_reference.projectId,
-                                            table_reference.datasetId,
-                                            table_reference.tableId))
+      destination_hash = _bq_uuid('%s:%s.%s' % (table_reference.projectId,
+                                                table_reference.datasetId,
+                                                table_reference.tableId))
+      timestamp = int(time.time())
       job_name = '%s_%s_%s' % (
-          load_job_name_prefix, identifier, job_count)
+          load_job_name_prefix, destination_hash, timestamp)
       logging.debug('Batch of files has %s files. Job name is %s.',
                     len(batch_of_files), job_name)
 
@@ -421,7 +417,6 @@ class TriggerLoadJobs(beam.DoFn):
       yield (destination, job_reference)
 
       # Prepare to trigger the next job
-      job_count += 1
       batch_of_files = list(itertools.islice(files, _MAXIMUM_SOURCE_URIS))
 
 
@@ -681,8 +676,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 test_client=self.test_client,
                 temporary_tables=self.temp_tables,
                 additional_bq_parameters=self.additional_bq_parameters),
-            load_job_name_pcv, self.is_streaming_pipeline,
-            *self.schema_side_inputs)
+            load_job_name_pcv, *self.schema_side_inputs)
         .with_outputs(TriggerLoadJobs.TEMP_TABLES, main='main')
     )
 
