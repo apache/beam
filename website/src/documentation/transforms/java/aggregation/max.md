@@ -34,16 +34,16 @@ values in a collection, either globally or for each key.
 **Example 1**: get the maximum of a `PCollection` of `Doubles`.
 
 ```java
- PCollection input = ...;
- PCollection max = input.apply(Max.doublesGlobally());
+PCollection<Double> input = ...;
+PCollection<Double> max = input.apply(Max.doublesGlobally());
 ```
 
 **Example 2**: calculate the maximum of the `Integers` associated
 with each unique key (which is of type `String`).
 
 ```java
- PCollection> input = ...;
- PCollection> maxPerKey = input
+PCollection<Double> input = ...;
+PCollection<Double> maxPerKey = input
      .apply(Max.integersPerKey());
 ```
 

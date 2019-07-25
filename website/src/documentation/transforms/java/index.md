@@ -50,9 +50,8 @@ limitations under the License.
   <tr><th>Transform</th><th>Description</th></tr>
   <tr><td><a href="{{ site.baseurl }}/documentation/transforms/java/aggregation/approximatequantiles">ApproximateQuantiles</a></td><td>Uses an approximation algorithm to estimate the data distribution within each aggregation using a specified number of quantiles.</td></tr>
   <tr><td><a href="{{ site.baseurl }}/documentation/transforms/java/aggregation/approximateunique">ApproximateUnique</a></td><td>Uses an approximation algorithm to estimate the number of unique elements within each aggregation.</td></tr>
-  <tr><td><a href="{{ site.baseurl }}/documentation/transforms/java/aggregation/cogroupbykey/">CoGroupByKey</a></td><td>Takes several keyed collections of elements and produces a collection where each element 
-  consists of a key and all values associated with that key.</td></tr>  
-  <tr><td><a href="{{ site.baseurl }}/documentation/transforms/java/aggregation/combine">Combine</a></td><td>Transforms to combine elements.</td></tr>
+  <tr><td><a href="{{ site.baseurl }}/documentation/transforms/java/aggregation/cogroupbykey/">CoGroupByKey</a></td><td>Similar to <code>GroupByKey</code>, but groups values associated with each key into a batch of a given size</td></tr>  
+  <tr><td><a href="{{ site.baseurl }}/documentation/transforms/java/aggregation/combine">Combine</a></td><td>Transforms to combine elements according to a provided <code>CombineFn</code>.</td></tr>
   <tr><td><a href="{{ site.baseurl }}/documentation/transforms/java/aggregation/combinewithcontext">CombineWithContext</a></td><td>An extended version of Combine which allows accessing side-inputs and other context.</td></tr>
   <tr><td><a href="{{ site.baseurl }}/documentation/transforms/java/aggregation/count">Count</a></td><td>Counts the number of elements within each aggregation.</td></tr>
   <tr><td><a href="{{ site.baseurl }}/documentation/transforms/java/aggregation/distinct">Distinct</a></td><td>Produces a collection containing distinct elements from the input collection.</td></tr>  
@@ -60,7 +59,7 @@ limitations under the License.
   consists of a key and all values associated with that key.</td></tr>
   <tr><td><a href="{{ site.baseurl }}/documentation/transforms/java/aggregation/groupintobatches">GroupIntoBatches</a></td><td>Batches values associated with keys into <code>Iterable</code> batches of some size. Each batch contains elements associated with a specific key.</td></tr>
   <tr><td><a href="{{ site.baseurl }}/documentation/transforms/java/aggregation/latest">Latest</a></td><td>Selects the latest element within each aggregation according to the implicit timestamp.</td></tr>
-  <tr><td><a href="{{ site.baseurl }}/documentation/transforms/java/aggregation/mean">Max</a></td><td>Outputs the maximum element within each aggregation.</td></tr>  
+  <tr><td><a href="{{ site.baseurl }}/documentation/transforms/java/aggregation/max">Max</a></td><td>Outputs the maximum element within each aggregation.</td></tr>  
   <tr><td><a href="{{ site.baseurl }}/documentation/transforms/java/aggregation/mean">Mean</a></td><td>Computes the average within each aggregation.</td></tr>
   <tr><td><a href="{{ site.baseurl }}/documentation/transforms/java/aggregation/min">Min</a></td><td>Outputs the minimum element within each aggregation.</td></tr>
   <tr><td><a href="{{ site.baseurl }}/documentation/transforms/java/aggregation/sample">Sample</a></td><td>Randomly select some number of elements from each aggregation.</td></tr>
@@ -78,5 +77,5 @@ limitations under the License.
   <tr><td><a href="{{ site.baseurl }}/documentation/transforms/java/other/passert">PAssert</a></td><td>A transform to assert the contents of a <code>PCollection</code> used as part of testing a pipeline either locally or with a runner.</td></tr>
   <tr><td><a href="{{ site.baseurl }}/documentation/transforms/java/other/view">View</a></td><td>Operations for turning a collection into view that may be used as a side-input to a <code>ParDo</code>.</td></tr>
   <tr><td><a href="{{ site.baseurl }}/documentation/transforms/java/other/window">Window</a></td><td>Logically divides up or groups the elements of a collection into finite
-  windows according to a function.</td></tr>
+  windows according to a provided <code>WindowFn</code>.</td></tr>
 </table>

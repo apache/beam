@@ -34,15 +34,15 @@ values associated with each key in a collection of key-value pairs.
 **Example 1**: get the sum of a `PCollection` of `Doubles`.
 
 ```java
- PCollection input = ...;
- PCollection sum = input.apply(Sum.doublesGlobally());
+PCollection<Double> input = ...;
+PCollection<Double> sum = input.apply(Sum.doublesGlobally());
 ```
 
 Example 2: calculate the sum of the `Integers` associated with each unique key (which is of type `String`).
 
 ```java
- PCollection> input = ...;
- PCollection> sumPerKey = input
+PCollection<Double> input = ...;
+PCollection<Double> sumPerKey = input
      .apply(Sum.integersPerKey());
 ```
 

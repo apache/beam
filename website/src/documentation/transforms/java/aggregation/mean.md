@@ -31,22 +31,22 @@ Transforms for computing the arithmetic mean of the elements in a collection,
 or the mean of the values associated with each key in a collection of key-value pairs.
 
 * `Mean.globally()` returns a transform that then returns a collection whose contents is the mean of the input collection's elements. If there are no elements in the input collection, it returns 0.
-* `Mean.of()` is a `Combine.CombineFn` that computes the arithmetic mean of the elements in a collection.
+* `Mean.of()` computes the arithmetic mean of the elements in a collection.
 * `Mean.perKey()` returns a transform that returns a collection that contains an output element mapping each distinct key in the input collection to the mean of the values associated with that key in the input collection.
 
 ## Examples
 **Example 1**: get the mean of a `PCollection` of `Longs`.
 
 ```java
- PCollection input = ...;
- PCollection mean = input.apply(Mean.globally());
+PCollection<Double> input = ...;
+PCollection<Double> mean = input.apply(Mean.globally());
 ```
 
 **Example 2**: calculate the mean of the `Integers` associated with each unique key (which is of type `String`).
 
 ```java
- PCollection> input = ...;
- PCollection> meanPerKey =
+PCollection<Double> input = ...;
+PCollection<Double> meanPerKey =
      input.apply(Mean.perKey());
 ```
 

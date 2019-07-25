@@ -17,7 +17,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-# 
+# Latest
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/Latest.html">
@@ -46,5 +46,7 @@ For elements with the same timestamp, the output element is arbitrarily selected
 ```
 
 ## Related transforms 
-* [Sample]({{ site.baseurl }}/documentation/transforms/java/aggregation/sample)
-  takes samples of collection
+* [Reify]({{ site.baseurl }}/documentation/transforms/java/elementwise/reify)
+  converts between explicit and implicit form of various Beam values
+* [WithTimestamps]({{ site.baseurl }}/documentation/transforms/java/elementwise/withtimestamps)
+  assigns timestamps to all the elements of a collection

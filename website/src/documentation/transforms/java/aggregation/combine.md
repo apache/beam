@@ -77,14 +77,6 @@ PCollection<KV<String, Double>> avgAccuracyPerPlayer =
     new MeanInts())));
 ```
 
-```java
-# PCollection is grouped by key and the numeric values associated with each key
-# are averaged into a float.
-player_accuracies = ...
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:combine_per_key
-%}
-```
-
 ## Related transforms 
-* CombineWithContext
-* GroupByKey
+* [CombineWithContext]({{ site.baseurl }}/documentation/transforms/java/aggregation/combinewithcontext)
+* [GroupByKey]({{ site.baseurl }}/documentation/transforms/java/aggregation/groupbykey) 
