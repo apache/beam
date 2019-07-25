@@ -85,6 +85,7 @@ class ByteBuddyUtils {
       new ForLoadedType(ReadableInstant.class);
   private static final ForLoadedType READABLE_PARTIAL_TYPE =
       new ForLoadedType(ReadablePartial.class);
+  private static final ForLoadedType OBJECT_TYPE = new ForLoadedType(Object.class);
 
   /**
    * A naming strategy for ByteBuddy classes.
@@ -167,6 +168,8 @@ class ByteBuddyUtils {
         return convertCharSequence(typeDescriptor);
       } else if (typeDescriptor.getRawType().isPrimitive()) {
         return convertPrimitive(typeDescriptor);
+      } else if (typeDescriptor.getRawType().isEnum()) {
+        return convertEnum(typeDescriptor);
       } else {
         return convertDefault(typeDescriptor);
       }
@@ -187,6 +190,8 @@ class ByteBuddyUtils {
     protected abstract T convertCharSequence(TypeDescriptor<?> type);
 
     protected abstract T convertPrimitive(TypeDescriptor<?> type);
+
+    protected abstract T convertEnum(TypeDescriptor<?> type);
 
     protected abstract T convertDefault(TypeDescriptor<?> type);
   }
@@ -255,6 +260,11 @@ class ByteBuddyUtils {
     @Override
     protected Type convertPrimitive(TypeDescriptor<?> type) {
       return ClassUtils.primitiveToWrapper(type.getRawType());
+    }
+
+    @Override
+    protected Type convertEnum(TypeDescriptor<?> type) {
+      return String.class;
     }
 
     @Override
@@ -453,7 +463,7 @@ class ByteBuddyUtils {
           MethodInvocation.invoke(
               CHAR_SEQUENCE_TYPE
                   .getDeclaredMethods()
-                  .filter(ElementMatchers.named("toString"))
+                  .filter(ElementMatchers.named("toString").and(ElementMatchers.takesArguments(0)))
                   .getOnly()));
     }
 
@@ -465,6 +475,17 @@ class ByteBuddyUtils {
           readValue,
           Assigner.DEFAULT.assign(
               loadedType.asGenericType(), loadedType.asBoxed().asGenericType(), Typing.STATIC));
+    }
+
+    @Override
+    protected StackManipulation convertEnum(TypeDescriptor<?> type) {
+      return new Compound(
+          readValue,
+          MethodInvocation.invoke(
+              OBJECT_TYPE
+                  .getDeclaredMethods()
+                  .filter(ElementMatchers.named("toString").and(ElementMatchers.takesArguments(0)))
+                  .getOnly()));
     }
 
     @Override
@@ -659,6 +680,23 @@ class ByteBuddyUtils {
               valueType.asBoxed().asGenericType(),
               valueType.asUnboxed().asGenericType(),
               Typing.STATIC));
+    }
+
+    @Override
+    protected StackManipulation convertEnum(TypeDescriptor<?> type) {
+      ForLoadedType loadedType = new ForLoadedType(type.getRawType());
+
+      return new Compound(
+          readValue,
+          MethodInvocation.invoke(
+              loadedType
+                  .getDeclaredMethods()
+                  .filter(
+                      ElementMatchers.named("valueOf")
+                          .and(
+                              ElementMatchers.isStatic()
+                                  .and(ElementMatchers.takesArguments(String.class))))
+                  .getOnly()));
     }
 
     @Override

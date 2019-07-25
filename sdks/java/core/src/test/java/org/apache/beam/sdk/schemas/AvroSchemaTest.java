@@ -116,6 +116,9 @@ public class AvroSchemaTest {
     @AvroSchema("{\"type\": \"long\", \"logicalType\": \"timestamp-millis\"}")
     public DateTime timestampMillis;
 
+    @AvroSchema("{\"name\": \"TestEnum\", \"type\": \"enum\", \"symbols\": [\"abc\",\"cde\"] }")
+    public TestEnum testEnum;
+
     @org.apache.avro.reflect.Nullable public AvroSubPojo row;
     @org.apache.avro.reflect.Nullable public List<AvroSubPojo> array;
     @org.apache.avro.reflect.Nullable public Map<String, AvroSubPojo> map;
@@ -140,6 +143,7 @@ public class AvroSchemaTest {
           && Arrays.equals(fixed, avroPojo.fixed)
           && Objects.equals(date, avroPojo.date)
           && Objects.equals(timestampMillis, avroPojo.timestampMillis)
+          && Objects.equals(testEnum, avroPojo.testEnum)
           && Objects.equals(row, avroPojo.row)
           && Objects.equals(array, avroPojo.array)
           && Objects.equals(map, avroPojo.map);
@@ -158,6 +162,7 @@ public class AvroSchemaTest {
           Arrays.hashCode(fixed),
           date,
           timestampMillis,
+          testEnum,
           row,
           array,
           map);
@@ -174,6 +179,7 @@ public class AvroSchemaTest {
         byte[] fixed,
         LocalDate date,
         DateTime timestampMillis,
+        TestEnum testEnum,
         AvroSubPojo row,
         List<AvroSubPojo> array,
         Map<String, AvroSubPojo> map) {
@@ -187,6 +193,7 @@ public class AvroSchemaTest {
       this.fixed = fixed;
       this.date = date;
       this.timestampMillis = timestampMillis;
+      this.testEnum = testEnum;
       this.row = row;
       this.array = array;
       this.map = map;
@@ -215,6 +222,7 @@ public class AvroSchemaTest {
           .addField("fixed", FieldType.logicalType(FixedBytes.of(4)))
           .addField("date", FieldType.DATETIME)
           .addField("timestampMillis", FieldType.DATETIME)
+          .addField("testEnum", FieldType.STRING)
           .addNullableField("row", SUB_TYPE)
           .addNullableField("array", FieldType.array(SUB_TYPE))
           .addNullableField("map", FieldType.map(FieldType.STRING, SUB_TYPE))
@@ -232,6 +240,7 @@ public class AvroSchemaTest {
           .addField("fixed", FieldType.logicalType(FixedBytes.of(4)))
           .addField("date", FieldType.DATETIME)
           .addField("timestampMillis", FieldType.DATETIME)
+          .addField("testEnum", FieldType.STRING)
           .addNullableField("row", SUB_TYPE)
           .addNullableField("array", FieldType.array(SUB_TYPE.withNullable(false)))
           .addNullableField("map", FieldType.map(FieldType.STRING, SUB_TYPE.withNullable(false)))
@@ -254,6 +263,7 @@ public class AvroSchemaTest {
           new fixed4(BYTE_ARRAY),
           DATE,
           DATE_TIME,
+          TestEnum.abc,
           AVRO_NESTED_SPECIFIC_RECORD,
           ImmutableList.of(AVRO_NESTED_SPECIFIC_RECORD, AVRO_NESTED_SPECIFIC_RECORD),
           ImmutableMap.of("k1", AVRO_NESTED_SPECIFIC_RECORD, "k2", AVRO_NESTED_SPECIFIC_RECORD));
@@ -278,6 +288,7 @@ public class AvroSchemaTest {
                       null, BYTE_ARRAY, org.apache.avro.Schema.createFixed("fixed4", "", "", 4)))
           .set("date", (int) Days.daysBetween(new LocalDate(1970, 1, 1), DATE).getDays())
           .set("timestampMillis", DATE_TIME.getMillis())
+          .set("testEnum", TestEnum.abc)
           .set("row", AVRO_NESTED_GENERIC_RECORD)
           .set("array", ImmutableList.of(AVRO_NESTED_GENERIC_RECORD, AVRO_NESTED_GENERIC_RECORD))
           .set(
@@ -301,6 +312,7 @@ public class AvroSchemaTest {
               BYTE_ARRAY,
               DATE.toDateTimeAtStartOfDay(DateTimeZone.UTC),
               DATE_TIME,
+              "abc",
               NESTED_ROW,
               ImmutableList.of(NESTED_ROW, NESTED_ROW),
               ImmutableMap.of("k1", NESTED_ROW, "k2", NESTED_ROW))
@@ -357,6 +369,7 @@ public class AvroSchemaTest {
           BYTE_ARRAY,
           DATE,
           DATE_TIME,
+          TestEnum.abc,
           SUB_POJO,
           ImmutableList.of(SUB_POJO, SUB_POJO),
           ImmutableMap.of("k1", SUB_POJO, "k2", SUB_POJO));
@@ -374,6 +387,7 @@ public class AvroSchemaTest {
               BYTE_ARRAY,
               DATE.toDateTimeAtStartOfDay(DateTimeZone.UTC),
               DATE_TIME,
+              "abc",
               NESTED_ROW,
               ImmutableList.of(NESTED_ROW, NESTED_ROW),
               ImmutableMap.of("k1", NESTED_ROW, "k2", NESTED_ROW))
