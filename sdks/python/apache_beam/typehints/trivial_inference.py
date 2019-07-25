@@ -458,10 +458,11 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
           pop_count = arg + 2
           return_type = Any
         elif opname == 'CALL_FUNCTION_EX':
-          has_kwargs = (arg & 1) == 1
+          has_kwargs = arg & 1  # type: int
           pop_count = has_kwargs + 1
           if has_kwargs:
-            # TODO(udim): Requires CALL_FUNCTION_KW implementation.
+            # TODO(udim): Unimplemented. Requires same functionality as a
+            #   CALL_FUNCTION_KW implementation.
             return_type = Any
           else:
             args_and_callable = state.stack[-1]

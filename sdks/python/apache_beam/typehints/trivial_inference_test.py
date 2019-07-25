@@ -258,12 +258,26 @@ class TrivialInferenceTest(unittest.TestCase):
 
   def testBuildTupleUnpackWithCall(self):
     # Lambda uses BUILD_TUPLE_UNPACK_WITH_CALL opcode in Python 3.6, 3.7.
-    def fn(x, *unused_args):
-      return x
+    def fn(x1, x2, *unused_args):
+      return x1, x2
 
-    self.assertReturnType(str,
-                          lambda x, _list: fn(x, *_list),
+    self.assertReturnType(typehints.Tuple[str, float],
+                          lambda x1, x2, _list: fn(x1, x2, *_list),
+                          [str, float, typehints.List[int]])
+    # No *args
+    self.assertReturnType(typehints.Tuple[str, typehints.List[int]],
+                          lambda x1, x2, _list: fn(x1, x2, *_list),
                           [str, typehints.List[int]])
+
+  @unittest.skipIf(sys.version_info < (3, 6), 'CALL_FUNCTION_EX is new in 3.6')
+  def testCallFunctionExKwargs(self):
+    def fn(x1, x2, **unused_kwargs):
+      return x1, x2
+
+    # Keyword args are currently unsupported for CALL_FUNCTION_EX.
+    self.assertReturnType(typehints.Any,
+                          lambda x1, x2, _dict: fn(x1, x2, **_dict),
+                          [str, float, typehints.List[int]])
 
 
 if __name__ == '__main__':

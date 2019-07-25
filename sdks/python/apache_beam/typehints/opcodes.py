@@ -29,6 +29,7 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 
 import inspect
+import logging
 import sys
 import types
 from functools import reduce
@@ -415,14 +416,21 @@ def build_slice(state, arg):
 
 
 def _unpack_lists(state, arg):
+  """Extract inner types of Lists and Tuples.
+
+  Pops arg count items from the stack, concatenates their inner types into 1
+  list, and returns that list.
+  Example: if stack[-arg:] == [[i1, i2], [i3]], the output is [i1, i2, i3]
+  """
   types = []
-  for _ in range(arg):
-    type_constraint = state.stack.pop()
+  for i in range(arg, 0, -1):
+    type_constraint = state.stack[-i]
     if isinstance(type_constraint, typehints.IndexableTypeConstraint):
       types.extend(type_constraint._inner_types())
     else:
+      logging.debug('Unhandled type_constraint: %r', type_constraint)
       types.append(typehints.Any)
-  types.reverse()
+  state.stack[-arg:] = []
   return types
 
 
@@ -438,6 +446,6 @@ def build_tuple_unpack_with_call(state, arg):
   args_and_callable = _unpack_lists(state, arg)
   fn = state.stack.pop()
   args_and_callable.append(fn)
-  # Note this opcode puts a regular tuple() on the stack. It is expected that
-  # it is immediately followed by CALL_FUNCTION_EX.
-  state.stack.append(args_and_callable)
+  # Note this opcode puts a regular tuple() on the stack (unlike
+  # build_tuple_unpack), since Tuple only accepts types and fn is not a type.
+  state.stack.append(tuple(args_and_callable))
