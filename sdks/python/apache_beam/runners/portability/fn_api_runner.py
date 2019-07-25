@@ -82,52 +82,52 @@ ENCODED_IMPULSE_VALUE = beam.coders.WindowedValueCoder(
         beam.transforms.window.GlobalWindows.windowed_value(b''))
 
 
-class ConnectionHandler(object):
-
-  _conn_handlers = {}
-
-  def add_conn_handler(self, worker_id):
-    ConnectionHandler._conn_handlers[worker_id] = ControlConnection()
-
-  def get_conn_handler_by_id(self, worker_id):
-    return ConnectionHandler._conn_handlers[worker_id]
-
-  def get_conn_handlers(self):
-    return ConnectionHandler._conn_handlers
-
-  def close(self):
-    for control_conn in ConnectionHandler._conn_handlers.values():
-      control_conn.close()
-    ConnectionHandler._conn_handlers = {}
-
-
 class ControlConnection(object):
+
+  _uid_counter = 0
+  _lock = threading.Lock()
 
   def __init__(self):
     self._push_queue = queue.Queue()
     self._input = None
+    self._input_is_set = False
     self._futures_by_id = dict()
-    self.read_thread = threading.Thread(
+    self._read_thread = threading.Thread(
         name='beam_control_read', target=self._read)
+    self._state = BeamFnControlServicer.STARTED_STATE
 
   def _read(self):
     for data in self._input:
       self._futures_by_id.pop(data.instruction_id).set(data)
 
-  def push_req(self, req):
+  def push(self, req):
+    if req == BeamFnControlServicer._DONE_MARKER:
+      self._push_queue.put(req)
+      return None
+    if not req.instruction_id:
+      with ControlConnection._lock:
+        ControlConnection._uid_counter += 1
+        req.instruction_id = 'control_%s' % ControlConnection._uid_counter
+    future = ControlFuture(req.instruction_id)
+    self._futures_by_id[req.instruction_id] = future
     self._push_queue.put(req)
+    return future
 
   def get_req(self):
     return self._push_queue.get()
 
   def set_input(self, input):
+    if self._input_is_set:
+      raise RuntimeError('input is already set.')
     self._input = input
-
-  def set_future_by_id(self, instruction_id, future):
-    self._futures_by_id[instruction_id] = future
+    self._read_thread.start()
+    self._input_is_set = True
 
   def close(self):
-    self.read_thread.join()
+    if self._state == BeamFnControlServicer.STARTED_STATE:
+      self.push(BeamFnControlServicer._DONE_MARKER)
+      self._read_thread.join()
+    self._state = BeamFnControlServicer.DONE_STATE
 
 
 class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
@@ -147,9 +147,7 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
     # added only when self._log_req is True.
     self._req_sent = collections.defaultdict(int)
     self._req_worker_mapping = {}
-    self._log_req = True if logging.getLevelName(
-        logging.getLogger().getEffectiveLevel()) == 'DEBUG' else False
-    self._conn_handler = ConnectionHandler()
+    self._log_req = logging.getLogger().getEffectiveLevel() <= logging.DEBUG
 
   def Control(self, iterator, context):
     with self._lock:
@@ -163,10 +161,9 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
       raise RuntimeError('All workers communicate through gRPC should have '
                          'worker_id. Received None.')
 
-    control_conn = self._conn_handler.get_conn_handler_by_id(worker_id)
+    conn_handler = GrpcServer.get_control_conn_handler()
+    control_conn = conn_handler[worker_id]
     control_conn.set_input(iterator)
-    if not control_conn.read_thread.isAlive():
-      control_conn.read_thread.start()
 
     while True:
       to_push = control_conn.get_req()
@@ -176,36 +173,8 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
       if self._log_req:
         self._req_sent[to_push.instruction_id] += 1
 
-  def _dispatch(self, item, dest_worker_id, future):
-    if dest_worker_id:
-      control_conn = self._conn_handler.get_conn_handler_by_id(dest_worker_id)
-      control_conn.push_req(item)
-      control_conn.set_future_by_id(item.instruction_id, future)
-      if self._log_req:
-        self._req_worker_mapping[item.instruction_id] = dest_worker_id
-    else:
-      for control_conn in self._conn_handler.get_conn_handlers().values():
-        control_conn.push_req(item)
-        if item != self._DONE_MARKER:
-          control_conn.set_future_by_id(item.instruction_id, future)
-
-  def push(self, item, worker_id=None):
-    if item is self._DONE_MARKER:
-      future = None
-    else:
-      if not item.instruction_id:
-        with self._lock:
-          self._uid_counter += 1
-          item.instruction_id = 'control_%s' % self._uid_counter
-      future = ControlFuture(item.instruction_id)
-    self._dispatch(item, worker_id, future)
-    return future
-
   def done(self):
     with self._lock:
-      if self._state == self.STARTED_STATE:
-        self.push(self._DONE_MARKER)
-        self._conn_handler.close()
       self._state = self.DONE_STATE
 
     logging.debug('Runner: Requests sent by runner: %s',
@@ -1089,6 +1058,9 @@ class EmbeddedWorkerHandler(WorkerHandler):
   def __init__(self, unused_payload, state, provision_info):
     super(EmbeddedWorkerHandler, self).__init__(
         self, data_plane.InMemoryDataChannel(), state, provision_info)
+    self.control_conn = self
+    self.data_conn = self.data_plane_handler.data_conn
+
     self.worker = sdk_worker.SdkWorker(
         sdk_worker.BundleProcessorCache(
             FnApiRunner.SingletonStateHandlerFactory(self.state),
@@ -1159,6 +1131,8 @@ class GrpcServer(object):
 
   _DEFAULT_SHUTDOWN_TIMEOUT_SECS = 5
   _cached_grpc_server = None
+  instance_count = 0
+  _lock = threading.Lock()
 
   def __init__(self, state, provision_info):
     self.state = state
@@ -1186,6 +1160,7 @@ class GrpcServer(object):
     self.control_handler = BeamFnControlServicer()
     beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server(
         self.control_handler, self.control_server)
+    self.control_conn_handler = collections.defaultdict(ControlConnection)
 
     # If we have provision info, serve these off the control port as well.
     if self.provision_info:
@@ -1208,6 +1183,8 @@ class GrpcServer(object):
     self.data_plane_handler = data_plane.GrpcServerDataChannel()
     beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(
         self.data_plane_handler, self.data_server)
+    self.data_conn_handler = collections.defaultdict(
+        data_plane.GrpcDataChannelConnection)
 
     beam_fn_api_pb2_grpc.add_BeamFnStateServicer_to_server(
         FnApiRunner.GrpcStateServicer(state),
@@ -1231,18 +1208,31 @@ class GrpcServer(object):
     self.control_server.start()
 
   @classmethod
+  def get_control_conn_handler(cls):
+    return GrpcServer._cached_grpc_server.control_conn_handler
+
+  @classmethod
+  def get_data_conn_handler(cls):
+    return GrpcServer._cached_grpc_server.data_conn_handler
+
+  @classmethod
   def get_instance(cls, state, provision_info):
     if not GrpcServer._cached_grpc_server:
-      GrpcServer._cached_grpc_server = GrpcServer(
-          state, provision_info)
+      GrpcServer._cached_grpc_server = GrpcServer(state, provision_info)
+    GrpcServer.instance_count += 1
     return GrpcServer._cached_grpc_server
 
   def release_instance(self):
-    GrpcServer._cached_grpc_server = None
+    with GrpcServer._lock:
+      GrpcServer.instance_count -= 1
+    if GrpcServer.instance_count == 0:
+      self._close()
+    else:
+      logging.info('Waiting for %s workers to close.' %
+                   (GrpcServer.instance_count))
 
-  def close(self):
+  def _close(self):
     self.control_handler.done()
-    self.data_plane_handler.close()
     to_wait = [
         self.control_server.stop(self._DEFAULT_SHUTDOWN_TIMEOUT_SECS),
         self.data_server.stop(self._DEFAULT_SHUTDOWN_TIMEOUT_SECS),
@@ -1251,14 +1241,11 @@ class GrpcServer(object):
     ]
     for w in to_wait:
       w.wait()
+    GrpcServer._cached_grpc_server = None
 
 
 class GrpcWorkerHandler(WorkerHandler):
   """An grpc based worker_handler for fn API control, state and data planes."""
-
-  _lock = threading.Lock()
-  control_conn_handler = ConnectionHandler()
-  data_conn_handler = data_plane.ConnectionHandler()
 
   def __init__(self, state, provision_info):
     self.grpc_server = GrpcServer.get_instance(state, provision_info)
@@ -1266,12 +1253,14 @@ class GrpcWorkerHandler(WorkerHandler):
     self.worker_id = self.get_worker_id()
 
     self.control_address = self.grpc_server.control_address
-    self.control_handler = self.grpc_server.control_handler
-    GrpcWorkerHandler.control_conn_handler.add_conn_handler(self.worker_id)
+    self.control_conn = ControlConnection()
+    self.control_conn_handler = self.grpc_server.control_conn_handler
+    self.control_conn_handler[self.worker_id] = self.control_conn
 
-    self.data_plane_handler = self.grpc_server.data_plane_handler
     self.data_port = self.grpc_server.data_port
-    GrpcWorkerHandler.data_conn_handler.add_conn_handler(self.worker_id)
+    self.data_conn = data_plane.GrpcDataChannelConnection()
+    self.data_conn_handler = self.grpc_server.data_conn_handler
+    self.data_conn_handler[self.worker_id] = self.data_conn
 
     self.state_port = self.grpc_server.state_port
     self.logging_port = self.grpc_server.logging_port
@@ -1289,16 +1278,11 @@ class GrpcWorkerHandler(WorkerHandler):
         url='localhost:%s' % self.logging_port)
 
   def close(self):
-    # Wait all workers finish and close GRPC server.
-    with GrpcWorkerHandler._lock:
-      WorkerHandler._worker_id -= 1
-    if WorkerHandler._worker_id == -1:
-      self.grpc_server.close()
-      self.grpc_server.release_instance()
+    self.control_conn.close()
+    self.data_conn.close()
+    self.grpc_server.release_instance()
+    if GrpcServer.instance_count == 0:
       super(GrpcWorkerHandler, self).close()
-    else:
-      logging.info('Waiting for %s workers to close.' %
-                   (WorkerHandler._worker_id + 1))
 
 
 @WorkerHandler.register_environment(
@@ -1517,7 +1501,7 @@ class BundleManager(object):
                             process_bundle_id,
                             read_transform_id,
                             byte_streams):
-    data_out = self._worker_handler.data_plane_handler.output_stream(
+    data_out = self._worker_handler.data_conn.output_stream(
         process_bundle_id, read_transform_id)
     for byte_stream in byte_streams:
       data_out.write(byte_stream)
@@ -1530,7 +1514,7 @@ class BundleManager(object):
       process_bundle_registration = beam_fn_api_pb2.InstructionRequest(
           register=beam_fn_api_pb2.RegisterRequest(
               process_bundle_descriptor=[self._bundle_descriptor]))
-      registration_future = self._worker_handler.control_handler.push(
+      registration_future = self._worker_handler.control_conn.push(
           process_bundle_registration)
       self._registered = True
 
@@ -1553,8 +1537,7 @@ class BundleManager(object):
   def _generate_splits_for_testing(self,
                                    split_manager,
                                    inputs,
-                                   process_bundle_id,
-                                   worker_id):
+                                   process_bundle_id):
     split_results = []
     read_transform_id, buffer_data = only_element(inputs.items())
 
@@ -1589,13 +1572,13 @@ class BundleManager(object):
                         fraction_of_remainder=split_fraction,
                         estimated_input_elements=num_elements)
                 }))
-        split_response = self._worker_handler.control_handler.push(
-            split_request, worker_id).get()
+        split_response = self._worker_handler.control_conn.push(
+            split_request).get()
         for t in (0.05, 0.1, 0.2):
           waiting = ('Instruction not running', 'not yet scheduled')
           if any(msg in split_response.error for msg in waiting):
             time.sleep(t)
-            split_response = self._worker_handler.control_handler.push(
+            split_response = self._worker_handler.control_conn.push(
                 split_request).get()
         if 'Unknown process bundle' in split_response.error:
           # It may have finished too fast.
@@ -1637,8 +1620,7 @@ class BundleManager(object):
         instruction_id=process_bundle_id,
         process_bundle=beam_fn_api_pb2.ProcessBundleRequest(
             process_bundle_descriptor_reference=self._bundle_descriptor.id))
-    result_future = self._worker_handler.control_handler.push(
-        process_bundle_req, self._worker_handler.worker_id)
+    result_future = self._worker_handler.control_conn.push(process_bundle_req)
 
     split_results = []
     with ProgressRequester(
@@ -1646,11 +1628,10 @@ class BundleManager(object):
 
       if split_manager:
         split_results = self._generate_splits_for_testing(
-            split_manager, inputs, process_bundle_id,
-            self._worker_handler.worker_id)
+            split_manager, inputs, process_bundle_id)
 
       # Gather all output data.
-      for output in self._worker_handler.data_plane_handler.input_elements(
+      for output in self._worker_handler.data_conn.input_elements(
           process_bundle_id,
           expected_outputs.keys(),
           abort_callback=lambda: (result_future.is_done()
@@ -1672,8 +1653,7 @@ class BundleManager(object):
           beam_fn_api_pb2.FinalizeBundleRequest(
               instruction_reference=process_bundle_id
           ))
-      self._worker_handler.control_handler.push(
-          finalize_request, self._worker_handler.worker_id)
+      self._worker_handler.control_conn.push(finalize_request)
 
     return result, split_results
 
@@ -1730,7 +1710,6 @@ class ProgressRequester(threading.Thread):
     self._worker_handler = worker_handler
     self._instruction_id = instruction_id
     self._frequency = frequency
-    self._worker_id = worker_handler.worker_id
     self._done = False
     self._latest_progress = None
     self._callback = callback
@@ -1747,12 +1726,11 @@ class ProgressRequester(threading.Thread):
   def run(self):
     while not self._done:
       try:
-        progress_result = self._worker_handler.control_handler.push(
+        progress_result = self._worker_handler.control_conn.push(
             beam_fn_api_pb2.InstructionRequest(
                 process_bundle_progress=
                 beam_fn_api_pb2.ProcessBundleProgressRequest(
-                    instruction_reference=self._instruction_id)),
-            self._worker_id).get()
+                    instruction_reference=self._instruction_id))).get()
         self._latest_progress = progress_result.process_bundle_progress
         if self._callback:
           self._callback(self._latest_progress)

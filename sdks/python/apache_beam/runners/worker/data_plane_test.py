@@ -78,8 +78,8 @@ class DataChannelTest(unittest.TestCase):
     finally:
       data_channel_client.close()
       data_channel_service.close()
-      data_channel_client.wait()
-      data_channel_service.wait()
+      data_channel_client.data_conn.wait()
+      data_channel_service.data_conn.wait()
 
   def test_in_memory_data_channel(self):
     channel = data_plane.InMemoryDataChannel()
@@ -91,7 +91,8 @@ class DataChannelTest(unittest.TestCase):
 
   def _data_channel_test_one_direction(self, from_channel, to_channel):
     def send(instruction_id, transform_id, data):
-      stream = from_channel.output_stream(instruction_id, transform_id)
+      stream = from_channel.data_conn.output_stream(
+          instruction_id, transform_id)
       stream.write(data)
       stream.close()
     transform_1 = '1'
@@ -100,7 +101,7 @@ class DataChannelTest(unittest.TestCase):
     # Single write.
     send('0', transform_1, b'abc')
     self.assertEqual(
-        list(to_channel.input_elements('0', [transform_1])),
+        list(to_channel.data_conn.input_elements('0', [transform_1])),
         [beam_fn_api_pb2.Elements.Data(
             instruction_reference='0',
             ptransform_id=transform_1,
@@ -110,14 +111,14 @@ class DataChannelTest(unittest.TestCase):
     send('1', transform_1, b'abc')
     send('2', transform_1, b'def')
     self.assertEqual(
-        list(to_channel.input_elements('1', [transform_1])),
+        list(to_channel.data_conn.input_elements('1', [transform_1])),
         [beam_fn_api_pb2.Elements.Data(
             instruction_reference='1',
             ptransform_id=transform_1,
             data=b'abc')])
     send('2', transform_2, b'ghi')
     self.assertEqual(
-        list(to_channel.input_elements('2', [transform_1, transform_2])),
+        list(to_channel.data_conn.input_elements('2', [transform_1, transform_2])),
         [beam_fn_api_pb2.Elements.Data(
             instruction_reference='2',
             ptransform_id=transform_1,
