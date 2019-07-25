@@ -36,7 +36,6 @@ import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema.Type;
 import org.apache.avro.data.TimeConversions;
 import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericEnumSymbol;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
@@ -737,7 +736,9 @@ public class AvroUtils {
         return convertRecordStrict((GenericRecord) value, fieldType);
 
       case ENUM:
-        return convertEnumStrict((GenericEnumSymbol) value, fieldType);
+        // enums are either Java enums, or GenericEnumSymbol,
+        // they don't share common interface, but override toString()
+        return convertEnumStrict(value, fieldType);
 
       case ARRAY:
         return convertArrayStrict((List<Object>) value, type.type.getElementType(), fieldType);
@@ -822,7 +823,7 @@ public class AvroUtils {
     return value;
   }
 
-  private static Object convertEnumStrict(GenericEnumSymbol value, Schema.FieldType fieldType) {
+  private static Object convertEnumStrict(Object value, Schema.FieldType fieldType) {
     checkTypeName(fieldType.getTypeName(), Schema.TypeName.STRING, "enum");
     return value.toString();
   }

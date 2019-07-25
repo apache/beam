@@ -13,6 +13,7 @@
     { "name": "fixed", "type": {"type": "fixed", "size": 4, "name": "fixed4"} },
     { "name": "date", "type": {"type": "int", "logicalType": "date"} },
     { "name": "timestampMillis", "type": {"type": "long", "logicalType": "timestamp-millis"} },
+    { "name": "testEnum", "type": {"name": "TestEnum", "type": "enum", "symbols": ["abc","cde"] } },
     { "name": "row", "type": ["null", {
      "type": "record",
      "name": "TestAvroNested",
