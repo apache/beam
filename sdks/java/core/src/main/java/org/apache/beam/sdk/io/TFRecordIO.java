@@ -39,6 +39,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PBegin;
@@ -71,6 +72,14 @@ public class TFRecordIO {
         .setValidate(true)
         .setCompression(Compression.AUTO)
         .build();
+  }
+
+  /**
+   * Like {@link #read}, but reads each file in a {@link PCollection} of {@link
+   * FileIO.ReadableFile}, returned by {@link FileIO#readMatches}.
+   */
+  public static ReadFiles readFiles() {
+    return new AutoValue_TFRecordIO_ReadFiles.Builder().build();
   }
 
   /**
@@ -206,6 +215,38 @@ public class TFRecordIO {
               DisplayData.item("validation", getValidate()).withLabel("Validation Enabled"), true)
           .addIfNotNull(
               DisplayData.item("filePattern", getFilepattern()).withLabel("File Pattern"));
+    }
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+
+  /** Implementation of {@link #readFiles}. */
+  @AutoValue
+  public abstract static class ReadFiles
+      extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<byte[]>> {
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract TFRecordIO.ReadFiles build();
+    }
+
+    @Override
+    public PCollection<byte[]> expand(PCollection<FileIO.ReadableFile> input) {
+      return input.apply(
+          "Read all via FileBasedSource",
+          new ReadAllViaFileBasedSource<>(
+              Long.MAX_VALUE, new CreateSourceFn(), DEFAULT_BYTE_ARRAY_CODER));
+    }
+
+    private static class CreateSourceFn
+        implements SerializableFunction<String, FileBasedSource<byte[]>> {
+
+      @Override
+      public FileBasedSource<byte[]> apply(String input) {
+        return new TFRecordSource(StaticValueProvider.of(input));
+      }
     }
   }
 
@@ -600,7 +641,7 @@ public class TFRecordIO {
 
   /**
    * Codec for TFRecords file format. See
-   * https://www.tensorflow.org/api_guides/python/python_io#TFRecords_Format_Details
+   * https://www.tensorflow.org/versions/r1.11/api_guides/python/python_io#TFRecords_Format_Details
    */
   private static class TFRecordCodec {
     private static final int HEADER_LEN = (Long.SIZE + Integer.SIZE) / Byte.SIZE;
