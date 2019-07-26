@@ -110,7 +110,7 @@ import apache_beam as beam
 from apache_beam.io import filesystem
 from apache_beam.io import filesystems
 from apache_beam.io.filesystem import BeamIOError
-from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.window import GlobalWindow
@@ -490,7 +490,7 @@ class WriteToFiles(beam.PTransform):
 
     if not self._temp_directory:
       temp_location = (
-          p.options.view_as(GoogleCloudOptions).temp_location
+          p.options.view_as(StandardOptions).temp_location
           or self.path.get())
       dir_uid = str(uuid.uuid4())
       self._temp_directory = StaticValueProvider(

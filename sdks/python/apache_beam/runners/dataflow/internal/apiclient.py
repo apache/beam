@@ -145,10 +145,11 @@ class Environment(object):
     self.proto.clusterManagerApiService = GoogleCloudOptions.COMPUTE_API_SERVICE
     self.proto.dataset = '{}/cloud_dataflow'.format(
         GoogleCloudOptions.BIGQUERY_API_SERVICE)
+    temp_location = (
+        self.google_cloud_options.gcp_temp_location or
+        self.standard_options.temp_location)
     self.proto.tempStoragePrefix = (
-        self.google_cloud_options.temp_location.replace(
-            'gs:/',
-            GoogleCloudOptions.STORAGE_API_SERVICE))
+        temp_location.replace('gs:/', GoogleCloudOptions.STORAGE_API_SERVICE))
     if self.worker_options.worker_region:
       self.proto.workerRegion = self.worker_options.worker_region
     if self.worker_options.worker_zone:
@@ -377,19 +378,29 @@ class Job(object):
       self.google_cloud_options.job_name = self.default_job_name(
           self.google_cloud_options.job_name)
 
-    required_google_cloud_options = ['project', 'job_name', 'temp_location']
+    if not self.google_cloud_options.gcp_temp_location:
+      _LOGGER.info('Defaulting to temp_location as gcp_temp_location: %s',
+                   self.options.view_as(StandardOptions).temp_location)
+      (self.google_cloud_options.gcp_temp_location
+      ) = self.options.view_as(StandardOptions).temp_location
+
+    if not self.google_cloud_options.staging_location:
+      _LOGGER.info(
+          'Defaulting to the gcp_temp_location as staging_location: %s',
+          self.google_cloud_options.gcp_temp_location)
+      (self.google_cloud_options.staging_location
+      ) = self.google_cloud_options.gcp_temp_location
+
+    required_google_cloud_options = [
+        'project', 'job_name', 'gcp_temp_location', 'staging_location'
+    ]
     missing = [
         option for option in required_google_cloud_options
-        if not getattr(self.google_cloud_options, option)]
+        if not getattr(self.google_cloud_options, option, None)
+    ]
     if missing:
       raise ValueError(
           'Missing required configuration parameters: %s' % missing)
-
-    if not self.google_cloud_options.staging_location:
-      _LOGGER.info('Defaulting to the temp_location as staging_location: %s',
-                   self.google_cloud_options.temp_location)
-      (self.google_cloud_options
-       .staging_location) = self.google_cloud_options.temp_location
 
     # Make the staging and temp locations job name and time specific. This is
     # needed to avoid clashes between job submissions using the same staging
@@ -402,8 +413,8 @@ class Job(object):
       path_suffix = '%s.%f' % (self.google_cloud_options.job_name, time.time())
       self.google_cloud_options.staging_location = FileSystems.join(
           self.google_cloud_options.staging_location, path_suffix)
-      self.google_cloud_options.temp_location = FileSystems.join(
-          self.google_cloud_options.temp_location, path_suffix)
+      self.google_cloud_options.gcp_temp_location = FileSystems.join(
+          self.google_cloud_options.gcp_temp_location, path_suffix)
 
     self.proto = dataflow.Job(name=self.google_cloud_options.job_name)
     if self.options.view_as(StandardOptions).streaming:
@@ -489,8 +500,6 @@ class DataflowApplicationClient(object):
     google_cloud_options = options.view_as(GoogleCloudOptions)
     if google_cloud_options.staging_location is None:
       raise RuntimeError('The --staging_location option must be specified.')
-    if google_cloud_options.temp_location is None:
-      raise RuntimeError('The --temp_location option must be specified.')
 
     resource_stager = _LegacyDataflowStager(self)
     _, resources = resource_stager.stage_job_resources(

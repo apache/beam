@@ -238,7 +238,7 @@ def pipeline_options_remote(argv):
   google_cloud_options.project = 'my-project-id'
   google_cloud_options.job_name = 'myjob'
   google_cloud_options.staging_location = 'gs://my-bucket/binaries'
-  google_cloud_options.temp_location = 'gs://my-bucket/temp'
+  google_cloud_options.gcp_temp_location = 'gs://my-bucket/temp'
   options.view_as(StandardOptions).runner = 'DataflowRunner'
 
   # Create the Pipeline with the specified options.
@@ -423,7 +423,7 @@ def examples_wordcount_minimal(renames):
   google_cloud_options.project = 'my-project-id'
   google_cloud_options.job_name = 'myjob'
   google_cloud_options.staging_location = 'gs://your-bucket-name-here/staging'
-  google_cloud_options.temp_location = 'gs://your-bucket-name-here/temp'
+  google_cloud_options.gcp_temp_location = 'gs://your-bucket-name-here/temp'
   options.view_as(StandardOptions).runner = 'DataflowRunner'
   # [END examples_wordcount_minimal_options]
 

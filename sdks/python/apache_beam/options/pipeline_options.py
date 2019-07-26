@@ -41,6 +41,7 @@ from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.utils import processes
+from apache_beam.utils.annotations import deprecated
 
 __all__ = [
     'PipelineOptions',
@@ -387,11 +388,16 @@ class StandardOptions(PipelineOptions):
         '--runner',
         help=('Pipeline runner used to execute the workflow. Valid values are '
               'DirectRunner, DataflowRunner.'))
-    # Whether to enable streaming mode.
     parser.add_argument('--streaming',
                         default=False,
                         action='store_true',
                         help='Whether to enable streaming mode.')
+    parser.add_argument('--temp_location',
+                        default=None,
+                        help='Location where to store temporary files. Can be '
+                        'a local folder or the URL of an object store bucket. '
+                        'This location must be accessable by all worker '
+                        'processes.')
 
 
 class TypeOptions(PipelineOptions):
@@ -474,13 +480,13 @@ class GoogleCloudOptions(PipelineOptions):
                         default=None,
                         help='Name of the Cloud Dataflow job.')
     # Remote execution must check that this option is not None.
+    # If staging_location is not set, it defaults to gcp_temp_location.
     parser.add_argument('--staging_location',
                         default=None,
                         help='GCS path for staging code packages needed by '
                         'workers.')
-    # Remote execution must check that this option is not None.
-    # If staging_location is not set, it defaults to temp_location.
-    parser.add_argument('--temp_location',
+    # If gcp_temp_location is not set, it defaults to temp_location.
+    parser.add_argument('--gcp_temp_location',
                         default=None,
                         help='GCS path for saving temporary workflow jobs.')
     # The Google Compute Engine region for creating Dataflow jobs. See
@@ -571,13 +577,52 @@ class GoogleCloudOptions(PipelineOptions):
         'https://cloud.google.com/compute/docs/regions-zones')
     return 'us-central1'
 
+  def __getattr__(self, name):
+    if name in ["temp_location"]:
+      return self._get_temp_location()
+    else:
+      return super(GoogleCloudOptions, self).__getattr__(name)
+
+  def __setattr__(self, name, value):
+    if name in ["temp_location"]:
+      self._set_temp_location(value)
+    else:
+      super(GoogleCloudOptions, self).__setattr__(name, value)
+
+  @deprecated(
+      since='2.16.0',
+      custom_message=(
+          'GoogleCloudOptions.temp_location is deprecated since %since%. '
+          'Use GoogleCloudOptions.gcp_temp_location instead.'))
+  def _get_temp_location(self):
+    if self.gcp_temp_location is not None:
+      return self.gcp_temp_location
+    else:
+      return self.view_as(StandardOptions).temp_location
+
+  @deprecated(
+      since='2.16.0',
+      custom_message=(
+          'GoogleCloudOptions.temp_location is deprecated since %since%. '
+          'Use GoogleCloudOptions.gcp_temp_location instead.'))
+  def _set_temp_location(self, temp_location):
+    self.gcp_temp_location = temp_location
+
   def validate(self, validator):
     errors = []
     if validator.is_service_runner():
       errors.extend(validator.validate_cloud_options(self))
-      errors.extend(validator.validate_gcs_path(self, 'temp_location'))
-      if getattr(self, 'staging_location',
-                 None) or getattr(self, 'temp_location', None) is None:
+      if getattr(self.view_as(GoogleCloudOptions), "gcp_temp_location", None):
+        errors.extend(
+            validator.validate_gcs_path(
+                self.view_as(GoogleCloudOptions), "gcp_temp_location"))
+      else:
+        errors.extend(
+            validator.validate_gcs_path(
+                self.view_as(StandardOptions), "temp_location"))
+      if (getattr(self, 'staging_location', None) or
+          (not getattr(self, 'gcp_temp_location', None) and
+           not getattr(self.view_as(StandardOptions), 'temp_location', None))):
         errors.extend(validator.validate_gcs_path(self, 'staging_location'))
 
     if self.view_as(DebugOptions).dataflow_job_file:

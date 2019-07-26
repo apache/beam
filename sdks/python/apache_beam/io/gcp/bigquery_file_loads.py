@@ -768,7 +768,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
   def expand(self, pcoll):
     p = pcoll.pipeline
 
-    temp_location = p.options.view_as(GoogleCloudOptions).temp_location
+    temp_location = p.options.view_as(GoogleCloudOptions).gcp_temp_location
 
     empty_pc = p | "ImpulseEmptyPC" >> beam.Create([])
     singleton_pc = p | "ImpulseSingleElementPC" >> beam.Create([None])

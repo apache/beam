@@ -22,7 +22,9 @@
 from __future__ import absolute_import
 
 import logging
+import sys
 import unittest
+import warnings
 
 import hamcrest as hc
 
@@ -30,12 +32,14 @@ from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
+from apache_beam.utils.annotations import BeamDeprecationWarning
 
 
 class PipelineOptionsTest(unittest.TestCase):
@@ -498,6 +502,50 @@ class PipelineOptionsTest(unittest.TestCase):
     options = PipelineOptions(['--transform_name_mapping={\"from\":\"to\"}'])
     mapping = options.view_as(GoogleCloudOptions).transform_name_mapping
     self.assertEqual(mapping['from'], 'to')
+
+
+class GoogleCloudOptionsTest(unittest.TestCase):
+
+  def setUp(self):
+    # The __warningregistry__'s need to be in a pristine state for tests
+    # to work properly.
+    for v in sys.modules.values():
+      if getattr(v, '__warningregistry__', None):
+        v.__warningregistry__ = {}
+
+  def test_temp_location(self):
+    options = PipelineOptions(temp_location="abc")
+
+    with warnings.catch_warnings():
+      warnings.simplefilter("ignore", BeamDeprecationWarning)
+
+      self.assertEqual(
+          options.view_as(StandardOptions).temp_location, "abc")
+      self.assertEqual(
+          options.view_as(GoogleCloudOptions).temp_location, "abc")
+      self.assertEqual(
+          options.view_as(GoogleCloudOptions).gcp_temp_location, None)
+
+      options.view_as(GoogleCloudOptions).temp_location = "gs://asdf"
+      self.assertEqual(
+          options.view_as(StandardOptions).temp_location, "abc")
+      self.assertEqual(
+          options.view_as(GoogleCloudOptions).temp_location, "gs://asdf")
+      self.assertEqual(
+          options.view_as(GoogleCloudOptions).gcp_temp_location, "gs://asdf")
+
+  def test_temp_location_deprecation_warning(self):
+    options = PipelineOptions()
+    with warnings.catch_warnings(record=True) as w:
+      warnings.simplefilter("always", BeamDeprecationWarning)
+      _ = options.view_as(GoogleCloudOptions).temp_location
+      self.assertEqual(len(w), 1)
+      self.assertIsInstance(w[0].message, BeamDeprecationWarning)
+    with warnings.catch_warnings(record=True) as w:
+      warnings.simplefilter("always", BeamDeprecationWarning)
+      options.view_as(GoogleCloudOptions).temp_location = "gs://asdf"
+      self.assertEqual(len(w), 1)
+      self.assertIsInstance(w[0].message, BeamDeprecationWarning)
 
 
 if __name__ == '__main__':
