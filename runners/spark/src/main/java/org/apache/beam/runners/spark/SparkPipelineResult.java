@@ -83,7 +83,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
 
   @Override
   public PipelineResult.State waitUntilFinish() {
-    return waitUntilFinish(Duration.millis(Long.MAX_VALUE));
+    return waitUntilFinish(Duration.millis(-1));
   }
 
   @Override
@@ -133,7 +133,8 @@ public abstract class SparkPipelineResult implements PipelineResult {
     @Override
     protected State awaitTermination(final Duration duration)
         throws TimeoutException, ExecutionException, InterruptedException {
-      pipelineExecution.get(duration.getMillis(), TimeUnit.MILLISECONDS);
+      final long awaitDuration = duration.getMillis() > 0 ? duration.getMillis() : Long.MAX_VALUE;
+      pipelineExecution.get(awaitDuration, TimeUnit.MILLISECONDS);
       return PipelineResult.State.DONE;
     }
   }
