@@ -41,8 +41,8 @@ PCollection<Double> sum = input.apply(Sum.doublesGlobally());
 Example 2: calculate the sum of the `Integers` associated with each unique key (which is of type `String`).
 
 ```java
-PCollection<Double> input = ...;
-PCollection<Double> sumPerKey = input
+PCollection<KV<String, Integer>> input = ...;
+PCollection<KV<String, Integer>> sumPerKey = input
      .apply(Sum.integersPerKey());
 ```
 

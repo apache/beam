@@ -42,8 +42,8 @@ PCollection<Double> max = input.apply(Max.doublesGlobally());
 with each unique key (which is of type `String`).
 
 ```java
-PCollection<Double> input = ...;
-PCollection<Double> maxPerKey = input
+PCollection<KV<String, Integer>> input = ...;
+PCollection<KV<String, Integer>> maxPerKey = input
      .apply(Max.integersPerKey());
 ```
 
