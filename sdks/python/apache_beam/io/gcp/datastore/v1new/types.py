@@ -47,7 +47,8 @@ class Query(object):
         (Optional) key of the ancestor to which this query's results are
         restricted.
       filters: (sequence of tuple[str, str, str],
-        sequence of ValueProvider[tuple[str, str, str]])
+        sequence of
+        tuple[ValueProvider(str), ValueProvider(str), ValueProvider(str)])
         Property filters applied by this query.
         The sequence is ``(property_name, operator, value)``.
       projection: (sequence of string) fields returned as part of query results.
@@ -80,14 +81,37 @@ class Query(object):
     if self.ancestor is not None:
       ancestor_client_key = self.ancestor.to_client_key()
 
-    self.filters = [filter.get() if isinstance(filter, ValueProvider)
-                    else filter for filter in self.filters] or ()
+    self.filters = self._set_runtime_filters()
 
     return query.Query(
         client, kind=self.kind, project=self.project, namespace=self.namespace,
         ancestor=ancestor_client_key, filters=self.filters,
         projection=self.projection, order=self.order,
         distinct_on=self.distinct_on)
+
+  def _set_runtime_filters(self):
+    """
+    Extracts values from ValueProviders in `self.filters` if available
+    :param filters: sequence of tuple[str, str, str] or
+    sequence of tuple[ValueProvider, ValueProvider, ValueProvider]
+    :return: tuple[str, str, str]
+    """
+    runtime_filters = []
+    if not all(len(filter_tuple) == 3 for filter_tuple in self.filters):
+      raise TypeError('%s: filters must be a sequence of tuple with length=3'
+                      ' got %r instead'
+                      % (self.__class__.__name__, self.filters))
+
+    for filter_type, filter_operator, filter_value in self.filters:
+      if isinstance(filter_type, ValueProvider):
+        filter_type = filter_type.get()
+      if isinstance(filter_operator, ValueProvider):
+        filter_operator = filter_operator.get()
+      if isinstance(filter_value, ValueProvider):
+        filter_value = filter_value.get()
+      runtime_filters.append((filter_type, filter_operator, filter_value))
+
+    return runtime_filters or ()
 
   def clone(self):
     return copy.copy(self)

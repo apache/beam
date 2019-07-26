@@ -136,12 +136,17 @@ class TypesTest(unittest.TestCase):
     logging.info('query: %s', q)  # Test __repr__()
 
   def testValueProviderFilters(self):
-    self.vp_filters = [[StaticValueProvider(tuple,
-                                            ('property_name', '=', 'value'))],
-                       [StaticValueProvider(tuple,
-                                            ('property_name', '=', 'value')),
-                        ('property_name', '=', 'value')],
-                      ]
+    self.vp_filters = [
+        [(
+            StaticValueProvider(str, 'property_name'),
+            StaticValueProvider(str, '='),
+            StaticValueProvider(str, 'value'))],
+        [(
+            StaticValueProvider(str, 'property_name'),
+            StaticValueProvider(str, '='),
+            StaticValueProvider(str, 'value')),
+         ('property_name', '=', 'value')],
+    ]
     self.expected_filters = [[('property_name', '=', 'value')],
                              [('property_name', '=', 'value'),
                               ('property_name', '=', 'value')],
