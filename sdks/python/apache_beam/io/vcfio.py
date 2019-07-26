@@ -181,9 +181,6 @@ class Variant(object):
 
     return self < other or self == other
 
-  def __ne__(self, other):
-    return not self == other
-
   def __gt__(self, other):
     if not isinstance(other, Variant):
       return NotImplemented
