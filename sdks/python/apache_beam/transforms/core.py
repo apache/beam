@@ -308,14 +308,28 @@ class RunnerAPIPTransformHolder(PTransform):
   without a serialized Python `DoFn` object.
   """
 
-  def __init__(self, proto):
+  def __init__(self, proto, context):
     self._proto = proto
+    self._context = context
 
   def proto(self):
     """Runner API payload for a `PTransform`"""
     return self._proto
 
   def to_runner_api(self, context, has_parts=False):
+    # TODO(BEAM-7850): no need to copy around Environment if it is a direct
+    #  attribute of PTransform.
+    id_to_proto_map = self._context.environments.get_id_to_proto_map()
+    for env_id in id_to_proto_map:
+      if env_id not in context.environments:
+        context.environments.put_proto(env_id, id_to_proto_map[env_id])
+      else:
+        env1 = id_to_proto_map[env_id]
+        env2 = context.environments[env_id]
+        assert env1.SerializeToString() == env2.SerializeToString(), (
+            'Expected environments with the same ID to be equal but received '
+            '%r and %r',
+            env1, env2)
     return self._proto
 
   def get_restriction_coder(self):
