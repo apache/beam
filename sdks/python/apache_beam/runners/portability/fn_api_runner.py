@@ -90,11 +90,10 @@ class ControlConnection(object):
   def __init__(self):
     self._push_queue = queue.Queue()
     self._input = None
-    self._input_is_set = False
     self._futures_by_id = dict()
     self._read_thread = threading.Thread(
         name='beam_control_read', target=self._read)
-    self._state = BeamFnControlServicer.STARTED_STATE
+    self._state = BeamFnControlServicer.UNSTARTED_STATE
 
   def _read(self):
     for data in self._input:
@@ -117,11 +116,12 @@ class ControlConnection(object):
     return self._push_queue.get()
 
   def set_input(self, input):
-    if self._input_is_set:
-      raise RuntimeError('input is already set.')
-    self._input = input
-    self._read_thread.start()
-    self._input_is_set = True
+    with ControlConnection._lock:
+      if self._input:
+        raise RuntimeError('input is already set.')
+      self._input = input
+      self._read_thread.start()
+      self._state = BeamFnControlServicer.STARTED_STATE
 
   def close(self):
     if self._state == BeamFnControlServicer.STARTED_STATE:
@@ -131,7 +131,7 @@ class ControlConnection(object):
 
 
 class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
-  """Implementation of BeamFnControlServicer for a single client."""
+  """Implementation of BeamFnControlServicer for clients."""
 
   UNSTARTED_STATE = 'unstarted'
   STARTED_STATE = 'started'
@@ -148,6 +148,7 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
     self._req_sent = collections.defaultdict(int)
     self._req_worker_mapping = {}
     self._log_req = logging.getLogger().getEffectiveLevel() <= logging.DEBUG
+    self.connections_by_worker_id = collections.defaultdict(ControlConnection)
 
   def Control(self, iterator, context):
     with self._lock:
@@ -161,8 +162,7 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
       raise RuntimeError('All workers communicate through gRPC should have '
                          'worker_id. Received None.')
 
-    conn_handler = GrpcServer.get_control_conn_handler()
-    control_conn = conn_handler[worker_id]
+    control_conn = self.connections_by_worker_id[worker_id]
     control_conn.set_input(iterator)
 
     while True:
@@ -174,9 +174,7 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
         self._req_sent[to_push.instruction_id] += 1
 
   def done(self):
-    with self._lock:
-      self._state = self.DONE_STATE
-
+    self._state = self.DONE_STATE
     logging.debug('Runner: Requests sent by runner: %s',
                   [(str(req), cnt) for req, cnt in self._req_sent.items()])
     logging.debug('Runner: Requests multiplexing info: %s',
@@ -995,7 +993,7 @@ class WorkerHandler(object):
   """
 
   _registered_environments = {}
-  _worker_id = -1
+  _worker_id_counter = -1
 
   def __init__(
       self, control_handler, data_plane_handler, state, provision_info):
@@ -1012,13 +1010,11 @@ class WorkerHandler(object):
     self.state = state
     self.provision_info = provision_info
 
-  def get_worker_id(self):
-    WorkerHandler._worker_id += 1
-    return 'worker_%s' % WorkerHandler._worker_id
+    WorkerHandler._worker_id_counter += 1
+    self.worker_id = 'worker_%s' % WorkerHandler._worker_id_counter
 
   def close(self):
     self.stop_worker()
-    WorkerHandler._worker_id = -1
 
   def start_worker(self):
     raise NotImplementedError
@@ -1059,7 +1055,7 @@ class EmbeddedWorkerHandler(WorkerHandler):
     super(EmbeddedWorkerHandler, self).__init__(
         self, data_plane.InMemoryDataChannel(), state, provision_info)
     self.control_conn = self
-    self.data_conn = self.data_plane_handler.data_conn
+    self.data_conn = self.data_plane_handler
 
     self.worker = sdk_worker.SdkWorker(
         sdk_worker.BundleProcessorCache(
@@ -1068,7 +1064,6 @@ class EmbeddedWorkerHandler(WorkerHandler):
                 self.data_plane_handler.inverse()),
             {}))
     self._uid_counter = 0
-    self.worker_id = self.get_worker_id()
 
   def push(self, request, unused_worker_id=None):
     if not request.instruction_id:
@@ -1130,8 +1125,7 @@ class BasicProvisionService(
 class GrpcServer(object):
 
   _DEFAULT_SHUTDOWN_TIMEOUT_SECS = 5
-  _cached_grpc_server = None
-  instance_count = 0
+  _shared_grpc_server = None
   _lock = threading.Lock()
 
   def __init__(self, state, provision_info):
@@ -1141,6 +1135,7 @@ class GrpcServer(object):
         futures.ThreadPoolExecutor(max_workers=10))
     self.control_port = self.control_server.add_insecure_port('[::]:0')
     self.control_address = 'localhost:%s' % self.control_port
+    GrpcServer._shared_grpc_server = self
 
     # Options to have no limits (-1) on the size of the messages
     # received or sent over the data plane. The actual buffer size
@@ -1160,7 +1155,6 @@ class GrpcServer(object):
     self.control_handler = BeamFnControlServicer()
     beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server(
         self.control_handler, self.control_server)
-    self.control_conn_handler = collections.defaultdict(ControlConnection)
 
     # If we have provision info, serve these off the control port as well.
     if self.provision_info:
@@ -1180,11 +1174,9 @@ class GrpcServer(object):
                 self.provision_info.artifact_staging_dir),
             self.control_server)
 
-    self.data_plane_handler = data_plane.GrpcServerDataChannel()
+    self.data_plane_handler = data_plane.BeamFnDataServicer()
     beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(
         self.data_plane_handler, self.data_server)
-    self.data_conn_handler = collections.defaultdict(
-        data_plane.GrpcDataChannelConnection)
 
     beam_fn_api_pb2_grpc.add_BeamFnStateServicer_to_server(
         FnApiRunner.GrpcStateServicer(state),
@@ -1207,31 +1199,7 @@ class GrpcServer(object):
     self.data_server.start()
     self.control_server.start()
 
-  @classmethod
-  def get_control_conn_handler(cls):
-    return GrpcServer._cached_grpc_server.control_conn_handler
-
-  @classmethod
-  def get_data_conn_handler(cls):
-    return GrpcServer._cached_grpc_server.data_conn_handler
-
-  @classmethod
-  def get_instance(cls, state, provision_info):
-    if not GrpcServer._cached_grpc_server:
-      GrpcServer._cached_grpc_server = GrpcServer(state, provision_info)
-    GrpcServer.instance_count += 1
-    return GrpcServer._cached_grpc_server
-
-  def release_instance(self):
-    with GrpcServer._lock:
-      GrpcServer.instance_count -= 1
-    if GrpcServer.instance_count == 0:
-      self._close()
-    else:
-      logging.info('Waiting for %s workers to close.' %
-                   (GrpcServer.instance_count))
-
-  def _close(self):
+  def close(self):
     self.control_handler.done()
     to_wait = [
         self.control_server.stop(self._DEFAULT_SHUTDOWN_TIMEOUT_SECS),
@@ -1241,26 +1209,26 @@ class GrpcServer(object):
     ]
     for w in to_wait:
       w.wait()
-    GrpcServer._cached_grpc_server = None
+    GrpcServer._shared_grpc_server = None
 
 
 class GrpcWorkerHandler(WorkerHandler):
   """An grpc based worker_handler for fn API control, state and data planes."""
 
   def __init__(self, state, provision_info):
-    self.grpc_server = GrpcServer.get_instance(state, provision_info)
+    self.grpc_server = GrpcServer._shared_grpc_server
+    super(GrpcWorkerHandler, self).__init__(
+        self.grpc_server.control_handler, self.grpc_server.data_plane_handler,
+        state, provision_info)
     self.state = state
-    self.worker_id = self.get_worker_id()
 
     self.control_address = self.grpc_server.control_address
-    self.control_conn = ControlConnection()
-    self.control_conn_handler = self.grpc_server.control_conn_handler
-    self.control_conn_handler[self.worker_id] = self.control_conn
+    self.control_conn = self.grpc_server.control_handler\
+      .connections_by_worker_id[self.worker_id]
 
     self.data_port = self.grpc_server.data_port
-    self.data_conn = data_plane.GrpcDataChannelConnection()
-    self.data_conn_handler = self.grpc_server.data_conn_handler
-    self.data_conn_handler[self.worker_id] = self.data_conn
+    self.data_conn = self.grpc_server.data_plane_handler\
+      .connections_by_worker_id[self.worker_id]
 
     self.state_port = self.grpc_server.state_port
     self.logging_port = self.grpc_server.logging_port
@@ -1280,9 +1248,7 @@ class GrpcWorkerHandler(WorkerHandler):
   def close(self):
     self.control_conn.close()
     self.data_conn.close()
-    self.grpc_server.release_instance()
-    if GrpcServer.instance_count == 0:
-      super(GrpcWorkerHandler, self).close()
+    super(GrpcWorkerHandler, self).close()
 
 
 @WorkerHandler.register_environment(
@@ -1406,21 +1372,22 @@ class WorkerHandlerManager(object):
     self._job_provision_info = job_provision_info
     self._cached_handlers = collections.defaultdict(list)
     self._state = FnApiRunner.StateServicer() # rename?
+    # TODO(hannahjiang): create a grpc_server only for grpc env.
+    self.grpc_server = GrpcServer(self._state, self._job_provision_info)
 
   def get_worker_handlers(self, environment_id, num_workers):
     if environment_id is None:
       # Any environment will do, pick one arbitrarily.
       environment_id = next(iter(self._environments.keys()))
     environment = self._environments[environment_id]
-
-    worker_handler_list = self._cached_handlers.get(environment_id, [])
-    if len(worker_handler_list) < num_workers:
+    worker_handler_list = self._cached_handlers[environment_id]
+    if not worker_handler_list or len(worker_handler_list) < num_workers:
       for _ in range(len(worker_handler_list), num_workers):
         worker_handler = WorkerHandler.create(
             environment, self._state, self._job_provision_info)
         self._cached_handlers[environment_id].append(worker_handler)
         worker_handler.start_worker()
-    return self._cached_handlers[environment_id]
+    return self._cached_handlers[environment_id][:num_workers]
 
   def close_all(self):
     for worker_handler_list in self._cached_handlers.values():
@@ -1431,6 +1398,7 @@ class WorkerHandlerManager(object):
           logging.error("Error closing worker_handler %s" % worker_handler,
                         exc_info=True)
     self._cached_handlers = {}
+    self.grpc_server.close()
 
 
 class ExtendedProvisionInfo(object):

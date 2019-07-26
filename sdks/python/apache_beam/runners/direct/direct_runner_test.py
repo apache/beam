@@ -17,7 +17,9 @@
 
 from __future__ import absolute_import
 
+import logging
 import threading
+import time
 import unittest
 
 import hamcrest as hc
@@ -52,6 +54,15 @@ class DirectPipelineResultTest(unittest.TestCase):
 
       post_test_threads = set(t.ident for t in threading.enumerate())
       new_threads = post_test_threads - pre_test_threads
+      if len(new_threads) > 0:
+        for i in range(1, 6):
+          logging.info('%s: Wait %s second(s) for thread(s) to close.' %
+                       (runner, i))
+          time.sleep(i)
+          post_test_threads = set(t.ident for t in threading.enumerate())
+          new_threads = post_test_threads - pre_test_threads
+          if len(new_threads) == 0:
+            break
       self.assertEqual(len(new_threads), 0)
 
   def test_direct_runner_metrics(self):
@@ -122,4 +133,5 @@ class DirectPipelineResultTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
   unittest.main()

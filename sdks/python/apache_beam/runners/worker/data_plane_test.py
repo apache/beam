@@ -33,6 +33,7 @@ from future.utils import raise_
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import data_plane
+from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 
 def timeout(timeout_secs):
@@ -61,16 +62,22 @@ class DataChannelTest(unittest.TestCase):
 
   @timeout(5)
   def test_grpc_data_channel(self):
-    data_channel_service = data_plane.GrpcServerDataChannel()
+    data_servicer = data_plane.BeamFnDataServicer()
+    worker_id = 'worker_0'
+    data_channel_service = \
+      data_servicer.connections_by_worker_id[worker_id]
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))
     beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(
-        data_channel_service, server)
+        data_servicer, server)
     test_port = server.add_insecure_port('[::]:0')
     server.start()
 
-    data_channel_stub = beam_fn_api_pb2_grpc.BeamFnDataStub(
-        grpc.insecure_channel('localhost:%s' % test_port))
+    grpc_channel = grpc.insecure_channel('localhost:%s' % test_port)
+    # Add workerId to the grpc channel
+    grpc_channel = grpc.intercept_channel(
+        grpc_channel, WorkerIdInterceptor(worker_id))
+    data_channel_stub = beam_fn_api_pb2_grpc.BeamFnDataStub(grpc_channel)
     data_channel_client = data_plane.GrpcClientDataChannel(data_channel_stub)
 
     try:
@@ -78,8 +85,8 @@ class DataChannelTest(unittest.TestCase):
     finally:
       data_channel_client.close()
       data_channel_service.close()
-      data_channel_client.data_conn.wait()
-      data_channel_service.data_conn.wait()
+      data_channel_client.wait()
+      data_channel_service.wait()
 
   def test_in_memory_data_channel(self):
     channel = data_plane.InMemoryDataChannel()
@@ -91,8 +98,7 @@ class DataChannelTest(unittest.TestCase):
 
   def _data_channel_test_one_direction(self, from_channel, to_channel):
     def send(instruction_id, transform_id, data):
-      stream = from_channel.data_conn.output_stream(
-          instruction_id, transform_id)
+      stream = from_channel.output_stream(instruction_id, transform_id)
       stream.write(data)
       stream.close()
     transform_1 = '1'
@@ -101,7 +107,7 @@ class DataChannelTest(unittest.TestCase):
     # Single write.
     send('0', transform_1, b'abc')
     self.assertEqual(
-        list(to_channel.data_conn.input_elements('0', [transform_1])),
+        list(to_channel.input_elements('0', [transform_1])),
         [beam_fn_api_pb2.Elements.Data(
             instruction_reference='0',
             ptransform_id=transform_1,
@@ -111,14 +117,14 @@ class DataChannelTest(unittest.TestCase):
     send('1', transform_1, b'abc')
     send('2', transform_1, b'def')
     self.assertEqual(
-        list(to_channel.data_conn.input_elements('1', [transform_1])),
+        list(to_channel.input_elements('1', [transform_1])),
         [beam_fn_api_pb2.Elements.Data(
             instruction_reference='1',
             ptransform_id=transform_1,
             data=b'abc')])
     send('2', transform_2, b'ghi')
     self.assertEqual(
-        list(to_channel.data_conn.input_elements('2', [transform_1, transform_2])),
+        list(to_channel.input_elements('2', [transform_1, transform_2])),
         [beam_fn_api_pb2.Elements.Data(
             instruction_reference='2',
             ptransform_id=transform_1,

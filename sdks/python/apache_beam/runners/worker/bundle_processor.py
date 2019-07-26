@@ -564,7 +564,7 @@ class BundleProcessor(object):
       if isinstance(op, DataOutputOperation):
         # TODO(robertwb): Is there a better way to pass the instruction id to
         # the operation?
-        op.set_output_stream(op.data_channel.data_conn.output_stream(
+        op.set_output_stream(op.data_channel.output_stream(
             instruction_id, op.transform_id))
       elif isinstance(op, DataInputOperation):
         # We must wait until we receive "end of stream" for each of these ops.
@@ -587,7 +587,7 @@ class BundleProcessor(object):
         input_op_by_transform_id[input_op.transform_id] = input_op
 
       for data_channel, expected_transforms in data_channels.items():
-        for data in data_channel.data_conn.input_elements(
+        for data in data_channel.input_elements(
             instruction_id, expected_transforms):
           input_op_by_transform_id[
               data.ptransform_id].process_encoded(data.data)

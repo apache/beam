@@ -69,78 +69,22 @@ class ClosableOutputStream(type(coder_impl.create_OutputStream())):
       self._close_callback(self.get())
 
 
-class DataChannel(object):
+class DataChannel(with_metaclass(abc.ABCMeta, object)):
+  """Represents a channel for reading and writing data over the data plane.
 
-  def __init__(self):
-    self.data_conn = DataChannelConnection()
-
-
-class InMemoryDataChannel(DataChannel):
-  """An in-memory implementation of a DataChannel.
-
-  This channel is two-sided.  What is written to one side is read by the other.
-  The inverse() method returns the other side of an instance.
-  """
-
-  def __init__(self, inverse=None, data_conn=None):
-    self.data_conn = data_conn or InMemoryDataChannelConnection()
-    self._inverse = inverse or InMemoryDataChannel(
-        self, self.data_conn.inverse())
-
-  def inverse(self):
-    return self._inverse
-
-
-class GrpcClientDataChannel(DataChannel):
-  """A DataChannel wrapping the client side of a BeamFnData connection."""
-
-  def __init__(self, data_stub):
-    self.data_conn = GrpcDataChannelConnection()
-    self.data_conn._start_reader(data_stub.Data(
-        self.data_conn._write_outputs()))
-
-
-class GrpcServerDataChannel(
-    beam_fn_api_pb2_grpc.BeamFnDataServicer, DataChannel):
-  """A DataChannel wrapping the server side of a BeamFnData connection."""
-
-  def __init__(self):
-    self.data_conn = GrpcDataChannelConnection()
-
-  def Data(self, elements_iterator, context):
-    # py27 doesn't support recursive import at module level
-    from apache_beam.runners.portability import fn_api_runner
-    worker_id = dict(context.invocation_metadata()).get('worker_id')
-    # if data_plane_test, GrpcServer is not created, hence conn_handler will
-    # throw out an error.
-    try:
-      conn_handler = fn_api_runner.GrpcServer.get_data_conn_handler()
-      self.data_conn = conn_handler.get(worker_id)
-    except:
-      pass
-    self.data_conn._start_reader(elements_iterator)
-    for elements in self.data_conn._write_outputs():
-      yield elements
-
-
-class DataChannelConnection(with_metaclass(abc.ABCMeta, object)):
-
-  """Represents a data channel connection for reading and writing data over the
-  data plane.
-
-  Read from this connection with the input_elements method::
+  Read from this channel with the input_elements method::
 
     for elements_data in data_channel.input_elements(
         instruction_id, transform_ids):
       [process elements_data]
 
-  Write to this connection using the output_stream method::
+  Write to this channel using the output_stream method::
 
     out1 = data_channel.output_stream(instruction_id, transform_id)
     out1.write(...)
     out1.close()
 
-  When all data for all instructions is written, close the connection::
+  When all data for all instructions is written, close the channel::
 
     data_channel.close()
   """
@@ -183,11 +127,16 @@ class DataChannelConnection(with_metaclass(abc.ABCMeta, object)):
     raise NotImplementedError(type(self))
 
 
-class InMemoryDataChannelConnection(DataChannelConnection):
+class InMemoryDataChannel(DataChannel):
+  """An in-memory implementation of a DataChannel.
+
+  This channel is two-sided.  What is written to one side is read by the other.
+  The inverse() method returns the other side of a instance.
+  """
 
   def __init__(self, inverse=None):
     self._inputs = []
-    self._inverse = inverse or InMemoryDataChannelConnection(self)
+    self._inverse = inverse or InMemoryDataChannel(self)
 
   def inverse(self):
     return self._inverse
@@ -216,8 +165,9 @@ class InMemoryDataChannelConnection(DataChannelConnection):
   def close(self):
     pass
 
-class GrpcDataChannelConnection(DataChannelConnection):
-  """Base class for implementing a BeamFnData-based DataChannelConnection."""
+
+class _GrpcDataChannel(DataChannel):
+  """Base class for implementing a BeamFnData-based DataChannel."""
 
   _WRITES_FINISHED = object()
 
@@ -331,12 +281,35 @@ class GrpcDataChannelConnection(DataChannelConnection):
       self._closed = True
       self._reads_finished.set()
 
-  def _start_reader(self, elements_iterator):
+  def set_inputs(self, elements_iterator):
     reader = threading.Thread(
         target=lambda: self._read_inputs(elements_iterator),
         name='read_grpc_client_inputs')
     reader.daemon = True
     reader.start()
+
+
+class GrpcClientDataChannel(_GrpcDataChannel):
+  """A DataChannel wrapping the client side of a BeamFnData connection."""
+
+  def __init__(self, data_stub):
+    super(GrpcClientDataChannel, self).__init__()
+    self.set_inputs(data_stub.Data(self._write_outputs()))
+
+
+class BeamFnDataServicer(beam_fn_api_pb2_grpc.BeamFnDataServicer):
+  """Implementation of BeamFnDataServicer for any number of clients"""
+
+  def __init__(self):
+    self.connections_by_worker_id = collections.defaultdict(
+        _GrpcDataChannel)
+
+  def Data(self, elements_iterator, context):
+    worker_id = dict(context.invocation_metadata()).get('worker_id')
+    data_conn = self.connections_by_worker_id[worker_id]
+    data_conn.set_inputs(elements_iterator)
+    for elements in data_conn._write_outputs():
+      yield elements
 
 
 class DataChannelFactory(with_metaclass(abc.ABCMeta, object)):
@@ -397,7 +370,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
   def close(self):
     logging.info('Closing all cached grpc data channels.')
     for _, channel in self._data_channel_cache.items():
-      channel.data_conn.close()
+      channel.close()
     self._data_channel_cache.clear()
 
 
