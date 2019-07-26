@@ -447,13 +447,12 @@ class GoogleCloudOptions(PipelineOptions):
     parser.add_argument('--temp_location',
                         default=None,
                         help='GCS path for saving temporary workflow jobs.')
-    # The Cloud Dataflow service does not yet honor this setting. However, once
-    # service support is added then users of this SDK will be able to control
-    # the region. Default is up to the Dataflow service. See
+    # The Google Compute Engine region for creating Dataflow jobs. See
     # https://cloud.google.com/compute/docs/regions-zones/regions-zones for a
-    # list of valid options/
+    # list of valid options. Currently defaults to us-central1, but future
+    # releases of Beam will require the user to set the region explicitly.
     parser.add_argument('--region',
-                        default='us-central1',
+                        default=None,
                         help='The Google Compute Engine region for creating '
                         'Dataflow job.')
     parser.add_argument('--service_account_email',
@@ -504,6 +503,15 @@ class GoogleCloudOptions(PipelineOptions):
       if self.view_as(GoogleCloudOptions).template_location:
         errors.append('--dataflow_job_file and --template_location '
                       'are mutually exclusive.')
+
+    if self.view_as(GoogleCloudOptions).region is None:
+      self.view_as(GoogleCloudOptions).region = 'us-central1'
+      runner = self.view_as(StandardOptions).runner
+      if runner == 'DataflowRunner' or runner == 'TestDataflowRunner':
+        logging.warning(
+            '--region not set; will default to us-central1. Future releases of '
+            'Beam will require the user to set the region explicitly. '
+            'https://cloud.google.com/compute/docs/regions-zones/regions-zones')
 
     return errors
 
