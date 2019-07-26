@@ -270,6 +270,16 @@ class TrivialInferenceTest(unittest.TestCase):
                           [str, typehints.List[int]])
 
   @unittest.skipIf(sys.version_info < (3, 6), 'CALL_FUNCTION_EX is new in 3.6')
+  def testCallFunctionEx(self):
+    # Test when fn arguments are built using BUiLD_LIST.
+    def fn(*args):
+      return args
+
+    self.assertReturnType(typehints.List[typehints.Union[str, float]],
+                          lambda x1, x2: fn(*[x1, x2]),
+                          [str, float])
+
+  @unittest.skipIf(sys.version_info < (3, 6), 'CALL_FUNCTION_EX is new in 3.6')
   def testCallFunctionExKwargs(self):
     def fn(x1, x2, **unused_kwargs):
       return x1, x2

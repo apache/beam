@@ -435,17 +435,16 @@ def _unpack_lists(state, arg):
 
 
 def build_list_unpack(state, arg):
+  """Joins arg count iterables from the stack into a single list."""
   state.stack.append(List[Union[_unpack_lists(state, arg)]])
 
 
 def build_tuple_unpack(state, arg):
+  """Joins arg count iterables from the stack into a single tuple."""
   state.stack.append(Tuple[_unpack_lists(state, arg)])
 
 
 def build_tuple_unpack_with_call(state, arg):
-  args_and_callable = _unpack_lists(state, arg)
-  fn = state.stack.pop()
-  args_and_callable.append(fn)
-  # Note this opcode puts a regular tuple() on the stack (unlike
-  # build_tuple_unpack), since Tuple only accepts types and fn is not a type.
-  state.stack.append(tuple(args_and_callable))
+  """Same as build_tuple_unpack, with an extra fn argument at the bottom of the
+  stack, which remains untouched."""
+  build_tuple_unpack(state, arg)
