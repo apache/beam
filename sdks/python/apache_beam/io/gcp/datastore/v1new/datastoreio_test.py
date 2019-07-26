@@ -37,6 +37,7 @@ try:
   from apache_beam.io.gcp.datastore.v1new.datastoreio import DeleteFromDatastore
   from apache_beam.io.gcp.datastore.v1new.datastoreio import ReadFromDatastore
   from apache_beam.io.gcp.datastore.v1new.datastoreio import WriteToDatastore
+  from apache_beam.io.gcp.datastore.v1new.types import Key
   from google.cloud.datastore import client
   from google.cloud.datastore import entity
   from google.cloud.datastore import helpers
@@ -203,6 +204,14 @@ class DatastoreioTest(DatastoreioTestBase):
       entities = helper.create_entities(num_entities)
       expected_entities = [entity.to_client_entity() for entity in entities]
 
+      # Infer project from write fn project arg.
+      if num_entities:
+        key = Key(['k1', 1234], project=self._PROJECT)
+        expected_key = key.to_client_key()
+        key.project = None
+        entities[0].key = key
+        expected_entities[0].key = expected_key
+
       all_batch_entities = []
       commit_count = [0]
       self._mock_client.batch.side_effect = (
@@ -273,6 +282,13 @@ class DatastoreioTest(DatastoreioTestBase):
     with patch.object(helper, 'get_client', return_value=self._mock_client):
       keys = [entity.key for entity in helper.create_entities(10)]
       expected_keys = [key.to_client_key() for key in keys]
+
+      # Infer project from delete fn project arg.
+      key = Key(['k1', 1234], project=self._PROJECT)
+      expected_key = key.to_client_key()
+      key.project = None
+      keys.append(key)
+      expected_keys.append(expected_key)
 
       all_batch_keys = []
       self._mock_client.batch.side_effect = (

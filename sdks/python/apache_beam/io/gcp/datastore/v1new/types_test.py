@@ -51,18 +51,22 @@ class TypesTest(unittest.TestCase):
     kc = k.to_client_key()
     exclude_from_indexes = ('efi1', 'efi2')
     e = Entity(k, exclude_from_indexes=exclude_from_indexes)
-    e.set_properties({'efi1': 'value', 'property': 'value'})
+    ref = Key(['kind2', 1235])
+    e.set_properties({'efi1': 'value', 'property': 'value', 'ref': ref})
     ec = e.to_client_entity()
     self.assertEqual(kc, ec.key)
     self.assertSetEqual(set(exclude_from_indexes), ec.exclude_from_indexes)
     self.assertEqual('kind', ec.kind)
     self.assertEqual(1234, ec.id)
+    self.assertEqual(1235, ec['ref'].id)
+    self.assertEqual(self._PROJECT, ec['ref'].project)
 
   def testEntityFromClientEntity(self):
     k = Key(['kind', 1234], project=self._PROJECT)
     exclude_from_indexes = ('efi1', 'efi2')
     e = Entity(k, exclude_from_indexes=exclude_from_indexes)
-    e.set_properties({'efi1': 'value', 'property': 'value'})
+    ref = Key(['kind2', 1235])
+    e.set_properties({'efi1': 'value', 'property': 'value', 'ref': ref})
     efc = Entity.from_client_entity(e.to_client_entity())
     self.assertEqual(e, efc)
 
@@ -100,6 +104,10 @@ class TypesTest(unittest.TestCase):
 
     kfc3 = Key.from_client_key(kfc2.to_client_key())
     self.assertEqual(kfc2, kfc3)
+
+    kfc4 = Key.from_client_key(kfc2.to_client_key())
+    kfc4.project = 'other'
+    self.assertNotEqual(kfc2, kfc4)
 
   def testKeyFromClientKeyNoNamespace(self):
     k = Key(['k1', 1234], project=self._PROJECT)

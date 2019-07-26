@@ -382,6 +382,8 @@ class WriteToDatastore(_Mutate):
       if not isinstance(element, types.Entity):
         raise ValueError('apache_beam.io.gcp.datastore.v1new.datastoreio.Entity'
                          ' expected, got: %s' % type(element))
+      if not element.key.project:
+        element.key.project = self._project
       client_entity = element.to_client_entity()
       if client_entity.key.is_partial:
         raise ValueError('Entities to be written to Cloud Datastore must '
@@ -420,6 +422,8 @@ class DeleteFromDatastore(_Mutate):
       if not isinstance(element, types.Key):
         raise ValueError('apache_beam.io.gcp.datastore.v1new.datastoreio.Key'
                          ' expected, got: %s' % type(element))
+      if not element.project:
+        element.project = self._project
       client_key = element.to_client_key()
       if client_key.is_partial:
         raise ValueError('Keys to be deleted from Cloud Datastore must be '
