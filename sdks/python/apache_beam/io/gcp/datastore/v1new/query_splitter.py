@@ -105,7 +105,7 @@ def validate_split(query):
     raise SplitNotPossibleError('Query cannot have a limit set.')
 
   for filter in query.filters:
-    if isinstance(filter, ValueProvider):
+    if isinstance(filter[1], ValueProvider):
       if filter[1].get() in ['<', '<=', '>', '>=']:
         raise SplitNotPossibleError('Query cannot have any inequality filters.')
     if filter[1] in ['<', '<=', '>', '>=']:
