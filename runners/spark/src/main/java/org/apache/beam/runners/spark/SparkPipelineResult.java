@@ -133,8 +133,11 @@ public abstract class SparkPipelineResult implements PipelineResult {
     @Override
     protected State awaitTermination(final Duration duration)
         throws TimeoutException, ExecutionException, InterruptedException {
-      final long awaitDuration = duration.getMillis() > 0 ? duration.getMillis() : Long.MAX_VALUE;
-      pipelineExecution.get(awaitDuration, TimeUnit.MILLISECONDS);
+      if (duration.getMillis() > 0) {
+        pipelineExecution.get(duration.getMillis(), TimeUnit.MILLISECONDS);
+      } else {
+        pipelineExecution.get();
+      }
       return PipelineResult.State.DONE;
     }
   }
