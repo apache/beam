@@ -91,7 +91,7 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
             dynamicSplitResultToReport, Duration.millis(requestedLeaseDurationMs));
     if (result != null) {
       HotKeyDetection hot_key_detection = result.getHotKeyDetection();
-      if (hot_key_detection != null) {
+      if (hot_key_detection != null && hot_key_detection.getUserStepName() != null) {
         LOG.warn(
             "A hot key was detected in step {} in work unit {}. This is a symptom of key "
                 + "distribution being skewed. To fix, please inspect your data and pipeline to "
