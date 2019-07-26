@@ -29,7 +29,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkProgressUpdater;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +58,6 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
    * virtual time for testing, and the {@link Clock} parameter is used to inject a mock clock that
    * provides virtual time.
    */
-  @VisibleForTesting
   DataflowWorkProgressUpdater(
       WorkItemStatusClient workItemStatusClient,
       WorkItem workItem,
@@ -94,10 +92,12 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
     if (result != null) {
       HotKeyDetection hot_key_detection = result.getHotKeyDetection();
       if (hot_key_detection != null) {
-        LOG.warn("A hot key was detected in step {} in work unit {}. This is a symptom of key "
-                + "distribution being skewed. To fix, please inspect your data and pipeline to ensure "
-                + "that elements are evenly distributed across your key space.",
-            hot_key_detection.getUserStepName(), workString());
+        LOG.warn(
+            "A hot key was detected in step {} in work unit {}. This is a symptom of key "
+                + "distribution being skewed. To fix, please inspect your data and pipeline to "
+                + "ensure that elements are evenly distributed across your key space.",
+            hot_key_detection.getUserStepName(),
+            workString());
       }
 
       // Resets state after a successful progress report.
