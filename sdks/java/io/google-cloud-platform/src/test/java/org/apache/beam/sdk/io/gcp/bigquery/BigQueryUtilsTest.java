@@ -174,6 +174,20 @@ public class BigQueryUtilsTest {
   private static final TableSchema BQ_ARRAY_ROW_TYPE =
       new TableSchema().setFields(Arrays.asList(ROWS));
 
+  private static final Schema AVRO_FLAT_TYPE =
+      Schema.builder()
+          .addNullableField("id", Schema.FieldType.INT64)
+          .addNullableField("value", Schema.FieldType.DOUBLE)
+          .addNullableField("name", Schema.FieldType.STRING)
+          .addNullableField("valid", Schema.FieldType.BOOLEAN)
+          .build();
+
+  private static final Schema AVRO_ARRAY_TYPE =
+      Schema.builder().addArrayField("rows", Schema.FieldType.row(AVRO_FLAT_TYPE)).build();
+
+  private static final Schema AVRO_ARRAY_ARRAY_TYPE =
+      Schema.builder().addArrayField("array_rows", Schema.FieldType.row(AVRO_ARRAY_TYPE)).build();
+
   @Test
   public void testToTableSchema_flat() {
     TableSchema schema = toTableSchema(FLAT_TYPE);
@@ -291,7 +305,9 @@ public class BigQueryUtilsTest {
         IllegalArgumentException.class,
         () ->
             BigQueryUtils.convertAvroFormat(
-                Schema.Field.of("dummy", Schema.FieldType.DATETIME), 1000000001L, REJECT_OPTIONS));
+                Schema.Field.of("dummy", Schema.FieldType.DATETIME).getType(),
+                1000000001L,
+                REJECT_OPTIONS));
   }
 
   @Test
@@ -299,7 +315,9 @@ public class BigQueryUtilsTest {
     long millis = 123456789L;
     assertThat(
         BigQueryUtils.convertAvroFormat(
-            Schema.Field.of("dummy", Schema.FieldType.DATETIME), millis * 1000, REJECT_OPTIONS),
+            Schema.Field.of("dummy", Schema.FieldType.DATETIME).getType(),
+            millis * 1000,
+            REJECT_OPTIONS),
         equalTo(new Instant(millis)));
   }
 
@@ -308,7 +326,7 @@ public class BigQueryUtilsTest {
     long millis = 123456789L;
     assertThat(
         BigQueryUtils.convertAvroFormat(
-            Schema.Field.of("dummy", Schema.FieldType.DATETIME),
+            Schema.Field.of("dummy", Schema.FieldType.DATETIME).getType(),
             millis * 1000 + 123,
             TRUNCATE_OPTIONS),
         equalTo(new Instant(millis)));
@@ -321,7 +339,8 @@ public class BigQueryUtilsTest {
         IllegalArgumentException.class,
         () ->
             BigQueryUtils.convertAvroFormat(
-                Schema.Field.of("dummy", Schema.FieldType.logicalType(new FakeSqlTimeType())),
+                Schema.Field.of("dummy", Schema.FieldType.logicalType(new FakeSqlTimeType()))
+                    .getType(),
                 1000000001L,
                 REJECT_OPTIONS));
   }
@@ -331,7 +350,7 @@ public class BigQueryUtilsTest {
     long millis = 123456789L;
     assertThat(
         BigQueryUtils.convertAvroFormat(
-            Schema.Field.of("dummy", Schema.FieldType.logicalType(new FakeSqlTimeType())),
+            Schema.Field.of("dummy", Schema.FieldType.logicalType(new FakeSqlTimeType())).getType(),
             millis * 1000,
             REJECT_OPTIONS),
         equalTo(new Instant(millis)));
@@ -342,7 +361,7 @@ public class BigQueryUtilsTest {
     long millis = 123456789L;
     assertThat(
         BigQueryUtils.convertAvroFormat(
-            Schema.Field.of("dummy", Schema.FieldType.logicalType(new FakeSqlTimeType())),
+            Schema.Field.of("dummy", Schema.FieldType.logicalType(new FakeSqlTimeType())).getType(),
             millis * 1000 + 123,
             TRUNCATE_OPTIONS),
         equalTo(new Instant(millis)));
@@ -426,20 +445,13 @@ public class BigQueryUtilsTest {
   }
 
   @Test
-  public void testToBeamRow_repeated_row() {
-    Schema type =
-        Schema.builder()
-            .addNullableField("id", Schema.FieldType.INT64)
-            .addNullableField("value", Schema.FieldType.DOUBLE)
-            .addNullableField("name", Schema.FieldType.STRING)
-            .addNullableField("valid", Schema.FieldType.BOOLEAN)
-            .build();
-    Row flatAvroRow = Row.withSchema(type).addValues(123L, 123.456, "test", false).build();
-    Schema arrayType = Schema.builder().addArrayField("rows", Schema.FieldType.row(type)).build();
-    Row expected = Row.withSchema(arrayType).addValues((Object) Arrays.asList(flatAvroRow)).build();
-
-    GenericData.Record record = new GenericData.Record(AvroUtils.toAvroSchema(arrayType));
-    GenericData.Record flat = new GenericData.Record(AvroUtils.toAvroSchema(type));
+  public void testToBeamRow_avro_array_row() {
+    Row flatRowExpected =
+        Row.withSchema(AVRO_FLAT_TYPE).addValues(123L, 123.456, "test", false).build();
+    Row expected =
+        Row.withSchema(AVRO_ARRAY_TYPE).addValues((Object) Arrays.asList(flatRowExpected)).build();
+    GenericData.Record record = new GenericData.Record(AvroUtils.toAvroSchema(AVRO_ARRAY_TYPE));
+    GenericData.Record flat = new GenericData.Record(AvroUtils.toAvroSchema(AVRO_FLAT_TYPE));
     flat.put("id", 123L);
     flat.put("value", 123.456);
     flat.put("name", "test");
@@ -447,7 +459,34 @@ public class BigQueryUtilsTest {
     record.put("rows", Arrays.asList(flat));
     Row beamRow =
         BigQueryUtils.toBeamRow(
-            record, arrayType, BigQueryUtils.ConversionOptions.builder().build());
+            record, AVRO_ARRAY_TYPE, BigQueryUtils.ConversionOptions.builder().build());
+    assertEquals(expected, beamRow);
+  }
+
+  @Test
+  public void testToBeamRow_avro_array_array_row() {
+    Row flatRowExpected =
+        Row.withSchema(AVRO_FLAT_TYPE).addValues(123L, 123.456, "test", false).build();
+    Row arrayRowExpected =
+        Row.withSchema(AVRO_ARRAY_TYPE).addValues((Object) Arrays.asList(flatRowExpected)).build();
+    Row expected =
+        Row.withSchema(AVRO_ARRAY_ARRAY_TYPE)
+            .addValues((Object) Arrays.asList(arrayRowExpected))
+            .build();
+    GenericData.Record arrayRecord =
+        new GenericData.Record(AvroUtils.toAvroSchema(AVRO_ARRAY_TYPE));
+    GenericData.Record flat = new GenericData.Record(AvroUtils.toAvroSchema(AVRO_FLAT_TYPE));
+    GenericData.Record record =
+        new GenericData.Record(AvroUtils.toAvroSchema(AVRO_ARRAY_ARRAY_TYPE));
+    flat.put("id", 123L);
+    flat.put("value", 123.456);
+    flat.put("name", "test");
+    flat.put("valid", false);
+    arrayRecord.put("rows", Arrays.asList(flat));
+    record.put("array_rows", Arrays.asList(arrayRecord));
+    Row beamRow =
+        BigQueryUtils.toBeamRow(
+            record, AVRO_ARRAY_ARRAY_TYPE, BigQueryUtils.ConversionOptions.builder().build());
     assertEquals(expected, beamRow);
   }
 }
