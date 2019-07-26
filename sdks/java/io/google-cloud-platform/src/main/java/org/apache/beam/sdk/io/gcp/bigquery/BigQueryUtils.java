@@ -314,7 +314,15 @@ public class BigQueryUtils {
   public static Row toBeamRow(GenericRecord record, Schema schema, ConversionOptions options) {
     List<Object> valuesInOrder =
         schema.getFields().stream()
-            .map(field -> convertAvroFormat(field.getType(), record.get(field.getName()), options))
+            .map(
+                field -> {
+                  try {
+                    return convertAvroFormat(field.getType(), record.get(field.getName()), options);
+                  } catch (Exception cause) {
+                    throw new IllegalArgumentException(
+                        "Error converting field " + field + ": " + cause.getMessage(), cause);
+                  }
+                })
             .collect(toList());
 
     return Row.withSchema(schema).addValues(valuesInOrder).build();
