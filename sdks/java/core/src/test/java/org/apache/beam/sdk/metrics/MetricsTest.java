@@ -27,6 +27,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
@@ -84,6 +85,10 @@ public class MetricsTest implements Serializable {
     }
 
     protected PipelineResult runPipelineWithMetrics() {
+      return runPipelineWithMetrics(pipeline);
+    }
+
+    PipelineResult runPipelineWithMetrics(Pipeline pipeline) {
       final Counter count = Metrics.counter(MetricsTest.class, "count");
       final TupleTag<Integer> output1 = new TupleTag<Integer>() {};
       final TupleTag<Integer> output2 = new TupleTag<Integer>() {};
@@ -345,11 +350,13 @@ public class MetricsTest implements Serializable {
     })
     @Test
     public void testAllAttemptedMetrics() {
-      PipelineResult result = runPipelineWithMetrics();
-      MetricQueryResults metrics = queryTestMetrics(result);
+      for (int i = 0; i < 1000; i++) {
+        PipelineResult result = runPipelineWithMetrics(Pipeline.create());
+        MetricQueryResults metrics = queryTestMetrics(result);
 
-      // TODO: BEAM-1169: Metrics shouldn't verify the physical values tightly.
-      assertAllMetrics(metrics, false);
+        // TODO: BEAM-1169: Metrics shouldn't verify the physical values tightly.
+        assertAllMetrics(metrics, false);
+      }
     }
 
     @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
