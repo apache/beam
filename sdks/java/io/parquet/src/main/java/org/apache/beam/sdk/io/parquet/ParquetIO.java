@@ -316,6 +316,7 @@ public class ParquetIO {
 
     @Override
     public void flush() throws IOException {
+      // the only way to completely flush the output is to call writer.close() here
       writer.close();
     }
 
