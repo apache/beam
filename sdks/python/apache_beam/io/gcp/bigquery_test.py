@@ -485,6 +485,13 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
 class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
   BIG_QUERY_DATASET_ID = 'python_bq_streaming_inserts_'
 
+  # Prevent nose from finding and running tests that were not
+  # specified in the Gradle file.
+  # See "More tests may be found" in:
+  # https://nose.readthedocs.io/en/latest/doc_tests/test_multiprocess
+  # /multiprocess.html#other-differences-in-test-running
+  _multiprocess_can_split_ = True
+
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.runner_name = type(self.test_pipeline.runner).__name__
