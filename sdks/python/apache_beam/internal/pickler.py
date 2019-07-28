@@ -136,6 +136,32 @@ def _reject_generators(unused_pickler, unused_obj):
 
 dill.dill.Pickler.dispatch[types.GeneratorType] = _reject_generators
 
+if sys.version_info[0] > 2:
+  # Monkey patch for dill._dill.Pickler to pickle functions
+  # with keyword-only args
+  _create_function = dill.dill._create_function
+
+  def _create_function_has_kwdefaults(fcode, fglobals, fname=None,
+                                      fdefaults=None, fclosure=None, fdict=None,
+                                      fkwdefaults=None):
+    func = _create_function(fcode, fglobals, fname, fdefaults, fclosure, fdict)
+    if fkwdefaults is not None:
+      func.__kwdefaults__ = fkwdefaults
+    return func
+
+  def new_save_reduce(self, func, args, state=None, listitems=None,
+                      dictitems=None, obj=None):
+    pickler = super(dill.dill.Pickler, self)
+    if func is _create_function and \
+            getattr(obj, '__kwdefaults__', None) is not None:
+      pickler.save_reduce(func=_create_function_has_kwdefaults,
+                          args=args + (getattr(obj, '__kwdefaults__', None),),
+                          state=state, listitems=listitems, dictitems=dictitems,
+                          obj=obj)
+    else:
+      pickler.save_reduce(func, args, state, listitems, dictitems, obj)
+
+  dill._dill.Pickler.save_reduce = new_save_reduce
 
 # This if guards against dill not being full initialized when generating docs.
 if 'save_module' in dir(dill.dill):
