@@ -28,7 +28,7 @@ from apache_beam.utils.counters import CounterFactory
 from apache_beam.utils.counters import CounterName
 
 try:
-  from apache_beam.runners.worker import statesampler_fast as statesampler_impl
+  from apache_beam.runners.worker import statesampler_fast as statesampler_impl  # type: ignore
   FAST_SAMPLER = True
 except ImportError:
   from apache_beam.runners.worker import statesampler_slow as statesampler_impl

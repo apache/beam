@@ -27,6 +27,7 @@ from __future__ import print_function
 import collections
 import threading
 import time
+import typing
 
 from apache_beam.runners.interactive.display import interactive_pipeline_graph
 
@@ -35,10 +36,12 @@ try:
   # _display_progress defines how outputs are printed on the frontend.
   _display_progress = IPython.display.display
 
-  def _formatter(string, pp, cycle):  # pylint: disable=unused-argument
-    pp.text(string)
-  plain = get_ipython().display_formatter.formatters['text/plain']  # pylint: disable=undefined-variable
-  plain.for_type(str, _formatter)
+  if not typing.TYPE_CHECKING:
+    def _formatter(string, pp, cycle):  # pylint: disable=unused-argument
+      pp.text(string)
+
+    plain = get_ipython().display_formatter.formatters['text/plain']  # pylint: disable=undefined-variable
+    plain.for_type(str, _formatter)
 
 # NameError is added here because get_ipython() throws "not defined" NameError
 # if not started with IPython.

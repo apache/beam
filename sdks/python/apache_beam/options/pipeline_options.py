@@ -181,7 +181,7 @@ class PipelineOptions(HasDisplayData):
       if cls == PipelineOptions:
         break
       elif '_add_argparse_args' in cls.__dict__:
-        cls._add_argparse_args(parser)
+        cls._add_argparse_args(parser)  # type: ignore
 
     # The _visible_options attribute will contain options that were recognized
     # by the parser.

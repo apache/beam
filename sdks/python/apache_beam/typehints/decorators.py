@@ -588,7 +588,7 @@ def get_type_hints(fn):
       hints = IOTypeHints()
       # Python 3.7 introduces annotations for _MethodDescriptorTypes.
       if isinstance(fn, _MethodDescriptorType) and sys.version_info < (3, 7):
-        hints.set_input_types(fn.__objclass__)
+        hints.set_input_types(fn.__objclass__)  # type: ignore
       return hints
   return fn._type_hints
   # pylint: enable=protected-access
