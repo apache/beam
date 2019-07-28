@@ -237,7 +237,7 @@ class DoOutputsTuple(object):
     # Special methods which may be accessed before the object is
     # fully constructed (e.g. in unpickling).
     if tag[:2] == tag[-2:] == '__':
-      return object.__getattr__(self, tag)
+      return object.__getattr__(self, tag)  # type: ignore
     return self[tag]
 
   def __getitem__(self, tag):

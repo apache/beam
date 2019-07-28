@@ -28,7 +28,7 @@ import traceback
 from builtins import object
 
 import grpc
-from google.protobuf import text_format
+from google.protobuf import text_format  # type: ignore # not in typeshed
 
 from apache_beam.metrics import monitoring_infos
 from apache_beam.portability.api import beam_artifact_api_pb2
