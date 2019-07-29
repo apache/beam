@@ -105,7 +105,8 @@ def main(unused_argv):
     fn_log_handler = None
 
   # Start status HTTP server thread.
-  thread = threading.Thread(target=StatusServer().start)
+  thread = threading.Thread(name='status_http_server',
+                            target=StatusServer().start)
   thread.daemon = True
   thread.setName('status-server-demon')
   thread.start()
