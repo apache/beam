@@ -642,7 +642,7 @@ class DataflowApplicationClient(object):
     return True
 
   @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+      retry_filter=retry.retry_on_server_errors_and_notfound_filter)
   def get_job(self, job_id):
     """Gets the job status for a submitted job.
 
