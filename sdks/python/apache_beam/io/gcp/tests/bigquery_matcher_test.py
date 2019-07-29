@@ -56,7 +56,8 @@ class BigqueryMatcherTest(unittest.TestCase):
     mock_query_result[1].values.return_value = None
     mock_query_result[2].values.return_value = None
 
-    mock_bigquery.return_value.query.return_value = mock_query_result
+    mock_bigquery.return_value.query.return_value.result.return_value = (
+        mock_query_result)
 
     matcher = bq_verifier.BigqueryMatcher(
         'mock_project',
@@ -121,18 +122,18 @@ class BigqueryTableMatcherTest(unittest.TestCase):
 class BigqueryFullResultStreamingMatcher(unittest.TestCase):
 
   def setUp(self):
-    self.timeout = 5
+    self.timeout = 0.01
 
   def test__get_query_result_timeout(self, mock__query_with_retry):
-    mock__query_with_retry.side_effect = lambda _: []
+    mock__query_with_retry.side_effect = lambda: []
     matcher = bq_verifier.BigqueryFullResultStreamingMatcher(
         'some-project', 'some-query', [1, 2, 3], timeout=self.timeout)
     if sys.version_info >= (3,):
-      with self.assertRaises(TimeoutError): # noqa: F821
-        matcher._get_query_result(None)
+      with self.assertRaises(TimeoutError):  # noqa: F821
+        matcher._get_query_result()
     else:
       with self.assertRaises(RuntimeError):
-        matcher._get_query_result(None)
+        matcher._get_query_result()
 
 
 if __name__ == '__main__':
