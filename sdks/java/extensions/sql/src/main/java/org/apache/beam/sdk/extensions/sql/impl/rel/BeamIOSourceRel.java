@@ -22,11 +22,14 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteTable;
+import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
@@ -52,7 +55,12 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
 
   @Override
   public double estimateRowCount(RelMetadataQuery mq) {
-    return super.estimateRowCount(mq);
+    BeamTableStatistics rowCountStatistics = calciteTable.getStatistic();
+    if (beamTable.isBounded() == PCollection.IsBounded.BOUNDED) {
+      return rowCountStatistics.getRowCount();
+    } else {
+      return rowCountStatistics.getRate();
+    }
   }
 
   @Override
@@ -76,6 +84,14 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
           input);
       return beamTable.buildIOReader(input.getPipeline().begin());
     }
+  }
+
+  @Override
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+    // We should technically avoid this function. This happens if we are in JDBC path or the
+    // costFactory is not set correctly.
+    double rowCount = this.estimateRowCount(mq);
+    return planner.getCostFactory().makeCost(rowCount, rowCount, rowCount);
   }
 
   protected BeamSqlTable getBeamSqlTable() {
