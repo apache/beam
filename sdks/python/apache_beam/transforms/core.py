@@ -1382,11 +1382,9 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
   num_defaults = len(argspec.defaults or ())
   if num_defaults < len(args) + len(kwargs):
     raise TypeError('Side inputs must have defaults for MapTuple.')
-  modified_argspec = inspect.ArgSpec(
-      args=['tuple_element'] + argspec.args[-num_defaults:],
-      varargs=argspec.varargs,
-      keywords=argspec.keywords,
-      defaults=argspec.defaults)
+  # Replace the first (args) component.
+  modified_args = ['tuple_element'] + argspec.args[-num_defaults:]
+  modified_argspec = type(argspec)(*((modified_args,) + argspec[1:]))
   pardo = ParDo(CallableWrapperDoFn(
       wrapper, fullargspec=modified_argspec), *args, **kwargs)
   pardo.label = label
@@ -1452,11 +1450,9 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
   num_defaults = len(argspec.defaults or ())
   if num_defaults < len(args) + len(kwargs):
     raise TypeError('Side inputs must have defaults for FlatMapTuple.')
-  modified_argspec = inspect.ArgSpec(
-      args=['tuple_element'] + argspec.args[-num_defaults:],
-      varargs=argspec.varargs,
-      keywords=argspec.keywords,
-      defaults=argspec.defaults)
+  # Replace the first (args) component.
+  modified_args = ['tuple_element'] + argspec.args[-num_defaults:]
+  modified_argspec = type(argspec)(*((modified_args,) + argspec[1:]))
   pardo = ParDo(CallableWrapperDoFn(
       wrapper, fullargspec=modified_argspec), *args, **kwargs)
   pardo.label = label
