@@ -28,10 +28,10 @@ limitations under the License.
 </table>
 <br>
 Takes a keyed collection of elements and produces a collection where
-each element consists of a key and all values associated with that key.
+each element consists of a key and an `Iterable` of all values
+associated with that key.
 
-Normally, the result of a `GroupByKey` contains one element for each key
-in the input. It may be combined with windowing to subdivide each key
+The results can be combined with windowing to subdivide each key
 based on time or triggering to produce partial aggregations. Either
 windowing or triggering is necessary when processing unbounded collections.
 

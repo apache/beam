@@ -34,8 +34,7 @@ windows according to a function.
 See [BEAM-7704](https://issues.apache.org/jira/browse/BEAM-7704) for updates.
 
 ## Related transforms 
-* [GroupByKey]({{ site.baseurl }}/documentation/transforms/java/aggregation/groupbykey)
-  produces a collection where each element consists of a key and all values associated
-  with that key.
+* [Reify]({{ site.baseurl }}/documentation/transforms/java/elementwise/reify)
+  converts between explicit and implicit form of various Beam values.
 * [WithTimestamps]({{ site.baseurl }}/documentation/transforms/java/elementwise/withtimestamps)
   applies a function to determine a timestamp to each element in the output collection.

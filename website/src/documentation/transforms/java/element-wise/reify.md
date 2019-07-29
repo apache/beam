@@ -34,3 +34,6 @@ See [BEAM-7702](https://issues.apache.org/jira/browse/BEAM-7702) for updates.
 
 ## Related transforms 
 * [WithTimestamps]({{ site.baseurl }}/documentation/transforms/java/elementwise/withtimestamps)
+  assigns timestamps to all the elements of a collection
+* [Window]({{ site.baseurl }}/documentation/transforms/java/other/window/) divides up or
+  groups the elements of a collection into finite windows

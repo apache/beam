@@ -71,32 +71,6 @@ See more information in the [Beam Programming Guide]({{ site.baseurl }}/document
 **Example 2**: Emitting to multiple outputs in your `DoFn`
 
 ```java
-// Inside your ParDo's DoFn, you can emit an element to a specific output PCollection by passing in the
-// appropriate TupleTag when you call ProcessContext.output.
-// After your ParDo, extract the resulting output PCollections from the returned PCollectionTuple.
-// Based on the previous example, this shows the DoFn emitting to the main output and two additional outputs.
-
-  .of(new DoFn<String, String>() {
-     public void processElement(ProcessContext c) {
-       String word = c.element();
-       if (word.length() <= wordLengthCutOff) {
-         // Emit short word to the main output.
-         // In this example, it is the output with tag wordsBelowCutOffTag.
-         c.output(word);
-       } else {
-         // Emit long word length to the output with tag wordLengthsAboveCutOffTag.
-         c.output(wordLengthsAboveCutOffTag, word.length());
-       }
-       if (word.startsWith("MARKER")) {
-         // Emit word to the output with tag markedWordsTag.
-         c.output(markedWordsTag, word);
-       }
-     }}));
-```
-
-**Example 3**: Tags for multiple outputs
-
-```java
 // To emit elements to multiple output PCollections, create a TupleTag object to identify each collection
 // that your ParDo produces. For example, if your ParDo produces three output PCollections (the main output
 // and two additional outputs), you must create three TupleTags. The following example code shows how to
@@ -144,8 +118,35 @@ See more information in the [Beam Programming Guide]({{ site.baseurl }}/document
                                       .and(markedWordsTag)));
 ```
 
+**Example 3**: Tags for multiple outputs
+
+```java
+// Inside your ParDo's DoFn, you can emit an element to a specific output PCollection by passing in the
+// appropriate TupleTag when you call ProcessContext.output.
+// After your ParDo, extract the resulting output PCollections from the returned PCollectionTuple.
+// Based on the previous example, this shows the DoFn emitting to the main output and two additional outputs.
+
+  .of(new DoFn<String, String>() {
+     public void processElement(ProcessContext c) {
+       String word = c.element();
+       if (word.length() <= wordLengthCutOff) {
+         // Emit short word to the main output.
+         // In this example, it is the output with tag wordsBelowCutOffTag.
+         c.output(word);
+       } else {
+         // Emit long word length to the output with tag wordLengthsAboveCutOffTag.
+         c.output(wordLengthsAboveCutOffTag, word.length());
+       }
+       if (word.startsWith("MARKER")) {
+         // Emit word to the output with tag markedWordsTag.
+         c.output(markedWordsTag, word);
+       }
+     }}));
+```
+
+
 ## Related transforms 
-* [FlatMap]({{ site.baseurl }}/documentation/transforms/java/elementwise/flatmapelements)
-  behaves the same as `Map`, but for each input it may produce zero or more outputs.
+* [MapElements]({{ site.baseurl }}/documentation/transforms/java/elementwise/mapelements)
+  applies a simple 1-to-1 mapping function over each element in the collection.
 * [Filter]({{ site.baseurl }}/documentation/transforms/java/elementwise/filter)
   is useful if the function is just deciding whether to output an element or not.

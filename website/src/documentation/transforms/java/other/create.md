@@ -33,26 +33,8 @@ For example, a single element to execute a one-time `ParDo` or a list of filenam
 
 
 ## Examples
-**Example**: create a `PCollection` from an in-memory `List`:
 
-```java
-public static void main(String[] args) {
-    // Create a Java Collection, in this case a List of Strings.
-    static final List<String> LINES = Arrays.asList(
-      "To be, or not to be: that is the question: ",
-      "Whether 'tis nobler in the mind to suffer ",
-      "The slings and arrows of outrageous fortune, ",
-      "Or to take arms against a sea of troubles, ");
-
-    // Create the pipeline.
-    PipelineOptions options =
-        PipelineOptionsFactory.fromArgs(args).create();
-    Pipeline p = Pipeline.create(options);
-
-    // Apply Create, passing the list and the coder, to create the PCollection.
-    p.apply(Create.of(LINES)).setCoder(StringUtf8Coder.of())
-}
-```
+See [BEAM-7704](https://issues.apache.org/jira/browse/BEAM-7704) for updates.
 
 ## Related transforms 
-* [ParDo]({{ site.baseurl }}/documentation/transforms/java/elementwise/pardo)
+N/A

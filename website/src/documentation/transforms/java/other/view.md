@@ -33,8 +33,5 @@ Operations for turning a collection into view that may be used as a side-input t
 See [BEAM-7704](https://issues.apache.org/jira/browse/BEAM-7704) for updates. 
 
 ## Related transforms 
-* [GroupByKey]({{ site.baseurl }}/documentation/transforms/java/aggregation/groupbykey)
-  produces a collection where each element consists of a key and all values associated
-  with that key.
-* [WithTimestamps]({{ site.baseurl }}/documentation/transforms/java/elementwise/withtimestamps)
-  applies a function to determine a timestamp to each element in the output collection.
+* [ParDo]({{ site.baseurl }}/documentation/transforms/java/elementwise/pardo)
+* [CombineWithContext]({{ site.baseurl }}/documentation/transforms/java/aggregation/combinewithcontext)

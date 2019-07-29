@@ -27,7 +27,7 @@ limitations under the License.
     </a>
 </table>
 <br>
-Merges multiple `collection` objects into a single logical `collection`.
+Merges multiple `PCollection` objects into a single logical `PCollection`.
 
 By default, the coder for the output `PCollection` is the same as the coder
 for the first `PCollection` in the input `PCollectionList`. However, the
@@ -63,6 +63,5 @@ The resulting collection now has all the elements: "Hello", "World",
 "Beam", "Is", and "Fun".
 
 ## Related transforms 
-* [FlatMapElements]({{ site.baseurl }}/documentation/transforms/java/elementwise/flatmapelements) applies a simple 1-to-many mapping
-  function over each element in the collection. This transform might produce zero
-  or more outputs.
+* [ParDo]({{ site.baseurl }}/documentation/transforms/java/elementwise/pardo)
+* [Partition]({{ site.baseurl }}/documentation/transforms/java/elementwise/partition)

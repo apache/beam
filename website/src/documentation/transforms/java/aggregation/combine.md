@@ -32,7 +32,7 @@ A user-defined `CombineFn` may be applied to combine all elements in a
 with each key. 
 
 While the result is similar to applying a `GroupByKey` followed by
-counting the number of values in each `Iterable`, there is an impact
+aggregating values in each `Iterable`, there is an impact
 on the code you must write as well as the performance of the pipeline.
 Writing a `ParDo` that counts the number of elements in each value
 would be very straightforward. However, as described in the execution

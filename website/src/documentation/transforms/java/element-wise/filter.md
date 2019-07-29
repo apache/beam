@@ -29,7 +29,7 @@ limitations under the License.
 <br>
 Given a predicate, filter out all elements that don't satisfy that predicate.
 May also be used to filter based on an inequality with a given value based
-on the comparison ordering of the element.
+on the natural ordering of the element.
 
 ## Examples
 **Example 1**: Filtering with a predicate
@@ -44,6 +44,7 @@ PCollection<String> longStrings = allStrings
       }
     }));
 ```
+The result is a `PCollection` containing "Hello" and "world".
 
 **Example 2**: Filtering with an inequality
 

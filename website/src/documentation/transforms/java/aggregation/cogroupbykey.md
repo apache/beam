@@ -69,5 +69,5 @@ result.apply(ParDo.of(new DoFn<KV<K, CoGbkResult>, /* some result */>() {
 ```
 
 ## Related transforms 
-* [CombineWithContext]({{ site.baseurl }}/documentation/transforms/java/aggregation/combinewithcontext) to combine elements.
-* [GroupByKey]({{ site.baseurl }}/documentation/transforms/java/aggregation/groupbykey) takes one input collection.
+* [GroupByKey]({{ site.baseurl }}/documentation/transforms/java/aggregation/groupbykey)
+  takes one input collection.
