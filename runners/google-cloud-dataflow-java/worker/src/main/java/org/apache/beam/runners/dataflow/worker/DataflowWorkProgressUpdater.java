@@ -48,7 +48,11 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
   /** The WorkItem for which work progress updates are sent. */
   private final WorkItem workItem;
 
-  private long prevHotKeyDetectionLog = 0;
+  /**
+   * The previous time the HotKeyDetection was logged. This is used to throttle logging to every
+   * 5 minutes.
+   */
+  private long prevHotKeyDetectionLogMs = 0;
 
   public DataflowWorkProgressUpdater(
       WorkItemStatusClient workItemStatusClient, WorkItem workItem, WorkExecutor worker) {
@@ -129,10 +133,10 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
     // Throttle logging the HotKeyDetection to every 5 minutes.
     long nowMs = clock.currentTimeMillis();
-    if (nowMs - prevHotKeyDetectionLog < Duration.standardMinutes(5).getMillis()) {
+    if (nowMs - prevHotKeyDetectionLogMs < Duration.standardMinutes(5).getMillis()) {
       return false;
     }
-    prevHotKeyDetectionLog = nowMs;
+    prevHotKeyDetectionLogMs = nowMs;
 
     return true;
   }
