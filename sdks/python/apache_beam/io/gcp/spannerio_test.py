@@ -37,10 +37,14 @@ TEST_PROJECT_ID = 'apache-beam-testing'
 
 TEST_INSTANCE_ID = 'beam-test'
 
-TEST_DATABASE_PREFIX = 'beam-testdb-'
+TEST_DATABASE_PREFIX = 'raheel-testdb-'
 
 FAKE_ROWS = [[1, 'Alice'], [2, 'Bob'], [3, 'Carl'], [4, 'Dan'], [5, 'Evan'],
              [6, 'Floyd']]
+
+TEST_TABLE = 'users'
+
+TEST_COLUMNS = ['Key', 'Value']
 
 
 def _generate_database_name():
@@ -48,6 +52,28 @@ def _generate_database_name():
   length = MAX_DB_NAME_LENGTH - 1 - len(TEST_DATABASE_PREFIX)
   return TEST_DATABASE_PREFIX + ''.join(random.choice(mask) for i in range(
       length))
+
+
+def _create_database(database_id):
+  from google.cloud.spanner import Client
+  spanner_client = Client(TEST_PROJECT_ID)
+  instance = spanner_client.instance(TEST_INSTANCE_ID)
+  database = instance.database(database_id, ddl_statements=[
+      """CREATE TABLE users (
+          Key     INT64 NOT NULL,
+          Value    STRING(1024) NOT NULL,
+      ) PRIMARY KEY (Key)"""
+  ])
+  database.create()
+
+
+def _generate_test_data():
+  mask = string.ascii_lowercase + string.digits
+  length = 100
+  return [
+    ('users', ['Key', 'Value'], [(x, ''.join(random.choice(mask) for _ in range(
+      length))) for x in range(1, 5)])
+  ]
 
 
 class ReadFromSpannerTest(unittest.TestCase):
@@ -177,30 +203,17 @@ class ReadFromSpannerTest(unittest.TestCase):
     assert_that(records, equal_to(FAKE_ROWS))
     pipeline.run()
 
-  @unittest.skip
-  def test_actual_table(self):
-    pipeline = TestPipeline()
-    transaction = ReadFromSpanner.create_transaction(
-        TEST_PROJECT_ID,
-        TEST_INSTANCE_ID,
-        'beam-testdb-0y3k72ppyh4fnaeg46')
-    records = pipeline \
-              | ReadFromSpanner(TEST_PROJECT_ID,
-                                TEST_INSTANCE_ID,
-                                'beam-testdb-0y3k72ppyh4fnaeg46'
-                               ).with_transaction(
-                                   transaction).with_table('users',
-                                                           ['Key', 'Value'])
-    pipeline.run()
 
-
+@unittest.skip
 class WriteToSpannerTest(unittest.TestCase):
-  def setUp(self):
-    self.database_id = _generate_database_name()
 
-  @unittest.skip
+  def setUp(self):
+    self._database_id = _generate_database_name()
+    # _create_database(self._database_id)
+
   def test_write_to_spanner(self):
     pipeline = TestPipeline()
-    pipeline | WriteToSpanner(TEST_PROJECT_ID, TEST_INSTANCE_ID,
-                              self.database_id)
+    pipeline | beam.Create(_generate_test_data()) | \
+    WriteToSpanner(TEST_PROJECT_ID, TEST_INSTANCE_ID,
+                   self._database_id).insert()
     pipeline.run()

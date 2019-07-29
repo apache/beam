@@ -20,6 +20,7 @@ from __future__ import absolute_import
 
 import apache_beam as beam
 from apache_beam import pvalue
+from apache_beam import typehints
 from apache_beam.transforms import PTransform
 
 from google.cloud.spanner import Client
@@ -29,35 +30,46 @@ from google.cloud.spanner_v1.database import SnapshotCheckout
 
 __all__ = ['ReadFromSpanner', 'WriteToSpanner']
 
+T = typehints.TypeVariable('T')
 
-class WriteToSpanner(PTransform):
+
+class WriteToSpanner(object):
 
   def __init__(self, project_id, instance_id, database_id):
-    self.project_id = project_id
-    self.instance_id = instance_id
-    self.database_id = database_id
+    self._project_id = project_id
+    self._instance_id = instance_id
+    self._database_id = database_id
+
+  def insert(self):
+    return _Insert(self._project_id, self._instance_id, self._database_id)
+
+
+@typehints.with_input_types(
+  typehints.Tuple[str, typehints.List[str],
+                  typehints.List[typehints.Tuple[T, ...]]])
+class _Insert(PTransform):
+  def __init__(self, project_id, instance_id, databse_id):
+    self._project_id = project_id
+    self._instance_id = instance_id
+    self._database_id = databse_id
 
   def expand(self, pcoll):
-    spanner_client = Client(self.project_id)
-    instance = spanner_client.instance(self.instance_id)
-    database = instance.database(self.database_id, ddl_statements=[
-        """CREATE TABLE Singers (
-            SingerId     INT64 NOT NULL,
-            FirstName    STRING(1024),
-            LastName     STRING(1024),
-            SingerInfo   BYTES(MAX)
-        ) PRIMARY KEY (SingerId)""",
-        """CREATE TABLE Albums (
-            SingerId     INT64 NOT NULL,
-            AlbumId      INT64 NOT NULL,
-            AlbumTitle   STRING(MAX)
-        ) PRIMARY KEY (SingerId, AlbumId),
-        INTERLEAVE IN PARENT Singers ON DELETE CASCADE"""
-    ])
-
-    database.create()
+    spanner_client = Client(self._project_id)
+    instance = spanner_client.instance(self._instance_id)
+    database = instance.database(self._database_id)
+    return pcoll | beam.ParDo(BatchFn())
 
 
+class BatchFn(beam.DoFn):
+
+  def __init__(self):
+    pass
+
+  def process(self, element):
+    pass
+
+
+# WriteToSpanner -> insert -> InsertTransform -> Group Mutations -> ParDO
 class ReadFromSpanner(object):
 
   def __init__(self, project_id, instance_id, database_id):
@@ -118,12 +130,12 @@ class _WithQueryBatch(PTransform):
 
     return (pbegin
             | 'Generate Partitions' >> beam.Create(
-                [p for p in snapshot.generate_query_batches(self._sql)]) \
+          [p for p in snapshot.generate_query_batches(self._sql)]) \
             | 'Reshuffle' >> beam.Reshuffle() \
             | 'Read From Partitions' >> beam.ParDo(
-                _ReadFromPartitionFn(self._project_id, self._instance_id,
-                                     self._database_id, self.read_operation),
-                snapshot.to_dict()))
+          _ReadFromPartitionFn(self._project_id, self._instance_id,
+                               self._database_id, self.read_operation),
+          snapshot.to_dict()))
 
 
 class _WithTableBatch(PTransform):
@@ -152,15 +164,15 @@ class _WithTableBatch(PTransform):
 
     return (pbegin
             | 'Generate Partitions' >> beam.Create(
-                [p for p in snapshot.generate_read_batches(self._table,
-                                                           self._columns,
-                                                           KeySet(all_=True),
-                                                           self._index)]) \
+          [p for p in snapshot.generate_read_batches(self._table,
+                                                     self._columns,
+                                                     KeySet(all_=True),
+                                                     self._index)]) \
             | 'Reshuffle' >> beam.Reshuffle() \
             | 'Read From Partitions' >> beam.ParDo(
-                _ReadFromPartitionFn(self._project_id, self._instance_id,
-                                     self._database_id, self.read_operation),
-                snapshot.to_dict()))
+          _ReadFromPartitionFn(self._project_id, self._instance_id,
+                               self._database_id, self.read_operation),
+          snapshot.to_dict()))
 
 
 class _ReadFromPartitionFn(beam.DoFn):
@@ -196,7 +208,7 @@ class _WithQueryTransaction(PTransform):
 
     with self._transaction as transaction:
       return pbegin | 'Read With Query Transaction' >> beam.Create(
-          [row for row in transaction.execute_sql(self._sql)]
+        [row for row in transaction.execute_sql(self._sql)]
       )
 
 
@@ -216,5 +228,6 @@ class _WithTableTransaction(PTransform):
       keyset = KeySet(all_=True)
       return pbegin | 'Read With Table Transaction' >> beam.Create(
         [row for row in transaction.read(table=self._table,
-                                         columns=self._columns, keyset=keyset, )]
+                                         columns=self._columns,
+                                         keyset=keyset, )]
       )
