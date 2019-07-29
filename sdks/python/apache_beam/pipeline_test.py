@@ -177,7 +177,7 @@ class PipelineTest(unittest.TestCase):
     # A test function with a tuple input, an auxiliary parameter,
     # and some side inputs.
     fn = lambda e1, e2, t=DoFn.TimestampParam, s1=None, s2=None: (
-            e1, e2, t, s1, s2)
+        e1, e2, t, s1, s2)
     assert_that(pcoll | 'NoSides' >> beam.core.MapTuple(fn),
                 equal_to([('e1', 'e2', MIN_TIMESTAMP, None, None)]),
                 label='NoSidesCheck')
