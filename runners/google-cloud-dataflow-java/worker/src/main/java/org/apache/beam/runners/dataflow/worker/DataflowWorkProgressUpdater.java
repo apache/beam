@@ -49,8 +49,8 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
   private final WorkItem workItem;
 
   /**
-   * The previous time the HotKeyDetection was logged. This is used to throttle logging to every
-   * 5 minutes.
+   * The previous time the HotKeyDetection was logged. This is used to throttle logging to every 5
+   * minutes.
    */
   private long prevHotKeyDetectionLogMs = 0;
 
