@@ -263,6 +263,16 @@ public class DataflowWorkerLoggingHandlerTest {
   }
 
   @Test
+  public void testBuildExceptionStackTraceWithException() {
+    assertEquals(
+        "java.lang.Throwable: exception.test.message"
+            + "\n\tdeclaringClass1.method1(file1.java:1)"
+            + "\n\tdeclaringClass2.method2(file2.java:1)"
+            + "\n\tdeclaringClass3.method3(file3.java:1)",
+        DataflowWorkerLoggingHandler.buildExceptionStackTrace(createThrowable()));
+  }
+
+  @Test
   public void testWithoutExceptionOrMessage() throws IOException {
     DataflowWorkerLoggingMDC.setJobId("testJobId");
     DataflowWorkerLoggingMDC.setWorkerId("testWorkerId");

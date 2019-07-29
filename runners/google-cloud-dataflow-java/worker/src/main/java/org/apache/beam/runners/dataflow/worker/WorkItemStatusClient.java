@@ -128,13 +128,13 @@ public class WorkItemStatusClient {
           "An OutOfMemoryException occurred. Consider specifying higher memory "
               + "instances in PipelineOptions.\n";
       LOG.error("{}: {}", logPrefix, message);
-      error.setMessage(message + DataflowWorkerLoggingHandler.formatException(t));
+      error.setMessage(message + DataflowWorkerLoggingHandler.buildExceptionStackTrace(t));
     } else {
       LOG.error(
           "{}: Uncaught exception occurred during work unit execution. This will be retried.",
           logPrefix,
           t);
-      error.setMessage(DataflowWorkerLoggingHandler.formatException(t));
+      error.setMessage(DataflowWorkerLoggingHandler.buildExceptionStackTrace(t));
     }
     status.setErrors(ImmutableList.of(error));
 

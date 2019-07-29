@@ -90,6 +90,30 @@ public class DataflowWorkerLoggingHandler extends Handler {
     return sw.toString();
   }
 
+  /**
+   * Builds stack trace of the given exception in a format slightly different from {@link
+   * DataflowWorkerLoggingHandler#formatException()}. The built stack trace will not be picked up by
+   * Stackdriver error reporting if cloud logged.
+   */
+  public static String buildExceptionStackTrace(Throwable thrown) {
+    StringBuilder builder = new StringBuilder();
+    Throwable cur = thrown;
+    boolean isFirstThrowable = true;
+    while (cur != null) {
+      if (!isFirstThrowable) {
+        builder.append("\nCaused by: ");
+      }
+      builder.append(cur);
+      for (StackTraceElement frame : cur.getStackTrace()) {
+        builder.append("\n\t");
+        builder.append(frame);
+      }
+      isFirstThrowable = false;
+      cur = cur.getCause();
+    }
+    return builder.toString();
+  }
+
   /** Constructs a handler that writes to a rotating set of files. */
   public DataflowWorkerLoggingHandler(String filename, long sizeLimit) throws IOException {
     this(new FileOutputStreamFactory(filename), sizeLimit);
