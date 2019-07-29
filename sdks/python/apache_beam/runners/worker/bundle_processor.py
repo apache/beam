@@ -381,6 +381,7 @@ class SynchronousBagRuntimeState(userstate.RuntimeState):
 
 # TODO(BEAM-5428): Implement cross-bundle state caching.
 class SynchronousSetRuntimeState(userstate.RuntimeState):
+
   def __init__(self, state_handler, state_key, value_coder):
     self._state_handler = state_handler
     self._state_key = state_key
@@ -388,14 +389,32 @@ class SynchronousSetRuntimeState(userstate.RuntimeState):
     self._cleared = False
     self._added_elements = set()
 
+  def _compact_data(self):
+    accumulator = set(self.read())
+    if accumulator:
+      value_coder_impl = self._value_coder.get_impl()
+      out = coder_impl.create_OutputStream()
+
+      for element in accumulator:
+        value_coder_impl.encode_to_stream(element, out, True)
+
+      self._state_handler.blocking_clear(self._state_key)
+      self._state_handler.blocking_append(self._state_key, out.get())
+      # Since everthing is already committed so we can safely reinitialize
+      # added_elements here.
+      self._added_elements = set()
+
   def read(self):
     return _ConcatIterable(
-        {} if self._cleared else _StateBackedIterable(
+        set() if self._cleared else _StateBackedIterable(
             self._state_handler, self._state_key, self._value_coder),
         self._added_elements)
 
   def add(self, value):
     self._added_elements.add(value)
+
+    if random.random() < 0.5:
+      self._compact_data()
 
   def clear(self):
     self._cleared = True
