@@ -20,7 +20,6 @@
 from __future__ import absolute_import
 
 import copy
-import inspect
 import logging
 import random
 import re
