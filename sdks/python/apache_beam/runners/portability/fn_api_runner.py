@@ -149,7 +149,11 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
     self._req_sent = collections.defaultdict(int)
     self._req_worker_mapping = {}
     self._log_req = logging.getLogger().getEffectiveLevel() <= logging.DEBUG
-    self.connections_by_worker_id = collections.defaultdict(ControlConnection)
+    self._connections_by_worker_id = collections.defaultdict(ControlConnection)
+
+  def get_conn_by_worker_id(self, worker_id):
+    with self._lock:
+      return self._connections_by_worker_id[worker_id]
 
   def Control(self, iterator, context):
     with self._lock:
@@ -163,7 +167,7 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
       raise RuntimeError('All workers communicate through gRPC should have '
                          'worker_id. Received None.')
 
-    control_conn = self.connections_by_worker_id[worker_id]
+    control_conn = self.get_conn_by_worker_id(worker_id)
     control_conn.set_input(iterator)
 
     while True:
@@ -994,6 +998,7 @@ class WorkerHandler(object):
 
   _registered_environments = {}
   _worker_id_counter = -1
+  _lock = threading.Lock()
 
   def __init__(
       self, control_handler, data_plane_handler, state, provision_info):
@@ -1010,8 +1015,9 @@ class WorkerHandler(object):
     self.state = state
     self.provision_info = provision_info
 
-    WorkerHandler._worker_id_counter += 1
-    self.worker_id = 'worker_%s' % WorkerHandler._worker_id_counter
+    with WorkerHandler._lock:
+      WorkerHandler._worker_id_counter += 1
+      self.worker_id = 'worker_%s' % WorkerHandler._worker_id_counter
 
   def close(self):
     self.stop_worker()
@@ -1039,7 +1045,7 @@ class WorkerHandler(object):
     return wrapper
 
   @classmethod
-  def create(cls, environment, state, provision_info, grpc_server=None):
+  def create(cls, environment, state, provision_info, grpc_server):
     constructor, payload_type = cls._registered_environments[environment.urn]
     return constructor(
         proto_utils.parse_Bytes(environment.payload, payload_type),
@@ -1218,33 +1224,30 @@ class GrpcWorkerHandler(WorkerHandler):
   """An grpc based worker_handler for fn API control, state and data planes."""
 
   def __init__(self, state, provision_info, grpc_server):
+    self._grpc_server = grpc_server
     super(GrpcWorkerHandler, self).__init__(
-        grpc_server.control_handler, grpc_server.data_plane_handler,
+        self._grpc_server.control_handler, self._grpc_server.data_plane_handler,
         state, provision_info)
     self.state = state
 
-    self.control_address = grpc_server.control_address
-    self.control_conn = grpc_server.control_handler \
-      .connections_by_worker_id[self.worker_id]
+    self.control_address = self._grpc_server.control_address
+    self.control_conn = self._grpc_server.control_handler \
+      .get_conn_by_worker_id(self.worker_id)
 
-    self.data_port = grpc_server.data_port
-    self.data_conn = grpc_server.data_plane_handler \
-      .connections_by_worker_id[self.worker_id]
-
-    self.state_port = grpc_server.state_port
-    self.logging_port = grpc_server.logging_port
+    self.data_conn = self._grpc_server.data_plane_handler \
+      .get_conn_by_worker_id(self.worker_id)
 
   def data_api_service_descriptor(self):
     return endpoints_pb2.ApiServiceDescriptor(
-        url='localhost:%s' % self.data_port)
+        url='localhost:%s' % self._grpc_server.data_port)
 
   def state_api_service_descriptor(self):
     return endpoints_pb2.ApiServiceDescriptor(
-        url='localhost:%s' % self.state_port)
+        url='localhost:%s' % self._grpc_server.state_port)
 
   def logging_api_service_descriptor(self):
     return endpoints_pb2.ApiServiceDescriptor(
-        url='localhost:%s' % self.logging_port)
+        url='localhost:%s' % self._grpc_server.logging_port)
 
   def close(self):
     self.control_conn.close()
@@ -1377,14 +1380,17 @@ class WorkerHandlerManager(object):
     self._job_provision_info = job_provision_info
     self._cached_handlers = collections.defaultdict(list)
     self._state = FnApiRunner.StateServicer() # rename?
-    # TODO(hannahjiang): create a grpc_server only for grpc env.
-    self._grpc_server = GrpcServer(self._state, self._job_provision_info)
+    self._grpc_server = None
 
   def get_worker_handlers(self, environment_id, num_workers):
     if environment_id is None:
       # Any environment will do, pick one arbitrarily.
       environment_id = next(iter(self._environments.keys()))
     environment = self._environments[environment_id]
+    # assume it's using grpc if environment is not EMBEDDED_PYTHON.
+    if environment.urn != python_urns.EMBEDDED_PYTHON and \
+        self._grpc_server is None:
+      self._grpc_server = GrpcServer(self._state, self._job_provision_info)
     worker_handler_list = self._cached_handlers[environment_id]
     if len(worker_handler_list) < num_workers:
       for _ in range(len(worker_handler_list), num_workers):
@@ -1404,7 +1410,9 @@ class WorkerHandlerManager(object):
           logging.error("Error closing worker_handler %s" % worker_handler,
                         exc_info=True)
     self._cached_handlers = {}
-    self._grpc_server.close()
+    if self._grpc_server is not None:
+      self._grpc_server.close()
+      self._grpc_server = None
 
 
 class ExtendedProvisionInfo(object):

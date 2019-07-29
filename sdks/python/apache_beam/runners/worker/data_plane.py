@@ -301,12 +301,17 @@ class BeamFnDataServicer(beam_fn_api_pb2_grpc.BeamFnDataServicer):
   """Implementation of BeamFnDataServicer for any number of clients"""
 
   def __init__(self):
-    self.connections_by_worker_id = collections.defaultdict(
+    self._lock = threading.Lock()
+    self._connections_by_worker_id = collections.defaultdict(
         _GrpcDataChannel)
+
+  def get_conn_by_worker_id(self, worker_id):
+    with self._lock:
+      return self._connections_by_worker_id[worker_id]
 
   def Data(self, elements_iterator, context):
     worker_id = dict(context.invocation_metadata()).get('worker_id')
-    data_conn = self.connections_by_worker_id[worker_id]
+    data_conn = self.get_conn_by_worker_id(worker_id)
     data_conn.set_inputs(elements_iterator)
     for elements in data_conn._write_outputs():
       yield elements
