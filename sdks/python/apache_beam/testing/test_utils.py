@@ -155,13 +155,13 @@ class PullResponseMessage(object):
   Utility class for ``create_pull_response``.
   """
   def __init__(self, data, attributes=None,
-               publish_time_secs=None, publish_time_nanos=None, ack_id=None):
+               publish_time_secs=None, publish_time_nanos=None, ack_id=None, message_id=None):
     self.data = data
     self.attributes = attributes
     self.publish_time_secs = publish_time_secs
     self.publish_time_nanos = publish_time_nanos
     self.ack_id = ack_id
-
+    self.message_id = message_id
 
 def create_pull_response(responses):
   """Create an instance of ``google.cloud.pubsub.types.ReceivedMessage``.
@@ -193,5 +193,7 @@ def create_pull_response(responses):
 
     if response.ack_id is not None:
       received_message.ack_id = response.ack_id
+    if response.message_id is not None:
+      message.message_id = response.message_id
 
   return res

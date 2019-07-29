@@ -29,6 +29,7 @@ from builtins import object
 import hamcrest as hc
 import mock
 
+
 import apache_beam as beam
 from apache_beam.io.gcp.pubsub import PubsubMessage
 from apache_beam.io.gcp.pubsub import ReadFromPubSub
@@ -79,6 +80,8 @@ class TestPubsubMessage(unittest.TestCase):
     data = b'data'
     attributes = {'k1': 'v1', 'k2': 'v2'}
     m = PubsubMessage(data, attributes)
+    #add PubSub message_id parsed from PubSub protobuf
+    attributes.update(message_id='')
     m_converted = PubsubMessage._from_proto_str(m._to_proto_str())
     self.assertEqual(m_converted.data, data)
     self.assertEqual(m_converted.attributes, attributes)
@@ -352,10 +355,12 @@ class TestReadFromPubSub(unittest.TestCase):
     publish_time_nanos = 234567000
     attributes = {'key': 'value'}
     ack_id = 'ack_id'
+    message_id = '1234567890'
     pull_response = test_utils.create_pull_response([
         test_utils.PullResponseMessage(
-            data, attributes, publish_time_secs, publish_time_nanos, ack_id)
+            data, attributes, publish_time_secs, publish_time_nanos, ack_id, message_id)
     ])
+    attributes.update(message_id=message_id)
     expected_elements = [
         TestWindowedValue(PubsubMessage(data, attributes),
                           timestamp.Timestamp(1520861821.234567),
@@ -427,10 +432,12 @@ class TestReadFromPubSub(unittest.TestCase):
     publish_time_secs = 1520861821
     publish_time_nanos = 234567000
     ack_id = 'ack_id'
+    message_id = '1234567890'
     pull_response = test_utils.create_pull_response([
         test_utils.PullResponseMessage(
-            data, attributes, publish_time_secs, publish_time_nanos, ack_id)
+            data, attributes, publish_time_secs, publish_time_nanos, ack_id, message_id)
     ])
+    attributes.update(message_id=message_id)
     expected_elements = [
         TestWindowedValue(
             PubsubMessage(data, attributes),
@@ -460,10 +467,12 @@ class TestReadFromPubSub(unittest.TestCase):
     publish_time_secs = 1337000000
     publish_time_nanos = 133700000
     ack_id = 'ack_id'
+    message_id = '1234567890'
     pull_response = test_utils.create_pull_response([
         test_utils.PullResponseMessage(
-            data, attributes, publish_time_secs, publish_time_nanos, ack_id)
+            data, attributes, publish_time_secs, publish_time_nanos, ack_id, message_id)
     ])
+    attributes.update(message_id=message_id)
     expected_elements = [
         TestWindowedValue(
             PubsubMessage(data, attributes),
@@ -494,10 +503,12 @@ class TestReadFromPubSub(unittest.TestCase):
     publish_time_nanos = 234567000
     publish_time = '2018-03-12T13:37:01.234567Z'
     ack_id = 'ack_id'
+    message_id = 'message_id'
     pull_response = test_utils.create_pull_response([
         test_utils.PullResponseMessage(
-            data, attributes, publish_time_secs, publish_time_nanos, ack_id)
+            data, attributes, publish_time_secs, publish_time_nanos, ack_id, message_id)
     ])
+    attributes.update(message_id=message_id)
     expected_elements = [
         TestWindowedValue(
             PubsubMessage(data, attributes),
