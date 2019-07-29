@@ -138,7 +138,7 @@ project.task('createProcessWorker') {
   doLast {
     sdkWorkerFile.write sdkWorkerFileCode
     exec {
-      commandLine('sh', '-c', ". ${project.ext.envdir}/bin/activate && cd ${project.projectDir} && python setup.py install ")
+      commandLine('sh', '-c', ". ${project.ext.envdir}/bin/activate && cd ${pythonRootDir} && python setup.py install ")
     }
     exec {
       commandLine('chmod', '+x', sdkWorkerFile)
