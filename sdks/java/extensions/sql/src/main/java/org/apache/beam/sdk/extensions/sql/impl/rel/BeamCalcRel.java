@@ -45,6 +45,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.adapter.enumerable.JavaRowFormat;
 import org.apache.calcite.adapter.enumerable.PhysType;
@@ -418,6 +419,9 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
                 Expressions.equal(field, Expressions.constant(null)),
                 Expressions.constant(null),
                 Expressions.call(WrappedList.class, "of", field));
+      } else if (fromType.getTypeName().isMapType()
+          && fromType.getMapValueType().getTypeName().isCompositeType()) {
+        field = nullOr(field, Expressions.call(WrappedList.class, "ofMapValues", field));
       } else if (fromType.getTypeName() == TypeName.BYTES) {
         field =
             Expressions.condition(
@@ -484,6 +488,10 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
 
     public static List<Object> of(Row row) {
       return new WrappedList(row.getValues());
+    }
+
+    public static Map<Object, List> ofMapValues(Map<Object, Row> map) {
+      return Maps.transformValues(map, val -> (val == null) ? null : WrappedList.of(val));
     }
 
     @Override
