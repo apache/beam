@@ -19,11 +19,13 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
@@ -65,4 +67,6 @@ public interface BeamRelNode extends RelNode {
   }
 
   NodeStats estimateNodeStats(RelMetadataQuery mq);
+
+  BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq);
 }
