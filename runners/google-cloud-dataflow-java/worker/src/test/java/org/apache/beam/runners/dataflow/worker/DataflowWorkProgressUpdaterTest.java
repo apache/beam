@@ -23,6 +23,7 @@ import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.clo
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.toDynamicSplitRequest;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.isA;
 import static org.mockito.Matchers.isNull;
 import static org.mockito.Mockito.atLeastOnce;
@@ -32,6 +33,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.api.client.testing.http.FixedClock;
+import com.google.api.services.dataflow.model.HotKeyDetection;
 import com.google.api.services.dataflow.model.Position;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
@@ -54,9 +56,12 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.slf4j.LoggerFactory;
 
 /** Unit tests for {@link DataflowWorkProgressUpdater}. */
 @RunWith(JUnit4.class)
+@PrepareForTest({DataflowWorkProgressUpdater.class, LoggerFactory.class})
 public class DataflowWorkProgressUpdaterTest {
 
   private static final long LEASE_MS = 2000;
@@ -64,6 +69,8 @@ public class DataflowWorkProgressUpdaterTest {
   private static final String PROJECT_ID = "TEST_PROJECT_ID";
   private static final String JOB_ID = "TEST_JOB_ID";
   private static final Long WORK_ID = 1234567890L;
+  private static final String STEP_ID = "TEST_STEP_ID";
+  private static final String HOT_KEY_AGE = "1s";
 
   @Rule public final ExpectedException thrown = ExpectedException.none();
 
@@ -94,6 +101,7 @@ public class DataflowWorkProgressUpdaterTest {
     progressUpdater =
         new DataflowWorkProgressUpdater(
             workItemStatusClient, workItem, worker, executor.getExecutor(), clock) {
+
           // Shorten reporting interval boundaries for faster testing.
           @Override
           protected long getMinReportingInterval() {
@@ -234,6 +242,26 @@ public class DataflowWorkProgressUpdaterTest {
     verifyNoMoreInteractions(workItemStatusClient);
   }
 
+  @Test
+  public void correctHotKeyMessage() {
+    WorkItemServiceState s = new WorkItemServiceState();
+
+    String m = progressUpdater.getHotKeyMessage(s);
+    assertTrue(m.isEmpty());
+
+    HotKeyDetection hotKeyDetection = new HotKeyDetection();
+    hotKeyDetection.setUserStepName("step");
+    hotKeyDetection.setHotKeyAge(toCloudDuration(Duration.millis(1000)));
+    s.setHotKeyDetection(hotKeyDetection);
+
+    m = progressUpdater.getHotKeyMessage(s);
+    assertEquals(
+        "A hot key was detected in step 'step' with age of '1s'. This is a "
+            + "symptom of key distribution being skewed. To fix, please inspect your data and "
+            + "pipeline to ensure that elements are evenly distributed across your key space.",
+        m);
+  }
+
   private WorkItemServiceState generateServiceState(
       @Nullable Position suggestedStopPosition, long millisToNextUpdate) {
     WorkItemServiceState responseState = new WorkItemServiceState();
@@ -246,6 +274,11 @@ public class DataflowWorkProgressUpdaterTest {
       responseState.setSplitRequest(
           ReaderTestUtils.approximateSplitRequestAtPosition(suggestedStopPosition));
     }
+
+    HotKeyDetection hotKeyDetection = new HotKeyDetection();
+    hotKeyDetection.setUserStepName(STEP_ID);
+    hotKeyDetection.setHotKeyAge(HOT_KEY_AGE);
+    responseState.setHotKeyDetection(hotKeyDetection);
 
     return responseState;
   }

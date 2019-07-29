@@ -25,6 +25,7 @@ import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import com.google.api.services.dataflow.model.HotKeyDetection;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
+import java.text.MessageFormat;
 import java.util.concurrent.ScheduledExecutorService;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
@@ -39,7 +40,8 @@ import org.slf4j.LoggerFactory;
  */
 @NotThreadSafe
 public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
-  private static final Logger LOG = LoggerFactory.getLogger(DataflowWorkProgressUpdater.class);
+
+  Logger LOG = LoggerFactory.getLogger(DataflowWorkProgressUpdater.class);
 
   private final WorkItemStatusClient workItemStatusClient;
 
@@ -89,15 +91,11 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
     WorkItemServiceState result =
         workItemStatusClient.reportUpdate(
             dynamicSplitResultToReport, Duration.millis(requestedLeaseDurationMs));
+
     if (result != null) {
-      HotKeyDetection hot_key_detection = result.getHotKeyDetection();
-      if (hot_key_detection != null && hot_key_detection.getUserStepName() != null) {
-        LOG.warn(
-            "A hot key was detected in step {} in work unit {}. This is a symptom of key "
-                + "distribution being skewed. To fix, please inspect your data and pipeline to "
-                + "ensure that elements are evenly distributed across your key space.",
-            hot_key_detection.getUserStepName(),
-            workString());
+      String hotKeyMessage = getHotKeyMessage(result);
+      if (!hotKeyMessage.isEmpty()) {
+        LOG.warn(hotKeyMessage);
       }
 
       // Resets state after a successful progress report.
@@ -116,6 +114,20 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
                 SourceTranslationUtils.toDynamicSplitRequest(suggestedStopPoint));
       }
     }
+  }
+
+  protected String getHotKeyMessage(WorkItemServiceState workItemServiceState) {
+    if (workItemServiceState.getHotKeyDetection() == null
+        || workItemServiceState.getHotKeyDetection().getUserStepName() == null) {
+      return "";
+    }
+
+    HotKeyDetection hotKeyDetection = workItemServiceState.getHotKeyDetection();
+    return MessageFormat.format(
+        "A hot key was detected in step ''{0}'' with age of ''{1}''. This is"
+            + " a symptom of key distribution being skewed. To fix, please inspect your data and "
+            + "pipeline to ensure that elements are evenly distributed across your key space.",
+        hotKeyDetection.getUserStepName(), hotKeyDetection.getHotKeyAge());
   }
 
   /** Returns the given work unit's lease expiration timestamp. */
