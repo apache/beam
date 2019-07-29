@@ -41,12 +41,14 @@ import org.slf4j.LoggerFactory;
 @NotThreadSafe
 public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
-  Logger LOG = LoggerFactory.getLogger(DataflowWorkProgressUpdater.class);
+  private static final Logger LOG = LoggerFactory.getLogger(DataflowWorkProgressUpdater.class);
 
   private final WorkItemStatusClient workItemStatusClient;
 
   /** The WorkItem for which work progress updates are sent. */
   private final WorkItem workItem;
+
+  private long prevHotKeyDetectionLog = 0;
 
   public DataflowWorkProgressUpdater(
       WorkItemStatusClient workItemStatusClient, WorkItem workItem, WorkExecutor worker) {
@@ -93,9 +95,8 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
             dynamicSplitResultToReport, Duration.millis(requestedLeaseDurationMs));
 
     if (result != null) {
-      String hotKeyMessage = getHotKeyMessage(result);
-      if (!hotKeyMessage.isEmpty()) {
-        LOG.warn(hotKeyMessage);
+      if (shouldLogHotKeyMessage(result)) {
+        LOG.warn(getHotKeyMessage(result));
       }
 
       // Resets state after a successful progress report.
@@ -114,6 +115,26 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
                 SourceTranslationUtils.toDynamicSplitRequest(suggestedStopPoint));
       }
     }
+  }
+
+  /**
+   * Returns true if the class should log the HotKeyMessage. This method throttles logging to every
+   * 5 minutes.
+   */
+  protected boolean shouldLogHotKeyMessage(WorkItemServiceState workItemServiceState) {
+    String hotKeyMessage = getHotKeyMessage(workItemServiceState);
+    if (hotKeyMessage.isEmpty()) {
+      return false;
+    }
+
+    // Throttle logging the HotKeyDetection to every 5 minutes.
+    long nowMs = clock.currentTimeMillis();
+    if (nowMs - prevHotKeyDetectionLog < Duration.standardMinutes(5).getMillis()) {
+      return false;
+    }
+    prevHotKeyDetectionLog = nowMs;
+
+    return true;
   }
 
   protected String getHotKeyMessage(WorkItemServiceState workItemServiceState) {

@@ -23,6 +23,7 @@ import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.clo
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.toDynamicSplitRequest;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.isA;
 import static org.mockito.Matchers.isNull;
@@ -250,16 +251,43 @@ public class DataflowWorkProgressUpdaterTest {
     assertTrue(m.isEmpty());
 
     HotKeyDetection hotKeyDetection = new HotKeyDetection();
-    hotKeyDetection.setUserStepName("step");
-    hotKeyDetection.setHotKeyAge(toCloudDuration(Duration.millis(1000)));
+    hotKeyDetection.setUserStepName(STEP_ID);
+    hotKeyDetection.setHotKeyAge(HOT_KEY_AGE);
     s.setHotKeyDetection(hotKeyDetection);
 
     m = progressUpdater.getHotKeyMessage(s);
     assertEquals(
-        "A hot key was detected in step 'step' with age of '1s'. This is a "
+        "A hot key was detected in step 'TEST_STEP_ID' with age of '1s'. This is a "
             + "symptom of key distribution being skewed. To fix, please inspect your data and "
             + "pipeline to ensure that elements are evenly distributed across your key space.",
         m);
+  }
+
+  @Test
+  public void canLogHotKeyMessage() {
+    WorkItemServiceState s = new WorkItemServiceState();
+
+    String m = progressUpdater.getHotKeyMessage(s);
+    assertTrue(m.isEmpty());
+
+    HotKeyDetection hotKeyDetection = new HotKeyDetection();
+    hotKeyDetection.setUserStepName("step");
+    hotKeyDetection.setHotKeyAge(toCloudDuration(Duration.millis(1000)));
+    s.setHotKeyDetection(hotKeyDetection);
+
+    clock.setTime(0L);
+    assertFalse(progressUpdater.shouldLogHotKeyMessage(s));
+
+    // The class throttles every 5 minutes, so the first time it is called is true. The second time
+    // is throttled and returns false.
+    clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(5L).getMillis());
+    assertTrue(progressUpdater.shouldLogHotKeyMessage(s));
+    assertFalse(progressUpdater.shouldLogHotKeyMessage(s));
+
+    // Test that the state variable is set and can log again in 5 minutes.
+    clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(5L).getMillis());
+    assertTrue(progressUpdater.shouldLogHotKeyMessage(s));
+    assertFalse(progressUpdater.shouldLogHotKeyMessage(s));
   }
 
   private WorkItemServiceState generateServiceState(
