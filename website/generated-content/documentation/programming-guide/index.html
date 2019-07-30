@@ -3257,7 +3257,7 @@ data.</p>
 watermark that estimates the lag time. In practice, your <code class="highlighter-rouge">PCollection</code>’s data
 source determines the watermark, and watermarks can be more precise or complex.</p>
 
-<p>Beam’s default windowing configuration tries to determines when all data has
+<p>Beam’s default windowing configuration tries to determine when all data has
 arrived (based on the type of data source) and then advances the watermark past
 the end of the window. This default configuration does <em>not</em> allow late data.
 <a href="#triggers">Triggers</a> allow you to modify and refine the windowing strategy for
