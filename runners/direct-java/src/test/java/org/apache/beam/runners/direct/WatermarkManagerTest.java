@@ -1242,6 +1242,9 @@ public class WatermarkManagerTest implements Serializable {
     FiredTimers<AppliedPTransform<?, ?, ?>> firstFired = Iterables.getOnlyElement(firstFiredTimers);
     assertThat(firstFired.getTimers(), contains(earliestTimer));
 
+    // signal finished processing to the manager
+    manager.executableTimersProcessingFinished(firstFired.getExecutable());
+
     manager.updateWatermarks(
         null,
         TimerUpdate.empty(),
@@ -1304,6 +1307,8 @@ public class WatermarkManagerTest implements Serializable {
     assertThat(firstFiredTimers, not(emptyIterable()));
     FiredTimers<AppliedPTransform<?, ?, ?>> firstFired = Iterables.getOnlyElement(firstFiredTimers);
     assertThat(firstFired.getTimers(), contains(earliestTimer));
+    // signal finished processing to the manager
+    manager.executableTimersProcessingFinished(firstFired.getExecutable());
 
     clock.set(new Instant(50_000L));
     manager.updateWatermarks(
@@ -1371,6 +1376,8 @@ public class WatermarkManagerTest implements Serializable {
     assertThat(firstFiredTimers, not(emptyIterable()));
     FiredTimers<AppliedPTransform<?, ?, ?>> firstFired = Iterables.getOnlyElement(firstFiredTimers);
     assertThat(firstFired.getTimers(), contains(earliestTimer));
+    // signal finished processing to the manager
+    manager.executableTimersProcessingFinished(firstFired.getExecutable());
 
     clock.set(new Instant(50_000L));
     manager.updateWatermarks(

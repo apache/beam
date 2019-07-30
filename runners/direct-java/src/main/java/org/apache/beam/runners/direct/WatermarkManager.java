@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -39,7 +40,9 @@ import java.util.TreeSet;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -64,6 +67,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBase
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.SortedMultiset;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeMultiset;
@@ -210,6 +214,101 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     return res;
   }
 
+  private static class AutoCloseableLock implements AutoCloseable {
+
+    static AutoCloseableLock lockRead(ReadWriteLock lock) {
+      return tryLockRead(lock, true);
+    }
+
+    static AutoCloseableLock lockWrite(ReadWriteLock lock) {
+      return tryLockWrite(lock, true);
+    }
+
+    static AutoCloseableLock tryLockWrite(ReadWriteLock lock, boolean force) {
+      AutoCloseableLock ret = new AutoCloseableLock(lock);
+      if (force) {
+        return ret.lockWrite();
+      }
+      if (!ret.delegate.writeLock().tryLock()) {
+        return ret.unlocked();
+      }
+      return ret.lockedWrite();
+    }
+
+    static AutoCloseableLock tryLockRead(ReadWriteLock lock, boolean force) {
+      AutoCloseableLock ret = new AutoCloseableLock(lock);
+      if (force) {
+        return ret.lockRead();
+      }
+      if (!ret.delegate.readLock().tryLock()) {
+        return ret.unlocked();
+      }
+      return ret.lockedRead();
+    }
+
+    private enum LOCKED {
+      NONE,
+      READ,
+      WRITE
+    }
+
+    private final ReadWriteLock delegate;
+    private LOCKED locked = LOCKED.NONE;
+
+    private AutoCloseableLock(ReadWriteLock delegate) {
+      this.delegate = Objects.requireNonNull(delegate);
+    }
+
+    private AutoCloseableLock lockWrite() {
+      checkState(locked != LOCKED.READ, "Cannot lock read AND write");
+      delegate.writeLock().lock();
+      locked = LOCKED.WRITE;
+      return this;
+    }
+
+    private AutoCloseableLock lockedWrite() {
+      checkState(locked != LOCKED.READ, "Cannot lock read AND write");
+      locked = LOCKED.WRITE;
+      return this;
+    }
+
+    private AutoCloseableLock lockRead() {
+      checkState(locked != LOCKED.WRITE, "Cannot lock read AND write");
+      delegate.readLock().lock();
+      locked = LOCKED.READ;
+      return this;
+    }
+
+    private AutoCloseableLock lockedRead() {
+      checkState(locked != LOCKED.WRITE, "Cannot lock read AND write");
+      locked = LOCKED.READ;
+      return this;
+    }
+
+    private AutoCloseableLock unlocked() {
+      switch (locked) {
+        case READ:
+          delegate.readLock().unlock();
+          break;
+        case WRITE:
+          delegate.writeLock().unlock();
+          break;
+        case NONE:
+          // pass
+      }
+      return this;
+    }
+
+    private boolean isLocked() {
+      return locked != LOCKED.NONE;
+    }
+
+    @Override
+    public void close() {
+      unlocked();
+    }
+  }
+
   /**
    * The input {@link Watermark} of an {@link AppliedPTransform}.
    *
@@ -237,7 +336,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     // This per-key sorted set allows quick retrieval of timers that should fire for a key
     private final Map<StructuralKey<?>, NavigableSet<TimerData>> objectTimers;
 
-    private AtomicReference<Instant> currentWatermark;
+    private final AtomicReference<Instant> currentWatermark;
 
     public AppliedPTransformInputWatermark(
         String name, Collection<? extends Watermark> inputWatermarks) {
@@ -333,12 +432,15 @@ public class WatermarkManager<ExecutableT, CollectionT> {
           if (existingTimer == null) {
             pendingTimers.add(timer);
             keyTimers.add(timer);
-          } else if (!existingTimer.equals(timer)) {
+          } else {
+            // reinitialize the timer even if identical,
+            // because it might be removed from objectTimers
+            // by timer push back
             pendingTimers.remove(existingTimer);
             keyTimers.remove(existingTimer);
             pendingTimers.add(timer);
             keyTimers.add(timer);
-          } // else the timer is already set identically, so noop
+          }
 
           existingTimersForKey.put(timer.getNamespace(), timer.getTimerId(), timer);
         }
@@ -830,6 +932,14 @@ public class WatermarkManager<ExecutableT, CollectionT> {
   private final Set<ExecutableT> pendingRefreshes;
 
   /**
+   * A set of executables with currently extracted timers, that are to be processed. Note that, due
+   * to consistency, we can have only single extracted set of timers that are being processed by
+   * bundle processor at a time.
+   */
+  private final Set<ExecutableT> transformsWithAlreadyExtractedTimers =
+      Collections.synchronizedSet(new HashSet<>());
+
+  /**
    * Creates a new {@link WatermarkManager}. All watermarks within the newly created {@link
    * WatermarkManager} start at {@link BoundedWindow#TIMESTAMP_MIN_VALUE}, the minimum watermark,
    * with no watermark holds or pending elements.
@@ -1117,20 +1227,24 @@ public class WatermarkManager<ExecutableT, CollectionT> {
   private Set<ExecutableT> refreshAllOf(Set<ExecutableT> toRefresh) {
     Set<ExecutableT> newRefreshes = new HashSet<>();
     for (ExecutableT executable : toRefresh) {
-      newRefreshes.addAll(refreshWatermarks(executable));
+      newRefreshes.addAll(refreshWatermarks(executable, false));
     }
     return newRefreshes;
   }
 
-  private Set<ExecutableT> refreshWatermarks(ExecutableT toRefresh) {
-    TransformWatermarks myWatermarks = transformToWatermarks.get(toRefresh);
-    WatermarkUpdate updateResult = myWatermarks.refresh();
-    if (updateResult.isAdvanced()) {
-      Set<ExecutableT> additionalRefreshes = new HashSet<>();
-      for (CollectionT outputPValue : graph.getProduced(toRefresh)) {
-        additionalRefreshes.addAll(graph.getPerElementConsumers(outputPValue));
+  private Set<ExecutableT> refreshWatermarks(final ExecutableT toRefresh, boolean force) {
+    try (AutoCloseableLock l = lockRefresh(toRefresh, false /* write */, force)) {
+      if (l.isLocked()) {
+        TransformWatermarks myWatermarks = transformToWatermarks.get(toRefresh);
+        WatermarkUpdate updateResult = myWatermarks.refresh();
+        if (updateResult.isAdvanced()) {
+          Set<ExecutableT> additionalRefreshes = new HashSet<>();
+          for (CollectionT outputPValue : graph.getProduced(toRefresh)) {
+            additionalRefreshes.addAll(graph.getPerElementConsumers(outputPValue));
+          }
+          return additionalRefreshes;
+        }
       }
-      return additionalRefreshes;
     }
     return Collections.emptySet();
   }
@@ -1145,14 +1259,35 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     try {
       for (Map.Entry<ExecutableT, TransformWatermarks> watermarksEntry :
           transformToWatermarks.entrySet()) {
-        Collection<FiredTimers<ExecutableT>> firedTimers =
-            watermarksEntry.getValue().extractFiredTimers();
-        allTimers.addAll(firedTimers);
+        if (!transformsWithAlreadyExtractedTimers.contains(watermarksEntry.getKey())) {
+          TransformWatermarks watermarks = watermarksEntry.getValue();
+          Collection<FiredTimers<ExecutableT>> firedTimers = watermarks.extractFiredTimers();
+          if (!firedTimers.isEmpty()) {
+            transformsWithAlreadyExtractedTimers.add(watermarksEntry.getKey());
+            allTimers.addAll(firedTimers);
+          }
+        }
       }
       return allTimers;
     } finally {
       refreshLock.unlock();
     }
+  }
+
+  public void executableTimersProcessingFinished(ExecutableT executable) {
+    transformsWithAlreadyExtractedTimers.remove(executable);
+  }
+
+  AutoCloseableLock lockRefresh(ExecutableT executable, boolean read) {
+    return lockRefresh(executable, read, true);
+  }
+
+  private AutoCloseableLock lockRefresh(ExecutableT executable, boolean read, boolean force) {
+
+    ReadWriteLock lock = transformToWatermarks.get(executable).getWatermarkLock();
+    return read
+        ? AutoCloseableLock.tryLockRead(lock, force)
+        : AutoCloseableLock.tryLockWrite(lock, force);
   }
 
   /**
@@ -1264,6 +1399,8 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     private Instant latestSynchronizedInputWm;
     private Instant latestSynchronizedOutputWm;
 
+    private final ReadWriteLock transformWatermarkLock = new ReentrantReadWriteLock();
+
     private TransformWatermarks(
         ExecutableT executable,
         AppliedPTransformInputWatermark inputWatermark,
@@ -1316,6 +1453,10 @@ public class WatermarkManager<ExecutableT, CollectionT> {
               latestSynchronizedOutputWm,
               INSTANT_ORDERING.min(clock.now(), synchronizedProcessingOutputWatermark.get()));
       return latestSynchronizedOutputWm;
+    }
+
+    private ReadWriteLock getWatermarkLock() {
+      return transformWatermarkLock;
     }
 
     private WatermarkUpdate refresh() {
@@ -1521,6 +1662,25 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       return new TimerUpdate(this.key, completedTimers, setTimers, deletedTimers);
     }
 
+    /**
+     * Returns a {@link TimerUpdate} that is like this one, but with the setTimers added by the
+     * provided setTimers, if those timers are not in deletedTimers. Moreover, setTimers are removed
+     * from completedTimers (if present).
+     */
+    public TimerUpdate withPushedBackTimers(Iterable<TimerData> setTimers) {
+      Set<TimerData> deletedTimersSet = Sets.newHashSet(this.deletedTimers);
+      Set<TimerData> modifiableSetTimers = Sets.newHashSet(this.setTimers);
+      Set<TimerData> modifiableCompletedTimers = Sets.newHashSet(this.completedTimers);
+      for (TimerData t : setTimers) {
+        if (!deletedTimersSet.contains(t)) {
+          modifiableSetTimers.add(t);
+          modifiableCompletedTimers.remove(t);
+        }
+      }
+      return new TimerUpdate(
+          this.key, modifiableCompletedTimers, modifiableSetTimers, deletedTimers);
+    }
+
     @Override
     public int hashCode() {
       return Objects.hash(key, completedTimers, setTimers, deletedTimers);
@@ -1536,6 +1696,19 @@ public class WatermarkManager<ExecutableT, CollectionT> {
           && Objects.equals(this.completedTimers, that.completedTimers)
           && Objects.equals(this.setTimers, that.setTimers)
           && Objects.equals(this.deletedTimers, that.deletedTimers);
+    }
+
+    @Override
+    public String toString() {
+      return "TimerUpdate(key="
+          + key
+          + ", setTimers="
+          + setTimers
+          + ", completedTimers="
+          + completedTimers
+          + ", deletedTimers="
+          + deletedTimers
+          + ")";
     }
   }
 

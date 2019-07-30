@@ -226,7 +226,11 @@ class EvaluationContext {
   private void fireAvailableCallbacks(AppliedPTransform<?, ?, ?> producingTransform) {
     TransformWatermarks watermarks = watermarkManager.getWatermarks(producingTransform);
     Instant outputWatermark = watermarks.getOutputWatermark();
-    callbackExecutor.fireForWatermark(producingTransform, outputWatermark);
+    try {
+      callbackExecutor.fireForWatermark(producingTransform, outputWatermark);
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   /** Create a {@link UncommittedBundle} for use by a source. */
@@ -357,6 +361,11 @@ class EvaluationContext {
     return metrics;
   }
 
+  <ExecutableT extends AppliedPTransform<?, ?, ?>> AutoCloseable lockWatermarkUpdates(
+      ExecutableT executable) {
+    return watermarkManager.lockRefresh(executable, true /* read */);
+  }
+
   @VisibleForTesting
   void forceRefresh() {
     watermarkManager.refreshAll();
@@ -369,9 +378,13 @@ class EvaluationContext {
    * <p>This is a destructive operation. Timers will only appear in the result of this method once
    * for each time they are set.
    */
-  public Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> extractFiredTimers() {
+  Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> extractFiredTimers() {
     forceRefresh();
     return watermarkManager.extractFiredTimers();
+  }
+
+  void unblockTimerExtractionFor(AppliedPTransform<?, ?, ?> executable) {
+    watermarkManager.executableTimersProcessingFinished(executable);
   }
 
   /** Returns true if the step will not produce additional output. */

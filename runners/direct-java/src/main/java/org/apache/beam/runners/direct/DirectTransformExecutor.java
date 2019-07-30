@@ -121,9 +121,10 @@ class DirectTransformExecutor<T> implements TransformExecutor {
         return;
       }
 
-      processElements(evaluator, metricsContainer, enforcements);
-
-      finishBundle(evaluator, metricsContainer, enforcements);
+      try (AutoCloseable lock = context.lockWatermarkUpdates(transform)) {
+        processElements(evaluator, metricsContainer, enforcements);
+        finishBundle(evaluator, metricsContainer, enforcements);
+      }
     } catch (Exception e) {
       onComplete.handleException(inputBundle, e);
       if (e instanceof RuntimeException) {

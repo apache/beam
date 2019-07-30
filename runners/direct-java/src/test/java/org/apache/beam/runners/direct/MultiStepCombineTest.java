@@ -64,7 +64,7 @@ public class MultiStepCombineTest implements Serializable {
   private transient KvCoder<String, Long> combinedCoder =
       KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of());
 
-  @Test
+  @Test(timeout = 10000)
   public void testMultiStepCombine() {
     PCollection<KV<String, Long>> combined =
         pipeline
