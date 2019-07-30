@@ -1323,7 +1323,7 @@ def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
 
 def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
-  """:func:`MapTuple` is like :func:`Map` but expects tuple inputs and
+  r""":func:`MapTuple` is like :func:`Map` but expects tuple inputs and
   flattens them into multiple input arguments.
 
       beam.MapTuple(lambda a, b, ...: ...)
@@ -1338,7 +1338,7 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
   is equivalent to
 
-      beam.Map(lambda element, ...: fn(*element, ...))
+      beam.Map(lambda element, ...: fn(\*element, ...))
 
   This can be useful when processing a PCollection of tuples
   (e.g. key-value pairs).
@@ -1391,7 +1391,7 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
 
 def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
-  """:func:`FlatMapTuple` is like :func:`FlatMap` but expects tuple inputs and
+  r""":func:`FlatMapTuple` is like :func:`FlatMap` but expects tuple inputs and
   flattens them into multiple input arguments.
 
       beam.FlatMapTuple(lambda a, b, ...: ...)
@@ -1406,7 +1406,7 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
   is equivalent to
 
-      beam.FlatMap(lambda element, ...: fn(*element, ...))
+      beam.FlatMap(lambda element, ...: fn(\*element, ...))
 
   This can be useful when processing a PCollection of tuples
   (e.g. key-value pairs).
