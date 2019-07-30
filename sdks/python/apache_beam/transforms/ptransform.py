@@ -615,7 +615,7 @@ class PTransform(WithTypeHints, HasDisplayData):
         # For external transforms we cannot build a Python ParDo object so
         # we build a holder transform instead.
         from apache_beam.transforms.core import RunnerAPIPTransformHolder
-        return RunnerAPIPTransformHolder(proto)
+        return RunnerAPIPTransformHolder(proto, context)
       raise
 
   def to_runner_api_parameter(self, unused_context):
