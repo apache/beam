@@ -185,6 +185,27 @@ public class LocalFileSystemTest {
   }
 
   @Test
+  public void testMatchWithGlob() throws Exception {
+    String globPattern = "/A/a=[0-9][0-9][0-9]/*/*";
+    File folder1 = temporaryFolder.newFolder("A/a=100/data1");
+    File folder2 = temporaryFolder.newFolder("A/a=233/data_dir");
+    File expectedFile1 = new File(folder1, "/file1");
+    File expectedFile2 = new File(folder2, "/data_file2");
+
+    expectedFile1.createNewFile();
+    expectedFile2.createNewFile();
+
+    List<String> expected = ImmutableList.of(expectedFile1.toString(), expectedFile2.toString());
+
+    List<MatchResult> matchResults =
+        matchGlobWithPathPrefix(temporaryFolder.getRoot().toPath(), globPattern);
+
+    assertThat(
+        toFilenames(matchResults),
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
   public void testMatchExact() throws Exception {
     List<String> expected = ImmutableList.of(temporaryFolder.newFile("a").toString());
     temporaryFolder.newFile("aa");
@@ -354,16 +375,6 @@ public class LocalFileSystemTest {
     assertThat(
         toFilenames(matchResults),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
-  }
-
-  @Test
-  public void testMatchWithoutParentDirectory() throws Exception {
-    Path pattern =
-        LocalResourceId.fromPath(temporaryFolder.getRoot().toPath(), true /* isDirectory */)
-            .resolve("non_existing_dir", StandardResolveOptions.RESOLVE_DIRECTORY)
-            .resolve("*", StandardResolveOptions.RESOLVE_FILE)
-            .getPath();
-    assertTrue(toFilenames(localFileSystem.match(ImmutableList.of(pattern.toString()))).isEmpty());
   }
 
   @Test
