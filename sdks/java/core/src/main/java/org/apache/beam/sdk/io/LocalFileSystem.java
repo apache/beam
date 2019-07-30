@@ -225,7 +225,11 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     }
 
     File parent = file.getAbsoluteFile().getParentFile();
-    if (!parent.exists()) {
+    while (parent != null && !parent.exists()) {
+      parent = parent.getParentFile();
+    }
+
+    if (parent == null) {
       return MatchResult.create(Status.NOT_FOUND, Collections.emptyList());
     }
 
