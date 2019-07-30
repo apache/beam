@@ -192,11 +192,11 @@ task goIntegrationTests() {
 }
 
 task pythonPreCommit() {
-  dependsOn ":sdks:python:preCommitPy2"
+  dependsOn ":sdks:python:test-suites:tox:py2:preCommitPy2"
   dependsOn ":sdks:python:test-suites:tox:py35:preCommitPy35"
   dependsOn ":sdks:python:test-suites:tox:py36:preCommitPy36"
   dependsOn ":sdks:python:test-suites:tox:py37:preCommitPy37"
-  dependsOn ":sdks:python:test-suites:dataflow:preCommitIT"
+  dependsOn ":sdks:python:test-suites:dataflow:py2:preCommitIT"
   dependsOn ":sdks:python:test-suites:dataflow:py37:preCommitIT"
   // We don't include Py35, Py36 precommit ITs to reduce quota footprint.
   // We can reconsider if we ever see an issue that these suites would
@@ -204,7 +204,11 @@ task pythonPreCommit() {
 }
 
 task python2PostCommit() {
-  dependsOn ":sdks:python:postCommit"
+  dependsOn ":sdks:python:test-suites:portable:py2:crossLanguageTests"
+  dependsOn ":sdks:python:test-suites:dataflow:py2:postCommitIT"
+  dependsOn ":sdks:python:test-suites:direct:py2:directRunnerIT"
+  dependsOn ":sdks:python:test-suites:direct:py2:hdfsIntegrationTest"
+  dependsOn ":sdks:python:test-suites:direct:py2:mongodbioIT"
 }
 
 task python35PostCommit() {
@@ -224,8 +228,8 @@ task python37PostCommit() {
 }
 
 task portablePythonPreCommit() {
-  dependsOn "sdks:python:portablePreCommitPy2"
-  dependsOn "sdks:python:test-suites:portable:py35:portablePreCommitPy35"
+  dependsOn ":sdks:python:test-suites:portable:py2:preCommitPy2"
+  dependsOn ":sdks:python:test-suites:portable:py35:preCommitPy35"
 }
 
 task websitePreCommit() {
