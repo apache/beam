@@ -190,11 +190,31 @@ class PipelineTest(unittest.TestCase):
     assert_that(pcoll | 'MixedSides' >> beam.core.MapTuple(fn, s2=side2),
                 equal_to([('e1', 'e2', MIN_TIMESTAMP, None, 's2')]),
                 label='MixedSidesCheck')
+    pipeline.run()
 
-    # FlatMapTuple is similar.
-    assert_that(pcoll | 'FlatMap' >> beam.core.FlatMapTuple(fn, s2=side2),
+  def test_flatmaptuple_builtin(self):
+    pipeline = TestPipeline()
+    pcoll = pipeline | Create([('e1', 'e2')])
+    side1 = beam.pvalue.AsSingleton(pipeline | 'side1' >> Create(['s1']))
+    side2 = beam.pvalue.AsSingleton(pipeline | 'side2' >> Create(['s2']))
+
+    # A test function with a tuple input, an auxiliary parameter,
+    # and some side inputs.
+    fn = lambda e1, e2, t=DoFn.TimestampParam, s1=None, s2=None: (
+        e1, e2, t, s1, s2)
+    assert_that(pcoll | 'NoSides' >> beam.core.FlatMapTuple(fn),
+                equal_to(['e1', 'e2', MIN_TIMESTAMP, None, None]),
+                label='NoSidesCheck')
+    assert_that(pcoll | 'StaticSides' >> beam.core.FlatMapTuple(fn, 's1', 's2'),
+                equal_to(['e1', 'e2', MIN_TIMESTAMP, 's1', 's2']),
+                label='StaticSidesCheck')
+    assert_that(pcoll
+                | 'DynamicSides' >> beam.core.FlatMapTuple(fn, side1, side2),
+                equal_to(['e1', 'e2', MIN_TIMESTAMP, 's1', 's2']),
+                label='DynamicSidesCheck')
+    assert_that(pcoll | 'MixedSides' >> beam.core.FlatMapTuple(fn, s2=side2),
                 equal_to(['e1', 'e2', MIN_TIMESTAMP, None, 's2']),
-                label='FlatMapCheck')
+                label='MixedSidesCheck')
     pipeline.run()
 
   def test_create_singleton_pcollection(self):

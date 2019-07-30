@@ -1363,12 +1363,17 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
         'MapTuple can be used only with callable objects. '
         'Received %r instead.' % (fn))
 
-  if _fn_takes_side_inputs(fn):
+  label = 'MapTuple(%s)' % ptransform.label_from_callable(fn)
+
+  argspec = getfullargspec(fn)
+  num_defaults = len(argspec.defaults or ())
+  if num_defaults < len(args) + len(kwargs):
+    raise TypeError('Side inputs must have defaults for MapTuple.')
+
+  if argspec.defaults or args or kwargs:
     wrapper = lambda x, *args, **kwargs: [fn(*(tuple(x) + args), **kwargs)]
   else:
     wrapper = lambda x: [fn(*x)]
-
-  label = 'MapTuple(%s)' % ptransform.label_from_callable(fn)
 
   # Proxy the type-hint information from the original function to this new
   # wrapped function.
@@ -1377,10 +1382,6 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
   if output_hint:
     get_type_hints(wrapper).set_output_types(typehints.Iterable[output_hint])
 
-  argspec = getfullargspec(fn)
-  num_defaults = len(argspec.defaults or ())
-  if num_defaults < len(args) + len(kwargs):
-    raise TypeError('Side inputs must have defaults for MapTuple.')
   # Replace the first (args) component.
   modified_args = ['tuple_element'] + argspec.args[-num_defaults:]
   modified_argspec = type(argspec)(*((modified_args,) + argspec[1:]))
@@ -1431,12 +1432,17 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
         'MapTuple can be used only with callable objects. '
         'Received %r instead.' % (fn))
 
-  if _fn_takes_side_inputs(fn):
+  label = 'FlatMapTuple(%s)' % ptransform.label_from_callable(fn)
+
+  argspec = getfullargspec(fn)
+  num_defaults = len(argspec.defaults or ())
+  if num_defaults < len(args) + len(kwargs):
+    raise TypeError('Side inputs must have defaults for FlatMapTuple.')
+
+  if argspec.defaults or args or kwargs:
     wrapper = lambda x, *args, **kwargs: fn(*(tuple(x) + args), **kwargs)
   else:
     wrapper = lambda x: fn(*x)
-
-  label = 'FlatMapTuple(%s)' % ptransform.label_from_callable(fn)
 
   # Proxy the type-hint information from the original function to this new
   # wrapped function.
@@ -1445,10 +1451,6 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
   if output_hint:
     get_type_hints(wrapper).set_output_types(output_hint)
 
-  argspec = getfullargspec(fn)
-  num_defaults = len(argspec.defaults or ())
-  if num_defaults < len(args) + len(kwargs):
-    raise TypeError('Side inputs must have defaults for FlatMapTuple.')
   # Replace the first (args) component.
   modified_args = ['tuple_element'] + argspec.args[-num_defaults:]
   modified_argspec = type(argspec)(*((modified_args,) + argspec[1:]))
