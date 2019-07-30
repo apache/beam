@@ -115,33 +115,14 @@ class GcsIOError(IOError, retry.PermanentException):
 class GcsIO(object):
   """Google Cloud Storage I/O client."""
 
-  def __new__(cls, storage_client=None):
-    if storage_client:
-      # This path is only used for testing.
-      return super(GcsIO, cls).__new__(cls)
-    else:
-      # Create a single storage client for each thread.  We would like to avoid
-      # creating more than one storage client for each thread, since each
-      # initialization requires the relatively expensive step of initializing
-      # credentaials.
-      local_state = threading.local()
-      if getattr(local_state, 'gcsio_instance', None) is None:
-        credentials = auth.get_service_credentials()
-        storage_client = storage.StorageV1(
-            credentials=credentials,
-            get_credentials=False,
-            http=get_new_http(),
-            response_encoding=None if sys.version_info[0] < 3 else 'utf8')
-        local_state.gcsio_instance = super(GcsIO, cls).__new__(cls)
-        local_state.gcsio_instance.client = storage_client
-      return local_state.gcsio_instance
-
   def __init__(self, storage_client=None):
-    # We must do this check on storage_client because the client attribute may
-    # have already been set in __new__ for the singleton case when
-    # storage_client is None.
-    if storage_client is not None:
-      self.client = storage_client
+    if storage_client is None:
+      storage_client = storage.StorageV1(
+          credentials=auth.get_service_credentials(),
+          get_credentials=False,
+          http=get_new_http(),
+          response_encoding=None if sys.version_info[0] < 3 else 'utf8')
+    self.client = storage_client
     self._rewrite_cb = None
 
   def _set_rewrite_response_callback(self, callback):
