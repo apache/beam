@@ -671,7 +671,8 @@ class DataflowApplicationClient(object):
     response = self._client.projects_locations_jobs.Get(request)
     return response
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_notfound_filter)
   def list_messages(
       self, job_id, start_time=None, end_time=None, page_token=None,
       minimum_importance=None):
