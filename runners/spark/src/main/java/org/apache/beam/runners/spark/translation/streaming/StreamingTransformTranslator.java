@@ -56,6 +56,7 @@ import org.apache.beam.runners.spark.translation.TransformEvaluator;
 import org.apache.beam.runners.spark.translation.TranslationUtils;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
+import org.apache.beam.runners.spark.util.SparkCompat;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.Read;
@@ -243,7 +244,7 @@ public final class StreamingTransformTranslator {
         }
         // start by unifying streams into a single stream.
         JavaDStream<WindowedValue<T>> unifiedStreams =
-            context.getStreamingContext().union(dStreams.remove(0), dStreams);
+            SparkCompat.joinStreams(context.getStreamingContext(), dStreams);
         context.putDataset(transform, new UnboundedDataset<>(unifiedStreams, streamingSources));
       }
 
