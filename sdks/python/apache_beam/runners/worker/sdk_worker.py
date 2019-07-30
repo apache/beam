@@ -89,11 +89,10 @@ class SdkHarness(object):
     # Progress report generation should not do IO or wait on other resources.
     #  Without wait, having multiple threads will not improve performance and
     #  will only add complexity.
-    self._progress_thread_pool = futures.ThreadPoolExecutor(
-        max_workers=1, thread_name_prefix='sdkharness_progress')
+    self._progress_thread_pool = futures.ThreadPoolExecutor(max_workers=1)
     # finalize and process share one thread pool.
     self._process_thread_pool = futures.ThreadPoolExecutor(
-        max_workers=self._worker_count, thread_name_prefix='sdkharness_process')
+        max_workers=self._worker_count)
     self._responses = queue.Queue()
     self._process_bundle_queue = queue.Queue()
     self._unscheduled_process_bundle = {}

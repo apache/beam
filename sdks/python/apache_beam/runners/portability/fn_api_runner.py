@@ -1138,8 +1138,7 @@ class GrpcServer(object):
     self.state = state
     self.provision_info = provision_info
     self.control_server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=10,
-                                   thread_name_prefix='grpc_control_server'))
+        futures.ThreadPoolExecutor(max_workers=10))
     self.control_port = self.control_server.add_insecure_port('[::]:0')
     self.control_address = 'localhost:%s' % self.control_port
 
@@ -1149,14 +1148,12 @@ class GrpcServer(object):
     no_max_message_sizes = [("grpc.max_receive_message_length", -1),
                             ("grpc.max_send_message_length", -1)]
     self.data_server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=10,
-                                   thread_name_prefix='grpc_data_server'),
+        futures.ThreadPoolExecutor(max_workers=10),
         options=no_max_message_sizes)
     self.data_port = self.data_server.add_insecure_port('[::]:0')
 
     self.state_server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=10,
-                                   thread_name_prefix='grpc_state_server'),
+        futures.ThreadPoolExecutor(max_workers=10),
         options=no_max_message_sizes)
     self.state_port = self.state_server.add_insecure_port('[::]:0')
 
@@ -1191,8 +1188,7 @@ class GrpcServer(object):
         self.state_server)
 
     self.logging_server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=2,
-                                   thread_name_prefix='grpc_logging_server'),
+        futures.ThreadPoolExecutor(max_workers=2),
         options=no_max_message_sizes)
     self.logging_port = self.logging_server.add_insecure_port('[::]:0')
     beam_fn_api_pb2_grpc.add_BeamFnLoggingServicer_to_server(
@@ -1659,9 +1655,7 @@ class ParallelBundleManager(BundleManager):
 
     merged_result = None
     split_result_list = []
-    with futures.ThreadPoolExecutor(
-        max_workers=self._num_workers,
-        thread_name_prefix='parallel_bundle_processor') as executor:
+    with futures.ThreadPoolExecutor(max_workers=self._num_workers) as executor:
       for result, split_result in executor.map(lambda part: BundleManager(
           self._worker_handler_list, self._get_buffer,
           self._get_input_coder_impl, self._bundle_descriptor,
