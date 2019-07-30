@@ -63,7 +63,7 @@ public class BiTemporalStreams {
     private static final Logger LOG = LoggerFactory.getLogger(BiTemporalStreams.class);
 
     // Sets the limit at which point the processed left stream values are garbage collected
-    static int GC_LIMIT = 1000;
+    static int LEFT_STREAM_GC_LIMIT = 1000;
 
     Coder<V1> leftCoder;
     Coder<V2> rightCoder;
@@ -85,7 +85,7 @@ public class BiTemporalStreams {
     }
 
     public BiTemporalJoin setGCLimit(int gcLimit) {
-      GC_LIMIT = gcLimit;
+      LEFT_STREAM_GC_LIMIT = gcLimit;
       return this;
     }
 
@@ -189,8 +189,8 @@ public class BiTemporalStreams {
 
       // ----------- State Variables
       // Completed work timestamp, used for the GC to indicate the work it needs to do.
-      @StateId("lastProcessedTradeTimestampState")
-      private final StateSpec<ValueState<Long>> lastProcessedTradeTimestampState =
+      @StateId("lastProcessedLeftStreamTimestampState")
+      private final StateSpec<ValueState<Long>> lastProcessedLeftStreamTimestampState =
           StateSpecs.value(VarLongCoder.of());
       // Bundle storage of sorted list, used to assist wih O(n^2) problem until Sorted Map is
       // available
@@ -270,8 +270,8 @@ public class BiTemporalStreams {
         }
 
         if (input.getValue().getRightData() != null) {
-          TimestampedValue<V2> quote = input.getValue().getRightData();
-          rightStream.add(quote);
+          TimestampedValue<V2> rightData = input.getValue().getRightData();
+          rightStream.add(rightData);
         }
 
         if (input.getValue().getLeftData() != null) {
@@ -307,87 +307,87 @@ public class BiTemporalStreams {
           @StateId("leftStream") BagState<TimestampedValue<V1>> leftStream,
           @StateId("timerTimestamp") ValueState<Long> timerTimestamp,
           @StateId("dataKey") ValueState<K> dataKey,
-          @StateId("lastProcessedTradeTimestampState")
-              ValueState<Long> lastProcessedTradeTimestampState,
+          @StateId("lastProcessedLeftStreamTimestampState")
+              ValueState<Long> lastProcessedLeftStreamTimestampState,
           @TimerId("processTimer") Timer processTimer) {
 
         // Init caches if currently null
         rightCache = Optional.ofNullable(rightCache).orElse(new HashMap<>());
         leftCache = Optional.ofNullable(leftCache).orElse(new HashMap<>());
 
-        // Read the quote & rightStreamValue lists
-        List<TimestampedValue<V2>> quoteList =
+        // Read the leftStreamValue & RightStreamValue lists
+        List<TimestampedValue<V2>> rightStreamList =
             getSortedList(otc.window(), rightStream, rightCache, dataKey.read());
 
-        List<TimestampedValue<V1>> rightStreamValueList =
+        List<TimestampedValue<V1>> leftStreamValueList =
             getSortedList(otc.window(), leftStream, leftCache, dataKey.read());
 
         long processTimerTimestamp = onTimerTimestamp.getMillis();
 
-        Iterator<TimestampedValue<V1>> rightStreamValueIterator = rightStreamValueList.iterator();
+        Iterator<TimestampedValue<V1>> leftStreamValueIterator = leftStreamValueList.iterator();
 
-        long lastProcessedTradeTimestamp =
-            Optional.ofNullable(lastProcessedTradeTimestampState.read()).orElse(0L);
+        long lastProcessedLeftStreamTimestamp =
+            Optional.ofNullable(lastProcessedLeftStreamTimestampState.read()).orElse(0L);
 
-        // Index position of rightStreamValue queue
+        // Index position of leftStreamValue queue
         int prevIdx = 0;
 
         // Procssed Trade count
-        int processedTradeCount = 0;
+        int processedLeftStreamCount = 0;
 
-        TimestampedValue<V1> rightStreamValue = null;
+        TimestampedValue<V1> leftStreamValue = null;
 
-        while (rightStreamValueIterator.hasNext()) {
+        while (leftStreamValueIterator.hasNext()) {
 
-          rightStreamValue = rightStreamValueIterator.next();
+          leftStreamValue = leftStreamValueIterator.next();
 
-          // Check if there is more work left in the rightStreamValue queue
-          if (rightStreamValue.getTimestamp().getMillis() > processTimerTimestamp) {
+          // Check if there is more work left in the leftStreamValue queue
+          if (leftStreamValue.getTimestamp().getMillis() > processTimerTimestamp) {
             break;
           }
 
           // If we greater than the processed Watermark and below or equal to our process timestamp
-          // Look for a match for the rightStreamValue in right stream values and send out results.
+          // Look for a match for the leftStreamValue in right stream values and send out results.
           // This transform does not yet support late data, this will not work if late data arrives
-          if (rightStreamValue.getTimestamp().getMillis() > lastProcessedTradeTimestamp) {
+          if (leftStreamValue.getTimestamp().getMillis() > lastProcessedLeftStreamTimestamp) {
 
-            if (rightStreamValue.getTimestamp().getMillis() <= processTimerTimestamp) {
+            if (leftStreamValue.getTimestamp().getMillis() <= processTimerTimestamp) {
 
-              List<TimestampedValue<V2>> subList = quoteList.subList(prevIdx, quoteList.size());
+              List<TimestampedValue<V2>> subList = rightStreamList.subList(prevIdx, rightStreamList.size());
 
               int idx =
                   Collections.binarySearch(
                       subList,
-                      rightStreamValue,
+                      leftStreamValue,
                       Comparator.comparing(TimestampedValue::getTimestamp));
 
               BiTemporalJoinResult<K, V1, V2> m =
-                  createMatch(dataKey.read(), subList, rightStreamValue, idx);
+                  createMatch(dataKey.read(), subList, leftStreamValue, idx);
 
               prevIdx = prevIdx + idx;
 
-              output.outputWithTimestamp(m, rightStreamValue.getTimestamp());
-              lastProcessedTradeTimestamp = rightStreamValue.getTimestamp().getMillis();
+              output.outputWithTimestamp(m, leftStreamValue.getTimestamp());
+              lastProcessedLeftStreamTimestamp = leftStreamValue.getTimestamp().getMillis();
             }
           }
           // Increase the processed Trade Counter to check for GC LIMIT
-          ++processedTradeCount;
+          ++processedLeftStreamCount;
         }
 
-        // Check if there is more work left in the rightStreamValue queue
+        // Check if there is more work left in the leftStreamValue queue
         // Create timer to fire if there is
-        // If the number of old left stream values in the queue is @ GC_LIMIT then do GC
+        // If the number of old left stream values in the queue is @ LEFT_STREAM_GC_LIMIT then do GC
         // If no work left delete the Trade Queue
 
-        if (rightStreamValue != null
-            && rightStreamValue.getTimestamp().getMillis() > processTimerTimestamp) {
-          processTimer.set(rightStreamValue.getTimestamp());
-          timerTimestamp.write(rightStreamValue.getTimestamp().getMillis());
+        if (leftStreamValue != null
+            && leftStreamValue.getTimestamp().getMillis() > processTimerTimestamp) {
+          processTimer.set(leftStreamValue.getTimestamp());
+          timerTimestamp.write(leftStreamValue.getTimestamp().getMillis());
 
-          // Clear down queue if we are at GC_LIMIT
-          if (processedTradeCount >= GC_LIMIT) {
+          // Clear down queue if we are at LEFT_STREAM_GC_LIMIT
+          if (processedLeftStreamCount >= LEFT_STREAM_GC_LIMIT) {
             List<TimestampedValue<V1>> leftStreamValues =
-                rightStreamValueList.subList(processedTradeCount - 1, rightStreamValueList.size());
+                leftStreamValueList.subList(processedLeftStreamCount - 1, leftStreamValueList.size());
             leftStream.clear();
             leftStreamValues.forEach(i -> leftStream.add(i));
             putSortedList(otc.window(), leftStreamValues, leftCache, dataKey.read());
@@ -403,7 +403,7 @@ public class BiTemporalStreams {
           LOG.info("GC - Full WM is {}", onTimerTimestamp);
         }
 
-        lastProcessedTradeTimestampState.write(lastProcessedTradeTimestamp);
+        lastProcessedLeftStreamTimestampState.write(lastProcessedLeftStreamTimestamp);
       }
 
       // Get the sorted list from our Cache
