@@ -58,6 +58,7 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -67,7 +68,6 @@ import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.model.Statement;
-import org.testng.collections.Lists;
 
 /** Tests for PubsubIO Read and Write transforms. */
 @RunWith(JUnit4.class)

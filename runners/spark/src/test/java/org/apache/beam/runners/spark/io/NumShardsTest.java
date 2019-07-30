@@ -82,6 +82,6 @@ public class NumShardsTest {
       }
     }
     assertEquals(3, count);
-    assertTrue(expected.isEmpty());
+    assertTrue(expected.toString(), expected.isEmpty());
   }
 }

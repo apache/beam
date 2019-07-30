@@ -255,7 +255,7 @@ class Environment(object):
           self.worker_options.worker_harness_container_image)
     else:
       pool.workerHarnessContainerImage = (
-          get_default_container_image_for_current_sdk(job_type))
+          get_default_container_image_for_current_sdk(_use_fnapi(options)))
     if self.worker_options.use_public_ips is not None:
       if self.worker_options.use_public_ips:
         pool.ipConfiguration = (
@@ -641,7 +641,8 @@ class DataflowApplicationClient(object):
     self._client.projects_locations_jobs.Update(request)
     return True
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_notfound_filter)
   def get_job(self, job_id):
     """Gets the job status for a submitted job.
 
@@ -905,11 +906,11 @@ def _get_container_image_tag():
   return base_version
 
 
-def get_default_container_image_for_current_sdk(job_type):
+def get_default_container_image_for_current_sdk(use_fnapi):
   """For internal use only; no backwards-compatibility guarantees.
 
     Args:
-      job_type (str): BEAM job type.
+      use_fnapi (bool): True, if pipeline is using FnAPI, False otherwise.
 
     Returns:
       str: Google Cloud Dataflow container image for remote execution.
@@ -927,7 +928,7 @@ def get_default_container_image_for_current_sdk(job_type):
                     % str(sys.version_info[0:2]))
 
   # TODO(tvalentyn): Use enumerated type instead of strings for job types.
-  if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
+  if use_fnapi:
     fnapi_suffix = '-fnapi'
   else:
     fnapi_suffix = ''
@@ -937,22 +938,22 @@ def get_default_container_image_for_current_sdk(job_type):
       version_suffix=version_suffix,
       fnapi_suffix=fnapi_suffix)
 
-  image_tag = _get_required_container_version(job_type)
+  image_tag = _get_required_container_version(use_fnapi)
   return image_name + ':' + image_tag
 
 
-def _get_required_container_version(job_type=None):
+def _get_required_container_version(use_fnapi):
   """For internal use only; no backwards-compatibility guarantees.
 
     Args:
-      job_type (str, optional): BEAM job type. Defaults to None.
+      use_fnapi (bool): True, if pipeline is using FnAPI, False otherwise.
 
     Returns:
       str: The tag of worker container images in GCR that corresponds to
         current version of the SDK.
     """
   if 'dev' in beam_version.__version__:
-    if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
+    if use_fnapi:
       return names.BEAM_FNAPI_CONTAINER_VERSION
     else:
       return names.BEAM_CONTAINER_VERSION

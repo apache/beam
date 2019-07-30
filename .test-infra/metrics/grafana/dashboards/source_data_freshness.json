@@ -1,34 +1,4 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_BEAMPSQL",
-      "label": "BeamPSQL",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "postgres",
-      "pluginName": "PostgreSQL"
-    }
-  ],
-  "__requires": [
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "5.3.2"
-    },
-    {
-      "type": "panel",
-      "id": "graph",
-      "name": "Graph",
-      "version": "5.0.0"
-    },
-    {
-      "type": "datasource",
-      "id": "postgres",
-      "name": "PostgreSQL",
-      "version": "5.0.0"
-    }
-  ],
   "annotations": {
     "list": [
       {
@@ -45,7 +15,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": null,
+  "id": 5,
   "links": [],
   "panels": [
     {
@@ -86,7 +56,7 @@
       "bars": true,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_BEAMPSQL}",
+      "datasource": "BeamPSQL",
       "description": "Data freshness for each metrics input source. Used for health monitoring for other dashboards.",
       "fill": 1,
       "gridPos": {
@@ -174,6 +144,7 @@
         }
       ],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "Source Data Freshness",
       "tooltip": {
@@ -216,7 +187,7 @@
       }
     }
   ],
-  "schemaVersion": 16,
+  "schemaVersion": 18,
   "style": "dark",
   "tags": [],
   "templating": {

@@ -101,6 +101,9 @@ class _PipelineContextMap(object):
           return id
     return self.put_proto(self._unique_ref(label), maybe_new_proto)
 
+  def get_id_to_proto_map(self):
+    return self._id_to_proto
+
   def put_proto(self, id, proto):
     if id in self._id_to_proto:
       raise ValueError("Id '%s' is already taken." % id)

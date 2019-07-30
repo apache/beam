@@ -35,8 +35,10 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
+import org.apache.avro.generic.GenericData;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions.TruncateTimestamps;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -172,6 +174,20 @@ public class BigQueryUtilsTest {
   private static final TableSchema BQ_ARRAY_ROW_TYPE =
       new TableSchema().setFields(Arrays.asList(ROWS));
 
+  private static final Schema AVRO_FLAT_TYPE =
+      Schema.builder()
+          .addNullableField("id", Schema.FieldType.INT64)
+          .addNullableField("value", Schema.FieldType.DOUBLE)
+          .addNullableField("name", Schema.FieldType.STRING)
+          .addNullableField("valid", Schema.FieldType.BOOLEAN)
+          .build();
+
+  private static final Schema AVRO_ARRAY_TYPE =
+      Schema.builder().addArrayField("rows", Schema.FieldType.row(AVRO_FLAT_TYPE)).build();
+
+  private static final Schema AVRO_ARRAY_ARRAY_TYPE =
+      Schema.builder().addArrayField("array_rows", Schema.FieldType.row(AVRO_ARRAY_TYPE)).build();
+
   @Test
   public void testToTableSchema_flat() {
     TableSchema schema = toTableSchema(FLAT_TYPE);
@@ -289,7 +305,9 @@ public class BigQueryUtilsTest {
         IllegalArgumentException.class,
         () ->
             BigQueryUtils.convertAvroFormat(
-                Schema.Field.of("dummy", Schema.FieldType.DATETIME), 1000000001L, REJECT_OPTIONS));
+                Schema.Field.of("dummy", Schema.FieldType.DATETIME).getType(),
+                1000000001L,
+                REJECT_OPTIONS));
   }
 
   @Test
@@ -297,7 +315,9 @@ public class BigQueryUtilsTest {
     long millis = 123456789L;
     assertThat(
         BigQueryUtils.convertAvroFormat(
-            Schema.Field.of("dummy", Schema.FieldType.DATETIME), millis * 1000, REJECT_OPTIONS),
+            Schema.Field.of("dummy", Schema.FieldType.DATETIME).getType(),
+            millis * 1000,
+            REJECT_OPTIONS),
         equalTo(new Instant(millis)));
   }
 
@@ -306,7 +326,7 @@ public class BigQueryUtilsTest {
     long millis = 123456789L;
     assertThat(
         BigQueryUtils.convertAvroFormat(
-            Schema.Field.of("dummy", Schema.FieldType.DATETIME),
+            Schema.Field.of("dummy", Schema.FieldType.DATETIME).getType(),
             millis * 1000 + 123,
             TRUNCATE_OPTIONS),
         equalTo(new Instant(millis)));
@@ -319,7 +339,8 @@ public class BigQueryUtilsTest {
         IllegalArgumentException.class,
         () ->
             BigQueryUtils.convertAvroFormat(
-                Schema.Field.of("dummy", Schema.FieldType.logicalType(new FakeSqlTimeType())),
+                Schema.Field.of("dummy", Schema.FieldType.logicalType(new FakeSqlTimeType()))
+                    .getType(),
                 1000000001L,
                 REJECT_OPTIONS));
   }
@@ -329,7 +350,7 @@ public class BigQueryUtilsTest {
     long millis = 123456789L;
     assertThat(
         BigQueryUtils.convertAvroFormat(
-            Schema.Field.of("dummy", Schema.FieldType.logicalType(new FakeSqlTimeType())),
+            Schema.Field.of("dummy", Schema.FieldType.logicalType(new FakeSqlTimeType())).getType(),
             millis * 1000,
             REJECT_OPTIONS),
         equalTo(new Instant(millis)));
@@ -340,7 +361,7 @@ public class BigQueryUtilsTest {
     long millis = 123456789L;
     assertThat(
         BigQueryUtils.convertAvroFormat(
-            Schema.Field.of("dummy", Schema.FieldType.logicalType(new FakeSqlTimeType())),
+            Schema.Field.of("dummy", Schema.FieldType.logicalType(new FakeSqlTimeType())).getType(),
             millis * 1000 + 123,
             TRUNCATE_OPTIONS),
         equalTo(new Instant(millis)));
@@ -421,5 +442,51 @@ public class BigQueryUtilsTest {
   public void testToBeamRow_array_row() {
     Row beamRow = BigQueryUtils.toBeamRow(ARRAY_ROW_TYPE, BQ_ARRAY_ROW_ROW);
     assertEquals(ARRAY_ROW_ROW, beamRow);
+  }
+
+  @Test
+  public void testToBeamRow_avro_array_row() {
+    Row flatRowExpected =
+        Row.withSchema(AVRO_FLAT_TYPE).addValues(123L, 123.456, "test", false).build();
+    Row expected =
+        Row.withSchema(AVRO_ARRAY_TYPE).addValues((Object) Arrays.asList(flatRowExpected)).build();
+    GenericData.Record record = new GenericData.Record(AvroUtils.toAvroSchema(AVRO_ARRAY_TYPE));
+    GenericData.Record flat = new GenericData.Record(AvroUtils.toAvroSchema(AVRO_FLAT_TYPE));
+    flat.put("id", 123L);
+    flat.put("value", 123.456);
+    flat.put("name", "test");
+    flat.put("valid", false);
+    record.put("rows", Arrays.asList(flat));
+    Row beamRow =
+        BigQueryUtils.toBeamRow(
+            record, AVRO_ARRAY_TYPE, BigQueryUtils.ConversionOptions.builder().build());
+    assertEquals(expected, beamRow);
+  }
+
+  @Test
+  public void testToBeamRow_avro_array_array_row() {
+    Row flatRowExpected =
+        Row.withSchema(AVRO_FLAT_TYPE).addValues(123L, 123.456, "test", false).build();
+    Row arrayRowExpected =
+        Row.withSchema(AVRO_ARRAY_TYPE).addValues((Object) Arrays.asList(flatRowExpected)).build();
+    Row expected =
+        Row.withSchema(AVRO_ARRAY_ARRAY_TYPE)
+            .addValues((Object) Arrays.asList(arrayRowExpected))
+            .build();
+    GenericData.Record arrayRecord =
+        new GenericData.Record(AvroUtils.toAvroSchema(AVRO_ARRAY_TYPE));
+    GenericData.Record flat = new GenericData.Record(AvroUtils.toAvroSchema(AVRO_FLAT_TYPE));
+    GenericData.Record record =
+        new GenericData.Record(AvroUtils.toAvroSchema(AVRO_ARRAY_ARRAY_TYPE));
+    flat.put("id", 123L);
+    flat.put("value", 123.456);
+    flat.put("name", "test");
+    flat.put("valid", false);
+    arrayRecord.put("rows", Arrays.asList(flat));
+    record.put("array_rows", Arrays.asList(arrayRecord));
+    Row beamRow =
+        BigQueryUtils.toBeamRow(
+            record, AVRO_ARRAY_ARRAY_TYPE, BigQueryUtils.ConversionOptions.builder().build());
+    assertEquals(expected, beamRow);
   }
 }

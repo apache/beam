@@ -78,29 +78,29 @@ class BigqueryMatcher(BaseMatcher):
     self.project = project
     self.query = query
     self.expected_checksum = checksum
+    self.checksum = None
 
   def _matches(self, _):
-    logging.info('Start verify Bigquery data.')
-    # Run query
-    bigquery_client = bigquery.Client(project=self.project)
-    response = self._query_with_retry(bigquery_client)
-    logging.info('Read from given query (%s), total rows %d',
-                 self.query, len(response))
+    if self.checksum is None:
+      response = self._query_with_retry()
+      logging.info('Read from given query (%s), total rows %d',
+                   self.query, len(response))
 
-    # Compute checksum
     self.checksum = compute_hash(response)
     logging.info('Generate checksum: %s', self.checksum)
-
-    # Verify result
     return self.checksum == self.expected_checksum
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry_on_http_and_value_error)
-  def _query_with_retry(self, bigquery_client):
+  def _query_with_retry(self):
     """Run Bigquery query with retry if got error http response"""
+    logging.info('Attempting to perform query %s to BQ', self.query)
+    # Create client here since it throws an exception if pickled.
+    bigquery_client = bigquery.Client(self.project)
     query_job = bigquery_client.query(self.query)
-    return [row.values() for row in query_job]
+    rows = query_job.result(timeout=60)
+    return [row.values() for row in rows]
 
   def describe_to(self, description):
     description \
@@ -113,7 +113,7 @@ class BigqueryMatcher(BaseMatcher):
       .append_text(self.checksum)
 
 
-class BigqueryFullResultMatcher(BaseMatcher):
+class BigqueryFullResultMatcher(BigqueryMatcher):
   """Matcher that verifies Bigquery data with given query.
 
   Fetch Bigquery data with given query, compare to the expected data.
@@ -126,46 +126,24 @@ class BigqueryFullResultMatcher(BaseMatcher):
       query: The query (string) to perform.
       data: List of tuples with the expected data.
     """
-    if bigquery is None:
-      raise ImportError(
-          'Bigquery dependencies are not installed.')
-    if not query or not isinstance(query, str):
-      raise ValueError(
-          'Invalid argument: query. Please use non-empty string')
-    self.project = project
-    self.query = query
+    super(BigqueryFullResultMatcher, self).__init__(project, query,
+                                                    'unused_checksum')
     self.expected_data = data
+    self.actual_data = None
 
   def _matches(self, _):
-    logging.info('Start verify Bigquery data.')
-    # Run query
-    bigquery_client = bigquery.Client(project=self.project)
-    response = self._get_query_result(bigquery_client)
-    logging.info('Read from given query (%s), total rows %d',
-                 self.query, len(response))
-    logging.info('Response from BigQuery is %r', response)
+    if self.actual_data is None:
+      self.actual_data = self._get_query_result()
+      logging.info('Result of query is: %r', self.actual_data)
 
-    self.actual_data = response
-
-    # Verify result
     try:
       equal_to(self.expected_data)(self.actual_data)
       return True
     except BeamAssertException:
       return False
 
-  def _get_query_result(self, bigquery_client):
-    return self._query_with_retry(bigquery_client)
-
-  @retry.with_exponential_backoff(
-      num_retries=MAX_RETRIES,
-      retry_filter=retry_on_http_and_value_error)
-  def _query_with_retry(self, bigquery_client):
-    """Run Bigquery query with retry if got error http response"""
-    logging.info('Attempting to perform query %s to BQ', self.query)
-    query_job = bigquery_client.query(self.query)
-    logging.info('Result of query is: %r', query_job)
-    return [row.values() for row in query_job]
+  def _get_query_result(self):
+    return self._query_with_retry()
 
   def describe_to(self, description):
     description \
@@ -195,12 +173,13 @@ class BigqueryFullResultStreamingMatcher(BigqueryFullResultMatcher):
         project, query, data)
     self.timeout = timeout
 
-  def _get_query_result(self, bigquery_client):
+  def _get_query_result(self):
     start_time = time.time()
     while time.time() - start_time <= self.timeout:
-      response = self._query_with_retry(bigquery_client)
+      response = self._query_with_retry()
       if len(response) >= len(self.expected_data):
         return response
+      logging.debug('Query result contains %d rows' % len(response))
       time.sleep(1)
     if sys.version_info >= (3,):
       raise TimeoutError('Timeout exceeded for matcher.') # noqa: F821

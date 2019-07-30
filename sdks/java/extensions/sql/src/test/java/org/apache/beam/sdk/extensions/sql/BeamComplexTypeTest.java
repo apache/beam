@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
@@ -429,5 +431,82 @@ public class BeamComplexTypeTest {
                 .build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+  }
+
+  @Test
+  public void testMapWithRowAsValue() {
+
+    Schema inputSchema =
+        Schema.builder()
+            .addMapField("mapWithValueAsRow", FieldType.STRING, FieldType.row(rowWithArraySchema))
+            .build();
+
+    Map<String, Row> mapWithValueAsRow = new HashMap<>();
+    Row complexRow =
+        Row.withSchema(rowWithArraySchema)
+            .addValues("RED", 5L, Arrays.asList(10L, 20L, 30L))
+            .build();
+    mapWithValueAsRow.put("key", complexRow);
+
+    Row rowOfMap = Row.withSchema(inputSchema).addValue(mapWithValueAsRow).build();
+
+    PCollection<Row> outputRow =
+        pipeline
+            .apply(Create.of(rowOfMap))
+            .setRowSchema(inputSchema)
+            .apply(
+                SqlTransform.query(
+                    "select  PCOLLECTION.mapWithValueAsRow['key'].field1 as color, PCOLLECTION.mapWithValueAsRow['key'].field3[2]  as num   from PCOLLECTION"));
+
+    Row expectedRow =
+        Row.withSchema(Schema.builder().addStringField("color").addInt64Field("num").build())
+            .addValues("RED", 20L)
+            .build();
+
+    PAssert.that(outputRow).containsInAnyOrder(expectedRow);
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(1));
+  }
+
+  @Test
+  public void testMapWithNullRowFields() {
+
+    Schema nullableInnerSchema =
+        Schema.builder()
+            .addNullableField("strField", FieldType.STRING)
+            .addNullableField("arrField", FieldType.array(FieldType.INT64))
+            .build();
+    Schema inputSchema =
+        Schema.builder()
+            .addMapField("mapField", FieldType.STRING, FieldType.row(nullableInnerSchema))
+            .addNullableField(
+                "nullableMapField",
+                FieldType.map(FieldType.STRING, FieldType.row(nullableInnerSchema)))
+            .build();
+
+    Row mapValue = Row.withSchema(nullableInnerSchema).addValues("str", null).build();
+    Map<String, Row> mapWithValueAsRow = new HashMap<>();
+    mapWithValueAsRow.put("key", mapValue);
+
+    Row inputRow = Row.withSchema(inputSchema).addValues(mapWithValueAsRow, null).build();
+
+    PCollection<Row> outputRow =
+        pipeline
+            .apply(Create.of(inputRow))
+            .setRowSchema(inputSchema)
+            .apply(
+                SqlTransform.query(
+                    "select PCOLLECTION.mapField['key'].strField as str, PCOLLECTION.mapField['key'].arrField[1] as arr, PCOLLECTION.nullableMapField['key'].arrField[1] as nullableField  from PCOLLECTION"));
+
+    Row expectedRow =
+        Row.withSchema(
+                Schema.builder()
+                    .addStringField("str")
+                    .addNullableField("arr", FieldType.INT64)
+                    .addNullableField("nullableField", FieldType.INT64)
+                    .build())
+            .addValues("str", null, null)
+            .build();
+    PAssert.that(outputRow).containsInAnyOrder(expectedRow);
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(1));
   }
 }

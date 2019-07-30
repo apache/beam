@@ -154,6 +154,12 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
 
   private JobConfig getJobConfig(JetPipelineOptions options) {
     JobConfig jobConfig = new JobConfig();
+
+    String jobName = options.getJobName();
+    if (jobName != null) {
+      jobConfig.setName(jobName);
+    }
+
     boolean hasNoLocalMembers = options.getJetLocalMode() <= 0;
     if (hasNoLocalMembers) {
       String codeJarPathname = options.getCodeJarPathname();
@@ -161,6 +167,7 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
         jobConfig.addJar(codeJarPathname);
       }
     }
+
     return jobConfig;
   }
 

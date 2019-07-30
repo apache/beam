@@ -135,6 +135,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "BeamPSQL",
+      "description": "Each data point shows aggregation for corresponding week.\nLatest (rightmost) data point aggregates all data available for current week, so it may change based on new data and should not be considered a final value.",
       "fill": 0,
       "gridPos": {
         "h": 7,
@@ -252,6 +253,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "BeamPSQL",
+      "description": "Each data point shows aggregation for corresponding month.\nLatest (rightmost) data point aggregates all data available for current month, so it may change based on new data and should not be considered a final value.",
       "fill": 0,
       "gridPos": {
         "h": 7,
@@ -401,8 +403,8 @@
       "30d"
     ]
   },
-  "timezone": "",
+  "timezone": "utc",
   "title": "Stability critical jobs status",
   "uid": "McTAiu0ik",
-  "version": 13
+  "version": 16
 }
