@@ -585,6 +585,11 @@ public class Combine {
       this.present = true;
       this.value = value;
     }
+
+    @Override
+    public String toString() {
+      return "Combine.Holder(value=" + value + ", present=" + present + ")";
+    }
   }
 
   /** A {@link Coder} for a {@link Holder}. */
