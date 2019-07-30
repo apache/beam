@@ -34,6 +34,7 @@ import org.apache.beam.runners.spark.io.SourceRDD;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
+import org.apache.beam.runners.spark.util.SparkCompat;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -321,10 +322,10 @@ public final class TransformTranslator {
                 vaCoder,
                 windowingStrategy);
 
+        JavaPairRDD<K, WindowedValue<OutputT>> kwvs =
+            SparkCompat.extractOutput(accumulatePerKey, sparkCombineFn);
         JavaRDD<WindowedValue<KV<K, OutputT>>> outRdd =
-            accumulatePerKey
-                .flatMapValues(sparkCombineFn::extractOutput)
-                .map(new TranslationUtils.FromPairFunction())
+            kwvs.map(new TranslationUtils.FromPairFunction())
                 .map(new TranslationUtils.ToKVByWindowInValueFunction<>());
 
         context.putDataset(transform, new BoundedDataset<>(outRdd));

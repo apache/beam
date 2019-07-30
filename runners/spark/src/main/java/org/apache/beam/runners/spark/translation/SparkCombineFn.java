@@ -34,12 +34,14 @@ import java.util.TreeMap;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkSideInputReader;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -764,13 +766,19 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
   }
 
   Iterable<WindowedValue<OutputT>> extractOutput(WindowedAccumulator<?, ?, AccumT, ?> accumulator) {
+    return extractOutputStream(accumulator).collect(Collectors.toList());
+  }
+
+  /** Extracts the stream of accumulated values. */
+  @Internal
+  public Stream<WindowedValue<OutputT>> extractOutputStream(
+      WindowedAccumulator<?, ?, AccumT, ?> accumulator) {
     return accumulator.extractOutput().stream()
-        .filter(o -> o != null)
+        .filter(Objects::nonNull)
         .map(
             windowAcc ->
                 windowAcc.withValue(
-                    combineFn.extractOutput(windowAcc.getValue(), ctxtForValue(windowAcc))))
-        .collect(Collectors.toList());
+                    combineFn.extractOutput(windowAcc.getValue(), ctxtForValue(windowAcc))));
   }
 
   WindowedAccumulatorCoder<InputT, ValueT, AccumT> accumulatorCoder(
