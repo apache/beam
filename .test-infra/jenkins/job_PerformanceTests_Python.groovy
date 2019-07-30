@@ -66,7 +66,7 @@ def testConfigurations = [
         jobTriggerPhrase  : 'Run Python27 WordCountIT Performance Test',
         resultTable       : 'beam_performance.wordcount_py27_pkb_results',
         itClass           : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
-        itModule          : ':sdks:python',
+        itModule          : ':sdks:python:test-suites:dataflow:py2',
         extraPipelineArgs : dataflowPipelineArgs + [
             input: 'gs://apache-beam-samples/input_small_files/ascii_sort_1MB_input.0000*', // 1Gb
             output: 'gs://temp-storage-for-end-to-end-tests/py-it-cloud/output',
