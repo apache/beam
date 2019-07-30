@@ -46,11 +46,16 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.function.IntFunction;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -110,6 +115,7 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -3145,6 +3151,129 @@ public class ParDoTest implements Serializable {
       // "timer_output" is outputted. Therefore, the timer is overwritten.
       PAssert.that(output).containsInAnyOrder("input1", "input2", "timer_output");
       pipeline.run();
+    }
+
+    /** A test makes sure that an event time timers are correctly ordered. */
+    @Test(timeout = 20000)
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesTestStream.class,
+      UsesStatefulParDo.class
+    })
+    public void testEventTimeTimerOrdering() throws Exception {
+
+      final String timerIdBagAppend = "append";
+      final String timerIdGc = "gc";
+      final String bag = "bag";
+      final String minTimestamp = "minTs";
+
+      final int numTestElements = 100;
+      final Instant now = new Instant(1500000000000L);
+      final Instant gcTimerStamp = now.plus(numTestElements + 1);
+
+      DoFn<KV<String, String>, String> fn =
+          new DoFn<KV<String, String>, String>() {
+
+            @TimerId(timerIdBagAppend)
+            private final TimerSpec appendSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @TimerId(timerIdGc)
+            private final TimerSpec gcSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @StateId(bag)
+            private final StateSpec<BagState<TimestampedValue<String>>> bagStateSpec =
+                StateSpecs.bag();
+
+            @StateId(minTimestamp)
+            private final StateSpec<ValueState<Instant>> minTimestampSpec = StateSpecs.value();
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext context,
+                @TimerId(timerIdBagAppend) Timer bagTimer,
+                @TimerId(timerIdGc) Timer gcTimer,
+                @StateId(bag) BagState<TimestampedValue<String>> bagState,
+                @StateId(minTimestamp) ValueState<Instant> minStampState) {
+
+              Instant currentMinStamp =
+                  MoreObjects.firstNonNull(minStampState.read(), BoundedWindow.TIMESTAMP_MAX_VALUE);
+              if (currentMinStamp.equals(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+                gcTimer.set(gcTimerStamp);
+              }
+              if (currentMinStamp.isAfter(context.timestamp())) {
+                minStampState.write(context.timestamp());
+                bagTimer.set(context.timestamp());
+              }
+              bagState.add(TimestampedValue.of(context.element().getValue(), context.timestamp()));
+            }
+
+            @OnTimer(timerIdBagAppend)
+            public void onTimer(
+                OnTimerContext context,
+                @TimerId(timerIdBagAppend) Timer timer,
+                @StateId(bag) BagState<TimestampedValue<String>> bagState) {
+
+              List<TimestampedValue<String>> flush = new ArrayList<>();
+              Instant flushTime = context.timestamp();
+              for (TimestampedValue<String> val : bagState.read()) {
+                if (!val.getTimestamp().isAfter(flushTime)) {
+                  flush.add(val);
+                }
+              }
+              flush.sort(Comparator.comparing(TimestampedValue::getTimestamp));
+              context.output(
+                  Joiner.on(":").join(flush.stream().map(TimestampedValue::getValue).iterator()));
+              Instant newMinStamp = flushTime.plus(1);
+              if (flush.size() < numTestElements) {
+                timer.set(newMinStamp);
+              }
+            }
+
+            @OnTimer(timerIdGc)
+            public void onTimer(
+                OnTimerContext context, @StateId(bag) BagState<TimestampedValue<String>> bagState) {
+
+              String output =
+                  Joiner.on(":")
+                          .join(
+                              StreamSupport.stream(bagState.read().spliterator(), false)
+                                  .map(TimestampedValue::getValue)
+                                  .iterator())
+                      + ":cleanup";
+              context.output(output);
+              bagState.clear();
+            }
+          };
+
+      TestStream.Builder<KV<String, String>> builder =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+              .advanceWatermarkTo(new Instant(0));
+
+      for (int i = 0; i < numTestElements; i++) {
+        builder = builder.addElements(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i)));
+        builder = builder.advanceWatermarkTo(now.plus(i / 10 * 10));
+      }
+
+      TestStream<KV<String, String>> stream = builder.advanceWatermarkToInfinity();
+
+      PCollection<String> output = pipeline.apply(stream).apply(ParDo.of(fn));
+      List<String> expected =
+          IntStream.rangeClosed(0, numTestElements)
+              .mapToObj(expandFn(numTestElements))
+              .collect(Collectors.toList());
+      PAssert.that(output).containsInAnyOrder(expected);
+      pipeline.run();
+    }
+
+    private IntFunction<String> expandFn(int numTestElements) {
+      return i ->
+          Joiner.on(":")
+                  .join(
+                      IntStream.rangeClosed(0, Math.min(numTestElements - 1, i))
+                          .mapToObj(String::valueOf)
+                          .iterator())
+              + (i == numTestElements ? ":cleanup" : "");
     }
 
     @Test
