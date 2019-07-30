@@ -1429,7 +1429,7 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
   """
   if not callable(fn):
     raise TypeError(
-        'MapTuple can be used only with callable objects. '
+        'FlatMapTuple can be used only with callable objects. '
         'Received %r instead.' % (fn))
 
   label = 'FlatMapTuple(%s)' % ptransform.label_from_callable(fn)
