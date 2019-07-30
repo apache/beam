@@ -55,6 +55,7 @@ import java.util.Set;
 import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.LongStream;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -63,6 +64,7 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -108,9 +110,11 @@ import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -3495,7 +3499,7 @@ public class ParDoTest implements Serializable {
     }
 
     /** A test makes sure that an event time timers are correctly ordered. */
-    @Test(timeout = 20000)
+    @Test
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
@@ -3503,14 +3507,47 @@ public class ParDoTest implements Serializable {
       UsesStatefulParDo.class
     })
     public void testEventTimeTimerOrdering() throws Exception {
+      final int numTestElements = 100;
+      final Instant now = new Instant(1500000000000L);
+      TestStream.Builder<KV<String, String>> builder =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+              .advanceWatermarkTo(new Instant(0));
+
+      for (int i = 0; i < numTestElements; i++) {
+        builder = builder.addElements(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i)));
+        builder = builder.advanceWatermarkTo(now.plus(i / 10 * 10));
+      }
+
+      testEventTimeTimerOrderingWithInputPTransform(
+          now, numTestElements, builder.advanceWatermarkToInfinity());
+    }
+
+    /** A test makes sure that an event time timers are correctly ordered using Create transform. */
+    @Test
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
+    public void testEventTimeTimerOrderingWithCreate() throws Exception {
+      final int numTestElements = 100;
+      final Instant now = new Instant(1500000000000L);
+
+      List<TimestampedValue<KV<String, String>>> elements = new ArrayList<>();
+      for (int i = 0; i < numTestElements; i++) {
+        elements.add(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i)));
+      }
+
+      testEventTimeTimerOrderingWithInputPTransform(
+          now, numTestElements, Create.timestamped(elements));
+    }
+
+    private void testEventTimeTimerOrderingWithInputPTransform(
+        Instant now,
+        int numTestElements,
+        PTransform<PBegin, PCollection<KV<String, String>>> transform)
+        throws Exception {
 
       final String timerIdBagAppend = "append";
       final String timerIdGc = "gc";
       final String bag = "bag";
       final String minTimestamp = "minTs";
-
-      final int numTestElements = 100;
-      final Instant now = new Instant(1500000000000L);
       final Instant gcTimerStamp = now.plus(numTestElements + 1);
 
       DoFn<KV<String, String>, String> fn =
@@ -3579,6 +3616,7 @@ public class ParDoTest implements Serializable {
                   Joiner.on(":")
                           .join(
                               StreamSupport.stream(bagState.read().spliterator(), false)
+                                  .sorted(Comparator.comparing(TimestampedValue::getTimestamp))
                                   .map(TimestampedValue::getValue)
                                   .iterator())
                       + ":cleanup";
@@ -3587,18 +3625,7 @@ public class ParDoTest implements Serializable {
             }
           };
 
-      TestStream.Builder<KV<String, String>> builder =
-          TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
-              .advanceWatermarkTo(new Instant(0));
-
-      for (int i = 0; i < numTestElements; i++) {
-        builder = builder.addElements(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i)));
-        builder = builder.advanceWatermarkTo(now.plus(i / 10 * 10));
-      }
-
-      TestStream<KV<String, String>> stream = builder.advanceWatermarkToInfinity();
-
-      PCollection<String> output = pipeline.apply(stream).apply(ParDo.of(fn));
+      PCollection<String> output = pipeline.apply(transform).apply(ParDo.of(fn));
       List<String> expected =
           IntStream.rangeClosed(0, numTestElements)
               .mapToObj(expandFn(numTestElements))
@@ -3666,6 +3693,129 @@ public class ParDoTest implements Serializable {
       PAssert.that(result).containsInAnyOrder("It works");
 
       pipeline.run().waitUntilFinish();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    public void testTwoTimersSettingEachOther() {
+      Instant now = new Instant(1500000000000L);
+      Instant end = now.plus(100);
+      TestStream<KV<Void, Void>> input =
+          TestStream.create(KvCoder.of(VoidCoder.of(), VoidCoder.of()))
+              .addElements(KV.of(null, null))
+              .advanceWatermarkToInfinity();
+      pipeline.apply(TwoTimerTest.of(now, end, input));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    public void testTwoTimersSettingEachOtherWithCreateAsInput() {
+      Instant now = new Instant(1500000000000L);
+      Instant end = now.plus(100);
+      pipeline.apply(TwoTimerTest.of(now, end, Create.of(KV.of(null, null))));
+      pipeline.run();
+    }
+
+    private static class TwoTimerTest extends PTransform<PBegin, PDone> {
+
+      private static PTransform<PBegin, PDone> of(
+          Instant start, Instant end, PTransform<PBegin, PCollection<KV<Void, Void>>> input) {
+        return new TwoTimerTest(start, end, input);
+      }
+
+      private final Instant start;
+      private final Instant end;
+      private final transient PTransform<PBegin, PCollection<KV<Void, Void>>> inputPTransform;
+
+      public TwoTimerTest(
+          Instant start, Instant end, PTransform<PBegin, PCollection<KV<Void, Void>>> input) {
+        this.start = start;
+        this.end = end;
+        this.inputPTransform = input;
+      }
+
+      @Override
+      public PDone expand(PBegin input) {
+
+        final String timerName1 = "t1";
+        final String timerName2 = "t2";
+        final String countStateName = "count";
+        PCollection<String> result =
+            input
+                .apply(inputPTransform)
+                .apply(
+                    ParDo.of(
+                        new DoFn<KV<Void, Void>, String>() {
+
+                          @TimerId(timerName1)
+                          final TimerSpec timerSpec1 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+                          @TimerId(timerName2)
+                          final TimerSpec timerSpec2 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+                          @StateId(countStateName)
+                          final StateSpec<ValueState<Integer>> countStateSpec = StateSpecs.value();
+
+                          @ProcessElement
+                          public void processElement(
+                              ProcessContext context,
+                              @TimerId(timerName1) Timer t1,
+                              @TimerId(timerName2) Timer t2,
+                              @StateId(countStateName) ValueState<Integer> state) {
+
+                            state.write(0);
+                            t1.set(start);
+                            // set the t2 timer after end, so that we test that
+                            // timers are correctly ordered in this case
+                            t2.set(end.plus(1));
+                          }
+
+                          @OnTimer(timerName1)
+                          public void onTimer1(
+                              OnTimerContext context,
+                              @TimerId(timerName2) Timer t2,
+                              @StateId(countStateName) ValueState<Integer> state) {
+
+                            Integer current = state.read();
+                            t2.set(context.timestamp());
+
+                            context.output(
+                                "t1:"
+                                    + current
+                                    + ":"
+                                    + context.timestamp().minus(start.getMillis()).getMillis());
+                          }
+
+                          @OnTimer(timerName2)
+                          public void onTimer2(
+                              OnTimerContext context,
+                              @TimerId(timerName1) Timer t1,
+                              @StateId(countStateName) ValueState<Integer> state) {
+                            Integer current = state.read();
+                            if (context.timestamp().isBefore(end)) {
+                              state.write(current + 1);
+                              t1.set(context.timestamp().plus(1));
+                            } else {
+                              state.write(-1);
+                            }
+                            context.output(
+                                "t2:"
+                                    + current
+                                    + ":"
+                                    + context.timestamp().minus(start.getMillis()).getMillis());
+                          }
+                        }));
+
+        List<String> expected =
+            LongStream.rangeClosed(0, 100)
+                .mapToObj(e -> (Long) e)
+                .flatMap(e -> Arrays.asList("t1:" + e + ":" + e, "t2:" + e + ":" + e).stream())
+                .collect(Collectors.toList());
+        PAssert.that(result).containsInAnyOrder(expected);
+
+        return PDone.in(input.getPipeline());
+      }
     }
   }
 
