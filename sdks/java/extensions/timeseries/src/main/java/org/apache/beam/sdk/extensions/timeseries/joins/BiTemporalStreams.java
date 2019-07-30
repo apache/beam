@@ -353,7 +353,8 @@ public class BiTemporalStreams {
 
             if (leftStreamValue.getTimestamp().getMillis() <= processTimerTimestamp) {
 
-              List<TimestampedValue<V2>> subList = rightStreamList.subList(prevIdx, rightStreamList.size());
+              List<TimestampedValue<V2>> subList =
+                  rightStreamList.subList(prevIdx, rightStreamList.size());
 
               int idx =
                   Collections.binarySearch(
@@ -387,7 +388,8 @@ public class BiTemporalStreams {
           // Clear down queue if we are at LEFT_STREAM_GC_LIMIT
           if (processedLeftStreamCount >= LEFT_STREAM_GC_LIMIT) {
             List<TimestampedValue<V1>> leftStreamValues =
-                leftStreamValueList.subList(processedLeftStreamCount - 1, leftStreamValueList.size());
+                leftStreamValueList.subList(
+                    processedLeftStreamCount - 1, leftStreamValueList.size());
             leftStream.clear();
             leftStreamValues.forEach(i -> leftStream.add(i));
             putSortedList(otc.window(), leftStreamValues, leftCache, dataKey.read());
