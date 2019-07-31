@@ -31,6 +31,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
@@ -241,6 +242,55 @@ public class BeamComplexTypeTest {
                 .addValues("inner_str_one", 1L)
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+  }
+
+  @Test
+  public void testNestedBytes() {
+    byte[] bytes = new byte[] {-70, -83, -54, -2};
+
+    Schema nestedInputSchema = Schema.of(Schema.Field.of("c_bytes", Schema.FieldType.BYTES));
+    Schema inputSchema =
+        Schema.of(Schema.Field.of("nested", Schema.FieldType.row(nestedInputSchema)));
+
+    Schema outputSchema = Schema.of(Schema.Field.of("f0", Schema.FieldType.BYTES));
+
+    Row nestedRow = Row.withSchema(nestedInputSchema).addValue(bytes).build();
+    Row row = Row.withSchema(inputSchema).addValue(nestedRow).build();
+    Row expected = Row.withSchema(outputSchema).addValue(bytes).build();
+
+    PCollection<Row> result =
+        pipeline
+            .apply(Create.of(row).withRowSchema(inputSchema))
+            .apply(SqlTransform.query("SELECT t.nested.c_bytes AS f0 FROM PCOLLECTION t"));
+
+    PAssert.that(result).containsInAnyOrder(expected);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testNestedArrayOfBytes() {
+    byte[] bytes = new byte[] {-70, -83, -54, -2};
+
+    Schema nestedInputSchema =
+        Schema.of(Schema.Field.of("c_bytes", Schema.FieldType.array(Schema.FieldType.BYTES)));
+    Schema inputSchema =
+        Schema.of(Schema.Field.of("nested", Schema.FieldType.row(nestedInputSchema)));
+
+    Schema outputSchema = Schema.of(Schema.Field.of("f0", Schema.FieldType.BYTES));
+
+    Row nestedRow = Row.withSchema(nestedInputSchema).addValue(ImmutableList.of(bytes)).build();
+    Row row = Row.withSchema(inputSchema).addValue(nestedRow).build();
+    Row expected = Row.withSchema(outputSchema).addValue(bytes).build();
+
+    PCollection<Row> result =
+        pipeline
+            .apply(Create.of(row).withRowSchema(inputSchema))
+            .apply(SqlTransform.query("SELECT t.nested.c_bytes[1] AS f0 FROM PCOLLECTION t"));
+
+    PAssert.that(result).containsInAnyOrder(expected);
+
+    pipeline.run();
   }
 
   @Test
