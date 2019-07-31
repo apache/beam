@@ -403,7 +403,7 @@ public class DatastoreV1Test {
     UpsertFn upsertFn = new UpsertFn();
 
     Mutation expectedMutation = makeUpsert(entity).build();
-    assertEquals(upsertFn.apply(entity), expectedMutation);
+    assertEquals(expectedMutation, upsertFn.apply(entity));
   }
 
   /** Test that entities with incomplete keys cannot be deleted. */
@@ -427,7 +427,7 @@ public class DatastoreV1Test {
     DeleteEntityFn deleteEntityFn = new DeleteEntityFn();
 
     Mutation expectedMutation = makeDelete(entity.getKey()).build();
-    assertEquals(deleteEntityFn.apply(entity), expectedMutation);
+    assertEquals(expectedMutation, deleteEntityFn.apply(entity));
   }
 
   /** Test that incomplete keys cannot be deleted. */
@@ -449,7 +449,7 @@ public class DatastoreV1Test {
     DeleteKeyFn deleteKeyFn = new DeleteKeyFn();
 
     Mutation expectedMutation = makeDelete(key).build();
-    assertEquals(deleteKeyFn.apply(key), expectedMutation);
+    assertEquals(expectedMutation, deleteKeyFn.apply(key));
   }
 
   @Test
