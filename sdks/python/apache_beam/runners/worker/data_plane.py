@@ -274,14 +274,14 @@ class _GrpcDataChannel(DataChannel):
           self._receiving_queue(data.instruction_reference).put(data)
     except:  # pylint: disable=bare-except
       if not self._closed:
-        logging.exception('Failed to read inputs in the data plane')
+        logging.exception('Failed to read inputs in the data plane.')
         self._exc_info = sys.exc_info()
         raise
     finally:
       self._closed = True
       self._reads_finished.set()
 
-  def _start_reader(self, elements_iterator):
+  def set_inputs(self, elements_iterator):
     reader = threading.Thread(
         target=lambda: self._read_inputs(elements_iterator),
         name='read_grpc_client_inputs')
@@ -294,16 +294,26 @@ class GrpcClientDataChannel(_GrpcDataChannel):
 
   def __init__(self, data_stub):
     super(GrpcClientDataChannel, self).__init__()
-    self._start_reader(data_stub.Data(self._write_outputs()))
+    self.set_inputs(data_stub.Data(self._write_outputs()))
 
 
-class GrpcServerDataChannel(
-    beam_fn_api_pb2_grpc.BeamFnDataServicer, _GrpcDataChannel):
-  """A DataChannel wrapping the server side of a BeamFnData connection."""
+class BeamFnDataServicer(beam_fn_api_pb2_grpc.BeamFnDataServicer):
+  """Implementation of BeamFnDataServicer for any number of clients"""
+
+  def __init__(self):
+    self._lock = threading.Lock()
+    self._connections_by_worker_id = collections.defaultdict(
+        _GrpcDataChannel)
+
+  def get_conn_by_worker_id(self, worker_id):
+    with self._lock:
+      return self._connections_by_worker_id[worker_id]
 
   def Data(self, elements_iterator, context):
-    self._start_reader(elements_iterator)
-    for elements in self._write_outputs():
+    worker_id = dict(context.invocation_metadata()).get('worker_id')
+    data_conn = self.get_conn_by_worker_id(worker_id)
+    data_conn.set_inputs(elements_iterator)
+    for elements in data_conn._write_outputs():
       yield elements
 
 
@@ -327,10 +337,11 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
   Caches the created channels by ``data descriptor url``.
   """
 
-  def __init__(self, credentials=None):
+  def __init__(self, credentials=None, worker_id=None):
     self._data_channel_cache = {}
     self._lock = threading.Lock()
     self._credentials = None
+    self._worker_id = worker_id
     if credentials is not None:
       logging.info('Using secure channel creds.')
       self._credentials = credentials
@@ -354,8 +365,8 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
             grpc_channel = GRPCChannelFactory.secure_channel(
                 url, self._credentials, options=channel_options)
           # Add workerId to the grpc channel
-          grpc_channel = grpc.intercept_channel(grpc_channel,
-                                                WorkerIdInterceptor())
+          grpc_channel = grpc.intercept_channel(
+              grpc_channel, WorkerIdInterceptor(self._worker_id))
           self._data_channel_cache[url] = GrpcClientDataChannel(
               beam_fn_api_pb2_grpc.BeamFnDataStub(grpc_channel))
 

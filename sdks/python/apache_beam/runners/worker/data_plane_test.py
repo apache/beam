@@ -33,6 +33,7 @@ from future.utils import raise_
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import data_plane
+from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 
 def timeout(timeout_secs):
@@ -61,16 +62,22 @@ class DataChannelTest(unittest.TestCase):
 
   @timeout(5)
   def test_grpc_data_channel(self):
-    data_channel_service = data_plane.GrpcServerDataChannel()
+    data_servicer = data_plane.BeamFnDataServicer()
+    worker_id = 'worker_0'
+    data_channel_service = \
+      data_servicer.get_conn_by_worker_id(worker_id)
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))
     beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(
-        data_channel_service, server)
+        data_servicer, server)
     test_port = server.add_insecure_port('[::]:0')
     server.start()
 
-    data_channel_stub = beam_fn_api_pb2_grpc.BeamFnDataStub(
-        grpc.insecure_channel('localhost:%s' % test_port))
+    grpc_channel = grpc.insecure_channel('localhost:%s' % test_port)
+    # Add workerId to the grpc channel
+    grpc_channel = grpc.intercept_channel(
+        grpc_channel, WorkerIdInterceptor(worker_id))
+    data_channel_stub = beam_fn_api_pb2_grpc.BeamFnDataStub(grpc_channel)
     data_channel_client = data_plane.GrpcClientDataChannel(data_channel_stub)
 
     try:
