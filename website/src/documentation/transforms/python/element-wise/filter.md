@@ -42,10 +42,13 @@ on the comparison ordering of the element.
 
 ## Examples
 
-### Function
+In the following examples, we create a pipeline with a `PCollection` of produce their icon, name, and duration.
+Then, we apply `Filter` in multiple ways to filter out produce by their duration value.
 
-`Filter` accepts a function that receives the element as the first argument,
-and returns `True` if the element will be kept, or `False` if the element will be filtered out.
+### Example 1: Filtering with a function
+
+We define a function `is_perennial` which returns `True` if the element's duration equals `'perennial'`, and `False` otherwise.
+`Filter` accepts this function, keeps elements that return `True`, and filters out the remaining elements.
 
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_function %}```
@@ -62,9 +65,9 @@ and returns `True` if the element will be kept, or `False` if the element will b
 </table>
 <br>
 
-### Lambda
+### Example 2: Filtering with a lambda function
 
-Lambda functions can also be used.
+We can also use lambda functions to simplify **Example 1**.
 
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_lambda %}```
@@ -81,10 +84,12 @@ Lambda functions can also be used.
 </table>
 <br>
 
-### Multiple Arguments
+### Example 3: Filtering with multiple arguments
 
-Multiple function arguments can be passed as additional arguments to `Filter`.
-They will be passed as additional positional arguments or keyword arguments to the function.
+You can pass functions with multiple arguments to `Filter`.
+They are passed as additional positional arguments or keyword arguments to the function.
+
+In this example, `has_duration` takes `plant` and `duration` as arguments.
 
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_multiple_arguments %}```
@@ -101,10 +106,13 @@ They will be passed as additional positional arguments or keyword arguments to t
 </table>
 <br>
 
-### Side Inputs - Singleton
+### Example 4: Filtering with side inputs as singletons
 
-If there is a single value in the `PCollection`, such as the average from another computation,
-passing the `PCollection` as a *singleton* will access that value.
+If the `PCollection` has a single value, such as the average from another computation,
+passing the `PCollection` as a *singleton* accesses that value.
+
+In this example, we pass a `PCollection` the value `'perennial'` as a singleton.
+We then use that value to filter out perennials.
 
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_side_inputs_singleton %}```
@@ -121,11 +129,11 @@ passing the `PCollection` as a *singleton* will access that value.
 </table>
 <br>
 
-### Side Inputs - Iterator
+### Example 5: Filtering with side inputs as iterators
 
-If there are multiple values in the `PCollection`, it is recommended way to pass the `PCollection` as an *iterator*.
-This will access elements lazily as they are needed,
-so it is possible to iterate over very large `PCollection`s that don't fit into memory.
+If the `PCollection` has multiple values, pass the `PCollection` as an *iterator*.
+This accesses elements lazily as they are needed,
+so it is possible to iterate over large `PCollection`s that won't fit into memory.
 
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_side_inputs_iter %}```
@@ -142,15 +150,15 @@ so it is possible to iterate over very large `PCollection`s that don't fit into 
 </table>
 <br>
 
-> **Note**: It is also possible to pass the `PCollection` as a *list* with `beam.pvalue.AsList(pcollection)`,
-> but this will require all the elements to fit into memory.
+> **Note**: You can pass the `PCollection` as a *list* with `beam.pvalue.AsList(pcollection)`,
+> but this requires that all the elements fit into memory.
 
-### Side Inputs - Dict
+### Example 6: Filtering with side inputs as dictionaries
 
-If the `PCollection` consists of a small enough number of key-value pairs that can fit into memory,
-the `PCollection` can be passed as a *dictionary*.
+If a `PCollection` is small enough to fit into memory, then that `PCollection` can be passed as a *dictionary*.
+Each element must be a `(key, value)` pair.
 Note that all the elements of the `PCollection` must fit into memory for this.
-If the `PCollection` can be very large, use `beam.pvalue.AsIter(pcollection)` instead.
+If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)` instead.
 
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_side_inputs_dict %}```
@@ -174,12 +182,14 @@ If the `PCollection` can be very large, use `beam.pvalue.AsIter(pcollection)` in
 * [ParDo]({{ site.baseurl }}/documentation/transforms/python/elementwise/pardo) is the most general element-wise mapping
   operation, and includes other abilities such as multiple output collections and side-inputs.
 
-<table align="left">
-  <a target="_blank" class="button"
-      href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter">
-    <img src="https://beam.apache.org/images/logos/sdks/python.png"
-        width="20px" height="20px" alt="Pydoc" />
-    Pydoc
-  </a>
+<table>
+  <td>
+    <a class="button" target="_blank"
+        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter">
+      <img src="https://beam.apache.org/images/logos/sdks/python.png"
+          width="20px" height="20px" alt="Pydoc" />
+      Pydoc
+    </a>
+  </td>
 </table>
 <br>
