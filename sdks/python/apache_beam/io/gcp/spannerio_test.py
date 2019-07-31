@@ -76,7 +76,25 @@ def _generate_test_data():
   ]
 
 
+def pp(*args, **kwargs):
+  print({
+      "args": args,
+      "kw": kwargs
+  })
+
 class ReadFromSpannerTest(unittest.TestCase):
+
+
+  def test_read_actual(self):
+    DB_NAME = "beam-testdb-0y3k72ppyh4fnaeg46"  #from gcp https://console.cloud.google.com/spanner/instances/beam-test/databases/beam-testdb-0y3k72ppyh4fnaeg46?project=apache-beam-testing
+
+    pipeline = TestPipeline()
+    records = pipeline \
+              | ReadFromSpanner(
+        TEST_PROJECT_ID,
+        TEST_INSTANCE_ID,
+        DB_NAME).with_query('SELECT * FROM users') | beam.Map(pp)
+    pipeline.run()
 
   @mock.patch('apache_beam.io.gcp.spannerio.Client')
   @mock.patch('apache_beam.io.gcp.spannerio.BatchSnapshot')
