@@ -70,7 +70,7 @@ class SdkHarness(object):
     self._control_channel = grpc.intercept_channel(
         self._control_channel, WorkerIdInterceptor(self._worker_id))
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory(
-        credentials)
+        credentials, self._worker_id)
     self._state_handler_factory = GrpcStateHandlerFactory(credentials)
     self._profiler_factory = profiler_factory
     self._fns = {}
@@ -124,7 +124,8 @@ class SdkHarness(object):
         yield response
 
     self._alive = True
-    monitoring_thread = threading.Thread(target=self._monitor_process_bundle)
+    monitoring_thread = threading.Thread(name='SdkHarness_monitor',
+                                         target=self._monitor_process_bundle)
     monitoring_thread.daemon = True
     monitoring_thread.start()
 
