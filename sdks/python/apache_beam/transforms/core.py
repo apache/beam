@@ -73,7 +73,9 @@ __all__ = [
     'PartitionFn',
     'ParDo',
     'FlatMap',
+    'FlatMapTuple',
     'Map',
+    'MapTuple',
     'Filter',
     'CombineGlobally',
     'CombinePerKey',
@@ -602,7 +604,7 @@ class CallableWrapperDoFn(DoFn):
   them in transforms.
   """
 
-  def __init__(self, fn):
+  def __init__(self, fn, fullargspec=None):
     """Initializes a CallableWrapperDoFn object wrapping a callable.
 
     Args:
@@ -615,6 +617,7 @@ class CallableWrapperDoFn(DoFn):
       raise TypeError('Expected a callable object instead of: %r' % fn)
 
     self._fn = fn
+    self._fullargspec = fullargspec
     if isinstance(fn, (
         types.BuiltinFunctionType, types.MethodType, types.FunctionType)):
       self.process = fn
@@ -658,7 +661,10 @@ class CallableWrapperDoFn(DoFn):
     return getattr(self._fn, '_argspec_fn', self._fn)
 
   def _inspect_process(self):
-    return getfullargspec(self._process_argspec_fn())
+    if self._fullargspec:
+      return self._fullargspec
+    else:
+      return getfullargspec(self._process_argspec_fn())
 
 
 class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
@@ -1326,6 +1332,144 @@ def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
   # pylint: enable=protected-access
 
   pardo = FlatMap(wrapper, *args, **kwargs)
+  pardo.label = label
+  return pardo
+
+
+def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
+  r""":func:`MapTuple` is like :func:`Map` but expects tuple inputs and
+  flattens them into multiple input arguments.
+
+      beam.MapTuple(lambda a, b, ...: ...)
+
+  is equivalent to Python 2
+
+      beam.Map(lambda (a, b, ...), ...: ...)
+
+  In other words
+
+      beam.MapTuple(fn)
+
+  is equivalent to
+
+      beam.Map(lambda element, ...: fn(\*element, ...))
+
+  This can be useful when processing a PCollection of tuples
+  (e.g. key-value pairs).
+
+  Args:
+    fn (callable): a callable object.
+    *args: positional arguments passed to the transform callable.
+    **kwargs: keyword arguments passed to the transform callable.
+
+  Returns:
+    ~apache_beam.pvalue.PCollection:
+    A :class:`~apache_beam.pvalue.PCollection` containing the
+    :func:`MapTuple` outputs.
+
+  Raises:
+    ~exceptions.TypeError: If the **fn** passed as argument is not a callable.
+      Typical error is to pass a :class:`DoFn` instance which is supported only
+      for :class:`ParDo`.
+  """
+  if not callable(fn):
+    raise TypeError(
+        'MapTuple can be used only with callable objects. '
+        'Received %r instead.' % (fn))
+
+  label = 'MapTuple(%s)' % ptransform.label_from_callable(fn)
+
+  argspec = getfullargspec(fn)
+  num_defaults = len(argspec.defaults or ())
+  if num_defaults < len(args) + len(kwargs):
+    raise TypeError('Side inputs must have defaults for MapTuple.')
+
+  if argspec.defaults or args or kwargs:
+    wrapper = lambda x, *args, **kwargs: [fn(*(tuple(x) + args), **kwargs)]
+  else:
+    wrapper = lambda x: [fn(*x)]
+
+  # Proxy the type-hint information from the original function to this new
+  # wrapped function.
+  get_type_hints(wrapper).input_types = get_type_hints(fn).input_types
+  output_hint = get_type_hints(fn).simple_output_type(label)
+  if output_hint:
+    get_type_hints(wrapper).set_output_types(typehints.Iterable[output_hint])
+
+  # Replace the first (args) component.
+  modified_args = ['tuple_element'] + argspec.args[-num_defaults:]
+  modified_argspec = type(argspec)(*((modified_args,) + argspec[1:]))
+  pardo = ParDo(CallableWrapperDoFn(
+      wrapper, fullargspec=modified_argspec), *args, **kwargs)
+  pardo.label = label
+  return pardo
+
+
+def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
+  r""":func:`FlatMapTuple` is like :func:`FlatMap` but expects tuple inputs and
+  flattens them into multiple input arguments.
+
+      beam.FlatMapTuple(lambda a, b, ...: ...)
+
+  is equivalent to Python 2
+
+      beam.FlatMap(lambda (a, b, ...), ...: ...)
+
+  In other words
+
+      beam.FlatMapTuple(fn)
+
+  is equivalent to
+
+      beam.FlatMap(lambda element, ...: fn(\*element, ...))
+
+  This can be useful when processing a PCollection of tuples
+  (e.g. key-value pairs).
+
+  Args:
+    fn (callable): a callable object.
+    *args: positional arguments passed to the transform callable.
+    **kwargs: keyword arguments passed to the transform callable.
+
+  Returns:
+    ~apache_beam.pvalue.PCollection:
+    A :class:`~apache_beam.pvalue.PCollection` containing the
+    :func:`FlatMapTuple` outputs.
+
+  Raises:
+    ~exceptions.TypeError: If the **fn** passed as argument is not a callable.
+      Typical error is to pass a :class:`DoFn` instance which is supported only
+      for :class:`ParDo`.
+  """
+  if not callable(fn):
+    raise TypeError(
+        'FlatMapTuple can be used only with callable objects. '
+        'Received %r instead.' % (fn))
+
+  label = 'FlatMapTuple(%s)' % ptransform.label_from_callable(fn)
+
+  argspec = getfullargspec(fn)
+  num_defaults = len(argspec.defaults or ())
+  if num_defaults < len(args) + len(kwargs):
+    raise TypeError('Side inputs must have defaults for FlatMapTuple.')
+
+  if argspec.defaults or args or kwargs:
+    wrapper = lambda x, *args, **kwargs: fn(*(tuple(x) + args), **kwargs)
+  else:
+    wrapper = lambda x: fn(*x)
+
+  # Proxy the type-hint information from the original function to this new
+  # wrapped function.
+  get_type_hints(wrapper).input_types = get_type_hints(fn).input_types
+  output_hint = get_type_hints(fn).simple_output_type(label)
+  if output_hint:
+    get_type_hints(wrapper).set_output_types(output_hint)
+
+  # Replace the first (args) component.
+  modified_args = ['tuple_element'] + argspec.args[-num_defaults:]
+  modified_argspec = type(argspec)(*((modified_args,) + argspec[1:]))
+  pardo = ParDo(CallableWrapperDoFn(
+      wrapper, fullargspec=modified_argspec), *args, **kwargs)
   pardo.label = label
   return pardo
 

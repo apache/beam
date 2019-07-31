@@ -151,7 +151,10 @@ class Timestamp(object):
   def __eq__(self, other):
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Duration):
-      other = Timestamp.of(other)
+      try:
+        other = Timestamp.of(other)
+      except TypeError:
+        return NotImplemented
     return self.micros == other.micros
 
   def __ne__(self, other):
