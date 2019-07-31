@@ -43,7 +43,6 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
-  testCompile library.java.junit
   testCompile library.java.slf4j_api
   testCompile library.java.jackson_dataformat_yaml
   testRuntimeOnly library.java.slf4j_simple
