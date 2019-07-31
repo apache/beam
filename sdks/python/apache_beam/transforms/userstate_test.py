@@ -528,6 +528,47 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
     result = p.run()
     result.wait_until_finish()
 
+  def test_stateful_set_state_clean_portably(self):
+
+    class SetStateClearingStatefulDoFn(beam.DoFn):
+
+      SET_STATE = SetStateSpec('buffer', VarIntCoder())
+      EMIT_TIMER = TimerSpec('emit_timer', TimeDomain.WATERMARK)
+
+      def process(self,
+                  element,
+                  set_state=beam.DoFn.StateParam(SET_STATE),
+                  emit_timer=beam.DoFn.TimerParam(EMIT_TIMER)
+                  ):
+        _, value = element
+        set_state.add(value)
+
+        if value == 5:
+          set_state.clear()
+          set_state.add(100)
+          emit_timer.set(6)
+
+      @on_timer(EMIT_TIMER)
+      def emit_values(self, set_state=beam.DoFn.StateParam(SET_STATE)):
+          yield sorted(set_state.read())
+
+    p = TestPipeline()
+    values = p | beam.Create([('key', 1),
+                              ('key', 2),
+                              ('key', 3),
+                              ('key', 4),
+                              ('key', 5),
+                              ('key', 6)])
+    actual_values = (values
+                     | beam.Map(lambda t: window.TimestampedValue(t, t[1]))
+                     | beam.WindowInto(window.FixedWindows(1))
+                     | beam.ParDo(SetStateClearingStatefulDoFn()))
+
+    assert_that(actual_values, equal_to([[100]]))
+
+    result = p.run()
+    result.wait_until_finish()
+
   def test_stateful_dofn_nonkeyed_input(self):
     p = TestPipeline()
     values = p | beam.Create([1, 2, 3])
