@@ -36,11 +36,11 @@ public interface OutputWindowedValue<OutputT> {
       PaneInfo pane);
 
   /** Output a retraction with windowing information to the main output */
-  void outputWindowedRetraction(
-      OutputT output,
-      Instant timestamp,
-      Collection<? extends BoundedWindow> windows,
-      PaneInfo pane);
+  // void outputWindowedRetraction(
+  //     OutputT output,
+  //     Instant timestamp,
+  //     Collection<? extends BoundedWindow> windows,
+  //     PaneInfo pane);
 
   /** Outputs a value with windowing information to a tagged output. */
   <AdditionalOutputT> void outputWindowedValue(
