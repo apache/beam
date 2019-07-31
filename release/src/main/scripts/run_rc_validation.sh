@@ -116,6 +116,13 @@ if [[ -z `which gcloud` ]]; then
 fi
 gcloud --version
 
+echo "-----------------Checking Bigquery CLI-----------------"
+if [[ ! -f ~/.bigqueryrc ]]; then
+  echo "-----------------Initialing Bigquery CLI-----------------"
+  bq init
+fi
+bq version
+
 
 echo ""
 echo ""
@@ -206,7 +213,7 @@ if [[ "$java_mobile_game" = true ]]; then
   bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
 
   echo "-----------------Creating Pubsub Topic-----------------"
-  gcloud alpha pubsub topics create --project=${USER_GCP_PROJECT} ${MOBILE_GAME_PUBSUB_TOPIC}
+  gcloud pubsub topics create --project=${USER_GCP_PROJECT} ${MOBILE_GAME_PUBSUB_TOPIC}
 
   echo "**************************************************************************"
   echo "* Java mobile game validations: UserScore, HourlyTeamScore, Leaderboard"
@@ -220,7 +227,7 @@ if [[ "$java_mobile_game" = true ]]; then
 
   echo "-----------------Cleaning up BigQuery & Pubsub-----------------"
   bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
-  gcloud alpha pubsub topics delete projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC}
+  gcloud pubsub topics delete projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC}
 else
   echo "* Skip Java Mobile Game. Google Cloud SDK is required"
 fi
@@ -289,7 +296,7 @@ if [[ "$python_leaderboard_direct" = true || \
     pip install apache-beam-${RELEASE_VER}.zip[gcp]
 
     SHARED_PUBSUB_TOPIC=leader_board-${USER}-python-topic-$(date +%m%d)_$RANDOM
-    gcloud alpha pubsub topics create --project=${USER_GCP_PROJECT} ${SHARED_PUBSUB_TOPIC}
+    gcloud pubsub topics create --project=${USER_GCP_PROJECT} ${SHARED_PUBSUB_TOPIC}
 
     echo "-----------------------Setting up Shell Env Vars------------------------------"
     # [BEAM-4518]
