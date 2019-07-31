@@ -545,7 +545,7 @@ transform applies a function that produces exactly one output element.</p>
 </code></pre>
     </div>
 
-    <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">word_count</span><span class="p">:</span> <span class="s">'</span><span class="si">%</span><span class="s">s: </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span> <span class="p">(</span><span class="n">word_count</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">word_count</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+    <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">MapTuple</span><span class="p">(</span><span class="k">lambda</span> <span class="n">word</span><span class="p">,</span> <span class="n">count</span><span class="p">:</span> <span class="s">'</span><span class="si">%</span><span class="s">s: </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">count</span><span class="p">))</span>
 </code></pre>
     </div>
 
