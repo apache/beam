@@ -82,7 +82,7 @@ public abstract class WorkProgressUpdater {
   private final ScheduledExecutorService executor;
 
   /** Clock used to either provide real system time or mocked to virtualize time for testing. */
-  private final Clock clock;
+  protected final Clock clock;
 
   /** The lease duration to request from the external worker service. */
   protected long requestedLeaseDurationMs;
