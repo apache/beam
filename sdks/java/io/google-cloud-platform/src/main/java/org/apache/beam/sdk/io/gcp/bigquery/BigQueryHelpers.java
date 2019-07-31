@@ -471,8 +471,7 @@ public class BigQueryHelpers {
     }
   }
 
-  @VisibleForTesting
-  static String toJsonString(Object item) {
+  public static String toJsonString(Object item) {
     if (item == null) {
       return null;
     }
@@ -485,8 +484,7 @@ public class BigQueryHelpers {
     }
   }
 
-  @VisibleForTesting
-  static <T> T fromJsonString(String json, Class<T> clazz) {
+  public static <T> T fromJsonString(String json, Class<T> clazz) {
     if (json == null) {
       return null;
     }
