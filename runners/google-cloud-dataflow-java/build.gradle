@@ -187,6 +187,7 @@ task validatesRunnerLegacyWorkerJava11Test(type: Test) {
             "--project=${dataflowProject}",
             "--tempRoot=${dataflowValidatesTempRoot}",
             "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+            "--workerHarnessContainerImage=",
     ])
     
     systemProperty "java.specification.version", "11"
