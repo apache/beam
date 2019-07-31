@@ -77,6 +77,9 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
 
     /** Output the given value in the current window. */
     public abstract void output(OutputT value);
+
+    /** Output the given retraction in the current window. */
+    public abstract void outputRetraction(OutputT value);
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////

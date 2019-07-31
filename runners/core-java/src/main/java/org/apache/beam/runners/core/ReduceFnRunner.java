@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
+import org.apache.beam.runners.core.ReduceFnContextFactory.OnTriggerCallbacks;
 import org.apache.beam.runners.core.ReduceFnContextFactory.StateStyle;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
@@ -203,6 +204,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    */
   private final NonEmptyPanes<K, W> nonEmptyPanes;
 
+  /** ReduceFnRunner. */
   public ReduceFnRunner(
       K key,
       WindowingStrategy<?, W> windowingStrategy,
@@ -674,6 +676,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     }
   }
 
+  /** onTimers. */
   public void onTimers(Iterable<TimerData> timers) throws Exception {
     if (!timers.iterator().hasNext()) {
       return;
@@ -1045,16 +1048,25 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
               directContext.window(),
               pane,
               StateStyle.RENAMED,
-              toOutput -> {
-                // We're going to output panes, so commit the (now used) PaneInfo.
-                // This is unnecessary if the trigger isFinished since the saved
-                // state will be immediately deleted.
-                if (!isFinished) {
-                  paneInfoTracker.storeCurrentPaneInfo(directContext, pane);
+              new OnTriggerCallbacks<OutputT>() {
+                @Override
+                public void output(OutputT toOutput) {
+                  // We're going to output panes, so commit the (now used) PaneInfo.
+                  // This is unnecessary if the trigger isFinished since the saved
+                  // state will be immediately deleted.
+                  if (!isFinished) {
+                    paneInfoTracker.storeCurrentPaneInfo(directContext, pane);
+                  }
+
+                  // Output the actual value.
+                  outputter.outputWindowedValue(
+                      KV.of(key, toOutput), outputTimestamp, windows, pane);
                 }
 
-                // Output the actual value.
-                outputter.outputWindowedValue(KV.of(key, toOutput), outputTimestamp, windows, pane);
+                @Override
+                public void outputRetraction(OutputT toOutput) {
+                  // TODO: do something
+                }
               });
 
       reduceFn.onTrigger(renamedTriggerContext);

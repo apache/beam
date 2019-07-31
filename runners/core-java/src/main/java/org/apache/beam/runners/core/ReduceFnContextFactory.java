@@ -43,6 +43,8 @@ import org.joda.time.Instant;
 class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
   public interface OnTriggerCallbacks<OutputT> {
     void output(OutputT toOutput);
+
+    void outputRetraction(OutputT toOutput);
   }
 
   private final K key;
@@ -436,6 +438,11 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     @Override
     public void output(OutputT value) {
       callbacks.output(value);
+    }
+
+    @Override
+    public void outputRetraction(OutputT value) {
+      // TODO: none
     }
 
     @Override
