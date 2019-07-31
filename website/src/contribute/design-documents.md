@@ -98,7 +98,7 @@ This is a collection of documents that may or may not be up to date.
 - Beam SQL Pipeline Options [[doc](https://docs.google.com/document/d/1UTsSBuruJRfGnVOS9eXbQI6NauCD4WnSAPgA_Y0zjdk)]
 - Unbounded limit [[doc](https://docs.google.com/document/d/13zeTewHH9nfwhSlcE4x77WQwr1U2Z4sTiNRjOXUj2aw)]
 - Portable Beam Schemas [[doc](https://s.apache.org/beam-schemas)]
-- Cost Estimation [[doc](https://docs.google.com/document/d/1vi1PBBu5IqSy-qZl1Gk-49CcANOpbNs1UAud6LnOaiY/edit#heading=h.6rlkpwwx7gvf)]
+- Cost Based Optimizer [[doc1](https://docs.google.com/document/d/1DM_bcfFbIoc_vEoqQxhC7AvHBUDVCAwToC8TYGukkII), [doc2](https://docs.google.com/document/d/1vi1PBBu5IqSy-qZl1Gk-49CcANOpbNs1UAud6LnOaiY/edit#heading=h.6rlkpwwx7gvf)]
 
 ### Portability
 - Fn API
