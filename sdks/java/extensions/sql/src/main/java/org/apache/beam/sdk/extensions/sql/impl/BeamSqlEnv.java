@@ -132,6 +132,8 @@ public class BeamSqlEnv {
   public static class BeamSqlEnvBuilder {
     private static final String CALCITE_PLANNER =
         "org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner";
+    private static final String ZETASQL_PLANNER =
+        "org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner";
     private String queryPlannerClassName;
     private TableProvider defaultTableProvider;
     private String currentSchemaName;
