@@ -71,10 +71,10 @@ class PubSubMatcherTest(unittest.TestCase):
 
   def test_message_matcher_attributes_success(self, mock_get_sub, unsued_mock):
     self.init_matcher(with_attributes=True)
-    self.pubsub_matcher.expected_msg = [PubsubMessage(b'a', {'k': 'v'})]
+    self.pubsub_matcher.expected_msg = [PubsubMessage(b'a', {'k': 'v', 'message_id': ''})]
     mock_sub = mock_get_sub.return_value
     mock_sub.pull.side_effect = [
-        create_pull_response([PullResponseMessage(b'a', {'k': 'v'})])
+        create_pull_response([PullResponseMessage(b'a', {'k': 'v', 'message_id': ''})])
     ]
     hc_assert_that(self.mock_presult, self.pubsub_matcher)
     self.assertEqual(mock_sub.pull.call_count, 1)
@@ -96,7 +96,7 @@ class PubSubMatcherTest(unittest.TestCase):
   def test_message_matcher_strip_success(self, mock_get_sub, unsued_mock):
     self.init_matcher(with_attributes=True,
                       strip_attributes=['id', 'timestamp'])
-    self.pubsub_matcher.expected_msg = [PubsubMessage(b'a', {'k': 'v'})]
+    self.pubsub_matcher.expected_msg = [PubsubMessage(b'a', {'k': 'v', 'message_id': ''})]
     mock_sub = mock_get_sub.return_value
     mock_sub.pull.side_effect = [create_pull_response([
         PullResponseMessage(b'a', {'id': 'foo', 'timestamp': 'bar', 'k': 'v'})
