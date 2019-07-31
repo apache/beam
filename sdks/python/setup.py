@@ -121,7 +121,7 @@ REQUIRED_PACKAGES = [
     ('pyarrow>=0.11.1,<0.15.0; python_version >= "3.0" or '
      'platform_system != "Windows"'),
     'pydot>=1.2.0,<2',
-    'python-dateutil>=2.8.0,<2.9.0',
+    'python-dateutil>=2.8.0,<3',
     'pytz>=2018.3',
     # [BEAM-5628] Beam VCF IO is not supported in Python 3.
     'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
