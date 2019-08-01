@@ -53,6 +53,8 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
   doLast {
     def tests = [
         "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
+        "apache_beam.examples.streaming_wordgroup_it_test:StreamingWordGroupIT.test_discard_late_data",
+        "apache_beam.examples.streaming_wordgroup_it_test:StreamingWordGroupIT.test_single_output_per_window",
         "apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest",
         "apache_beam.io.gcp.bigquery_test:BigQueryStreamingInsertTransformIntegrationTests\
 .test_multiple_destinations_transform",

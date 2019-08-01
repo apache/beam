@@ -59,9 +59,10 @@ class TestDataflowRunner(DataflowRunner):
     try:
       self.wait_until_in_state(PipelineState.RUNNING)
 
-      if is_streaming and not wait_duration:
+      if not is_streaming:
+        self.result.wait_until_finish(duration=wait_duration)
+      else:
         logging.warning('Waiting indefinitely for streaming job.')
-      self.result.wait_until_finish(duration=wait_duration)
 
       if on_success_matcher:
         from hamcrest import assert_that as hc_assert_that

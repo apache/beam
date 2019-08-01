@@ -42,6 +42,8 @@ task preCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
     def precommitTests = [
         "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
         "apache_beam.examples.streaming_wordcount_it_test:StreamingWordCountIT.test_streaming_wordcount_it",
+        "apache_beam.examples.streaming_wordgroup_it_test:StreamingWordGroupIT.test_discard_late_data",
+        "apache_beam.examples.streaming_wordgroup_it_test:StreamingWordGroupIT.test_single_output_per_window",
     ]
     def testOpts = [
         "--tests=${precommitTests.join(',')}",
