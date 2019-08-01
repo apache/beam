@@ -92,26 +92,33 @@ if [[ -z `which hub` ]]; then
     echo "eval "$(hub alias -s)"" >> ~/.bashrc
     rm -rf ${HUB_ARTIFACTS_NAME}*
   else
-    echo "Hub is not installed. Validation on Python Leaderboard & GameStates will be skipped."
+    echo "Hub is not installed. Validation on Python Quickstart and MobileGame will be skipped."
   fi
 fi
 hub version
 
 echo "-----------------Checking Google Cloud SDK-----------------"
 if [[ -z `which gcloud` ]]; then
-  echo "You don't have Google Cloud SDK installed."
   if [[ "${INSTALL_GCLOUD}" = true ]]; then
     echo "-----------------Installing Google Cloud SDK-----------------"
     sudo apt-get install google-cloud-sdk
 
-    echo "[gcloud Login Required] Please login into your gcp account: "
-    gcloud auth login
+    gcloud init
     gcloud config set project ${USER_GCP_PROJECT}
 
     echo "-----------------Setting Up Service Account-----------------"
-    SERVICE_ACCOUNT_KEY_JSON=${USER}_json_key.json
-    gcloud iam service-accounts keys create ${SERVICE_ACCOUNT_KEY_JSON} --iam-account ${USER_SERVICE_ACCOUNT_EMAIL}
-    export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/${SERVICE_ACCOUNT_KEY_JSON}
+    if [[ -z "${GOOGLE_APPLICATION_CREDENTIALS}" ]]; then
+      if [[ ! -z "${USER_SERVICE_ACCOUNT_EMAIL}" ]]; then
+        SERVICE_ACCOUNT_KEY_JSON=${USER}_json_key.json
+        gcloud iam service-accounts keys create ${SERVICE_ACCOUNT_KEY_JSON} --iam-account ${USER_SERVICE_ACCOUNT_EMAIL}
+        export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/${SERVICE_ACCOUNT_KEY_JSON}
+      else
+        echo "Missing USER_SERVICE_ACCOUNT_EMAIL from config file. Force terminate."
+        exit
+      fi
+    fi
+  else
+    echo "Google Cloud SDK is not installed."
   fi
 fi
 gcloud --version
@@ -122,6 +129,19 @@ if [[ ! -f ~/.bigqueryrc ]]; then
   bq init
 fi
 bq version
+
+echo "-----------------Checking gnome-terminal-----------------"
+if [[ -z `which gnome-terminal` ]]; then
+  echo "You don't have gnome-terminal installed."
+  if [[ "$INSTALL_GNOME_TERMINAL" != true ]]; then
+    sudo apt-get upgrade
+    sudo apt-get install gnome-terminal
+  else
+    echo "gnome-terminal is not installed. Validation on Python Leaderboard & GameStates will be skipped."
+    exit
+  fi
+fi
+gnome-terminal --version
 
 
 echo ""
@@ -195,14 +215,14 @@ if [[ "$java_quickstart_dataflow" = true && ! -z `which gcloud` ]]; then
   -Prepourl=${REPO_URL} \
   -Pver=${RELEASE_VER} \
   -PgcpProject=${USER_GCP_PROJECT} \
-  -PgcsBucket=${USER_GCS_BUCKET}
+  -PgcsBucket=${USER_GCS_BUCKET:5}  # skip 'gs://' prefix
 else
   echo "* Skip Java quickstart with Dataflow runner. Google Cloud SDK is required."
 fi
 
 echo ""
 echo "====================Starting Java Mobile Game====================="
-if [[ "$java_mobile_game" = true ]]; then
+if [[ "$java_mobile_game" = true && ! -z `which gcloud` ]]; then
   MOBILE_GAME_DATASET=${USER}_java_validations_$(date +%m%d)_$RANDOM
   MOBILE_GAME_PUBSUB_TOPIC=leader_board-${USER}-java-topic-$(date +%m%d)_$RANDOM
   echo "Using GCP project: ${USER_GCP_PROJECT}"
@@ -222,8 +242,9 @@ if [[ "$java_mobile_game" = true ]]; then
   -Prepourl=${REPO_URL} \
   -Pver=${RELEASE_VER} \
   -PgcpProject=${USER_GCP_PROJECT} \
-  -PgcsBucket=${USER_GCS_BUCKET} \
-  -PbqDataset=${MOBILE_GAME_DATASET} -PpubsubTopic=${MOBILE_GAME_PUBSUB_TOPIC}
+  -PbqDataset=${MOBILE_GAME_DATASET} \
+  -PpubsubTopic=${MOBILE_GAME_PUBSUB_TOPIC} \
+  -PgcsBucket=${USER_GCS_BUCKET:5}  # skip 'gs://' prefix
 
   echo "-----------------Cleaning up BigQuery & Pubsub-----------------"
   bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
@@ -254,24 +275,12 @@ fi
 
 echo ""
 echo "====================Starting Python Leaderboard & GameStates Validations==============="
-if [[ "$python_leaderboard_direct" = true || \
+if [[ ("$python_leaderboard_direct" = true || \
       "$python_leaderboard_dataflow" = true || \
       "$python_gamestats_direct" = true || \
-      "$python_gamestats_dataflow" = true ]]; then
+      "$python_gamestats_dataflow" = true) && \
+      ! -z `which gnome-terminal` ]]; then
   cd ${LOCAL_BEAM_DIR}
-
-  echo "---------------------Checking gnome-terminal----------------------------------"
-  if [[ -z `which gnome-terminal` ]]; then
-    echo "You don't have gnome-terminal installed."
-    if [[ "$INSTALL_GNOME_TERMINAL" != true ]]; then
-      sudo apt-get upgrade
-      sudo apt-get install gnome-terminal
-    else
-      echo "Exit this script without proceeding to the next step. gnome-terminal is required in following steps."
-      exit
-    fi
-  fi
-  gnome-terminal --version
 
   echo "---------------------Downloading Python Staging RC----------------------------"
   wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
@@ -280,9 +289,9 @@ if [[ "$python_leaderboard_direct" = true || \
   echo "--------------------------Verifying Hashes------------------------------------"
   sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
 
-  sudo `which pip` install --upgrade pip
-  sudo `which pip` install --upgrade setuptools
-  sudo `which pip` install --upgrade virtualenv
+  `which pip` install --upgrade pip
+  `which pip` install --upgrade setuptools
+  `which pip` install --upgrade virtualenv
 
   for py_version in "${PYTHON_VERSIONS_TO_VALIDATE[@]}"
   do
@@ -292,7 +301,6 @@ if [[ "$python_leaderboard_direct" = true || \
     . beam_env_${py_version}/bin/activate
 
     echo "--------------------------Installing Python SDK-------------------------------"
-    pip install apache-beam-${RELEASE_VER}.zip
     pip install apache-beam-${RELEASE_VER}.zip[gcp]
 
     SHARED_PUBSUB_TOPIC=leader_board-${USER}-python-topic-$(date +%m%d)_$RANDOM
