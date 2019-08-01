@@ -52,12 +52,15 @@ No backward compatibility guarantees. Everything in this module is experimental.
 """
 
 from __future__ import absolute_import
+from __future__ import division
 
+import datetime
 import logging
+import struct
 
 import apache_beam as beam
 from apache_beam.io import iobase
-from apache_beam.io.range_trackers import OffsetRangeTracker
+from apache_beam.io.range_trackers import OrderedPositionRangeTracker
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import Reshuffle
@@ -71,6 +74,7 @@ try:
   from bson import objectid
 
   # pymongo also internally depends on bson.
+  from pymongo import DESCENDING
   from pymongo import MongoClient
   from pymongo import ReplaceOne
 except ImportError:
@@ -149,50 +153,77 @@ class _BoundedMongoSource(iobase.BoundedSource):
     self.filter = filter
     self.projection = projection
     self.spec = extra_client_params
-    self.doc_count = self._get_document_count()
-    self.avg_doc_size = self._get_avg_document_size()
-    self.client = None
 
   def estimate_size(self):
-    return self.avg_doc_size * self.doc_count
+    with MongoClient(self.uri, **self.spec) as client:
+      size = client[self.db].command('collstats', self.coll).get('size')
+      if size is None or size <= 0:
+        raise ValueError('Collection %s not found or total doc size is '
+                         'incorrect' % self.coll)
+      return size
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     # use document cursor index as the start and stop positions
     if start_position is None:
-      start_position = 0
+      epoch = datetime.datetime(1970, 1, 1)
+      start_position = objectid.ObjectId.from_datetime(epoch)
     if stop_position is None:
-      stop_position = self.doc_count
+      last_doc_id = self._get_last_document_id()
+      # add one sec to make sure the last document is not excluded
+      last_timestamp_plus_one_sec = (last_doc_id.generation_time +
+                                     datetime.timedelta(seconds=1))
+      stop_position = objectid.ObjectId.from_datetime(
+          last_timestamp_plus_one_sec)
 
-    # get an estimate on how many documents should be included in a split batch
-    desired_bundle_count = desired_bundle_size // self.avg_doc_size
+    desired_bundle_size_in_mb = desired_bundle_size // 1024 // 1024
+    split_keys = self._get_split_keys(desired_bundle_size_in_mb, start_position,
+                                      stop_position)
 
     bundle_start = start_position
-    while bundle_start < stop_position:
-      bundle_end = min(stop_position, bundle_start + desired_bundle_count)
-      yield iobase.SourceBundle(weight=bundle_end - bundle_start,
+    for split_key_id in split_keys:
+      bundle_end = min(stop_position, split_key_id)
+      if bundle_start is None and bundle_start < stop_position:
+        return
+      yield iobase.SourceBundle(weight=desired_bundle_size_in_mb,
                                 source=self,
                                 start_position=bundle_start,
                                 stop_position=bundle_end)
       bundle_start = bundle_end
+    # add range of last split_key to stop_position
+    if bundle_start < stop_position:
+      yield iobase.SourceBundle(weight=desired_bundle_size_in_mb,
+                                source=self,
+                                start_position=bundle_start,
+                                stop_position=stop_position)
 
   def get_range_tracker(self, start_position, stop_position):
     if start_position is None:
-      start_position = 0
+      epoch = datetime.datetime(1970, 1, 1)
+      start_position = objectid.ObjectId.from_datetime(epoch)
     if stop_position is None:
-      stop_position = self.doc_count
-    return OffsetRangeTracker(start_position, stop_position)
+      last_doc_id = self._get_last_document_id()
+      # add one sec to make sure the last document is not excluded
+      last_timestamp_plus_one_sec = (last_doc_id.generation_time +
+                                     datetime.timedelta(seconds=1))
+      stop_position = objectid.ObjectId.from_datetime(
+          last_timestamp_plus_one_sec)
+    return _ObjectIdRangeTracker(start_position, stop_position)
 
   def read(self, range_tracker):
     with MongoClient(self.uri, **self.spec) as client:
-      # docs is a MongoDB Cursor
-      docs = client[self.db][self.coll].find(
-          filter=self.filter, projection=self.projection
-      )[range_tracker.start_position():range_tracker.stop_position()]
-      for index in range(range_tracker.start_position(),
-                         range_tracker.stop_position()):
-        if not range_tracker.try_claim(index):
+      all_filters = self.filter
+      all_filters.update({
+          '_id': {
+              '$gte': range_tracker.start_position(),
+              '$lt': range_tracker.stop_position()
+          }
+      })
+
+      docs_cursor = client[self.db][self.coll].find(filter=all_filters)
+      for doc in docs_cursor:
+        if not range_tracker.try_claim(doc['_id']):
           return
-        yield docs[index - range_tracker.start_position()]
+        yield doc
 
   def display_data(self):
     res = super(_BoundedMongoSource, self).display_data()
@@ -204,18 +235,72 @@ class _BoundedMongoSource(iobase.BoundedSource):
     res['mongo_client_spec'] = self.spec
     return res
 
-  def _get_avg_document_size(self):
+  def _get_split_keys(self, desired_chunk_size, start_pos, end_pos):
+    # if desired chunk size smaller than 1mb, use mongodb default split size of
+    # 1mb
+    if desired_chunk_size < 1:
+      desired_chunk_size = 1
+    if start_pos >= end_pos:
+      # single document not splittable
+      return []
     with MongoClient(self.uri, **self.spec) as client:
-      size = client[self.db].command('collstats', self.coll).get('avgObjSize')
-      if size is None or size <= 0:
-        raise ValueError(
-            'Collection %s not found or average doc size is '
-            'incorrect', self.coll)
-      return size
+      name_space = '%s.%s' % (self.db, self.coll)
+      return (client[self.db].command(
+          'splitVector',
+          name_space,
+          keyPattern={'_id': 1},
+          min={'_id': start_pos},
+          max={'_id': end_pos},
+          maxChunkSize=desired_chunk_size)['splitKeys'])
 
-  def _get_document_count(self):
+  def _get_last_document_id(self):
     with MongoClient(self.uri, **self.spec) as client:
-      return max(client[self.db][self.coll].count_documents(self.filter), 0)
+      cursor = client[self.db][self.coll].find(filter={}, projection=[]).sort([
+          ('_id', DESCENDING)
+      ]).limit(1)
+      try:
+        return cursor[0]['_id']
+      except IndexError:
+        raise ValueError('Empty Mongodb collection')
+
+
+class _ObjectIdRangeTracker(OrderedPositionRangeTracker):
+  """RangeTracker for tracking mongodb _id of bson ObjectId type."""
+
+  def _id_to_int(self, id):
+    # id object is bytes type with size of 12
+    ints = struct.unpack('>III', id.binary)
+    return 2**64 * ints[0] + 2**32 * ints[1] + ints[2]
+
+  def _int_to_id(self, numbers):
+    ints = []
+    radix = 2**64
+    # convert bits 0:31, 32:63, 64:95 of number to three separate 4 bytes
+    # integer
+    while numbers > 0:
+      res = numbers // radix
+      ints.append(res)
+      numbers = numbers % radix
+      radix = radix >> 32
+    while len(ints) < 3:
+      ints = [0] + ints
+    bytes = struct.pack('>III', *ints)
+    return objectid.ObjectId(bytes)
+
+  def position_to_fraction(self, pos, start, end):
+    pos_number = self._id_to_int(pos)
+    start_number = self._id_to_int(start)
+    end_number = self._id_to_int(end)
+    return (pos_number - start_number) / (end_number - start_number)
+
+  def fraction_to_position(self, fraction, start, end):
+    start_number = self._id_to_int(start)
+    end_number = self._id_to_int(end)
+    total = end_number - start_number
+    # make sure split position is larger than start position.
+    pos = self._int_to_id(
+        max(start_number + 1, int(total * fraction + start_number)))
+    return pos
 
 
 @experimental()
