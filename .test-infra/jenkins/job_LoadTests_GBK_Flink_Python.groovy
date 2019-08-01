@@ -20,17 +20,10 @@ import CommonJobProperties as commonJobProperties
 import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
-import Infrastructure as infra
+import Flink
 
-String jenkinsJobName = 'beam_LoadTests_Python_GBK_Flink_Batch'
+String pythonHarnessImageTag = Flink.getSDKHarnessImageTag(CommonTestProperties.SDK.PYTHON)
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
-String dockerRegistryRoot = 'gcr.io/apache-beam-testing/beam_portability'
-String dockerTag = 'latest'
-String jobServerImageTag = "${dockerRegistryRoot}/flink-job-server:${dockerTag}"
-String pythonHarnessImageTag = "${dockerRegistryRoot}/python:${dockerTag}"
-
-String flinkVersion = '1.7'
-String flinkDownloadUrl = 'https://archive.apache.org/dist/flink/flink-1.7.0/flink-1.7.0-bin-hadoop28-scala_2.11.tgz'
 
 def testConfiguration = { datasetName -> [
         [
@@ -192,20 +185,19 @@ def loadTest = { scope, triggeringContext ->
   def sdkName = CommonTestProperties.SDK.PYTHON
 
   def numberOfWorkers = 16
-  infra.prepareSDKHarness(scope, sdkName, dockerRegistryRoot, 'latest')
-  infra.prepareFlinkJobServer(scope, flinkVersion, dockerRegistryRoot, 'latest')
-  infra.setupFlinkCluster(scope, jenkinsJobName, flinkDownloadUrl, pythonHarnessImageTag, jobServerImageTag, numberOfWorkers)
+  def flink = new Flink(scope, 'beam_LoadTests_Python_GBK_Flink_Batch')
+  flink.prepareSDKHarness(CommonTestProperties.SDK.PYTHON)
+  flink.prepareJobServer()
+  flink.setUp(CommonTestProperties.SDK.PYTHON, numberOfWorkers)
 
   def currentTestConfiguration = parametrizedTestConfigurations.findAll { it.jobProperties?.parallelism?.value == numberOfWorkers }
-  loadTestsBuilder.loadTests(scope, sdkName,  currentTestConfiguration, "GBK", "batch")
+  loadTestsBuilder.loadTests(scope, sdkName, currentTestConfiguration, "GBK", "batch")
 
   numberOfWorkers = 5
-  infra.scaleCluster(scope, jenkinsJobName, numberOfWorkers)
+  flink.scaleCluster(numberOfWorkers)
 
   currentTestConfiguration = parametrizedTestConfigurations.findAll { it.jobProperties?.parallelism?.value == numberOfWorkers }
-  loadTestsBuilder.loadTests(scope, sdkName,  currentTestConfiguration, "GBK", "batch")
-
-  infra.teardownDataproc(scope, jenkinsJobName)
+  loadTestsBuilder.loadTests(scope, sdkName, currentTestConfiguration, "GBK", "batch")
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(

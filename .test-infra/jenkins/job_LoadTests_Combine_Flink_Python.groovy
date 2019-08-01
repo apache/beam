@@ -18,19 +18,12 @@
 
 import CommonJobProperties as commonJobProperties
 import CommonTestProperties
-import Infrastructure as infra
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
+import Flink
 
-String jenkinsJobName = 'beam_LoadTests_Python_Combine_Flink_Batch'
+String pythonHarnessImageTag = Flink.getSDKHarnessImageTag(CommonTestProperties.SDK.PYTHON)
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
-String dockerRegistryRoot = 'gcr.io/apache-beam-testing/beam_portability'
-String dockerTag = 'latest'
-String jobServerImageTag = "${dockerRegistryRoot}/flink-job-server:${dockerTag}"
-String pythonHarnessImageTag = "${dockerRegistryRoot}/python:${dockerTag}"
-
-String flinkVersion = '1.7'
-String flinkDownloadUrl = 'https://archive.apache.org/dist/flink/flink-1.7.0/flink-1.7.0-bin-hadoop28-scala_2.11.tgz'
 
 def scenarios = { datasetName -> [
         [
@@ -109,9 +102,10 @@ def batchLoadTestJob = { scope, triggeringContext ->
 
     List<Map> testScenarios = scenarios(datasetName)
 
-    infra.prepareSDKHarness(scope, CommonTestProperties.SDK.PYTHON, dockerRegistryRoot, dockerTag)
-    infra.prepareFlinkJobServer(scope, flinkVersion, dockerRegistryRoot, dockerTag)
-    infra.setupFlinkCluster(scope, jenkinsJobName, flinkDownloadUrl, pythonHarnessImageTag, jobServerImageTag, numberOfWorkers)
+    def flink = new Flink(scope, 'beam_LoadTests_Python_Combine_Flink_Batch')
+    flink.prepareSDKHarness(CommonTestProperties.SDK.PYTHON)
+    flink.prepareJobServer()
+    flink.setUp(CommonTestProperties.SDK.PYTHON, numberOfWorkers)
 
     defineTestSteps(scope, testScenarios, [
             'Combine Python Load test: 2GB Fanout 4',
@@ -119,11 +113,9 @@ def batchLoadTestJob = { scope, triggeringContext ->
     ])
 
     def scaledNumberOfWorkers = 5
-    infra.scaleCluster(scope, jenkinsJobName, scaledNumberOfWorkers)
+    flink.scaleCluster(scaledNumberOfWorkers)
 
     defineTestSteps(scope, testScenarios, ['Combine Python Load test: 2GB 10 byte records'])
-
-    infra.teardownDataproc(scope, jenkinsJobName)
 }
 
 private List<Map> defineTestSteps(scope, List<Map> testScenarios, List<String> titles) {
