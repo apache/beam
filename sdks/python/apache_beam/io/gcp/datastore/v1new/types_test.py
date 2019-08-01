@@ -58,6 +58,7 @@ class TypesTest(unittest.TestCase):
     self.assertSetEqual(set(exclude_from_indexes), ec.exclude_from_indexes)
     self.assertEqual('kind', ec.kind)
     self.assertEqual(1234, ec.id)
+    self.assertEqual('kind2', ec['ref'].kind)
     self.assertEqual(1235, ec['ref'].id)
     self.assertEqual(self._PROJECT, ec['ref'].project)
 

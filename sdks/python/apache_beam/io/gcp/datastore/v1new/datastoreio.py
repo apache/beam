@@ -365,7 +365,9 @@ class WriteToDatastore(_Mutate):
   :class:`~apache_beam.io.gcp.datastore.v1new.types.Entity` to Cloud Datastore.
 
   Entity keys must be complete. The ``project`` field in each key must match the
-  project ID passed to this transform.
+  project ID passed to this transform. If ``project`` field in entity or
+  property key is empty then it is filled with the project ID passed to this
+  transform.
   """
 
   def __init__(self, project):
@@ -405,7 +407,8 @@ class DeleteFromDatastore(_Mutate):
   Datastore.
 
   Keys must be complete. The ``project`` field in each key must match the
-  project ID passed to this transform.
+  project ID passed to this transform. If ``project`` field in key is empty then
+  it is filled with the project ID passed to this transform.
   """
   def __init__(self, project):
     """Initialize the `DeleteFromDatastore` transform.
