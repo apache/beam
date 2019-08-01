@@ -21,8 +21,8 @@ import java.io.Serializable;
 import java.util.Map;
 import java.util.TreeMap;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /**
  * This class wraps a map of named aggregators. Spark expects that all accumulators be declared

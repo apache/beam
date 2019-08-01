@@ -17,13 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
@@ -71,9 +72,9 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBasedTable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBasedTable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 
 /** A fake implementation of BigQuery's job service. */
@@ -99,15 +100,15 @@ public class FakeJobService implements JobService, Serializable {
     }
   }
 
-  private static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Table<
+  private static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table<
           String, String, JobInfo>
       allJobs;
   private static int numExtractJobCalls;
 
-  private static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Table<
+  private static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table<
           String, String, List<ResourceId>>
       filesForLoadJobs;
-  private static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Table<
+  private static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table<
           String, String, JobStatistics>
       dryRunQueryResults;
 
@@ -361,6 +362,9 @@ public class FakeJobService implements JobService, Serializable {
       if (load.getTimePartitioning() != null) {
         existingTable = existingTable.setTimePartitioning(load.getTimePartitioning());
       }
+      if (load.getClustering() != null) {
+        existingTable = existingTable.setClustering(load.getClustering());
+      }
       datasetService.createTable(existingTable);
     }
 
@@ -384,6 +388,7 @@ public class FakeJobService implements JobService, Serializable {
       return new JobStatus().setState("FAILED").setErrorResult(new ErrorProto());
     }
     TimePartitioning partitioning = null;
+    Clustering clustering = null;
     TableSchema schema = null;
     boolean first = true;
     List<TableRow> allRows = Lists.newArrayList();
@@ -393,11 +398,15 @@ public class FakeJobService implements JobService, Serializable {
         if (!Objects.equals(partitioning, table.getTimePartitioning())) {
           return new JobStatus().setState("FAILED").setErrorResult(new ErrorProto());
         }
+        if (!Objects.equals(clustering, table.getClustering())) {
+          return new JobStatus().setState("FAILED").setErrorResult(new ErrorProto());
+        }
         if (!Objects.equals(schema, table.getSchema())) {
           return new JobStatus().setState("FAILED").setErrorResult(new ErrorProto());
         }
       }
       partitioning = table.getTimePartitioning();
+      clustering = table.getClustering();
       schema = table.getSchema();
       first = false;
       allRows.addAll(
@@ -409,6 +418,7 @@ public class FakeJobService implements JobService, Serializable {
             .setTableReference(destination)
             .setSchema(schema)
             .setTimePartitioning(partitioning)
+            .setClustering(clustering)
             .setEncryptionConfiguration(copy.getDestinationEncryptionConfiguration()));
     datasetService.insertAll(destination, allRows, null);
     return new JobStatus().setState("DONE");

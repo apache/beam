@@ -22,9 +22,9 @@ import static com.google.api.client.util.Base64.encodeBase64URLSafeString;
 
 import java.util.Arrays;
 import javax.annotation.Nullable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Bytes;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedBytes;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Bytes;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
 
 /**
  * Represents a position of a {@code GroupingShuffleReader} as an opaque array of bytes, encoded in

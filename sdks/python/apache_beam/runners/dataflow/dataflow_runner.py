@@ -379,11 +379,20 @@ class DataflowRunner(PipelineRunner):
     if apiclient._use_sdf_bounded_source(options):
       pipeline.replace_all(DataflowRunner._SDF_PTRANSFORM_OVERRIDES)
 
+    use_fnapi = apiclient._use_fnapi(options)
+    from apache_beam.portability.api import beam_runner_api_pb2
+    default_container_image = (
+        apiclient.get_default_container_image_for_current_sdk(use_fnapi))
+    default_environment = beam_runner_api_pb2.Environment(
+        urn=common_urns.environments.DOCKER.urn,
+        payload=beam_runner_api_pb2.DockerPayload(
+            container_image=default_container_image).SerializeToString())
+
     # Snapshot the pipeline in a portable proto.
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
-        return_context=True)
+        return_context=True, default_environment=default_environment)
 
-    if apiclient._use_fnapi(options):
+    if use_fnapi:
       # Cross language transform require using a pipeline object constructed
       # from the full pipeline proto to make sure that expanded version of
       # external transforms are reflected in the Pipeline job graph.
@@ -398,7 +407,7 @@ class DataflowRunner(PipelineRunner):
 
       # We need to generate a new context that maps to the new pipeline object.
       self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
-          return_context=True)
+          return_context=True, default_environment=default_environment)
 
     # Add setup_options for all the BeamPlugin imports
     setup_options = options.view_as(SetupOptions)
@@ -1267,9 +1276,9 @@ class DataflowPipelineResult(PipelineResult):
   def _get_job_state(self):
     values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
 
-    # TODO: Move this table to a another location.
-    # Ordered by the enum values.
-    api_jobstate_map = {
+    # Ordered by the enum values. Values that may be introduced in
+    # future versions of Dataflow API are considered UNKNOWN by the SDK.
+    api_jobstate_map = defaultdict(lambda: PipelineState.UNKNOWN, {
         values_enum.JOB_STATE_UNKNOWN: PipelineState.UNKNOWN,
         values_enum.JOB_STATE_STOPPED: PipelineState.STOPPED,
         values_enum.JOB_STATE_RUNNING: PipelineState.RUNNING,
@@ -1281,7 +1290,7 @@ class DataflowPipelineResult(PipelineResult):
         values_enum.JOB_STATE_DRAINED: PipelineState.DRAINED,
         values_enum.JOB_STATE_PENDING: PipelineState.PENDING,
         values_enum.JOB_STATE_CANCELLING: PipelineState.CANCELLING,
-    }
+    })
 
     return (api_jobstate_map[self._job.currentState] if self._job.currentState
             else PipelineState.UNKNOWN)

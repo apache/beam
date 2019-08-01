@@ -53,14 +53,17 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
@@ -131,6 +134,26 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     } else {
       return BeamRelNode.super.getPCollectionInputs();
     }
+  }
+
+  @Override
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+    return super.computeSelfCost(planner, mq);
+  }
+
+  /**
+   * This method checks if a join is legal and can be converted into Beam SQL. It is used during
+   * planning and applying {@link
+   * org.apache.beam.sdk.extensions.sql.impl.rule.BeamJoinAssociateRule} and {@link
+   * org.apache.beam.sdk.extensions.sql.impl.rule.BeamJoinPushThroughJoinRule}
+   */
+  public static boolean isJoinLegal(Join join) {
+    try {
+      extractJoinRexNodes(join.getCondition());
+    } catch (UnsupportedOperationException e) {
+      return false;
+    }
+    return true;
   }
 
   @Override
@@ -254,7 +277,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       int leftRowColumnCount = leftRelNode.getRowType().getFieldCount();
 
       // extract the join fields
-      List<Pair<RexNode, RexNode>> pairs = extractJoinRexNodes();
+      List<Pair<RexNode, RexNode>> pairs = extractJoinRexNodes(condition);
 
       // build the extract key type
       // the name of the join field is not important
@@ -540,7 +563,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     return curField;
   }
 
-  private List<Pair<RexNode, RexNode>> extractJoinRexNodes() {
+  static List<Pair<RexNode, RexNode>> extractJoinRexNodes(RexNode condition) {
     // it's a CROSS JOIN because: condition == true
     if (condition instanceof RexLiteral && (Boolean) ((RexLiteral) condition).getValue()) {
       throw new UnsupportedOperationException("CROSS JOIN is not supported!");
@@ -564,7 +587,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     return pairs;
   }
 
-  private Pair<RexNode, RexNode> extractJoinPairOfRexNodes(RexCall rexCall) {
+  private static Pair<RexNode, RexNode> extractJoinPairOfRexNodes(RexCall rexCall) {
     if (!rexCall.getOperator().getName().equals("=")) {
       throw new UnsupportedOperationException("Non equi-join is not supported");
     }
@@ -584,14 +607,14 @@ public class BeamJoinRel extends Join implements BeamRelNode {
   }
 
   // Only support {RexInputRef | RexFieldAccess} = {RexInputRef | RexFieldAccess}
-  private boolean isIllegalJoinConjunctionClause(RexCall rexCall) {
+  private static boolean isIllegalJoinConjunctionClause(RexCall rexCall) {
     return (!(rexCall.getOperands().get(0) instanceof RexInputRef)
             && !(rexCall.getOperands().get(0) instanceof RexFieldAccess))
         || (!(rexCall.getOperands().get(1) instanceof RexInputRef)
             && !(rexCall.getOperands().get(1) instanceof RexFieldAccess));
   }
 
-  private int getColumnIndex(RexNode rexNode) {
+  private static int getColumnIndex(RexNode rexNode) {
     if (rexNode instanceof RexInputRef) {
       return ((RexInputRef) rexNode).getIndex();
     } else if (rexNode instanceof RexFieldAccess) {

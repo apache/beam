@@ -28,6 +28,10 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
+  publishers {
+    archiveJunit('**/nosetests*.xml')
+  }
+
   // Execute shell command to test Python SDK.
   // TODO: Parallel the script run with Jenkins DSL or Gradle.
   steps {

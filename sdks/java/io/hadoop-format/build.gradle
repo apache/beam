@@ -45,7 +45,7 @@ configurations.testRuntimeClasspath {
 
 dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.vendored_guava_20_0
+  compile library.java.vendored_guava_26_0_jre
   compile library.java.slf4j_api
   compile project(":sdks:java:io:hadoop-common")
   provided library.java.hadoop_common

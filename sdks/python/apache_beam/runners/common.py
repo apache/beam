@@ -697,6 +697,10 @@ class PerWindowInvoker(DoFnInvoker):
     restriction_tracker = self.restriction_tracker
     current_windowed_value = self.current_windowed_value
     if restriction_tracker and current_windowed_value:
+      # Temporary workaround for [BEAM-7473]: get current_watermark before
+      # split, in case watermark gets advanced before getting split results.
+      # In worst case, current_watermark is always stale, which is ok.
+      current_watermark = restriction_tracker.current_watermark()
       split = restriction_tracker.try_split(fraction)
       if split:
         primary, residual = split
@@ -710,7 +714,7 @@ class PerWindowInvoker(DoFnInvoker):
              None),
             (self.current_windowed_value.with_value(
                 ((element, residual), residual_size)),
-             restriction_tracker.current_watermark()))
+             current_watermark))
 
   def current_element_progress(self):
     restriction_tracker = self.restriction_tracker

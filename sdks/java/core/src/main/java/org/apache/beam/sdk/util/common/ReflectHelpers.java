@@ -18,9 +18,10 @@
 package org.apache.beam.sdk.util.common;
 
 import static java.util.Arrays.asList;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
@@ -36,12 +37,12 @@ import java.util.Queue;
 import java.util.ServiceLoader;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSortedSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Queues;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSortedSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Queues;
 
 /** Utilities for working with with {@link Class Classes} and {@link Method Methods}. */
 public class ReflectHelpers {
@@ -51,6 +52,9 @@ public class ReflectHelpers {
   /** A {@link Function} that turns a method into a simple method signature. */
   public static final Function<Method, String> METHOD_FORMATTER =
       new Function<Method, String>() {
+        @SuppressFBWarnings(
+            value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+            justification = "https://github.com/google/guava/issues/920")
         @Override
         public String apply(@Nonnull Method input) {
           String parameterTypes =
@@ -64,6 +68,9 @@ public class ReflectHelpers {
   /** A {@link Function} that turns a method into the declaring class + method signature. */
   public static final Function<Method, String> CLASS_AND_METHOD_FORMATTER =
       new Function<Method, String>() {
+        @SuppressFBWarnings(
+            value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+            justification = "https://github.com/google/guava/issues/920")
         @Override
         public String apply(@Nonnull Method input) {
           return String.format(
@@ -91,6 +98,9 @@ public class ReflectHelpers {
   /** A {@link Function} that formats types. */
   public static final Function<Type, String> TYPE_SIMPLE_DESCRIPTION =
       new Function<Type, String>() {
+        @SuppressFBWarnings(
+            value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+            justification = "https://github.com/google/guava/issues/920")
         @Override
         @Nullable
         public String apply(@Nonnull Type input) {

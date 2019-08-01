@@ -58,6 +58,7 @@ This is a collection of documents that may or may not be up to date.
 - [PROPOSAL] @onwindowexpiration [[mail](https://lists.apache.org/thread.html/1dab7f17c97378e665928b11116cbd887dc7be93390ab26c593ee49a@%3Cdev.beam.apache.org%3E)]
 - AutoValue Coding and Row Support [[doc](https://docs.google.com/document/d/1ucoik4WzUDfilqIz3I1AuMHc1J8DE6iv7gaUCDI42BI)] 
 - HyperLogLog++ Integration with Apache Beam [[doc](https://docs.google.com/document/d/1U5aXdC9lDSOqT6FPHRulp-EutYiQ9KeHpgu-19CIfEI)] 
+- Retractions [[doc](https://docs.google.com/document/d/14WRfxwk_iLUHGPty3C6ZenddPsp_d6jhmx0vuafXqmE/edit?usp=sharing)]
 
 ### IO / Filesystem
 - IOChannelFactory Redesign [[doc](https://docs.google.com/document/d/11TdPyZ9_zmjokhNWM3Id-XJsVG3qel2lhdKTknmZ_7M)]
@@ -97,7 +98,7 @@ This is a collection of documents that may or may not be up to date.
 - Beam SQL Pipeline Options [[doc](https://docs.google.com/document/d/1UTsSBuruJRfGnVOS9eXbQI6NauCD4WnSAPgA_Y0zjdk)]
 - Unbounded limit [[doc](https://docs.google.com/document/d/13zeTewHH9nfwhSlcE4x77WQwr1U2Z4sTiNRjOXUj2aw)]
 - Portable Beam Schemas [[doc](https://s.apache.org/beam-schemas)]
-- Cost Estimation [[doc](https://docs.google.com/document/d/1vi1PBBu5IqSy-qZl1Gk-49CcANOpbNs1UAud6LnOaiY/edit#heading=h.6rlkpwwx7gvf)]
+- Cost Based Optimizer [[doc1](https://docs.google.com/document/d/1DM_bcfFbIoc_vEoqQxhC7AvHBUDVCAwToC8TYGukkII), [doc2](https://docs.google.com/document/d/1vi1PBBu5IqSy-qZl1Gk-49CcANOpbNs1UAud6LnOaiY/edit#heading=h.6rlkpwwx7gvf)]
 
 ### Portability
 - Fn API

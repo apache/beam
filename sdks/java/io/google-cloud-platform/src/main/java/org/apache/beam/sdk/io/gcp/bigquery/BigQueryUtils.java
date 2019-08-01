@@ -34,6 +34,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.IntStream;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.schemas.LogicalTypes;
 import org.apache.beam.sdk.schemas.Schema;
@@ -43,10 +44,10 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
@@ -313,7 +314,15 @@ public class BigQueryUtils {
   public static Row toBeamRow(GenericRecord record, Schema schema, ConversionOptions options) {
     List<Object> valuesInOrder =
         schema.getFields().stream()
-            .map(field -> convertAvroFormat(field, record.get(field.getName()), options))
+            .map(
+                field -> {
+                  try {
+                    return convertAvroFormat(field.getType(), record.get(field.getName()), options);
+                  } catch (Exception cause) {
+                    throw new IllegalArgumentException(
+                        "Error converting field " + field + ": " + cause.getMessage(), cause);
+                  }
+                })
             .collect(toList());
 
     return Row.withSchema(schema).addValues(valuesInOrder).build();
@@ -471,14 +480,13 @@ public class BigQueryUtils {
    * Beam field.
    */
   public static Object convertAvroFormat(
-      Field beamField, Object avroValue, BigQueryUtils.ConversionOptions options) {
-    TypeName beamFieldTypeName = beamField.getType().getTypeName();
+      FieldType beamFieldType, Object avroValue, BigQueryUtils.ConversionOptions options) {
+    TypeName beamFieldTypeName = beamFieldType.getTypeName();
     if (avroValue == null) {
-      if (beamField.getType().getNullable()) {
+      if (beamFieldType.getNullable()) {
         return null;
       } else {
-        throw new IllegalArgumentException(
-            String.format("Field %s not nullable", beamField.getName()));
+        throw new IllegalArgumentException(String.format("Field %s not nullable", beamFieldType));
       }
     }
     switch (beamFieldTypeName) {
@@ -505,9 +513,9 @@ public class BigQueryUtils {
       case STRING:
         return convertAvroPrimitiveTypes(beamFieldTypeName, avroValue);
       case ARRAY:
-        return convertAvroArray(beamField, avroValue);
+        return convertAvroArray(beamFieldType, avroValue, options);
       case LOGICAL_TYPE:
-        String identifier = beamField.getType().getLogicalType().getIdentifier();
+        String identifier = beamFieldType.getLogicalType().getIdentifier();
         if (SQL_DATE_TIME_TYPES.contains(identifier)) {
           switch (options.getTruncateTimestamps()) {
             case TRUNCATE:
@@ -524,6 +532,13 @@ public class BigQueryUtils {
         } else {
           throw new RuntimeException("Unknown logical type " + identifier);
         }
+      case ROW:
+        Schema rowSchema = beamFieldType.getRowSchema();
+        if (rowSchema == null) {
+          throw new IllegalArgumentException("Nested ROW missing row schema");
+        }
+        GenericData.Record record = (GenericData.Record) avroValue;
+        return toBeamRow(record, rowSchema, options);
       case DECIMAL:
         throw new RuntimeException("Does not support converting DECIMAL type value");
       case MAP:
@@ -553,14 +568,14 @@ public class BigQueryUtils {
     return new Instant((long) value / 1000);
   }
 
-  private static Object convertAvroArray(Field beamField, Object value) {
+  private static Object convertAvroArray(
+      FieldType beamField, Object value, BigQueryUtils.ConversionOptions options) {
     // Check whether the type of array element is equal.
     List<Object> values = (List<Object>) value;
     List<Object> ret = new ArrayList();
+    FieldType collectionElement = beamField.getCollectionElementType();
     for (Object v : values) {
-      ret.add(
-          convertAvroPrimitiveTypes(
-              beamField.getType().getCollectionElementType().getTypeName(), v));
+      ret.add(convertAvroFormat(collectionElement, v, options));
     }
     return (Object) ret;
   }

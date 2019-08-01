@@ -1,0 +1,85 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// ** Experimental **
+// Protocol Buffers describing Beam Schemas, a portable representation for
+// complex types.
+
+syntax = "proto3";
+
+package org.apache.beam.model.pipeline.v1;
+
+option go_package = "pipeline_v1";
+option java_package = "org.apache.beam.model.pipeline.v1";
+option java_outer_classname = "SchemaApi";
+
+message Schema {
+  repeated Field fields = 1;
+  string id = 2;
+}
+
+message Field {
+  string name = 1;
+  string description = 2;
+  FieldType type = 3;
+  int32 id = 4;
+  int32 encoding_position = 5;
+}
+
+message FieldType {
+  bool nullable = 1;
+  oneof type_info {
+    AtomicType atomic_type = 2;
+    ArrayType array_type = 3;
+    MapType map_type = 4;
+    RowType row_type = 5;
+    LogicalType logical_type = 6;
+  }
+}
+
+enum AtomicType {
+  UNSPECIFIED = 0;
+  BYTE = 1;
+  INT16 = 2;
+  INT32 = 3;
+  INT64 = 4;
+  FLOAT = 5;
+  DOUBLE = 6;
+  STRING = 7;
+  BOOLEAN = 8;
+  BYTES = 9;
+}
+
+message ArrayType {
+  FieldType element_type = 1;
+}
+
+message MapType {
+  FieldType key_type = 1;
+  FieldType value_type = 2;
+}
+
+message RowType {
+  Schema schema = 1;
+}
+
+message LogicalType {
+  string urn = 1;
+  string args = 2;
+  FieldType representation = 3;
+}

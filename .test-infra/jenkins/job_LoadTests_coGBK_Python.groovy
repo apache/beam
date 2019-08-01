@@ -46,7 +46,7 @@ def loadTestConfigurations = { datasetName -> [
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
                                 '"value_size": 90,' +
-                                '"num_hot_keys": 5,' +
+                                '"num_hot_keys": 1,' +
                                 '"hot_key_fraction": 1}\'',
                         iterations           : 1,
                         max_num_workers      : 5,
@@ -104,7 +104,7 @@ def loadTestConfigurations = { datasetName -> [
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
                                 '"value_size": 90,' +
-                                '"num_hot_keys": 5,' +
+                                '"num_hot_keys": 200000,' +
                                 '"hot_key_fraction": 1}\'',
                         iterations           : 4,
                         max_num_workers      : 5,
@@ -133,7 +133,7 @@ def loadTestConfigurations = { datasetName -> [
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
                                 '"value_size": 90,' +
-                                '"num_hot_keys": 5,' +
+                                '"num_hot_keys": 1000,' +
                                 '"hot_key_fraction": 1}\'',
                         iterations           : 4,
                         max_num_workers      : 5,

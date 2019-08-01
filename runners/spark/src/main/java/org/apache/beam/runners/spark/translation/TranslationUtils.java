@@ -17,11 +17,13 @@
  */
 package org.apache.beam.runners.spark.translation;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
@@ -44,9 +46,9 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
@@ -76,7 +78,7 @@ public final class TranslationUtils {
   }
 
   /**
-   * A SparkKeyedCombineFn function applied to grouped KVs.
+   * A SparkCombineFn function applied to grouped KVs.
    *
    * @param <K> Grouped key type.
    * @param <InputT> Grouped values type.
@@ -84,17 +86,21 @@ public final class TranslationUtils {
    */
   public static class CombineGroupedValues<K, InputT, OutputT>
       implements Function<WindowedValue<KV<K, Iterable<InputT>>>, WindowedValue<KV<K, OutputT>>> {
-    private final SparkKeyedCombineFn<K, InputT, ?, OutputT> fn;
+    private final SparkCombineFn<KV<K, InputT>, InputT, ?, OutputT> fn;
 
-    public CombineGroupedValues(SparkKeyedCombineFn<K, InputT, ?, OutputT> fn) {
+    public CombineGroupedValues(SparkCombineFn<KV<K, InputT>, InputT, ?, OutputT> fn) {
       this.fn = fn;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public WindowedValue<KV<K, OutputT>> call(WindowedValue<KV<K, Iterable<InputT>>> windowedKv)
         throws Exception {
       return WindowedValue.of(
-          KV.of(windowedKv.getValue().getKey(), fn.apply(windowedKv)),
+          KV.of(
+              windowedKv.getValue().getKey(),
+              fn.getCombineFn()
+                  .apply(windowedKv.getValue().getValue(), fn.ctxtForValue(windowedKv))),
           windowedKv.getTimestamp(),
           windowedKv.getWindows(),
           windowedKv.getPane());
@@ -142,15 +148,18 @@ public final class TranslationUtils {
   /** A pair to {@link KV} function . */
   static class FromPairFunction<K, V>
       implements Function<Tuple2<K, V>, KV<K, V>>,
-          org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function<
+          org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function<
               Tuple2<K, V>, KV<K, V>> {
     @Override
     public KV<K, V> call(Tuple2<K, V> t2) {
       return KV.of(t2._1(), t2._2());
     }
 
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public KV<K, V> apply(Tuple2<K, V> t2) {
+    public KV<K, V> apply(@Nonnull Tuple2<K, V> t2) {
       return call(t2);
     }
   }
@@ -173,7 +182,7 @@ public final class TranslationUtils {
   /** Extract window from a {@link KV} with {@link WindowedValue} value. */
   static class ToKVByWindowInValueFunction<K, V>
       implements Function<KV<K, WindowedValue<V>>, WindowedValue<KV<K, V>>>,
-          org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function<
+          org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function<
               KV<K, WindowedValue<V>>, WindowedValue<KV<K, V>>> {
 
     @Override
@@ -182,8 +191,11 @@ public final class TranslationUtils {
       return wv.withValue(KV.of(kv.getKey(), wv.getValue()));
     }
 
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public WindowedValue<KV<K, V>> apply(KV<K, WindowedValue<V>> kv) {
+    public WindowedValue<KV<K, V>> apply(@Nonnull KV<K, WindowedValue<V>> kv) {
       return call(kv);
     }
   }

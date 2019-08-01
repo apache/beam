@@ -1,7 +1,7 @@
 :beam-website :website
 :beam-vendor-sdks-java-extensions-protobuf :vendor:sdks-java-extensions-protobuf
-:beam-vendor-guava-20_0 :vendor:guava-20_0
-:beam-vendor-grpc-1_13_1 :vendor:grpc-1_13_1
+:beam-vendor-guava-26_0-jre :vendor:guava-26_0-jre
+:beam-vendor-grpc-1_21_0 :vendor:grpc-1_21_0
 :beam-sdks-python-test-suites-direct-py35 :sdks:python:test-suites:direct:py35
 :beam-sdks-python-test-suites-direct-py36 :sdks:python:test-suites:direct:py36
 :beam-sdks-python-test-suites-direct-py37 :sdks:python:test-suites:direct:py37

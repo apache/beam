@@ -21,7 +21,7 @@ import java.util.Map;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * A specialization of {@link DynamicDestinations} for {@link AvroIO}. In addition to dynamic file

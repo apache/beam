@@ -143,6 +143,7 @@ task validatesRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
   }
+  jvmArgs '-Xmx3g'
 }
 
 task validatesRunnerStreaming(type: Test) {

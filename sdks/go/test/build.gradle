@@ -48,7 +48,7 @@ golang {
 }
 
 task flinkValidatesRunner {
-  dependsOn ":sdks:go:test:build"
+  dependsOn ":sdks:go:test:goBuild"
   dependsOn ":runners:flink:1.5:job-server:shadowJar"
   doLast {
     def options = [
@@ -64,7 +64,7 @@ task flinkValidatesRunner {
 }
 
 task sparkValidatesRunner {
-  dependsOn ":sdks:go:test:build"
+  dependsOn ":sdks:go:test:goBuild"
   dependsOn ":runners:spark:job-server:shadowJar"
   doLast {
     def options = [

@@ -314,7 +314,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.15.0'
+    project.version = '2.16.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -460,7 +460,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20181104-$google_clients_version",
         google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20180801-$google_clients_version",
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20181015-$google_clients_version",
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20190322-$google_clients_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20190607-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20181105-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20181013-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials:$google_auth_version",
@@ -533,8 +533,8 @@ class BeamModulePlugin implements Plugin<Project> {
         spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:3.1.4",
-        vendored_grpc_1_13_1                        : "org.apache.beam:beam-vendor-grpc-1_13_1:0.2",
-        vendored_guava_20_0                         : "org.apache.beam:beam-vendor-guava-20_0:0.1",
+        vendored_grpc_1_21_0                        : "org.apache.beam:beam-vendor-grpc-1_21_0:0.1",
+        vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
         zstd_jni                                    : "com.github.luben:zstd-jni:1.3.8-3",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
@@ -708,6 +708,9 @@ class BeamModulePlugin implements Plugin<Project> {
         include "**/*Test.class"
         include "**/*Tests.class"
         include "**/*TestCase.class"
+        // fixes issues with test filtering on multi-module project
+        // see https://discuss.gradle.org/t/multi-module-build-fails-with-tests-filter/25835
+        filter { setFailOnNoMatchingTests(false) }
       }
 
       project.tasks.withType(Test) {
@@ -731,40 +734,42 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: "net.ltgt.apt"
       // let idea apt plugin handle the ide integration
       project.apply plugin: "net.ltgt.apt-idea"
-      project.dependencies {
-        // Note that these plugins specifically use the compileOnly and testCompileOnly
-        // configurations because they are never required to be shaded or become a
-        // dependency of the output.
-        def auto_value = "com.google.auto.value:auto-value:1.6.3"
-        def auto_value_annotations = "com.google.auto.value:auto-value-annotations:1.6.3"
-        def auto_service = "com.google.auto.service:auto-service:1.0-rc2"
 
-        compileOnly auto_value_annotations
-        testCompileOnly auto_value_annotations
-        annotationProcessor auto_value
-        testAnnotationProcessor auto_value
-
-        compileOnly auto_service
-        testCompileOnly auto_service
-        annotationProcessor auto_service
-        testAnnotationProcessor auto_service
-
+      // Note that these plugins specifically use the compileOnly and testCompileOnly
+      // configurations because they are never required to be shaded or become a
+      // dependency of the output.
+      def compileOnlyAnnotationDeps = [
+        "com.google.auto.value:auto-value-annotations:1.6.3",
+        "com.google.auto.service:auto-service-annotations:1.0-rc6",
+        "com.google.j2objc:j2objc-annotations:1.3",
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
         // also to include the annotations to suppress warnings.
         //
         // spotbugs-annotations artifact is licensed under LGPL and cannot be included in the
         // Apache Beam distribution, but may be relied on during build.
         // See: https://www.apache.org/legal/resolved.html#prohibited
-        def spotbugs_annotations = "com.github.spotbugs:spotbugs-annotations:3.1.11"
-        def jcip_annotations = "net.jcip:jcip-annotations:1.0"
-        compileOnly spotbugs_annotations
-        compileOnly jcip_annotations
-        testCompileOnly spotbugs_annotations
-        testCompileOnly jcip_annotations
-        annotationProcessor spotbugs_annotations
-        annotationProcessor jcip_annotations
-        testAnnotationProcessor spotbugs_annotations
-        testAnnotationProcessor jcip_annotations
+        "com.github.spotbugs:spotbugs-annotations:3.1.11",
+        "net.jcip:jcip-annotations:1.0",
+      ]
+
+      project.dependencies {
+        compileOnlyAnnotationDeps.each { dep ->
+          compileOnly dep
+          testCompileOnly dep
+          annotationProcessor dep
+          testAnnotationProcessor dep
+        }
+
+        // Add common annotation processors to all Java projects
+        def annotationProcessorDeps = [
+          "com.google.auto.value:auto-value:1.6.3",
+          "com.google.auto.service:auto-service:1.0-rc6",
+        ]
+
+        annotationProcessorDeps.each { dep ->
+          annotationProcessor dep
+          testAnnotationProcessor dep
+        }
       }
 
       // Add the optional and provided configurations for dependencies
@@ -817,13 +822,7 @@ class BeamModulePlugin implements Plugin<Project> {
         java {
           licenseHeader javaLicenseHeader
           googleJavaFormat('1.7')
-          def targetFiles = project.fileTree(project.projectDir)
-          // Explicitly add source sets because projects may have source located outside of the project directory
-          project.sourceSets.each { sourceSet ->
-            targetFiles += sourceSet.allJava
-          }
-
-          target targetFiles.matching { include 'src/*/java/**/*.java' }
+          target project.fileTree(project.projectDir) { include 'src/*/java/**/*.java' }
         }
       }
 
@@ -831,6 +830,11 @@ class BeamModulePlugin implements Plugin<Project> {
       // This plugin is configured to only analyze the "main" source set.
       if (configuration.enableSpotbugs) {
         project.apply plugin: 'com.github.spotbugs'
+        project.dependencies {
+          spotbugs "com.github.spotbugs:spotbugs:3.1.10"
+          spotbugs "com.google.auto.value:auto-value:1.6.3"
+          compileOnlyAnnotationDeps.each { dep -> spotbugs dep }
+        }
         project.spotbugs {
           excludeFilter = project.rootProject.file('sdks/java/build-tools/src/main/resources/beam/spotbugs-filter.xml')
           sourceSets = [sourceSets.main]
@@ -843,6 +847,15 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
+      // Disregard unused but declared (test) compile only dependencies used
+      // for common annotation classes used during compilation such as annotation
+      // processing or post validation such as spotbugs.
+      project.dependencies {
+        compileOnlyAnnotationDeps.each { dep ->
+          permitUnusedDeclared dep
+          permitTestUnusedDeclared dep
+        }
+      }
       if (configuration.enableStrictDependencies) {
         project.tasks.analyzeClassesDependencies.enabled = true
         project.tasks.analyzeDependencies.enabled = true
@@ -1388,7 +1401,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: 'base'
 
       project.apply plugin: "com.github.blindpirate.gogradle"
-      project.golang { goVersion = '1.10' }
+      project.golang { goVersion = '1.12' }
 
       project.repositories {
         golang {
@@ -1530,10 +1543,10 @@ class BeamModulePlugin implements Plugin<Project> {
               enableSpotbugs: false,
               archivesBaseName: configuration.archivesBaseName,
               shadowJarValidationExcludes: it.shadowJarValidationExcludes,
-              shadowClosure: GrpcVendoringOld.shadowClosure() << {
+              shadowClosure: GrpcVendoring.shadowClosure() << {
                 // We perform all the code relocations but don't include
                 // any of the actual dependencies since they will be supplied
-                // by org.apache.beam:beam-vendor-grpc-v1p13p1:0.1
+                // by org.apache.beam:beam-vendor-grpc-v1p21p0:0.1
                 dependencies {
                   include(dependency { return false })
                 }
@@ -1549,14 +1562,14 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: "com.google.protobuf"
       project.protobuf {
         protoc { // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:3.6.0" }
+          artifact = "com.google.protobuf:protoc:3.7.1" }
 
         // Configure the codegen plugins
         plugins {
           // An artifact spec for a protoc plugin, with "grpc" as
           // the identifier, which can be referred to in the "plugins"
           // container of the "generateProtoTasks" closure.
-          grpc { artifact = "io.grpc:protoc-gen-grpc-java:1.13.1" }
+          grpc { artifact = "io.grpc:protoc-gen-grpc-java:1.21.0" }
         }
 
         generateProtoTasks {
@@ -1570,7 +1583,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      project.dependencies GrpcVendoringOld.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_13_1 }
+      project.dependencies GrpcVendoring.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_21_0 }
     }
 
     /** ***********************************************************************************************/
@@ -1848,6 +1861,7 @@ class BeamModulePlugin implements Plugin<Project> {
               argMap["pipeline_opts"] = config.pipelineOptions
             if (config.kmsKeyName)
               argMap["kms_key_name"] = config.kmsKeyName
+            argMap["suite"] = "integrationTest-perf"
 
             def cmdArgs = project.mapToArgString(argMap)
             def runScriptsDir = "${pythonRootDir}/scripts"
