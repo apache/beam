@@ -253,22 +253,22 @@ has other limitations that make it insufficient for this task</em>).</p>
 <h2 id="beam-source-api">Beam Source API</h2>
 
 <p>Apache Beam historically provides a Source API
-(<a href="https://beam.apache.org/releases/javadoc/2.13.0/org/apache/beam/sdk/io/BoundedSource.html">BoundedSource</a>
+(<a href="https://beam.apache.org/releases/javadoc/2.14.0/org/apache/beam/sdk/io/BoundedSource.html">BoundedSource</a>
 and
-<a href="https://beam.apache.org/releases/javadoc/2.13.0/org/apache/beam/sdk/io/UnboundedSource.html">UnboundedSource</a>) which does
+<a href="https://beam.apache.org/releases/javadoc/2.14.0/org/apache/beam/sdk/io/UnboundedSource.html">UnboundedSource</a>) which does
 not have these limitations and allows development of efficient data sources for
 batch and streaming systems. Pipelines use this API via the
-<a href="https://beam.apache.org/releases/javadoc/2.13.0/org/apache/beam/sdk/io/Read.html"><code class="highlighter-rouge">Read.from(Source)</code></a> built-in <code class="highlighter-rouge">PTransform</code>.</p>
+<a href="https://beam.apache.org/releases/javadoc/2.14.0/org/apache/beam/sdk/io/Read.html"><code class="highlighter-rouge">Read.from(Source)</code></a> built-in <code class="highlighter-rouge">PTransform</code>.</p>
 
 <p>The Source API is largely similar to that of most other data processing
 frameworks, and allows the system to read data in parallel using multiple
 workers, as well as checkpoint and resume reading from an unbounded data source.
 Additionally, the Beam
-<a href="https://beam.apache.org/releases/javadoc/2.13.0/org/apache/beam/sdk/io/BoundedSource.html"><code class="highlighter-rouge">BoundedSource</code></a>
+<a href="https://beam.apache.org/releases/javadoc/2.14.0/org/apache/beam/sdk/io/BoundedSource.html"><code class="highlighter-rouge">BoundedSource</code></a>
 API provides advanced features such as progress reporting and <a href="/blog/2016/05/18/splitAtFraction-method.html">dynamic
 rebalancing</a>
 (which together enable autoscaling), and
-<a href="https://beam.apache.org/releases/javadoc/2.13.0/org/apache/beam/sdk/io/UnboundedSource.html"><code class="highlighter-rouge">UnboundedSource</code></a> supports
+<a href="https://beam.apache.org/releases/javadoc/2.14.0/org/apache/beam/sdk/io/UnboundedSource.html"><code class="highlighter-rouge">UnboundedSource</code></a> supports
 reporting the source’s watermark and backlog <em>(until SDF, we believed that
 “batch” and “streaming” data sources are fundamentally different and thus
 require fundamentally different APIs)</em>.</p>
