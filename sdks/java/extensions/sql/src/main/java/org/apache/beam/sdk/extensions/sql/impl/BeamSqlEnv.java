@@ -304,16 +304,11 @@ public class BeamSqlEnv {
     }
 
     private QueryPlanner instantiatePlanner(JdbcConnection jdbcConnection, RuleSet[] ruleSets) {
-
-      if (queryPlannerClassName.equals(CALCITE_PLANNER)) {
-        return new CalciteQueryPlanner(jdbcConnection, ruleSets);
-      }
-
       try {
         return (QueryPlanner)
             Class.forName(queryPlannerClassName)
-                .getConstructor(JdbcConnection.class)
-                .newInstance(jdbcConnection);
+                .getConstructor(JdbcConnection.class, RuleSet[].class)
+                .newInstance(jdbcConnection, ruleSets);
       } catch (Exception e) {
         throw new RuntimeException(
             String.format("Cannot construct query planner %s", queryPlannerClassName), e);
