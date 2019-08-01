@@ -54,6 +54,12 @@ public class BeamMinusRel extends Minus implements BeamRelNode {
 
   @Override
   public NodeStats estimateNodeStats(RelMetadataQuery mq) {
-    return NodeStats.create(mq.getRowCount(this));
+    NodeStats firstInputEstimates = BeamSqlRelUtils.getNodeStats(inputs.get(0), mq);
+    // The first input minus half of the others. (We are assuming half of them have intersection)
+    for (int i = 1; i < inputs.size(); i++) {
+      NodeStats inputEstimate = BeamSqlRelUtils.getNodeStats(inputs.get(i), mq);
+      firstInputEstimates = firstInputEstimates.minus(inputEstimate.multiply(0.5));
+    }
+    return firstInputEstimates;
   }
 }

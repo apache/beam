@@ -35,8 +35,8 @@ public interface NodeStatsMetadata extends Metadata {
   MetadataDef<NodeStatsMetadata> DEF =
       MetadataDef.of(NodeStatsMetadata.class, NodeStatsMetadata.Handler.class, METHOD);
 
-  // In order to use this we need to call it by relNode.metadata(RowRateWindowMetadata.class,
-  // mq).getRowRateWindow() where mq is the MetadataQuery (can be obtained by
+  // In order to use this we need to call it by relNode.metadata(NodeStatsMetadata.class,
+  // mq).getNodeStats() where mq is the MetadataQuery (can be obtained by
   // relNode.getCluster().getMetadataQuery()). After this, Calcite looks for the implementation of
   // this metadata that we have registered in MetadataProvider (it is RelMdNodeStats.class in
   // this case and we have registered it in CalciteQueryPlanner). Then Calcite's generated Code

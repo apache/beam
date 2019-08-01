@@ -54,6 +54,18 @@ public class BeamIntersectRel extends Intersect implements BeamRelNode {
 
   @Override
   public NodeStats estimateNodeStats(RelMetadataQuery mq) {
-    return NodeStats.create(mq.getRowCount(this));
+    // This takes the minimum of the inputs for all the estimate factors.
+    double minimumRows = Double.POSITIVE_INFINITY;
+    double minimumWindowSize = Double.POSITIVE_INFINITY;
+    double minimumRate = Double.POSITIVE_INFINITY;
+
+    for (RelNode input : inputs) {
+      NodeStats inputEstimates = BeamSqlRelUtils.getNodeStats(input, mq);
+      minimumRows = Math.min(minimumRows, inputEstimates.getRowCount());
+      minimumRate = Math.min(minimumRate, inputEstimates.getRate());
+      minimumWindowSize = Math.min(minimumWindowSize, inputEstimates.getWindow());
+    }
+
+    return NodeStats.create(minimumRows, minimumRate, minimumWindowSize).multiply(0.5);
   }
 }

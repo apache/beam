@@ -96,6 +96,6 @@ public class BeamValuesRel extends Values implements BeamRelNode {
 
   @Override
   public NodeStats estimateNodeStats(RelMetadataQuery mq) {
-    return NodeStats.create(mq.getRowCount(this));
+    return NodeStats.create(tuples.size(), 0, tuples.size());
   }
 }

@@ -74,7 +74,7 @@ public class BeamIOSinkRel extends TableModify
 
   @Override
   public NodeStats estimateNodeStats(RelMetadataQuery mq) {
-    return NodeStats.create(mq.getRowCount(this));
+    return BeamSqlRelUtils.getNodeStats(this.input, mq);
   }
 
   @Override
