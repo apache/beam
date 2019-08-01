@@ -137,6 +137,12 @@ def delete_files(file_paths):
   FileSystems.delete(file_paths)
 
 
+def cleanup_snapshots(sub_client, snaps):
+  """Cleanup PubSub snapshots if exist."""
+  for snap in snaps:
+    sub_client.delete_snapshot(snap.name)
+
+
 def cleanup_subscriptions(sub_client, subs):
   """Cleanup PubSub subscriptions if exist."""
   for sub in subs:
