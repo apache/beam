@@ -538,8 +538,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
       def process(self,
                   element,
                   set_state=beam.DoFn.StateParam(SET_STATE),
-                  emit_timer=beam.DoFn.TimerParam(EMIT_TIMER)
-                  ):
+                  emit_timer=beam.DoFn.TimerParam(EMIT_TIMER)):
         _, value = element
         set_state.add(value)
 
@@ -550,7 +549,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
 
       @on_timer(EMIT_TIMER)
       def emit_values(self, set_state=beam.DoFn.StateParam(SET_STATE)):
-          yield sorted(set_state.read())
+        yield sorted(set_state.read())
 
     p = TestPipeline()
     values = p | beam.Create([('key', 1),
