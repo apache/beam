@@ -28,9 +28,8 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Apache Beam</title>
-  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
-">
+  <title>Apache Beam 2.14.0</title>
+  <meta name="description" content="We are happy to present the new 2.14.0 release of Beam. This release includes both improvements and new functionality.See the download page for this release.">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
   <link rel="stylesheet" href="/css/site.css">
   <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
@@ -39,7 +38,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/blog/2019/07/31/beam-2.14.0.html" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -53,7 +52,7 @@
   </script>
 </head>
 
-  <body class="body body--index">
+  <body class="body ">
     <!--
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -141,7 +140,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/index.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/_posts/2019-07-31-beam-2.14.0.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -151,6 +150,31 @@
 
     <div class="body__contained">
       <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+
+
+<article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Apache Beam 2.14.0</h1>
+    <p class="post-meta"><time datetime="2019-07-31T01:00:01-07:00" itemprop="datePublished">Jul 31, 2019</time> •
+       Anton Kedin  &amp; Ahmet Altay 
+      
+    </p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -163,207 +187,97 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<div class="hero-bg">
-  <div class="hero section">
-    <div class="hero__cols">
-      <div class="hero__cols__col">
-        <div class="hero__cols__col__content">
-          <div class="hero__title">
-            Apache Beam: An advanced unified programming model
-          </div>
-          <div class="hero__subtitle">
-            Implement batch and streaming data processing jobs that run on any execution engine.
-          </div>
-          <div class="hero__ctas hero__ctas--first">
-            <a class="button button--primary" href="/get-started/beam-overview/">Learn more</a>
-            <a class="button button--primary" href="/get-started/try-apache-beam/">Try Beam</a>
-            <a class="button button--primary" href="/get-started/downloads/">Download Beam SDK 2.14.0</a>
-          </div>
-          <div class="hero__ctas">
-            <a class="button" href="/get-started/quickstart-java/">Java Quickstart</a>
-            <a class="button" href="/get-started/quickstart-py/">Python Quickstart</a>
-            <a class="button" href="/get-started/quickstart-go/">Go Quickstart</a>
-          </div>
-        </div>
-      </div>
-      <div class="hero__cols__col">
-        <div class="hero__blog">
-          <div class="hero__blog__title">
-            The latest from the blog
-          </div>
-          <div class="hero__blog__cards">
-            
-            <a class="hero__blog__cards__card" href="/blog/2019/07/31/beam-2.14.0.html">
-              <div class="hero__blog__cards__card__title">Apache Beam 2.14.0</div>
-              <div class="hero__blog__cards__card__date">Jul 31, 2019</div>
-            </a>
-            
-            <a class="hero__blog__cards__card" href="/blog/2019/06/11/looping-timers.html">
-              <div class="hero__blog__cards__card__title">Looping timers in Apache Beam</div>
-              <div class="hero__blog__cards__card__date">Jun 11, 2019</div>
-            </a>
-            
-            <a class="hero__blog__cards__card" href="/blog/2019/05/22/beam-2.13.0.html">
-              <div class="hero__blog__cards__card__title">Apache Beam 2.13.0</div>
-              <div class="hero__blog__cards__card__date">Jun 7, 2019</div>
-            </a>
-            
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
 
-<div class="pillars section">
-  <div class="pillars__title">
-    All about Apache Beam
-  </div>
-  <div class="pillars__cols">
-    
-    <div class="pillars__cols__col">
-      <div class="pillars__cols__col__title">
-        Unified
-      </div>
-      <div class="pillars__cols__col__body">
-        Use a single programming model for both batch and streaming use cases.
-      </div>
-    </div>
-    
-    <div class="pillars__cols__col">
-      <div class="pillars__cols__col__title">
-        Portable
-      </div>
-      <div class="pillars__cols__col__body">
-        Execute pipelines on multiple execution environments.
-      </div>
-    </div>
-    
-    <div class="pillars__cols__col">
-      <div class="pillars__cols__col__title">
-        Extensible
-      </div>
-      <div class="pillars__cols__col__body">
-        Write and share new SDKs, IO connectors, and transformation libraries.
-      </div>
-    </div>
-    
-  </div>
-</div>
+<p>We are happy to present the new 2.14.0 release of Beam. This release includes both improvements and new functionality.
+See the <a href="/get-started/downloads/#2140-2019-07-25">download page</a> for this release.<!--more-->
+For more information on changes in 2.14.0, check out the
+<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;version=12345431">detailed release notes</a>.</p>
 
-<div class="graphic section">
-<div class="graphic__image">
-<img src="/images/beam_architecture.png" alt="Beam architecture" />
-</div>
-</div>
+<h2 id="highlights">Highlights</h2>
 
-<div class="logos section">
-  <div class="logos__title">
-    Works with
-  </div>
-  <div class="logos__logos">
-    
-    <div class="logos__logos__logo">
-      <a href="http://apex.apache.org"><img src="/images/logo_apex.png" alt="APEX" /></a>
-    </div>
-    
-    <div class="logos__logos__logo">
-      <a href="http://flink.apache.org"><img src="/images/logo_flink.png" alt="Flink" /></a>
-    </div>
-    
-    <div class="logos__logos__logo">
-      <a href="http://spark.apache.org/"><img src="/images/logo_spark.png" alt="Spark" /></a>
-    </div>
-    
-    <div class="logos__logos__logo">
-      <a href="https://cloud.google.com/dataflow/"><img src="/images/logo_google_cloud.png" alt="Google Cloud Dataflow" /></a>
-    </div>
-    
-    <div class="logos__logos__logo">
-      <a href="http://gearpump.apache.org/"><img src="/images/logo_gearpump.png" alt="Gearpump" /></a>
-    </div>
-    
-    <div class="logos__logos__logo">
-      <a href="http://samza.apache.org/"><img src="/images/logo_samza.png" alt="Samza" /></a>
-    </div>
-    
-  </div>
-</div>
+<ul>
+  <li>Python 3 support is extended to Python 3.6 and 3.7; in addition to various other Python 3 <a href="https://issues.apache.org/jira/browse/BEAM-1251?focusedCommentId=16890504&amp;page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-16890504">improvements</a>.</li>
+  <li>Spark portable runner (batch) now <a href="https://lists.apache.org/thread.html/c43678fc24c9a1dc9f48c51c51950aedcb9bc0fd3b633df16c3d595a@%3Cuser.beam.apache.org%3E">available</a> for Java, Python, Go.</li>
+  <li>Added new runner: Hazelcast Jet Runner. (<a href="https://issues.apache.org/jira/browse/BEAM-7305">BEAM-7305</a>)</li>
+</ul>
 
-<div class="cards section section--wide">
-  <div class="section__contained">
-    <div class="cards__title">
-      Testimonials
-    </div>
-    <div class="cards__cards">
-      
-      <div class="cards__cards__card">
-        <div class="cards__cards__card__body">
-          A framework that delivers the flexibility and advanced functionality our customers need.
-        </div>
-        <div class="cards__cards__card__user">
-          <!-- TODO: Implement icons.
-          <div class="cards__cards__card__user__icon">
-          </div>
-          -->
-          <div class="cards__cards__card__user__name">
-            –Talend
-          </div>
-        </div>
-      </div>
-      
-      <div class="cards__cards__card">
-        <div class="cards__cards__card__body">
-          Apache Beam has powerful semantics that solve real-world challenges of stream processing.
-        </div>
-        <div class="cards__cards__card__user">
-          <!-- TODO: Implement icons.
-          <div class="cards__cards__card__user__icon">
-          </div>
-          -->
-          <div class="cards__cards__card__user__name">
-            –PayPal
-          </div>
-        </div>
-      </div>
-      
-      <div class="cards__cards__card">
-        <div class="cards__cards__card__body">
-          Apache Beam represents a principled approach for analyzing data streams.
-        </div>
-        <div class="cards__cards__card__user">
-          <!-- TODO: Implement icons.
-          <div class="cards__cards__card__user__icon">
-          </div>
-          -->
-          <div class="cards__cards__card__user__name">
-            –data Artisans
-          </div>
-        </div>
-      </div>
-      
-    </div>
-    <div class="cards__body">
-      Beam is an open source community and contributions are greatly appreciated!
-      If you’d like to contribute, please see the <a href="/contribute/">Contribute</a> section.
-    </div>
-  </div>
-</div>
+<h3 id="ios">I/Os</h3>
 
-<div class="ctas section">
-  <div class="ctas__title">
-    Get started
+<ul>
+  <li>Schema support added to BigQuery reads. (Java) (<a href="https://issues.apache.org/jira/browse/BEAM-6673">BEAM-6673</a>)</li>
+  <li>Schema support added to JDBC source and sink. (Java) (<a href="https://issues.apache.org/jira/browse/BEAM-6674">BEAM-6674</a>, <a href="https://issues.apache.org/jira/browse/BEAM-6675">BEAM-6675</a>)</li>
+  <li>BigQuery support for <code class="highlighter-rouge">bytes</code> is fixed. (Python 3) (<a href="https://issues.apache.org/jira/browse/BEAM-6769">BEAM-6769</a>)</li>
+  <li>Added DynamoDB IO. (Java) (<a href="https://issues.apache.org/jira/browse/BEAM-7043">BEAM-7043</a>)</li>
+  <li>Added support unbounded reads with HCatalogIO (Java) (<a href="https://issues.apache.org/jira/browse/BEAM-7450">BEAM-7450</a>)</li>
+  <li>Added BoundedSource wrapper for SDF. (Python) (<a href="https://issues.apache.org/jira/browse/BEAM-7443">BEAM-7443</a>)</li>
+  <li>Added support for INCRBY/DECRBY operations in RedisIO. (<a href="https://issues.apache.org/jira/browse/BEAM-7286">BEAM-7286</a>)</li>
+  <li>Added Support for ValueProvider defined GCS Location for WriteToBigQuery with File Loads. (Java) ((<a href="https://issues.apache.org/jira/browse/BEAM-7603">BEAM-7603</a>))</li>
+</ul>
+
+<h3 id="new-features--improvements">New Features / Improvements</h3>
+
+<ul>
+  <li>Python SDK add support for DoFn <code class="highlighter-rouge">setup</code> and <code class="highlighter-rouge">teardown</code> methods. (<a href="https://issues.apache.org/jira/browse/BEAM-562">BEAM-562</a>)</li>
+  <li>Python SDK adds new transforms: <a href="https://issues.apache.org/jira/browse/BEAM-6693">ApproximateUnique</a>, <a href="https://issues.apache.org/jira/browse/BEAM-6695">Latest</a>, <a href="https://issues.apache.org/jira/browse/BEAM-7019">Reify</a>, <a href="https://issues.apache.org/jira/browse/BEAM-7021">ToString</a>, <a href="https://issues.apache.org/jira/browse/BEAM-7023">WithKeys</a>.</li>
+  <li>Added hook for user-defined JVM initialization in workers. (<a href="https://issues.apache.org/jira/browse/BEAM-6872">BEAM-6872</a>)</li>
+  <li>Added support for SQL Row Estimation for BigQueryTable. (<a href="https://issues.apache.org/jira/browse/BEAM-7513">BEAM-7513</a>)</li>
+  <li>Auto sharding of streaming sinks in FlinkRunner. (<a href="https://issues.apache.org/jira/browse/BEAM-5865">BEAM-5865</a>)</li>
+  <li>Removed the Hadoop dependency from the external sorter. (<a href="https://issues.apache.org/jira/browse/BEAM-7268">BEAM-7268</a>)</li>
+  <li>Added option to expire portable SDK worker environments. (<a href="https://issues.apache.org/jira/browse/BEAM-7348">BEAM-7348</a>)</li>
+  <li>Beam does not relocate Guava anymore and depends only on its own vendored version of Guava. (<a href="https://issues.apache.org/jira/browse/BEAM-6620">BEAM-6620</a>)</li>
+</ul>
+
+<h3 id="breaking-changes">Breaking Changes</h3>
+<ul>
+  <li>Deprecated set/getClientConfiguration in Jdbc IO. (<a href="https://issues.apache.org/jira/browse/BEAM-7263">BEAM-7263</a>)</li>
+</ul>
+
+<h3 id="bugfixes">Bugfixes</h3>
+
+<ul>
+  <li>Fixed reading of concatenated compressed files. (Python) (<a href="https://issues.apache.org/jira/browse/BEAM-6952">BEAM-6952</a>)</li>
+  <li>Fixed re-scaling issues on Flink &gt;= 1.6 versions. (<a href="https://issues.apache.org/jira/browse/BEAM-7144">BEAM-7144</a>)</li>
+  <li>Fixed SQL EXCEPT DISTINCT behavior. (<a href="https://issues.apache.org/jira/browse/BEAM-7194">BEAM-7194</a>)</li>
+  <li>Fixed OOM issues with bounded Reads for Flink Runner. (<a href="https://issues.apache.org/jira/browse/BEAM-7442">BEAM-7442</a>)</li>
+  <li>Fixed HdfsFileSystem to correctly match directories. (<a href="https://issues.apache.org/jira/browse/BEAM-7561">BEAM-7561</a>)</li>
+  <li>Upgraded Spark runner to use spark version 2.4.3. (<a href="https://issues.apache.org/jira/browse/BEAM-7265">BEAM-7265</a>)</li>
+  <li>Upgraded Jackson to version 2.9.9. (<a href="https://issues.apache.org/jira/browse/BEAM-7465">BEAM-7465</a>)</li>
+  <li>Various other bug fixes and performance improvements.</li>
+</ul>
+
+<h3 id="known-issues">Known Issues</h3>
+
+<ul>
+  <li>Do <strong>NOT</strong> use Python MongoDB source in this release. Python MongoDB source <a href="https://issues.apache.org/jira/browse/BEAM-5148">added</a> in this release has a known issue that can result in data loss. See (<a href="https://issues.apache.org/jira/browse/BEAM-7866">BEAM-7866</a>) for details.</li>
+</ul>
+
+<h2 id="list-of-contributors">List of Contributors</h2>
+
+<p>According to git shortlog, the following people contributed to the 2.14.0 release. Thank you to all contributors!</p>
+
+<p>Ahmet Altay, Aizhamal Nurmamat kyzy, Ajo Thomas, Alex Amato, Alexey Romanenko, 
+Alexey Strokach, Alex Van Boxel, Alireza Samadian, Andrew Pilloud, 
+Ankit Jhalaria, Ankur Goenka, Anton Kedin, Aryan Naraghi, Bartok Jozsef, 
+Bora Kaplan, Boyuan Zhang, Brian Hulette, Cam Mach, Chamikara Jayalath, 
+Charith Ellawala, Charles Chen, Colm O hEigeartaigh, Cyrus Maden, 
+Daniel Mills, Daniel Oliveira, David Cavazos, David Moravek, David Yan, 
+Daniel Lescohier, Elwin Arens, Etienne Chauchot, Fábio Franco Uechi, 
+Finch Keung, Frederik Bode, Gregory Kovelman, Graham Polley, Hai Lu, Hannah Jiang, 
+Harshit Dwivedi, Harsh Vardhan, Heejong Lee, Henry Suryawirawan, 
+Ismaël Mejía, Jan Lukavský, Jean-Baptiste Onofré, Jozef Vilcek, Juta, Kai Jiang, 
+Kamil Wu, Kasia Kucharczyk, Kenneth Knowles, Kyle Weaver, Lara Schmidt, 
+Łukasz Gajowy, Luke Cwik, Manu Zhang, Mark Liu, Matthias Baetens, 
+Maximilian Michels, Melissa Pashniak, Michael Luckey, Michal Walenia, 
+Mikhail Gryzykhin, Ming Liang, Neville Li, Pablo Estrada, Paul Suganthan, 
+Peter Backx, Rakesh Kumar, Rasmi Elasmar, Reuven Lax, Reza Rokni, Robbe Sneyders, 
+Robert Bradshaw, Robert Burke, Rose Nguyen, Rui Wang, Ruoyun Huang, 
+Shoaib Zafar, Slava Chernyak, Steve Niemitz, Tanay Tummalapalli, Thomas Weise, 
+Tim Robertson, Tim van der Lippe, Udi Meiri, Valentyn Tymofieiev, Varun Dhussa, 
+Viktor Gerdin, Yichi Zhang, Yifan Mai, Yifan Zou, Yueyang Qiu.</p>
+
   </div>
-  <div class="ctas__ctas ctas__ctas--top">
-  <a class="button button--primary" href="/get-started/beam-overview/">Learn more</a>
-  <a class="button button--primary" href="/get-started/downloads/">Download Beam SDK 2.14.0</a>
-  </div>
-  <div class="ctas__ctas">
-  <a class="button" href="/get-started/quickstart-java/">Java Quickstart</a>
-  <a class="button" href="/get-started/quickstart-py/">Python Quickstart</a>
-  <a class="button" href="/get-started/quickstart-go/">Go Quickstart</a>
-  </div>
-</div>
+
+</article>
 
     </div>
     <!--
