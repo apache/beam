@@ -680,6 +680,7 @@ public class XmlIO {
     @Override
     public void flush() throws IOException {
       outputStream.write(("\n</" + getRootElement() + ">").getBytes(Charset.forName(getCharset())));
+      outputStream.flush();
     }
   }
 }
