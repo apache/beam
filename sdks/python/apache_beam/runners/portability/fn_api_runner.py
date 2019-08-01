@@ -1134,11 +1134,11 @@ class GrpcServer(object):
 
   _DEFAULT_SHUTDOWN_TIMEOUT_SECS = 5
 
-  def __init__(self, state, provision_info):
+  def __init__(self, state, provision_info, num_workers):
     self.state = state
     self.provision_info = provision_info
     self.control_server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=10))
+        futures.ThreadPoolExecutor(max_workers=num_workers))
     self.control_port = self.control_server.add_insecure_port('[::]:0')
     self.control_address = 'localhost:%s' % self.control_port
 
@@ -1148,12 +1148,12 @@ class GrpcServer(object):
     no_max_message_sizes = [("grpc.max_receive_message_length", -1),
                             ("grpc.max_send_message_length", -1)]
     self.data_server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=10),
+        futures.ThreadPoolExecutor(max_workers=num_workers),
         options=no_max_message_sizes)
     self.data_port = self.data_server.add_insecure_port('[::]:0')
 
     self.state_server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=10),
+        futures.ThreadPoolExecutor(max_workers=num_workers),
         options=no_max_message_sizes)
     self.state_port = self.state_server.add_insecure_port('[::]:0')
 
@@ -1386,7 +1386,8 @@ class WorkerHandlerManager(object):
     # assume it's using grpc if environment is not EMBEDDED_PYTHON.
     if environment.urn != python_urns.EMBEDDED_PYTHON and \
         self._grpc_server is None:
-      self._grpc_server = GrpcServer(self._state, self._job_provision_info)
+      self._grpc_server = GrpcServer(
+          self._state, self._job_provision_info, num_workers)
     worker_handler_list = self._cached_handlers[environment_id]
     if len(worker_handler_list) < num_workers:
       for _ in range(len(worker_handler_list), num_workers):
