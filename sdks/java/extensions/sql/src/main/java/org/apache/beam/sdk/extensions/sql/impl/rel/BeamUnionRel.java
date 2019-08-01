@@ -81,6 +81,14 @@ public class BeamUnionRel extends Union implements BeamRelNode {
 
   @Override
   public NodeStats estimateNodeStats(RelMetadataQuery mq) {
-    return NodeStats.create(mq.getRowCount(this));
+    // The summation of the input stats
+    NodeStats summationOfEstimates =
+        inputs.stream()
+            .map(input -> BeamSqlRelUtils.getNodeStats(input, mq))
+            .reduce(NodeStats.create(0, 0, 0), NodeStats::plus);
+    // If all is set then we propagate duplicated values. Otherwise we assume a constant factor of
+    // them are duplicate.
+    summationOfEstimates = all ? summationOfEstimates : summationOfEstimates.multiply(0.5);
+    return summationOfEstimates;
   }
 }

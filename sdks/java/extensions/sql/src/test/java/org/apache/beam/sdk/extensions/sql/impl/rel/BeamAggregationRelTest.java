@@ -23,20 +23,15 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestUnboundedTable;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
 
-/** Test for {@code BeamIOSourceRel}. */
-public class BeamIOSourceRelTest extends BaseRelTest {
-  @Rule public final TestPipeline pipeline = TestPipeline.create();
-
+/** Tests related to {@code BeamAggregationRel}. */
+public class BeamAggregationRelTest extends BaseRelTest {
   private static final DateTime FIRST_DATE = new DateTime(1);
   private static final DateTime SECOND_DATE = new DateTime(1 + 3600 * 1000);
 
@@ -101,63 +96,57 @@ public class BeamIOSourceRelTest extends BaseRelTest {
             .setStatistics(BeamTableStatistics.createUnboundedTableStatistics(2d)));
   }
 
-  @Test
-  public void boundedRowCount() {
-    String sql = "SELECT * FROM ORDER_DETAILS_BOUNDED";
-
+  private NodeStats getEstimateOf(String sql) {
     RelNode root = env.parseQuery(sql);
 
-    while (!(root instanceof BeamIOSourceRel)) {
+    while (!(root instanceof BeamAggregationRel)) {
       root = root.getInput(0);
     }
 
-    Assert.assertEquals(5d, root.estimateRowCount(RelMetadataQuery.instance()), 0.001);
+    return BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
   }
 
   @Test
-  public void unboundedRowCount() {
-    String sql = "SELECT * FROM ORDER_DETAILS_UNBOUNDED";
+  public void testNodeStats() {
+    String sql = "SELECT order_id FROM ORDER_DETAILS_BOUNDED " + " GROUP BY order_id ";
 
-    RelNode root = env.parseQuery(sql);
+    NodeStats estimate = getEstimateOf(sql);
 
-    while (!(root instanceof BeamIOSourceRel)) {
-      root = root.getInput(0);
-    }
-
-    Assert.assertEquals(2d, root.estimateRowCount(RelMetadataQuery.instance()), 0.001);
+    Assert.assertEquals(5d / 2, estimate.getRowCount(), 0.001);
+    Assert.assertEquals(5d / 2, estimate.getWindow(), 0.001);
+    Assert.assertEquals(0., estimate.getRate(), 0.001);
   }
 
   @Test
-  public void testBoundedNodeStats() {
-    String sql = "SELECT * FROM ORDER_DETAILS_BOUNDED";
+  public void testNodeStatsEffectOfGroupSet() {
+    String sql1 = "SELECT order_id FROM ORDER_DETAILS_BOUNDED " + " GROUP BY order_id ";
+    String sql2 =
+        "SELECT order_id, site_id FROM ORDER_DETAILS_BOUNDED " + " GROUP BY order_id, site_id ";
 
-    RelNode root = env.parseQuery(sql);
+    NodeStats estimate1 = getEstimateOf(sql1);
 
-    while (!(root instanceof BeamIOSourceRel)) {
-      root = root.getInput(0);
-    }
+    NodeStats estimate2 = getEstimateOf(sql2);
 
-    NodeStats estimate = BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
-
-    Assert.assertEquals(5d, estimate.getRowCount(), 0.01);
-    Assert.assertEquals(0d, estimate.getRate(), 0.01);
-    Assert.assertEquals(5d, estimate.getWindow(), 0.01);
+    Assert.assertTrue(estimate1.getRowCount() < estimate2.getRowCount());
+    Assert.assertTrue(estimate1.getWindow() < estimate2.getWindow());
   }
 
   @Test
-  public void testUnboundedNodeStats() {
-    String sql = "SELECT * FROM ORDER_DETAILS_UNBOUNDED";
+  public void testNodeStatsUnboundedWindow() {
+    String sql =
+        "select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS_UNBOUNDED "
+            + " GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)";
+    NodeStats estimate1 = getEstimateOf(sql);
+    Assert.assertEquals(1d, estimate1.getRate(), 0.01);
+    Assert.assertEquals(BeamIOSourceRel.CONSTANT_WINDOW_SIZE / 2, estimate1.getWindow(), 0.01);
+  }
 
-    RelNode root = env.parseQuery(sql);
-
-    while (!(root instanceof BeamIOSourceRel)) {
-      root = root.getInput(0);
-    }
-
-    NodeStats estimate = BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
-
-    Assert.assertEquals(0d, estimate.getRowCount(), 0.01);
-    Assert.assertEquals(2d, estimate.getRate(), 0.01);
-    Assert.assertEquals(BeamIOSourceRel.CONSTANT_WINDOW_SIZE, estimate.getWindow(), 0.01);
+  @Test
+  public void testNodeStatsSlidingWindow() {
+    String sql =
+        "select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS_UNBOUNDED "
+            + " GROUP BY order_id, HOP(order_time, INTERVAL '1' SECOND,INTERVAL '3' SECOND)";
+    NodeStats estimate1 = getEstimateOf(sql);
+    Assert.assertEquals(3d, estimate1.getRate(), 0.01);
   }
 }

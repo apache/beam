@@ -37,7 +37,7 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /** BeamRelNode to replace a {@code TableScan} node. */
 public class BeamIOSourceRel extends TableScan implements BeamRelNode {
-
+  public static final double CONSTANT_WINDOW_SIZE = 10d;
   private final BeamSqlTable beamTable;
   private final BeamCalciteTable calciteTable;
   private final Map<String, String> pipelineOptions;
@@ -66,7 +66,12 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
 
   @Override
   public NodeStats estimateNodeStats(RelMetadataQuery mq) {
-    return NodeStats.create(mq.getRowCount(this));
+    BeamTableStatistics rowCountStatistics = calciteTable.getStatistic();
+    double window =
+        (beamTable.isBounded() == PCollection.IsBounded.BOUNDED)
+            ? rowCountStatistics.getRowCount()
+            : CONSTANT_WINDOW_SIZE;
+    return NodeStats.create(rowCountStatistics.getRowCount(), rowCountStatistics.getRate(), window);
   }
 
   @Override
