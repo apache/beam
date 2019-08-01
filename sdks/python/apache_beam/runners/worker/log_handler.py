@@ -99,16 +99,22 @@ class FnApiLogRecordHandler(logging.Handler):
 
   def close(self):
     """Flush out all existing log entries and unregister this handler."""
-    self._alive = False
-    # Acquiring the handler lock ensures ``emit`` is not run until the lock is
-    # released.
-    self.acquire()
-    self._log_entry_queue.put(self._FINISHED, timeout=5)
-    # wait on server to close.
-    self._reader.join()
-    self.release()
-    # Unregister this handler.
-    super(FnApiLogRecordHandler, self).close()
+    try:
+      self._alive = False
+      # Acquiring the handler lock ensures ``emit`` is not run until the lock is
+      # released.
+      self.acquire()
+      self._log_entry_queue.put(self._FINISHED, timeout=5)
+      # wait on server to close.
+      self._reader.join()
+      self.release()
+      # Unregister this handler.
+      super(FnApiLogRecordHandler, self).close()
+    except Exception:
+      # Log rather than raising exceptions, to avoid clobbering
+      # underlying errors that may have caused this to close
+      # prematurely.
+      logging.error("Error closing the logging channel.", exc_info=True)
 
   def _write_log_entries(self):
     done = False

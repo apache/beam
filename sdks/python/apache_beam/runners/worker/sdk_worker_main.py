@@ -91,16 +91,21 @@ class StatusServer(object):
 def main(unused_argv):
   """Main entry point for SDK Fn Harness."""
   if 'LOGGING_API_SERVICE_DESCRIPTOR' in os.environ:
-    logging_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
-    text_format.Merge(os.environ['LOGGING_API_SERVICE_DESCRIPTOR'],
-                      logging_service_descriptor)
+    try:
+      logging_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
+      text_format.Merge(os.environ['LOGGING_API_SERVICE_DESCRIPTOR'],
+                        logging_service_descriptor)
 
-    # Send all logs to the runner.
-    fn_log_handler = FnApiLogRecordHandler(logging_service_descriptor)
-    # TODO(BEAM-5468): This should be picked up from pipeline options.
-    logging.getLogger().setLevel(logging.INFO)
-    logging.getLogger().addHandler(fn_log_handler)
-    logging.info('Logging handler created.')
+      # Send all logs to the runner.
+      fn_log_handler = FnApiLogRecordHandler(logging_service_descriptor)
+      # TODO(BEAM-5468): This should be picked up from pipeline options.
+      logging.getLogger().setLevel(logging.INFO)
+      logging.getLogger().addHandler(fn_log_handler)
+      logging.info('Logging handler created.')
+    except Exception:
+      logging.error("Failed to set up logging handler, continuing without.",
+                    exc_info=True)
+      fn_log_handler = None
   else:
     fn_log_handler = None
 
