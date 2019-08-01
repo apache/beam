@@ -31,12 +31,13 @@ class PipelineOptionsReflector {
   private PipelineOptionsReflector() {}
 
   /**
-   * Retrieve metadata for the full set of pipeline options visible within the type hierarchy of a
-   * single {@link PipelineOptions} interface.
+   * Retrieve metadata for the full set of pipeline options within the type hierarchy of a single
+   * {@link PipelineOptions} interface with optional filtering {@link Hidden} options.
    *
    * @see PipelineOptionsReflector#getOptionSpecs(Iterable)
    */
-  static Set<PipelineOptionSpec> getOptionSpecs(Class<? extends PipelineOptions> optionsInterface) {
+  static Set<PipelineOptionSpec> getOptionSpecs(
+      Class<? extends PipelineOptions> optionsInterface, boolean skipHidden) {
     Iterable<Method> methods = ReflectHelpers.getClosureOfMethodsOnInterface(optionsInterface);
     Multimap<String, Method> propsToGetters = getPropertyNamesToGetters(methods);
 
@@ -53,7 +54,7 @@ class PipelineOptionsReflector {
         continue;
       }
 
-      if (declaringClass.isAnnotationPresent(Hidden.class)) {
+      if (skipHidden && declaringClass.isAnnotationPresent(Hidden.class)) {
         continue;
       }
 
@@ -77,7 +78,7 @@ class PipelineOptionsReflector {
       Iterable<Class<? extends PipelineOptions>> optionsInterfaces) {
     ImmutableSet.Builder<PipelineOptionSpec> setBuilder = ImmutableSet.builder();
     for (Class<? extends PipelineOptions> optionsInterface : optionsInterfaces) {
-      setBuilder.addAll(getOptionSpecs(optionsInterface));
+      setBuilder.addAll(getOptionSpecs(optionsInterface, true));
     }
 
     return setBuilder.build();
