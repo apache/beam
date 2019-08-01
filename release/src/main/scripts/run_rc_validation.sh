@@ -107,15 +107,13 @@ if [[ -z `which gcloud` ]]; then
     gcloud config set project ${USER_GCP_PROJECT}
 
     echo "-----------------Setting Up Service Account-----------------"
-    if [[ -z "${GOOGLE_APPLICATION_CREDENTIALS}" ]]; then
-      if [[ ! -z "${USER_SERVICE_ACCOUNT_EMAIL}" ]]; then
-        SERVICE_ACCOUNT_KEY_JSON=${USER}_json_key.json
-        gcloud iam service-accounts keys create ${SERVICE_ACCOUNT_KEY_JSON} --iam-account ${USER_SERVICE_ACCOUNT_EMAIL}
-        export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/${SERVICE_ACCOUNT_KEY_JSON}
-      else
-        echo "Missing USER_SERVICE_ACCOUNT_EMAIL from config file. Force terminate."
-        exit
-      fi
+    if [[ ! -z "${USER_SERVICE_ACCOUNT_EMAIL}" ]]; then
+      SERVICE_ACCOUNT_KEY_JSON=~/google-cloud-sdk/${USER}_json_key.json
+      gcloud iam service-accounts keys create ${SERVICE_ACCOUNT_KEY_JSON} --iam-account ${USER_SERVICE_ACCOUNT_EMAIL}
+      export GOOGLE_APPLICATION_CREDENTIALS=${SERVICE_ACCOUNT_KEY_JSON}
+    else
+      echo "Missing USER_SERVICE_ACCOUNT_EMAIL from config file. Force terminate."
+      exit
     fi
   else
     echo "Google Cloud SDK is not installed."
