@@ -90,7 +90,7 @@ versions denoted `0.x.y`.
 
 ## Releases
 
-## 2.14.0 (2019-07-25)
+## 2.14.0 (2019-08-01)
 Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.14.0/apache-beam-2.14.0-source-release.zip).
 [SHA-512](https://www.apache.org/dist/beam/2.14.0/apache-beam-2.14.0-source-release.zip.sha512).
 [signature](https://www.apache.org/dist/beam/2.14.0/apache-beam-2.14.0-source-release.zip.asc).
