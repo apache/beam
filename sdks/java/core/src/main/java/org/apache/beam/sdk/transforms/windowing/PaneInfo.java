@@ -165,7 +165,7 @@ public final class PaneInfo {
   private final long nonSpeculativeIndex;
 
   /**
-   * {@code PaneInfo} to use for elements on (and before) initial window assignemnt (including
+   * {@code PaneInfo} to use for elements on (and before) initial window assignment (including
    * elements read from sources) before they have passed through a {@link GroupByKey} and are
    * associated with a particular trigger firing.
    */
