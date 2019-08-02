@@ -28,7 +28,7 @@ job('beam_Release_Gradle_Build') {
     commonJobProperties.enablePhraseTriggeringFromPullRequest(
             delegate,
             './gradlew build -PisRelease --scan --stacktrace --no-parallel --continue',
-            'Run Dataflow PostRelease')
+            'Run Release Gradle Build')
 
     steps {
         shell('cd ' + commonJobProperties.checkoutDir +
