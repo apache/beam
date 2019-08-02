@@ -140,6 +140,8 @@ class Key(object):
       return False
     if self.path_elements != other.path_elements:
       return False
+    if self.project != other.project:
+      return False
     if self.parent is not None and other.parent is not None:
       return self.parent == other.parent
 
@@ -181,21 +183,28 @@ class Entity(object):
 
   @staticmethod
   def from_client_entity(client_entity):
-    key = Key.from_client_key(client_entity.key)
-    entity = Entity(
-        key, exclude_from_indexes=set(client_entity.exclude_from_indexes))
-    entity.set_properties(client_entity)
-    return entity
+    res = Entity(
+        Key.from_client_key(client_entity.key),
+        exclude_from_indexes=set(client_entity.exclude_from_indexes))
+    for name, value in client_entity.items():
+      if isinstance(value, key.Key):
+        value = Key.from_client_key(value)
+      res.properties[name] = value
+    return res
 
   def to_client_entity(self):
     """
     Returns a :class:`google.cloud.datastore.entity.Entity` instance that
     represents this entity.
     """
-    key = self.key.to_client_key()
-    res = entity.Entity(key=key,
+    res = entity.Entity(key=self.key.to_client_key(),
                         exclude_from_indexes=tuple(self.exclude_from_indexes))
-    res.update(self.properties)
+    for name, value in self.properties.items():
+      if isinstance(value, Key):
+        if not value.project:
+          value.project = self.key.project
+        value = value.to_client_key()
+      res[name] = value
     return res
 
   def __eq__(self, other):
