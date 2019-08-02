@@ -30,6 +30,7 @@ try:
   from apache_beam.io.gcp.datastore.v1new.types import Entity
   from apache_beam.io.gcp.datastore.v1new.types import Key
   from apache_beam.io.gcp.datastore.v1new.types import Query
+  from apache_beam.options.value_provider import StaticValueProvider
 # TODO(BEAM-4543): Remove TypeError once googledatastore dependency is removed.
 except (ImportError, TypeError):
   client = None
@@ -142,6 +143,31 @@ class TypesTest(unittest.TestCase):
     self.assertEqual(distinct_on, cq.distinct_on)
 
     logging.info('query: %s', q)  # Test __repr__()
+
+  def testValueProviderFilters(self):
+    self.vp_filters = [
+        [(
+            StaticValueProvider(str, 'property_name'),
+            StaticValueProvider(str, '='),
+            StaticValueProvider(str, 'value'))],
+        [(
+            StaticValueProvider(str, 'property_name'),
+            StaticValueProvider(str, '='),
+            StaticValueProvider(str, 'value')),
+         ('property_name', '=', 'value')],
+    ]
+    self.expected_filters = [[('property_name', '=', 'value')],
+                             [('property_name', '=', 'value'),
+                              ('property_name', '=', 'value')],
+                            ]
+
+    for vp_filter, exp_filter in zip(self.vp_filters, self.expected_filters):
+      q = Query(kind='kind', project=self._PROJECT, namespace=self._NAMESPACE,
+                filters=vp_filter)
+      cq = q._to_client_query(self._test_client)
+      self.assertEqual(exp_filter, cq.filters)
+
+      logging.info('query: %s', q)  # Test __repr__()
 
   def testQueryEmptyNamespace(self):
     # Test that we can pass a namespace of None.
