@@ -66,6 +66,7 @@ excluded_patterns=(
     apache_beam/runners/dataflow/internal/
     apache_beam/runners/portability/
     apache_beam/runners/worker/
+    apache_beam/testing/benchmarks/chicago_taxi/
     apache_beam/tools/map_fn_microbenchmark.*
     apache_beam/transforms/cy_combiners.*
     apache_beam/transforms/cy_dataflow_distribution_counter.*
