@@ -42,11 +42,32 @@ public class CalciteQueryPlannerTest extends BaseRelTest {
   }
 
   @Test
-  public void clusterCostHandlerUsesBeamCost() {
+  public void testclusterCostHandlerUsesBeamCost() {
     String sql = "select * from medium_table";
     BeamRelNode root = env.parseQuery(sql);
     Assert.assertTrue(
         root.getCluster().getPlanner().getCost(root, root.getCluster().getMetadataQuery())
             instanceof BeamCostModel);
+  }
+
+  @Test
+  public void testNonCumulativeCostMetadataHandler() {
+    String sql = "select * from medium_table";
+    BeamRelNode root = env.parseQuery(sql);
+    Assert.assertTrue(
+        root.getCluster().getMetadataQuery().getNonCumulativeCost(root) instanceof BeamCostModel);
+    Assert.assertFalse(
+        root.getCluster().getMetadataQuery().getNonCumulativeCost(root).isInfinite());
+  }
+
+  @Test
+  public void testCumulativeCostMetaDataHandler() {
+    // This handler is not our handler. It tests if the cumulative handler of Calcite works as
+    // expected.
+    String sql = "select * from medium_table";
+    BeamRelNode root = env.parseQuery(sql);
+    Assert.assertTrue(
+        root.getCluster().getMetadataQuery().getCumulativeCost(root) instanceof BeamCostModel);
+    Assert.assertFalse(root.getCluster().getMetadataQuery().getCumulativeCost(root).isInfinite());
   }
 }

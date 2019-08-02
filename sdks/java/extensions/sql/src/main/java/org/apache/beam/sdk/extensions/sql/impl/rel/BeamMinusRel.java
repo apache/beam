@@ -46,7 +46,13 @@ public class BeamMinusRel extends Minus implements BeamRelNode {
 
   @Override
   public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    return (BeamCostModel) this.computeSelfCost(planner, mq);
+    NodeStats inputsEstimatesSummation =
+        inputs.stream()
+            .map(input -> BeamSqlRelUtils.getNodeStats(input, mq))
+            .reduce(NodeStats.create(0, 0, 0), NodeStats::plus);
+
+    return BeamCostModel.FACTORY.makeCost(
+        inputsEstimatesSummation.getRowCount(), inputsEstimatesSummation.getRate());
   }
 
   @Override

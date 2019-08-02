@@ -223,7 +223,7 @@ public class BeamCostModel implements RelOptCost {
 
     @Override
     public BeamCostModel makeCost(double dRows, double dCpu, double dIo) {
-      return new BeamCostModel(dRows, 0d);
+      return BeamCostModel.INFINITY;
     }
 
     public BeamCostModel makeCost(double dCpu, double dCpuRate) {
