@@ -187,8 +187,8 @@ public class AvroUtilsTest {
     return fields;
   }
 
-  private static org.apache.avro.Schema getAvroSubSchema() {
-    return org.apache.avro.Schema.createRecord(getAvroSubSchemaFields());
+  private static org.apache.avro.Schema getAvroSubSchema(String name) {
+    return org.apache.avro.Schema.createRecord(name, null, null, false, getAvroSubSchemaFields());
   }
 
   private static org.apache.avro.Schema getAvroSchema() {
@@ -227,14 +227,17 @@ public class AvroUtilsTest {
             LogicalTypes.timestampMillis().addToSchema(org.apache.avro.Schema.create(Type.LONG)),
             "",
             (Object) null));
-    fields.add(new org.apache.avro.Schema.Field("row", getAvroSubSchema(), "", (Object) null));
+    fields.add(new org.apache.avro.Schema.Field("row", getAvroSubSchema("row"), "", (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
-            "array", org.apache.avro.Schema.createArray(getAvroSubSchema()), "", (Object) null));
+            "array",
+            org.apache.avro.Schema.createArray(getAvroSubSchema("array")),
+            "",
+            (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
-            "map", org.apache.avro.Schema.createMap(getAvroSubSchema()), "", (Object) null));
-    return org.apache.avro.Schema.createRecord(fields);
+            "map", org.apache.avro.Schema.createMap(getAvroSubSchema("map")), "", (Object) null));
+    return org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
   }
 
   private static Schema getBeamSubSchema() {
@@ -285,9 +288,14 @@ public class AvroUtilsTest {
         .build();
   }
 
+  private static GenericRecord getSubGenericRecord(String name) {
+    return new GenericRecordBuilder(getAvroSubSchema(name))
+        .set("bool", true)
+        .set("int", 42)
+        .build();
+  }
+
   private static GenericRecord getGenericRecord() {
-    GenericRecord subRecord =
-        new GenericRecordBuilder(getAvroSubSchema()).set("bool", true).set("int", 42).build();
 
     LogicalType decimalType =
         LogicalTypes.decimal(Integer.MAX_VALUE)
@@ -306,9 +314,15 @@ public class AvroUtilsTest {
         .set("bytes", ByteBuffer.wrap(BYTE_ARRAY))
         .set("decimal", encodedDecimal)
         .set("timestampMillis", DATE_TIME.getMillis())
-        .set("row", subRecord)
-        .set("array", ImmutableList.of(subRecord, subRecord))
-        .set("map", ImmutableMap.of(new Utf8("k1"), subRecord, new Utf8("k2"), subRecord))
+        .set("row", getSubGenericRecord("row"))
+        .set("array", ImmutableList.of(getSubGenericRecord("array"), getSubGenericRecord("array")))
+        .set(
+            "map",
+            ImmutableMap.of(
+                new Utf8("k1"),
+                getSubGenericRecord("map"),
+                new Utf8("k2"),
+                getSubGenericRecord("map")))
         .build();
   }
 
@@ -322,6 +336,14 @@ public class AvroUtilsTest {
     Schema beamSchema = getBeamSchema();
     org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(beamSchema);
     assertEquals(getAvroSchema(), avroSchema);
+  }
+
+  @Test
+  public void testAvroSchemaFromBeamSchemaCanBeParsed() {
+    Schema beamSchema = getBeamSchema();
+    String stringSchema = AvroUtils.toAvroSchema(getBeamSchema()).toString();
+    org.apache.avro.Schema schema = new org.apache.avro.Schema.Parser().parse(stringSchema);
+    assertEquals(stringSchema, schema.toString());
   }
 
   @Test
@@ -344,7 +366,8 @@ public class AvroUtilsTest {
                 ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT))),
             "",
             null));
-    org.apache.avro.Schema avroSchema = org.apache.avro.Schema.createRecord(fields);
+    org.apache.avro.Schema avroSchema =
+        org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
 
     Schema expectedSchema =
         Schema.builder()
@@ -398,7 +421,8 @@ public class AvroUtilsTest {
                 ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT))),
             "",
             null));
-    org.apache.avro.Schema avroSchema = org.apache.avro.Schema.createRecord(fields);
+    org.apache.avro.Schema avroSchema =
+        org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
     assertEquals(avroSchema, AvroUtils.toAvroSchema(beamSchema));
 
     Map<Utf8, Object> nullMapUtf8 = Maps.newHashMap();
@@ -445,7 +469,7 @@ public class AvroUtilsTest {
             false,
             getAvroSubSchemaFields());
     GenericRecord record =
-        new GenericRecordBuilder(getAvroSubSchema()).set("bool", true).set("int", 42).build();
+        new GenericRecordBuilder(getAvroSubSchema("simple")).set("bool", true).set("int", 42).build();
 
     PCollection<GenericRecord> records =
         pipeline.apply(Create.of(record).withCoder(AvroCoder.of(schema)));
