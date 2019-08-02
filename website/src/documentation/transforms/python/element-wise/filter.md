@@ -42,7 +42,7 @@ on the comparison ordering of the element.
 
 ## Examples
 
-In the following examples, we create a pipeline with a `PCollection` of produce their icon, name, and duration.
+In the following examples, we create a pipeline with a `PCollection` of produce with their icon, name, and duration.
 Then, we apply `Filter` in multiple ways to filter out produce by their duration value.
 
 ### Example 1: Filtering with a function
