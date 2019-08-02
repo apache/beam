@@ -1998,7 +1998,7 @@ public class ParDoTest implements Serializable {
                 Collections.sort(sorted);
                 r.output(sorted);
 
-                List<Integer> sideSorted = Lists.newArrayList(c.sideInput(listView));
+                List<Integer> sideSorted = Lists.newArrayList(tag1);
                 Collections.sort(sideSorted);
                 r.output(sideSorted);
               }

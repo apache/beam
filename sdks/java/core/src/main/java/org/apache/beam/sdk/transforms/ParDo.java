@@ -675,7 +675,6 @@ public class ParDo {
      */
     public SingleOutput<InputT, OutputT> withSideInput(String sideInputName, PCollectionView<?> sideInput) {
       return new SingleOutput<> (fn, sideInputName, sideInput, fnDisplayData);
-      sideInput.getTagInternal().set
     }
 
     /**
