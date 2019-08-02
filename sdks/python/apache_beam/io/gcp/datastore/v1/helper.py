@@ -151,7 +151,8 @@ def retry_on_rpc_error(exception):
 
   if isinstance(exception, SocketError):
     return (exception.errno == errno.ECONNRESET or
-            exception.errno == errno.ETIMEDOUT)
+            exception.errno == errno.ETIMEDOUT or
+            exception.errno == errno.EPIPE)
 
   return False
 
