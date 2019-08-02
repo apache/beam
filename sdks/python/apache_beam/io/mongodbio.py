@@ -54,7 +54,6 @@ No backward compatibility guarantees. Everything in this module is experimental.
 from __future__ import absolute_import
 from __future__ import division
 
-import datetime
 import logging
 import struct
 
@@ -74,6 +73,7 @@ try:
   from bson import objectid
 
   # pymongo also internally depends on bson.
+  from pymongo import ASCENDING
   from pymongo import DESCENDING
   from pymongo import MongoClient
   from pymongo import ReplaceOne
@@ -165,15 +165,12 @@ class _BoundedMongoSource(iobase.BoundedSource):
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     # use document cursor index as the start and stop positions
     if start_position is None:
-      epoch = datetime.datetime(1970, 1, 1)
-      start_position = objectid.ObjectId.from_datetime(epoch)
+      start_position = self._get_head_document_id(ASCENDING)
     if stop_position is None:
-      last_doc_id = self._get_last_document_id()
-      # add one sec to make sure the last document is not excluded
-      last_timestamp_plus_one_sec = (last_doc_id.generation_time +
-                                     datetime.timedelta(seconds=1))
-      stop_position = objectid.ObjectId.from_datetime(
-          last_timestamp_plus_one_sec)
+      last_doc_id = self._get_head_document_id(DESCENDING)
+      # increment last doc id binary value by 1 to make sure the last document
+      # is not excluded
+      stop_position = _ObjectIdHelper.increment_id(last_doc_id, 1)
 
     desired_bundle_size_in_mb = desired_bundle_size // 1024 // 1024
     split_keys = self._get_split_keys(desired_bundle_size_in_mb, start_position,
@@ -181,9 +178,9 @@ class _BoundedMongoSource(iobase.BoundedSource):
 
     bundle_start = start_position
     for split_key_id in split_keys:
+      if bundle_start is not None or bundle_start >= stop_position:
+        break
       bundle_end = min(stop_position, split_key_id)
-      if bundle_start is None and bundle_start < stop_position:
-        return
       yield iobase.SourceBundle(weight=desired_bundle_size_in_mb,
                                 source=self,
                                 start_position=bundle_start,
@@ -198,27 +195,17 @@ class _BoundedMongoSource(iobase.BoundedSource):
 
   def get_range_tracker(self, start_position, stop_position):
     if start_position is None:
-      epoch = datetime.datetime(1970, 1, 1)
-      start_position = objectid.ObjectId.from_datetime(epoch)
+      start_position = self._get_head_document_id(ASCENDING)
     if stop_position is None:
-      last_doc_id = self._get_last_document_id()
-      # add one sec to make sure the last document is not excluded
-      last_timestamp_plus_one_sec = (last_doc_id.generation_time +
-                                     datetime.timedelta(seconds=1))
-      stop_position = objectid.ObjectId.from_datetime(
-          last_timestamp_plus_one_sec)
+      last_doc_id = self._get_head_document_id(DESCENDING)
+      # increment last doc id binary value by 1 to make sure the last document
+      # is not excluded
+      stop_position = _ObjectIdHelper.increment_id(last_doc_id, 1)
     return _ObjectIdRangeTracker(start_position, stop_position)
 
   def read(self, range_tracker):
     with MongoClient(self.uri, **self.spec) as client:
-      all_filters = self.filter
-      all_filters.update({
-          '_id': {
-              '$gte': range_tracker.start_position(),
-              '$lt': range_tracker.stop_position()
-          }
-      })
-
+      all_filters = self._merge_id_filter(range_tracker)
       docs_cursor = client[self.db][self.coll].find(filter=all_filters)
       for doc in docs_cursor:
         if not range_tracker.try_claim(doc['_id']):
@@ -253,10 +240,30 @@ class _BoundedMongoSource(iobase.BoundedSource):
           max={'_id': end_pos},
           maxChunkSize=desired_chunk_size)['splitKeys'])
 
-  def _get_last_document_id(self):
+  def _merge_id_filter(self, range_tracker):
+    all_filters = self.filter.copy()
+    if '_id' in all_filters:
+      id_filter = all_filters['_id']
+      id_filter['$gte'] = (
+        max(id_filter['$gte'], range_tracker.start_position())
+        if '$gte' in id_filter else range_tracker.start_position())
+
+      id_filter['$lt'] = (min(id_filter['$lt'], range_tracker.stop_position())
+                          if '$lt' in id_filter else
+                          range_tracker.stop_position())
+    else:
+      all_filters.update({
+        '_id': {
+          '$gte': range_tracker.start_position(),
+          '$lt': range_tracker.stop_position()
+        }
+      })
+    return all_filters
+
+  def _get_head_document_id(self, sort_order):
     with MongoClient(self.uri, **self.spec) as client:
       cursor = client[self.db][self.coll].find(filter={}, projection=[]).sort([
-          ('_id', DESCENDING)
+          ('_id', sort_order)
       ]).limit(1)
       try:
         return cursor[0]['_id']
@@ -264,42 +271,50 @@ class _BoundedMongoSource(iobase.BoundedSource):
         raise ValueError('Empty Mongodb collection')
 
 
-class _ObjectIdRangeTracker(OrderedPositionRangeTracker):
-  """RangeTracker for tracking mongodb _id of bson ObjectId type."""
-
-  def _id_to_int(self, id):
+class _ObjectIdHelper(object):
+  @classmethod
+  def id_to_int(cls, id):
     # id object is bytes type with size of 12
     ints = struct.unpack('>III', id.binary)
-    return 2**64 * ints[0] + 2**32 * ints[1] + ints[2]
+    return (ints[0] << 64) + (ints[1] << 32) + ints[2]
 
-  def _int_to_id(self, numbers):
-    ints = []
-    radix = 2**64
+  @classmethod
+  def int_to_id(cls, numbers):
     # convert bits 0:31, 32:63, 64:95 of number to three separate 4 bytes
     # integer
-    while numbers > 0:
-      res = numbers // radix
-      ints.append(res)
-      numbers = numbers % radix
-      radix = radix >> 32
-    while len(ints) < 3:
-      ints = [0] + ints
+    ints = [(numbers & 0xffffffff0000000000000000) >> 64,
+            (numbers & 0x00000000ffffffff00000000) >> 32,
+            numbers & 0x0000000000000000ffffffff]
+
     bytes = struct.pack('>III', *ints)
     return objectid.ObjectId(bytes)
 
+  @classmethod
+  def increment_id(cls, object_id, inc):
+    id_number = _ObjectIdHelper.id_to_int(object_id) + inc
+    return _ObjectIdHelper.int_to_id(id_number)
+
+
+class _ObjectIdRangeTracker(OrderedPositionRangeTracker):
+  """RangeTracker for tracking mongodb _id of bson ObjectId type."""
+
   def position_to_fraction(self, pos, start, end):
-    pos_number = self._id_to_int(pos)
-    start_number = self._id_to_int(start)
-    end_number = self._id_to_int(end)
+    pos_number = _ObjectIdHelper.id_to_int(pos)
+    start_number = _ObjectIdHelper.id_to_int(start)
+    end_number = _ObjectIdHelper.id_to_int(end)
     return (pos_number - start_number) / (end_number - start_number)
 
   def fraction_to_position(self, fraction, start, end):
-    start_number = self._id_to_int(start)
-    end_number = self._id_to_int(end)
+    start_number = _ObjectIdHelper.id_to_int(start)
+    end_number = _ObjectIdHelper.id_to_int(end)
     total = end_number - start_number
-    # make sure split position is larger than start position.
-    pos = self._int_to_id(
-        max(start_number + 1, int(total * fraction + start_number)))
+    pos = _ObjectIdHelper.int_to_id(int(total * fraction + start_number))
+    # make sure split position is larger than start position and smaller than
+    # end position.
+    if pos == start:
+      return _ObjectIdHelper.increment_id(pos, 1)
+    if pos == end:
+      return _ObjectIdHelper.increment_id(pos, -1)
     return pos
 
 
