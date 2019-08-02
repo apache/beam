@@ -246,4 +246,5 @@ echo ">>>   test options: $TEST_OPTS"
 python setup.py nosetests \
   --test-pipeline-options="$PIPELINE_OPTS" \
   --with-xunitmp --xunitmp-file=$XUNIT_FILE \
+  --ignore-files '.*py3.py$' \
   $TEST_OPTS
