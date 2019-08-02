@@ -35,6 +35,7 @@ RUN apt-get update && \
 # in the next RUN statement.
 
 COPY target/base_image_requirements.txt /tmp/base_image_requirements.txt
+COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
 RUN \
     pip install -r /tmp/base_image_requirements.txt && \
     # Check that the fast implementation of protobuf is used.
@@ -42,11 +43,6 @@ RUN \
     # Remove pip cache.
     rm -rf /root/.cache/pip
 
-
-COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
-RUN pip install /opt/apache/beam/tars/apache-beam.tar.gz[gcp] && \
-    # Remove pip cache.
-    rm -rf /root/.cache/pip
 
 ADD target/linux_amd64/boot /opt/apache/beam/
 
