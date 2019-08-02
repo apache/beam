@@ -64,32 +64,29 @@ dependencies {
   compile library.java.slf4j_api
   compile library.java.joda_time
   compile library.java.args4j
-  compile "io.dropwizard.metrics:metrics-core:3.1.2"
-  compile library.java.jackson_module_scala
   provided library.java.spark_core
   provided library.java.spark_streaming
   provided library.java.spark_network_common
   provided library.java.hadoop_common
-  provided library.java.hadoop_mapreduce_client_core
-  provided library.java.commons_compress
   provided library.java.commons_lang3
   provided library.java.commons_io_2x
   provided library.java.hamcrest_core
   provided library.java.hamcrest_library
-  provided "org.apache.zookeeper:zookeeper:3.4.11"
-  provided "org.scala-lang:scala-library:2.11.8"
   provided "com.esotericsoftware.kryo:kryo:2.21"
+  runtimeOnly library.java.jackson_module_scala
+  runtimeOnly "org.scala-lang:scala-library:2.11.8"
   testCompile project(":sdks:java:io:kafka")
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
   testCompile project(path: ":runners:core-java", configuration: "testRuntime")
   testCompile project(":sdks:java:harness")
   testCompile library.java.avro
+  testCompile library.java.kafka
   testCompile library.java.kafka_clients
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile library.java.jackson_dataformat_yaml
-  testCompile "org.apache.kafka:kafka_2.11:0.11.0.1"
+  testCompile "org.apache.zookeeper:zookeeper:3.4.11"
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(":sdks:java:io:hadoop-format")
   validatesRunner project(":sdks:java:io:hadoop-format").sourceSets.test.output
