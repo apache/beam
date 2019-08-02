@@ -365,7 +365,9 @@ class WriteToDatastore(_Mutate):
   :class:`~apache_beam.io.gcp.datastore.v1new.types.Entity` to Cloud Datastore.
 
   Entity keys must be complete. The ``project`` field in each key must match the
-  project ID passed to this transform.
+  project ID passed to this transform. If ``project`` field in entity or
+  property key is empty then it is filled with the project ID passed to this
+  transform.
   """
 
   def __init__(self, project):
@@ -382,6 +384,8 @@ class WriteToDatastore(_Mutate):
       if not isinstance(element, types.Entity):
         raise ValueError('apache_beam.io.gcp.datastore.v1new.datastoreio.Entity'
                          ' expected, got: %s' % type(element))
+      if not element.key.project:
+        element.key.project = self._project
       client_entity = element.to_client_entity()
       if client_entity.key.is_partial:
         raise ValueError('Entities to be written to Cloud Datastore must '
@@ -403,7 +407,8 @@ class DeleteFromDatastore(_Mutate):
   Datastore.
 
   Keys must be complete. The ``project`` field in each key must match the
-  project ID passed to this transform.
+  project ID passed to this transform. If ``project`` field in key is empty then
+  it is filled with the project ID passed to this transform.
   """
   def __init__(self, project):
     """Initialize the `DeleteFromDatastore` transform.
@@ -420,6 +425,8 @@ class DeleteFromDatastore(_Mutate):
       if not isinstance(element, types.Key):
         raise ValueError('apache_beam.io.gcp.datastore.v1new.datastoreio.Key'
                          ' expected, got: %s' % type(element))
+      if not element.project:
+        element.project = self._project
       client_key = element.to_client_key()
       if client_key.is_partial:
         raise ValueError('Keys to be deleted from Cloud Datastore must be '
