@@ -58,6 +58,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElem
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
@@ -257,7 +258,6 @@ public class DoFnSignatures {
     public Map<String, TimerParameter> getTimerParameters() {
       return Collections.unmodifiableMap(timerParameters);
     }
-
     /** Extra parameters in their entirety. Unmodifiable. */
     public List<Parameter> getExtraParameters() {
       return Collections.unmodifiableList(extraParameters);
@@ -899,7 +899,19 @@ public class DoFnSignatures {
     } else if (rawType.equals(TimeDomain.class)) {
       return Parameter.timeDomainParameter();
     } else if (hasSideInputAnnotation(param.getAnnotations())) {
-      return Parameter.sideInputParameter(paramT);
+      String id = getSideInputId(param.getAnnotations());
+      /*paramErrors.checkArgument(
+              id != null,
+              "%s missing %s annotation",
+              DoFn.SideInput.class.getSimpleName());
+
+      paramErrors.checkArgument(
+              !methodContext.getSideInputParameters().containsKey(id),
+              "duplicate %s: \"%s\"",
+              DoFn.SideInput.class.getSimpleName(),
+              id);
+       */
+      return Parameter.sideInputParameter(paramT, id);
     } else if (rawType.equals(PaneInfo.class)) {
       return Parameter.paneInfoParameter();
     } else if (rawType.equals(DoFn.ProcessContext.class)) {
@@ -1049,6 +1061,12 @@ public class DoFnSignatures {
   private static String getFieldAccessId(List<Annotation> annotations) {
     DoFn.FieldAccess access = findFirstOfType(annotations, DoFn.FieldAccess.class);
     return access != null ? access.value() : null;
+  }
+
+  @Nullable
+  private static String getSideInputId(List<Annotation> annotations) {
+    DoFn.SideInput sideInputId = findFirstOfType(annotations, DoFn.SideInput.class);
+    return sideInputId != null ? sideInputId.value() : null;
   }
 
   @Nullable

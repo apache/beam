@@ -202,6 +202,11 @@ public class ParDoEvaluatorTest {
     }
 
     @Override
+    public <T> T get(String sideInputTag) {
+      return null;
+    }
+
+    @Override
     public boolean isReady(PCollectionView<?> view, BoundedWindow window) {
       return window.equals(GlobalWindow.INSTANCE);
     }

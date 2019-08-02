@@ -422,8 +422,8 @@ public abstract class DoFnSignature {
       return TIMESTAMP_PARAMETER;
     }
 
-    public static SideInputParameter sideInputParameter(TypeDescriptor<?> elementT) {
-      return new AutoValue_DoFnSignature_Parameter_SideInputParameter(elementT);
+    public static SideInputParameter sideInputParameter(TypeDescriptor<?> elementT, String id) {
+      return new AutoValue_DoFnSignature_Parameter_SideInputParameter(elementT, id);
     }
 
     public static TimeDomainParameter timeDomainParameter() {
@@ -574,6 +574,7 @@ public abstract class DoFnSignature {
       SideInputParameter() {}
 
       public abstract TypeDescriptor<?> sideInputT();
+      public abstract String id();
     }
 
     /**
@@ -741,6 +742,14 @@ public abstract class DoFnSignature {
           .collect(Collectors.toList());
     }
 
+    @Nullable
+    public List<Parameter.SideInputParameter> getSideInputParameters() {
+      return extraParameters().stream()
+              .filter(Predicates.instanceOf(Parameter.SideInputParameter.class)::apply)
+              .map(Parameter.SideInputParameter.class::cast)
+              .collect(Collectors.toList());
+    }
+
     /** The {@link OutputReceiverParameter} for a main output, or null if there is none. */
     @Nullable
     public OutputReceiverParameter getMainOutputReceiver() {
@@ -853,6 +862,17 @@ public abstract class DoFnSignature {
     static TimerDeclaration create(String id, Field field) {
       return new AutoValue_DoFnSignature_TimerDeclaration(id, field);
     }
+  }
+
+  /**
+   * Describes a timer declaration; a field of type {@link TimerSpec} annotated with {@link
+   * DoFn.TimerId}.
+   */
+  @AutoValue
+  public abstract static class SideInputDeclaration {
+    public abstract String id();
+
+    public abstract Field field();
   }
 
   /** Describes a {@link DoFn.StartBundle} or {@link DoFn.FinishBundle} method. */

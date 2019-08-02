@@ -60,4 +60,9 @@ public class LazilyInitializedSideInputReader implements SideInputReader {
   public boolean isEmpty() {
     return tupleTags.isEmpty();
   }
+
+  @Override
+  public <T> T get(String sideInputTag) {
+    return null;
+  }
 }

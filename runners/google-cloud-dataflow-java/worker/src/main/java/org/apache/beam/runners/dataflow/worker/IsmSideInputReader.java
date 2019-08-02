@@ -289,6 +289,11 @@ public class IsmSideInputReader implements SideInputReader {
   }
 
   @Override
+  public <T> T get(String sideInputTag) {
+    return null;
+  }
+
+  @Override
   public <ViewT> ViewT get(final PCollectionView<ViewT> view, final BoundedWindow window) {
     @SuppressWarnings("rawtypes")
     final TupleTag tag = view.getTagInternal();

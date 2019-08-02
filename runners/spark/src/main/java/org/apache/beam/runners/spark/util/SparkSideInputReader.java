@@ -92,4 +92,9 @@ public class SparkSideInputReader implements SideInputReader {
   public boolean isEmpty() {
     return sideInputs != null && sideInputs.isEmpty();
   }
+
+  @Override
+  public <T> T get(String sideInputTag) {
+    return null;
+  }
 }

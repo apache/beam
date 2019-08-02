@@ -397,8 +397,9 @@ public class FnApiDoFnRunner<InputT, OutputT>
     }
 
     @Override
-    public InputT sideInput(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException();
+    public Object sideInput(DoFn<InputT, OutputT> doFn) {
+      // :TODO Need implementation here
+      throw new UnsupportedOperationException("SideInput parameters are not supported.");
     }
 
     @Override
@@ -586,9 +587,10 @@ public class FnApiDoFnRunner<InputT, OutputT>
     }
 
     @Override
-    public InputT sideInput(DoFn<InputT, OutputT> doFn) {
+    public Object sideInput(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("SideInput parameters are not supported.");
     }
+
 
     @Override
     public Object schemaElement(int index) {

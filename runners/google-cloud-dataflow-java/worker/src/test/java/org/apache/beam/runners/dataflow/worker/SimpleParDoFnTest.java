@@ -620,5 +620,10 @@ public class SimpleParDoFnTest {
     public <T> T get(PCollectionView<T> view, final BoundedWindow window) {
       throw new IllegalArgumentException("calling getSideInput() with unknown view");
     }
+
+    @Override
+    public <T> T get(String sideInputTag) {
+      return null;
+    }
   }
 }

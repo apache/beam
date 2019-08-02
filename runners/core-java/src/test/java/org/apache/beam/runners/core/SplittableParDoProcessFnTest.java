@@ -166,6 +166,11 @@ public class SplittableParDoProcessFnTest {
                 public boolean isEmpty() {
                   return true;
                 }
+
+                @Override
+                public <T> T get(String sideInputTag) {
+                  return null;
+                }
               },
               Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory()),
               maxOutputsPerBundle,

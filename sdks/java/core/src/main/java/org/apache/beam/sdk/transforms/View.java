@@ -161,10 +161,6 @@ public class View {
   public static <T> AsList<T> asList() {
     return new AsList<>();
   }
-
-  public static <T> AsList<T> asList(String id) {
-    return new AsList<>(id);
-  }
   /**
    * Returns a {@link View.AsIterable} transform that takes a {@link PCollection} as input and
    * produces a {@link PCollectionView} mapping each window to an {@link Iterable} of the values in
@@ -224,14 +220,7 @@ public class View {
    */
   @Internal
   public static class AsList<T> extends PTransform<PCollection<T>, PCollectionView<List<T>>> {
-
-    String tag;
     private AsList() {}
-
-    private AsList(String tag) {
-      this.tag = tag;
-    }
-
     @Override
     public PCollectionView<List<T>> expand(PCollection<T> input) {
       try {
@@ -244,7 +233,7 @@ public class View {
           input.apply(new VoidKeyToMultimapMaterialization<>());
       PCollectionView<List<T>> view =
           PCollectionViews.listView(
-              materializationInput, materializationInput.getWindowingStrategy(), this.tag);
+                  materializationInput, materializationInput.getWindowingStrategy());
       materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }

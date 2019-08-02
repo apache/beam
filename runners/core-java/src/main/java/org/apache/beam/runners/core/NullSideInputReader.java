@@ -57,4 +57,9 @@ public class NullSideInputReader implements SideInputReader {
   public <T> boolean contains(PCollectionView<T> view) {
     return views.contains(view);
   }
+
+  @Override
+  public <T> T get(String sideInputTag) {
+    return null;
+  }
 }

@@ -270,6 +270,11 @@ class SideInputContainer {
     public boolean isEmpty() {
       return readerViews.isEmpty();
     }
+
+    @Override
+    public PCollectionView get(String sideInputTag) {
+      return null;
+    }
   }
 
   /**

@@ -89,4 +89,9 @@ public class FlinkSideInputReader implements SideInputReader {
   public boolean isEmpty() {
     return sideInputs.isEmpty();
   }
+
+  @Override
+  public <T> T get(String sideInputTag) {
+    return null;
+  }
 }

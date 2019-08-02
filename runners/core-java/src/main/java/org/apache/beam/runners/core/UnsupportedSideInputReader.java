@@ -45,4 +45,10 @@ public class UnsupportedSideInputReader implements SideInputReader {
     throw new UnsupportedOperationException(
         String.format("%s does not support side inputs.", transformName));
   }
+
+  @Override
+  public <T> T get(String sideInputTag) {
+    throw new UnsupportedOperationException(
+            String.format("%s does not support side inputs.", transformName));
+  }
 }

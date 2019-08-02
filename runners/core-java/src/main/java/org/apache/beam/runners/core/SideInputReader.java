@@ -40,4 +40,6 @@ public interface SideInputReader {
 
   /** Returns true if there are no side inputs in this reader. */
   boolean isEmpty();
+
+  <T> T get(String sideInputTag);
 }

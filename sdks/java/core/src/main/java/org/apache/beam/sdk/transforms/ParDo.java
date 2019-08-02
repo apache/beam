@@ -24,6 +24,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -563,6 +564,11 @@ public class ParDo {
     }
   }
 
+  public void test() {
+
+
+  }
+
   /**
    * Extract information on how the DoFn uses schemas. In particular, if the schema of an element
    * parameter does not match the input PCollection's schema, convert.
@@ -632,6 +638,7 @@ public class ParDo {
     private final List<PCollectionView<?>> sideInputs;
     private final DoFn<InputT, OutputT> fn;
     private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
+    private final Map<String, PCollectionView<?>> sideInputMap = new HashMap<>();
 
     SingleOutput(
         DoFn<InputT, OutputT> fn,
@@ -642,6 +649,14 @@ public class ParDo {
       this.sideInputs = sideInputs;
     }
 
+    SingleOutput(
+            DoFn<InputT, OutputT> fn,
+            String sideInputName,
+            PCollectionView<?> sideInput,
+            DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
+      this(fn,Arrays.asList(sideInput),fnDisplayData);
+    }
+
     /**
      * Returns a new {@link ParDo} {@link PTransform} that's like this {@link PTransform} but with
      * the specified additional side inputs. Does not modify this {@link PTransform}.
@@ -650,6 +665,17 @@ public class ParDo {
      */
     public SingleOutput<InputT, OutputT> withSideInputs(PCollectionView<?>... sideInputs) {
       return withSideInputs(Arrays.asList(sideInputs));
+    }
+
+    /**
+     * Returns a new {@link ParDo} {@link PTransform} that's like this {@link PTransform} but with
+     * the specified additional side inputs. Does not modify this {@link PTransform}.
+     *
+     * <p>See the discussion of Side Inputs above for more explanation.
+     */
+    public SingleOutput<InputT, OutputT> withSideInput(String sideInputName, PCollectionView<?> sideInput) {
+      return new SingleOutput<> (fn, sideInputName, sideInput, fnDisplayData);
+      sideInput.getTagInternal().set
     }
 
     /**
@@ -685,6 +711,8 @@ public class ParDo {
       SchemaRegistry schemaRegistry = input.getPipeline().getSchemaRegistry();
       CoderRegistry registry = input.getPipeline().getCoderRegistry();
       finishSpecifyingStateSpecs(fn, registry, input.getCoder());
+
+      DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
 
       TupleTag<OutputT> mainOutput = new TupleTag<>(MAIN_OUTPUT_TAG);
       PCollection<OutputT> res =
