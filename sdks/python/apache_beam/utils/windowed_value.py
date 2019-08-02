@@ -274,7 +274,7 @@ class _IntervalWindowBase(object):
                start,  # type: Optional[Union[int, long, float, Timestamp]]
                end  # type: Optional[Union[int, long, float, Timestamp]]
               ):
-    if start is not None or end is not None:
+    if start is not None and end is not None:
       self._start_object = Timestamp.of(start)  # type: Optional[Timestamp]
       self._end_object = Timestamp.of(end)  # type: Optional[Timestamp]
       try:
