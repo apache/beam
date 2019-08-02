@@ -181,6 +181,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
 }
 
-CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_Flink_Batch', 'H 15 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Flink_Batch', 'H 15 * * *', this) {
     batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }
