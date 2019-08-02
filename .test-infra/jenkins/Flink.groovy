@@ -25,6 +25,8 @@ class Flink {
   private static final String jobServerImageTag = "${repositoryRoot}/flink-job-server:${dockerTag}"
   private static final String flinkVersion = '1.7'
   private static final String flinkDownloadUrl = 'https://archive.apache.org/dist/flink/flink-1.7.0/flink-1.7.0-bin-hadoop28-scala_2.11.tgz'
+  private static final String FLINK_DIR = '"$WORKSPACE/src/.test-infra/dataproc"'
+  private static final String FLINK_SCRIPT = 'flink_cluster.sh'
   private def job
   private String jobName
 
@@ -69,13 +71,11 @@ class Flink {
    */
   void scaleCluster(Integer workerCount) {
     job.steps {
+      shell("echo Changing number of workers to ${workerCount}")
       environmentVariables {
         env("FLINK_NUM_WORKERS", workerCount)
       }
-      shell("gcloud dataproc clusters delete ${getClusterName(jobName)} --quiet")
-
-      shell('echo Setting up flink cluster')
-      shell("cd ${common.makePathAbsolute('src/.test-infra/dataproc/')}; ./create_flink_cluster.sh")
+      shell("cd ${FLINK_DIR}; ./${FLINK_SCRIPT} scale")
     }
   }
 
@@ -149,7 +149,7 @@ class Flink {
       }
 
       shell('echo Setting up flink cluster')
-      shell("cd ${common.makePathAbsolute('src/.test-infra/dataproc/')}; ./create_flink_cluster.sh")
+      shell("cd ${FLINK_DIR}; ./${FLINK_SCRIPT} create")
     }
   }
 
@@ -157,7 +157,7 @@ class Flink {
     job.publishers {
       postBuildScripts {
         steps {
-          shell("gcloud dataproc clusters delete ${getClusterName()} --quiet")
+          shell("cd ${FLINK_DIR}; ./${FLINK_SCRIPT} delete")
         }
         onlyIfBuildSucceeds(false)
         onlyIfBuildFails(false)
