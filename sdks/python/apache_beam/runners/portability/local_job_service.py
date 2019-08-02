@@ -200,10 +200,11 @@ class SubprocessSdkWorker(object):
     if self._worker_id:
       env_dict['WORKER_ID'] = self._worker_id
 
-    p = subprocess.Popen(
-        self._worker_command_line,
-        shell=True,
-        env=env_dict)
+    with fn_api_runner.SUBPROCESS_LOCK:
+      p = subprocess.Popen(
+          self._worker_command_line,
+          shell=True,
+          env=env_dict)
     try:
       p.wait()
       if p.returncode:
