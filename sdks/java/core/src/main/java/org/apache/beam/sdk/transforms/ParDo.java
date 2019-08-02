@@ -382,8 +382,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * Beam makes heavy use of this modular, composable style, trusting to the runner to "flatten out"
  * all the compositions into highly optimized stages.
  *
- * @see <a href= "https://beam.apache.org/documentation/programming-guide/#transforms-pardo"> the
- *     web documentation for ParDo</a>
+ * @see <a href= "https://beam.apache.org/documentation/programming-guide/#pardo"> the web
+ *     documentation for ParDo</a>
  */
 public class ParDo {
 

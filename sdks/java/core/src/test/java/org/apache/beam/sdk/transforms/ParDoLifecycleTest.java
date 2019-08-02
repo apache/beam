@@ -395,7 +395,7 @@ public class ParDoLifecycleTest implements Serializable {
     @Teardown
     public void after() {
       if (noOfInstancesToTearDown.decrementAndGet() == 0 && !exceptionWasThrown.get()) {
-        fail("Excepted to have a processing method throw an exception");
+        fail("Expected to have a processing method throw an exception");
       }
       assertThat(
           "some lifecycle method should have been called",

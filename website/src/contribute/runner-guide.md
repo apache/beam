@@ -214,7 +214,7 @@ match across all SDKs.
 
 The `run(Pipeline)` method should be asynchronous and results in a
 PipelineResult which generally will be a job descriptor for your data
-processing engine, provides methods for checking its status, canceling it, and
+processing engine, providing methods for checking its status, canceling it, and
 waiting for it to terminate.
 
 ## Implementing the Beam Primitives
@@ -228,7 +228,7 @@ provided.
 The primitives are designed for the benefit of pipeline authors, not runner
 authors. Each represents a different conceptual mode of operation (external IO,
 element-wise, grouping, windowing, union) rather than a specific implementation
-decision.  The same primitive may require very different implementation based
+decision.  The same primitive may require a very different implementation based
 on how the user instantiates it. For example, a `ParDo` that uses state or
 timers may require key partitioning, a `GroupByKey` with speculative triggering
 may require a more costly or complex implementation, and `Read` is completely
@@ -297,7 +297,7 @@ the following sequence:
    remains for simplicity for users)
  * _ProcessElement_ / _OnTimer_ - called for each element and timer activation
  * _FinishBundle_ - essentially "flush"; required to be called before
-   considering elements actually processed
+   considering elements as actually processed
  * _Teardown_ - release resources that were used across bundles; calling this
    can be best effort due to failures
 
@@ -350,7 +350,7 @@ _Main design document:
 A side input is a global view of a window of a `PCollection`. This distinguishes
 it from the main input, which is processed one element at a time. The SDK/user
 prepares a `PCollection` adequately, the runner materializes it, and then the
-runner feeds it to the `DoFn`. See the
+runner feeds it to the `DoFn`.
 
 What you will need to implement is to inspect the materialization requested for
 the side input, and prepare it appropriately, and corresponding interactions
@@ -396,7 +396,7 @@ function. See
 
 _Main design document: [https://s.apache.org/beam-state](https://s.apache.org/beam-state)_
 
-When `ParDo` includes state and timers, its execution on your runner is usually
+When a `ParDo` includes state and timers, its execution on your runner is usually
 very different. See the full details beyond those covered here.
 
 State and timers are partitioned per key and window. You may need or want to
@@ -416,7 +416,7 @@ this to implement user-facing state.
 _Main design document: [https://s.apache.org/splittable-do-fn](https://s.apache.org/splittable-do-fn)_
 
 Splittable `DoFn` is a generalization and combination of `ParDo` and `Read`. It
-is per-element processing where each element the capabilities of being "split"
+is per-element processing where each element has the capability of being "split"
 in the same ways as a `BoundedSource` or `UnboundedSource`. This enables better
 performance for use cases such as a `PCollection` of names of large files where
 you want to read each of them. Previously they would have to be static data in
@@ -459,7 +459,7 @@ grouping.
 #### Implementing via GroupByKeyOnly + GroupAlsoByWindow
 
 The Java codebase includes support code for a particularly common way of
-implement the full `GroupByKey` operation: first group the keys, and then group
+implementing the full `GroupByKey` operation: first group the keys, and then group
 by window. For merging windows, this is essentially required, since merging is
 per key.
 
@@ -506,7 +506,7 @@ inputs, or just ignore inputs and choose the end of the window.
 The window primitive applies a `WindowFn` UDF to place each input element into
 one or more windows of its output PCollection. Note that the primitive also
 generally configures other aspects of the windowing strategy for a `PCollection`,
-but the fully constructed graph that your runner receive will already have a
+but the fully constructed graph that your runner receives will already have a
 complete windowing strategy for each `PCollection`.
 
 To implement this primitive, you need to invoke the provided WindowFn on each
@@ -543,14 +543,14 @@ An `UnboundedSource` is a source of potentially infinite data; you can think of
 it like a stream. The capabilities are:
 
  * `split(int)` - your runner should call this to get the desired parallelism
- * `createReader(...)` - call this to start reading elements; it is an enhanced iterator that also vends:
+ * `createReader(...)` - call this to start reading elements; it is an enhanced iterator that also provides:
  * watermark (for this source) which you should propagate downstream
-   timestamps, which you should associate with elements read
+ * timestamps, which you should associate with elements read
  * record identifiers, so you can dedup downstream if needed
  * progress indication of its backlog
  * checkpointing
  * `requiresDeduping` - this indicates that there is some chance that the source
-   may emit dupes; your runner should do its best to dedupe based on the
+   may emit duplicates; your runner should do its best to dedupe based on the
    identifier attached to emitted records
 
 An unbounded source has a custom type of checkpoints and an associated coder for serializing them.
@@ -562,7 +562,7 @@ collection of log files, or a database table. The capabilities are:
 
  * `split(int)` - your runner should call this to get desired initial parallelism (but you can often steal work later)
  * `getEstimatedSizeBytes(...)` - self explanatory
- * `createReader(...)` - call this to start reading elements; it is an enhanced iterator, with also:
+ * `createReader(...)` - call this to start reading elements; it is an enhanced iterator that also provides:
  * timestamps to associate with each element read
  * `splitAtFraction` for dynamic splitting to enable work stealing, and other
    methods to support it - see the [Beam blog post on dynamic work
@@ -669,7 +669,7 @@ task validatesRunner(type: Test) {
 }
 ```
 
-Enable these tests in other languages is unexplored.
+Enabling these tests in other languages is unexplored.
 
 ## Integrating your runner nicely with SDKs
 
