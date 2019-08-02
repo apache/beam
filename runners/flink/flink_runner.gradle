@@ -63,6 +63,17 @@ sourceSets {
   }
 }
 
+/*
+ * By default, Spotless operates on the project files only.
+ * BeamModulePlugin sets a custom configuration which we override here in order
+ * for the Flink Runner's multiple source directories to be all scanned.
+ */
+spotless {
+  java {
+    target project.sourceSets.main.allJava + project.sourceSets.test.allJava
+  }
+}
+
 test {
   systemProperty "log4j.configuration", "log4j-test.properties"
   //systemProperty "org.slf4j.simpleLogger.defaultLogLevel", "debug"

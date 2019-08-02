@@ -18,25 +18,178 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Filter 
-<table align="left">
-    <a target="_blank" class="button"
+# Filter
+
+<script type="text/javascript">
+localStorage.setItem('language', 'language-py')
+</script>
+
+<table>
+  <td>
+    <a class="button" target="_blank"
         href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px"
-           alt="Pydoc" />
-     Pydoc
+      <img src="https://beam.apache.org/images/logos/sdks/python.png"
+          width="20px" height="20px" alt="Pydoc" />
+      Pydoc
     </a>
+  </td>
 </table>
 <br>
+
 Given a predicate, filter out all elements that don't satisfy that predicate.
 May also be used to filter based on an inequality with a given value based
 on the comparison ordering of the element.
 
 ## Examples
-See [BEAM-7389](https://issues.apache.org/jira/browse/BEAM-7389) for updates. 
 
-## Related transforms  
+In the following examples, we create a pipeline with a `PCollection` of produce their icon, name, and duration.
+Then, we apply `Filter` in multiple ways to filter out produce by their duration value.
+
+### Example 1: Filtering with a function
+
+We define a function `is_perennial` which returns `True` if the element's duration equals `'perennial'`, and `False` otherwise.
+`Filter` accepts this function, keeps elements that return `True`, and filters out the remaining elements.
+
+```py
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_function %}```
+
+<table>
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
+        width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<br>
+
+### Example 2: Filtering with a lambda function
+
+We can also use lambda functions to simplify **Example 1**.
+
+```py
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_lambda %}```
+
+<table>
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
+        width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<br>
+
+### Example 3: Filtering with multiple arguments
+
+You can pass functions with multiple arguments to `Filter`.
+They are passed as additional positional arguments or keyword arguments to the function.
+
+In this example, `has_duration` takes `plant` and `duration` as arguments.
+
+```py
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_multiple_arguments %}```
+
+<table>
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
+        width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<br>
+
+### Example 4: Filtering with side inputs as singletons
+
+If the `PCollection` has a single value, such as the average from another computation,
+passing the `PCollection` as a *singleton* accesses that value.
+
+In this example, we pass a `PCollection` the value `'perennial'` as a singleton.
+We then use that value to filter out perennials.
+
+```py
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_side_inputs_singleton %}```
+
+<table>
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
+        width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<br>
+
+### Example 5: Filtering with side inputs as iterators
+
+If the `PCollection` has multiple values, pass the `PCollection` as an *iterator*.
+This accesses elements lazily as they are needed,
+so it is possible to iterate over large `PCollection`s that won't fit into memory.
+
+```py
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_side_inputs_iter %}```
+
+<table>
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
+        width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<br>
+
+> **Note**: You can pass the `PCollection` as a *list* with `beam.pvalue.AsList(pcollection)`,
+> but this requires that all the elements fit into memory.
+
+### Example 6: Filtering with side inputs as dictionaries
+
+If a `PCollection` is small enough to fit into memory, then that `PCollection` can be passed as a *dictionary*.
+Each element must be a `(key, value)` pair.
+Note that all the elements of the `PCollection` must fit into memory for this.
+If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)` instead.
+
+```py
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_side_inputs_dict %}```
+
+<table>
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
+        width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<br>
+
+## Related transforms
+
 * [FlatMap]({{ site.baseurl }}/documentation/transforms/python/elementwise/flatmap) behaves the same as `Map`, but for
   each input it might produce zero or more outputs.
 * [ParDo]({{ site.baseurl }}/documentation/transforms/python/elementwise/pardo) is the most general element-wise mapping
-  operation, and includes other abilities such as multiple output collections and side-inputs. 
+  operation, and includes other abilities such as multiple output collections and side-inputs.
+
+<table>
+  <td>
+    <a class="button" target="_blank"
+        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter">
+      <img src="https://beam.apache.org/images/logos/sdks/python.png"
+          width="20px" height="20px" alt="Pydoc" />
+      Pydoc
+    </a>
+  </td>
+</table>
+<br>

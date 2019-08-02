@@ -314,7 +314,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.15.0'
+    project.version = '2.16.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -822,13 +822,7 @@ class BeamModulePlugin implements Plugin<Project> {
         java {
           licenseHeader javaLicenseHeader
           googleJavaFormat('1.7')
-          def targetFiles = project.fileTree(project.projectDir)
-          // Explicitly add source sets because projects may have source located outside of the project directory
-          project.sourceSets.each { sourceSet ->
-            targetFiles += sourceSet.allJava
-          }
-
-          target targetFiles.matching { include 'src/*/java/**/*.java' }
+          target project.fileTree(project.projectDir) { include 'src/*/java/**/*.java' }
         }
       }
 

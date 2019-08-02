@@ -39,7 +39,7 @@ public interface BeamSqlTable {
   /** Get the schema info of the table. */
   Schema getSchema();
 
-  /** Estimates the number of rows or returns null if there is no estimation. */
+  /** Estimates the number of rows or the rate for unbounded Tables. */
   default BeamTableStatistics getRowCount(PipelineOptions options) {
     return BeamTableStatistics.UNKNOWN;
   }

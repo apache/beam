@@ -230,6 +230,7 @@ public interface ValueProvider<T> extends Serializable {
         Method method = klass.getMethod(methodName);
         PipelineOptions methodOptions = options.as(klass);
         InvocationHandler handler = Proxy.getInvocationHandler(methodOptions);
+        @SuppressWarnings("unchecked")
         ValueProvider<T> result = (ValueProvider<T>) handler.invoke(methodOptions, method, null);
         // Two cases: If we have deserialized a new value from JSON, it will
         // be wrapped in a StaticValueProvider, which we can provide here.  If

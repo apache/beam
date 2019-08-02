@@ -112,7 +112,7 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
 
     @Override
     public PCollection.IsBounded isBounded() {
-      throw new UnsupportedOperationException();
+      return PCollection.IsBounded.BOUNDED;
     }
 
     @Override

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -67,7 +68,7 @@ class CalciteQueryPlanner implements QueryPlanner {
 
   private final Planner planner;
 
-  CalciteQueryPlanner(JdbcConnection connection, RuleSet[] ruleSets) {
+  public CalciteQueryPlanner(JdbcConnection connection, RuleSet[] ruleSets) {
     planner = Frameworks.getPlanner(defaultConfig(connection, ruleSets));
   }
 
@@ -152,7 +153,9 @@ class CalciteQueryPlanner implements QueryPlanner {
           .setMetadataProvider(
               ChainedRelMetadataProvider.of(
                   ImmutableList.of(
-                      NonCumulativeCostImpl.SOURCE, root.rel.getCluster().getMetadataProvider())));
+                      NonCumulativeCostImpl.SOURCE,
+                      RelMdNodeStats.SOURCE,
+                      root.rel.getCluster().getMetadataProvider())));
       RelMetadataQuery.THREAD_PROVIDERS.set(
           JaninoRelMetadataProvider.of(root.rel.getCluster().getMetadataProvider()));
       root.rel.getCluster().invalidateMetadataQuery();
