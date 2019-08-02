@@ -105,7 +105,7 @@ public final class DataflowSideInputHandlerFactoryTest {
           }
 
           @Override
-          public <T> T get(String sideInputTag) {
+          public PCollectionView  get(String sideInputTag) {
             return null;
           }
         };

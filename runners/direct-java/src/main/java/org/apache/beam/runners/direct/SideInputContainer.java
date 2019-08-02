@@ -273,6 +273,12 @@ class SideInputContainer {
 
     @Override
     public PCollectionView get(String sideInputTag) {
+      for(PCollectionView pCollectionView : containedViews) {
+        if(pCollectionView.getTagInternal().getId().equals(sideInputTag)) {
+          return pCollectionView;
+        }
+      }
+
       return null;
     }
   }

@@ -168,7 +168,7 @@ public class SplittableParDoProcessFnTest {
                 }
 
                 @Override
-                public <T> T get(String sideInputTag) {
+                public PCollectionView get(String sideInputTag) {
                   return null;
                 }
               },

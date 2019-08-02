@@ -386,7 +386,7 @@ public class PCollectionViews {
         ViewFn<PrimitiveViewT, ViewT> viewFn,
         WindowMappingFn<W> windowMappingFn,
         WindowingStrategy<?, W> windowingStrategy) {
-      this(pCollection, new TupleTag<>(), viewFn, windowMappingFn, windowingStrategy);
+      this(pCollection, new TupleTag<>("hello"), viewFn, windowMappingFn, windowingStrategy);
     }
     @Override
     public ViewFn<PrimitiveViewT, ViewT> getViewFn() {

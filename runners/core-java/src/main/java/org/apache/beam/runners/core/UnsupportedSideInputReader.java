@@ -47,7 +47,7 @@ public class UnsupportedSideInputReader implements SideInputReader {
   }
 
   @Override
-  public <T> T get(String sideInputTag) {
+  public PCollectionView get(String sideInputTag) {
     throw new UnsupportedOperationException(
             String.format("%s does not support side inputs.", transformName));
   }

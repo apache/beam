@@ -62,7 +62,7 @@ public class LazilyInitializedSideInputReader implements SideInputReader {
   }
 
   @Override
-  public <T> T get(String sideInputTag) {
-    return null;
+  public PCollectionView get(String sideInputTag) {
+    return lazyInitSideInputReader.get().get(sideInputTag);
   }
 }
