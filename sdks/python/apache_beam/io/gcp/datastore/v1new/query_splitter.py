@@ -106,9 +106,10 @@ def validate_split(query):
 
   for filter in query.filters:
     if isinstance(filter[1], ValueProvider):
-      if filter[1].get() in ['<', '<=', '>', '>=']:
-        raise SplitNotPossibleError('Query cannot have any inequality filters.')
-    if filter[1] in ['<', '<=', '>', '>=']:
+      filter_operator = filter[1].get()
+    else:
+      filter_operator = filter[1]
+    if filter_operator in ['<', '<=', '>', '>=']:
       raise SplitNotPossibleError('Query cannot have any inequality filters.')
 
 
