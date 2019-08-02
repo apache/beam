@@ -27,9 +27,8 @@ import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import org.apache.beam.sdk.Pipeline;
@@ -51,6 +50,7 @@ import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -84,6 +84,8 @@ public class BigQueryIOReadPerformanceIT {
   private static String tableQualifier;
   private static String tempRoot;
   private static BigQueryPerfTestOptions options;
+  private static final String TEST_ID = UUID.randomUUID().toString();
+  private static final String TEST_TIMESTAMP = Timestamp.now().toString();
 
   /** Options for this io performance test. */
   public interface BigQueryPerfTestOptions extends IOTestPipelineOptions {
@@ -121,6 +123,15 @@ public class BigQueryIOReadPerformanceIT {
     if (!checkForSourceTable()) {
       createAndFillSourceTable();
     }
+  }
+
+  @AfterClass
+  public static void tearDown() {
+    BigQueryOptions options = BigQueryOptions.newBuilder().build();
+    BigQuery client = options.getService();
+    TableId tableId =
+        TableId.of(options.getProjectId(), bigQuerySourceDataset, bigQuerySourceTable);
+    client.delete(tableId);
   }
 
   private static void createAndFillSourceTable() {
@@ -166,29 +177,23 @@ public class BigQueryIOReadPerformanceIT {
         .apply("Gather time", ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")));
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
-    gatherAndPublishMetrics(result);
+    Collection<NamedTestResult> testResults = extractReadMetrics(getMetricSupplier(), result);
+    IOITMetrics.publish(
+        TEST_ID, TEST_TIMESTAMP, bigQueryMetricsDataset, bigQueryMetricsTable, testResults);
   }
 
-  private void gatherAndPublishMetrics(PipelineResult result) {
-    String uuid = UUID.randomUUID().toString();
-    String timestamp = Timestamp.now().toString();
-    Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
-        getMetricSuppliers(uuid, timestamp);
-    IOITMetrics metrics = new IOITMetrics(metricSuppliers, result, NAMESPACE, uuid, timestamp);
-    metrics.publish(bigQueryMetricsDataset, bigQueryMetricsTable);
+  private static Collection<NamedTestResult> extractReadMetrics(
+      Function<MetricsReader, NamedTestResult> metricSuppliers, PipelineResult result) {
+    return Collections.singletonList(metricSuppliers.apply(new MetricsReader(result, NAMESPACE)));
   }
 
-  private Set<Function<MetricsReader, NamedTestResult>> getMetricSuppliers(
-      String uuid, String timestamp) {
-    Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
-
-    suppliers.add(
-        reader -> {
-          long startTime = reader.getStartTimeMetric("read_time");
-          long endTime = reader.getEndTimeMetric("read_time");
-          return NamedTestResult.create(uuid, timestamp, "read_time", (endTime - startTime) / 1e3);
-        });
-    return suppliers;
+  private static Function<MetricsReader, NamedTestResult> getMetricSupplier() {
+    return reader -> {
+      long startTime = reader.getStartTimeMetric("read_time");
+      long endTime = reader.getEndTimeMetric("read_time");
+      return NamedTestResult.create(
+          TEST_ID, TEST_TIMESTAMP, "read_time", (endTime - startTime) / 1e3);
+    };
   }
 
   private static class MapKVToV extends DoFn<KV<byte[], byte[]>, byte[]> {
