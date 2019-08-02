@@ -48,12 +48,6 @@ if test $# -gt 0; then
   esac
 fi
 
-MODIFIED=$(git status --porcelain | sed "s@.* sdks/python/@@" | grep '\.py$' || true)
-if [[ "$MODIFIED" ]]; then
-  echo "Linting only modified files."
-  MODULE=${MODIFIED}
-fi
-
 # Following generated files are excluded from lint checks.
 EXCLUDED_GENERATED_FILES=(
 "apache_beam/io/gcp/internal/clients/bigquery/bigquery_v2_client.py"
