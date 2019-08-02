@@ -42,16 +42,22 @@ on the comparison ordering of the element.
 
 ## Examples
 
-In the following examples, we create a pipeline with a `PCollection` of produce their icon, name, and duration.
+In the following examples, we create a pipeline with a `PCollection` of produce with their icon, name, and duration.
 Then, we apply `Filter` in multiple ways to filter out produce by their duration value.
+
+`Filter` accepts a function that keeps elements that return `True`, and filters out the remaining elements.
 
 ### Example 1: Filtering with a function
 
 We define a function `is_perennial` which returns `True` if the element's duration equals `'perennial'`, and `False` otherwise.
-`Filter` accepts this function, keeps elements that return `True`, and filters out the remaining elements.
 
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_function %}```
+
+Output `PCollection` after `Filter`:
+
+```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
 <table>
   <td>
@@ -71,6 +77,11 @@ We can also use lambda functions to simplify **Example 1**.
 
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_lambda %}```
+
+Output `PCollection` after `Filter`:
+
+```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
 <table>
   <td>
@@ -93,6 +104,11 @@ In this example, `has_duration` takes `plant` and `duration` as arguments.
 
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_multiple_arguments %}```
+
+Output `PCollection` after `Filter`:
+
+```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
 <table>
   <td>
@@ -117,6 +133,11 @@ We then use that value to filter out perennials.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_side_inputs_singleton %}```
 
+Output `PCollection` after `Filter`:
+
+```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
+
 <table>
   <td>
     <a class="button" target="_blank"
@@ -137,6 +158,11 @@ so it is possible to iterate over large `PCollection`s that won't fit into memor
 
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_side_inputs_iter %}```
+
+Output `PCollection` after `Filter`:
+
+```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:valid_plants %}```
 
 <table>
   <td>
@@ -162,6 +188,11 @@ If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)
 
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_side_inputs_dict %}```
+
+Output `PCollection` after `Filter`:
+
+```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
 <table>
   <td>
