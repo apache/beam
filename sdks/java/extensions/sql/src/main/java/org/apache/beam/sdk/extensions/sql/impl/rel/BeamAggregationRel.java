@@ -86,7 +86,22 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
   @Override
   public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    return (BeamCostModel) this.computeSelfCost(planner, mq);
+
+    NodeStats inputStat = BeamSqlRelUtils.getNodeStats(this.input, mq);
+    inputStat = computeWindowingCostEffect(inputStat);
+
+    // Aggregates with more aggregate functions cost a bit more
+    float multiplier = 1f + (float) aggCalls.size() * 0.125f;
+    for (AggregateCall aggCall : aggCalls) {
+      if (aggCall.getAggregation().getName().equals("SUM")) {
+        // Pretend that SUM costs a little bit more than $SUM0,
+        // to make things deterministic.
+        multiplier += 0.0125f;
+      }
+    }
+
+    return BeamCostModel.FACTORY.makeCost(
+        inputStat.getRowCount() * multiplier, inputStat.getRate() * multiplier);
   }
 
   @Override

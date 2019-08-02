@@ -139,7 +139,11 @@ public class BeamJoinRel extends Join implements BeamRelNode {
 
   @Override
   public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    return (BeamCostModel) this.computeSelfCost(planner, mq);
+    NodeStats leftEstimates = BeamSqlRelUtils.getNodeStats(this.left, mq);
+    NodeStats rightEstimates = BeamSqlRelUtils.getNodeStats(this.right, mq);
+    NodeStats selfEstimates = BeamSqlRelUtils.getNodeStats(this, mq);
+    NodeStats summation = selfEstimates.plus(leftEstimates).plus(rightEstimates);
+    return BeamCostModel.FACTORY.makeCost(summation.getRowCount(), summation.getRate());
   }
 
   @Override

@@ -23,12 +23,11 @@ import org.junit.Test;
 /** Tests the behavior of BeamCostModel. */
 public class BeamCostModelTest {
 
-  // We should activate it when all the nodes are implementing the cost model.
-  //  @Test
-  //  public void testDefaultConstructorIsInfinite() {
-  //    BeamCostModel cost = BeamCostModel.FACTORY.makeCost(1, 1, 1);
-  //    Assert.assertTrue(cost.isInfinite());
-  //  }
+  @Test
+  public void testDefaultConstructorIsInfinite() {
+    BeamCostModel cost = BeamCostModel.FACTORY.makeCost(1, 1, 1);
+    Assert.assertTrue(cost.isInfinite());
+  }
 
   @Test
   public void testOneInfiniteValue() {

@@ -96,6 +96,12 @@ public class BeamUnionRel extends Union implements BeamRelNode {
 
   @Override
   public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    return (BeamCostModel) this.computeSelfCost(planner, mq);
+    NodeStats summationOfEstimates =
+        inputs.stream()
+            .map(input -> BeamSqlRelUtils.getNodeStats(input, mq))
+            .reduce(NodeStats.create(0, 0, 0), NodeStats::plus);
+
+    return BeamCostModel.FACTORY.makeCost(
+        summationOfEstimates.getRowCount(), summationOfEstimates.getRate());
   }
 }

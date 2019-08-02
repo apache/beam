@@ -108,7 +108,8 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
 
   @Override
   public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    return (BeamCostModel) this.computeSelfCost(planner, mq);
+    NodeStats estimates = BeamSqlRelUtils.getNodeStats(this, mq);
+    return BeamCostModel.FACTORY.makeCost(estimates.getRowCount(), estimates.getRate());
   }
 
   protected BeamSqlTable getBeamSqlTable() {

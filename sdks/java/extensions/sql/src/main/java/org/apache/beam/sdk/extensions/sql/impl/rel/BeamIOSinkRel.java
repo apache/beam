@@ -80,7 +80,8 @@ public class BeamIOSinkRel extends TableModify
 
   @Override
   public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    return (BeamCostModel) this.computeSelfCost(planner, mq);
+    NodeStats inputEstimates = BeamSqlRelUtils.getNodeStats(this.input, mq);
+    return BeamCostModel.FACTORY.makeCost(inputEstimates.getRowCount(), inputEstimates.getRate());
   }
 
   @Override
