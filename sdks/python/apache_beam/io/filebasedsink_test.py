@@ -231,6 +231,14 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
     with self.assertRaises(ValueError):
       _get_temp_dir(dir_root_path)
 
+  def test_temp_dir_uniqueness(self):
+    temp_path = os.path.join(self._new_tempdir(), 'unique')
+    sink = MyFileBasedSink(temp_path, coder=coders.ToStringCoder())
+    init_list = [''] * 1000
+    temp_dir_list = [sink._create_temp_dir(temp_path) for _ in init_list]
+    temp_dir_set = set(temp_dir_list)
+    self.assertEqual(len(temp_dir_list), len(temp_dir_set))
+
   def test_temp_dir_gcs(self):
     try:
       self.run_temp_dir_check(
