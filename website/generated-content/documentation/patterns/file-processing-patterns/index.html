@@ -545,7 +545,7 @@ limitations under the License.
 
 <ol class="language-java">
   <li>Create a <code class="highlighter-rouge">ReadableFile</code> instance with <code class="highlighter-rouge">FileIO</code>. <code class="highlighter-rouge">FileIO</code> returns a <code class="highlighter-rouge">PCollection&lt;ReadableFile&gt;</code> object. The <code class="highlighter-rouge">ReadableFile</code> class contains the filename.</li>
-  <li>Call the <code class="highlighter-rouge">readFullyAsUTF9String()</code> method to read the file into memory and return the filename as a <code class="highlighter-rouge">String</code> object. If memory is limited, you can use utility classes like <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/FileSystems.html"><code class="highlighter-rouge">FileSystems</code></a> to work directly with the file.</li>
+  <li>Call the <code class="highlighter-rouge">readFullyAsUTF8String()</code> method to read the file into memory and return the filename as a <code class="highlighter-rouge">String</code> object. If memory is limited, you can use utility classes like <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/FileSystems.html"><code class="highlighter-rouge">FileSystems</code></a> to work directly with the file.</li>
 </ol>
 
 <p class="language-py">To read filenames in a pipeline job:</p>

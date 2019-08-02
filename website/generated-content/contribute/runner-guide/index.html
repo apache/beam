@@ -574,7 +574,7 @@ match across all SDKs.</p>
 
 <p>The <code class="highlighter-rouge">run(Pipeline)</code> method should be asynchronous and results in a
 PipelineResult which generally will be a job descriptor for your data
-processing engine, provides methods for checking its status, canceling it, and
+processing engine, providing methods for checking its status, canceling it, and
 waiting for it to terminate.</p>
 
 <h2 id="implementing-the-beam-primitives">Implementing the Beam Primitives</h2>
@@ -588,7 +588,7 @@ provided.</p>
 <p>The primitives are designed for the benefit of pipeline authors, not runner
 authors. Each represents a different conceptual mode of operation (external IO,
 element-wise, grouping, windowing, union) rather than a specific implementation
-decision.  The same primitive may require very different implementation based
+decision.  The same primitive may require a very different implementation based
 on how the user instantiates it. For example, a <code class="highlighter-rouge">ParDo</code> that uses state or
 timers may require key partitioning, a <code class="highlighter-rouge">GroupByKey</code> with speculative triggering
 may require a more costly or complex implementation, and <code class="highlighter-rouge">Read</code> is completely
@@ -657,7 +657,7 @@ initialization is almost always equivalent and more efficient, but this hook
 remains for simplicity for users)</li>
   <li><em>ProcessElement</em> / <em>OnTimer</em> - called for each element and timer activation</li>
   <li><em>FinishBundle</em> - essentially “flush”; required to be called before
-considering elements actually processed</li>
+considering elements as actually processed</li>
   <li><em>Teardown</em> - release resources that were used across bundles; calling this
 can be best effort due to failures</li>
 </ul>
@@ -712,7 +712,7 @@ via the <a href="#the-fn-api">Fn API</a> may manifest as another implementation 
 <p>A side input is a global view of a window of a <code class="highlighter-rouge">PCollection</code>. This distinguishes
 it from the main input, which is processed one element at a time. The SDK/user
 prepares a <code class="highlighter-rouge">PCollection</code> adequately, the runner materializes it, and then the
-runner feeds it to the <code class="highlighter-rouge">DoFn</code>. See the</p>
+runner feeds it to the <code class="highlighter-rouge">DoFn</code>.</p>
 
 <p>What you will need to implement is to inspect the materialization requested for
 the side input, and prepare it appropriately, and corresponding interactions
@@ -758,7 +758,7 @@ function. See
 
 <p><em>Main design document: <a href="https://s.apache.org/beam-state">https://s.apache.org/beam-state</a></em></p>
 
-<p>When <code class="highlighter-rouge">ParDo</code> includes state and timers, its execution on your runner is usually
+<p>When a <code class="highlighter-rouge">ParDo</code> includes state and timers, its execution on your runner is usually
 very different. See the full details beyond those covered here.</p>
 
 <p>State and timers are partitioned per key and window. You may need or want to
@@ -778,7 +778,7 @@ this to implement user-facing state.</p>
 <p><em>Main design document: <a href="https://s.apache.org/splittable-do-fn">https://s.apache.org/splittable-do-fn</a></em></p>
 
 <p>Splittable <code class="highlighter-rouge">DoFn</code> is a generalization and combination of <code class="highlighter-rouge">ParDo</code> and <code class="highlighter-rouge">Read</code>. It
-is per-element processing where each element the capabilities of being “split”
+is per-element processing where each element has the capability of being “split”
 in the same ways as a <code class="highlighter-rouge">BoundedSource</code> or <code class="highlighter-rouge">UnboundedSource</code>. This enables better
 performance for use cases such as a <code class="highlighter-rouge">PCollection</code> of names of large files where
 you want to read each of them. Previously they would have to be static data in
@@ -821,7 +821,7 @@ grouping.</p>
 <h4 id="implementing-via-groupbykeyonly--groupalsobywindow">Implementing via GroupByKeyOnly + GroupAlsoByWindow</h4>
 
 <p>The Java codebase includes support code for a particularly common way of
-implement the full <code class="highlighter-rouge">GroupByKey</code> operation: first group the keys, and then group
+implementing the full <code class="highlighter-rouge">GroupByKey</code> operation: first group the keys, and then group
 by window. For merging windows, this is essentially required, since merging is
 per key.</p>
 
@@ -868,7 +868,7 @@ inputs, or just ignore inputs and choose the end of the window.</p>
 <p>The window primitive applies a <code class="highlighter-rouge">WindowFn</code> UDF to place each input element into
 one or more windows of its output PCollection. Note that the primitive also
 generally configures other aspects of the windowing strategy for a <code class="highlighter-rouge">PCollection</code>,
-but the fully constructed graph that your runner receive will already have a
+but the fully constructed graph that your runner receives will already have a
 complete windowing strategy for each <code class="highlighter-rouge">PCollection</code>.</p>
 
 <p>To implement this primitive, you need to invoke the provided WindowFn on each
@@ -906,14 +906,14 @@ it like a stream. The capabilities are:</p>
 
 <ul>
   <li><code class="highlighter-rouge">split(int)</code> - your runner should call this to get the desired parallelism</li>
-  <li><code class="highlighter-rouge">createReader(...)</code> - call this to start reading elements; it is an enhanced iterator that also vends:</li>
-  <li>watermark (for this source) which you should propagate downstream
-timestamps, which you should associate with elements read</li>
+  <li><code class="highlighter-rouge">createReader(...)</code> - call this to start reading elements; it is an enhanced iterator that also provides:</li>
+  <li>watermark (for this source) which you should propagate downstream</li>
+  <li>timestamps, which you should associate with elements read</li>
   <li>record identifiers, so you can dedup downstream if needed</li>
   <li>progress indication of its backlog</li>
   <li>checkpointing</li>
   <li><code class="highlighter-rouge">requiresDeduping</code> - this indicates that there is some chance that the source
-may emit dupes; your runner should do its best to dedupe based on the
+may emit duplicates; your runner should do its best to dedupe based on the
 identifier attached to emitted records</li>
 </ul>
 
@@ -927,7 +927,7 @@ collection of log files, or a database table. The capabilities are:</p>
 <ul>
   <li><code class="highlighter-rouge">split(int)</code> - your runner should call this to get desired initial parallelism (but you can often steal work later)</li>
   <li><code class="highlighter-rouge">getEstimatedSizeBytes(...)</code> - self explanatory</li>
-  <li><code class="highlighter-rouge">createReader(...)</code> - call this to start reading elements; it is an enhanced iterator, with also:</li>
+  <li><code class="highlighter-rouge">createReader(...)</code> - call this to start reading elements; it is an enhanced iterator that also provides:</li>
   <li>timestamps to associate with each element read</li>
   <li><code class="highlighter-rouge">splitAtFraction</code> for dynamic splitting to enable work stealing, and other
 methods to support it - see the <a href="/blog/2016/05/18/splitAtFraction-method.html">Beam blog post on dynamic work
@@ -1036,7 +1036,7 @@ scan the dependencies of the SDK for tests with the JUnit category
 </code></pre>
 </div>
 
-<p>Enable these tests in other languages is unexplored.</p>
+<p>Enabling these tests in other languages is unexplored.</p>
 
 <h2 id="integrating-your-runner-nicely-with-sdks">Integrating your runner nicely with SDKs</h2>
 
