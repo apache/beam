@@ -103,6 +103,11 @@ public final class DataflowSideInputHandlerFactoryTest {
           public boolean isEmpty() {
             return false;
           }
+
+          @Override
+          public <T> T get(String sideInputTag) {
+            return null;
+          }
         };
   }
 

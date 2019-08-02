@@ -251,10 +251,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
-            public InputT sideInput(DoFn<InputT, OutputT> doFn) {
-              //return processContext.sideInput(view);
-              throw new UnsupportedOperationException("SideInput are not supported by DoFnTester");
+            public Object sideInput(DoFn<InputT, OutputT> doFn) {
+              // :TODO Need implementation here
+              throw new UnsupportedOperationException("SideInput parameters are not supported.");
             }
+
 
             @Override
             public InputT schemaElement(int index) {

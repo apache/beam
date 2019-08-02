@@ -238,7 +238,7 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
-      public InputT sideInput(DoFn<InputT, OutputT> doFn) {
+      public Object sideInput(DoFn<InputT, OutputT> doFn) {
         throw new UnsupportedOperationException();
       }
 

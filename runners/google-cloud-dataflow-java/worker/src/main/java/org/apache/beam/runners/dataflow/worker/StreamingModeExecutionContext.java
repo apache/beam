@@ -823,5 +823,16 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     public boolean isEmpty() {
       return viewSet.isEmpty();
     }
+
+    @Override
+    public PCollectionView get(String sideInputTag) {
+      PCollectionView pCollectionView = null;
+      for(PCollectionView pCollectionViewSet : viewSet) {
+        if(pCollectionViewSet.getTagInternal().getId().equals(sideInputTag)) {
+          pCollectionView = pCollectionViewSet;
+        }
+      }
+      return pCollectionView;
+    }
   }
 }

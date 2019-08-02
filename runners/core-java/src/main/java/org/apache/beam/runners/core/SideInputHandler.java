@@ -200,6 +200,18 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
     return sideInputs.isEmpty();
   }
 
+  @Override
+  public PCollectionView get(String sideInputTag) {
+    PCollectionView pCollectionView = null;
+    for (PCollectionView<?> sideInput : sideInputs) {
+      if(sideInput.getTagInternal().getId().equals(sideInputTag)) {
+        pCollectionView = sideInput;
+        break;
+      }
+    }
+    return pCollectionView;
+  }
+
   /** For keeping track of the windows for which we have available side input. */
   private static class WindowSetCombineFn
       extends Combine.CombineFn<BoundedWindow, Set<BoundedWindow>, Set<BoundedWindow>> {

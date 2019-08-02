@@ -120,12 +120,13 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
                 return processContext.element();
               }
 
-              @Override
-              public InputT sideInput(DoFn<InputT, OutputT> doFn) {
-                throw new UnsupportedOperationException("Not supported in SplittableDoFn");
-              }
+                @Override
+                public Object sideInput(DoFn<InputT, OutputT> doFn) {
+                    throw new UnsupportedOperationException("Not supported in SplittableDoFn");
+                }
 
-              @Override
+
+                @Override
               public Object schemaElement(int index) {
                 throw new UnsupportedOperationException("Not supported in SplittableDoFn");
               }

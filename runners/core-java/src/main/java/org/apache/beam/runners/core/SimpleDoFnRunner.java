@@ -20,6 +20,7 @@ package org.apache.beam.runners.core;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -304,7 +305,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public InputT sideInput(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
-              "SideInput parameters are not supported outside of @ProcessElement method.");
+              "Element parameters are not supported outside of @ProcessElement method.");
     }
 
     @Override
@@ -424,7 +425,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public InputT sideInput(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
-              "Cannot access sideInput outside of @ProcessElement method.");
+              "Cannot access element outside of @ProcessElement method.");
     }
 
     @Override
@@ -644,9 +645,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public InputT sideInput(DoFn<InputT, OutputT> doFn) {
-      return null; //sideInput()
+    public Object sideInput(String tag) {
+      // :TODO We want side input here
+      return doFnSideInputFormation.get(tag);
     }
+
 
     @Override
     public Object schemaElement(int index) {
@@ -685,12 +688,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       throw new UnsupportedOperationException(
           "Cannot access OnTimerContext outside of @OnTimer methods.");
     }
-
-    /*@Override
-    public InputT sideInput(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException("SideInput parameters are not supported.");
-    }*/
-
     @Override
     public RestrictionTracker<?, ?> restrictionTracker() {
       throw new UnsupportedOperationException("RestrictionTracker parameters are not supported.");
@@ -804,9 +801,10 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public InputT sideInput(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException("sideInput parameters are not supported.");
+    public Object sideInput(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("SideInput parameters are not supported.");
     }
+
 
     @Override
     public Object schemaElement(int index) {

@@ -88,4 +88,9 @@ public class CachedSideInputReader implements SideInputReader {
   public boolean isEmpty() {
     return delegate.isEmpty();
   }
+
+  @Override
+  public <T> T get(String sideInputTag) {
+    return null;
+  }
 }

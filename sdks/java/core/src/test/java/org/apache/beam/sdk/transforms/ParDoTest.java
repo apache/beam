@@ -43,6 +43,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -1969,18 +1971,17 @@ public class ParDoTest implements Serializable {
       final String TAG_2 = "sideInput2";
       final String stateId = "foo";
 
+      final PCollectionView<List<Integer>> listView =
+              pipeline.apply("Create list for side input", Create.of(2, 1, 0)).apply(View.asList());
+
+      /*final PCollectionView<List<Integer>> listView1 =
+              pipeline.apply("Create list for side input", Create.of(2, 5, 0)).apply(View.asList());*/
+
       DoFn<KV<String, Integer>, List<Integer>> fn =
           new DoFn<KV<String, Integer>, List<Integer>>() {
-
             @StateId(stateId)
             private final StateSpec<BagState<Integer>> bufferState =
                 StateSpecs.bag(VarIntCoder.of());
-
-            final PCollectionView<List<Integer>> listView =
-                    pipeline.apply("Create list for side input", Create.of(2, 1, 0)).apply(View.asList(TAG_1));
-
-            final PCollectionView<List<Integer>> listView1 =
-                    pipeline.apply("Create list for side input", Create.of(2, 1, 0)).apply(View.asList(TAG_2));
 
             @ProcessElement
             public void processElement(
@@ -1988,9 +1989,9 @@ public class ParDoTest implements Serializable {
                 @Element KV<String, Integer> element,
                 @StateId(stateId) BagState<Integer> state,
                 OutputReceiver<List<Integer>> r,
-                @SideInput(TAG_1) List<Integer> tag1,
-                @SideInput(TAG_2) List<Integer> tag2) {
+                @SideInput(TAG_1) List<Integer> tag1) {
               state.add(element.getValue());
+
               Iterable<Integer> currentValue = state.read();
               if (Iterables.size(currentValue) >= 4) {
                 List<Integer> sorted = Lists.newArrayList(currentValue);
@@ -2013,7 +2014,7 @@ public class ParDoTest implements Serializable {
                       KV.of("hello", 42),
                       KV.of("hello", 84),
                       KV.of("hello", 12)))
-              .apply(ParDo.of(fn));
+              .apply(ParDo.of(fn).withSideInput(TAG_1,listView));
 
       PAssert.that(output)
           .containsInAnyOrder(Lists.newArrayList(12, 42, 84, 97), Lists.newArrayList(0, 1, 2));

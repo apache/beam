@@ -139,7 +139,7 @@ public interface DoFnInvoker<InputT, OutputT> {
     /**
      * Provide a reference to the input sideInput.
      */
-    InputT sideInput(DoFn<InputT, OutputT> doFn);
+    Object sideInput(DoFn<InputT, OutputT> doFn);
 
     /**
      * Provide a reference to the selected schema field corresponding to the input argument
