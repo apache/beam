@@ -78,7 +78,10 @@ public class BeamUnnestRel extends Uncollect implements BeamRelNode {
 
   @Override
   public NodeStats estimateNodeStats(RelMetadataQuery mq) {
-    return NodeStats.create(mq.getRowCount(this));
+    // We estimate the average length of each array by a constant.
+    // We might be able to get an estimate of the length by making a MetadataHandler for this
+    // purpose, and get the estimate by reading the first couple of the rows in the source.
+    return BeamSqlRelUtils.getNodeStats(this.input, mq).multiply(2);
   }
 
   @Override
