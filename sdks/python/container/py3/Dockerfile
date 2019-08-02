@@ -29,11 +29,15 @@ RUN apt-get update && \
        && \
     rm -rf /var/lib/apt/lists/*
 
-# Install packages required by the Python SDK and common dependencies of the user code.
+# Install cython prior to installing any other libraries so that it can be used
+# to optimize.
+RUN \
+    pip install cython==0.28.1 && \
+    # Remove pip cache.
+    rm -rf /root/.cache/pip
 
-# SDK dependencies not listed in base_image_requirements.txt will be installed when we install SDK
-# in the next RUN statement.
-
+# Install the Python SDK along with its dependences, as well as common
+# dependencies of user code.
 COPY target/base_image_requirements.txt /tmp/base_image_requirements.txt
 COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
 RUN \
@@ -42,7 +46,6 @@ RUN \
     python -c "from google.protobuf.internal import api_implementation; assert api_implementation._default_implementation_type == 'cpp'; print ('Verified fast protobuf used.')" && \
     # Remove pip cache.
     rm -rf /root/.cache/pip
-
 
 ADD target/linux_amd64/boot /opt/apache/beam/
 

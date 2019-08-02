@@ -29,9 +29,15 @@ RUN apt-get update && \
        && \
     rm -rf /var/lib/apt/lists/*
 
+# Install cython prior to installing any other libraries so that it can be used
+# to optimize.
+RUN \
+    pip install cython==0.28.1 && \
+    # Remove pip cache.
+    rm -rf /root/.cache/pip
+
 # Install the Python SDK along with its dependences, as well as common
 # dependencies of user code.
-
 COPY target/base_image_requirements.txt /tmp/base_image_requirements.txt
 COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
 RUN \
