@@ -100,6 +100,9 @@ class PubsubMessage(object):
     msg.ParseFromString(proto_msg)
     # Convert ScalarMapContainer to dict.
     attributes = dict((key, msg.attributes[key]) for key in msg.attributes)
+    sysattribs = dict(message_id=msg.message_id)
+    attributes.update(sysattribs)
+
     return PubsubMessage(msg.data, attributes)
 
   def _to_proto_str(self):
@@ -128,9 +131,10 @@ class PubsubMessage(object):
     # Convert ScalarMapContainer to dict.
     attributes = dict((key, msg.attributes[key]) for key in msg.attributes)
     # Parse the PubSub message_id and add to attributes
-    if msg.message_id != None:
-      sysattribs = dict(message_id=msg.message_id)
-      attributes.update(sysattribs)
+    attributes.update(dict=dir(msg))
+    sysattribs = dict(message_id=msg.message_id)
+    attributes.update(sysattribs)
+    
     return PubsubMessage(msg.data, attributes)
 
 
