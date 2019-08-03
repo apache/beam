@@ -25,7 +25,7 @@ def regex_matches(test=None):
   import apache_beam as beam
 
   # Matches a named group 'icon', and then two comma-separated groups.
-  regex = r'(?P<icon>[^ ,]+), *(\w+), *(\w+)'
+  regex = r'(?P<icon>[^\s,]+), *(\w+), *(\w+)'
   with beam.Pipeline() as pipeline:
     plants_matches = (
         pipeline
@@ -51,7 +51,7 @@ def regex_all_matches(test=None):
   import apache_beam as beam
 
   # Matches a named group 'icon', and then two comma-separated groups.
-  regex = r'(?P<icon>[^ ,]+), *(\w+), *(\w+)'
+  regex = r'(?P<icon>[^\s,]+), *(\w+), *(\w+)'
   with beam.Pipeline() as pipeline:
     plants_all_matches = (
         pipeline
@@ -77,7 +77,7 @@ def regex_matches_kv(test=None):
   import apache_beam as beam
 
   # Matches a named group 'icon', and then two comma-separated groups.
-  regex = r'(?P<icon>[^ ,]+), *(\w+), *(\w+)'
+  regex = r'(?P<icon>[^\s,]+), *(\w+), *(\w+)'
   with beam.Pipeline() as pipeline:
     plants_matches_kv = (
         pipeline
@@ -103,7 +103,7 @@ def regex_find(test=None):
   import apache_beam as beam
 
   # Matches a named group 'icon', and then two comma-separated groups.
-  regex = r'(?P<icon>[^ ,]+), *(\w+), *(\w+)'
+  regex = r'(?P<icon>[^\s,]+), *(\w+), *(\w+)'
   with beam.Pipeline() as pipeline:
     plants_matches = (
         pipeline
@@ -127,7 +127,7 @@ def regex_find_all(test=None):
   import apache_beam as beam
 
   # Matches a named group 'icon', and then two comma-separated groups.
-  regex = r'(?P<icon>[^ ,]+), *(\w+), *(\w+)'
+  regex = r'(?P<icon>[^\s,]+), *(\w+), *(\w+)'
   with beam.Pipeline() as pipeline:
     plants_find_all = (
         pipeline
@@ -151,7 +151,7 @@ def regex_find_kv(test=None):
   import apache_beam as beam
 
   # Matches a named group 'icon', and then two comma-separated groups.
-  regex = r'(?P<icon>[^ ,]+), *(\w+), *(\w+)'
+  regex = r'(?P<icon>[^\s,]+), *(\w+), *(\w+)'
   with beam.Pipeline() as pipeline:
     plants_matches_kv = (
         pipeline

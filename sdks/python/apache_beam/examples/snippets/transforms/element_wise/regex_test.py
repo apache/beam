@@ -132,7 +132,7 @@ def check_split(actual):
       ['🍅', 'Tomato', 'annual'],
       ['🥔', 'Potato', 'perennial'],
   ]
-  # [END plants_replace_first]
+  # [END plants_split]
   assert_that(actual, equal_to(plants_split))
 
 
