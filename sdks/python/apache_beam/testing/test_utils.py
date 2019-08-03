@@ -155,7 +155,8 @@ class PullResponseMessage(object):
   Utility class for ``create_pull_response``.
   """
   def __init__(self, data, attributes=None,
-               publish_time_secs=None, publish_time_nanos=None, ack_id=None, message_id=None):
+               publish_time_secs=None, publish_time_nanos=None, ack_id=None,
+               message_id=None):
     self.data = data
     self.attributes = attributes
     self.publish_time_secs = publish_time_secs

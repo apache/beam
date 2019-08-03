@@ -344,7 +344,8 @@ class TestReadFromPubSub(unittest.TestCase):
     message_id = '1234567890'
     pull_response = test_utils.create_pull_response([
         test_utils.PullResponseMessage(
-            data, attributes, publish_time_secs, publish_time_nanos, ack_id, message_id)
+            data, attributes, publish_time_secs, publish_time_nanos, ack_id, 
+            message_id)
     ])
     attributes.update(message_id=message_id)
     expected_elements = [
@@ -421,7 +422,8 @@ class TestReadFromPubSub(unittest.TestCase):
     message_id = '1234567890'
     pull_response = test_utils.create_pull_response([
         test_utils.PullResponseMessage(
-            data, attributes, publish_time_secs, publish_time_nanos, ack_id, message_id)
+            data, attributes, publish_time_secs, publish_time_nanos, ack_id, 
+            message_id)
     ])
     attributes.update(message_id=message_id)
     expected_elements = [
@@ -456,7 +458,8 @@ class TestReadFromPubSub(unittest.TestCase):
     message_id = '1234567890'
     pull_response = test_utils.create_pull_response([
         test_utils.PullResponseMessage(
-            data, attributes, publish_time_secs, publish_time_nanos, ack_id, message_id)
+            data, attributes, publish_time_secs, publish_time_nanos, ack_id, 
+            message_id)
     ])
     attributes.update(message_id=message_id)
     expected_elements = [
@@ -492,7 +495,8 @@ class TestReadFromPubSub(unittest.TestCase):
     message_id = 'message_id'
     pull_response = test_utils.create_pull_response([
         test_utils.PullResponseMessage(
-            data, attributes, publish_time_secs, publish_time_nanos, ack_id, message_id)
+            data, attributes, publish_time_secs, publish_time_nanos, ack_id, 
+            message_id)
     ])
     attributes.update(message_id=message_id)
     expected_elements = [
