@@ -26,6 +26,9 @@ from __future__ import division
 from builtins import range
 from builtins import round
 
+from past.builtins import long
+from past.builtins import unicode
+
 from apache_beam.io.gcp.datastore.v1new import types
 
 __all__ = ['QuerySplitterError', 'SplitNotPossibleError', 'get_splits']
@@ -123,10 +126,59 @@ def _create_scatter_query(query, num_splits):
   return scatter_query
 
 
+class IdOrName(object):
+  """Represents an ID or name of a Datastore key,
+
+   Implements sort ordering: by ID, then by name, keys with IDs before those
+   with names.
+   """
+  def __init__(self, id_or_name):
+    self.id_or_name = id_or_name
+    if isinstance(id_or_name, (str, unicode)):
+      self.id = None
+      self.name = id_or_name
+    elif isinstance(id_or_name, (int, long)):
+      self.id = id_or_name
+      self.name = None
+    else:
+      raise TypeError('Unexpected type of id_or_name: %s' % id_or_name)
+
+  def __lt__(self, other):
+    if not isinstance(other, IdOrName):
+      return super(IdOrName, self).__lt__(other)
+
+    if self.id is not None:
+      if other.id is None:
+        return True
+      else:
+        return self.id < other.id
+
+    if other.id is not None:
+      return False
+
+    return self.name < other.name
+
+  def __eq__(self, other):
+    if not isinstance(other, IdOrName):
+      return super(IdOrName, self).__eq__(other)
+    return self.id == other.id and self.name == other.name
+
+  def __hash__(self):
+    return hash((self.id, self.other))
+
+
 def client_key_sort_key(client_key):
   """Key function for sorting lists of ``google.cloud.datastore.key.Key``."""
-  return [client_key.project, client_key.namespace or ''] + [
-      str(element) for element in client_key.flat_path]
+  sort_key = [client_key.project, client_key.namespace or '']
+  # A key path is made up of (kind, id_or_name) pairs. The last pair might be
+  # missing an id_or_name.
+  flat_path = list(client_key.flat_path)
+  while flat_path:
+    sort_key.append(flat_path.pop(0))  # kind
+    if flat_path:
+      sort_key.append(IdOrName(flat_path.pop(0)))
+
+  return sort_key
 
 
 def _get_scatter_keys(client, query, num_splits):
