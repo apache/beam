@@ -57,6 +57,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
@@ -136,6 +137,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Evicting
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.MultimapBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
@@ -403,6 +405,8 @@ public class StreamingDataflowWorker {
   private final MetricTrackingWindmillServerStub metricTrackingWindmillServer;
   private final CounterSet pendingDeltaCounters = new CounterSet();
   private final CounterSet pendingCumulativeCounters = new CounterSet();
+  private final ConcurrentLinkedQueue<CounterUpdate> pendingMonitoringInfos =
+      new ConcurrentLinkedQueue<>();
   // Map from stage name to StageInfo containing metrics container registry and per stage counters.
   private final ConcurrentMap<String, StageInfo> stageInfoMap = new ConcurrentHashMap();
 
@@ -1293,6 +1297,8 @@ public class StreamingDataflowWorker {
 
       // Blocks while executing work.
       executionState.getWorkExecutor().execute();
+      Iterables.addAll(this.pendingMonitoringInfos,
+          executionState.getWorkExecutor().extractMetricUpdates());
 
       commitCallbacks.putAll(executionState.getContext().flushState());
 
@@ -1844,6 +1850,8 @@ public class StreamingDataflowWorker {
       key = counterUpdate.getNameAndKind().getName();
     } else if (counterUpdate.getStructuredNameAndMetadata() != null) {
       key = counterUpdate.getStructuredNameAndMetadata().getName();
+    } else if (counterUpdate.getShortId() != null) {
+      key = counterUpdate.getShortId();
     }
     checkArgument(key != null, "Could not find name for CounterUpdate: %s", counterUpdate);
     return key;
@@ -1867,6 +1875,15 @@ public class StreamingDataflowWorker {
           cumulativeCounters.extractUpdates(false, DataflowCounterUpdateExtractor.INSTANCE));
       counterUpdates.addAll(
           deltaCounters.extractModifiedDeltaUpdates(DataflowCounterUpdateExtractor.INSTANCE));
+
+      if (hasExperiment(options, "beam_fn_api")) {
+        LOG.info(
+            String.format(
+                "Streaming Worker extract beam fn worker metric updates: %s",
+                this.pendingMonitoringInfos));
+        counterUpdates.addAll(this.pendingMonitoringInfos);
+        this.pendingMonitoringInfos.clear();
+      }
     }
 
     // Handle duplicate counters from different stages. Store all the counters in a multi-map and
@@ -1930,6 +1947,7 @@ public class StreamingDataflowWorker {
 
     // Send any counters appearing more than once in subsequent RPCs:
     while (!counterMultimap.isEmpty()) {
+      LOG.info("Duplicate metrics: " + counterMultimap.keySet());
       extractUniqueCounters.run();
       workUnitClient.reportWorkItemStatus(
           new WorkItemStatus()

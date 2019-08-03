@@ -113,9 +113,11 @@ public class CounterShortIdCache {
                 update.getStructuredNameAndMetadata().getName(),
                 "Counter update structured-name should be non-null");
         shortId = structuredShortIdMap.get(name);
+      } else if (update.getShortId() != null) {
+        shortId = update.getShortId();
       } else {
         throw new IllegalArgumentException(
-            "CounterUpdate should have nameAndKind or structuredNameAndmetadata");
+            "CounterUpdate should have nameAndKind or structuredNameAndmetadata or ShortId");
       }
 
       if (shortId != null) {

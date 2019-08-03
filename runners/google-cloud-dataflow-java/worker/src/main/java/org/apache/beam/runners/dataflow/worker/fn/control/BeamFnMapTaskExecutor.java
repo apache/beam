@@ -309,6 +309,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     private final Map<MetricKey, MetricUpdate<Long>> deprecatedCounterUpdates;
     private final Map<MetricKey, MetricUpdate<DistributionData>> deprecatedDistributionUpdates;
     private final Map<MetricKey, MetricUpdate<GaugeData>> deprecatedGaugeUpdates;
+    private int initialDelay = 60_000;
 
     public SingularProcessBundleProgressTracker(
         ReadOperation readOperation,
@@ -343,8 +344,10 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
         // TODO(BEAM-6189): Replace getProcessBundleProgress with getMonitoringInfos when Metrics
         // is deprecated.
+        long now = System.currentTimeMillis();
         ProcessBundleProgressResponse processBundleProgressResponse =
-            MoreFutures.get(bundleProcessOperation.getProcessBundleProgress());
+            MoreFutures.get(bundleProcessOperation.getProcessBundleProgress(), 300,
+                TimeUnit.SECONDS);
         updateMetrics(processBundleProgressResponse.getMonitoringInfosList());
 
         // Supporting deprecated metrics until all supported runners are migrated to using
@@ -363,6 +366,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
         progressErrors = 0;
       } catch (Exception exn) {
         if (!isTransientProgressError(exn.getMessage())) {
+          LOG.info(Thread.currentThread().getName()+ " System time: " + System.currentTimeMillis());
           grpcWriteOperationElementsProcessed.accept(-1); // Not supported.
           progressErrors++;
           // Only log verbosely every power of two to avoid spamming the logs.
@@ -405,6 +409,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
               this.bundleProcessOperation.getPtransformIdToUserStepContext(),
               this.bundleProcessOperation.getPCollectionIdToNameContext());
 
+      LOG.info("MonitoringInfos is :" + monitoringInfos);
       counterUpdates =
           monitoringInfos.stream()
               .map(monitoringInfoToCounterUpdateTransformer::transform)
@@ -505,11 +510,12 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
       // Set final metrics to precisely the values in this update. This should overwrite, not
       // be combined with, all prior updates.
-      counterUpdates.clear();
+      // counterUpdates.clear();
       deprecatedCounterUpdates.clear();
       deprecatedDistributionUpdates.clear();
       deprecatedGaugeUpdates.clear();
       try {
+        LOG.info("Final report update metrics");
         updateMetrics(MoreFutures.get(bundleProcessOperation.getFinalMonitoringInfos()));
         updateMetricsDeprecated(MoreFutures.get(bundleProcessOperation.getFinalMetrics()));
       } catch (ExecutionException | InterruptedException exn) {

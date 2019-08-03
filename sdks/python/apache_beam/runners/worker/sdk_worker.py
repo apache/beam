@@ -366,6 +366,8 @@ class SdkWorker(object):
         with self.maybe_profile(instruction_id):
           delayed_applications, requests_finalization = (
               bundle_processor.process_bundle(instruction_id))
+          logging.info('Process bundle monitoring info %s' %
+                       bundle_processor.monitoring_infos())
           response = beam_fn_api_pb2.InstructionResponse(
               instruction_id=instruction_id,
               process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
@@ -398,6 +400,8 @@ class SdkWorker(object):
     # It is an error to get progress for a not-in-flight bundle.
     processor = self.bundle_processor_cache.lookup(
         request.instruction_reference)
+    logging.info('Process bundle progress monitoring: %s ' %
+                 processor.monitoring_infos())
     return beam_fn_api_pb2.InstructionResponse(
         instruction_id=instruction_id,
         process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
@@ -411,6 +415,7 @@ class SdkWorker(object):
       try:
         finalize_response = processor.finalize_bundle()
         self.bundle_processor_cache.release(request.instruction_reference)
+        logging.info('Finalizing instruction response %s' % finalize_response)
         return beam_fn_api_pb2.InstructionResponse(
             instruction_id=instruction_id,
             finalize_bundle=finalize_response)
