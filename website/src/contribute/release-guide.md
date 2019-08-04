@@ -327,9 +327,7 @@ There are 2 ways to perform this verification, either running automation script(
 
 * Usage
 
-      ```
       ./beam/release/src/main/scripts/verify_release_build.sh
-      ```
 
 * Tasks included
   1. Install ```pip```, ```virtualenv```, ```cython``` and ```/usr/bin/time``` with your agreements.
@@ -749,8 +747,11 @@ Since there are a bunch of tests, we recommend you running validations using aut
 * Script: [run_rc_validation.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/run_rc_validation.sh)
 
 * Usage
-
+  1. First update [script.config](https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config) with correct config value (e.g. release version, rc number).
+  1. Then run
+      ```
       ./beam/release/src/main/scripts/run_rc_validation.sh
+      ```
 
 * Tasks included
   1. Run Java quickstart with Direct Runner, Apex local runner, Flink local runner, Spark local runner and Dataflow runner.
