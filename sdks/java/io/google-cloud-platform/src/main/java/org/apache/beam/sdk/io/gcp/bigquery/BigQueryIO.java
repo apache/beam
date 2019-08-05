@@ -2021,14 +2021,13 @@ public class BigQueryIO {
 
     /**
      * Control how many files will be written concurrently by a single worker when using BigQuery
-     * load jobs before spilling to a shuffle. When data comes into this transform, it is written
-     * to one file per destination per worker. When there are more files than maxFilesPerBundle
+     * load jobs before spilling to a shuffle. When data comes into this transform, it is written to
+     * one file per destination per worker. When there are more files than maxFilesPerBundle
      * (DEFAULT: 20), the data is shuffled (i.e. Grouped By Destination), and written to files
-     * one-by-one-per-worker. This flag sets the maximum number of files that a single worker
-     * can write concurrently before shuffling the data.
-     * This flag should be used with caution. Setting a high number can increase the memory 
-     * pressure on workers, and setting a low number can make a pipeline slower (due to the
-     * need to shuffle data).
+     * one-by-one-per-worker. This flag sets the maximum number of files that a single worker can
+     * write concurrently before shuffling the data. This flag should be used with caution. Setting
+     * a high number can increase the memory pressure on workers, and setting a low number can make
+     * a pipeline slower (due to the need to shuffle data).
      */
     public Write<T> withMaxFilesPerBundle(int maxFilesPerBundle) {
       checkArgument(
