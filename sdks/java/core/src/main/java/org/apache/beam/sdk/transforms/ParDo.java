@@ -57,6 +57,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.NameUtils;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -648,15 +649,6 @@ public class ParDo {
       this.fnDisplayData = fnDisplayData;
       this.sideInputs = sideInputs;
     }
-
-    SingleOutput(
-            DoFn<InputT, OutputT> fn,
-            String sideInputName,
-            PCollectionView<?> sideInput,
-            DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
-      this(fn,Arrays.asList(sideInput),fnDisplayData);
-    }
-
     /**
      * Returns a new {@link ParDo} {@link PTransform} that's like this {@link PTransform} but with
      * the specified additional side inputs. Does not modify this {@link PTransform}.
@@ -674,7 +666,9 @@ public class ParDo {
      * <p>See the discussion of Side Inputs above for more explanation.
      */
     public SingleOutput<InputT, OutputT> withSideInput(String sideInputName, PCollectionView<?> sideInput) {
-      return new SingleOutput<> (fn, sideInputName, sideInput, fnDisplayData);
+      PCollectionView pCollectionView = SerializableUtils.clone(sideInput);
+      sideInput.setTagInternalId(sideInputName);
+      return withSideInputs(sideInput);
     }
 
     /**

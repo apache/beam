@@ -899,19 +899,7 @@ public class DoFnSignatures {
     } else if (rawType.equals(TimeDomain.class)) {
       return Parameter.timeDomainParameter();
     } else if (hasSideInputAnnotation(param.getAnnotations())) {
-      String id = getSideInputId(param.getAnnotations());
-      /*paramErrors.checkArgument(
-              id != null,
-              "%s missing %s annotation",
-              DoFn.SideInput.class.getSimpleName());
-
-      paramErrors.checkArgument(
-              !methodContext.getSideInputParameters().containsKey(id),
-              "duplicate %s: \"%s\"",
-              DoFn.SideInput.class.getSimpleName(),
-              id);
-       */
-      return Parameter.sideInputParameter(paramT, id);
+      return Parameter.sideInputParameter();
     } else if (rawType.equals(PaneInfo.class)) {
       return Parameter.paneInfoParameter();
     } else if (rawType.equals(DoFn.ProcessContext.class)) {

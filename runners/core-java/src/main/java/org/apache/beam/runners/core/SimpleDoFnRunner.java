@@ -307,7 +307,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public InputT sideInput(DoFn<InputT, OutputT> doFn) {
+    public InputT sideInput(String sideInputTag) {
       throw new UnsupportedOperationException(
               "Element parameters are not supported outside of @ProcessElement method.");
     }
@@ -427,7 +427,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public InputT sideInput(DoFn<InputT, OutputT> doFn) {
+    public InputT sideInput(String sideInputTag) {
       throw new UnsupportedOperationException(
               "Cannot access element outside of @ProcessElement method.");
     }
@@ -649,8 +649,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Object sideInput(DoFn<InputT, OutputT> doFn) {
-      return SimpleDoFnRunner.this.sideInputReader.get("hello");
+    public Object sideInput(String sideInputTag) {
+      return SimpleDoFnRunner.this.sideInputReader.get(sideInputTag);
     }
 
 
@@ -804,7 +804,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Object sideInput(DoFn<InputT, OutputT> doFn) {
+    public Object sideInput(String sideInputTag) {
       throw new UnsupportedOperationException("SideInput parameters are not supported.");
     }
 

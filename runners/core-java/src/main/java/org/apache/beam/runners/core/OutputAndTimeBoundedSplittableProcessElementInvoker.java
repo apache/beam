@@ -121,7 +121,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               }
 
                 @Override
-                public Object sideInput(DoFn<InputT, OutputT> doFn) {
+                public Object sideInput(String sideInput) {
                     throw new UnsupportedOperationException("Not supported in SplittableDoFn");
                 }
 

@@ -796,8 +796,8 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             return new StackManipulation.Compound(
                     pushDelegate,
                     MethodInvocation.invoke(
-                            getExtraContextFactoryMethodDescription(
-                                    SIDE_INPUT_PARAMETER_METHOD, DoFn.class)));
+                            getExtraContextFactoryMethodDescription(SIDE_INPUT_PARAMETER_METHOD, String.class)),
+                    TypeCasting.to(new TypeDescription.ForLoadedType(DoFn.SideInput.class)));
           }
         });
   }

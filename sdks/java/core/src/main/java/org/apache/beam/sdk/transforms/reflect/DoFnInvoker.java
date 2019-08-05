@@ -139,7 +139,7 @@ public interface DoFnInvoker<InputT, OutputT> {
     /**
      * Provide a reference to the input sideInput.
      */
-    Object sideInput(DoFn<InputT, OutputT> doFn);
+    Object sideInput(String sideInputTag);
 
     /**
      * Provide a reference to the selected schema field corresponding to the input argument
@@ -197,12 +197,13 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public InputT sideInput(DoFn<InputT, OutputT> doFn) {
+    public InputT sideInput(String sideInputTag) {
       throw new UnsupportedOperationException(
               String.format(
                       "Should never call non-overridden methods of %s",
                       FakeArgumentProvider.class.getSimpleName()));
     }
+
 
     @Override
     public InputT schemaElement(int index) {

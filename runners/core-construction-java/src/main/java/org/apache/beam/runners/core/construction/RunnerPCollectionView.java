@@ -88,6 +88,12 @@ public class RunnerPCollectionView<T> extends PValueBase implements PCollectionV
   }
 
   @Override
+  public void setTagInternalId(String id) {
+    throw new UnsupportedOperationException(
+            String.format("A %s cannot be expanded", RunnerPCollectionView.class.getSimpleName()));
+  }
+
+  @Override
   public Map<TupleTag<?>, PValue> expand() {
     throw new UnsupportedOperationException(
         String.format("A %s cannot be expanded", RunnerPCollectionView.class.getSimpleName()));

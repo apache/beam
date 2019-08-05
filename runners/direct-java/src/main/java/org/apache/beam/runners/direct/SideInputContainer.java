@@ -278,7 +278,6 @@ class SideInputContainer {
           return pCollectionView;
         }
       }
-
       return null;
     }
   }

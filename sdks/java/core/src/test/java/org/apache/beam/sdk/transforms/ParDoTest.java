@@ -1968,11 +1968,11 @@ public class ParDoTest implements Serializable {
     public void testBagStateSideInput() {
 
       final String TAG_1 = "sideInput1";
-      final String TAG_2 = "sideInput2";
+      final String TAG_2 = "anotherInput";
       final String stateId = "foo";
 
       final PCollectionView<List<Integer>> listView =
-              pipeline.apply("Create list for side input", Create.of(2, 1, 0)).apply(View.asList());
+              pipeline.apply("testing 1", Create.of(1,2,3)).apply(View.asList());
 
       /*final PCollectionView<List<Integer>> listView1 =
               pipeline.apply("Create list for side input", Create.of(2, 5, 0)).apply(View.asList());*/
@@ -1989,7 +1989,8 @@ public class ParDoTest implements Serializable {
                 @Element KV<String, Integer> element,
                 @StateId(stateId) BagState<Integer> state,
                 OutputReceiver<List<Integer>> r,
-                @SideInput(TAG_1) List<Integer> tag1) {
+                @SideInput(TAG_1) List<Integer> tag1,
+                @SideInput(TAG_2) List<Integer> tag2) {
               state.add(element.getValue());
 
               Iterable<Integer> currentValue = state.read();

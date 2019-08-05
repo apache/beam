@@ -113,4 +113,7 @@ public interface PCollectionView<T> extends PValue, Serializable {
   @Deprecated
   @Internal
   Coder<?> getCoderInternal();
+
+  @Internal
+  void setTagInternalId(String id);
 }
