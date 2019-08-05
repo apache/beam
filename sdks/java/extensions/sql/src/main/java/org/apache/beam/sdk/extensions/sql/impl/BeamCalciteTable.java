@@ -88,7 +88,7 @@ public class BeamCalciteTable extends AbstractQueryableTable
     final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(BeamEnumerableConverter.class.getClassLoader());
-      return beamTable.getRowCount(getPipelineOptions());
+      return beamTable.getTableStatistics(getPipelineOptions());
     } finally {
       Thread.currentThread().setContextClassLoader(originalClassLoader);
     }

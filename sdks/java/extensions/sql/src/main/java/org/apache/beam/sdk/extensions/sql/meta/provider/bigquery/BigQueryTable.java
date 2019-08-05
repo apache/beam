@@ -57,7 +57,7 @@ class BigQueryTable extends BaseBeamTable implements Serializable {
   }
 
   @Override
-  public BeamTableStatistics getRowCount(PipelineOptions options) {
+  public BeamTableStatistics getTableStatistics(PipelineOptions options) {
 
     if (rowCountStatistics == null) {
       rowCountStatistics = getRowCountFromBQ(options, bqLocation);
@@ -100,7 +100,7 @@ class BigQueryTable extends BaseBeamTable implements Serializable {
               o.as(BigQueryOptions.class), BigQueryHelpers.parseTableSpec(bqLocation));
 
       if (rowCount == null) {
-        return BeamTableStatistics.UNKNOWN;
+        return BeamTableStatistics.BOUNDED_UNKNOWN;
       }
 
       return BeamTableStatistics.createBoundedTableStatistics(rowCount.doubleValue());
@@ -109,6 +109,6 @@ class BigQueryTable extends BaseBeamTable implements Serializable {
       LOGGER.warn("Could not get the row count for the table " + bqLocation, e);
     }
 
-    return BeamTableStatistics.UNKNOWN;
+    return BeamTableStatistics.BOUNDED_UNKNOWN;
   }
 }
