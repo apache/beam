@@ -39,7 +39,7 @@ dependencies {
   compile library.java.aws_java_sdk_core
   compile library.java.aws_java_sdk_kinesis
   compile "com.amazonaws:amazon-kinesis-client:1.10.0"
-  compile "com.amazonaws:amazon-kinesis-producer:0.12.11"
+  compile "com.amazonaws:amazon-kinesis-producer:0.13.1"
   compile "commons-lang:commons-lang:2.6"
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile library.java.junit
