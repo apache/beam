@@ -786,9 +786,7 @@ so builds will be broken until a new snapshot is available.</p>
   <li>
     <p>Usage</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>```
-./beam/release/src/main/scripts/verify_release_build.sh
-```
+    <div class="highlighter-rouge"><pre class="highlight"><code>./beam/release/src/main/scripts/verify_release_build.sh
 </code></pre>
     </div>
   </li>
@@ -1325,12 +1323,15 @@ Thanks everyone!
   <li>
     <p>Script: <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/run_rc_validation.sh">run_rc_validation.sh</a></p>
   </li>
-  <li>
-    <p>Usage</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code>./beam/release/src/main/scripts/run_rc_validation.sh
+  <li>Usage
+    <ol>
+      <li>First update <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config">script.config</a> with correct config value (e.g. release version, rc number).</li>
+      <li>Then run
+        <div class="highlighter-rouge"><pre class="highlight"><code> ./beam/release/src/main/scripts/run_rc_validation.sh
 </code></pre>
-    </div>
+        </div>
+      </li>
+    </ol>
   </li>
   <li>Tasks included
     <ol>
