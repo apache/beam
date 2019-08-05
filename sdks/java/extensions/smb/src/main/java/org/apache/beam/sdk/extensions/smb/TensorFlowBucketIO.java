@@ -34,8 +34,25 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.tensorflow.example.Example;
 
 /**
- * API for reading and writing sorted-bucket TensorFlow TFRecord files with TensorFlow {@link
+ * API for reading and writing TensorFlow TFRecord sorted-bucket files with TensorFlow {@link
  * Example} records.
+ *
+ * <h2>Reading TFRecord sorted-bucket files with {@link Example} records</h2>
+ *
+ * <p>To read a {@link PCollection} from a single TFRecord sorted-bucket source, use {@link
+ * org.apache.beam.sdk.io.TFRecordIO}.
+ *
+ * <p>To read a {@code PCollection<KV<K, CoGbkResult>>} from multiple sorted-bucket sources, similar
+ * to that of a {@link org.apache.beam.sdk.transforms.join.CoGroupByKey}, use {@link
+ * SortedBucketIO.CoGbk} with {@link TensorFlowBucketIO.Read}. See {@link SortedBucketIO} for more
+ * information.
+ *
+ * <h2>Writing TFRecord sorted-bucket files with {@link Example} records</h2>
+ *
+ * <p>To write a {@link PCollection} to TFRecord sorted-bucket files, use {@link
+ * TensorFlowBucketIO.Write}, using {@code TensorFlowBucketIO.write().to(String)} to specify the
+ * output directory. Other options are similar to those of {@link
+ * org.apache.beam.sdk.io.TFRecordIO.Write}.
  */
 public class TensorFlowBucketIO {
   private static final String DEFAULT_SUFFIX = ".tfrecord";
@@ -113,6 +130,11 @@ public class TensorFlowBucketIO {
     /** Specifies the input filename suffix. */
     public Read withSuffix(String filenameSuffix) {
       return toBuilder().setFilenameSuffix(filenameSuffix).build();
+    }
+
+    /** Specifies the input file {@link Compression}. */
+    public Read withCompression(Compression compression) {
+      return toBuilder().setCompression(compression).build();
     }
 
     @Override

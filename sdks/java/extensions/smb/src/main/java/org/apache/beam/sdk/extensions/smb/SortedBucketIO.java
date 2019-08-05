@@ -34,6 +34,53 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * efficiently merged without shuffling with {@link SortedBucketSource}. When writing, values are
  * grouped by key into buckets, sorted by key within a bucket, and written to files. When reading,
  * key-values in matching buckets are read in a merge-sort style, reducing shuffle.
+ *
+ * <h2>Reading sorted-bucket files</h2>
+ *
+ * <p>To read a {@code PCollection<KV<K, CoGbkResult>>} from multiple sorted-bucket sources, similar
+ * to that of a {@link org.apache.beam.sdk.transforms.join.CoGroupByKey}, use {@link
+ * SortedBucketIO.CoGbk} with concrete {@link SortedBucketIO.Read} implementations.
+ *
+ * <p>Use {@code SortedBucketIO.read(Class<K>)} to specify the final key type, which should have a
+ * byte encoding equivalent to keys of every sorted-bucket source. Key extraction logic is encoded
+ * in {@link BucketMetadata} stored alongside each sorted-bucket source.
+ *
+ * <p>For example:
+ *
+ * <pre>{@code
+ * Pipeline p = ...;
+ *
+ * final TupleTag<AvroAutoGenClass> avroTag = new TupleTag<>();
+ * final TupleTag<TableRow> jsonTag = new TupleTag<>();
+ * final TupleTag<Example> tfTag = new TupleTag<>();
+ *
+ * PCollection<KV<String, CoGbkResult>> coGbkResultCollection =
+ *     p.apply(
+ *         SortedBucketIO.read(String.class) // final key type
+ *             .of(
+ *                 AvroSortedBucketIO.read(avroTag, AvroAutoGenClass.class)
+ *                     .from("/path/to/avro")
+ *                     // optional suffix and codec
+ *                     .withSuffix(".avro")
+ *                     .withCodec(CodecFactory.snappyCodec()))
+ *             .and(
+ *                 JsonSortedBucketIO.read(jsonTag)
+ *                     .from("/path/to/json")
+ *                      // optional suffix and compression
+ *                     .withSuffix(".json")
+ *                     .withCompression(Compression.AUTO))
+ *             .and(
+ *                 TensorFlowBucketIO.read(tfTag)
+ *                     .from("/path/to/tf")
+ *                     // optional suffix and compression
+ *                     .withSuffix(".tfrecord")
+ *                     .withCompression(Compression.AUTO)));
+ * }</pre>
+ *
+ * <h2>Writing sorted-bucket files</h2>
+ *
+ * <p>See {@link AvroSortedBucketIO}, {@link JsonSortedBucketIO}, and {@link TensorFlowBucketIO} for
+ * writing sorted-bucket files of specific types.
  */
 public class SortedBucketIO {
 

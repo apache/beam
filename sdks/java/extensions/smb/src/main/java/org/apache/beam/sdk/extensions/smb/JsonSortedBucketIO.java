@@ -34,7 +34,27 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
-/** API for reading and writing BigQuery {@link TableRow} JSON sorted-bucket files. */
+/**
+ * API for reading and writing BigQuery {@link TableRow} JSON sorted-bucket files.
+ *
+ * <h2>Reading BigQuery {@link TableRow} JSON sorted-bucket files</h2>
+ *
+ * <p>To read a {@link PCollection} from a single BigQuery {@link TableRow} JSON sorted-bucket
+ * source, use {@link org.apache.beam.sdk.io.TextIO} followed by a {@link
+ * org.apache.beam.sdk.transforms.MapElements} transform.
+ *
+ * <p>To read a {@code PCollection<KV<K, CoGbkResult>>} from multiple sorted-bucket sources, similar
+ * to that of a {@link org.apache.beam.sdk.transforms.join.CoGroupByKey}, use {@link
+ * SortedBucketIO.CoGbk} with {@link JsonSortedBucketIO.Read}. See {@link SortedBucketIO} for more
+ * information.
+ *
+ * <h2>Writing BigQuery {@link TableRow} JSON sorted-bucket files</h2>
+ *
+ * <p>To write a {@link PCollection} to JSON sorted-bucket files, use {@link
+ * JsonSortedBucketIO.Write}, using {@code JsonSortedBucketIO.write().to(String)} to specify the
+ * output directory. Other options are similar to those of {@link
+ * org.apache.beam.sdk.io.TextIO.Write}.
+ */
 public class JsonSortedBucketIO {
   private static final String DEFAULT_SUFFIX = ".json";
 
@@ -105,6 +125,11 @@ public class JsonSortedBucketIO {
     /** Specifies the input filename suffix. */
     public Read withSuffix(String filenameSuffix) {
       return toBuilder().setFilenameSuffix(filenameSuffix).build();
+    }
+
+    /** Specifies the input file {@link Compression}. */
+    public Read withCompression(Compression compression) {
+      return toBuilder().setCompression(compression).build();
     }
 
     @Override

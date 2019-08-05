@@ -36,7 +36,26 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
-/** API for reading and writing Avro sorted-bucket files. */
+/**
+ * API for reading and writing Avro sorted-bucket files.
+ *
+ * <h2>Reading Avro sorted-bucket files</h2>
+ *
+ * <p>To read a {@link PCollection} from a single Avro sorted-bucket source, use {@link
+ * org.apache.beam.sdk.io.AvroIO}.
+ *
+ * <p>To read a {@code PCollection<KV<K, CoGbkResult>>} from multiple sorted-bucket sources, similar
+ * to that of a {@link org.apache.beam.sdk.transforms.join.CoGroupByKey}, use {@link
+ * SortedBucketIO.CoGbk} with {@link AvroSortedBucketIO.Read}. See {@link SortedBucketIO} for more
+ * information.
+ *
+ * <h2>Writing Avro sorted-bucket files</h2>
+ *
+ * <p>To write a {@link PCollection} to Avro sorted-bucket files, use {@link
+ * AvroSortedBucketIO.Write}, using {@code AvroSortedBucketIO.write().to(String)} to specify the
+ * output directory. Other options are similar to those of {@link
+ * org.apache.beam.sdk.io.AvroIO.Write}.
+ */
 public class AvroSortedBucketIO {
   private static final String DEFAULT_SUFFIX = ".avro";
   private static final CodecFactory DEFAULT_CODEC = CodecFactory.snappyCodec();
@@ -140,6 +159,11 @@ public class AvroSortedBucketIO {
     /** Specifies the input filename suffix. */
     public Read<T> withSuffix(String filenameSuffix) {
       return toBuilder().setFilenameSuffix(filenameSuffix).build();
+    }
+
+    /** Specifies the input file {@link CodecFactory}. */
+    public Read withCodec(CodecFactory codec) {
+      return toBuilder().setCodec(codec).build();
     }
 
     @Override
