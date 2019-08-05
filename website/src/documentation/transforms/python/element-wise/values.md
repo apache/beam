@@ -19,19 +19,63 @@ limitations under the License.
 -->
 
 # Values
-<table align="left">
-    <a target="_blank" class="button"
+
+<script type="text/javascript">
+localStorage.setItem('language', 'language-py')
+</script>
+
+<table>
+  <td>
+    <a class="button" target="_blank"
         href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Values">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px"
-           alt="Pydoc" />
-     Pydoc
+      <img src="https://beam.apache.org/images/logos/sdks/python.png"
+          width="20px" height="20px" alt="Pydoc" />
+      Pydoc
     </a>
+  </td>
 </table>
 <br>
+
 Takes a collection of key-value pairs, and returns the value of each element.
 
-## Examples
-See [BEAM-7389](https://issues.apache.org/jira/browse/BEAM-7389) for updates. 
+## Example
 
-## Related transforms 
+In the following example, we create a pipeline with a `PCollection` of key-value pairs.
+Then, we apply `Values` to extract the values and discard the keys.
+
+```py
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/values.py tag:values %}```
+
+Output `PCollection` after `Values`:
+
+```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/values_test.py tag:plants %}```
+
+<table>
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/values.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
+        width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<br>
+
+## Related transforms
+
 * [Keys]({{ site.baseurl }}/documentation/transforms/python/elementwise/keys) for extracting the key of each component.
+* [KvSwap]({{ site.baseurl }}/documentation/transforms/python/elementwise/kvswap) swaps the key and value of each element.
+
+<table>
+  <td>
+    <a class="button" target="_blank"
+        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Values">
+      <img src="https://beam.apache.org/images/logos/sdks/python.png"
+          width="20px" height="20px" alt="Pydoc" />
+      Pydoc
+    </a>
+  </td>
+</table>
+<br>
