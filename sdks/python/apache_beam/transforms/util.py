@@ -24,9 +24,11 @@ from __future__ import division
 import collections
 import contextlib
 import random
+import re
 import time
 import typing
 import warnings
+from builtins import filter
 from builtins import object
 from builtins import range
 from builtins import zip
@@ -69,6 +71,7 @@ __all__ = [
     'Distinct',
     'Keys',
     'KvSwap',
+    'Regex',
     'Reify',
     'RemoveDuplicates',
     'Reshuffle',
@@ -865,3 +868,222 @@ class Reify(object):
 
     def expand(self, pcoll):
       return pcoll | ParDo(self.add_window_info)
+
+
+class Regex(object):
+  """
+  PTransform  to use Regular Expression to process the elements in a
+  PCollection.
+  """
+
+  ALL = "__regex_all_groups"
+
+  @staticmethod
+  def _regex_compile(regex):
+    """Return re.compile if the regex has a string value"""
+    if isinstance(regex, str):
+      regex = re.compile(regex)
+    return regex
+
+  @staticmethod
+  @typehints.with_input_types(str)
+  @typehints.with_output_types(str)
+  @ptransform_fn
+  def matches(pcoll, regex, group=0):
+    """
+    Returns the matches (group 0 by default) if zero or more characters at the
+    beginning of string match the regular expression. To match the entire
+    string, add "$" sign at the end of regex expression.
+
+    Group can be integer value or a string value.
+
+    Args:
+      regex: the regular expression string or (re.compile) pattern.
+      group: (optional) name/number of the group, it can be integer or a string
+        value. Defaults to 0, meaning the entire matched string will be
+        returned.
+    """
+    regex = Regex._regex_compile(regex)
+
+    def _process(element):
+      m = regex.match(element)
+      if m:
+        yield m.group(group)
+    return pcoll | FlatMap(_process)
+
+  @staticmethod
+  @typehints.with_input_types(str)
+  @typehints.with_output_types(typing.List[str])
+  @ptransform_fn
+  def all_matches(pcoll, regex):
+    """
+    Returns all matches (groups) if zero or more characters at the beginning
+    of string match the regular expression.
+
+    Args:
+      regex: the regular expression string or (re.compile) pattern.
+    """
+    regex = Regex._regex_compile(regex)
+
+    def _process(element):
+      m = regex.match(element)
+      if m:
+        yield [m.group(ix) for ix in range(m.lastindex + 1)]
+
+    return pcoll | FlatMap(_process)
+
+  @staticmethod
+  @typehints.with_input_types(str)
+  @typehints.with_output_types(typing.Tuple[str, str])
+  @ptransform_fn
+  def matches_kv(pcoll, regex, keyGroup, valueGroup=0):
+    """
+    Returns the KV pairs if the string matches the regular expression, deriving
+    the key & value from the specified group of the regular expression.
+
+    Args:
+      regex: the regular expression string or (re.compile) pattern.
+      keyGroup: The Regex group to use as the key. Can be int or str.
+      valueGroup: (optional) Regex group to use the value. Can be int or str.
+        The default value "0" returns entire matched string.
+    """
+    regex = Regex._regex_compile(regex)
+
+    def _process(element):
+      match = regex.match(element)
+      if match:
+        yield (match.group(keyGroup), match.group(valueGroup))
+    return pcoll | FlatMap(_process)
+
+  @staticmethod
+  @typehints.with_input_types(str)
+  @typehints.with_output_types(str)
+  @ptransform_fn
+  def find(pcoll, regex, group=0):
+    """
+    Returns the matches if a portion of the line matches the Regex. Returns
+    the entire group (group 0 by default). Group can be integer value or a
+    string value.
+
+    Args:
+      regex: the regular expression string or (re.compile) pattern.
+      group: (optional) name of the group, it can be integer or a string value.
+    """
+    regex = Regex._regex_compile(regex)
+
+    def _process(element):
+      r = regex.search(element)
+      if r:
+        yield r.group(group)
+    return pcoll | FlatMap(_process)
+
+  @staticmethod
+  @typehints.with_input_types(str)
+  @typehints.with_output_types(typing.Union[typing.List[str],
+                                            typing.Tuple[str, str]])
+  @ptransform_fn
+  def find_all(pcoll, regex, group=0, outputEmpty=True):
+    """
+    Returns the matches if a portion of the line matches the Regex. By default,
+    list of group 0 will return with empty items. To get all groups, pass the
+    `Regex.ALL` flag in the `group` parameter which returns all the groups in
+    the tuple format.
+
+    Args:
+      regex: the regular expression string or (re.compile) pattern.
+      group: (optional) name of the group, it can be integer or a string value.
+      outputEmpty: (optional) Should empty be output. True to output empties
+        and false if not.
+    """
+    regex = Regex._regex_compile(regex)
+
+    def _process(element):
+      matches = regex.finditer(element)
+      if group == Regex.ALL:
+        yield [(m.group(), m.groups()[0]) for m in matches if outputEmpty
+               or m.groups()[0]]
+      else:
+        yield [m.group(group) for m in matches if outputEmpty or m.group(group)]
+    return pcoll | FlatMap(_process)
+
+  @staticmethod
+  @typehints.with_input_types(str)
+  @typehints.with_output_types(typing.Tuple[str, str])
+  @ptransform_fn
+  def find_kv(pcoll, regex, keyGroup, valueGroup=0):
+    """
+    Returns the matches if a portion of the line matches the Regex. Returns the
+    specified groups as the key and value pair.
+
+    Args:
+      regex: the regular expression string or (re.compile) pattern.
+      keyGroup: The Regex group to use as the key. Can be int or str.
+      valueGroup: (optional) Regex group to use the value. Can be int or str.
+        The default value "0" returns entire matched string.
+    """
+    regex = Regex._regex_compile(regex)
+
+    def _process(element):
+      matches = regex.finditer(element)
+      if matches:
+        for match in matches:
+          yield (match.group(keyGroup), match.group(valueGroup))
+
+    return pcoll | FlatMap(_process)
+
+  @staticmethod
+  @typehints.with_input_types(str)
+  @typehints.with_output_types(str)
+  @ptransform_fn
+  def replace_all(pcoll, regex, replacement):
+    """
+    Returns the matches if a portion of the line  matches the regex and
+    replaces all matches with the replacement string.
+
+    Args:
+      regex: the regular expression string or (re.compile) pattern.
+      replacement: the string to be substituted for each match.
+    """
+    regex = Regex._regex_compile(regex)
+    return pcoll | Map(lambda elem: regex.sub(replacement, elem))
+
+  @staticmethod
+  @typehints.with_input_types(str)
+  @typehints.with_output_types(str)
+  @ptransform_fn
+  def replace_first(pcoll, regex, replacement):
+    """
+    Returns the matches if a portion of the line matches the regex and replaces
+    the first match with the replacement string.
+
+    Args:
+      regex: the regular expression string or (re.compile) pattern.
+      replacement: the string to be substituted for each match.
+    """
+    regex = Regex._regex_compile(regex)
+    return pcoll | Map(lambda elem: regex.sub(replacement, elem, 1))
+
+  @staticmethod
+  @typehints.with_input_types(str)
+  @typehints.with_output_types(typing.List[str])
+  @ptransform_fn
+  def split(pcoll, regex, outputEmpty=False):
+    """
+    Returns the list string which was splitted on the basis of regular
+    expression. It will not output empty items (by defaults).
+
+    Args:
+      regex: the regular expression string or (re.compile) pattern.
+      outputEmpty: (optional) Should empty be output. True to output empties
+          and false if not.
+    """
+    regex = Regex._regex_compile(regex)
+    outputEmpty = bool(outputEmpty)
+
+    def _process(element):
+      r = regex.split(element)
+      if r and not outputEmpty:
+        r = list(filter(None, r))
+      yield r
+
+    return pcoll | FlatMap(_process)
