@@ -382,7 +382,7 @@ public class FileIO {
     private final MatchResult.Metadata metadata;
     private final Compression compression;
 
-    ReadableFile(MatchResult.Metadata metadata, Compression compression) {
+    public ReadableFile(MatchResult.Metadata metadata, Compression compression) {
       this.metadata = metadata;
       this.compression = compression;
     }
