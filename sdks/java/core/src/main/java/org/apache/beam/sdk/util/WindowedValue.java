@@ -59,7 +59,11 @@ public abstract class WindowedValue<T> {
 
   /** Returns a {@code WindowedValue} with the given value, timestamp, windows and isRetraction */
   public static <T> WindowedValue<T> of(
-      T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane, boolean isRetraction) {
+      T value,
+      Instant timestamp,
+      Collection<? extends BoundedWindow> windows,
+      PaneInfo pane,
+      boolean isRetraction) {
     checkArgument(pane != null, "WindowedValue requires PaneInfo, but it was null");
     checkArgument(windows.size() > 0, "WindowedValue requires windows, but there were none");
 

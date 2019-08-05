@@ -40,6 +40,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends BoundedWindow>
     extends ReduceFn<K, InputT, OutputT, W> {
   private static final String BUFFER_NAME = "buf";
+  private static final String BUFFER_RETRACTION = "buf_retraction";
 
   /**
    * Create a factory that produces {@link SystemReduceFn} instances that that buffer all of the
@@ -49,15 +50,21 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
       SystemReduceFn<K, T, Iterable<T>, Iterable<T>, W> buffering(final Coder<T> inputCoder) {
     final StateTag<BagState<T>> bufferTag =
         StateTags.makeSystemTagInternal(StateTags.bag(BUFFER_NAME, inputCoder));
-    return new SystemReduceFn<K, T, Iterable<T>, Iterable<T>, W>(bufferTag) {
+    // retracting and accumulating
+    final StateTag<BagState<T>> bufferRetractionTag =
+        StateTags.makeSystemTagInternal(StateTags.bag(BUFFER_RETRACTION, inputCoder));
+
+    return new SystemReduceFn<K, T, Iterable<T>, Iterable<T>, W>(bufferTag, bufferRetractionTag) {
       @Override
       public void prefetchOnMerge(MergingStateAccessor<K, W> state) throws Exception {
         StateMerging.prefetchBags(state, bufferTag);
+        StateMerging.prefetchBags(state, bufferRetractionTag);
       }
 
       @Override
       public void onMerge(OnMergeContext c) throws Exception {
         StateMerging.mergeBags(c.state(), bufferTag);
+        StateMerging.mergeBags(c.state(), bufferRetractionTag);
       }
     };
   }
@@ -69,6 +76,7 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
   public static <K, InputT, AccumT, OutputT, W extends BoundedWindow>
       SystemReduceFn<K, InputT, AccumT, OutputT, W> combining(
           final Coder<K> keyCoder, final AppliedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
+    // TODO: add retracting and discarding
     final StateTag<CombiningState<InputT, AccumT, OutputT>> bufferTag;
     if (combineFn.getFn() instanceof CombineFnWithContext) {
       bufferTag =
@@ -100,9 +108,17 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
   }
 
   private StateTag<? extends GroupingState<InputT, OutputT>> bufferTag;
+  private StateTag<? extends GroupingState<InputT, OutputT>> bufferRetractionTag;
 
   public SystemReduceFn(StateTag<? extends GroupingState<InputT, OutputT>> bufferTag) {
     this.bufferTag = bufferTag;
+  }
+
+  public SystemReduceFn(
+      StateTag<? extends GroupingState<InputT, OutputT>> bufferTag,
+      StateTag<? extends GroupingState<InputT, OutputT>> bufferRetractionTag) {
+    this.bufferTag = bufferTag;
+    this.bufferRetractionTag = bufferRetractionTag;
   }
 
   @VisibleForTesting
@@ -110,8 +126,17 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
     return bufferTag;
   }
 
+  @VisibleForTesting
+  StateTag<? extends GroupingState<InputT, OutputT>> getBufferRetractionTag() {
+    return bufferRetractionTag;
+  }
+
   @Override
   public void processValue(ProcessValueContext c) throws Exception {
+    // TODO: this is a performance regression. We should have better idea on how to update
+    // retraction state.
+    c.state().access(bufferRetractionTag).clear();
+
     c.state().access(bufferTag).add(c.value());
   }
 
