@@ -131,10 +131,9 @@ class PubsubMessage(object):
     # Convert ScalarMapContainer to dict.
     attributes = dict((key, msg.attributes[key]) for key in msg.attributes)
     # Parse the PubSub message_id and add to attributes
-    attributes.update(dict=dir(msg))
     sysattribs = dict(message_id=msg.message_id)
     attributes.update(sysattribs)
-    
+
     return PubsubMessage(msg.data, attributes)
 
 
