@@ -422,8 +422,8 @@ public abstract class DoFnSignature {
       return TIMESTAMP_PARAMETER;
     }
 
-    public static SideInputParameter sideInputParameter(TypeDescriptor<?> elementT, String id) {
-      return new AutoValue_DoFnSignature_Parameter_SideInputParameter(elementT, id);
+    public static SideInputParameter sideInputParameter() {
+      return new AutoValue_DoFnSignature_Parameter_SideInputParameter();
     }
 
     public static TimeDomainParameter timeDomainParameter() {
@@ -572,9 +572,6 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class SideInputParameter extends Parameter {
       SideInputParameter() {}
-
-      public abstract TypeDescriptor<?> sideInputT();
-      public abstract String id();
     }
 
     /**

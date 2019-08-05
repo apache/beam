@@ -161,6 +161,7 @@ public class View {
   public static <T> AsList<T> asList() {
     return new AsList<>();
   }
+
   /**
    * Returns a {@link View.AsIterable} transform that takes a {@link PCollection} as input and
    * produces a {@link PCollectionView} mapping each window to an {@link Iterable} of the values in
@@ -221,6 +222,7 @@ public class View {
   @Internal
   public static class AsList<T> extends PTransform<PCollection<T>, PCollectionView<List<T>>> {
     private AsList() {}
+
     @Override
     public PCollectionView<List<T>> expand(PCollection<T> input) {
       try {
