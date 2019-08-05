@@ -18,6 +18,7 @@ from __future__ import absolute_import
 
 import datetime
 import logging
+import sys
 import unittest
 from unittest import TestCase
 
@@ -42,6 +43,8 @@ from apache_beam.testing.util import equal_to
 
 
 class _MockMongoColl(object):
+  """Fake mongodb collection cursor."""
+
   def __init__(self, docs):
     self.docs = docs
 
@@ -51,6 +54,8 @@ class _MockMongoColl(object):
       return self
     start = filter['_id'].get('$gte')
     end = filter['_id'].get('$lt')
+    assert start is not None
+    assert end is not None
     for doc in self.docs:
       if start and doc['_id'] < start:
         continue
@@ -80,6 +85,8 @@ class _MockMongoColl(object):
 
 
 class _MockMongoDb(object):
+  """Fake Mongo Db."""
+
   def __init__(self, docs):
     self.docs = docs
 
@@ -93,13 +100,15 @@ class _MockMongoDb(object):
       return self.get_split_key(command, *args, **kwargs)
 
   def get_split_key(self, command, ns, min, max, maxChunkSize, **kwargs):
-    # assuming every doc is of size 1mb
+    # simulate mongo db splitVector command, return split keys base on chunk
+    # size, assuming every doc is of size 1mb
     start_id = min['_id']
     end_id = max['_id']
     if start_id >= end_id:
       return []
     start_index = 0
     end_index = 0
+    # get split range of [min, max]
     for doc in self.docs:
       if doc['_id'] < start_id:
         start_index += 1
@@ -107,8 +116,10 @@ class _MockMongoDb(object):
         end_index += 1
       else:
         break
+    # return ids of elements in the range with chunk size skip and exclude
+    # head element.
     return {
-      'splitKeys':
+        'splitKeys':
         [x['_id'] for x in self.docs[start_index:end_index:maxChunkSize]][1:]
     }
 
@@ -131,9 +142,9 @@ class MongoSourceTest(unittest.TestCase):
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def setUp(self, mock_client):
     self._ids = [
-      objectid.ObjectId.from_datetime(
-        datetime.datetime(year=2020, month=i + 1, day=i + 1))
-      for i in range(5)
+        objectid.ObjectId.from_datetime(
+            datetime.datetime(year=2020, month=i + 1, day=i + 1))
+        for i in range(5)
     ]
     self._docs = [{'_id': self._ids[i], 'x': i} for i in range(len(self._ids))]
     mock_client.return_value = _MockMongoClient(self._docs)
@@ -151,29 +162,28 @@ class MongoSourceTest(unittest.TestCase):
     mock_client.return_value = _MockMongoClient(self._docs)
     for size in [i * 1024 * 1024 for i in (1, 2, 10)]:
       splits = list(
-        self.mongo_source.split(start_position=None,
-                                stop_position=None,
-                                desired_bundle_size=size))
+          self.mongo_source.split(start_position=None,
+                                  stop_position=None,
+                                  desired_bundle_size=size))
 
       reference_info = (self.mongo_source, None, None)
       sources_info = ([(split.source, split.start_position, split.stop_position)
                        for split in splits])
       source_test_utils.assert_sources_equal_reference_source(
-        reference_info, sources_info)
+          reference_info, sources_info)
 
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_dynamic_work_rebalancing(self, mock_client):
     mock_client.return_value = _MockMongoClient(self._docs)
     splits = list(
-      self.mongo_source.split(desired_bundle_size=3000 * 1024 * 1024))
+        self.mongo_source.split(desired_bundle_size=3000 * 1024 * 1024))
     assert len(splits) == 1
     source_test_utils.assert_split_at_fraction_exhaustive(
-      splits[0].source, splits[0].start_position, splits[0].stop_position)
+        splits[0].source, splits[0].start_position, splits[0].stop_position)
 
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_get_range_tracker(self, mock_client):
-    mock_client.return_value.__enter__.return_value.__getitem__.return_value \
-      .__getitem__.return_value = _MockMongoColl(self._docs)
+    mock_client.return_value = _MockMongoClient(self._docs)
     self.assertIsInstance(self.mongo_source.get_range_tracker(None, None),
                           _ObjectIdRangeTracker)
 
@@ -183,8 +193,7 @@ class MongoSourceTest(unittest.TestCase):
     mock_tracker.start_position.return_value = self._ids[0]
     mock_tracker.stop_position.return_value = self._ids[2]
 
-    mock_client.return_value.__enter__.return_value.__getitem__.return_value \
-      .__getitem__.return_value = _MockMongoColl(self._docs)
+    mock_client.return_value = _MockMongoClient(self._docs)
 
     result = list(self.mongo_source.read(mock_tracker))
     self.assertListEqual(self._docs[0:2], result)
@@ -200,13 +209,11 @@ class ReadFromMongoDBTest(unittest.TestCase):
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_read_from_mongodb(self, mock_client):
     documents = [{'_id': objectid.ObjectId(), 'x': i} for i in range(3)]
-    # use index value as id
-    mock_client.return_value.__enter__.return_value.__getitem__.return_value \
-      .__getitem__.return_value = _MockMongoColl(documents)
+    mock_client.return_value = _MockMongoClient(documents)
 
     with TestPipeline() as p:
       docs = p | 'ReadFromMongoDB' >> ReadFromMongoDB(
-        uri='mongodb://test', db='db', coll='collection')
+          uri='mongodb://test', db='db', coll='collection')
       assert_that(docs, equal_to(documents))
 
 
@@ -214,10 +221,10 @@ class GenerateObjectIdFnTest(unittest.TestCase):
   def test_process(self):
     with TestPipeline() as p:
       output = (p | "Create" >> beam.Create([{
-        'x': 1
+          'x': 1
       }, {
-        'x': 2,
-        '_id': 123
+          'x': 2,
+          '_id': 123
       }])
                 | "Generate ID" >> beam.ParDo(_GenerateObjectIdFn())
                 | "Check" >> beam.Map(lambda x: '_id' in x))
@@ -234,7 +241,7 @@ class WriteMongoFnTest(unittest.TestCase):
       p.run()
 
       self.assertEqual(
-        2, mock_sink.return_value.__enter__.return_value.write.call_count)
+          2, mock_sink.return_value.__enter__.return_value.write.call_count)
 
   def test_display_data(self):
     data = _WriteMongoFn(batch_size=10).display_data()
@@ -267,10 +274,10 @@ class WriteToMongoDBTest(unittest.TestCase):
   def test_write_to_mongodb_with_generated_id(self, mock_client):
     docs = [{'x': 1}]
     expected_update = [
-      ReplaceOne({'_id': mock.ANY}, {
-        'x': 1,
-        '_id': mock.ANY
-      }, True, None)
+        ReplaceOne({'_id': mock.ANY}, {
+            'x': 1,
+            '_id': mock.ANY
+        }, True, None)
     ]
     with TestPipeline() as p:
       _ = (p | "Create" >> beam.Create(docs)
@@ -279,31 +286,46 @@ class WriteToMongoDBTest(unittest.TestCase):
       mock_client.return_value.__getitem__.return_value.__getitem__. \
         return_value.bulk_write.assert_called_with(expected_update)
 
-class ObjectIdHelperTest(TestCase):
 
+class ObjectIdHelperTest(TestCase):
   def test_conversion(self):
     test_cases = [
-      (objectid.ObjectId('000000000000000000000000'), 0),
-      (objectid.ObjectId('000000000000000100000000'), 2 ** 32),
-      (objectid.ObjectId('0000000000000000ffffffff'), 2 ** 32 - 1),
-      (objectid.ObjectId('000000010000000000000000'), 2 ** 64),
-      (objectid.ObjectId('00000000ffffffffffffffff'), 2 ** 64 - 1),
-      (objectid.ObjectId('ffffffffffffffffffffffff'), 2 ** 96 - 1),
+        (objectid.ObjectId('000000000000000000000000'), 0),
+        (objectid.ObjectId('000000000000000100000000'), 2**32),
+        (objectid.ObjectId('0000000000000000ffffffff'), 2**32 - 1),
+        (objectid.ObjectId('000000010000000000000000'), 2**64),
+        (objectid.ObjectId('00000000ffffffffffffffff'), 2**64 - 1),
+        (objectid.ObjectId('ffffffffffffffffffffffff'), 2**96 - 1),
     ]
     for (id, number) in test_cases:
       self.assertEqual(id, _ObjectIdHelper.int_to_id(number))
       self.assertEqual(number, _ObjectIdHelper.id_to_int(id))
 
     # random tests
-    for i in range(100):
+    for _ in range(100):
       id = objectid.ObjectId()
-      number = int(id.binary.encode('hex'), 16)
+      if sys.version_info[0] < 3:
+        number = int(id.binary.encode('hex'), 16)
+      else: # PY3
+        number = int(id.binary.hex(), 16)
       self.assertEqual(id, _ObjectIdHelper.int_to_id(number))
       self.assertEqual(number, _ObjectIdHelper.id_to_int(id))
 
-
   def test_increment_id(self):
-    self.fail()
+    test_cases = [
+        (objectid.ObjectId('000000000000000100000000'),
+         objectid.ObjectId('0000000000000000ffffffff')),
+        (objectid.ObjectId('000000010000000000000000'),
+         objectid.ObjectId('00000000ffffffffffffffff')),
+    ]
+    for (first, second) in test_cases:
+      self.assertEqual(second, _ObjectIdHelper.increment_id(first, -1))
+      self.assertEqual(first, _ObjectIdHelper.increment_id(second, 1))
+
+    for _ in range(100):
+      id = objectid.ObjectId()
+      self.assertLess(id, _ObjectIdHelper.increment_id(id, 1))
+      self.assertGreater(id, _ObjectIdHelper.increment_id(id, -1))
 
 
 if __name__ == '__main__':

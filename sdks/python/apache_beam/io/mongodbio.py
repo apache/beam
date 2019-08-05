@@ -222,11 +222,11 @@ class _BoundedMongoSource(iobase.BoundedSource):
     res['mongo_client_spec'] = self.spec
     return res
 
-  def _get_split_keys(self, desired_chunk_size, start_pos, end_pos):
+  def _get_split_keys(self, desired_chunk_size_in_mb, start_pos, end_pos):
     # if desired chunk size smaller than 1mb, use mongodb default split size of
     # 1mb
-    if desired_chunk_size < 1:
-      desired_chunk_size = 1
+    if desired_chunk_size_in_mb < 1:
+      desired_chunk_size_in_mb = 1
     if start_pos >= end_pos:
       # single document not splittable
       return []
@@ -238,25 +238,25 @@ class _BoundedMongoSource(iobase.BoundedSource):
           keyPattern={'_id': 1},
           min={'_id': start_pos},
           max={'_id': end_pos},
-          maxChunkSize=desired_chunk_size)['splitKeys'])
+          maxChunkSize=desired_chunk_size_in_mb)['splitKeys'])
 
   def _merge_id_filter(self, range_tracker):
     all_filters = self.filter.copy()
     if '_id' in all_filters:
       id_filter = all_filters['_id']
       id_filter['$gte'] = (
-        max(id_filter['$gte'], range_tracker.start_position())
-        if '$gte' in id_filter else range_tracker.start_position())
+          max(id_filter['$gte'], range_tracker.start_position())
+          if '$gte' in id_filter else range_tracker.start_position())
 
       id_filter['$lt'] = (min(id_filter['$lt'], range_tracker.stop_position())
                           if '$lt' in id_filter else
                           range_tracker.stop_position())
     else:
       all_filters.update({
-        '_id': {
-          '$gte': range_tracker.start_position(),
-          '$lt': range_tracker.stop_position()
-        }
+          '_id': {
+              '$gte': range_tracker.start_position(),
+              '$lt': range_tracker.stop_position()
+          }
       })
     return all_filters
 
@@ -272,27 +272,37 @@ class _BoundedMongoSource(iobase.BoundedSource):
 
 
 class _ObjectIdHelper(object):
+  """A Utility class to bson object ids."""
+
   @classmethod
   def id_to_int(cls, id):
+    # converts object id binary to integer
     # id object is bytes type with size of 12
     ints = struct.unpack('>III', id.binary)
     return (ints[0] << 64) + (ints[1] << 32) + ints[2]
 
   @classmethod
-  def int_to_id(cls, numbers):
-    # convert bits 0:31, 32:63, 64:95 of number to three separate 4 bytes
-    # integer
-    ints = [(numbers & 0xffffffff0000000000000000) >> 64,
-            (numbers & 0x00000000ffffffff00000000) >> 32,
-            numbers & 0x0000000000000000ffffffff]
+  def int_to_id(cls, number):
+    # converts integer value to object id. Int value should be less than
+    # (2 ^ 96) so it can be convert to 12 bytes required by object id.
+    if number < 0 or number >= (1 << 96):
+      raise ValueError('number value must be within [0, %s)' % (1 << 96))
+    ints = [(number & 0xffffffff0000000000000000) >> 64,
+            (number & 0x00000000ffffffff00000000) >> 32,
+            number & 0x0000000000000000ffffffff]
 
     bytes = struct.pack('>III', *ints)
     return objectid.ObjectId(bytes)
 
   @classmethod
   def increment_id(cls, object_id, inc):
-    id_number = _ObjectIdHelper.id_to_int(object_id) + inc
-    return _ObjectIdHelper.int_to_id(id_number)
+    # increment object_id binary value by inc value and return new object id.
+    id_number = _ObjectIdHelper.id_to_int(object_id)
+    new_number = id_number + inc
+    if new_number < 0 or new_number >= (1 << 96):
+      raise ValueError('invalid incremental, inc value must be within ['
+                       '%s, %s)' % (0 - id_number, 1 << 96 - id_number))
+    return _ObjectIdHelper.int_to_id(new_number)
 
 
 class _ObjectIdRangeTracker(OrderedPositionRangeTracker):
