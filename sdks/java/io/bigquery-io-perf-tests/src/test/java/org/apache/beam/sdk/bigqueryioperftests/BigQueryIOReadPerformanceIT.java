@@ -27,7 +27,6 @@ import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
 import java.util.function.Function;
@@ -177,14 +176,13 @@ public class BigQueryIOReadPerformanceIT {
         .apply("Gather time", ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")));
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
-    Collection<NamedTestResult> testResults = extractReadMetrics(getMetricSupplier(), result);
+    NamedTestResult metricResult = getMetricSupplier().apply(new MetricsReader(result, NAMESPACE));
     IOITMetrics.publish(
-        TEST_ID, TEST_TIMESTAMP, bigQueryMetricsDataset, bigQueryMetricsTable, testResults);
-  }
-
-  private static Collection<NamedTestResult> extractReadMetrics(
-      Function<MetricsReader, NamedTestResult> metricSuppliers, PipelineResult result) {
-    return Collections.singletonList(metricSuppliers.apply(new MetricsReader(result, NAMESPACE)));
+        TEST_ID,
+        TEST_TIMESTAMP,
+        bigQueryMetricsDataset,
+        bigQueryMetricsTable,
+        Collections.singletonList(metricResult));
   }
 
   private static Function<MetricsReader, NamedTestResult> getMetricSupplier() {
