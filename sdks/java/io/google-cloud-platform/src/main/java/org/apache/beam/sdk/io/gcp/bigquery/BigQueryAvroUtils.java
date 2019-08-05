@@ -57,7 +57,7 @@ import org.joda.time.format.DateTimeFormatter;
  * <p>These utilities are based on the <a href="https://avro.apache.org/docs/1.8.1/spec.html">Avro
  * 1.8.1</a> specification.
  */
-public class BigQueryAvroUtils {
+class BigQueryAvroUtils {
 
   /**
    * Defines the valid mapping between BigQuery types and native Avro types.
@@ -65,7 +65,7 @@ public class BigQueryAvroUtils {
    * <p>Some BigQuery types are duplicated here since slightly different Avro records are produced
    * when exporting data in Avro format and when reading data directly using the read API.
    */
-  public static final ImmutableMultimap<String, Type> BIG_QUERY_TO_AVRO_TYPES =
+  static final ImmutableMultimap<String, Type> BIG_QUERY_TO_AVRO_TYPES =
       ImmutableMultimap.<String, Type>builder()
           .put("STRING", Type.STRING)
           .put("GEOGRAPHY", Type.STRING)
@@ -353,7 +353,7 @@ public class BigQueryAvroUtils {
         unionTypes.get(1).getType(), unionTypes.get(1).getLogicalType(), fieldSchema, v);
   }
 
-  public static Schema toGenericAvroSchema(String schemaName, List<TableFieldSchema> fieldSchemas) {
+  static Schema toGenericAvroSchema(String schemaName, List<TableFieldSchema> fieldSchemas) {
     List<Field> avroFields = new ArrayList<>();
     for (TableFieldSchema bigQueryField : fieldSchemas) {
       avroFields.add(convertField(bigQueryField));

@@ -24,9 +24,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import java.util.Set;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryMatcher;
-import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
-import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
-import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
 import org.apache.beam.sdk.util.ApiSurface;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.hamcrest.Matcher;
@@ -42,16 +39,13 @@ public class GcpApiSurfaceTest {
   @Test
   public void testGcpApiSurface() throws Exception {
 
-    final Package thisPackage = getClass().getPackage();
+    final Package thisPackage = this.getClass().getPackage();
     final ClassLoader thisClassLoader = getClass().getClassLoader();
 
     final ApiSurface apiSurface =
         ApiSurface.ofPackage(thisPackage, thisClassLoader)
             .pruningPattern(BigqueryMatcher.class.getName())
             .pruningPattern(BigqueryClient.class.getName())
-            .pruningPattern(FakeBigQueryServices.class.getName())
-            .pruningPattern(FakeDatasetService.class.getName())
-            .pruningPattern(FakeJobService.class.getName())
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
             .pruningPattern("java[.]lang.*")
