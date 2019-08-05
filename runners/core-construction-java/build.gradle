@@ -48,6 +48,7 @@ dependencies {
   testCompile library.java.mockito_core
   testCompile library.java.jackson_annotations
   testCompile library.java.jackson_dataformat_yaml
+  testCompile project(path: ":sdks:java:extensions:sql", configuration: "shadow")
   testCompile project(path: ":model:fn-execution", configuration: "shadow")
   testRuntimeOnly library.java.slf4j_jdk14
 }

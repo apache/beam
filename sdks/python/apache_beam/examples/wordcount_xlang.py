@@ -69,6 +69,8 @@ def run(p, input_file, output_file):
   counts = (lines
             | 'split' >> (beam.ParDo(WordExtractingDoFn())
                           .with_output_types(bytes))
+            | 'sql' >> beam.ExternalTransform(
+                'pytest:beam:transforms:sql', None, EXPANSION_SERVICE_ADDR)
             | 'count' >> beam.ExternalTransform(
                 'pytest:beam:transforms:count', None, EXPANSION_SERVICE_ADDR))
 

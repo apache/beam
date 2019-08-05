@@ -19,6 +19,7 @@ package org.apache.beam.runners.core.construction.expansion;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Server;
@@ -32,6 +33,7 @@ public class TestExpansionService {
 
   private static final String TEST_COUNT_URN = "pytest:beam:transforms:count";
   private static final String TEST_FILTER_URN = "pytest:beam:transforms:filter_less_than";
+  private static final String TEST_SQL_URN = "pytest:beam:transforms:sql";
 
   /** Registers a single test transformation. */
   @AutoService(ExpansionService.ExpansionServiceRegistrar.class)
@@ -44,7 +46,8 @@ public class TestExpansionService {
               spec ->
                   Filter.lessThanEq(
                       // TODO(BEAM-6587): Use strings directly rather than longs.
-                      (long) spec.getPayload().toStringUtf8().charAt(0)));
+                      (long) spec.getPayload().toStringUtf8().charAt(0)),
+          TEST_SQL_URN, spec -> SqlTransform.query("SELECT * FROM PCOLLECTION"));
     }
   }
 
