@@ -34,6 +34,32 @@ task buildPython(dependsOn: 'setupVirtualenv') {
 }
 build.dependsOn buildPython
 
+// Create a Python source distribution tarball.
+def tarball = "apache-beam.tar.gz"
+task sdist {
+  dependsOn setupVirtualenv
+
+  doLast {
+    // Build artifact
+    project.exec {
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && python setup.py -q sdist --formats zip,gztar --dist-dir ${project.buildDir}"
+    }
+
+    def collection = fileTree(project.buildDir){ include '**/*.tar.gz' exclude '**/apache-beam.tar.gz', 'srcs/**'}
+
+    // we need a fixed name for the artifact
+    copy { from collection.singleFile; into project.buildDir; rename { tarball } }
+    println "Create distribution tar file ${tarball} in ${project.buildDir}"
+  }
+  inputs.files project.pythonSdkDeps
+  outputs.file "${project.buildDir}/${tarball}"
+}
+
+artifacts {
+  distTarBall file: file("${project.buildDir}/${tarball}"), builtBy: sdist
+}
+
 
 /*************************************************************************************************/
 // Non-testing builds and analysis tasks

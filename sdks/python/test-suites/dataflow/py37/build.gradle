@@ -20,8 +20,13 @@ apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 enablePythonPerformanceTest()
 
+dependencies {
+  distTarBall project(path: ":sdks:python", configuration: "distTarBall")
+}
+
 // Required to setup a Python 3 virtualenv.
 pythonVersion = '3.7'
+
 
 def runScriptsDir = "${project.rootDir}/sdks/python/scripts"
 
@@ -32,7 +37,7 @@ def basicTestOpts = [
     "--process-timeout=4500", // timeout of whole command execution
 ]
 
-task preCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
+task preCommitIT(dependsOn: [':sdks:python:sdist', 'installGcpTest']) {
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
@@ -51,7 +56,7 @@ task preCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
     ]
     def cmdArgs = project.mapToArgString([
         "test_opts": testOpts,
-        "sdk_location": "${project.buildDir}/apache-beam.tar.gz",
+        "sdk_location": files(configurations.distTarBall.files).singleFile,
         "worker_jar": dataflowWorkerJar,
         "suite": "preCommitIT-df-py37"
     ])
@@ -63,7 +68,7 @@ task preCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
   }
 }
 
-task postCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
+task postCommitIT(dependsOn: [':sdks:python:sdist', 'installGcpTest']) {
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
@@ -73,7 +78,7 @@ task postCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
 
      def cmdArgs = project.mapToArgString([
         "test_opts": testOpts,
-        "sdk_location": "${project.buildDir}/apache-beam.tar.gz",
+        "sdk_location": files(configurations.distTarBall.files).singleFile,
         "worker_jar": dataflowWorkerJar,
         "suite": "postCommitIT-df-py37"
     ])
@@ -84,7 +89,7 @@ task postCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
   }
 }
 
-task validatesRunnerBatchTests(dependsOn: ['installGcpTest', 'sdist']) {
+task validatesRunnerBatchTests(dependsOn: ['installGcpTest', ':sdks:python:sdist']) {
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
@@ -93,7 +98,7 @@ task validatesRunnerBatchTests(dependsOn: ['installGcpTest', 'sdist']) {
     def testOpts = basicTestOpts + ["--attr=ValidatesRunner"]
     def cmdArgs = project.mapToArgString([
         "test_opts": testOpts,
-        "sdk_location": "${project.buildDir}/apache-beam.tar.gz",
+        "sdk_location": files(configurations.distTarBall.files).singleFile,
         "worker_jar": dataflowWorkerJar,
         "suite": "validatesRunnerBatchTests-df-py37"
     ])
@@ -104,7 +109,7 @@ task validatesRunnerBatchTests(dependsOn: ['installGcpTest', 'sdist']) {
   }
 }
 
-task validatesRunnerStreamingTests(dependsOn: ['installGcpTest', 'sdist']) {
+task validatesRunnerStreamingTests(dependsOn: ['installGcpTest', ':sdks:python:sdist']) {
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
@@ -114,7 +119,7 @@ task validatesRunnerStreamingTests(dependsOn: ['installGcpTest', 'sdist']) {
     def testOpts = basicTestOpts + ["--attr=ValidatesRunner,!sickbay-streaming"]
     def argMap = ["test_opts": testOpts,
                   "streaming": "true",
-                  "sdk_location": "${project.buildDir}/apache-beam.tar.gz",
+                  "sdk_location": files(configurations.distTarBall.files).singleFile,
                   "worker_jar": dataflowWorkerJar,
                   "suite": "validatesRunnerStreamingTests-df-py37"]
     def cmdArgs = project.mapToArgString(argMap)
