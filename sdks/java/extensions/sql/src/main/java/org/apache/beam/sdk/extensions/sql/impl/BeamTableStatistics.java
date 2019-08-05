@@ -33,7 +33,7 @@ import org.apache.calcite.util.ImmutableBitSet;
 @Experimental
 @Internal
 public class BeamTableStatistics implements Serializable, Statistic {
-  public static final BeamTableStatistics UNKNOWN = new BeamTableStatistics(100d, 0d, true);
+  public static final BeamTableStatistics BOUNDED_UNKNOWN = new BeamTableStatistics(100d, 0d, true);
   public static final BeamTableStatistics UNBOUNDED_UNKNOWN =
       new BeamTableStatistics(0d, 0.1, true);
   private final boolean unknown;
