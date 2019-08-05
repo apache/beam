@@ -84,19 +84,19 @@ class TensorFlowFileOperations extends FileOperations<Example> {
     private transient ReadableByteChannel channel;
 
     @Override
-    public void prepareRead(ReadableByteChannel channel) throws Exception {
+    public void prepareRead(ReadableByteChannel channel) throws IOException {
       this.codec = new TFRecordIO.TFRecordCodec();
       this.channel = channel;
     }
 
     @Override
-    public Example read() throws Exception {
+    public Example read() throws IOException {
       final byte[] bytes = codec.read(channel);
       return bytes == null ? null : Example.parseFrom(bytes);
     }
 
     @Override
-    public void finishRead() throws Exception {
+    public void finishRead() throws IOException {
       channel.close();
     }
   }

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.smb;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
@@ -41,19 +42,19 @@ class TestFileOperations extends FileOperations<String> {
       private transient BufferedReader reader;
 
       @Override
-      public void prepareRead(ReadableByteChannel channel) throws Exception {
+      public void prepareRead(ReadableByteChannel channel) throws IOException {
         reader =
             new BufferedReader(
                 new InputStreamReader(Channels.newInputStream(channel), Charset.defaultCharset()));
       }
 
       @Override
-      public String read() throws Exception {
+      public String read() throws IOException {
         return reader.readLine();
       }
 
       @Override
-      public void finishRead() throws Exception {
+      public void finishRead() throws IOException {
         reader.close();
       }
     };

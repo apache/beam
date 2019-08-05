@@ -17,11 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.smb;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
 import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy.FileAssignment;
 import org.apache.beam.sdk.io.LocalResources;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.hamcrest.MatcherAssert;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.junit.Assert;
@@ -76,7 +80,7 @@ public class SMBFilenamePolicyTest {
 
   @Test
   public void testTempFileAssignment() throws Exception {
-    final ResourceId tmpDstResource = LocalResources.fromFile(tmpDestination.getRoot(), true);
+    final ResourceId tmpDstResource = TestUtils.fromFolder(tmpDestination);
 
     SMBFilenamePolicy policy = testFilenamePolicy(destination);
     final Long oldTempId = policy.getTempId();
@@ -122,12 +126,22 @@ public class SMBFilenamePolicyTest {
                 .forBucket(BucketShardId.of(2, 100), metadata));
   }
 
+  @Test
+  public void testDisplayData() {
+    final SMBFilenamePolicy policy = testFilenamePolicy(destination);
+
+    final DisplayData displayData = DisplayData.from(policy.forDestination());
+    MatcherAssert.assertThat(
+        displayData, hasDisplayItem("directory", TestUtils.fromFolder(destination).toString()));
+    MatcherAssert.assertThat(displayData, hasDisplayItem("filenameSuffix", SUFFIX));
+  }
+
   private static SMBFilenamePolicy testFilenamePolicy(TemporaryFolder folder) {
-    return new SMBFilenamePolicy(LocalResources.fromFile(folder.getRoot(), true), SUFFIX);
+    return new SMBFilenamePolicy(TestUtils.fromFolder(folder), SUFFIX);
   }
 
   private static ResourceId resolveFile(TemporaryFolder parent, String filename, String suffix) {
-    return LocalResources.fromFile(parent.getRoot(), true)
+    return TestUtils.fromFolder(parent)
         .resolve(filename + suffix, StandardResolveOptions.RESOLVE_FILE);
   }
 

@@ -90,7 +90,7 @@ class JsonFileOperations extends FileOperations<TableRow> {
     private transient BufferedReader reader;
 
     @Override
-    public void prepareRead(ReadableByteChannel channel) throws Exception {
+    public void prepareRead(ReadableByteChannel channel) throws IOException {
       objectMapper = new ObjectMapper();
       reader =
           new BufferedReader(
@@ -98,7 +98,7 @@ class JsonFileOperations extends FileOperations<TableRow> {
     }
 
     @Override
-    public TableRow read() throws Exception {
+    public TableRow read() throws IOException {
       String next = reader.readLine();
       if (next == null) {
         return null;
@@ -108,7 +108,7 @@ class JsonFileOperations extends FileOperations<TableRow> {
     }
 
     @Override
-    public void finishRead() throws Exception {
+    public void finishRead() throws IOException {
       reader.close();
     }
   }

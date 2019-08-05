@@ -17,26 +17,29 @@
  */
 package org.apache.beam.sdk.extensions.smb;
 
+import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.smb.BucketShardId.BucketShardIdCoder;
-import org.apache.beam.sdk.extensions.smb.FileOperations.Writer;
 import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy.FileAssignment;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink.WriteResult;
 import org.apache.beam.sdk.extensions.sorter.BufferedExternalSorter;
 import org.apache.beam.sdk.extensions.sorter.ExternalSorter;
 import org.apache.beam.sdk.extensions.sorter.SortValues;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.schemas.transforms.Group;
 import org.apache.beam.sdk.transforms.Create;
@@ -57,6 +60,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link PTransform} for writing a {@link PCollection} to file-based sink, where files represent
@@ -99,6 +104,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * @param <V> the type of the values in a bucket
  */
 public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResult> {
+  private static final Logger LOG = LoggerFactory.getLogger(SortedBucketSink.class);
 
   private final BucketMetadata<K, V> bucketMetadata;
   private final SMBFilenamePolicy filenamePolicy;
@@ -168,7 +174,7 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
+    public void processElement(ProcessContext c) {
       final V record = c.element();
       final byte[] keyBytes = bucketMetadata.getKeyBytes(record);
 
@@ -298,22 +304,26 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
                           KV<BucketShardId, Iterable<KV<byte[], V>>>,
                           KV<BucketShardId, ResourceId>>() {
                         @ProcessElement
-                        public void processElement(ProcessContext c) throws Exception {
+                        public void processElement(ProcessContext c) throws IOException {
                           final BucketShardId bucketShardId = c.element().getKey();
                           final Iterable<KV<byte[], V>> records = c.element().getValue();
                           final ResourceId tmpFile =
                               fileAssignment.forBucket(bucketShardId, bucketMetadata);
 
+                          LOG.info(
+                              "Writing sorted-bucket {} to temporary file {}",
+                              bucketShardId,
+                              tmpFile);
                           try (final FileOperations.Writer<V> writer =
                               fileOperations.createWriter(tmpFile)) {
                             records.forEach(
                                 kv -> {
                                   try {
                                     writer.write(kv.getValue());
-                                  } catch (Exception e) {
+                                  } catch (IOException e) {
+                                    cleanupTempFiles(e, Collections.singleton(tmpFile));
                                     throw new RuntimeException(
-                                        String.format(
-                                            "Failed to write element %s: %s", kv.getValue(), e));
+                                        "Failed to write sorted-bucket file", e);
                                   }
                                 });
                           }
@@ -334,11 +344,13 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
     private ResourceId writeMetadataFile() {
       final ResourceId tmpFile = fileAssignment.forMetadata();
 
+      LOG.info("Writing metadata to temporary file {}", tmpFile);
       try (final OutputStream outputStream =
           Channels.newOutputStream(FileSystems.create(tmpFile, "application/json"))) {
         BucketMetadata.to(bucketMetadata, outputStream);
-      } catch (Exception e) {
-        throw new RuntimeException("Metadata write failed: {}", e);
+      } catch (IOException e) {
+        cleanupTempFiles(e, Collections.singleton(tmpFile));
+        throw new RuntimeException("Failed to write metadata file", e);
       }
       return tmpFile;
     }
@@ -373,8 +385,9 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
                             ParDo.of(
                                 new DoFn<ResourceId, ResourceId>() {
                                   @ProcessElement
-                                  public void processElement(ProcessContext c) throws Exception {
+                                  public void processElement(ProcessContext c) throws IOException {
                                     final ResourceId dstFile = fileAssignment.forMetadata();
+                                    LOG.info("Renaming metadata file");
                                     FileSystems.rename(
                                         ImmutableList.of(c.element()), ImmutableList.of(dstFile));
                                     c.output(dstFile);
@@ -424,41 +437,54 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
       }
 
       @ProcessElement
-      public void processElement(ProcessContext c) throws Exception {
-        // Create missing files
-        Set<BucketShardId> missingFiles = new HashSet<>();
+      public void processElement(ProcessContext c) {
+        // Missing ids are those without any element after the GroupByKey transform
+        // We write one empty file for each missing id
+        Set<BucketShardId> missingIds = new HashSet<>();
         for (int i = 0; i < bucketMetadata.getNumBuckets(); i++) {
           for (int j = 0; j < bucketMetadata.getNumShards(); j++) {
-            missingFiles.add(BucketShardId.of(i, j));
+            missingIds.add(BucketShardId.of(i, j));
           }
         }
+
         final Iterable<KV<BucketShardId, ResourceId>> writtenFiles = c.element();
-        writtenFiles.forEach(k -> missingFiles.remove(k.getKey()));
-
-        for (BucketShardId id : missingFiles) {
-          final ResourceId dstFile = fileAssignment.forBucket(id, bucketMetadata);
-
-          try (final Writer<?> ignored = fileOperations.createWriter(dstFile)) {}
-          c.output(KV.of(id, dstFile));
-        }
-
-        // Rename written files
         final List<ResourceId> srcFiles = new ArrayList<>();
         final List<ResourceId> dstFiles = new ArrayList<>();
         final List<KV<BucketShardId, ResourceId>> finalBucketLocations = new ArrayList<>();
 
-        writtenFiles.forEach(
-            kv -> {
-              ResourceId tmpFile = kv.getValue();
-              BucketShardId id = kv.getKey();
-              final ResourceId dstFile = fileAssignment.forBucket(id, bucketMetadata);
+        for (KV<BucketShardId, ResourceId> kv : writtenFiles) {
+          BucketShardId id = kv.getKey();
+          missingIds.remove(id);
+          ResourceId dstFile = fileAssignment.forBucket(id, bucketMetadata);
 
-              srcFiles.add(tmpFile);
-              dstFiles.add(dstFile);
-              finalBucketLocations.add(KV.of(id, dstFile));
-            });
+          srcFiles.add(kv.getValue());
+          dstFiles.add(dstFile);
+          finalBucketLocations.add(KV.of(id, dstFile));
+        }
 
-        FileSystems.rename(srcFiles, dstFiles);
+        // Files to clean up include written temporary files and empty files for missing ids
+        List<ResourceId> filesToCleanUp = new ArrayList<>(srcFiles);
+        for (BucketShardId id : missingIds) {
+          final ResourceId dstFile = fileAssignment.forBucket(id, bucketMetadata);
+          filesToCleanUp.add(dstFile);
+
+          try {
+            // Write empty file
+            fileOperations.createWriter(dstFile).close();
+          } catch (IOException e) {
+            cleanupTempFiles(e, filesToCleanUp);
+            throw new RuntimeException("Failed to write empty file", e);
+          }
+          c.output(KV.of(id, dstFile));
+        }
+
+        LOG.info("Renaming bucket files");
+        try {
+          FileSystems.rename(srcFiles, dstFiles);
+        } catch (IOException e) {
+          cleanupTempFiles(e, filesToCleanUp);
+          throw new RuntimeException("Failed to rename temporary files", e);
+        }
         finalBucketLocations.forEach(c::output);
       }
 
@@ -467,6 +493,17 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
         super.populateDisplayData(builder);
         builder.delegate(fileAssignment);
       }
+    }
+  }
+
+  private static void cleanupTempFiles(Exception cause, Collection<ResourceId> files) {
+    LOG.info(
+        "Deleting temporary file {}",
+        files.stream().map(ResourceId::toString).collect(Collectors.joining(", ")));
+    try {
+      FileSystems.delete(files, MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
+    } catch (IOException e) {
+      cause.addSuppressed(e);
     }
   }
 }

@@ -18,18 +18,24 @@
 package org.apache.beam.sdk.extensions.smb;
 
 import static org.apache.beam.sdk.extensions.smb.TestUtils.fromFolder;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.avro.Schema;
+import org.apache.avro.file.CodecFactory;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.io.AvroGeneratedUser;
+import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.hamcrest.MatcherAssert;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -103,5 +109,22 @@ public class AvroFileOperationsTest {
     fileOperations.iterator(file).forEachRemaining(actual::add);
 
     Assert.assertEquals(records, actual);
+  }
+
+  @Test
+  public void testDisplayData() {
+    final AvroFileOperations<AvroGeneratedUser> fileOperations =
+        AvroFileOperations.of(AvroGeneratedUser.class);
+
+    final DisplayData displayData = DisplayData.from(fileOperations);
+    MatcherAssert.assertThat(
+        displayData, hasDisplayItem("FileOperations", AvroFileOperations.class));
+    MatcherAssert.assertThat(displayData, hasDisplayItem("mimeType", MimeTypes.BINARY));
+    MatcherAssert.assertThat(
+        displayData, hasDisplayItem("compression", Compression.UNCOMPRESSED.toString()));
+    MatcherAssert.assertThat(
+        displayData, hasDisplayItem("codecFactory", CodecFactory.snappyCodec().getClass()));
+    MatcherAssert.assertThat(
+        displayData, hasDisplayItem("schema", AvroGeneratedUser.SCHEMA$.getFullName()));
   }
 }
