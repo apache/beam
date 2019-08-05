@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -159,6 +160,20 @@ public class SortedBucketSourceTest {
             BucketShardId.of(1, 1), Lists.newArrayList("f4", "g4")));
   }
 
+  @Test
+  @Category(NeedsRunner.class)
+  public void testNullKeysIgnored() throws Exception {
+    test(
+        ImmutableMap.of(
+            BucketShardId.ofNullKey(0), Lists.newArrayList(""),
+            BucketShardId.of(0, 0), Lists.newArrayList("x1", "x2", "y1", "y2"),
+            BucketShardId.of(1, 0), Lists.newArrayList("c1", "c2")),
+        ImmutableMap.of(
+            BucketShardId.ofNullKey(0), Lists.newArrayList(""),
+            BucketShardId.of(0, 0), Lists.newArrayList("x3", "x4", "z3", "z4"),
+            BucketShardId.of(1, 0), Lists.newArrayList("c2", "c3")));
+  }
+
   private void test(
       Map<BucketShardId, List<String>> lhsInput, Map<BucketShardId, List<String>> rhsInput)
       throws Exception {
@@ -185,9 +200,9 @@ public class SortedBucketSourceTest {
     PCollection<KV<String, CoGbkResult>> output =
         pipeline.apply(new SortedBucketSource<>(String.class, inputs));
 
-    // CoGroup by key inputs as expected result
-    final Map<String, List<String>> lhs = groupByKey(lhsInput);
-    final Map<String, List<String>> rhs = groupByKey(rhsInput);
+    // CoGroupByKey inputs as expected result
+    final Map<String, List<String>> lhs = groupByKey(lhsInput, lhsMetadata::extractKey);
+    final Map<String, List<String>> rhs = groupByKey(rhsInput, rhsMetadata::extractKey);
     final Map<String, KV<List<String>, List<String>>> expected = new HashMap<>();
     for (String k : Sets.union(lhs.keySet(), rhs.keySet())) {
       List<String> l = lhs.getOrDefault(k, Collections.emptyList());
@@ -244,13 +259,15 @@ public class SortedBucketSourceTest {
     return ids.stream().mapToInt(fn).max().getAsInt();
   }
 
-  private static Map<String, List<String>> groupByKey(Map<BucketShardId, List<String>> input) {
+  private static Map<String, List<String>> groupByKey(
+      Map<BucketShardId, List<String>> input, Function<String, String> keyFn) {
     final List<String> values =
         input.values().stream().flatMap(List::stream).collect(Collectors.toList());
     return values.stream()
+        .filter(v -> keyFn.apply(v) != null)
         .collect(
             Collectors.toMap(
-                v -> v.substring(0, 1),
+                keyFn,
                 Collections::singletonList,
                 (l, r) ->
                     Stream.concat(l.stream(), r.stream()).sorted().collect(Collectors.toList())));
