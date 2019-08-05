@@ -46,7 +46,7 @@ public class RetractionTest {
   @Test
   public void retractionSimpleTest() {
     Instant baseTime = new Instant(0L);
-    Duration one_min = Duration.standardMinutes(1);
+    Duration oneMin = Duration.standardMinutes(1);
 
     TestStream<String> events =
         TestStream.create(StringUtf8Coder.of())
@@ -54,12 +54,12 @@ public class RetractionTest {
 
             // First batch of element
             .addElements(
-                TimestampedValue.of("Java", baseTime.plus(one_min)),
-                TimestampedValue.of("Java", baseTime.plus(one_min)),
-                TimestampedValue.of("Python", baseTime.plus(one_min)),
-                TimestampedValue.of("Go", baseTime.plus(one_min)))
-            .advanceWatermarkTo(baseTime.plus(WINDOW_LENGTH).plus(one_min))
-            .addElements(TimestampedValue.of("Java", baseTime.plus(one_min)))
+                TimestampedValue.of("Java", baseTime.plus(oneMin)),
+                TimestampedValue.of("Java", baseTime.plus(oneMin)),
+                TimestampedValue.of("Python", baseTime.plus(oneMin)),
+                TimestampedValue.of("Go", baseTime.plus(oneMin)))
+            .advanceWatermarkTo(baseTime.plus(WINDOW_LENGTH).plus(oneMin))
+            .addElements(TimestampedValue.of("Java", baseTime.plus(oneMin)))
 
             // Fire all
             .advanceWatermarkToInfinity();
