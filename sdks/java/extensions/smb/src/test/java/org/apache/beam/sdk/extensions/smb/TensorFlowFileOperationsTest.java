@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.smb;
 
 import static org.apache.beam.sdk.extensions.smb.TestUtils.fromFolder;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 
 import com.google.protobuf.ByteString;
 import java.util.ArrayList;
@@ -27,6 +28,9 @@ import java.util.stream.IntStream;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.MimeTypes;
+import org.hamcrest.MatcherAssert;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -96,5 +100,11 @@ public class TensorFlowFileOperationsTest {
     fileOperations.iterator(file).forEachRemaining(actual::add);
 
     Assert.assertEquals(records, actual);
+
+    final DisplayData displayData = DisplayData.from(fileOperations);
+    MatcherAssert.assertThat(
+        displayData, hasDisplayItem("FileOperations", TensorFlowFileOperations.class));
+    MatcherAssert.assertThat(displayData, hasDisplayItem("mimeType", MimeTypes.BINARY));
+    MatcherAssert.assertThat(displayData, hasDisplayItem("compression", compression.toString()));
   }
 }

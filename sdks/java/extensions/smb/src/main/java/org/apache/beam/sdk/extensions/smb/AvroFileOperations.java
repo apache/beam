@@ -158,7 +158,7 @@ class AvroFileOperations<ValueT> extends FileOperations<ValueT> {
     }
 
     @Override
-    public void prepareRead(ReadableByteChannel channel) throws Exception {
+    public void prepareRead(ReadableByteChannel channel) throws IOException {
       final Schema schema = schemaSupplier.get();
 
       DatumReader<ValueT> datumReader =
@@ -170,12 +170,12 @@ class AvroFileOperations<ValueT> extends FileOperations<ValueT> {
     }
 
     @Override
-    public ValueT read() throws Exception {
+    public ValueT read() throws IOException {
       return reader.hasNext() ? reader.next() : null;
     }
 
     @Override
-    public void finishRead() throws Exception {
+    public void finishRead() throws IOException {
       reader.close();
     }
   }

@@ -17,9 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.smb;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import com.google.api.services.bigquery.model.TableRow;
 import java.util.Arrays;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.hamcrest.MatcherAssert;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -76,5 +81,22 @@ public class JsonBucketMetadataTest {
         new JsonBucketMetadata<>(1, 1, String.class, HashType.MURMUR3_32, "favorite_color");
 
     Assert.assertEquals(BucketMetadata.CURRENT_VERSION, metadata.getVersion());
+  }
+
+  @Test
+  public void testDisplayData() throws Exception {
+    final JsonBucketMetadata<String> metadata =
+        new JsonBucketMetadata<>(2, 1, String.class, HashType.MURMUR3_32, "favorite_color");
+
+    final DisplayData displayData = DisplayData.from(metadata);
+    MatcherAssert.assertThat(displayData, hasDisplayItem("numBuckets", 2));
+    MatcherAssert.assertThat(displayData, hasDisplayItem("numShards", 1));
+    MatcherAssert.assertThat(
+        displayData, hasDisplayItem("version", BucketMetadata.CURRENT_VERSION));
+    MatcherAssert.assertThat(displayData, hasDisplayItem("keyField", "favorite_color"));
+    MatcherAssert.assertThat(displayData, hasDisplayItem("keyClass", String.class));
+    MatcherAssert.assertThat(
+        displayData, hasDisplayItem("hashType", HashType.MURMUR3_32.toString()));
+    MatcherAssert.assertThat(displayData, hasDisplayItem("keyCoder", StringUtf8Coder.class));
   }
 }

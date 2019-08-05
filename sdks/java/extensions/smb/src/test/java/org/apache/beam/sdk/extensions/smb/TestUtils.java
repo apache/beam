@@ -23,7 +23,7 @@ import org.junit.rules.TemporaryFolder;
 
 /** Test utilities. */
 public class TestUtils {
-  public static ResourceId fromFolder(TemporaryFolder temporaryFolder) {
+  static ResourceId fromFolder(TemporaryFolder temporaryFolder) {
     return LocalResources.fromFile(temporaryFolder.getRoot(), true);
   }
 }
