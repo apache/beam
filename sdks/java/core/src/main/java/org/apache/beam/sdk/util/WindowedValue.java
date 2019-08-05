@@ -54,13 +54,19 @@ public abstract class WindowedValue<T> {
   /** Returns a {@code WindowedValue} with the given value, timestamp, and windows. */
   public static <T> WindowedValue<T> of(
       T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
+    return of(value, timestamp, windows, pane, false);
+  }
+
+  /** Returns a {@code WindowedValue} with the given value, timestamp, windows and isRetraction */
+  public static <T> WindowedValue<T> of(
+      T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane, boolean isRetraction) {
     checkArgument(pane != null, "WindowedValue requires PaneInfo, but it was null");
     checkArgument(windows.size() > 0, "WindowedValue requires windows, but there were none");
 
     if (windows.size() == 1) {
-      return of(value, timestamp, windows.iterator().next(), pane);
+      return of(value, timestamp, windows.iterator().next(), pane, isRetraction);
     } else {
-      return new TimestampedValueInMultipleWindows<>(value, timestamp, windows, pane);
+      return new TimestampedValueInMultipleWindows<>(value, timestamp, windows, pane, isRetraction);
     }
   }
 
@@ -69,7 +75,7 @@ public abstract class WindowedValue<T> {
   static <T> WindowedValue<T> createWithoutValidation(
       T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
     if (windows.size() == 1) {
-      return of(value, timestamp, windows.iterator().next(), pane);
+      return of(value, timestamp, windows.iterator().next(), pane, false);
     } else {
       return new TimestampedValueInMultipleWindows<>(value, timestamp, windows, pane);
     }
@@ -79,14 +85,21 @@ public abstract class WindowedValue<T> {
   public static <T> WindowedValue<T> of(
       T value, Instant timestamp, BoundedWindow window, PaneInfo pane) {
     checkArgument(pane != null, "WindowedValue requires PaneInfo, but it was null");
+    return of(value, timestamp, window, pane, false);
+  }
+
+  /** Returns a {@code WindowedValue} with the given value, timestamp, window, and isRetraction. */
+  public static <T> WindowedValue<T> of(
+      T value, Instant timestamp, BoundedWindow window, PaneInfo pane, boolean isRetraction) {
+    checkArgument(pane != null, "WindowedValue requires PaneInfo, but it was null");
 
     boolean isGlobal = GlobalWindow.INSTANCE.equals(window);
     if (isGlobal && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
       return valueInGlobalWindow(value, pane);
     } else if (isGlobal) {
-      return new TimestampedValueInGlobalWindow<>(value, timestamp, pane);
+      return new TimestampedValueInGlobalWindow<>(value, timestamp, pane, isRetraction);
     } else {
-      return new TimestampedValueInSingleWindow<>(value, timestamp, window, pane);
+      return new TimestampedValueInSingleWindow<>(value, timestamp, window, pane, isRetraction);
     }
   }
 

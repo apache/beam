@@ -262,5 +262,14 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
           String.format(
               "%s should not use tagged outputs", DirectGroupAlsoByWindow.class.getSimpleName()));
     }
+
+    @Override
+    public void outputWindowedRetraction(
+        KV<K, Iterable<V>> output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo pane) {
+      bundle.add(WindowedValue.of(output, timestamp, windows, pane, true));
+    }
   }
 }
