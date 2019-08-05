@@ -17,10 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.smb;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import com.google.api.services.bigquery.model.TableRow;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.hamcrest.MatcherAssert;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -88,5 +93,19 @@ public class BucketMetadataTest {
 
     Assert.assertNull(m.extractKey(""));
     Assert.assertNull(m.getKeyBytes(""));
+  }
+
+  @Test
+  public void testDisplayData() throws Exception {
+    final TestBucketMetadata m = new TestBucketMetadata(3, 2, 1, HashType.MURMUR3_32);
+
+    final DisplayData displayData = DisplayData.from(m);
+    MatcherAssert.assertThat(displayData, hasDisplayItem("numBuckets", 2));
+    MatcherAssert.assertThat(displayData, hasDisplayItem("numShards", 1));
+    MatcherAssert.assertThat(displayData, hasDisplayItem("version", 3));
+    MatcherAssert.assertThat(displayData, hasDisplayItem("keyClass", String.class));
+    MatcherAssert.assertThat(
+        displayData, hasDisplayItem("hashType", HashType.MURMUR3_32.toString()));
+    MatcherAssert.assertThat(displayData, hasDisplayItem("keyCoder", StringUtf8Coder.class));
   }
 }
