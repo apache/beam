@@ -59,7 +59,7 @@ public abstract class FileOperations<V> implements Serializable, HasDisplayData 
 
   public abstract Coder<V> getCoder();
 
-  public final Iterator<V> iterator(ResourceId resourceId) throws Exception {
+  public final Iterator<V> iterator(ResourceId resourceId) throws IOException {
     final ReadableFile readableFile = toReadableFile(resourceId);
 
     final Reader<V> reader = createReader();
@@ -67,7 +67,7 @@ public abstract class FileOperations<V> implements Serializable, HasDisplayData 
     return reader.iterator();
   }
 
-  public Writer<V> createWriter(ResourceId resourceId) throws Exception {
+  public Writer<V> createWriter(ResourceId resourceId) throws IOException {
     final Writer<V> writer = new Writer<>(createSink(), compression);
     writer.prepareWrite(FileSystems.create(resourceId, mimeType));
     return writer;
@@ -82,17 +82,17 @@ public abstract class FileOperations<V> implements Serializable, HasDisplayData 
 
   /** Per-element file reader. */
   public abstract static class Reader<V> implements Serializable {
-    public abstract void prepareRead(ReadableByteChannel channel) throws Exception;
+    public abstract void prepareRead(ReadableByteChannel channel) throws IOException;
 
     /**
      * Reads next record in the collection. Should return null if EOF is reached. (@Todo: should we
      * have more clearly defined behavior for EOF?)
      */
-    public abstract V read() throws Exception;
+    public abstract V read() throws IOException;
 
-    public abstract void finishRead() throws Exception;
+    public abstract void finishRead() throws IOException;
 
-    Iterator<V> iterator() throws Exception {
+    Iterator<V> iterator() throws IOException {
       return new Iterator<V>() {
         private V next = read();
 
@@ -112,7 +112,7 @@ public abstract class FileOperations<V> implements Serializable, HasDisplayData 
             if (next == null) {
               finishRead();
             }
-          } catch (Exception e) {
+          } catch (IOException e) {
             throw new RuntimeException(e);
           }
           return result;
@@ -133,18 +133,24 @@ public abstract class FileOperations<V> implements Serializable, HasDisplayData 
       this.compression = compression;
     }
 
-    private void prepareWrite(WritableByteChannel channel) throws Exception {
+    private void prepareWrite(WritableByteChannel channel) throws IOException {
       this.channel = compression.writeCompressed(channel);
       sink.open(this.channel);
     }
 
-    public void write(V value) throws Exception {
+    public void write(V value) throws IOException {
       sink.write(value);
     }
 
     @Override
-    public void close() throws Exception {
-      sink.flush();
+    public void close() throws IOException {
+      try {
+        sink.flush();
+      } catch (IOException e) {
+        // always close channel
+        channel.close();
+        throw e;
+      }
       channel.close();
     }
   }

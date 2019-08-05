@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.smb;
 
 import static org.apache.beam.sdk.extensions.smb.TestUtils.fromFolder;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 
 import com.google.api.services.bigquery.model.TableRow;
 import java.util.ArrayList;
@@ -27,6 +28,9 @@ import java.util.stream.IntStream;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.MimeTypes;
+import org.hamcrest.MatcherAssert;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -66,5 +70,15 @@ public class JsonFileOperationsTest {
     fileOperations.iterator(file).forEachRemaining(actual::add);
 
     Assert.assertEquals(records, actual);
+
+    final DisplayData displayData = DisplayData.from(fileOperations);
+    MatcherAssert.assertThat(
+        displayData, hasDisplayItem("FileOperations", JsonFileOperations.class));
+    MatcherAssert.assertThat(
+        displayData,
+        hasDisplayItem(
+            "mimeType",
+            compression == Compression.UNCOMPRESSED ? MimeTypes.TEXT : MimeTypes.BINARY));
+    MatcherAssert.assertThat(displayData, hasDisplayItem("compression", compression.toString()));
   }
 }
