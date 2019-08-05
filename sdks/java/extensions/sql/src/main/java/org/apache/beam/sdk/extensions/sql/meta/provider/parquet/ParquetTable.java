@@ -19,8 +19,10 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.parquet;
 
 import java.io.Serializable;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -56,5 +58,10 @@ public class ParquetTable extends BaseBeamTable implements Serializable {
   @Override
   public PCollection.IsBounded isBounded() {
     return PCollection.IsBounded.BOUNDED;
+  }
+
+  @Override
+  public BeamTableStatistics getTableStatistics(PipelineOptions options) {
+    return BeamTableStatistics.BOUNDED_UNKNOWN;
   }
 }

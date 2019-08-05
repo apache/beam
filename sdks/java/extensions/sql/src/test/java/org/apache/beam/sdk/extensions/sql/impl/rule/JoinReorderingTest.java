@@ -87,7 +87,7 @@ public class JoinReorderingTest {
         1d,
         tableProvider
             .buildBeamSqlTable(tableProvider.getTable("small_table"))
-            .getRowCount(null)
+            .getTableStatistics(null)
             .getRowCount(),
         0.01);
 
@@ -95,7 +95,7 @@ public class JoinReorderingTest {
         3d,
         tableProvider
             .buildBeamSqlTable(tableProvider.getTable("medium_table"))
-            .getRowCount(null)
+            .getTableStatistics(null)
             .getRowCount(),
         0.01);
 
@@ -103,7 +103,7 @@ public class JoinReorderingTest {
         100d,
         tableProvider
             .buildBeamSqlTable(tableProvider.getTable("large_table"))
-            .getRowCount(null)
+            .getTableStatistics(null)
             .getRowCount(),
         0.01);
   }

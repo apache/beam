@@ -71,7 +71,7 @@ public class TestUnboundedTable extends TestTable {
   }
 
   @Override
-  public BeamTableStatistics getRowCount(PipelineOptions options) {
+  public BeamTableStatistics getTableStatistics(PipelineOptions options) {
     return this.statistics;
   }
 

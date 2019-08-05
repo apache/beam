@@ -21,12 +21,14 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
+import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSqlOutputToConsoleFn;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestUnboundedTable;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -131,6 +133,11 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
     @Override
     public List<Row> seekRow(Row lookupSubRow) {
       return Arrays.asList(Row.withSchema(getSchema()).addValues(1, "SITE1").build());
+    }
+
+    @Override
+    public BeamTableStatistics getTableStatistics(PipelineOptions options) {
+      return BeamTableStatistics.BOUNDED_UNKNOWN;
     }
   }
 
