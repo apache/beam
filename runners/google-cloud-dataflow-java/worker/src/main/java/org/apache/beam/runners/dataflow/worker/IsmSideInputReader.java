@@ -290,7 +290,7 @@ public class IsmSideInputReader implements SideInputReader {
 
   @Override
   public PCollectionView get(String sideInputTag) {
-    return null;
+    throw new UnsupportedOperationException();
   }
 
   @Override

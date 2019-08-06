@@ -52,6 +52,7 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
@@ -784,11 +785,16 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   public static class StreamingModeSideInputReader implements SideInputReader {
     private StreamingModeExecutionContext context;
     private Set<PCollectionView<?>> viewSet;
+    private Map<String, PCollectionView<?>> sideInputsMap;
 
     private StreamingModeSideInputReader(
         Iterable<? extends PCollectionView<?>> views, StreamingModeExecutionContext context) {
       this.context = context;
       this.viewSet = ImmutableSet.copyOf(views);
+      this.sideInputsMap = new HashMap<>();
+      for (PCollectionView<?> view : viewSet) {
+        sideInputsMap.put(view.getTagInternal().getId(), view);
+      }
     }
 
     public static StreamingModeSideInputReader of(
@@ -825,14 +831,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     }
 
     @Override
-    public PCollectionView get(String sideInputTag) {
-      PCollectionView pCollectionView = null;
-      for(PCollectionView pCollectionViewSet : viewSet) {
-        if(pCollectionViewSet.getTagInternal().getId().equals(sideInputTag)) {
-          pCollectionView = pCollectionViewSet;
-        }
-      }
-      return pCollectionView;
+    public PCollectionView get(String tagId) {
+      return sideInputsMap.get(tagId);
     }
   }
 }

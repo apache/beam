@@ -339,7 +339,7 @@ public class PCollectionViews {
   public static class SimplePCollectionView<ElemT, PrimitiveViewT, ViewT, W extends BoundedWindow>
       extends PValueBase implements PCollectionView<ViewT> {
     /** The {@link PCollection} this view was originally created from. */
-    private transient PCollection<ElemT> pCollection;
+    private transient PCollection<?> pCollection;
 
     /** A unique tag for the view, typed according to the elements underlying the view. */
     private TupleTag<PrimitiveViewT> tag;
@@ -402,6 +402,11 @@ public class PCollectionViews {
     @Override
     public PCollection<?> getPCollection() {
       return pCollection;
+    }
+
+    @Override
+    public void setPCollection(PCollection<?> pCollectionData) {
+      pCollection = pCollectionData;
     }
 
     /**

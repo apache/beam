@@ -516,7 +516,7 @@ public class ParDo {
    */
   private static <InputT, OutputT> void validateWindowType(
       PCollection<? extends InputT> input, DoFn<InputT, OutputT> fn) {
-    DoFnSignature signature = DoFnSignatures.getSignature((Class) fn.getClass());
+    DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
 
     TypeDescriptor<? extends BoundedWindow> actualWindowT =
         input.getWindowingStrategy().getWindowFn().getWindowTypeDescriptor();
@@ -546,7 +546,7 @@ public class ParDo {
    * correctly and that its features can be supported.
    */
   private static <InputT, OutputT> void validate(DoFn<InputT, OutputT> fn) {
-    DoFnSignature signature = DoFnSignatures.getSignature((Class) fn.getClass());
+    DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
 
     // State is semantically incompatible with splitting
     if (!signature.stateDeclarations().isEmpty() && signature.processElement().isSplittable()) {
@@ -666,9 +666,10 @@ public class ParDo {
      * <p>See the discussion of Side Inputs above for more explanation.
      */
     public SingleOutput<InputT, OutputT> withSideInput(String sideInputName, PCollectionView<?> sideInput) {
-      PCollectionView pCollectionView = SerializableUtils.clone(sideInput);
-      sideInput.setTagInternalId(sideInputName);
-      return withSideInputs(sideInput);
+      PCollectionView<?> pCollectionView = SerializableUtils.clone(sideInput);
+      pCollectionView.setPCollection(sideInput.getPCollection());
+      pCollectionView.setTagInternalId(sideInputName);
+      return withSideInputs(pCollectionView);
     }
 
     /**
@@ -746,7 +747,7 @@ public class ParDo {
     @Override
     public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
-      ParDo.populateDisplayData(builder, (HasDisplayData) fn, fnDisplayData);
+      ParDo.populateDisplayData(builder, fn, fnDisplayData);
     }
 
     public DoFn<InputT, OutputT> getFn() {

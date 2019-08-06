@@ -20,6 +20,7 @@ package org.apache.beam.sdk.values;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -77,7 +78,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
  *
  * @param <T> the type of the elements of this {@link PCollection}
  */
-public class PCollection<T> extends PValueBase implements PValue {
+public class PCollection<T> extends PValueBase implements PValue, Serializable {
 
   /**
    * The {@link Coder} used by this {@link PCollection} to encode and decode the values stored in

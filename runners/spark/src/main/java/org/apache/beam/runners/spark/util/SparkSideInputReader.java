@@ -94,7 +94,7 @@ public class SparkSideInputReader implements SideInputReader {
   }
 
   @Override
-  public PCollectionView get(String sideInputTag) {
-    return null;
+  public PCollectionView get(String tagId) {
+      throw new UnsupportedOperationException();
   }
 }

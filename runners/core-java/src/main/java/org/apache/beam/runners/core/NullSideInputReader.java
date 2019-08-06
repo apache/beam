@@ -59,7 +59,7 @@ public class NullSideInputReader implements SideInputReader {
   }
 
   @Override
-  public PCollectionView get(String sideInputTag) {
-    return null;
+  public PCollectionView get(String tagId) {
+    throw new IllegalArgumentException("cannot call NullSideInputReader.get(tagId)");
   }
 }

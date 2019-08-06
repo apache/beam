@@ -40,6 +40,7 @@ public class FlinkSideInputReader implements SideInputReader {
   private static final MultimapView EMPTY_MULTMAP_VIEW = o -> Collections.EMPTY_LIST;
 
   private final Map<TupleTag<?>, WindowingStrategy<?, ?>> sideInputs;
+  private final Map<String, PCollectionView<?>> sideInputsMap;
 
   private RuntimeContext runtimeContext;
 
@@ -56,8 +57,10 @@ public class FlinkSideInputReader implements SideInputReader {
           view.getTagInternal().getId());
     }
     sideInputs = new HashMap<>();
+    sideInputsMap = new HashMap<>();
     for (Map.Entry<PCollectionView<?>, WindowingStrategy<?, ?>> entry : indexByView.entrySet()) {
       sideInputs.put(entry.getKey().getTagInternal(), entry.getValue());
+      sideInputsMap.put(entry.getKey().getTagInternal().getId(), entry.getKey());
     }
     this.runtimeContext = runtimeContext;
   }
@@ -91,7 +94,7 @@ public class FlinkSideInputReader implements SideInputReader {
   }
 
   @Override
-  public PCollectionView get(String sideInputTag) {
-    return null;
+  public PCollectionView get(String tagId) {
+    return sideInputsMap.get(tagId);
   }
 }

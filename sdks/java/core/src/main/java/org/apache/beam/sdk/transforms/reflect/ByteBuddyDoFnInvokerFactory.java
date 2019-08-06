@@ -794,10 +794,10 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
           @Override
           public StackManipulation dispatch(SideInputParameter p) {
             return new StackManipulation.Compound(
-                    pushDelegate,
+                    new TextConstant(p.fieldAccessString()),
                     MethodInvocation.invoke(
                             getExtraContextFactoryMethodDescription(SIDE_INPUT_PARAMETER_METHOD, String.class)),
-                    TypeCasting.to(new TypeDescription.ForLoadedType(DoFn.SideInput.class)));
+                    TypeCasting.to(new TypeDescription.ForLoadedType(p.elementT().getRawType())));
           }
         });
   }

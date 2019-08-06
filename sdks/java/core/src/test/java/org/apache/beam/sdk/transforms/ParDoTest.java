@@ -1972,10 +1972,10 @@ public class ParDoTest implements Serializable {
       final String stateId = "foo";
 
       final PCollectionView<List<Integer>> listView =
-              pipeline.apply("testing 1", Create.of(1,2,3)).apply(View.asList());
+              pipeline.apply("testing 1", Create.of(2,1,0)).apply(View.asList());
 
-      /*final PCollectionView<List<Integer>> listView1 =
-              pipeline.apply("Create list for side input", Create.of(2, 5, 0)).apply(View.asList());*/
+      final PCollectionView<Integer> listView1 =
+              pipeline.apply("Create list for side input", Create.of(333)).apply(View.asSingleton());
 
       DoFn<KV<String, Integer>, List<Integer>> fn =
           new DoFn<KV<String, Integer>, List<Integer>>() {
@@ -1990,7 +1990,7 @@ public class ParDoTest implements Serializable {
                 @StateId(stateId) BagState<Integer> state,
                 OutputReceiver<List<Integer>> r,
                 @SideInput(TAG_1) List<Integer> tag1,
-                @SideInput(TAG_2) List<Integer> tag2) {
+                @SideInput(TAG_2) Integer tag2) {
               state.add(element.getValue());
 
               Iterable<Integer> currentValue = state.read();
@@ -2002,6 +2002,9 @@ public class ParDoTest implements Serializable {
                 List<Integer> sideSorted = Lists.newArrayList(tag1);
                 Collections.sort(sideSorted);
                 r.output(sideSorted);
+
+                //List<Integer> sideSorted1 = Lists.newArrayList(c.sideInput(tag2));
+               // r.output(sideSorted1);
               }
             }
           };
@@ -2015,7 +2018,7 @@ public class ParDoTest implements Serializable {
                       KV.of("hello", 42),
                       KV.of("hello", 84),
                       KV.of("hello", 12)))
-              .apply(ParDo.of(fn).withSideInput(TAG_1,listView));
+              .apply(ParDo.of(fn).withSideInput(TAG_1,listView).withSideInput(TAG_2,listView1));
 
       PAssert.that(output)
           .containsInAnyOrder(Lists.newArrayList(12, 42, 84, 97), Lists.newArrayList(0, 1, 2));

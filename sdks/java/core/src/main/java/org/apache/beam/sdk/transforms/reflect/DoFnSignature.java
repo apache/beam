@@ -422,8 +422,11 @@ public abstract class DoFnSignature {
       return TIMESTAMP_PARAMETER;
     }
 
-    public static SideInputParameter sideInputParameter() {
-      return new AutoValue_DoFnSignature_Parameter_SideInputParameter();
+    public static SideInputParameter sideInputParameter(TypeDescriptor<?> elementT, @Nullable String fieldAccessString) {
+      return new AutoValue_DoFnSignature_Parameter_SideInputParameter.Builder()
+              .setElementT(elementT)
+              .setFieldAccessString(fieldAccessString)
+              .build();
     }
 
     public static TimeDomainParameter timeDomainParameter() {
@@ -572,6 +575,24 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class SideInputParameter extends Parameter {
       SideInputParameter() {}
+
+      public abstract TypeDescriptor<?> elementT();
+
+      @Nullable
+      public abstract String fieldAccessString();
+
+
+      /** Builder class. */
+      @AutoValue.Builder
+      public abstract static class Builder {
+        public abstract SideInputParameter.Builder setElementT(TypeDescriptor<?> elementT);
+
+        public abstract SideInputParameter.Builder setFieldAccessString(@Nullable String fieldAccess);
+
+        public abstract SideInputParameter build();
+      }
+
+      public abstract SideInputParameter.Builder toBuilder();
     }
 
     /**

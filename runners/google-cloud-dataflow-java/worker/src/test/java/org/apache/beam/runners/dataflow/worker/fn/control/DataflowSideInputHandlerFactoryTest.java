@@ -105,8 +105,8 @@ public final class DataflowSideInputHandlerFactoryTest {
           }
 
           @Override
-          public PCollectionView  get(String sideInputTag) {
-            return null;
+          public PCollectionView get(String sideInputTag) {
+              throw new UnsupportedOperationException("Cannot call get(tagId) inside fakeSideInputReader");
           }
         };
   }

@@ -38,6 +38,7 @@ import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
@@ -80,6 +81,9 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
   /** State tag for the actual contents of each side input per window. */
   private final Map<PCollectionView<?>, StateTag<ValueState<Iterable<?>>>> sideInputContentsTags;
 
+  /** Holds the side input tag id with PCollectionView */
+  private final Map<String, PCollectionView<?>> sideInputsMap;
+
   /**
    * Creates a new {@code SideInputHandler} for the given side inputs that uses the given {@code
    * StateInternals} to store side input data and side-input meta data.
@@ -90,6 +94,7 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
     this.stateInternals = stateInternals;
     this.availableWindowsTags = new HashMap<>();
     this.sideInputContentsTags = new HashMap<>();
+    this.sideInputsMap = new HashMap<>();
 
     for (PCollectionView<?> sideInput : sideInputs) {
       checkArgument(
@@ -119,6 +124,7 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
               "side-input-data-" + sideInput.getTagInternal().getId(),
               (Coder) IterableCoder.of(sideInput.getCoderInternal()));
       sideInputContentsTags.put(sideInput, stateTag);
+      sideInputsMap.put(sideInput.getTagInternal().getId(), sideInput);
     }
   }
 
@@ -201,15 +207,8 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
   }
 
   @Override
-  public PCollectionView get(String sideInputTag) {
-    PCollectionView pCollectionView = null;
-    for (PCollectionView<?> sideInput : sideInputs) {
-      if(sideInput.getTagInternal().getId().equals(sideInputTag)) {
-        pCollectionView = sideInput;
-        break;
-      }
-    }
-    return pCollectionView;
+  public PCollectionView get(String tagId) {
+    return sideInputsMap.get(tagId);
   }
 
   /** For keeping track of the windows for which we have available side input. */

@@ -729,8 +729,8 @@ public class RegisterAndProcessBundleOperationTest {
           }
 
             @Override
-            public PCollectionView get(String sideInputTag) {
-                return null;
+            public PCollectionView get(String tagId) {
+                throw new UnsupportedOperationException("Cannot call get(tagId) inside fakeSideInputReader");
             }
         };
 
