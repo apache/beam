@@ -34,7 +34,6 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.text.MessageFormat;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -71,7 +70,6 @@ import org.apache.beam.runners.dataflow.internal.CustomSources;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
-import org.apache.beam.runners.dataflow.util.TimeUtil;
 import org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingPerStageSystemCounterNames;
 import org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingSystemCounterNames;
 import org.apache.beam.runners.dataflow.worker.SdkHarnessRegistry.SdkWorkerHarness;
@@ -461,6 +459,8 @@ public class StreamingDataflowWorker {
 
   private final ReaderRegistry readerRegistry = ReaderRegistry.defaultRegistry();
   private final SinkRegistry sinkRegistry = SinkRegistry.defaultRegistry();
+
+  private final HotKeyLogger hotKeyLogger = new HotKeyLogger();
 
   /** Contains a few of the stage specific fields. E.g. metrics container registry, counters etc. */
   private static class StageInfo {
@@ -971,21 +971,6 @@ public class StreamingDataflowWorker {
             WindmillTimeUtils.windmillToHarnessWatermark(
                 computationWork.getDependentRealtimeInputWatermark());
         for (final Windmill.WorkItem workItem : computationWork.getWorkList()) {
-          Windmill.HotKeyInfo hotKeyInfo = workItem.getHotKeyInfo();
-          if (hotKeyInfo != null) {
-            String hotKeyAge = TimeUtil.toCloudDuration(
-                Duration.millis(hotKeyInfo.getHotKeyAgeUsec() / 1000));
-
-            // The MapTask instruction is ordered by dependencies, such that the first element is
-            // always going to be the shuffle task.
-            String stepName = computationState.getMapTask().getInstructions().get(0).getName();
-            String message = MessageFormat.format(
-                "A hot key was detected in step ''{0}'' with age of ''{1}''. This is"
-                    + " a symptom of key distribution being skewed. To fix, please inspect your data and "
-                    + "pipeline to ensure that elements are evenly distributed across your key space.",
-                stepName, hotKeyAge);
-            LOG.warn(message);
-          }
           scheduleWorkItem(
               computationState, inputDataWatermark, synchronizedProcessingTime, workItem);
         }
@@ -1037,6 +1022,17 @@ public class StreamingDataflowWorker {
     Preconditions.checkState(
         outputDataWatermark == null || !outputDataWatermark.isAfter(inputDataWatermark));
     SdkWorkerHarness worker = sdkHarnessRegistry.getAvailableWorkerAndAssignWork();
+
+    if (workItem.hasHotKeyInfo()) {
+      Windmill.HotKeyInfo hotKeyInfo = workItem.getHotKeyInfo();
+      Duration hotKeyAge = Duration.millis(hotKeyInfo.getHotKeyAgeUsec() / 1000);
+
+      // The MapTask instruction is ordered by dependencies, such that the first element is
+      // always going to be the shuffle task.
+      String stepName = computationState.getMapTask().getInstructions().get(0).getName();
+      hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge);
+    }
+
     Work work =
         new Work(workItem) {
           @Override
