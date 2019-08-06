@@ -62,7 +62,6 @@ import org.slf4j.LoggerFactory;
 
 /** Unit tests for {@link DataflowWorkProgressUpdater}. */
 @RunWith(JUnit4.class)
-@PrepareForTest({DataflowWorkProgressUpdater.class, LoggerFactory.class})
 public class DataflowWorkProgressUpdaterTest {
 
   private static final long LEASE_MS = 2000;
@@ -254,53 +253,6 @@ public class DataflowWorkProgressUpdaterTest {
     // And nothing happened after that.
     verify(workItemStatusClient, Mockito.atLeastOnce()).uniqueWorkId();
     verifyNoMoreInteractions(workItemStatusClient);
-  }
-
-  @Test
-  public void correctHotKeyMessage() {
-    WorkItemServiceState s = new WorkItemServiceState();
-
-    String m = progressUpdater.getHotKeyMessage(s);
-    assertTrue(m.isEmpty());
-
-    HotKeyDetection hotKeyDetection = new HotKeyDetection();
-    hotKeyDetection.setUserStepName(STEP_ID);
-    hotKeyDetection.setHotKeyAge(HOT_KEY_AGE);
-    s.setHotKeyDetection(hotKeyDetection);
-
-    m = progressUpdater.getHotKeyMessage(s);
-    assertEquals(
-        "A hot key was detected in step 'TEST_STEP_ID' with age of '1s'. This is a "
-            + "symptom of key distribution being skewed. To fix, please inspect your data and "
-            + "pipeline to ensure that elements are evenly distributed across your key space.",
-        m);
-  }
-
-  @Test
-  public void canLogHotKeyMessage() {
-    WorkItemServiceState s = new WorkItemServiceState();
-
-    String m = progressUpdater.getHotKeyMessage(s);
-    assertTrue(m.isEmpty());
-
-    HotKeyDetection hotKeyDetection = new HotKeyDetection();
-    hotKeyDetection.setUserStepName("step");
-    hotKeyDetection.setHotKeyAge(toCloudDuration(Duration.millis(1000)));
-    s.setHotKeyDetection(hotKeyDetection);
-
-    clock.setTime(0L);
-    assertFalse(progressUpdater.shouldLogHotKeyMessage(s));
-
-    // The class throttles every 5 minutes, so the first time it is called is true. The second time
-    // is throttled and returns false.
-    clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(5L).getMillis());
-    assertTrue(progressUpdater.shouldLogHotKeyMessage(s));
-    assertFalse(progressUpdater.shouldLogHotKeyMessage(s));
-
-    // Test that the state variable is set and can log again in 5 minutes.
-    clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(5L).getMillis());
-    assertTrue(progressUpdater.shouldLogHotKeyMessage(s));
-    assertFalse(progressUpdater.shouldLogHotKeyMessage(s));
   }
 
   private WorkItemServiceState generateServiceState(
