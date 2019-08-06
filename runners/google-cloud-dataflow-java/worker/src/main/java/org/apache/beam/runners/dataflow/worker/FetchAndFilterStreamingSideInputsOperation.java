@@ -141,7 +141,7 @@ public class FetchAndFilterStreamingSideInputsOperation<T, W extends BoundedWind
 
     @Override
     public void setTagInternalId(String id) {
-      throw new UnsupportedOperationException("");
+      throw new UnsupportedOperationException();
     }
 
     @Override
