@@ -665,11 +665,9 @@ public class ParDo {
      *
      * <p>See the discussion of Side Inputs above for more explanation.
      */
-    public SingleOutput<InputT, OutputT> withSideInput(String sideInputName, PCollectionView<?> sideInput) {
-      PCollectionView<?> pCollectionView = SerializableUtils.clone(sideInput);
-      pCollectionView.setPCollection(sideInput.getPCollection());
-      pCollectionView.setTagInternalId(sideInputName);
-      return withSideInputs(pCollectionView);
+    public SingleOutput<InputT, OutputT> withSideInput(String tagId, PCollectionView<?> sideInput) {
+      sideInput.setTagInternalId(tagId);
+      return withSideInputs(sideInput);
     }
 
     /**
@@ -813,6 +811,18 @@ public class ParDo {
      */
     public MultiOutput<InputT, OutputT> withSideInputs(PCollectionView<?>... sideInputs) {
       return withSideInputs(Arrays.asList(sideInputs));
+    }
+
+    /**
+     * Returns a new multi-output {@link ParDo} {@link PTransform} that's like this {@link
+     * PTransform} but with the specified additional side inputs. Does not modify this {@link
+     * PTransform}.
+     *
+     * <p>See the discussion of Side Inputs above for more explanation.
+     */
+    public MultiOutput<InputT, OutputT> withSideInput(String tagId, PCollectionView<?> sideInput) {
+      sideInput.setTagInternalId(tagId);
+      return withSideInputs(sideInput);
     }
 
     /**
