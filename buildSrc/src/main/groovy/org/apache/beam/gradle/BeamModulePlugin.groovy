@@ -1921,8 +1921,15 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.ext.toxTask = { name, tox_env ->
         project.tasks.create(name) {
-          dependsOn = [':sdks:python:sdist']
+          dependsOn 'setupVirtualenv'
+          dependsOn ':sdks:python:sdist'
+
           doLast {
+            // Python source directory is also tox execution workspace, We want
+            // to isolate them per tox suite to avoid conflict when running
+            // multiple tox suites in parallel.
+            project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
+
             def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
             def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
             project.exec {
