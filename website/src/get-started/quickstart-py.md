@@ -31,7 +31,7 @@ If you're interested in contributing to the Apache Beam Python codebase, see the
 
 ### Check your Python version
 
-The Beam SDK for Python requires Python version 2.7.x. Check that you have version 2.7.x by running:
+The Beam SDK requires Python 2 users to use Python 2.7 and Python 3 users to use Python 3.5 or higher. Check your version by running:
 
 ```
 python --version
