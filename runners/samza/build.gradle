@@ -40,7 +40,7 @@ configurations {
   validatesRunner
 }
 
-def samza_version = "305.1010.0.10"
+def samza_version = "307.1020.0.22"
 
 dependencies {
   shadow library.java.vendored_guava_20_0

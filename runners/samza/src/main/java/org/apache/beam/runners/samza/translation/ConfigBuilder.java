@@ -35,10 +35,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.samza.config.ApplicationConfig;
 import org.apache.samza.config.Config;
 import org.apache.samza.config.ConfigFactory;
-import org.apache.samza.config.JobConfig;
 import org.apache.samza.config.JobCoordinatorConfig;
 import org.apache.samza.config.MapConfig;
-import org.apache.samza.config.TaskConfig;
 import org.apache.samza.config.ZkConfig;
 import org.apache.samza.config.factories.PropertiesConfigFactory;
 import org.apache.samza.container.grouper.task.SingleContainerGrouperFactory;
@@ -54,6 +52,11 @@ public class ConfigBuilder {
   private static final String APP_RUNNER_CLASS = "app.runner.class";
   private static final String YARN_PACKAGE_PATH = "yarn.package.path";
   private static final String JOB_FACTORY_CLASS = "job.factory.class";
+  // TODO: use Samza's Java config once released
+  private static final String JOB_NAME = "job.name";
+  private static final String JOB_ID = "job.id";
+  private static final String GROUPER_FACTORY = "task.name.grouper.factory";
+  private static final String COMMIT_MS = "task.commit.ms";
 
   private final Map<String, String> config = new HashMap<>();
   private final SamzaPipelineOptions options;
@@ -80,8 +83,8 @@ public class ConfigBuilder {
 
       config.put(ApplicationConfig.APP_NAME, options.getJobName());
       config.put(ApplicationConfig.APP_ID, options.getJobInstance());
-      config.put(JobConfig.JOB_NAME(), options.getJobName());
-      config.put(JobConfig.JOB_ID(), options.getJobInstance());
+      config.put(JOB_NAME, options.getJobName());
+      config.put(JOB_ID, options.getJobInstance());
 
       config.put(
           "beamPipelineOptions",
@@ -196,8 +199,8 @@ public class ConfigBuilder {
         .put(
             JobCoordinatorConfig.JOB_COORDINATOR_FACTORY,
             PassthroughJobCoordinatorFactory.class.getName())
-        .put(TaskConfig.GROUPER_FACTORY(), SingleContainerGrouperFactory.class.getName())
-        .put(TaskConfig.COMMIT_MS(), "-1")
+        .put(GROUPER_FACTORY, SingleContainerGrouperFactory.class.getName())
+        .put(COMMIT_MS, "-1")
         .put("processor.id", "1")
         .build();
   }

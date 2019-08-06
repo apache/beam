@@ -28,10 +28,13 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.commons.io.FileUtils;
-import org.apache.samza.config.JobConfig;
 
 /** Test {@link SamzaRunner}. */
 public class TestSamzaRunner extends PipelineRunner<PipelineResult> {
+  // TODO: use Samza Java configs once upgrade to 1.2.1
+  private static final String JOB_LOGGED_STORE_BASE_DIR = "job.logged.store.base.dir";
+  private static final String JOB_NON_LOGGED_STORE_BASE_DIR = "job.non-logged.store.base.dir";
+
   private final SamzaRunner delegate;
 
   public static TestSamzaRunner fromOptions(PipelineOptions options) {
@@ -51,8 +54,8 @@ public class TestSamzaRunner extends PipelineRunner<PipelineResult> {
         // ignore
       }
 
-      config.put(JobConfig.JOB_LOGGED_STORE_BASE_DIR(), storeDir.getAbsolutePath());
-      config.put(JobConfig.JOB_NON_LOGGED_STORE_BASE_DIR(), storeDir.getAbsolutePath());
+      config.put(JOB_LOGGED_STORE_BASE_DIR, storeDir.getAbsolutePath());
+      config.put(JOB_NON_LOGGED_STORE_BASE_DIR, storeDir.getAbsolutePath());
 
       if (samzaOptions.getConfigOverride() != null) {
         config.putAll(samzaOptions.getConfigOverride());

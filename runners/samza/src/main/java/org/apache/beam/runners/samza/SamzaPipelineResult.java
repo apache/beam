@@ -26,7 +26,6 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.samza.application.StreamApplication;
 import org.apache.samza.config.Config;
-import org.apache.samza.config.TaskConfig;
 import org.apache.samza.job.ApplicationStatus;
 import org.apache.samza.runtime.ApplicationRunner;
 import org.joda.time.Duration;
@@ -38,6 +37,9 @@ public class SamzaPipelineResult implements PipelineResult {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaPipelineResult.class);
   // allow some buffer on top of samza's own shutdown timeout
   private static final long SHUTDOWN_TIMEOUT_BUFFER = 5000L;
+  // TODO: use new Samza Java Configs
+  private static final String TASK_SHUTDOWN_MS = "task.shutdown.ms";
+  private static final long DEFAULT_TASK_SHUTDOWN_MS = 30000L;
 
   private final SamzaExecutionContext executionContext;
   private final ApplicationRunner runner;
@@ -56,8 +58,7 @@ public class SamzaPipelineResult implements PipelineResult {
     this.app = app;
     this.listener = listener;
     this.shutdownTiemoutMs =
-        config.getLong(TaskConfig.SHUTDOWN_MS(), TaskConfig.DEFAULT_SHUTDOWN_MS())
-            + SHUTDOWN_TIMEOUT_BUFFER;
+        config.getLong(TASK_SHUTDOWN_MS, DEFAULT_TASK_SHUTDOWN_MS) + SHUTDOWN_TIMEOUT_BUFFER;
   }
 
   @Override
