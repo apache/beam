@@ -127,40 +127,6 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
     }
   }
 
-  /**
-   * Returns true if the class should log the HotKeyMessage. This method throttles logging to every
-   * 5 minutes.
-   */
-  protected boolean shouldLogHotKeyMessage(WorkItemServiceState workItemServiceState) {
-    String hotKeyMessage = getHotKeyMessage(workItemServiceState);
-    if (hotKeyMessage.isEmpty()) {
-      return false;
-    }
-
-    // Throttle logging the HotKeyDetection to every 5 minutes.
-    long nowMs = clock.currentTimeMillis();
-    if (nowMs - prevHotKeyDetectionLogMs < Duration.standardMinutes(5).getMillis()) {
-      return false;
-    }
-    prevHotKeyDetectionLogMs = nowMs;
-
-    return true;
-  }
-
-  protected String getHotKeyMessage(WorkItemServiceState workItemServiceState) {
-    if (workItemServiceState.getHotKeyDetection() == null
-        || workItemServiceState.getHotKeyDetection().getUserStepName() == null) {
-      return "";
-    }
-
-    HotKeyDetection hotKeyDetection = workItemServiceState.getHotKeyDetection();
-    return MessageFormat.format(
-        "A hot key was detected in step ''{0}'' with age of ''{1}''. This is"
-            + " a symptom of key distribution being skewed. To fix, please inspect your data and "
-            + "pipeline to ensure that elements are evenly distributed across your key space.",
-        hotKeyDetection.getUserStepName(), hotKeyDetection.getHotKeyAge());
-  }
-
   /** Returns the given work unit's lease expiration timestamp. */
   private long getLeaseExpirationTimestamp(WorkItem workItem) {
     return fromCloudTime(workItem.getLeaseExpireTime()).getMillis();
