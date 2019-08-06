@@ -3310,6 +3310,7 @@ public class ParDoTest implements Serializable {
     }
   }
 
+  /** Tests validating SideInput annotation behaviors. */
   @RunWith(JUnit4.class)
   public static class SideInputAnnotationTests extends SharedTestBase implements Serializable {
 
@@ -3322,7 +3323,8 @@ public class ParDoTest implements Serializable {
               .apply("CreateSideInput1", Create.of(2, 1, 0))
               .apply("ViewSideInput1", View.asList());
 
-      final String TAG_1 = "tag1";
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
 
       DoFn<Integer, List<Integer>> fn =
           new DoFn<Integer, List<Integer>>() {
@@ -3331,7 +3333,7 @@ public class ParDoTest implements Serializable {
                 ProcessContext c,
                 @Element Integer element,
                 OutputReceiver<List<Integer>> r,
-                @SideInput(TAG_1) List<Integer> tag1) {
+                @SideInput(sideInputTag1) List<Integer> tag1) {
 
               List<Integer> sideSorted = Lists.newArrayList(tag1);
               Collections.sort(sideSorted);
@@ -3342,7 +3344,7 @@ public class ParDoTest implements Serializable {
       PCollection<List<Integer>> output =
           pipeline
               .apply("Create main input", Create.of(2))
-              .apply(ParDo.of(fn).withSideInput(TAG_1, sideInput1));
+              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
 
       PAssert.that(output).containsInAnyOrder(Lists.newArrayList(0, 1, 2));
       pipeline.run();
