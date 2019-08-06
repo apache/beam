@@ -170,8 +170,13 @@ class AvroFileOperations<ValueT> extends FileOperations<ValueT> {
     }
 
     @Override
-    public ValueT read() throws IOException {
-      return reader.hasNext() ? reader.next() : null;
+    ValueT readNext() {
+      return reader.next();
+    }
+
+    @Override
+    boolean hasNextElement() {
+      return reader.hasNext();
     }
 
     @Override
