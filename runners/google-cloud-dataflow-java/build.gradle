@@ -47,6 +47,9 @@ processResources {
 test {
   systemProperty "beamTestPipelineOptions", ""
   systemProperty "beamUseDummyRunner", "true"
+  useJUnit {
+    excludeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+  }
 }
 
 configurations {
@@ -91,6 +94,7 @@ dependencies {
   testCompile library.java.jackson_dataformat_yaml
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(project.path)
+  validatesRunner project(path: project.path, configuration: "testRuntime")
   validatesRunner library.java.hamcrest_core
   validatesRunner library.java.hamcrest_library
   coreSDKJavaIntegrationTest project(project.path)
@@ -99,10 +103,6 @@ dependencies {
   examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntime")
   googleCloudPlatformIntegrationTest project(project.path)
   googleCloudPlatformIntegrationTest project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
-}
-
-test {
-  systemProperties = [ "beamUseDummyRunner" : "true" ]
 }
 
 def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
@@ -170,7 +170,8 @@ task validatesRunnerLegacyWorkerTest(type: Test) {
   // to the number of CPU cores, but can be increased by setting --max-workers=N.
   maxParallelForks Integer.MAX_VALUE
   classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
+          files(project(project.path).sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     commonExcludeCategories.each {
@@ -196,7 +197,8 @@ task validatesRunnerLegacyWorkerJava11Test(type: Test) {
     // to the number of CPU cores, but can be increased by setting --max-workers=N.
     maxParallelForks Integer.MAX_VALUE
     classpath = configurations.validatesRunner
-    testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
+          files(project(project.path).sourceSets.test.output.classesDirs)
     useJUnit {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
         commonExcludeCategories.each {
@@ -259,7 +261,8 @@ task validatesRunnerFnApiWorkerTest(type: Test) {
   // to the number of CPU cores, but can be increased by setting --max-workers=N.
   maxParallelForks Integer.MAX_VALUE
   classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
+          files(project(project.path).sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     commonExcludeCategories.each {
@@ -290,7 +293,8 @@ task validatesRunnerFnApiWorkerExecutableStageTest(type: Test) {
   // to the number of CPU cores, but can be increased by setting --max-workers=N.
   maxParallelForks Integer.MAX_VALUE
   classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
+          files(project(project.path).sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     commonExcludeCategories.each {
