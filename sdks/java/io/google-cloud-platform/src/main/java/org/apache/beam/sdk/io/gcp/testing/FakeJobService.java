@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.bigquery;
+package org.apache.beam.sdk.io.gcp.testing;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
@@ -66,9 +66,12 @@ import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
+import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.KV;
@@ -469,7 +472,7 @@ public class FakeJobService implements JobService, Serializable {
   private long writeRows(
       String tableId, List<TableRow> rows, TableSchema schema, String destinationPattern)
       throws IOException {
-    Schema avroSchema = BigQueryAvroUtils.toGenericAvroSchema(tableId, schema.getFields());
+    Schema avroSchema = BigQueryUtils.toGenericAvroSchema(tableId, schema.getFields());
     List<TableRow> rowsToWrite = Lists.newArrayList();
     int shard = 0;
     for (TableRow row : rows) {
