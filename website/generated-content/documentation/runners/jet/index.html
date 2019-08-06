@@ -201,8 +201,7 @@
   <li><a href="#overview">Overview</a></li>
   <li><a href="#running-wordcount-with-the-hazelcast-jet-runner">Running WordCount with the Hazelcast Jet Runner</a>
     <ul>
-      <li><a href="#generating-the-beam-examples-project-from-snapshot-versions-of-beam">Generating the Beam examples project from SNAPSHOT versions of Beam</a></li>
-      <li><a href="#generating-the-beam-examples-project-from-released-versions-of-beam">Generating the Beam examples project from RELEASED versions of Beam</a></li>
+      <li><a href="#generating-the-beam-examples-project">Generating the Beam examples project</a></li>
       <li><a href="#running-wordcount-on-a-local-jet-cluster">Running WordCount on a Local Jet Cluster</a></li>
       <li><a href="#running-wordcount-on-a-remote-jet-cluster">Running WordCount on a Remote Jet Cluster</a></li>
     </ul>
@@ -254,41 +253,8 @@ supported capabilities of the Jet Runner.</p>
 
 <h2 id="running-wordcount-with-the-hazelcast-jet-runner">Running WordCount with the Hazelcast Jet Runner</h2>
 
-<h3 id="generating-the-beam-examples-project-from-snapshot-versions-of-beam">Generating the Beam examples project from SNAPSHOT versions of Beam</h3>
-<p>Make sure that your maven config (~/.m2/settings.xml) is set up to have access to the Apache Snapshot Repository. It 
-should contain this:</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>    &lt;repositories&gt;
-      &lt;repository&gt;
-        &lt;id&gt;apache.snapshots&lt;/id&gt;
-        &lt;name&gt;Apache Development Snapshot Repository&lt;/name&gt;
-        &lt;url&gt;https://repository.apache.org/content/repositories/snapshots/&lt;/url&gt;
-        &lt;releases&gt;
-          &lt;enabled&gt;true&lt;/enabled&gt;
-        &lt;/releases&gt;
-        &lt;snapshots&gt;
-          &lt;enabled&gt;true&lt;/enabled&gt;
-        &lt;/snapshots&gt;
-      &lt;/repository&gt;
-    &lt;/repositories&gt;
-</code></pre>
-</div>
-
-<p>Generate the Examples Maven Project just like when the archetype is local:</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>    $ mvn archetype:generate \
-        -DarchetypeGroupId=org.apache.beam \
-        -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
-        -DarchetypeVersion=2.14.0-SNAPSHOT \
-        -DgroupId=org.example \
-        -DartifactId=word-count-beam \
-        -Dversion="0.1" \
-        -Dpackage=org.apache.beam.examples \
-        -DinteractiveMode=false
-</code></pre>
-</div>
-
-<h3 id="generating-the-beam-examples-project-from-released-versions-of-beam">Generating the Beam examples project from RELEASED versions of Beam</h3>
-
-<p>Caution: The released Beam versions don’t contain the Jet Runner yet. The SNAPSHOT version has to be used until Jet is released.</p>
+<h3 id="generating-the-beam-examples-project">Generating the Beam examples project</h3>
+<p>Just follow the instruction from the <a href="/get-started/quickstart-java/#get-the-wordcount-code">Java Quickstart page</a></p>
 
 <h3 id="running-wordcount-on-a-local-jet-cluster">Running WordCount on a Local Jet Cluster</h3>
 <p>Issue following command in the Beam examples project to start new Jet cluster and run the WordCount example on it.</p>
