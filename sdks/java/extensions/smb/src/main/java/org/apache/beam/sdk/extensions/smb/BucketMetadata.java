@@ -187,7 +187,7 @@ public abstract class BucketMetadata<K, V> implements Serializable, HasDisplayDa
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
     try {
       keyCoder.encode(key, baos);
-    } catch (Exception e) {
+    } catch (IOException e) {
       throw new RuntimeException("Could not encode key " + key, e);
     }
 
