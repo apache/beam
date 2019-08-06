@@ -462,7 +462,6 @@ class PipelineTest(unittest.TestCase):
     self.assertEqual(pcoll.element_type, str)
 
 
-
 class DoFnTest(unittest.TestCase):
 
   def test_element(self):
