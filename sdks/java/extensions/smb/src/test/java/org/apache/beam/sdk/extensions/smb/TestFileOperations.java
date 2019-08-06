@@ -23,6 +23,7 @@ import java.io.InputStreamReader;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.Charset;
+import java.util.NoSuchElementException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Compression;
@@ -40,6 +41,7 @@ class TestFileOperations extends FileOperations<String> {
   public Reader<String> createReader() {
     return new Reader<String>() {
       private transient BufferedReader reader;
+      private String next;
 
       @Override
       public void prepareRead(ReadableByteChannel channel) throws IOException {
@@ -49,8 +51,17 @@ class TestFileOperations extends FileOperations<String> {
       }
 
       @Override
-      public String read() throws IOException {
-        return reader.readLine();
+      String readNext() throws NoSuchElementException {
+        if (next == null) {
+          throw new NoSuchElementException();
+        }
+        return next;
+      }
+
+      @Override
+      boolean hasNextElement() throws IOException {
+        next = reader.readLine();
+        return next != null;
       }
 
       @Override

@@ -26,6 +26,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
+import java.util.NoSuchElementException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
@@ -88,6 +89,7 @@ class JsonFileOperations extends FileOperations<TableRow> {
 
     private transient ObjectMapper objectMapper;
     private transient BufferedReader reader;
+    private String next;
 
     @Override
     public void prepareRead(ReadableByteChannel channel) throws IOException {
@@ -98,13 +100,17 @@ class JsonFileOperations extends FileOperations<TableRow> {
     }
 
     @Override
-    public TableRow read() throws IOException {
-      String next = reader.readLine();
+    TableRow readNext() throws IOException, NoSuchElementException {
       if (next == null) {
-        return null;
+        throw new NoSuchElementException();
       }
-
       return objectMapper.readValue(next, TableRow.class);
+    }
+
+    @Override
+    boolean hasNextElement() throws IOException {
+      next = reader.readLine();
+      return next != null;
     }
 
     @Override
