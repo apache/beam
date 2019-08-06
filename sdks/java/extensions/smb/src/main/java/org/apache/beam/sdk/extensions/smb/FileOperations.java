@@ -84,38 +84,38 @@ public abstract class FileOperations<V> implements Serializable, HasDisplayData 
   public abstract static class Reader<V> implements Serializable {
     public abstract void prepareRead(ReadableByteChannel channel) throws IOException;
 
-    /**
-     * Reads next record in the collection. Should return null if EOF is reached. (@Todo: should we
-     * have more clearly defined behavior for EOF?)
-     */
-    public abstract V read() throws IOException;
+    /** Reads next record in the collection. */
+    abstract V readNext() throws IOException, NoSuchElementException;
+
+    abstract boolean hasNextElement() throws IOException;
 
     public abstract void finishRead() throws IOException;
 
-    Iterator<V> iterator() throws IOException {
+    Iterator<V> iterator() {
       return new Iterator<V>() {
-        private V next = read();
 
         @Override
         public boolean hasNext() {
-          return next != null;
+          try {
+            boolean hasNext = hasNextElement();
+
+            if (!hasNext) {
+              finishRead();
+            }
+
+            return hasNext;
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
         }
 
         @Override
         public V next() {
-          if (next == null) {
-            throw new NoSuchElementException();
-          }
-          V result = next;
           try {
-            next = read();
-            if (next == null) {
-              finishRead();
-            }
+            return readNext();
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
-          return result;
         }
       };
     }
