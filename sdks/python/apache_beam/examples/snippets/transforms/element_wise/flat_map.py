@@ -125,6 +125,33 @@ def flat_map_multiple_arguments(test=None):
       test(plants)
 
 
+def flat_map_tuple(test=None):
+  # [START flat_map_tuple]
+  import apache_beam as beam
+
+  def format_plant(icon, plant):
+    if icon:
+      yield '{}{}'.format(icon, plant)
+
+  with beam.Pipeline() as pipeline:
+    plants = (
+        pipeline
+        | 'Gardening plants' >> beam.Create([
+            ('🍓', 'Strawberry'),
+            ('🥕', 'Carrot'),
+            ('🍆', 'Eggplant'),
+            ('🍅', 'Tomato'),
+            ('🥔', 'Potato'),
+            (None, 'Invalid'),
+        ])
+        | 'Format' >> beam.FlatMapTuple(format_plant)
+        | beam.Map(print)
+    )
+    # [END flat_map_tuple]
+    if test:
+      test(plants)
+
+
 def flat_map_side_inputs_singleton(test=None):
   # [START flat_map_side_inputs_singleton]
   import apache_beam as beam
