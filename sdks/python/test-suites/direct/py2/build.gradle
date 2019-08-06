@@ -62,6 +62,7 @@ task directRunnerIT {
 .test_multiple_destinations_transform",
         "apache_beam.io.gcp.bigquery_test:PubSubBigQueryIT",
         "apache_beam.io.gcp.bigquery_file_loads_test:BigQueryFileLoadsIT.test_bqfl_streaming",
+        "apache_beam.runners.interactive.caching.stream_based_cache_it_test",
     ]
     def streamingTestOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
     def argMap = ["runner": "TestDirectRunner",
