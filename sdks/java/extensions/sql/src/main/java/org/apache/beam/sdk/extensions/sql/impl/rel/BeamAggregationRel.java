@@ -24,6 +24,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.io.Serializable;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.AggregationCombineFnAdapter;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -51,6 +52,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
@@ -80,6 +82,26 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
     this.windowFn = windowFn;
     this.windowFieldIndex = windowFieldIndex;
+  }
+
+  @Override
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+
+    NodeStats inputStat = BeamSqlRelUtils.getNodeStats(this.input, mq);
+    inputStat = computeWindowingCostEffect(inputStat);
+
+    // Aggregates with more aggregate functions cost a bit more
+    float multiplier = 1f + (float) aggCalls.size() * 0.125f;
+    for (AggregateCall aggCall : aggCalls) {
+      if (aggCall.getAggregation().getName().equals("SUM")) {
+        // Pretend that SUM costs a little bit more than $SUM0,
+        // to make things deterministic.
+        multiplier += 0.0125f;
+      }
+    }
+
+    return BeamCostModel.FACTORY.makeCost(
+        inputStat.getRowCount() * multiplier, inputStat.getRate() * multiplier);
   }
 
   @Override
