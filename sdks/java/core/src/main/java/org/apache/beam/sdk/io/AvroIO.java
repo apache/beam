@@ -188,6 +188,49 @@ import org.joda.time.Duration;
  * scalability. Note that it may decrease performance if the filepattern matches only a small number
  * of files.
  *
+ * <h3>Inferring Beam schemas from Avro files</h3>
+ *
+ * <p>If you want to use SQL or schema based operations on an Avro-based PCollection, you must
+ * configure the read transform to infer the Beam schema and automatically setup the Beam related
+ * coders by doing:
+ *
+ * <pre>{@code
+ * PCollection<AvroAutoGenClass> records =
+ *     p.apply(AvroIO.read(...).from(...).withBeamSchemas(true);
+ * }</pre>
+ *
+ * <h3>Inferring Beam schemas from Avro PCollections</h3>
+ *
+ * <p>If you created an Avro-based PCollection by other means e.g. reading records from Kafka or as
+ * the output of another PTransform, you may be interested on making your PCollection schema-aware
+ * so you can use the Schema-based APIs or Beam's SqlTransform.
+ *
+ * <p>If you are using Avro specific records (generated classes from an Avro schema), you can
+ * register a schema provider for the specific Avro class to make any PCollection of these objects
+ * schema-aware.
+ *
+ * <pre>{@code
+ * pipeline.getSchemaRegistry().registerSchemaProvider(AvroAutoGenClass.class, AvroAutoGenClass.getClassSchema());
+ * }</pre>
+ *
+ * You can also manually set an Avro-backed Schema coder for a PCollection using {@link
+ * org.apache.beam.sdk.schemas.utils.AvroUtils#schemaCoder(Class, Schema)} to make it schema-aware.
+ *
+ * <pre>{@code
+ * PCollection<AvroAutoGenClass> records = ...
+ * AvroCoder<AvroAutoGenClass> coder = (AvroCoder<AvroAutoGenClass>) users.getCoder();
+ * records.setCoder(AvroUtils.schemaCoder(coder.getType(), coder.getSchema()));
+ * }</pre>
+ *
+ * <p>If you are using GenericRecords you may need to set a specific Beam schema coder for each
+ * PCollection to match their internal Avro schema.
+ *
+ * <pre>{@code
+ * org.apache.avro.Schema avroSchema = ...
+ * PCollection<GenericRecord> records = ...
+ * records.setCoder(AvroUtils.schemaCoder(avroSchema));
+ * }</pre>
+ *
  * <h2>Writing Avro files</h2>
  *
  * <p>To write a {@link PCollection} to one or more Avro files, use {@link AvroIO.Write}, using
@@ -627,6 +670,10 @@ public class AvroIO {
       return toBuilder().setHintMatchesManyFiles(true).build();
     }
 
+    /**
+     * If set to true, a Beam schema will be inferred from the AVRO schema. This allows the output
+     * to be used by SQL and by the schema-transform library.
+     */
     @Experimental(Kind.SCHEMAS)
     public Read<T> withBeamSchemas(boolean withBeamSchemas) {
       return toBuilder().setInferBeamSchema(withBeamSchemas).build();
