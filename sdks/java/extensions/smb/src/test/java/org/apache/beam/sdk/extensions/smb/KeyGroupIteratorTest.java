@@ -162,12 +162,8 @@ public class KeyGroupIteratorTest {
     Assert.assertEquals("a1", vi.next());
     Assert.assertTrue(vi.hasNext());
     Assert.assertThrows(
-        "Previous Iterator<ValueT> not fully iterated",
-        IllegalStateException.class,
-        iterator::hasNext);
+        "Previous Iterator<V> not fully iterated", IllegalStateException.class, iterator::hasNext);
     Assert.assertThrows(
-        "Previous Iterator<ValueT> not fully iterated",
-        IllegalStateException.class,
-        iterator::next);
+        "Previous Iterator<V> not fully iterated", IllegalStateException.class, iterator::next);
   }
 }

@@ -253,7 +253,7 @@ public class SortedBucketSource<FinalKeyT>
         final FinalKeyT groupKey;
         try {
           groupKey = keyCoder.decode(groupKeyBytes);
-        } catch (Exception e) {
+        } catch (IOException e) {
           throw new RuntimeException("Could not decode key bytes for group", e);
         }
         c.output(KV.of(groupKey, new CoGbkResult(resultSchema, valueMap)));
@@ -297,11 +297,7 @@ public class SortedBucketSource<FinalKeyT>
     public Map<TupleTag<?>, PValue> expand() {
       final List<KV<Integer, List<BucketedInput<?, ?>>>> sources = new ArrayList<>();
       for (int i = 0; i < numBuckets; i++) {
-        try {
-          sources.add(KV.of(i, this.sources));
-        } catch (Exception e) {
-          throw new RuntimeException(e);
-        }
+        sources.add(KV.of(i, this.sources));
       }
 
       @SuppressWarnings("unchecked")
@@ -392,7 +388,7 @@ public class SortedBucketSource<FinalKeyT>
           final ResourceId file = fileAssignment.forBucket(BucketShardId.of(i, j), metadata);
           try {
             iterators.add(fileOperations.iterator(file));
-          } catch (Exception e) {
+          } catch (IOException e) {
             throw new RuntimeException(e);
           }
         }

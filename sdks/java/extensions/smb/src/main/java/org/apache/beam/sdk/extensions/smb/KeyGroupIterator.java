@@ -26,16 +26,19 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.PeekingIterator;
 
-// FIXME: current limitation: must exhaust Iterator<ValueT> before starting the next key group
-class KeyGroupIterator<KeyT, ValueT> implements Iterator<KV<KeyT, Iterator<ValueT>>> {
-  private final PeekingIterator<ValueT> iterator;
-  private final Function<ValueT, KeyT> keyFn;
-  private final Comparator<KeyT> keyComparator;
+/**
+ * Converts an {@code Iterator<V>} to an {@code Iterator<KV<K, Iterator<V>>}, grouping values of the
+ * same key. Values in the input iterator must be sorted by key, and values in the output {@code
+ * KV<K, Iterator<V>>} must be exhausted before proceeding to the next key group.
+ */
+class KeyGroupIterator<K, V> implements Iterator<KV<K, Iterator<V>>> {
+  private final PeekingIterator<V> iterator;
+  private final Function<V, K> keyFn;
+  private final Comparator<K> keyComparator;
 
-  private Iterator<ValueT> currentGroup = null;
+  private Iterator<V> currentGroup = null;
 
-  KeyGroupIterator(
-      Iterator<ValueT> iterator, Function<ValueT, KeyT> keyFn, Comparator<KeyT> keyComparator) {
+  KeyGroupIterator(Iterator<V> iterator, Function<V, K> keyFn, Comparator<K> keyComparator) {
     this.iterator = Iterators.peekingIterator(iterator);
     this.keyFn = keyFn;
     this.keyComparator = keyComparator;
@@ -48,18 +51,18 @@ class KeyGroupIterator<KeyT, ValueT> implements Iterator<KV<KeyT, Iterator<Value
   }
 
   @Override
-  public KV<KeyT, Iterator<ValueT>> next() {
+  public KV<K, Iterator<V>> next() {
     checkState();
-    KeyT k = keyFn.apply(iterator.peek());
+    K k = keyFn.apply(iterator.peek());
 
-    Iterator<ValueT> vi =
-        new Iterator<ValueT>() {
+    Iterator<V> vi =
+        new Iterator<V>() {
           @Override
           public boolean hasNext() {
             boolean r;
             if (iterator.hasNext()) {
-              ValueT nextV = iterator.peek();
-              KeyT nextK = keyFn.apply(nextV);
+              V nextV = iterator.peek();
+              K nextK = keyFn.apply(nextV);
               r = keyComparator.compare(k, nextK) == 0;
             } else {
               r = false;
@@ -71,9 +74,9 @@ class KeyGroupIterator<KeyT, ValueT> implements Iterator<KV<KeyT, Iterator<Value
           }
 
           @Override
-          public ValueT next() {
-            ValueT nextV = iterator.peek();
-            KeyT nextK = keyFn.apply(nextV);
+          public V next() {
+            V nextV = iterator.peek();
+            K nextK = keyFn.apply(nextV);
             if (keyComparator.compare(k, nextK) != 0) {
               currentGroup = null;
               throw new NoSuchElementException();
@@ -88,6 +91,6 @@ class KeyGroupIterator<KeyT, ValueT> implements Iterator<KV<KeyT, Iterator<Value
   }
 
   private void checkState() {
-    Preconditions.checkState(currentGroup == null, "Previous Iterator<ValueT> not fully iterated");
+    Preconditions.checkState(currentGroup == null, "Previous Iterator<V> not fully iterated");
   }
 }
