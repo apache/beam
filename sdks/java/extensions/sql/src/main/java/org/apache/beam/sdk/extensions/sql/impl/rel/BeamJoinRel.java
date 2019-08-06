@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamJoinTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -57,6 +58,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
@@ -133,6 +135,15 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     } else {
       return BeamRelNode.super.getPCollectionInputs();
     }
+  }
+
+  @Override
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+    NodeStats leftEstimates = BeamSqlRelUtils.getNodeStats(this.left, mq);
+    NodeStats rightEstimates = BeamSqlRelUtils.getNodeStats(this.right, mq);
+    NodeStats selfEstimates = BeamSqlRelUtils.getNodeStats(this, mq);
+    NodeStats summation = selfEstimates.plus(leftEstimates).plus(rightEstimates);
+    return BeamCostModel.FACTORY.makeCost(summation.getRowCount(), summation.getRate());
   }
 
   @Override
