@@ -80,7 +80,7 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
   /** State tag for the actual contents of each side input per window. */
   private final Map<PCollectionView<?>, StateTag<ValueState<Iterable<?>>>> sideInputContentsTags;
 
-  /** Holds the side input tag id with PCollectionView */
+  /** Holds the side input tag id with PCollectionView. */
   private final Map<String, PCollectionView<?>> sideInputsMap;
 
   /**
