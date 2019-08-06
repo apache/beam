@@ -34,7 +34,7 @@ spec:
         fsGroup: 1000
       containers:
       - name: beamgrafana
-        image: gcr.io/apache-beam-testing/beamgrafana:v20190729
+        image: gcr.io/apache-beam-testing/beamgrafana:20190806
         securityContext:
           runAsUser: 0
         env:
@@ -85,26 +85,26 @@ spec:
             mountPath: /secrets/cloudsql
             readOnly: true
       - name: beammetricssyncjenkins
-        image: gcr.io/apache-beam-testing/beammetricssyncjenkins:v20190729
+        image: gcr.io/apache-beam-testing/beammetricssyncjenkins:20190806
         env:
-          - name: JENSYNC_HOST
+          - name: DB_HOST
             value: 127.0.0.1
-          - name: JENSYNC_PORT
+          - name: DB_PORT
             value: "5432"
-          - name: JENSYNC_DBNAME
+          - name: DB_DBNAME
             value: beammetrics
-          - name: JENSYNC_DBUSERNAME
+          - name: DB_DBUSERNAME
             valueFrom:
               secretKeyRef:
                 name: beammetrics-psql-db-credentials
                 key: username
-          - name: JENSYNC_DBPWD
+          - name: DB_DBPWD
             valueFrom:
               secretKeyRef:
                 name: beammetrics-psql-db-credentials
                 key: password
       - name: beammetricssyncjira
-        image: gcr.io/apache-beam-testing/beammetricssyncjira:v20190729
+        image: gcr.io/apache-beam-testing/beammetricssyncjira:20190806
         env:
           - name: DB_HOST
             value: 127.0.0.1
@@ -123,7 +123,7 @@ spec:
                 name: beammetrics-psql-db-credentials
                 key: password
       - name: beammetricssyncgithub
-        image: gcr.io/apache-beam-testing/beammetricssyncgithub:v20190729
+        image: gcr.io/apache-beam-testing/beammetricssyncgithub:20190806
         env:
           - name: DB_HOST
             value: 127.0.0.1
