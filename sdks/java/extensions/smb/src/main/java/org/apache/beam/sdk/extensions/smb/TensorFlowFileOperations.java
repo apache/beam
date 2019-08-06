@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.smb;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.NoSuchElementException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.Compression;
@@ -82,17 +83,26 @@ class TensorFlowFileOperations extends FileOperations<Example> {
 
     private transient TFRecordIO.TFRecordCodec codec;
     private transient ReadableByteChannel channel;
+    private byte[] next;
 
     @Override
-    public void prepareRead(ReadableByteChannel channel) throws IOException {
+    public void prepareRead(ReadableByteChannel channel) {
       this.codec = new TFRecordIO.TFRecordCodec();
       this.channel = channel;
     }
 
     @Override
-    public Example read() throws IOException {
-      final byte[] bytes = codec.read(channel);
-      return bytes == null ? null : Example.parseFrom(bytes);
+    Example readNext() throws IOException, NoSuchElementException {
+      if (next == null) {
+        throw new NoSuchElementException();
+      }
+      return Example.parseFrom(next);
+    }
+
+    @Override
+    boolean hasNextElement() throws IOException {
+      next = codec.read(channel);
+      return next != null;
     }
 
     @Override
