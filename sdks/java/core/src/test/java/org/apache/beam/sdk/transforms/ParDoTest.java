@@ -43,8 +43,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -1968,7 +1966,7 @@ public class ParDoTest implements Serializable {
     public void testBagStateSideInput() {
 
       final PCollectionView<List<Integer>> listView =
-              pipeline.apply("Create list for side input", Create.of(2, 1, 0)).apply(View.asList());
+          pipeline.apply("Create list for side input", Create.of(2, 1, 0)).apply(View.asList());
       final String stateId = "foo";
       DoFn<KV<String, Integer>, List<Integer>> fn =
           new DoFn<KV<String, Integer>, List<Integer>>() {
@@ -3320,37 +3318,33 @@ public class ParDoTest implements Serializable {
     public void testSideInputAnnotation() {
 
       final PCollectionView<List<Integer>> sideInput1 =
-              pipeline.
-                      apply("CreateSideInput1", Create.of(2, 1, 0)).
-                      apply("ViewSideInput1", View.asList());
+          pipeline
+              .apply("CreateSideInput1", Create.of(2, 1, 0))
+              .apply("ViewSideInput1", View.asList());
 
       final String TAG_1 = "tag1";
 
       DoFn<Integer, List<Integer>> fn =
-              new DoFn<Integer, List<Integer>>() {
-                @ProcessElement
-                public void processElement(
-                        ProcessContext c,
-                        @Element Integer element,
-                        OutputReceiver<List<Integer>> r,
-                        @SideInput(TAG_1) List<Integer> tag1) {
+          new DoFn<Integer, List<Integer>>() {
+            @ProcessElement
+            public void processElement(
+                ProcessContext c,
+                @Element Integer element,
+                OutputReceiver<List<Integer>> r,
+                @SideInput(TAG_1) List<Integer> tag1) {
 
-                  List<Integer> sideSorted = Lists.newArrayList(tag1);
-                  Collections.sort(sideSorted);
-                  r.output(sideSorted);
-
-                }
-              };
+              List<Integer> sideSorted = Lists.newArrayList(tag1);
+              Collections.sort(sideSorted);
+              r.output(sideSorted);
+            }
+          };
 
       PCollection<List<Integer>> output =
-              pipeline
-                      .apply(
-                              "Create main input",
-                              Create.of(2))
-                      .apply(ParDo.of(fn).withSideInput(TAG_1,sideInput1));
+          pipeline
+              .apply("Create main input", Create.of(2))
+              .apply(ParDo.of(fn).withSideInput(TAG_1, sideInput1));
 
-      PAssert.that(output)
-              .containsInAnyOrder(Lists.newArrayList(0, 1, 2));
+      PAssert.that(output).containsInAnyOrder(Lists.newArrayList(0, 1, 2));
       pipeline.run();
     }
   }

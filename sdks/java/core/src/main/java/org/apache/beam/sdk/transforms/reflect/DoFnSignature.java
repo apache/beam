@@ -422,11 +422,12 @@ public abstract class DoFnSignature {
       return TIMESTAMP_PARAMETER;
     }
 
-    public static SideInputParameter sideInputParameter(TypeDescriptor<?> elementT, @Nullable String fieldAccessString) {
+    public static SideInputParameter sideInputParameter(
+        TypeDescriptor<?> elementT, @Nullable String fieldAccessString) {
       return new AutoValue_DoFnSignature_Parameter_SideInputParameter.Builder()
-              .setElementT(elementT)
-              .setFieldAccessString(fieldAccessString)
-              .build();
+          .setElementT(elementT)
+          .setFieldAccessString(fieldAccessString)
+          .build();
     }
 
     public static TimeDomainParameter timeDomainParameter() {
@@ -581,13 +582,13 @@ public abstract class DoFnSignature {
       @Nullable
       public abstract String fieldAccessString();
 
-
       /** Builder class. */
       @AutoValue.Builder
       public abstract static class Builder {
         public abstract SideInputParameter.Builder setElementT(TypeDescriptor<?> elementT);
 
-        public abstract SideInputParameter.Builder setFieldAccessString(@Nullable String fieldAccess);
+        public abstract SideInputParameter.Builder setFieldAccessString(
+            @Nullable String fieldAccess);
 
         public abstract SideInputParameter build();
       }
@@ -763,9 +764,9 @@ public abstract class DoFnSignature {
     @Nullable
     public List<Parameter.SideInputParameter> getSideInputParameters() {
       return extraParameters().stream()
-              .filter(Predicates.instanceOf(Parameter.SideInputParameter.class)::apply)
-              .map(Parameter.SideInputParameter.class::cast)
-              .collect(Collectors.toList());
+          .filter(Predicates.instanceOf(Parameter.SideInputParameter.class)::apply)
+          .map(Parameter.SideInputParameter.class::cast)
+          .collect(Collectors.toList());
     }
 
     /** The {@link OutputReceiverParameter} for a main output, or null if there is none. */

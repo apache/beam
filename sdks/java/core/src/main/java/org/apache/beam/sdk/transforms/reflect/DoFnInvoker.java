@@ -34,7 +34,6 @@ import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.Instant;
 
@@ -136,9 +135,7 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a reference to the input element. */
     InputT element(DoFn<InputT, OutputT> doFn);
 
-    /**
-     * Provide a reference to the input sideInput.
-     */
+    /** Provide a reference to the input sideInput. */
     Object sideInput(String sideInputTag);
 
     /**
@@ -199,11 +196,10 @@ public interface DoFnInvoker<InputT, OutputT> {
     @Override
     public InputT sideInput(String sideInputTag) {
       throw new UnsupportedOperationException(
-              String.format(
-                      "Should never call non-overridden methods of %s",
-                      FakeArgumentProvider.class.getSimpleName()));
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
     }
-
 
     @Override
     public InputT schemaElement(int index) {

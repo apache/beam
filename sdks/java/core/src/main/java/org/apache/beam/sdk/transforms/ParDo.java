@@ -57,7 +57,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.NameUtils;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -565,10 +564,7 @@ public class ParDo {
     }
   }
 
-  public void test() {
-
-
-  }
+  public void test() {}
 
   /**
    * Extract information on how the DoFn uses schemas. In particular, if the schema of an element

@@ -235,7 +235,7 @@ public class View {
           input.apply(new VoidKeyToMultimapMaterialization<>());
       PCollectionView<List<T>> view =
           PCollectionViews.listView(
-                  materializationInput, materializationInput.getWindowingStrategy());
+              materializationInput, materializationInput.getWindowingStrategy());
       materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
