@@ -20,7 +20,6 @@ package org.apache.beam.runners.core;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -305,7 +304,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public InputT sideInput(String tagId) {
       throw new UnsupportedOperationException(
-              "SideInput parameters are not supported outside of @ProcessElement method.");
+          "SideInput parameters are not supported outside of @ProcessElement method.");
     }
 
     @Override
@@ -425,7 +424,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public InputT sideInput(String tagId) {
       throw new UnsupportedOperationException(
-              "Cannot access sideInput outside of @ProcessElement method.");
+          "Cannot access sideInput outside of @ProcessElement method.");
     }
 
     @Override
@@ -649,7 +648,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       return sideInput(SimpleDoFnRunner.this.sideInputReader.get(tagId));
     }
 
-
     @Override
     public Object schemaElement(int index) {
       SerializableFunction converter = doFnSchemaInformation.getElementConverters().get(index);
@@ -687,6 +685,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       throw new UnsupportedOperationException(
           "Cannot access OnTimerContext outside of @OnTimer methods.");
     }
+
     @Override
     public RestrictionTracker<?, ?> restrictionTracker() {
       throw new UnsupportedOperationException("RestrictionTracker parameters are not supported.");
@@ -803,7 +802,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public Object sideInput(String tagId) {
       throw new UnsupportedOperationException("SideInput parameters are not supported.");
     }
-
 
     @Override
     public Object schemaElement(int index) {

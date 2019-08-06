@@ -401,7 +401,6 @@ public class FnApiDoFnRunner<InputT, OutputT>
       throw new UnsupportedOperationException("hello world");
     }
 
-
     @Override
     public Object schemaElement(int index) {
       SerializableFunction converter = doFnSchemaInformation.getElementConverters().get(index);
@@ -590,7 +589,6 @@ public class FnApiDoFnRunner<InputT, OutputT>
     public InputT sideInput(String tagId) {
       throw new UnsupportedOperationException("SideInput parameters are not supported.");
     }
-
 
     @Override
     public Object schemaElement(int index) {

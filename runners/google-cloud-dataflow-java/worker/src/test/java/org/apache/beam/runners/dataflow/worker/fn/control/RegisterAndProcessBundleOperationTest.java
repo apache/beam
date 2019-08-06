@@ -728,10 +728,11 @@ public class RegisterAndProcessBundleOperationTest {
             return false;
           }
 
-            @Override
-            public PCollectionView get(String tagId) {
-                throw new UnsupportedOperationException("Cannot call get(tagId) inside fakeSideInputReader");
-            }
+          @Override
+          public PCollectionView get(String tagId) {
+            throw new UnsupportedOperationException(
+                "Cannot call get(tagId) inside fakeSideInputReader");
+          }
         };
 
     RegisterAndProcessBundleOperation operation =

@@ -95,7 +95,8 @@ public class RunnerPCollectionView<T> extends PValueBase implements PCollectionV
   @Override
   public void setTagInternalId(String id) {
     throw new UnsupportedOperationException(
-            String.format("set tagInternalId cannot be called", RunnerPCollectionView.class.getSimpleName()));
+        String.format(
+            "set tagInternalId cannot be called on %s", RunnerPCollectionView.class.getSimpleName()));
   }
 
   @Override
