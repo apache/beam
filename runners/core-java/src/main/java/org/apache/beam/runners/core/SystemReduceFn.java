@@ -48,9 +48,10 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
    */
   public static <K, T, W extends BoundedWindow>
       SystemReduceFn<K, T, Iterable<T>, Iterable<T>, W> buffering(final Coder<T> inputCoder) {
+    // accumulating
     final StateTag<BagState<T>> bufferTag =
         StateTags.makeSystemTagInternal(StateTags.bag(BUFFER_NAME, inputCoder));
-    // retracting and accumulating
+    // accumulating
     final StateTag<BagState<T>> bufferRetractionTag =
         StateTags.makeSystemTagInternal(StateTags.bag(BUFFER_RETRACTION, inputCoder));
 
@@ -135,24 +136,31 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
   public void processValue(ProcessValueContext c) throws Exception {
     // TODO: this is a performance regression. We should have better idea on how to update
     // retraction state.
-    c.state().access(bufferRetractionTag).clear();
-
     c.state().access(bufferTag).add(c.value());
   }
 
   @Override
   public void prefetchOnTrigger(StateAccessor<K> state) {
     state.access(bufferTag).readLater();
+    state.access(bufferRetractionTag).readLater();
   }
 
   @Override
   public void onTrigger(OnTriggerContext c) throws Exception {
     c.output(c.state().access(bufferTag).read());
+    if (!c.state().access(bufferRetractionTag).isEmpty().read()) {
+      c.outputRetraction(c.state().access(bufferRetractionTag).read());
+      c.state().access(bufferRetractionTag).clear();
+    }
+
+    Iterable<InputT> iterable = (Iterable<InputT>) c.state().access(bufferTag).read();
+    iterable.forEach(elem -> c.state().access(bufferRetractionTag).add(elem));
   }
 
   @Override
   public void clearState(Context c) throws Exception {
     c.state().access(bufferTag).clear();
+    c.state().access(bufferRetractionTag).clear();
   }
 
   @Override

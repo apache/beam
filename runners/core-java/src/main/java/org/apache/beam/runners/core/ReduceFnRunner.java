@@ -1066,6 +1066,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
                 @Override
                 public void outputRetraction(OutputT toOutput) {
                   // TODO: do something
+                  if (!isFinished) {
+                    paneInfoTracker.storeCurrentPaneInfo(directContext, pane);
+                  }
+
+                  outputter.outputWindowedRetraction(
+                      KV.of(key, toOutput), outputTimestamp, windows, pane);
                 }
               });
 
