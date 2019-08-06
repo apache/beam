@@ -173,7 +173,7 @@ public class AvroUtilsTest {
             "",
             null);
 
-    org.apache.avro.Schema.Field avroField = AvroUtils.toAvroField(beamField);
+    org.apache.avro.Schema.Field avroField = AvroUtils.toAvroField(beamField, "ignored");
     assertEquals(expectedAvroField, avroField);
   }
 
@@ -188,7 +188,8 @@ public class AvroUtilsTest {
   }
 
   private static org.apache.avro.Schema getAvroSubSchema(String name) {
-    return org.apache.avro.Schema.createRecord(name, null, null, false, getAvroSubSchemaFields());
+    return org.apache.avro.Schema.createRecord(
+        name, null, "topLevelRecord", false, getAvroSubSchemaFields());
   }
 
   private static org.apache.avro.Schema getAvroSchema() {
@@ -340,10 +341,57 @@ public class AvroUtilsTest {
 
   @Test
   public void testAvroSchemaFromBeamSchemaCanBeParsed() {
-    Schema beamSchema = getBeamSchema();
-    String stringSchema = AvroUtils.toAvroSchema(getBeamSchema()).toString();
-    org.apache.avro.Schema schema = new org.apache.avro.Schema.Parser().parse(stringSchema);
-    assertEquals(stringSchema, schema.toString());
+    org.apache.avro.Schema convertedSchema = AvroUtils.toAvroSchema(getBeamSchema());
+    org.apache.avro.Schema validatedSchema =
+        new org.apache.avro.Schema.Parser().parse(convertedSchema.toString());
+    assertEquals(convertedSchema, validatedSchema);
+  }
+
+  @Test
+  public void testAvroSchemaFromBeamSchemaWithFieldCollisionCanBeParsed() {
+
+    // Two similar schemas, the only difference is the "street" field type in the nested record.
+    Schema contact =
+        new Schema.Builder()
+            .addField(Field.of("name", FieldType.STRING))
+            .addField(
+                Field.of(
+                    "address",
+                    FieldType.row(
+                        new Schema.Builder()
+                            .addField(Field.of("street", FieldType.STRING))
+                            .addField(Field.of("city", FieldType.STRING))
+                            .build())))
+            .build();
+
+    Schema contactMultiline =
+        new Schema.Builder()
+            .addField(Field.of("name", FieldType.STRING))
+            .addField(
+                Field.of(
+                    "address",
+                    FieldType.row(
+                        new Schema.Builder()
+                            .addField(Field.of("street", FieldType.array(FieldType.STRING)))
+                            .addField(Field.of("city", FieldType.STRING))
+                            .build())))
+            .build();
+
+    // Ensure that no collisions happen between two sibling fields with same-named child fields
+    // (with different schemas, between a parent field and a sub-record field with the same name,
+    // and artificially with the generated field name.
+    Schema beamSchema =
+        new Schema.Builder()
+            .addField(Field.of("home", FieldType.row(contact)))
+            .addField(Field.of("work", FieldType.row(contactMultiline)))
+            .addField(Field.of("address", FieldType.row(contact)))
+            .addField(Field.of("topLevelRecord", FieldType.row(contactMultiline)))
+            .build();
+
+    org.apache.avro.Schema convertedSchema = AvroUtils.toAvroSchema(beamSchema);
+    org.apache.avro.Schema validatedSchema =
+        new org.apache.avro.Schema.Parser().parse(convertedSchema.toString());
+    assertEquals(convertedSchema, validatedSchema);
   }
 
   @Test
@@ -469,7 +517,10 @@ public class AvroUtilsTest {
             false,
             getAvroSubSchemaFields());
     GenericRecord record =
-        new GenericRecordBuilder(getAvroSubSchema("simple")).set("bool", true).set("int", 42).build();
+        new GenericRecordBuilder(getAvroSubSchema("simple"))
+            .set("bool", true)
+            .set("int", 42)
+            .build();
 
     PCollection<GenericRecord> records =
         pipeline.apply(Create.of(record).withCoder(AvroCoder.of(schema)));
