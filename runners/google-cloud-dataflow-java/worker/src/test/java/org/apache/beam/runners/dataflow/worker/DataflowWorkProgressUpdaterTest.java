@@ -23,8 +23,6 @@ import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.clo
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.toDynamicSplitRequest;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.isA;
 import static org.mockito.Matchers.isNull;
 import static org.mockito.Mockito.atLeastOnce;
@@ -57,8 +55,6 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.slf4j.LoggerFactory;
 
 /** Unit tests for {@link DataflowWorkProgressUpdater}. */
 @RunWith(JUnit4.class)
