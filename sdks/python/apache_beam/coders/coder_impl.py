@@ -34,13 +34,19 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 from __future__ import division
 
+import json
 from builtins import chr
 from builtins import object
+from io import BytesIO
 
+from fastavro import parse_schema
+from fastavro import schemaless_reader
+from fastavro import schemaless_writer
 from past.builtins import unicode as past_unicode
 from past.builtins import long
 
 from apache_beam.coders import observable
+from apache_beam.coders.avro_record import AvroRecord
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
@@ -655,6 +661,23 @@ class AbstractComponentCoderImpl(StreamCoderImpl):
       estimated_size += child_size
       observables += child_observables
     return estimated_size, observables
+
+
+class AvroCoderImpl(SimpleCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
+
+  def __init__(self, schema):
+    self.parsed_schema = parse_schema(json.loads(schema))
+
+  def encode(self, value):
+    assert issubclass(type(value), AvroRecord)
+    with BytesIO() as buf:
+      schemaless_writer(buf, self.parsed_schema, value.record)
+      return buf.getvalue()
+
+  def decode(self, encoded):
+    with BytesIO(encoded) as buf:
+      return AvroRecord(schemaless_reader(buf, self.parsed_schema))
 
 
 class TupleCoderImpl(AbstractComponentCoderImpl):
