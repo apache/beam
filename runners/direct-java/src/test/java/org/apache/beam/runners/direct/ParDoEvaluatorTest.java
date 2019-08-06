@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
@@ -202,8 +203,8 @@ public class ParDoEvaluatorTest {
     }
 
     @Override
-    public PCollectionView get(String sideInputTag) {
-      return null;
+    public PCollectionView get(String tagId) {
+      throw new NoSuchElementException();
     }
 
     @Override

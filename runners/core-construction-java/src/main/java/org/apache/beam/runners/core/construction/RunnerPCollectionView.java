@@ -39,7 +39,7 @@ public class RunnerPCollectionView<T> extends PValueBase implements PCollectionV
   private final WindowMappingFn<?> windowMappingFn;
   private final @Nullable WindowingStrategy<?, ?> windowingStrategy;
   private final @Nullable Coder<?> coder;
-  private final transient @Nullable PCollection<?> pCollection;
+  private transient @Nullable PCollection<?> pCollection;
 
   /** Create a new {@link RunnerPCollectionView} from the provided components. */
   public RunnerPCollectionView(
@@ -60,6 +60,11 @@ public class RunnerPCollectionView<T> extends PValueBase implements PCollectionV
   @Override
   public PCollection<?> getPCollection() {
     return pCollection;
+  }
+
+  @Override
+  public void setPCollection(PCollection<?> pCollectionData) {
+    pCollection = pCollectionData;
   }
 
   @Override

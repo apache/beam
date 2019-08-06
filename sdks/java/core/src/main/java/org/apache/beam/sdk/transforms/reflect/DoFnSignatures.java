@@ -899,7 +899,8 @@ public class DoFnSignatures {
     } else if (rawType.equals(TimeDomain.class)) {
       return Parameter.timeDomainParameter();
     } else if (hasSideInputAnnotation(param.getAnnotations())) {
-      return Parameter.sideInputParameter();
+      String sideInputAccessString = getSideInputId(param.getAnnotations());
+      return Parameter.sideInputParameter(paramT, sideInputAccessString);
     } else if (rawType.equals(PaneInfo.class)) {
       return Parameter.paneInfoParameter();
     } else if (rawType.equals(DoFn.ProcessContext.class)) {

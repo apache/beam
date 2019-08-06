@@ -90,7 +90,7 @@ public class CachedSideInputReader implements SideInputReader {
   }
 
   @Override
-  public PCollectionView get(String sideInputTag) {
-    return null;
+  public PCollectionView get(String tagId) {
+    return delegate.get(tagId);
   }
 }

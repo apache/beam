@@ -169,7 +169,7 @@ public class SplittableParDoProcessFnTest {
 
                 @Override
                 public PCollectionView get(String sideInputTag) {
-                  return null;
+                  throw new NoSuchElementException();
                 }
               },
               Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory()),

@@ -244,10 +244,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     return sideInputReader.get(view, sideInputWindow);
   }
 
-  private PCollectionView sideInput(String sideInputTag) {
-    return sideInputReader.get(sideInputTag);
-  }
-
   private <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedElem) {
     checkArgument(outputTags.contains(tag), "Unknown output tag %s", tag);
     outputManager.output(tag, windowedElem);
@@ -650,7 +646,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public Object sideInput(String sideInputTag) {
-      return SimpleDoFnRunner.this.sideInputReader.get(sideInputTag);
+      return sideInput(SimpleDoFnRunner.this.sideInputReader.get(sideInputTag));
     }
 
 

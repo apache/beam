@@ -76,6 +76,11 @@ public class DataflowPortabilityPCollectionView<K, V, W extends BoundedWindow>
   }
 
   @Override
+  public void setPCollection(PCollection<?> pCollection) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public TupleTag<KV<K, V>> getTagInternal() {
     return tag;
   }
@@ -105,7 +110,7 @@ public class DataflowPortabilityPCollectionView<K, V, W extends BoundedWindow>
     public MultimapView<K, V> apply(MultimapView<K, V> o) {
       return o;
     }
-  };
+  }
 
   @Override
   public WindowMappingFn<?> getWindowMappingFn() {

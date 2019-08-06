@@ -195,8 +195,8 @@ public class FnApiStateAccessor implements SideInputReader, StateBinder {
   }
 
   @Override
-  public PCollectionView get(String sideInputTag) {
-    return null;
+  public PCollectionView get(String tagId) {
+    throw new UnsupportedOperationException();
   }
 
   @Override

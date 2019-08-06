@@ -60,6 +60,7 @@ class SideInputContainer {
   private final LoadingCache<
           PCollectionViewWindow<?>, AtomicReference<Iterable<? extends WindowedValue<?>>>>
       viewByWindows;
+  private final Map<String, PCollectionView<?>> sideInputsMap;
 
   /** Create a new {@link SideInputContainer} with the provided views and the provided context. */
   public static SideInputContainer create(
@@ -85,6 +86,10 @@ class SideInputContainer {
           viewByWindows) {
     this.containedViews = ImmutableSet.copyOf(containedViews);
     this.viewByWindows = viewByWindows;
+    this.sideInputsMap = new HashMap<>();
+    for (PCollectionView<?> pCollectionView : containedViews) {
+      sideInputsMap.put(pCollectionView.getTagInternal().getId(), pCollectionView);
+    }
   }
 
   /**
@@ -272,13 +277,8 @@ class SideInputContainer {
     }
 
     @Override
-    public PCollectionView get(String sideInputTag) {
-      for(PCollectionView pCollectionView : containedViews) {
-        if(pCollectionView.getTagInternal().getId().equals(sideInputTag)) {
-          return pCollectionView;
-        }
-      }
-      return null;
+    public PCollectionView get(String tagId) {
+      return sideInputsMap.get(tagId);
     }
   }
 
