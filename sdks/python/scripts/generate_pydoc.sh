@@ -135,6 +135,7 @@ ignore_identifiers = [
   'List',
   'Set',
   'Tuple',
+  'Callable',
 
   # Ignore broken built-in type references
   'tuple',
