@@ -441,7 +441,7 @@ public class TestPipeline extends Pipeline implements TestRule {
   public static PipelineOptions testingPipelineOptions() {
     try {
       @Nullable
-      String beamTestPipelineOptions = null; //System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS);
+      String beamTestPipelineOptions = System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS);
 
       PipelineOptions options =
           Strings.isNullOrEmpty(beamTestPipelineOptions)

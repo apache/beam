@@ -440,7 +440,6 @@ public class PCollectionViews {
       this.tag = new TupleTag<>(id);
     }
 
-
     @Override
     public int hashCode() {
       return Objects.hash(tag);

@@ -79,6 +79,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PaneInfoPa
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StartBundleContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TaggedOutputReceiverParameter;
@@ -89,10 +90,8 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowPara
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Primitives;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
 
 /** Dynamically generates a {@link DoFnInvoker} instances for invoking a {@link DoFn}. */
 public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
@@ -794,10 +793,11 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
           @Override
           public StackManipulation dispatch(SideInputParameter p) {
             return new StackManipulation.Compound(
-                    new TextConstant(p.fieldAccessString()),
-                    MethodInvocation.invoke(
-                            getExtraContextFactoryMethodDescription(SIDE_INPUT_PARAMETER_METHOD, String.class)),
-                    TypeCasting.to(new TypeDescription.ForLoadedType(p.elementT().getRawType())));
+                new TextConstant(p.fieldAccessString()),
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        SIDE_INPUT_PARAMETER_METHOD, String.class)),
+                TypeCasting.to(new TypeDescription.ForLoadedType(p.elementT().getRawType())));
           }
         });
   }
