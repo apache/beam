@@ -136,7 +136,7 @@ public interface DoFnInvoker<InputT, OutputT> {
     InputT element(DoFn<InputT, OutputT> doFn);
 
     /** Provide a reference to the input sideInput. */
-    Object sideInput(String sideInputTag);
+    Object sideInput(String tagId);
 
     /**
      * Provide a reference to the selected schema field corresponding to the input argument
@@ -194,7 +194,7 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public InputT sideInput(String sideInputTag) {
+    public InputT sideInput(String tagId) {
       throw new UnsupportedOperationException(
           String.format(
               "Should never call non-overridden methods of %s",

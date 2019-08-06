@@ -397,7 +397,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
     }
 
     @Override
-    public Object sideInput(String sideInputTag) {
+    public Object sideInput(String tagId) {
       throw new UnsupportedOperationException("hello world");
     }
 
@@ -587,7 +587,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
     }
 
     @Override
-    public InputT sideInput(String sideInputTag) {
+    public InputT sideInput(String tagId) {
       throw new UnsupportedOperationException("SideInput parameters are not supported.");
     }
 

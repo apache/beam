@@ -24,7 +24,6 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -515,7 +514,7 @@ public class ParDo {
    */
   private static <InputT, OutputT> void validateWindowType(
       PCollection<? extends InputT> input, DoFn<InputT, OutputT> fn) {
-    DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
+    DoFnSignature signature = DoFnSignatures.getSignature((Class) fn.getClass());
 
     TypeDescriptor<? extends BoundedWindow> actualWindowT =
         input.getWindowingStrategy().getWindowFn().getWindowTypeDescriptor();
@@ -545,7 +544,7 @@ public class ParDo {
    * correctly and that its features can be supported.
    */
   private static <InputT, OutputT> void validate(DoFn<InputT, OutputT> fn) {
-    DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
+    DoFnSignature signature = DoFnSignatures.getSignature((Class) fn.getClass());
 
     // State is semantically incompatible with splitting
     if (!signature.stateDeclarations().isEmpty() && signature.processElement().isSplittable()) {
@@ -563,9 +562,6 @@ public class ParDo {
               fn.getClass().getName()));
     }
   }
-
-  public void test() {}
-
   /**
    * Extract information on how the DoFn uses schemas. In particular, if the schema of an element
    * parameter does not match the input PCollection's schema, convert.
@@ -635,7 +631,6 @@ public class ParDo {
     private final List<PCollectionView<?>> sideInputs;
     private final DoFn<InputT, OutputT> fn;
     private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
-    private final Map<String, PCollectionView<?>> sideInputMap = new HashMap<>();
 
     SingleOutput(
         DoFn<InputT, OutputT> fn,
@@ -699,9 +694,6 @@ public class ParDo {
       SchemaRegistry schemaRegistry = input.getPipeline().getSchemaRegistry();
       CoderRegistry registry = input.getPipeline().getCoderRegistry();
       finishSpecifyingStateSpecs(fn, registry, input.getCoder());
-
-      DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
-
       TupleTag<OutputT> mainOutput = new TupleTag<>(MAIN_OUTPUT_TAG);
       PCollection<OutputT> res =
           input.apply(withOutputTags(mainOutput, TupleTagList.empty())).get(mainOutput);
@@ -741,7 +733,7 @@ public class ParDo {
     @Override
     public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
-      ParDo.populateDisplayData(builder, fn, fnDisplayData);
+      ParDo.populateDisplayData(builder, (HasDisplayData) fn, fnDisplayData);
     }
 
     public DoFn<InputT, OutputT> getFn() {

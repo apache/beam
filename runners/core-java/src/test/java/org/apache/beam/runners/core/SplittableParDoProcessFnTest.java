@@ -168,7 +168,7 @@ public class SplittableParDoProcessFnTest {
                 }
 
                 @Override
-                public PCollectionView get(String sideInputTag) {
+                public PCollectionView get(String tagId) {
                   throw new NoSuchElementException();
                 }
               },

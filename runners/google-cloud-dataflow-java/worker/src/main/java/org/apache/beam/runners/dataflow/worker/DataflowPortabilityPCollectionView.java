@@ -110,7 +110,7 @@ public class DataflowPortabilityPCollectionView<K, V, W extends BoundedWindow>
     public MultimapView<K, V> apply(MultimapView<K, V> o) {
       return o;
     }
-  }
+  };
 
   @Override
   public WindowMappingFn<?> getWindowMappingFn() {

@@ -238,7 +238,7 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
-      public Object sideInput(String sideInput) {
+      public Object sideInput(String tagId) {
         throw new UnsupportedOperationException();
       }
 

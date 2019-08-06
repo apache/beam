@@ -18,7 +18,6 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
-import static org.apache.beam.sdk.transforms.ParDo.getDoFnSchemaInformation;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getStateSpecOrThrow;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerSpecOrThrow;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
@@ -183,7 +182,7 @@ public class ParDoTranslation {
         (PCollection<?>) appliedPTransform.getInputs().get(new TupleTag<>(mainInputName));
 
     final DoFnSchemaInformation doFnSchemaInformation =
-        getDoFnSchemaInformation(doFn, mainInput);
+        ParDo.getDoFnSchemaInformation(doFn, mainInput);
     return translateParDo(parDo, doFnSchemaInformation, pipeline, components);
   }
 
