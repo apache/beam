@@ -40,7 +40,6 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.ModifiableTable;
 import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.TranslatableTable;
 
 /** Adapter from {@link BeamSqlTable} to a calcite Table. */
@@ -81,7 +80,7 @@ public class BeamCalciteTable extends AbstractQueryableTable
   }
 
   @Override
-  public Statistic getStatistic() {
+  public BeamTableStatistics getStatistic() {
     /*
      Changing class loader is required for the JDBC path. It is similar to what done in
      {@link BeamEnumerableConverter#toRowList} and {@link BeamEnumerableConverter#toEnumerable }.
@@ -89,7 +88,7 @@ public class BeamCalciteTable extends AbstractQueryableTable
     final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(BeamEnumerableConverter.class.getClassLoader());
-      return beamTable.getRowCount(getPipelineOptions());
+      return beamTable.getTableStatistics(getPipelineOptions());
     } finally {
       Thread.currentThread().setContextClassLoader(originalClassLoader);
     }

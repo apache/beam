@@ -43,8 +43,6 @@ Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/prog
     <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/xml/src/main/java/org/apache/beam/sdk/io/xml/XmlIO.java">XmlIO</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/tika/src/main/java/org/apache/beam/sdk/io/tika/TikaIO.java">TikaIO</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/parquet/src/main/java/org/apache/beam/sdk/io/parquet/ParquetIO.java">ParquetIO</a></p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/rabbitmq/src/main/java/org/apache/beam/sdk/io/rabbitmq/RabbitMqIO.java">RabbitMqIO</a></p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/amazon-web-services/src/main/java/org/apache/beam/sdk/io/aws/sqs/SqsIO.java">SqsIO</a></p>
   </td>
   <td>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/kinesis">Amazon Kinesis</a></p>
@@ -53,6 +51,8 @@ Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/prog
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/pubsub">Google Cloud Pub/Sub</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/jms">JMS</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/mqtt">MQTT</a></p>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/rabbitmq/src/main/java/org/apache/beam/sdk/io/rabbitmq/RabbitMqIO.java">RabbitMqIO</a></p>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/amazon-web-services/src/main/java/org/apache/beam/sdk/io/aws/sqs/SqsIO.java">SqsIO</a></p>
   </td>
   <td>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/cassandra">Apache Cassandra</a></p>

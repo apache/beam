@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
@@ -28,6 +29,7 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.SetOp;
 import org.apache.calcite.rel.core.Union;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /**
  * {@link BeamRelNode} to replace a {@link Union}.
@@ -75,5 +77,18 @@ public class BeamUnionRel extends Union implements BeamRelNode {
   @Override
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     return new BeamSetOperatorRelBase(this, BeamSetOperatorRelBase.OpType.UNION, all);
+  }
+
+  @Override
+  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+    // The summation of the input stats
+    NodeStats summationOfEstimates =
+        inputs.stream()
+            .map(input -> BeamSqlRelUtils.getNodeStats(input, mq))
+            .reduce(NodeStats.create(0, 0, 0), NodeStats::plus);
+    // If all is set then we propagate duplicated values. Otherwise we assume a constant factor of
+    // them are duplicate.
+    summationOfEstimates = all ? summationOfEstimates : summationOfEstimates.multiply(0.5);
+    return summationOfEstimates;
   }
 }

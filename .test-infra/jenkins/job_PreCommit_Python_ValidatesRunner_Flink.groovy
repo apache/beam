@@ -23,7 +23,7 @@ import PrecommitJobBuilder
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Python_PVR_Flink',
-    gradleTask: ':sdks:python:flinkValidatesRunner',
+    gradleTask: ':sdks:python:test-suites:portable:py2:flinkValidatesRunner',
     triggerPathPatterns: [
       '^model/.*$',
       '^runners/core-construction-java/.*$',

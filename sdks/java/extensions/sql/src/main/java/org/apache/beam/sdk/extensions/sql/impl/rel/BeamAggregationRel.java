@@ -24,6 +24,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.io.Serializable;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.AggregationCombineFnAdapter;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -55,6 +56,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.joda.time.Duration;
 
@@ -78,6 +80,48 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
     this.windowFn = windowFn;
     this.windowFieldIndex = windowFieldIndex;
+  }
+
+  @Override
+  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+
+    NodeStats inputEstimate = BeamSqlRelUtils.getNodeStats(this.input, mq);
+
+    inputEstimate = computeWindowingCostEffect(inputEstimate);
+
+    NodeStats estimate;
+    // groupCount shows how many columns do we have in group by. One of them might be the windowing.
+    int groupCount = groupSet.cardinality() - (windowFn == null ? 0 : 1);
+    // This is similar to what Calcite does.If groupCount is zero then then we have only one value
+    // per window for unbounded and we have only one value for bounded. e.g select count(*) from A
+    // If group count is none zero then more column we include in the group by, more rows will be
+    // preserved.
+    return (groupCount == 0)
+        ? NodeStats.create(
+            Math.min(inputEstimate.getRowCount(), 1d),
+            inputEstimate.getRate() / inputEstimate.getWindow(),
+            1d)
+        : inputEstimate.multiply(1.0 - Math.pow(.5, groupCount));
+  }
+
+  private NodeStats computeWindowingCostEffect(NodeStats inputStat) {
+    if (windowFn == null) {
+      return inputStat;
+    }
+    WindowFn w = windowFn;
+    double multiplicationFactor = 1;
+    // If the window is SlidingWindow, the number of tuples will increase. (Because, some of the
+    // tuples repeat in multiple windows).
+    if (w instanceof SlidingWindows) {
+      multiplicationFactor =
+          ((double) ((SlidingWindows) w).getSize().getStandardSeconds())
+              / ((SlidingWindows) w).getPeriod().getStandardSeconds();
+    }
+
+    return NodeStats.create(
+        inputStat.getRowCount() * multiplicationFactor,
+        inputStat.getRate() * multiplicationFactor,
+        BeamIOSourceRel.CONSTANT_WINDOW_SIZE);
   }
 
   @Override

@@ -121,6 +121,7 @@ REQUIRED_PACKAGES = [
     ('pyarrow>=0.11.1,<0.15.0; python_version >= "3.0" or '
      'platform_system != "Windows"'),
     'pydot>=1.2.0,<2',
+    'python-dateutil>=2.8.0,<3',
     'pytz>=2018.3',
     # [BEAM-5628] Beam VCF IO is not supported in Python 3.
     'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
@@ -148,8 +149,8 @@ GCP_REQUIREMENTS = [
     'google-cloud-datastore>=1.7.1,<1.8.0',
     'google-cloud-pubsub>=0.39.0,<0.40.0',
     # GCP packages required by tests
-    'google-cloud-bigquery>=1.6.0,<1.7.0',
-    'google-cloud-core>=0.28.1,<0.30.0',
+    'google-cloud-bigquery>=1.6.0,<1.18.0',
+    'google-cloud-core>=0.28.1,<2',
     'google-cloud-bigtable>=0.31.1,<0.33.0',
 ]
 

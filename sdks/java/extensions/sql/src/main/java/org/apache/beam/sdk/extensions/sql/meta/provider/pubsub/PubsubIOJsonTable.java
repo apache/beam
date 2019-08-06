@@ -26,8 +26,10 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
@@ -184,6 +186,11 @@ abstract class PubsubIOJsonTable implements BeamSqlTable, Serializable {
   @Override
   public POutput buildIOWriter(PCollection<Row> input) {
     throw new UnsupportedOperationException("Writing to a Pubsub topic is not supported");
+  }
+
+  @Override
+  public BeamTableStatistics getTableStatistics(PipelineOptions options) {
+    return BeamTableStatistics.UNBOUNDED_UNKNOWN;
   }
 
   @AutoValue.Builder

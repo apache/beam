@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -31,6 +32,7 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Uncollect;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /** {@link BeamRelNode} to implement an uncorrelated {@link Uncollect}, aka UNNEST. */
 public class BeamUncollectRel extends Uncollect implements BeamRelNode {
@@ -70,6 +72,14 @@ public class BeamUncollectRel extends Uncollect implements BeamRelNode {
 
       return uncollected;
     }
+  }
+
+  @Override
+  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+    // We estimate the average length of each array by a constant.
+    // We might be able to get an estimate of the length by making a MetadataHandler for this
+    // purpose, and get the estimate by reading the first couple of the rows in the source.
+    return BeamSqlRelUtils.getNodeStats(this.input, mq).multiply(2);
   }
 
   private static class UncollectDoFn extends DoFn<Row, Row> {

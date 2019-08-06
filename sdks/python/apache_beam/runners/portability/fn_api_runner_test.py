@@ -1177,6 +1177,23 @@ class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
                 payload=b'2')))
 
 
+class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
+
+  def create_pipeline(self):
+    from apache_beam.options.pipeline_options import PipelineOptions
+    pipeline_options = PipelineOptions(['--direct_num_workers', '2'])
+    p = beam.Pipeline(
+        runner=fn_api_runner.FnApiRunner(),
+        options=pipeline_options)
+    return p
+
+  def test_metrics(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_sdf_with_sdf_initiated_checkpointing(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+
 class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
 
   def create_pipeline(self):
@@ -1204,6 +1221,25 @@ class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
 
   def test_register_finalizations(self):
     raise unittest.SkipTest("TODO: Avoid bundle finalizations on repeat.")
+
+
+class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
+
+  def create_pipeline(self):
+    from apache_beam.options.pipeline_options import PipelineOptions
+    pipeline_options = PipelineOptions(['--direct_num_workers', '2'])
+    return beam.Pipeline(
+        runner=fn_api_runner.FnApiRunner(bundle_repeat=3),
+        options=pipeline_options)
+
+  def test_register_finalizations(self):
+    raise unittest.SkipTest("TODO: Avoid bundle finalizations on repeat.")
+
+  def test_metrics(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_sdf_with_sdf_initiated_checkpointing(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
 
 
 class FnApiRunnerSplitTest(unittest.TestCase):
@@ -1516,7 +1552,7 @@ class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
     return restriction[1] - restriction[0]
 
 
-class FnApiRunnerTestWithMultiWorkers(FnApiRunnerSplitTest):
+class FnApiRunnerSplitTestWithMultiWorkers(FnApiRunnerSplitTest):
 
   def create_pipeline(self):
     from apache_beam.options.pipeline_options import PipelineOptions

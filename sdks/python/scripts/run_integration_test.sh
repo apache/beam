@@ -18,10 +18,10 @@
 
 ###########################################################################
 #
-# This script is useful to run single or a set of Python integration tests
-# manually or through Gradle. Note, this script doesn't setup python
-# environment which is required before running tests. Use Gradle task
-# `:sdks:python:integrationTests` to do both together.
+# This script is used in Gradle to run single or a set of Python integration tests
+# locally or on Jenkins. Note, this script doesn't setup python environment which is
+# required for integration test. In order to do so, run Gradle tasks defined in
+# :sdks:python:test-suites instead.
 #
 # In order to run test with customer options, use following commandline flags:
 #
@@ -246,4 +246,5 @@ echo ">>>   test options: $TEST_OPTS"
 python setup.py nosetests \
   --test-pipeline-options="$PIPELINE_OPTS" \
   --with-xunitmp --xunitmp-file=$XUNIT_FILE \
+  --ignore-files '.*py3.py$' \
   $TEST_OPTS

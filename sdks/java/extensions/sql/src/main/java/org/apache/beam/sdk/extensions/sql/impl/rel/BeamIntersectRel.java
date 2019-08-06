@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -27,6 +28,7 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Intersect;
 import org.apache.calcite.rel.core.SetOp;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /**
  * {@code BeamRelNode} to replace a {@code Intersect} node.
@@ -48,5 +50,22 @@ public class BeamIntersectRel extends Intersect implements BeamRelNode {
   @Override
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     return new BeamSetOperatorRelBase(this, BeamSetOperatorRelBase.OpType.INTERSECT, all);
+  }
+
+  @Override
+  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+    // This takes the minimum of the inputs for all the estimate factors.
+    double minimumRows = Double.POSITIVE_INFINITY;
+    double minimumWindowSize = Double.POSITIVE_INFINITY;
+    double minimumRate = Double.POSITIVE_INFINITY;
+
+    for (RelNode input : inputs) {
+      NodeStats inputEstimates = BeamSqlRelUtils.getNodeStats(input, mq);
+      minimumRows = Math.min(minimumRows, inputEstimates.getRowCount());
+      minimumRate = Math.min(minimumRate, inputEstimates.getRate());
+      minimumWindowSize = Math.min(minimumWindowSize, inputEstimates.getWindow());
+    }
+
+    return NodeStats.create(minimumRows, minimumRate, minimumWindowSize).multiply(0.5);
   }
 }

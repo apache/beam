@@ -40,7 +40,12 @@ from apache_beam.io.gcp import bigquery
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
+from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
+from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
+from apache_beam.runners.runner import PipelineState
+from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -368,6 +373,10 @@ class BigQueryFileLoadsIT(unittest.TestCase):
       '{"name": "foundation","type": "STRING"}]}'
   )
 
+  BIG_QUERY_STREAMING_SCHEMA = (
+      {'fields': [{'name': 'Integr', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
+  )
+
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.runner_name = type(self.test_pipeline.runner).__name__
@@ -465,6 +474,50 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
                max_file_size=20,
                max_files_per_bundle=-1))
+
+  @attr('IT')
+  def test_bqfl_streaming(self):
+    if isinstance(self.test_pipeline.runner, TestDataflowRunner):
+      self.skipTest("TestStream is not supported on TestDataflowRunner")
+    output_table = '%s_%s' % (self.output_table, 'ints')
+    _SIZE = 100
+    schema = self.BIG_QUERY_STREAMING_SCHEMA
+    l = [{'Integr': i} for i in range(_SIZE)]
+
+    state_matcher = PipelineStateMatcher(PipelineState.RUNNING)
+    bq_matcher = BigqueryFullResultStreamingMatcher(
+        project=self.project,
+        query="SELECT Integr FROM %s"
+        % output_table,
+        data=[(i,) for i in range(100)])
+
+    args = self.test_pipeline.get_full_options_as_args(
+        on_success_matcher=all_of(state_matcher, bq_matcher),
+        experiments='use_beam_bq_sink',
+        streaming=True)
+    with beam.Pipeline(argv=args) as p:
+      stream_source = (TestStream()
+                       .advance_watermark_to(0)
+                       .advance_processing_time(100)
+                       .add_elements(l[:_SIZE//4])
+                       .advance_processing_time(100)
+                       .advance_watermark_to(100)
+                       .add_elements(l[_SIZE//4:2*_SIZE//4])
+                       .advance_processing_time(100)
+                       .advance_watermark_to(200)
+                       .add_elements(l[2*_SIZE//4:3*_SIZE//4])
+                       .advance_processing_time(100)
+                       .advance_watermark_to(300)
+                       .add_elements(l[3*_SIZE//4:])
+                       .advance_processing_time(100)
+                       .advance_watermark_to_infinity())
+      _ = (p
+           | stream_source
+           | bigquery.WriteToBigQuery(output_table,
+                                      schema=schema,
+                                      method=bigquery.WriteToBigQuery \
+                                        .Method.FILE_LOADS,
+                                      triggering_frequency=100))
 
   @attr('IT')
   def test_one_job_fails_all_jobs_fail(self):

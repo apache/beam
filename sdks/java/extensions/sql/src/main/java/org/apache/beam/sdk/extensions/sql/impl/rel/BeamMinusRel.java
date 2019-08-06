@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -27,6 +28,7 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Minus;
 import org.apache.calcite.rel.core.SetOp;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /**
  * {@code BeamRelNode} to replace a {@code Minus} node.
@@ -48,5 +50,16 @@ public class BeamMinusRel extends Minus implements BeamRelNode {
   @Override
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     return new BeamSetOperatorRelBase(this, BeamSetOperatorRelBase.OpType.MINUS, all);
+  }
+
+  @Override
+  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+    NodeStats firstInputEstimates = BeamSqlRelUtils.getNodeStats(inputs.get(0), mq);
+    // The first input minus half of the others. (We are assuming half of them have intersection)
+    for (int i = 1; i < inputs.size(); i++) {
+      NodeStats inputEstimate = BeamSqlRelUtils.getNodeStats(inputs.get(i), mq);
+      firstInputEstimates = firstInputEstimates.minus(inputEstimate.multiply(0.5));
+    }
+    return firstInputEstimates;
   }
 }

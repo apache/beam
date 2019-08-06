@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -35,6 +36,7 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.core.Correlate;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.Uncollect;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 
@@ -72,6 +74,14 @@ public class BeamUnnestRel extends Uncollect implements BeamRelNode {
         getCluster().getTypeFactory(),
         null,
         ImmutableList.of());
+  }
+
+  @Override
+  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+    // We estimate the average length of each array by a constant.
+    // We might be able to get an estimate of the length by making a MetadataHandler for this
+    // purpose, and get the estimate by reading the first couple of the rows in the source.
+    return BeamSqlRelUtils.getNodeStats(this.input, mq).multiply(2);
   }
 
   @Override

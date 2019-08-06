@@ -314,7 +314,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.15.0'
+    project.version = '2.16.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -508,7 +508,7 @@ class BeamModulePlugin implements Plugin<Project> {
         jaxb_api                                    : "javax.xml.bind:jaxb-api:$jaxb_api_version",
         joda_time                                   : "joda-time:joda-time:2.10.1",
         junit                                       : "junit:junit:4.13-beta-1",
-        kafka_2_11                                  : "org.apache.kafka:kafka_2.11:$kafka_version",
+        kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
         malhar_library                              : "org.apache.apex:malhar-library:$apex_malhar_version",
         mockito_core                                : "org.mockito:mockito-core:1.10.19",
@@ -822,13 +822,7 @@ class BeamModulePlugin implements Plugin<Project> {
         java {
           licenseHeader javaLicenseHeader
           googleJavaFormat('1.7')
-          def targetFiles = project.fileTree(project.projectDir)
-          // Explicitly add source sets because projects may have source located outside of the project directory
-          project.sourceSets.each { sourceSet ->
-            targetFiles += sourceSet.allJava
-          }
-
-          target targetFiles.matching { include 'src/*/java/**/*.java' }
+          target project.fileTree(project.projectDir) { include 'src/*/java/**/*.java' }
         }
       }
 

@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamJoinTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -56,8 +57,6 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
@@ -137,8 +136,25 @@ public class BeamJoinRel extends Join implements BeamRelNode {
   }
 
   @Override
-  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    return super.computeSelfCost(planner, mq);
+  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+    double selectivity = mq.getSelectivity(this, getCondition());
+    NodeStats leftEstimates = BeamSqlRelUtils.getNodeStats(this.left, mq);
+    NodeStats rightEstimates = BeamSqlRelUtils.getNodeStats(this.right, mq);
+
+    if (leftEstimates.isUnknown() || rightEstimates.isUnknown()) {
+      return NodeStats.UNKNOWN;
+    }
+    // If any of the inputs are unbounded row count becomes zero (one of them would be zero)
+    // If one is bounded and one unbounded the rate will be window of the bounded (= its row count)
+    // multiplied by the rate of the unbounded one
+    // If both are unbounded, the rate will be multiplication of each rate into the window of the
+    // other.
+    return NodeStats.create(
+        leftEstimates.getRowCount() * rightEstimates.getRowCount() * selectivity,
+        (leftEstimates.getRate() * rightEstimates.getWindow()
+                + rightEstimates.getRate() * leftEstimates.getWindow())
+            * selectivity,
+        leftEstimates.getWindow() * rightEstimates.getWindow() * selectivity);
   }
 
   /**

@@ -21,6 +21,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
@@ -39,6 +41,8 @@ public class TestUnboundedTable extends TestTable {
   private final List<Pair<Duration, List<Row>>> timestampedRows = new ArrayList<>();
   /** specify the index of column in the row which stands for the event time field. */
   private int timestampField;
+
+  private BeamTableStatistics statistics = BeamTableStatistics.UNBOUNDED_UNKNOWN;
 
   private TestUnboundedTable(Schema beamSchema) {
     super(beamSchema);
@@ -59,6 +63,16 @@ public class TestUnboundedTable extends TestTable {
    */
   public static TestUnboundedTable of(final Object... args) {
     return new TestUnboundedTable(TestTableUtils.buildBeamSqlSchema(args));
+  }
+
+  public TestUnboundedTable setStatistics(BeamTableStatistics statistics) {
+    this.statistics = statistics;
+    return this;
+  }
+
+  @Override
+  public BeamTableStatistics getTableStatistics(PipelineOptions options) {
+    return this.statistics;
   }
 
   public TestUnboundedTable timestampColumnIndex(int idx) {
