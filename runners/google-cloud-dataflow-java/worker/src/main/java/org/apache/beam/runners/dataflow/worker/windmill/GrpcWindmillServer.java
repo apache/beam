@@ -122,10 +122,10 @@ public class GrpcWindmillServer extends WindmillServerStub {
 
   private static final Duration MIN_BACKOFF = Duration.millis(1);
   private static final Duration MAX_BACKOFF = Duration.standardSeconds(30);
-  // Internal gRPC batch size is 64KB, so pick something slightly smaller to account for other
-  // fields in the commit.
-  private static final int COMMIT_STREAM_CHUNK_SIZE = 63 * 1024;
-  private static final int GET_DATA_STREAM_CHUNK_SIZE = 63 * 1024;
+  // Default gRPC streams to 2MB chunks, which has shown to be a large enough chunk size to reduce
+  // per-chunk overhead, and small enough that we can still granularly flow-control.
+  private static final int COMMIT_STREAM_CHUNK_SIZE = 2 << 20;
+  private static final int GET_DATA_STREAM_CHUNK_SIZE = 2 << 20;
 
   private static final AtomicLong nextId = new AtomicLong(0);
 
