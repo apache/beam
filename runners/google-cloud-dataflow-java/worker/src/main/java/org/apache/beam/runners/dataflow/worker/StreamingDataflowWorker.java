@@ -460,7 +460,7 @@ public class StreamingDataflowWorker {
   private final ReaderRegistry readerRegistry = ReaderRegistry.defaultRegistry();
   private final SinkRegistry sinkRegistry = SinkRegistry.defaultRegistry();
 
-  private final HotKeyLogger hotKeyLogger = new HotKeyLogger();
+  private HotKeyLogger hotKeyLogger;
 
   /** Contains a few of the stage specific fields. E.g. metrics container registry, counters etc. */
   private static class StageInfo {
@@ -535,7 +535,8 @@ public class StreamingDataflowWorker {
         options.as(StreamingDataflowWorkerOptions.class),
         pipeline,
         sdkHarnessRegistry,
-        true);
+        true,
+        new HotKeyLogger());
   }
 
   public static StreamingDataflowWorker fromDataflowWorkerHarnessOptions(
@@ -549,7 +550,8 @@ public class StreamingDataflowWorker {
         options.as(StreamingDataflowWorkerOptions.class),
         null,
         sdkHarnessRegistry,
-        true);
+        true,
+        new HotKeyLogger());
   }
 
   @VisibleForTesting
@@ -560,12 +562,14 @@ public class StreamingDataflowWorker {
       StreamingDataflowWorkerOptions options,
       @Nullable RunnerApi.Pipeline pipeline,
       SdkHarnessRegistry sdkHarnessRegistry,
-      boolean publishCounters)
+      boolean publishCounters,
+      HotKeyLogger hotKeyLogger)
       throws IOException {
     this.mapTaskExecutorFactory = mapTaskExecutorFactory;
     this.workUnitClient = workUnitClient;
     this.options = options;
     this.sdkHarnessRegistry = sdkHarnessRegistry;
+    this.hotKeyLogger = hotKeyLogger;
     this.windmillServiceEnabled = options.isEnableStreamingEngine();
     this.memoryMonitor = MemoryMonitor.fromOptions(options);
     this.statusPages =

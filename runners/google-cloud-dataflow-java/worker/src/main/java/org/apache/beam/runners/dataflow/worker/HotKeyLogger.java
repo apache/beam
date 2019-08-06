@@ -64,7 +64,6 @@ public class HotKeyLogger {
       return true;
     }
     prevHotKeyDetectionLogMs = nowMs;
-
     return false;
   }
 

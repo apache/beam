@@ -66,7 +66,7 @@ public class DataflowWorkProgressUpdaterTest {
   private static final String JOB_ID = "TEST_JOB_ID";
   private static final Long WORK_ID = 1234567890L;
   private static final String STEP_ID = "TEST_STEP_ID";
-  private static final String HOT_KEY_AGE = "1s";
+  private static final Duration HOT_KEY_AGE = Duration.standardSeconds(1);
 
   @Rule public final ExpectedException thrown = ExpectedException.none();
 
@@ -77,6 +77,7 @@ public class DataflowWorkProgressUpdaterTest {
   private FixedClock clock;
   @Mock private WorkItemStatusClient workItemStatusClient;
   @Mock private DataflowWorkExecutor worker;
+  @Mock private HotKeyLogger hotKeyLogger;
   @Captor private ArgumentCaptor<DynamicSplitResult> splitResultCaptor;
 
   @Before
@@ -96,7 +97,7 @@ public class DataflowWorkProgressUpdaterTest {
 
     progressUpdater =
         new DataflowWorkProgressUpdater(
-            workItemStatusClient, workItem, worker, executor.getExecutor(), clock) {
+            workItemStatusClient, workItem, worker, executor.getExecutor(), clock, hotKeyLogger) {
 
           // Shorten reporting interval boundaries for faster testing.
           @Override
@@ -123,6 +124,18 @@ public class DataflowWorkProgressUpdaterTest {
 
     verify(workItemStatusClient, atLeastOnce())
         .reportUpdate(isNull(DynamicSplitResult.class), isA(Duration.class));
+
+    progressUpdater.stopReportingProgress();
+  }
+
+  @Test
+  public void workProgressLogsHotKeyDetection() throws Exception {
+    when(workItemStatusClient.reportUpdate(isNull(DynamicSplitResult.class), isA(Duration.class)))
+        .thenReturn(generateServiceState(null, 1000));
+    progressUpdater.startReportingProgress();
+    executor.runNextRunnable();
+
+    verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(STEP_ID, HOT_KEY_AGE);
 
     progressUpdater.stopReportingProgress();
   }
@@ -253,7 +266,7 @@ public class DataflowWorkProgressUpdaterTest {
 
     HotKeyDetection hotKeyDetection = new HotKeyDetection();
     hotKeyDetection.setUserStepName(STEP_ID);
-    hotKeyDetection.setHotKeyAge(HOT_KEY_AGE);
+    hotKeyDetection.setHotKeyAge(toCloudDuration(HOT_KEY_AGE));
     responseState.setHotKeyDetection(hotKeyDetection);
 
     return responseState;

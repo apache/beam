@@ -70,11 +70,12 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
       WorkItem workItem,
       WorkExecutor worker,
       ScheduledExecutorService executor,
-      Clock clock) {
+      Clock clock,
+      HotKeyLogger hotKeyLogger) {
     super(worker, Integer.MAX_VALUE, executor, clock);
     this.workItemStatusClient = workItemStatusClient;
     this.workItem = workItem;
-    this.hotKeyLogger = new HotKeyLogger(clock);
+    this.hotKeyLogger = hotKeyLogger;
   }
 
   @Override
