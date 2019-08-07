@@ -1884,6 +1884,7 @@ class BeamModulePlugin implements Plugin<Project> {
           }
         }
       }
+      project.installGcpTest.mustRunAfter project.configurations.distTarBall
 
       project.task('cleanPython') {
         doLast {
