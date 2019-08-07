@@ -25,6 +25,7 @@ import random
 import string
 import time
 import unittest
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.metrics.metric import MetricsFilter
@@ -87,6 +88,7 @@ class BigtableIOTest(unittest.TestCase):
       self.table.create(column_families=column_families)
       logging.info('Table {} has been created!'.format(TABLE_ID))
 
+  @attr('IT')
   def test_bigtable_io(self):
     print 'Project ID: ', PROJECT_ID
     print 'Instance ID:', INSTANCE_ID
@@ -108,13 +110,13 @@ class BigtableIOTest(unittest.TestCase):
         logging.info('Number of Rows written: %d', read_counter.committed)
         assert read_counter.committed == ROW_COUNT
 
-    from apache_beam.transforms import core
     pipeline_options = PipelineOptions(pipeline_parameters(job_name=make_job_name('read')))
     p = beam.Pipeline(options=pipeline_options)
     count = (p
              | 'Read from Bigtable' >> bigtableio.ReadFromBigTable(project_id=PROJECT_ID,
                                                                    instance_id=INSTANCE_ID,
-                                                                   table_id=TABLE_ID)
+                                                                   table_id=TABLE_ID,
+                                                                   filter_=b'')
              | 'Count Rows' >> Count.Globally())
     self.result = p.run()
     self.result.wait_until_finish()

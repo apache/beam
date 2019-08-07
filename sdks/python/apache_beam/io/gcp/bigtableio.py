@@ -40,7 +40,6 @@ from __future__ import absolute_import
 from collections import namedtuple
 
 import apache_beam as beam
-from apache_beam import coders
 from apache_beam.io import iobase
 from apache_beam.metrics import Metrics
 from apache_beam.transforms import core
@@ -159,7 +158,7 @@ class _BigtableReadFn(beam.DoFn):
 
   """
 
-  def __init__(self, project_id, instance_id, table_id, start_key=None, end_key=None, filter_=b''):
+  def __init__(self, project_id, instance_id, table_id, filter_=b''):
     """ Constructor of the Read connector of Bigtable
 
     Args:
@@ -172,8 +171,6 @@ class _BigtableReadFn(beam.DoFn):
     self._initialize({'project_id': project_id,
                       'instance_id': instance_id,
                       'table_id': table_id,
-                      'start_key': start_key,
-                      'end_key': end_key,
                       'filter_': filter_})
 
   def __getstate__(self):
@@ -195,17 +192,11 @@ class _BigtableReadFn(beam.DoFn):
                     .table(self._beam_options['table_id'])
 
   def process(self, element, **kwargs):
-    for row in self.table.read_rows(start_key=self._beam_options['start_key'],
-                                    end_key=self._beam_options['end_key'],
+    for row in self.table.read_rows(start_key=element.start_position,
+                                    end_key=element.end_position,
                                     filter_=self._beam_options['filter_']):
-      self.written.inc()
+      self.row_count.inc()
       yield row
-
-  def get_initial_restriction(self, element):
-    pass
-
-  def finish_bundle(self):
-      pass
 
   def display_data(self):
     return {'projectId': DisplayDataItem(self._beam_options['project_id'],
@@ -214,7 +205,7 @@ class _BigtableReadFn(beam.DoFn):
                                           label='Bigtable Instance Id'),
             'tableId': DisplayDataItem(self._beam_options['table_id'],
                                        label='Bigtable Table Id'),
-            'filter_': DisplayDataItem(self._beam_options['filter_'],
+            'filter_': DisplayDataItem(str(self._beam_options['filter_']),
                                        label='Bigtable Filter')
             }
 
@@ -242,6 +233,8 @@ class ReadFromBigTable(beam.PTransform):
       self._beam_options = options
 
   def expand(self, pbegin):
+    from apache_beam.transforms import util
+
     beam_options = self._beam_options
     table = Client(project=beam_options['project_id'])\
                 .instance(beam_options['instance_id'])\
@@ -260,7 +253,7 @@ class ReadFromBigTable(beam.PTransform):
         key_1 = sample_row_keys[i - 1].row_key
         key_2 = sample_row_keys[i].row_key
         size = sample_row_keys[i].offset_bytes - sample_row_keys[i - 1].offset_bytes
-        bundles.append(iobase.SourceBundle(size, self, key_1, key_2))
+        bundles.append(iobase.SourceBundle(size, None, key_1, key_2))
 
       from random import shuffle
       # Shuffle is needed to allow reading from different locations of the table for better efficiency
@@ -270,6 +263,7 @@ class ReadFromBigTable(beam.PTransform):
     return (pbegin
             | core.Impulse()
             | 'Split' >> core.FlatMap(split_source)
+            | util.Reshuffle()
             | 'Read Bundles' >> beam.ParDo(_BigtableReadFn(project_id=beam_options['project_id'],
                                                            instance_id=beam_options['instance_id'],
                                                            table_id=beam_options['table_id'],

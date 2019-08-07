@@ -85,3 +85,5 @@ sdks/python/postcommit_requirements.txt
 # This is typically in files named 'src.xml' throughout this repository.
 
 # JetBrains Education files
+!**/study_project.xml
+**/.coursecreator/**/*
