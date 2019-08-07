@@ -30,7 +30,7 @@ ext.summary = "IO to read and write with Apache Cassandra database"
 def achilles_version = "6.0.2"
 
 dependencies {
-  compile library.java.vendored_guava_20_0
+  compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.slf4j_api
   compile library.java.cassandra_driver_core

@@ -25,7 +25,7 @@ def streamlib_version = "2.9.5"
 def tdigest_version = "3.2"
 
 dependencies {
-  compile library.java.vendored_guava_20_0
+  compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile "com.clearspring.analytics:stream:$streamlib_version"
   compile "com.tdunning:t-digest:$tdigest_version"

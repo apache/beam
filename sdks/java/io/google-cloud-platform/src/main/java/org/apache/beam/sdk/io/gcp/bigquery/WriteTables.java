@@ -17,8 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
@@ -59,10 +60,10 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -165,6 +166,16 @@ class WriteTables<DestinationT>
               + "but %s returned null for destination %s",
           dynamicDestinations,
           destination);
+      boolean destinationCoderSupportsClustering =
+          !(dynamicDestinations.getDestinationCoder() instanceof TableDestinationCoderV2);
+      checkArgument(
+          tableDestination.getClustering() == null || destinationCoderSupportsClustering,
+          "DynamicDestinations.getTable() may only return destinations with clustering configured"
+              + " if a destination coder is supplied that supports clustering, but %s is configured"
+              + " to use TableDestinationCoderV2. Set withClustering() on BigQueryIO.write() and, "
+              + " if you provided a custom DynamicDestinations instance, override"
+              + " getDestinationCoder() to return TableDestinationCoderV3.",
+          dynamicDestinations);
       TableReference tableReference = tableDestination.getTableReference();
       if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
         tableReference.setProjectId(c.getPipelineOptions().as(BigQueryOptions.class).getProject());
@@ -203,6 +214,7 @@ class WriteTables<DestinationT>
               jobIdPrefix,
               tableReference,
               tableDestination.getTimePartitioning(),
+              tableDestination.getClustering(),
               tableSchema,
               partitionFiles,
               writeDisposition,
@@ -327,6 +339,7 @@ class WriteTables<DestinationT>
       String jobIdPrefix,
       TableReference ref,
       TimePartitioning timePartitioning,
+      Clustering clustering,
       @Nullable TableSchema schema,
       List<String> gcsUris,
       WriteDisposition writeDisposition,
@@ -342,6 +355,10 @@ class WriteTables<DestinationT>
             .setIgnoreUnknownValues(ignoreUnknownValues);
     if (timePartitioning != null) {
       loadConfig.setTimePartitioning(timePartitioning);
+      // only set clustering if timePartitioning is set
+      if (clustering != null) {
+        loadConfig.setClustering(clustering);
+      }
     }
     if (kmsKey != null) {
       loadConfig.setDestinationEncryptionConfiguration(

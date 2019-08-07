@@ -17,25 +17,28 @@
 """
 This is ParDo load test with Synthetic Source. Besides of the standard
 input options there are additional options:
-* number_of_counter_operations - number of pardo operations
+* iterations - number of subsequent ParDo transforms to be performed,
+* number_of_counters - number of counter metrics to be created for one ParDo
+transform,
+* number_of_counter_operations - number of operations on counters to be
+performed in one ParDo,
 * project (optional) - the gcp project in case of saving
 metrics in Big Query (in case of Dataflow Runner
 it is required to specify project of runner),
 * publish_to_big_query - if metrics should be published in big query,
-* metrics_namespace (optional) - name of BigQuery dataset where metrics
+* metrics_dataset (optional) - name of BigQuery dataset where metrics
 will be stored,
 * metrics_table (optional) - name of BigQuery table where metrics
 will be stored,
-* output (optional) - destination to save output, in case of no option
-output won't be written,
 * input_options - options for Synthetic Sources.
 
 Example test run on DirectRunner:
 
 python setup.py nosetests \
     --test-pipeline-options="
-    --number_of_counter_operations=1000
-    --output=gs://...
+    --iterations=1000
+    --number_of_counters=1
+    --number_of_counter_operations=1
     --project=big-query-project
     --publish_to_big_query=true
     --metrics_dataset=python_load_tests
@@ -78,8 +81,9 @@ python setup.py nosetests \
         --staging_location=gs://...
         --temp_location=gs://...
         --sdk_location=./dist/apache-beam-x.x.x.dev0.tar.gz
-        --output=gs://...
-        --number_of_counter_operations=1000
+        --iterations=1000
+        --number_of_counters=1
+        --number_of_counter_operations=1
         --publish_to_big_query=true
         --metrics_dataset=python_load_tests
         --metrics_table=pardo
@@ -120,6 +124,7 @@ import os
 import unittest
 
 import apache_beam as beam
+from apache_beam.metrics import Metrics
 from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
@@ -132,22 +137,28 @@ if os.environ.get('LOAD_TEST_ENABLED') == 'true':
 @unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
 class ParDoTest(LoadTest):
   def setUp(self):
-    self.output = self.pipeline.get_option('output')
-    self.iterations = self.pipeline.get_option('number_of_counter_operations')
+    super(ParDoTest, self).setUp()
+    if self.are_metrics_collected():
+      self.apply_filter([self.metrics_namespace])
+    self.iterations = self.get_option_or_default('iterations')
+    self.number_of_counters = self.get_option_or_default('number_of_counters')
+    self.number_of_operations = self.get_option_or_default(
+        'number_of_counter_operations')
 
   def testParDo(self):
-    class _GetElement(beam.DoFn):
-      from apache_beam.testing.load_tests.load_test_metrics_utils import count_bytes
+    class CounterOperation(beam.DoFn):
+      def __init__(self, number_of_counters, number_of_operations):
+        self.number_of_operations = number_of_operations
+        self.counters = []
+        for i in range(number_of_counters):
+          self.counters.append(Metrics.counter('do-not-publish',
+                                               'name-{}'.format(i)))
 
-      @count_bytes
-      def process(self, element, namespace, is_returning):
-        if is_returning:
-          yield element
-
-    if not self.iterations:
-      num_runs = 1
-    else:
-      num_runs = int(self.iterations)
+      def process(self, element):
+        for _ in range(self.number_of_operations):
+          for counter in self.counters:
+            counter.inc()
+        yield element
 
     pc = (self.pipeline
           | 'Read synthetic' >> beam.io.Read(
@@ -158,16 +169,11 @@ class ParDoTest(LoadTest):
               MeasureTime(self.metrics_namespace))
          )
 
-    for i in range(num_runs):
-      is_returning = (i == (num_runs-1))
+    for i in range(self.iterations):
       pc = (pc
             | 'Step: %d' % i >> beam.ParDo(
-                _GetElement(), self.metrics_namespace, is_returning)
-           )
-
-    if self.output:
-      pc = (pc
-            | "Write" >> beam.io.WriteToText(self.output)
+                CounterOperation(self.number_of_counters,
+                                 self.number_of_operations))
            )
 
     # pylint: disable=expression-not-assigned

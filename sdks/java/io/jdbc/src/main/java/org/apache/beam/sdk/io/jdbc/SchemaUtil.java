@@ -28,6 +28,7 @@ import static java.sql.JDBCType.NVARCHAR;
 import static java.sql.JDBCType.VARBINARY;
 import static java.sql.JDBCType.VARCHAR;
 import static java.sql.JDBCType.valueOf;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
 import java.sql.Array;
@@ -51,7 +52,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
 import org.joda.time.LocalDate;
 import org.joda.time.chrono.ISOChronology;
@@ -336,6 +337,75 @@ class SchemaUtil {
         rowBuilder.addValue(fieldExtractors.get(i).extract(rs, i + 1));
       }
       return rowBuilder.build();
+    }
+  }
+
+  /**
+   * compares two fields. Does not compare nullability of field types.
+   *
+   * @param a field 1
+   * @param b field 2
+   * @return TRUE if fields are equal. Otherwise FALSE
+   */
+  public static boolean compareSchemaField(Schema.Field a, Schema.Field b) {
+    if (!a.getName().equalsIgnoreCase(b.getName())) {
+      return false;
+    }
+
+    return compareSchemaFieldType(a.getType(), b.getType());
+  }
+
+  /**
+   * checks nullability for fields.
+   *
+   * @param fields
+   * @return TRUE if any field is not nullable
+   */
+  public static boolean checkNullabilityForFields(List<Schema.Field> fields) {
+    return fields.stream().anyMatch(field -> !field.getType().getNullable());
+  }
+
+  /**
+   * compares two FieldType. Does not compare nullability.
+   *
+   * @param a FieldType 1
+   * @param b FieldType 2
+   * @return TRUE if FieldType are equal. Otherwise FALSE
+   */
+  public static boolean compareSchemaFieldType(Schema.FieldType a, Schema.FieldType b) {
+    if (a.getTypeName().equals(b.getTypeName())) {
+      return !a.getTypeName().equals(Schema.TypeName.LOGICAL_TYPE)
+          || compareSchemaFieldType(
+              a.getLogicalType().getBaseType(), b.getLogicalType().getBaseType());
+    } else if (a.getTypeName().isLogicalType()) {
+      return a.getLogicalType().getBaseType().getTypeName().equals(b.getTypeName());
+    } else if (b.getTypeName().isLogicalType()) {
+      return b.getLogicalType().getBaseType().getTypeName().equals(a.getTypeName());
+    }
+    return false;
+  }
+
+  static class FieldWithIndex implements Serializable {
+    private final Schema.Field field;
+    private final Integer index;
+
+    private FieldWithIndex(Schema.Field field, Integer index) {
+      this.field = field;
+      this.index = index;
+    }
+
+    public static FieldWithIndex of(Schema.Field field, Integer index) {
+      checkArgument(field != null);
+      checkArgument(index != null);
+      return new FieldWithIndex(field, index);
+    }
+
+    public Schema.Field getField() {
+      return field;
+    }
+
+    public Integer getIndex() {
+      return index;
     }
   }
 }

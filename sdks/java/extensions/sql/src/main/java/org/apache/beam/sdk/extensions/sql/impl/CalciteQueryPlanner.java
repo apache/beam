@@ -17,20 +17,34 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.plan.Contexts;
 import org.apache.calcite.plan.ConventionTraitDef;
+import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.prepare.CalciteCatalogReader;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.metadata.BuiltInMetadata;
+import org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
+import org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
+import org.apache.calcite.rel.metadata.MetadataDef;
+import org.apache.calcite.rel.metadata.MetadataHandler;
+import org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
+import org.apache.calcite.rel.metadata.RelMetadataProvider;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorTable;
@@ -43,7 +57,9 @@ import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.calcite.tools.Frameworks;
 import org.apache.calcite.tools.Planner;
 import org.apache.calcite.tools.RelConversionException;
+import org.apache.calcite.tools.RuleSet;
 import org.apache.calcite.tools.ValidationException;
+import org.apache.calcite.util.BuiltInMethod;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,11 +72,11 @@ class CalciteQueryPlanner implements QueryPlanner {
 
   private final Planner planner;
 
-  CalciteQueryPlanner(JdbcConnection connection) {
-    planner = Frameworks.getPlanner(defaultConfig(connection));
+  public CalciteQueryPlanner(JdbcConnection connection, RuleSet[] ruleSets) {
+    planner = Frameworks.getPlanner(defaultConfig(connection, ruleSets));
   }
 
-  public FrameworkConfig defaultConfig(JdbcConnection connection) {
+  public FrameworkConfig defaultConfig(JdbcConnection connection, RuleSet[] ruleSets) {
     final CalciteConnectionConfig config = connection.config();
     final SqlParser.ConfigBuilder parserConfig =
         SqlParser.configBuilder()
@@ -94,8 +110,8 @@ class CalciteQueryPlanner implements QueryPlanner {
         .defaultSchema(defaultSchema)
         .traitDefs(traitDefs)
         .context(Contexts.of(connection.config()))
-        .ruleSets(BeamRuleSets.getRuleSets())
-        .costFactory(null)
+        .ruleSets(ruleSets)
+        .costFactory(BeamCostModel.FACTORY)
         .typeSystem(connection.getTypeFactory().getTypeSystem())
         .operatorTable(ChainedSqlOperatorTable.of(opTab0, catalogReader))
         .build();
@@ -135,8 +151,18 @@ class CalciteQueryPlanner implements QueryPlanner {
               .replace(BeamLogicalConvention.INSTANCE)
               .replace(root.collation)
               .simplify();
-
       // beam physical plan
+      root.rel
+          .getCluster()
+          .setMetadataProvider(
+              ChainedRelMetadataProvider.of(
+                  ImmutableList.of(
+                      NonCumulativeCostImpl.SOURCE,
+                      RelMdNodeStats.SOURCE,
+                      root.rel.getCluster().getMetadataProvider())));
+      RelMetadataQuery.THREAD_PROVIDERS.set(
+          JaninoRelMetadataProvider.of(root.rel.getCluster().getMetadataProvider()));
+      root.rel.getCluster().invalidateMetadataQuery();
       beamRelNode = (BeamRelNode) planner.transform(0, desiredTraits, root.rel);
       LOG.info("BEAMPlan>\n" + RelOptUtil.toString(beamRelNode));
     } catch (RelConversionException | CannotPlanException e) {
@@ -148,5 +174,44 @@ class CalciteQueryPlanner implements QueryPlanner {
       planner.close();
     }
     return beamRelNode;
+  }
+
+  // It needs to be public so that the generated code in Calcite can access it.
+  public static class NonCumulativeCostImpl
+      implements MetadataHandler<BuiltInMetadata.NonCumulativeCost> {
+
+    public static final RelMetadataProvider SOURCE =
+        ReflectiveRelMetadataProvider.reflectiveSource(
+            BuiltInMethod.NON_CUMULATIVE_COST.method, new NonCumulativeCostImpl());
+
+    @Override
+    public MetadataDef<BuiltInMetadata.NonCumulativeCost> getDef() {
+      return BuiltInMetadata.NonCumulativeCost.DEF;
+    }
+
+    @SuppressWarnings("UnusedDeclaration")
+    public RelOptCost getNonCumulativeCost(RelNode rel, RelMetadataQuery mq) {
+      // This is called by a generated code in calcite MetadataQuery.
+      // If the rel is Calcite rel or we are in JDBC path and cost factory is not set yet we should
+      // use calcite cost estimation
+      if (!(rel instanceof BeamRelNode)) {
+        return rel.computeSelfCost(rel.getCluster().getPlanner(), mq);
+      }
+
+      // Currently we do nothing in this case, however, we can plug our own cost estimation method
+      // here and based on the design we also need to remove the cached values
+
+      // We need to first remove the cached values.
+      List<List> costKeys =
+          mq.map.entrySet().stream()
+              .filter(entry -> entry.getValue() instanceof BeamCostModel)
+              .filter(entry -> ((BeamCostModel) entry.getValue()).isInfinite())
+              .map(Map.Entry::getKey)
+              .collect(Collectors.toList());
+
+      costKeys.forEach(mq.map::remove);
+
+      return ((BeamRelNode) rel).beamComputeSelfCost(rel.getCluster().getPlanner(), mq);
+    }
   }
 }

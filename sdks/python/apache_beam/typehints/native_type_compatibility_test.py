@@ -46,13 +46,14 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         ('simple dict', typing.Dict[bytes, int],
          typehints.Dict[bytes, int]),
         ('simple list', typing.List[int], typehints.List[int]),
+        ('simple iterable', typing.Iterable[int], typehints.Iterable[int]),
         ('simple optional', typing.Optional[int], typehints.Optional[int]),
         ('simple set', typing.Set[float], typehints.Set[float]),
         ('simple unary tuple', typing.Tuple[bytes],
          typehints.Tuple[bytes]),
         ('simple union', typing.Union[int, bytes, float],
          typehints.Union[int, bytes, float]),
-        ('namedtuple', _TestNamedTuple, typehints.Any),
+        ('namedtuple', _TestNamedTuple, _TestNamedTuple),
         ('test class', _TestClass, _TestClass),
         ('test class in list', typing.List[_TestClass],
          typehints.List[_TestClass]),
@@ -66,7 +67,12 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         ('complex dict',
          typing.Dict[bytes, typing.List[typing.Tuple[bytes, _TestClass]]],
          typehints.Dict[bytes, typehints.List[typehints.Tuple[
-             bytes, _TestClass]]])
+             bytes, _TestClass]]]),
+        ('type var', typing.TypeVar('T'), typehints.TypeVariable('T')),
+        ('nested type var',
+         typing.Tuple[typing.TypeVar('K'), typing.TypeVar('V')],
+         typehints.Tuple[typehints.TypeVariable('K'),
+                         typehints.TypeVariable('V')]),
     ]
 
     for test_case in test_cases:

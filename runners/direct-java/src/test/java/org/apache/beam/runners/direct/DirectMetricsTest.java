@@ -36,7 +36,7 @@ import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
@@ -51,7 +51,6 @@ import org.mockito.MockitoAnnotations;
 public class DirectMetricsTest {
 
   @Mock private CommittedBundle<Object> bundle1;
-  @Mock private CommittedBundle<Object> bundle2;
 
   private static final MetricName NAME1 = MetricName.named("ns1", "name1");
   private static final MetricName NAME2 = MetricName.named("ns1", "name2");

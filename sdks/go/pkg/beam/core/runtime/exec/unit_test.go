@@ -17,6 +17,7 @@ package exec
 
 import (
 	"context"
+	"io"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -76,6 +77,47 @@ func (n *CaptureNode) Down(ctx context.Context) error {
 	return nil
 }
 
+// iterInput keeps a key along with the list of associated values.
+type iterInput struct {
+	Key    FullValue
+	Values []FullValue
+}
+
+// IteratorCaptureNode is a test Node that captures all KV pairs elements for
+// verification, including all streamed values. It also validates that it is
+// invoked correctly.
+type IteratorCaptureNode struct {
+	CaptureNode    // embedded for the default unit methods
+	CapturedInputs []iterInput
+}
+
+func (n *IteratorCaptureNode) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
+	if n.CaptureNode.status != Active {
+		return errors.Errorf("invalid status for pardo %v: %v, want Active", n.CaptureNode.UID, n.CaptureNode.status)
+	}
+	var vs []FullValue
+	for _, iterV := range values {
+		s, err := iterV.Open()
+		if err != nil {
+			return err
+		}
+		defer s.Close()
+		v, err := s.Read()
+		for err == nil {
+			vs = append(vs, *v)
+			v, err = s.Read()
+		}
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+	}
+
+	n.CapturedInputs = append(n.CapturedInputs, iterInput{Key: *elm, Values: vs})
+	return nil
+}
+
 // FixedRoot is a test Root that emits a fixed number of elements.
 type FixedRoot struct {
 	UID      UnitID
@@ -117,7 +159,7 @@ type FixedSideInputAdapter struct {
 	Val ReStream
 }
 
-func (a *FixedSideInputAdapter) NewIterable(ctx context.Context, reader SideInputReader, w typex.Window) (ReStream, error) {
+func (a *FixedSideInputAdapter) NewIterable(ctx context.Context, reader StateReader, w typex.Window) (ReStream, error) {
 	return a.Val, nil
 }
 

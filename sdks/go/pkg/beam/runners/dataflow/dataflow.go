@@ -49,11 +49,12 @@ var (
 	stagingLocation      = flag.String("staging_location", "", "GCS staging location (required).")
 	image                = flag.String("worker_harness_container_image", "", "Worker harness container image (required).")
 	labels               = flag.String("labels", "", "JSON-formatted map[string]string of job labels (optional).")
+	serviceAccountEmail  = flag.String("service_account_email", "", "Service account email (optional).")
 	numWorkers           = flag.Int64("num_workers", 0, "Number of workers (optional).")
 	maxNumWorkers        = flag.Int64("max_num_workers", 0, "Maximum number of workers during scaling (optional).")
 	autoscalingAlgorithm = flag.String("autoscaling_algorithm", "", "Autoscaling mode to use (optional).")
 	zone                 = flag.String("zone", "", "GCP zone (optional)")
-	region               = flag.String("region", "us-central1", "GCP Region (optional)")
+	region               = flag.String("region", "", "GCP Region (optional but encouraged)")
 	network              = flag.String("network", "", "GCP network (optional)")
 	tempLocation         = flag.String("temp_location", "", "Temp location (optional)")
 	machineType          = flag.String("worker_machine_type", "", "GCE machine type (optional)")
@@ -88,6 +89,12 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 	if *stagingLocation == "" {
 		return errors.New("no GCS staging location specified. Use --staging_location=gs://<bucket>/<path>")
+	}
+	if *region == "" {
+		*region = "us-central1"
+		log.Warn(ctx, "--region not set; will default to us-central1. Future releases of Beam will "+
+			"require the user to set the region explicitly. "+
+			"https://cloud.google.com/compute/docs/regions-zones/regions-zones")
 	}
 	if *image == "" {
 		*image = getContainerImage(ctx)
@@ -126,22 +133,23 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 
 	opts := &dataflowlib.JobOptions{
-		Name:           jobopts.GetJobName(),
-		Experiments:    experiments,
-		Options:        beam.PipelineOptions.Export(),
-		Project:        project,
-		Region:         *region,
-		Zone:           *zone,
-		Network:        *network,
-		NumWorkers:     *numWorkers,
-		MaxNumWorkers:  *maxNumWorkers,
-		Algorithm:      *autoscalingAlgorithm,
-		MachineType:    *machineType,
-		Labels:         jobLabels,
-		TempLocation:   *tempLocation,
-		Worker:         *jobopts.WorkerBinary,
-		WorkerJar:      *workerJar,
-		TeardownPolicy: *teardownPolicy,
+		Name:                jobopts.GetJobName(),
+		Experiments:         experiments,
+		Options:             beam.PipelineOptions.Export(),
+		Project:             project,
+		Region:              *region,
+		Zone:                *zone,
+		Network:             *network,
+		NumWorkers:          *numWorkers,
+		MaxNumWorkers:       *maxNumWorkers,
+		Algorithm:           *autoscalingAlgorithm,
+		MachineType:         *machineType,
+		Labels:              jobLabels,
+		ServiceAccountEmail: *serviceAccountEmail,
+		TempLocation:        *tempLocation,
+		Worker:              *jobopts.WorkerBinary,
+		WorkerJar:           *workerJar,
+		TeardownPolicy:      *teardownPolicy,
 	}
 	if opts.TempLocation == "" {
 		opts.TempLocation = gcsx.Join(*stagingLocation, "tmp")

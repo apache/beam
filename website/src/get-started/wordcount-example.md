@@ -407,17 +407,20 @@ This runner is not yet available for the Python SDK.
 
 {:.runner-flink-local}
 ```
-This runner is not yet available for the Python SDK.
+Currently, running wordcount.py on Flink requires a full download of the Beam source code.
+See https://beam.apache.org/roadmap/portability/#python-on-flink for more information.
 ```
 
 {:.runner-flink-cluster}
 ```
-This runner is not yet available for the Python SDK.
+Currently, running wordcount.py on Flink requires a full download of the Beam source code.
+See https://beam.apache.org/documentation/runners/flink/ for more information.
 ```
 
 {:.runner-spark}
 ```
-This runner is not yet available for the Python SDK.
+Currently, running wordcount.py on Spark requires a full download of the Beam source code.
+See https://beam.apache.org/roadmap/portability/#python-on-spark for more information.
 ```
 
 {:.runner-dataflow}

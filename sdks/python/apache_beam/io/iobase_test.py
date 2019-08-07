@@ -25,7 +25,6 @@ from apache_beam.io.concat_source import ConcatSource
 from apache_beam.io.concat_source_test import RangeSource
 from apache_beam.io import iobase
 from apache_beam.io.iobase import SourceBundle
-from apache_beam.io.range_trackers import OffsetRangeTracker
 
 
 class SDFBoundedSourceRestrictionProviderTest(unittest.TestCase):
@@ -115,14 +114,17 @@ class SDFBoundedSourceRestrictionTrackerTest(unittest.TestCase):
   def setUp(self):
     self.initial_start_pos = 0
     self.initial_stop_pos = 4
-    self.range_tracker = OffsetRangeTracker(self.initial_start_pos,
-                                            self.initial_stop_pos)
+    source_bundle = SourceBundle(
+        self.initial_stop_pos - self.initial_start_pos,
+        RangeSource(self.initial_start_pos, self.initial_stop_pos),
+        self.initial_start_pos,
+        self.initial_stop_pos)
     self.sdf_restriction_tracker = (
         iobase._SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionTracker(
-            self.range_tracker))
+            source_bundle))
 
   def test_current_restriction_before_split(self):
-    actual_start, actual_stop = (
+    _, _, actual_start, actual_stop = (
         self.sdf_restriction_tracker.current_restriction())
     self.assertEqual(self.initial_start_pos, actual_start)
     self.assertEqual(self.initial_stop_pos, actual_stop)
@@ -136,14 +138,20 @@ class SDFBoundedSourceRestrictionTrackerTest(unittest.TestCase):
                      self.sdf_restriction_tracker.current_restriction())
 
   def test_try_split_at_remainder(self):
-    fraction_of_remainder = 0.5
-    expected_primary = (0, 3)
-    expected_residual = (3, 4)
-    self.sdf_restriction_tracker.try_claim(1)
+    fraction_of_remainder = 0.4
+    expected_primary = (0, 2, 2.0)
+    expected_residual = (2, 4, 2.0)
+    self.sdf_restriction_tracker.try_claim(0)
     actual_primary, actual_residual = (
         self.sdf_restriction_tracker.try_split(fraction_of_remainder))
-    self.assertEqual(expected_primary, actual_primary)
-    self.assertEqual(expected_residual, actual_residual)
+    self.assertEqual(expected_primary, (actual_primary.start_position,
+                                        actual_primary.stop_position,
+                                        actual_primary.weight))
+    self.assertEqual(expected_residual, (actual_residual.start_position,
+                                         actual_residual.stop_position,
+                                         actual_residual.weight))
+    self.assertEqual(actual_primary.weight,
+                     self.sdf_restriction_tracker._weight)
 
 
 if __name__ == '__main__':

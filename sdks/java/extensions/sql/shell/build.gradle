@@ -28,8 +28,8 @@ dependencies {
   if (project.hasProperty("beam.sql.shell.bundled")) {
     project.getProperty("beam.sql.shell.bundled").tokenize(",").each {
       subproject ->
-          compile project(path: subproject, configuration: "shadow")
-          permitUnusedDeclared project(path: subproject, configuration: "shadow")
+          compile project(path: subproject)
+          permitUnusedDeclared project(path: subproject)
     }
   }
 }

@@ -21,11 +21,14 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
+import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSqlOutputToConsoleFn;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestUnboundedTable;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -34,8 +37,10 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
+import org.apache.calcite.rel.RelNode;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -112,7 +117,7 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
 
     @Override
     public PCollection.IsBounded isBounded() {
-      throw new UnsupportedOperationException();
+      return PCollection.IsBounded.BOUNDED;
     }
 
     @Override
@@ -128,6 +133,11 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
     @Override
     public List<Row> seekRow(Row lookupSubRow) {
       return Arrays.asList(Row.withSchema(getSchema()).addValues(1, "SITE1").build());
+    }
+
+    @Override
+    public BeamTableStatistics getTableStatistics(PipelineOptions options) {
+      return BeamTableStatistics.BOUNDED_UNKNOWN;
     }
   }
 
@@ -175,6 +185,44 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
                 .addRows(1, 3, "james", 2, 5, "bond")
                 .getStringRows());
     pipeline.run();
+  }
+
+  @Test
+  public void testNodeStatsEstimation() {
+    String sql =
+        "SELECT o1.order_id, o1.sum_site_id, o2.buyer FROM "
+            + "(select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
+            + "          GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)) o1 "
+            + " JOIN "
+            + " ORDER_DETAILS1 o2 "
+            + " on "
+            + " o1.order_id=o2.order_id";
+
+    RelNode root = env.parseQuery(sql);
+
+    while (!(root instanceof BeamJoinRel)) {
+      root = root.getInput(0);
+    }
+
+    NodeStats estimate = BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
+    NodeStats leftEstimate =
+        BeamSqlRelUtils.getNodeStats(
+            ((BeamJoinRel) root).getLeft(), root.getCluster().getMetadataQuery());
+    NodeStats rightEstimate =
+        BeamSqlRelUtils.getNodeStats(
+            ((BeamJoinRel) root).getRight(), root.getCluster().getMetadataQuery());
+
+    Assert.assertFalse(estimate.isUnknown());
+    Assert.assertEquals(0d, estimate.getRowCount(), 0.01);
+
+    Assert.assertNotEquals(0d, estimate.getRate(), 0.001);
+    Assert.assertTrue(
+        estimate.getRate()
+            < leftEstimate.getRowCount() * rightEstimate.getWindow()
+                + rightEstimate.getRowCount() * leftEstimate.getWindow());
+
+    Assert.assertNotEquals(0d, estimate.getWindow(), 0.001);
+    Assert.assertTrue(estimate.getWindow() < leftEstimate.getWindow() * rightEstimate.getWindow());
   }
 
   @Test

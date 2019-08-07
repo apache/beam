@@ -37,7 +37,7 @@ configurations {
 def samza_version = "1.1.0"
 
 dependencies {
-  compile library.java.vendored_guava_20_0
+  compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":runners:core-java")
   compile project(":runners:core-construction-java")

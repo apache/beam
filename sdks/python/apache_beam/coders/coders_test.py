@@ -23,6 +23,7 @@ from builtins import object
 
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coders
+from apache_beam.coders.avro_record import AvroRecord
 from apache_beam.coders.typecoders import registry as coders_registry
 
 
@@ -110,6 +111,48 @@ class DeterministicProtoCoderTest(unittest.TestCase):
         mm_reverse.field1[str(key)].field1 = str(key)
       coder = coders.DeterministicProtoCoder(mm_forward.__class__)
       self.assertEqual(coder.encode(mm_forward), coder.encode(mm_reverse))
+
+
+class AvroTestCoder(coders.AvroCoder):
+  SCHEMA = """
+  {
+    "type": "record", "name": "testrecord",
+    "fields": [
+      {"name": "name", "type": "string"},
+      {"name": "age", "type": "int"}
+    ]
+  }
+  """
+
+  def __init__(self):
+    super(AvroTestCoder, self).__init__(self.SCHEMA)
+
+
+class AvroTestRecord(AvroRecord):
+  pass
+
+
+coders_registry.register_coder(AvroTestRecord, AvroTestCoder)
+
+
+class AvroCoderTest(unittest.TestCase):
+
+  def test_avro_record_coder(self):
+    real_coder = coders_registry.get_coder(AvroTestRecord)
+    expected_coder = AvroTestCoder()
+    self.assertEqual(
+        real_coder.encode(
+            AvroTestRecord({"name": "Daenerys targaryen", "age": 23})),
+        expected_coder.encode(
+            AvroTestRecord({"name": "Daenerys targaryen", "age": 23}))
+    )
+    self.assertEqual(
+        AvroTestRecord({"name": "Jon Snow", "age": 23}),
+        real_coder.decode(
+            real_coder.encode(
+                AvroTestRecord({"name": "Jon Snow", "age": 23}))
+        )
+    )
 
 
 class DummyClass(object):

@@ -20,11 +20,11 @@ package org.apache.beam.runners.core.construction;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -80,7 +80,7 @@ public class SchemaTranslationTest {
 
     @Test
     public void toAndFromProto() throws Exception {
-      RunnerApi.Schema schemaProto = SchemaTranslation.toProto(schema);
+      SchemaApi.Schema schemaProto = SchemaTranslation.toProto(schema);
 
       Schema decodedSchema = SchemaTranslation.fromProto(schemaProto);
       assertThat(decodedSchema, equalTo(schema));

@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.mongodb;
 
 import static org.apache.beam.sdk.io.mongodb.FindQuery.bson2BsonDocument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import com.mongodb.BasicDBObject;
@@ -52,7 +52,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.bson.BsonDocument;
 import org.bson.BsonInt32;
 import org.bson.BsonString;
@@ -454,14 +454,19 @@ public class MongoDbIO {
             return Collections.singletonList(this);
           }
 
-          List<String> keys = splitKeysToFilters(splitKeys);
           for (String shardFilter : splitKeysToFilters(splitKeys)) {
             SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> queryFn =
                 spec.queryFn();
 
             BsonDocument filters = bson2BsonDocument(Document.parse(shardFilter));
             FindQuery findQuery = (FindQuery) queryFn;
-            FindQuery queryWithFilter = findQuery.toBuilder().setFilters(filters).build();
+            final BsonDocument allFilters =
+                bson2BsonDocument(
+                    findQuery.filters() != null
+                        ? Filters.and(findQuery.filters(), filters)
+                        : filters);
+            FindQuery queryWithFilter = findQuery.toBuilder().setFilters(allFilters).build();
+            LOG.debug("using filters: " + allFilters.toJson());
             sources.add(new BoundedMongoDbSource(spec.withQueryFn(queryWithFilter)));
           }
         } else {

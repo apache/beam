@@ -19,10 +19,12 @@
 
 from __future__ import absolute_import
 
+import atexit
 import collections
 import logging
 import random
 import time
+import typing
 from builtins import object
 
 from future.utils import iteritems
@@ -30,7 +32,6 @@ from future.utils import iteritems
 import apache_beam.io as io
 from apache_beam import coders
 from apache_beam import pvalue
-from apache_beam import typehints
 from apache_beam.internal import pickler
 from apache_beam.runners import common
 from apache_beam.runners.common import DoFnRunner
@@ -376,45 +377,11 @@ class _TestStreamEvaluator(_TransformEvaluator):
         self, self.bundles, unprocessed_bundles, None, {None: hold})
 
 
-class _PubSubSubscriptionWrapper(object):
-  """Wrapper for managing temporary PubSub subscriptions."""
-
-  def __init__(self, project, short_topic_name, short_sub_name):
-    """Initialize subscription wrapper.
-
-    If sub_name is None, will create a temporary subscription to topic_name.
-
-    Args:
-      project: GCP project name for topic and subscription. May be None.
-        Required if sub_name is None.
-      short_topic_name: Valid topic name without
-        'projects/{project}/topics/' prefix. May be None.
-        Required if sub_name is None.
-      short_sub_name: Valid subscription name without
-        'projects/{project}/subscriptions/' prefix. May be None.
-    """
-    from google.cloud import pubsub
-    self.sub_client = pubsub.SubscriberClient()
-
-    if short_sub_name is None:
-      self.sub_name = self.sub_client.subscription_path(
-          project, 'beam_%d_%x' % (int(time.time()), random.randrange(1 << 32)))
-      topic_name = self.sub_client.topic_path(project, short_topic_name)
-      self.sub_client.create_subscription(self.sub_name, topic_name)
-      self._should_cleanup = True
-    else:
-      self.sub_name = self.sub_client.subscription_path(project, short_sub_name)
-      self._should_cleanup = False
-
-  def __del__(self):
-    if self._should_cleanup:
-      self.sub_client.delete_subscription(self.sub_name)
-
-
 class _PubSubReadEvaluator(_TransformEvaluator):
   """TransformEvaluator for PubSub read."""
 
   # A mapping of transform to _PubSubSubscriptionWrapper.
+  # TODO(BEAM-7750): Prevents garbage collection of pipeline instances.
   _subscription_cache = {}
 
   def __init__(self, evaluation_context, applied_ptransform,
@@ -428,16 +395,29 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     if self.source.id_label:
       raise NotImplementedError(
           'DirectRunner: id_label is not supported for PubSub reads')
-    self._sub_name = _PubSubReadEvaluator.get_subscription(
+    self._sub_name = self.get_subscription(
         self._applied_ptransform, self.source.project, self.source.topic_name,
         self.source.subscription_name)
 
   @classmethod
-  def get_subscription(cls, transform, project, topic, short_sub_name):
-    if transform not in cls._subscription_cache:
-      wrapper = _PubSubSubscriptionWrapper(project, topic, short_sub_name)
-      cls._subscription_cache[transform] = wrapper
-    return cls._subscription_cache[transform].sub_name
+  def get_subscription(cls, transform, project, short_topic_name,
+                       short_sub_name):
+    from google.cloud import pubsub
+
+    if short_sub_name:
+      return pubsub.SubscriberClient.subscription_path(project, short_sub_name)
+
+    if transform in cls._subscription_cache:
+      return cls._subscription_cache[transform]
+
+    sub_client = pubsub.SubscriberClient()
+    sub_name = sub_client.subscription_path(
+        project, 'beam_%d_%x' % (int(time.time()), random.randrange(1 << 32)))
+    topic_name = sub_client.topic_path(project, short_topic_name)
+    sub_client.create_subscription(sub_name, topic_name)
+    atexit.register(sub_client.delete_subscription, sub_name)
+    cls._subscription_cache[transform] = sub_name
+    return cls._subscription_cache[transform]
 
   def start_bundle(self):
     pass
@@ -455,10 +435,10 @@ class _PubSubReadEvaluator(_TransformEvaluator):
           timestamp_attribute in parsed_message.attributes):
         rfc3339_or_milli = parsed_message.attributes[timestamp_attribute]
         try:
-          timestamp = Timestamp.from_rfc3339(rfc3339_or_milli)
+          timestamp = Timestamp(micros=int(rfc3339_or_milli) * 1000)
         except ValueError:
           try:
-            timestamp = Timestamp(micros=int(rfc3339_or_milli) * 1000)
+            timestamp = Timestamp.from_rfc3339(rfc3339_or_milli)
           except ValueError as e:
             raise ValueError('Bad timestamp value: %s' % e)
       else:
@@ -602,11 +582,11 @@ class _ParDoEvaluator(_TransformEvaluator):
     self.user_timer_map = {}
     if is_stateful_dofn(dofn):
       kv_type_hint = self._applied_ptransform.inputs[0].element_type
-      if kv_type_hint and kv_type_hint != typehints.Any:
+      if kv_type_hint and kv_type_hint != typing.Any:
         coder = coders.registry.get_coder(kv_type_hint)
         self.key_coder = coder.key_coder()
       else:
-        self.key_coder = coders.registry.get_coder(typehints.Any)
+        self.key_coder = coders.registry.get_coder(typing.Any)
 
       self.user_state_context = DirectUserStateContext(
           self._step_context, dofn, self.key_coder)
@@ -669,7 +649,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
     assert len(self._outputs) == 1
     self.output_pcollection = list(self._outputs)[0]
 
-    # The output type of a GroupByKey will be KV[Any, Any] or more specific.
+    # The output type of a GroupByKey will be Tuple[Any, Any] or more specific.
     # TODO(BEAM-2717): Infer coders earlier.
     kv_type_hint = (
         self._applied_ptransform.outputs[None].element_type
@@ -759,10 +739,10 @@ class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
     assert len(self._outputs) == 1
     self.output_pcollection = list(self._outputs)[0]
 
-    # The input type of a GroupByKey will be KV[Any, Any] or more specific.
+    # The input type of a GroupByKey will be Tuple[Any, Any] or more specific.
     kv_type_hint = self._applied_ptransform.inputs[0].element_type
     key_type_hint = (kv_type_hint.tuple_types[0] if kv_type_hint
-                     else typehints.Any)
+                     else typing.Any)
     self.key_coder = coders.registry.get_coder(key_type_hint)
 
   def process_element(self, element):
@@ -815,10 +795,10 @@ class _StreamingGroupAlsoByWindowEvaluator(_TransformEvaluator):
     self.keyed_holds = {}
 
     # The input type (which is the same as the output type) of a
-    # GroupAlsoByWindow will be KV[Any, Iter[Any]] or more specific.
+    # GroupAlsoByWindow will be Tuple[Any, Iter[Any]] or more specific.
     kv_type_hint = self._applied_ptransform.outputs[None].element_type
     key_type_hint = (kv_type_hint.tuple_types[0] if kv_type_hint
-                     else typehints.Any)
+                     else typing.Any)
     self.key_coder = coders.registry.get_coder(key_type_hint)
 
   def process_element(self, element):

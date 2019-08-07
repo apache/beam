@@ -84,16 +84,18 @@ def get_element_by_schema(schema_name, insert_list):
 class MetricsReader(object):
   publishers = []
 
-  def __init__(self, project_name=None, bq_table=None, bq_dataset=None):
+  def __init__(self, project_name=None, bq_table=None, bq_dataset=None,
+               filters=None):
     self.publishers.append(ConsoleMetricsPublisher())
     check = project_name and bq_table and bq_dataset
     if check:
       bq_publisher = BigQueryMetricsPublisher(
           project_name, bq_table, bq_dataset)
       self.publishers.append(bq_publisher)
+    self.filters = filters
 
   def publish_metrics(self, result):
-    metrics = result.metrics().query()
+    metrics = result.metrics().query(self.filters)
     insert_dicts = self._prepare_all_metrics(metrics)
     if len(insert_dicts):
       for publisher in self.publishers:
@@ -249,14 +251,27 @@ class MeasureTime(beam.DoFn):
     yield element
 
 
-def count_bytes(f):
-  def repl(*args):
-    namespace = args[2]
-    counter = Metrics.counter(namespace, COUNTER_LABEL)
-    element = args[1]
-    _, value = element
-    for i in range(len(value)):
-      counter.inc(i)
-    return f(*args)
+class MeasureBytes(beam.DoFn):
+  LABEL = 'total_bytes'
 
-  return repl
+  def __init__(self, namespace, extractor=None):
+    self.namespace = namespace
+    self.counter = Metrics.counter(self.namespace, self.LABEL)
+    self.extractor = extractor if extractor else lambda x: (yield x)
+
+  def process(self, element, *args):
+    for value in self.extractor(element, *args):
+      self.counter.inc(len(value))
+    yield element
+
+
+class CountMessages(beam.DoFn):
+  LABEL = 'total_messages'
+
+  def __init__(self, namespace):
+    self.namespace = namespace
+    self.counter = Metrics.counter(self.namespace, self.LABEL)
+
+  def process(self, element):
+    self.counter.inc(1)
+    yield element

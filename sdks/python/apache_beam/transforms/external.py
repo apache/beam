@@ -16,6 +16,8 @@
 #
 
 """Defines Transform whose expansion is implemented elsewhere.
+
+No backward compatibility guarantees. Everything in this module is experimental.
 """
 from __future__ import absolute_import
 from __future__ import print_function
@@ -42,7 +44,12 @@ except ImportError:
 
 
 class ExternalTransform(ptransform.PTransform):
+  """
+    External provides a cross-language transform via expansion services in
+    foreign SDKs.
 
+    Experimental; no backwards compatibility guarantees.
+  """
   _namespace_counter = 0
   _namespace = threading.local()
 

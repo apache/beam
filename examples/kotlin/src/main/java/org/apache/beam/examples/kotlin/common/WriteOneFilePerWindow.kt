@@ -30,7 +30,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow
 import org.apache.beam.sdk.transforms.windowing.PaneInfo
 import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.PDone
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull
 import org.joda.time.format.ISODateTimeFormat
 
 /**

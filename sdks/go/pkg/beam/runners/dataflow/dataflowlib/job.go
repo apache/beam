@@ -41,13 +41,14 @@ type JobOptions struct {
 	// Pipeline options
 	Options runtime.RawOptions
 
-	Project     string
-	Region      string
-	Zone        string
-	Network     string
-	NumWorkers  int64
-	MachineType string
-	Labels      map[string]string
+	Project             string
+	Region              string
+	Zone                string
+	Network             string
+	NumWorkers          int64
+	MachineType         string
+	Labels              map[string]string
+	ServiceAccountEmail string
 
 	// Autoscaling settings
 	Algorithm     string
@@ -108,6 +109,7 @@ func Translate(p *pb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL str
 		Name:      opts.Name,
 		Type:      jobType,
 		Environment: &df.Environment{
+			ServiceAccountEmail: opts.ServiceAccountEmail,
 			UserAgent: newMsg(userAgent{
 				Name:    "Apache Beam SDK for Go",
 				Version: "0.5.0",

@@ -105,6 +105,8 @@ runShadow {
     args += ["--flink-master-url=${project.property('flinkMasterUrl')}"]
   if (project.hasProperty('flinkConfDir'))
     args += ["--flink-conf-dir=${project.property('flinkConfDir')}"]
+  if (project.hasProperty('sdkWorkerParallelism'))
+    args += ["--sdk-worker-parallelism=${project.property('sdkWorkerParallelism')}"]
 
   // Enable remote debugging.
   jvmArgs = ["-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"]
@@ -165,23 +167,13 @@ task validatesPortableRunner() {
   dependsOn validatesPortableRunnerStreaming
 }
 
-project.ext.validatesCrossLanguageTransforms =
-  createPortableValidatesRunnerTask(
-    name: "validatesCrossLanguageTransforms",
-    jobServerDriver: "org.apache.beam.runners.flink.FlinkJobServerDriver",
-    jobServerConfig: "--clean-artifacts-per-job,--job-host=localhost,--job-port=0,--artifact-port=0,--expansion-port=0",
-    testClasspathConfiguration: configurations.validatesPortableRunner,
-    numParallelTests: 1,
-    pipelineOpts: [
-      // Limit resource consumption via parallelism
-      "--parallelism=2",
-      "--shutdownSourcesOnFinalWatermark",
-    ],
-    testCategories: {
-      // Only include cross-language transform tests. Avoid to retest everything on Docker environment.
-      includeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
-    },
-  )
-project.evaluationDependsOn ':sdks:python'
-validatesCrossLanguageTransforms.dependsOn ':sdks:python:setupVirtualenv'
-validatesCrossLanguageTransforms.systemProperty "pythonTestExpansionCommand", ". ${project(':sdks:python').envdir}/bin/activate && pip install -e ${project(':sdks:python').projectDir}[test] && python -m apache_beam.runners.portability.expansion_service_test"
+project.ext.validatesCrossLanguageRunner = createCrossLanguageValidatesRunnerTask(
+  jobServerDriver: "org.apache.beam.runners.flink.FlinkJobServerDriver",
+  jobServerConfig: "--clean-artifacts-per-job,--job-host=localhost,--job-port=0,--artifact-port=0",
+  testClasspathConfiguration: configurations.validatesPortableRunner,
+  numParallelTests: 1,
+  pipelineOpts: [
+    "--parallelism=2",
+    "--shutdownSourcesOnFinalWatermark",
+  ]
+)

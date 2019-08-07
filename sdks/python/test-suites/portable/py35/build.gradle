@@ -23,7 +23,7 @@ pythonVersion = '3.5'
 
 addPortableWordCountTasks()
 
-task portablePreCommitPy35() {
+task preCommitPy35() {
     dependsOn ':runners:flink:1.5:job-server-container:docker'
     dependsOn ':sdks:python:container:py3:docker'
     dependsOn portableWordCountBatch
