@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import copy
+import inspect
 import logging
 import random
 import re
@@ -58,11 +59,17 @@ from apache_beam.transforms.window import WindowFn
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
+from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.decorators import get_type_hints
-from apache_beam.typehints.decorators import getfullargspec
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.typehints import is_consistent_with
 from apache_beam.utils import urns
+
+try:
+  import funcsigs  # Python 2 only.
+except ImportError:
+  funcsigs = None
+
 
 __all__ = [
     'DoFn',
@@ -288,13 +295,41 @@ def get_function_arguments(obj, func):
   """Return the function arguments based on the name provided. If they have
   a _inspect_function attached to the class then use that otherwise default
   to the modified version of python inspect library.
+
+  Returns:
+    Same as get_function_args_defaults.
   """
   func_name = '_inspect_%s' % func
   if hasattr(obj, func_name):
     f = getattr(obj, func_name)
     return f()
   f = getattr(obj, func)
-  return getfullargspec(f)
+  return get_function_args_defaults(f)
+
+
+def get_function_args_defaults(f):
+  """Returns the function arguments of a given function.
+
+  Returns:
+    (args: List[str], defaults: List[Any]). The first list names the
+    arguments of the method and the second one has the values of the default
+    arguments. This is similar to ``inspect.getfullargspec()``'s results, except
+    it doesn't include bound arguments and may follow function wrappers.
+  """
+  signature = get_signature(f)
+  try:
+    parameter = inspect.Parameter
+  except AttributeError:
+    parameter = funcsigs.Parameter
+  # TODO(BEAM-5878) support kwonlyargs on Python 3.
+  _SUPPORTED_ARG_TYPES = [parameter.POSITIONAL_ONLY,
+                          parameter.POSITIONAL_OR_KEYWORD]
+  args = [name for name, p in signature.parameters.items()
+          if p.kind in _SUPPORTED_ARG_TYPES]
+  defaults = [p.default for p in signature.parameters.values()
+              if p.kind in _SUPPORTED_ARG_TYPES and p.default != p.empty]
+
+  return args, defaults
 
 
 class RunnerAPIPTransformHolder(PTransform):
@@ -533,6 +568,13 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   def get_function_arguments(self, func):
     return get_function_arguments(self, func)
 
+  # TODO: should this be in all fn accepting transforms?
+  def default_type_hints(self):
+    # TODO: Needs discussion if this should be enabled for existing pipelines,
+    #   as it might uncover type hinting bugs. If not, return None in Py2.
+    # TODO: annotations_required=True? test
+    return typehints.decorators.IOTypeHints.from_callable(self.process)
+
   # TODO(sourabhbajaj): Do we want to remove the responsibility of these from
   # the DoFn or maybe the runner
   def infer_output_type(self, input_type):
@@ -559,37 +601,17 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     """
     return self.process
 
-  def is_process_bounded(self):
-    """Checks if an object is a bound method on an instance."""
-    if not isinstance(self.process, types.MethodType):
-      return False # Not a method
-    if self.process.__self__ is None:
-      return False # Method is not bound
-    if issubclass(self.process.__self__.__class__, type) or \
-        self.process.__self__.__class__ is type:
-      return False # Method is a classmethod
-    return True
-
   urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_DOFN)
 
 
 def _fn_takes_side_inputs(fn):
   try:
-    argspec = getfullargspec(fn)
+    signature = get_signature(fn)
   except TypeError:
     # We can't tell; maybe it does.
     return True
-  is_bound = isinstance(fn, types.MethodType) and fn.__self__ is not None
 
-  try:
-    varkw = argspec.varkw
-    kwonlyargs = argspec.kwonlyargs
-  except AttributeError:  # Python 2
-    varkw = argspec.keywords
-    kwonlyargs = []
-
-  return (len(argspec.args) + len(kwonlyargs) > 1 + is_bound or
-          argspec.varargs or varkw)
+  return len(signature.parameters) > 1
 
 
 class CallableWrapperDoFn(DoFn):
@@ -638,7 +660,13 @@ class CallableWrapperDoFn(DoFn):
     return 'CallableWrapperDoFn(%s)' % self._fn
 
   def default_type_hints(self):
-    type_hints = get_type_hints(self._fn)
+    # TODO: test that this is okay when get_type_hints sets:
+    #   hints.set_input_types(fn.__objclass__)
+    type_hints = get_type_hints(self._fn).with_defaults(
+        typehints.decorators.IOTypeHints.from_callable(self._fn))
+    # TODO(udim): This branch is written for use with FlatMap, however
+    #   CallableWrapperDoFn is used in more generic from_callable and make_fn
+    #   methods in this file.
     # If the fn was a DoFn annotated with a type-hint that hinted a return
     # type compatible with Iterable[Any], then we strip off the outer
     # container type due to the 'flatten' portion of FlatMap.
@@ -662,7 +690,7 @@ class CallableWrapperDoFn(DoFn):
     if self._fullargspec:
       return self._fullargspec
     else:
-      return getfullargspec(self._process_argspec_fn())
+      return get_function_args_defaults(self._process_argspec_fn())
 
 
 class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
@@ -1378,12 +1406,13 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
   label = 'MapTuple(%s)' % ptransform.label_from_callable(fn)
 
-  argspec = getfullargspec(fn)
-  num_defaults = len(argspec.defaults or ())
+  # TODO: fix this
+  arg_names, defaults = get_function_args_defaults(fn)
+  num_defaults = len(defaults)
   if num_defaults < len(args) + len(kwargs):
     raise TypeError('Side inputs must have defaults for MapTuple.')
 
-  if argspec.defaults or args or kwargs:
+  if defaults or args or kwargs:
     wrapper = lambda x, *args, **kwargs: [fn(*(tuple(x) + args), **kwargs)]
   else:
     wrapper = lambda x: [fn(*x)]
@@ -1396,8 +1425,10 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
     get_type_hints(wrapper).set_output_types(typehints.Iterable[output_hint])
 
   # Replace the first (args) component.
-  modified_args = ['tuple_element'] + argspec.args[-num_defaults:]
-  modified_argspec = type(argspec)(*((modified_args,) + argspec[1:]))
+  modified_arg_names = ['tuple_element'] + arg_names[-num_defaults:]
+  modified_argspec = (modified_arg_names, defaults)
+  # TODO: Why is the fullargspec override necessary here? Isn't
+  #   get_function_args_defaults(wrapper) enough?
   pardo = ParDo(CallableWrapperDoFn(
       wrapper, fullargspec=modified_argspec), *args, **kwargs)
   pardo.label = label
@@ -1447,7 +1478,8 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
   label = 'FlatMapTuple(%s)' % ptransform.label_from_callable(fn)
 
-  argspec = getfullargspec(fn)
+  # TODO: fix this
+  argspec = get_function_args_defaults(fn)
   num_defaults = len(argspec.defaults or ())
   if num_defaults < len(args) + len(kwargs):
     raise TypeError('Side inputs must have defaults for FlatMapTuple.')

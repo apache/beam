@@ -31,7 +31,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.typehints import WithTypeHints
-from apache_beam.typehints.decorators import getfullargspec
+from apache_beam.typehints.decorators import get_signature
 
 # These test often construct a pipeline as value | PTransform to test side
 # effects (e.g. errors).
@@ -86,10 +86,12 @@ class MainInputTest(unittest.TestCase):
     result = [1, 2, 3] | beam.ParDo(MyDoFn())
     self.assertEqual(['1', '2', '3'], sorted(result))
 
-    with self.assertRaises(typehints.TypeCheckError):
+    with self.assertRaisesRegexp(typehints.TypeCheckError,
+                                 r'requires.*int.*got.*str'):
       ['a', 'b', 'c'] | beam.ParDo(MyDoFn())
 
-    with self.assertRaises(typehints.TypeCheckError):
+    with self.assertRaisesRegexp(typehints.TypeCheckError,
+                                 r'requires.*int.*got.*str'):
       [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
 
   def test_typed_dofn_instance(self):
@@ -167,8 +169,10 @@ class SideInputTest(unittest.TestCase):
       ['a', 'bb', 'c'] | beam.Map(repeat, times='z')
     with self.assertRaises(typehints.TypeCheckError):
       ['a', 'bb', 'c'] | beam.Map(repeat, 3, 4)
-    if not getfullargspec(repeat).defaults:
-      with self.assertRaises(typehints.TypeCheckError):
+    if all(param.default == param.empty
+           for param in get_signature(repeat).parameters.values()):
+      with self.assertRaisesRegexp(typehints.TypeCheckError,
+                                   r'(takes exactly|missing a required)'):
         ['a', 'bb', 'c'] | beam.Map(repeat)
 
   def test_basic_side_input_hint(self):

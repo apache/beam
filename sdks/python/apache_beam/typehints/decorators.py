@@ -61,8 +61,8 @@ Example usage for type-hinting both arguments and return values::
   def int_to_str(a):
     return str(a)
 
-Type-hinting a function with arguments that unpack tuples are also supported. As
-an example, such a function would be defined as::
+Type-hinting a function with arguments that unpack tuples are also supported
+(in Python 2 only). As an example, such a function would be defined as::
 
   def foo((a, b)):
     ...
@@ -100,6 +100,12 @@ from apache_beam.typehints.typehints import SimpleTypeHintError
 from apache_beam.typehints.typehints import check_constraint
 from apache_beam.typehints.typehints import validate_composite_type_param
 
+try:
+  import funcsigs  # Python 2 only.
+except ImportError:
+  funcsigs = None
+
+
 __all__ = [
     'with_input_types',
     'with_output_types',
@@ -113,6 +119,9 @@ __all__ = [
 _MethodDescriptorType = type(str.upper)
 # pylint: enable=invalid-name
 
+_ANY_VAR_POSITIONAL = typehints.Tuple[typehints.Any, ...]
+_ANY_VAR_KEYWORD = typehints.Dict[typehints.Any, typehints.Any]
+
 try:
   _original_getfullargspec = inspect.getfullargspec
   _use_full_argspec = True
@@ -122,6 +131,7 @@ except AttributeError:  # Python 2
 
 
 def getfullargspec(func):
+  assert sys.version_info < (3,), 'This method should not be used in Python 3'
   try:
     return _original_getfullargspec(func)
   except TypeError:
@@ -149,17 +159,102 @@ def getfullargspec(func):
       raise
 
 
+def get_signature(func):
+  """Like inspect.signature(), but supports Py2 as well.
+
+  This module uses inspect.signature instead of getfullargspec since in the
+  latter: 'the "self" parameter is always reported, even for bound methods'
+  https://github.com/python/cpython/blob/44f91c388a6f4da9ed3300df32ca290b8aa104ea/Lib/inspect.py#L1103
+  """
+  if funcsigs is not None:
+    inspect_ = funcsigs
+  else:
+    inspect_ = inspect
+
+  try:
+    signature = inspect_.signature(func)
+  except ValueError:
+    # Fall back on a catch-all signature.
+    params = [
+        inspect_.Parameter('_', inspect_.Parameter.POSITIONAL_OR_KEYWORD),
+        inspect_.Parameter('__unknown__varargs',
+                           inspect_.Parameter.VAR_POSITIONAL),
+        inspect_.Parameter('__unknown__keywords',
+                           inspect_.Parameter.VAR_KEYWORD)]
+
+    signature = inspect_.Signature(params)
+
+  # This is a specialization to hint the first argument of certain builtins,
+  # such as str.strip.
+  if isinstance(func, _MethodDescriptorType):
+    params = list(signature.parameters.values())
+    if params[0].annotation == params[0].empty:
+      params[0] = params[0].replace(annotation=func.__objclass__)
+      signature = signature.replace(parameters=params)
+
+  return signature
+
+
 class IOTypeHints(object):
   """Encapsulates all type hint information about a Dataflow construct.
 
   This should primarily be used via the WithTypeHints mixin class, though
   may also be attached to other objects (such as Python functions).
+
+  Attributes:
+    input_types: (list, dict) List of typing types, plus an optional dictionary.
+      May be None. The list and dict correspond to args and kwargs.
+    output_types: (list, dict) List of typing types, plus an optional dictionary
+      (unused). Only the first element of the list is used. May be None.
   """
   __slots__ = ('input_types', 'output_types')
 
   def __init__(self, input_types=None, output_types=None):
     self.input_types = input_types
     self.output_types = output_types
+
+  @staticmethod
+  def from_callable(fn):
+    """Construct an IOTypeHints object from a callable's signature.
+
+    Callable must have Python 3 annotations.
+    Sets unknown types to Any, _ANY_VAR_POSITIONAL, or _ANY_VAR_KEYWORD.
+
+    Returns:
+      A new IOTypeHints or None if no annotations found.
+    """
+    signature = get_signature(fn)
+    if (all(param.annotation == param.empty
+            for param in signature.parameters.values())
+        and signature.return_annotation == signature.empty):
+      return None
+    input_args = []
+    input_kwargs = {}
+    for param in signature.parameters.values():
+      if param.annotation == param.empty:
+        if param.kind == param.VAR_POSITIONAL:
+          input_args.append(_ANY_VAR_POSITIONAL)
+        elif param.kind == param.VAR_KEYWORD:
+          input_kwargs[param.name] = _ANY_VAR_KEYWORD
+        elif param.kind == param.KEYWORD_ONLY:
+          input_kwargs[param.name] = typehints.Any
+        else:
+          input_args.append(typehints.Any)
+      else:
+        # TODO: ensure test coverage for both kinds
+        # TODO: support input_kwargs in getcallargs_forhint
+        if param.kind in [param.KEYWORD_ONLY, param.VAR_KEYWORD]:
+          input_kwargs[param.name] = param.annotation
+        else:
+          input_args.append(param.annotation)
+    output_args = []
+    if signature.return_annotation != signature.empty:
+      output_args.append(signature.return_annotation)
+    else:
+      output_args.append(typehints.Any)
+
+    return IOTypeHints(input_types=(input_args, input_kwargs),
+                       output_types=(output_args, {}))
 
   def set_input_types(self, *args, **kwargs):
     self.input_types = args, kwargs
@@ -171,7 +266,9 @@ class IOTypeHints(object):
     if self.output_types:
       args, kwargs = self.output_types
       if len(args) != 1 or kwargs:
-        raise TypeError('Expected simple output type hint for %s' % context)
+        raise TypeError(
+            'Expected single output type hint for %s but got: %s' % (
+                context, self.output_types))
       return args[0]
 
   def copy(self):
@@ -180,13 +277,24 @@ class IOTypeHints(object):
   def with_defaults(self, hints):
     if not hints:
       return self
-    elif not self:
-      return hints
-    return IOTypeHints(self.input_types or hints.input_types,
-                       self.output_types or hints.output_types)
+    if self._has_input_types():
+      input_types = self.input_types
+    else:
+      input_types = hints.input_types
+    if self._has_output_types():
+      output_types = self.output_types
+    else:
+      output_types = hints.output_types
+    return IOTypeHints(input_types, output_types)
+
+  def _has_input_types(self):
+    return self.input_types is not None and any(self.input_types)
+
+  def _has_output_types(self):
+    return self.output_types is not None and any(self.output_types)
 
   def __bool__(self):
-    return bool(self.input_types or self.output_types)
+    return self._has_input_types() or self._has_output_types()
 
   def __repr__(self):
     return 'IOTypeHints[inputs=%s, outputs=%s]' % (
@@ -209,6 +317,13 @@ class WithTypeHints(object):
       return self._type_hints
 
   def get_type_hints(self):
+    """Gets and/or initializes type hints for this object.
+
+    If type hints have not been set, attempts to initialize type hints in this
+    order:
+      - Using self.default_type_hints().
+      - Using self.__class__ type hints.
+    """
     return (self._get_or_create_type_hints()
             .with_defaults(self.default_type_hints())
             .with_defaults(get_type_hints(self.__class__)))
@@ -233,19 +348,6 @@ class TypeCheckError(Exception):
   pass
 
 
-def _positional_arg_hints(arg, hints):
-  """Returns the type of a (possibly tuple-packed) positional argument.
-
-  E.g. for lambda ((a, b), c): None the single positional argument is (as
-  returned by inspect) [[a, b], c] which should have type
-  Tuple[Tuple[Int, Any], float] when applied to the type hints
-  {a: int, b: Any, c: float}.
-  """
-  if isinstance(arg, list):
-    return typehints.Tuple[[_positional_arg_hints(a, hints) for a in arg]]
-  return hints.get(arg, typehints.Any)
-
-
 def _unpack_positional_arg_hints(arg, hint):
   """Unpacks the given hint according to the nested structure of arg.
 
@@ -253,6 +355,7 @@ def _unpack_positional_arg_hints(arg, hint):
   this function would return ((Any, Any), int) so it can be used in conjunction
   with inspect.getcallargs.
   """
+  assert isinstance(arg, str)
   if isinstance(arg, list):
     tuple_constraint = typehints.Tuple[[typehints.Any] * len(arg)]
     if not typehints.is_consistent_with(hint, tuple_constraint):
@@ -265,23 +368,34 @@ def _unpack_positional_arg_hints(arg, hint):
   return hint
 
 
-def getcallargs_forhints(func, *typeargs, **typekwargs):
-  """Like inspect.getcallargs, but understands that Tuple[] and an Any unpack.
+def getcallargs_forhints(using_var_hints, func, *typeargs, **typekwargs):
+  """Like inspect.getcallargs, with support for declaring default args as Any.
+
+  In Python 2, understands that Tuple[] and an Any unpack.
+
+  Args:
+    using_var_hints: For variable length arguments, whether to expect the bound
+      argument to describe the whole argument (such as
+      (Tuple[Union[int, str], ...],)). Otherwise expect it to describe
+      individual arguments (such as (int, int, str, ...)). Python 3 only.
+
+  Returns:
+    (Dict[str, Any]) A dictionary from arguments names to values.
   """
+  if sys.version_info < (3,):
+    return getcallargs_forhints_impl_py2(func, typeargs, typekwargs)
+  else:
+    return getcallargs_forhints_impl_py3(using_var_hints,
+                                         func, typeargs, typekwargs)
+
+
+def getcallargs_forhints_impl_py2(func, typeargs, typekwargs):
   argspec = getfullargspec(func)
   # Turn Tuple[x, y] into (x, y) so getcallargs can do the proper unpacking.
   packed_typeargs = [_unpack_positional_arg_hints(arg, hint)
                      for (arg, hint) in zip(argspec.args, typeargs)]
   packed_typeargs += list(typeargs[len(packed_typeargs):])
 
-  if sys.version_info.major < 3:
-    return getcallargs_forhints_impl_py2(func, argspec, packed_typeargs,
-                                         typekwargs)
-  else:
-    return getcallargs_forhints_impl_py3(func, packed_typeargs, typekwargs)
-
-
-def getcallargs_forhints_impl_py2(func, argspec, packed_typeargs, typekwargs):
   # Monkeypatch inspect.getfullargspec to allow passing non-function objects.
   # getfullargspec (getargspec on Python 2) are used by inspect.getcallargs.
   # TODO(BEAM-5490): Reimplement getcallargs and stop relying on monkeypatch.
@@ -303,43 +417,76 @@ def getcallargs_forhints_impl_py2(func, argspec, packed_typeargs, typekwargs):
         callargs[var] = typehints.Any
   # Patch up varargs and keywords
   if argspec.varargs:
+    # TODO(udim): This should be "callargs.get(...) or _ANY_VAR_POSITIONAL".
     callargs[argspec.varargs] = typekwargs.get(
-        argspec.varargs, typehints.Tuple[typehints.Any, ...])
+        argspec.varargs, _ANY_VAR_POSITIONAL)
 
   varkw = argspec.keywords
   if varkw:
     # TODO(robertwb): Consider taking the union of key and value types.
-    callargs[varkw] = typekwargs.get(
-        varkw, typehints.Dict[typehints.Any, typehints.Any])
+    callargs[varkw] = typekwargs.get(varkw, _ANY_VAR_KEYWORD)
 
   # TODO(BEAM-5878) Support kwonlyargs.
 
   return callargs
 
 
-def getcallargs_forhints_impl_py3(func, packed_typeargs, typekwargs):
+def getcallargs_forhints_impl_py3(using_var_hints,
+                                  func, type_args, type_kwargs):
+  """Bind type_args and type_kwargs to func.
+
+  Works like inspect.getcallargs, with some modifications to support type hint
+  checks.
+  For unbound args, will use annotations and fall back to Any (or variants of
+  Any).
+
+  Returns:
+    A mapping from parameter name to argument.
+  """
   try:
-    # TODO(udim): Function signature returned by getfullargspec (in
-    #  packed_typeargs) might differ from the one below. Migrate to use
-    #  inspect.signature in getfullargspec (for Py3).
-    signature = inspect.signature(func)
+    signature = get_signature(func)
   except ValueError as e:
     logging.warning('Could not get signature for function: %s: %s', func, e)
     return {}
   try:
-    bindings = signature.bind(*packed_typeargs, **typekwargs)
+    bindings = signature.bind(*type_args, **type_kwargs)
   except TypeError as e:
     # Might be raised due to too few or too many arguments.
     raise TypeCheckError(e)
   bound_args = bindings.arguments
   for param in signature.parameters.values():
-    if param.kind == inspect.Parameter.VAR_POSITIONAL:
-      bound_args[param.name] = typehints.Tuple[typehints.Any, ...]
-    elif param.kind == inspect.Parameter.VAR_KEYWORD:
-      bound_args[param.name] = typehints.Dict[typehints.Any, typehints.Any]
-    elif param.name not in bound_args and param.default is not param.empty:
-      # Declare unbound parameters with defaults to be Any.
-      bound_args[param.name] = typehints.Any
+    if param.name in bound_args:
+      if param.kind == param.VAR_POSITIONAL:
+        args = bound_args[param.name]
+        if type(args) != tuple or (using_var_hints and len(args) != 1):
+          raise TypeCheckError('Unexpected VAR_POSITIONAL value: %s' % args)
+        if using_var_hints:
+          bound_args[param.name] = args[0]
+        else:
+          bound_args[param.name] = typehints.Tuple[typehints.Union[args], ...]
+      elif param.kind == param.VAR_KEYWORD:
+        kwargs = bound_args[param.name]
+        if type(kwargs) != dict or (using_var_hints and len(kwargs) != 1):
+          raise TypeCheckError('Unexpected VAR_KEYWORD value: %s' % kwargs)
+        if using_var_hints:
+          bound_args[param.name] = list(kwargs.values())[0]
+        else:
+          bound_args[param.name] = typehints.Dict[
+              str, typehints.Union[list(kwargs.values())]]
+    else:
+      # Unbound: must have a default or be variadic.
+      if param.annotation != param.empty:
+        bound_args[param.name] = param.annotation
+      elif param.kind == param.VAR_POSITIONAL:
+        bound_args[param.name] = _ANY_VAR_POSITIONAL
+      elif param.kind == param.VAR_KEYWORD:
+        bound_args[param.name] = _ANY_VAR_KEYWORD
+      elif param.default != param.empty:
+        # Declare unbound parameters with defaults to be Any.
+        bound_args[param.name] = typehints.Any
+      else:
+        # This case should be caught by signature.bind() above.
+        raise ValueError('Unexpected unbound parameter: %s' % param.name)
 
   return dict(bound_args)
 
@@ -561,45 +708,6 @@ def _check_instance_type(
                             verbose_instance, type(instance)))
   except CompositeTypeHintError as e:
     raise TypeCheckError('Type-hint for %s violated: %s' % (hint_type, e))
-
-
-def _interleave_type_check(type_constraint, var_name=None):
-  """Lazily type-check the type-hint for a lazily generated sequence type.
-
-  This function can be applied as a decorator or called manually in a curried
-  manner:
-    * @_interleave_type_check(List[int])
-      def gen():
-        yield 5
-
-    or
-
-     * gen = _interleave_type_check(Tuple[int, int], 'coord_gen')(gen)
-
-  As a result, all type-checking for the passed generator will occur at 'yield'
-  time. This way, we avoid having to depleat the generator in order to
-  type-check it.
-
-  Args:
-    type_constraint: An instance of a TypeConstraint. The output yielded of
-      'gen' will be type-checked according to this type constraint.
-    var_name: The variable name binded to 'gen' if type-checking a function
-      argument. Used solely for templating in error message generation.
-
-  Returns:
-    A function which takes a generator as an argument and returns a wrapped
-    version of the generator that interleaves type-checking at 'yield'
-    iteration. If the generator received is already wrapped, then it is simply
-    returned to avoid nested wrapping.
-  """
-  def wrapper(gen):
-    if isinstance(gen, GeneratorWrapper):
-      return gen
-    return GeneratorWrapper(
-        gen,
-        lambda x: _check_instance_type(type_constraint, x, var_name)
-    )
-  return wrapper
 
 
 class GeneratorWrapper(object):

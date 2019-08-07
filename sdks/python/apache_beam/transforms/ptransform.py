@@ -62,8 +62,8 @@ from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
+from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.decorators import getcallargs_forhints
-from apache_beam.typehints.decorators import getfullargspec
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import validate_composite_type_param
 from apache_beam.utils import proto_utils
@@ -387,7 +387,7 @@ class PTransform(WithTypeHints, HasDisplayData):
 
   def type_check_inputs_or_outputs(self, pvalueish, input_or_output):
     hints = getattr(self.get_type_hints(), input_or_output + '_types')
-    if not hints:
+    if hints is None or not any(hints):
       return
     arg_hints, kwarg_hints = hints
     if arg_hints and kwarg_hints:
@@ -395,10 +395,12 @@ class PTransform(WithTypeHints, HasDisplayData):
           'PTransform cannot have both positional and keyword type hints '
           'without overriding %s._type_check_%s()' % (
               self.__class__, input_or_output))
+    # TODO: what is root_hint?
     root_hint = (
         arg_hints[0] if len(arg_hints) == 1 else arg_hints or kwarg_hints)
     for context, pvalue_, hint in _ZipPValues().visit(pvalueish, root_hint):
       if pvalue_.element_type is None:
+        # TODO: remove this comment. We do get here
         # TODO(robertwb): It's a bug that we ever get here. (typecheck)
         continue
       if hint and not typehints.is_consistent_with(pvalue_.element_type, hint):
@@ -757,6 +759,7 @@ class PTransformWithSideInputs(PTransform):
   def type_check_inputs(self, pvalueish):
     type_hints = self.get_type_hints().input_types
     if type_hints:
+      # TODO: test when kwargs is not empty
       args, kwargs = self.raw_side_inputs
 
       def element_type(side_input):
@@ -767,10 +770,13 @@ class PTransformWithSideInputs(PTransform):
       arg_types = [pvalueish.element_type] + [element_type(v) for v in args]
       kwargs_types = {k: element_type(v) for (k, v) in kwargs.items()}
       argspec_fn = self._process_argspec_fn()
-      bindings = getcallargs_forhints(argspec_fn, *arg_types, **kwargs_types)
-      hints = getcallargs_forhints(argspec_fn, *type_hints[0], **type_hints[1])
+      # TODO: test with non-empty kwargs_types (kwonly, var_keyword)
+      bindings = getcallargs_forhints(
+          False, argspec_fn, *arg_types, **kwargs_types)
+      hints = getcallargs_forhints(
+          True, argspec_fn, *type_hints[0], **type_hints[1])
       for arg, hint in hints.items():
-        if arg.startswith('__unknown__'):
+        if arg.startswith('__unknown__'):  # TODO: remove if unused
           continue
         if hint is None:
           continue
@@ -821,8 +827,20 @@ class _PTransformFnPTransform(PTransform):
 
     # TODO(BEAM-5878) Support keyword-only arguments.
     try:
-      if 'type_hints' in getfullargspec(self._fn).args:
+      # TODO: what is 'type_hints'? looking for a fn that has that arg?
+      if 'type_hints' in get_signature(self._fn).parameters:
+        # TODO: coverage?
+        assert False
+        # TODO: what does this actually do? check coverage
+        # TODO: remove
+        # print('\n\n!!!!! weird magic detected !!!!!\n\n')
+        # TODO: remove
+        # print('args before:', args)
         args = (self.get_type_hints(),) + args
+        # TODO: remove
+        # print('args after:', args)
+        # TODO: remove
+        assert False
     except TypeError:
       # Might not be a function.
       pass

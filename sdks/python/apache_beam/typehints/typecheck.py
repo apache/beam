@@ -71,9 +71,6 @@ class AbstractDoFnWrapper(DoFn):
   def finish_bundle(self, *args, **kwargs):
     return self.wrapper(self.dofn.finish_bundle, args, kwargs)
 
-  def is_process_bounded(self):
-    return self.dofn.is_process_bounded()
-
 
 class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
   """A DoFn that verifies against common errors in the output type."""
@@ -118,7 +115,7 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
     if type_hints.input_types:
       input_args, input_kwargs = type_hints.input_types
       self._input_hints = getcallargs_forhints(
-          self._process_fn, *input_args, **input_kwargs)
+          False, self._process_fn, *input_args, **input_kwargs)
     else:
       self._input_hints = None
     # TODO(robertwb): Multi-output.
@@ -130,6 +127,8 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
 
   def process(self, *args, **kwargs):
     if self._input_hints:
+      # TODO: use get_signature and bind
+      # TODO: try using decorators.getcallargs_forhints, or similar?
       actual_inputs = inspect.getcallargs(self._process_fn, *args, **kwargs)
       for var, hint in self._input_hints.items():
         if hint is actual_inputs[var]:
