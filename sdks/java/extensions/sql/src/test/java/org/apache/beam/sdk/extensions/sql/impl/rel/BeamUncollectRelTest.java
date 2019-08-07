@@ -60,16 +60,7 @@ public class BeamUncollectRelTest extends BaseRelTest {
 
   @Test
   public void testUncollectPrimitive() {
-    registerTable(
-        "PRIMITIVE",
-        TestBoundedTable.of(
-                Schema.FieldType.STRING,
-                "user_id",
-                Schema.FieldType.array(Schema.FieldType.INT32),
-                "ints")
-            .addRows("1", Arrays.asList(1, 2, 3)));
-
-    String sql = "SELECT * FROM unnest(SELECT ints from PRIMITIVE)";
+    String sql = "SELECT * FROM unnest(ARRAY [1, 2, 3])";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);
     PAssert.that(rows)
