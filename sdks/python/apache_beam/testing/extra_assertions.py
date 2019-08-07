@@ -16,11 +16,9 @@
 #
 from __future__ import absolute_import
 
-import itertools
 import sys
 
 import numpy as np
-from past.builtins import unicode
 
 
 class ExtraAssertionsMixin(object):
@@ -38,65 +36,29 @@ class ExtraAssertionsMixin(object):
     for numpy arrays.
     """
     try:
-      self.assertEqual(type(data1), type(data2))
-    except AssertionError:
-      # Since 'a' == u'a', we should not automatically treat strings of
-      # different type as different.
-      self.assertTrue(isinstance(data1, (str, unicode)))
-      self.assertTrue(isinstance(data2, (str, unicode)))
-
-    # self.assertCountEqual is much faster, so try it first.
-    try:
-      return self.assertCountEqual(data1, data2)
+      self.assertCountEqual(data1, data2)
     except (TypeError, ValueError):
+      data1 = [self._to_hashable(d) for d in data1]
+      data2 = [self._to_hashable(d) for d in data1]
+      self.assertCountEqual(data1, data2)
+
+  def _to_hashable(self, element):
+    try:
+      hash(element)
+      return element
+    except TypeError:
       pass
 
-    try:
-      data1 = list(data1)
-      data2 = list(data2)
-    except TypeError:
-      # Elements are not iterable.
-      return self.assertEqual(data1, data2)
-    else:
-      # Containers must have the same length.
-      self.assertEqual(len(data1), len(data2))
+    if isinstance(element, list):
+      return tuple(self._to_hashable(e) for e in element)
 
-    # We can check for equality much faster for hashable objects
-    data1_hashable, data1 = self._split_into_hash_nonhash(data1)
-    data2_hashable, data2 = self._split_into_hash_nonhash(data2)
-    self.assertCountEqual(data1_hashable, data2_hashable)
+    if isinstance(element, dict):
+      hashable_elements = []
+      for key, value in element.items():
+        hashable_elements.append((key, self._to_hashable(value)))
+      return tuple(hashable_elements)
 
-    if isinstance(data1, (str, bytes, unicode)):
-      return self.assertEqual(data1, data2)
+    if isinstance(element, np.ndarray):
+      return element.tobytes()
 
-    if isinstance(data1, dict):
-      self.assertCountEqual(list(data1.keys()), list(data2.keys()))
-      for key in data1:
-        self.assertArrayCountEqual(data1[key], data2[key])
-      return
-
-    if isinstance(data1, np.ndarray):
-      return np.testing.assert_array_almost_equal(data1, data2)
-
-    # Performance here is terrible: O(n!), and larger for nested containers.
-    for data2_perm in itertools.permutations(data2):
-      try:
-        for d1, d2 in zip(data1, data2_perm):
-          self.assertArrayCountEqual(d1, d2)
-      except AssertionError:
-        continue
-      return
-    raise AssertionError(
-        "The two objects '{}' and '{}' do not contain the same elements.".
-        format(data1, data2))
-
-  def _split_into_hash_nonhash(self, data):
-    data_hash = []
-    data_nonhash = []
-    for value in data:
-      try:
-        hash(value)
-        data_hash.append(value)
-      except TypeError:
-        data_nonhash.append(value)
-    return data_hash, data_nonhash
+    raise AssertionError("Encountered unhashable element: {}.".format(element))
