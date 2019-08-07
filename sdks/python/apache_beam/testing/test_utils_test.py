@@ -82,13 +82,6 @@ class TestUtilsTest(unittest.TestCase):
         self.assertEqual(f.readline(), b'line2\n')
         self.assertEqual(f.readline(), b'line3\n')
 
-  def test_cleanup_snapshots(self):
-    sub_client = mock.Mock()
-    snap = mock.Mock()
-    snap.name = 'test_snap'
-    utils.cleanup_subscriptions(sub_client, [snap])
-    sub_client.delete_subscription.assert_called_with(snap.name)
-
   def test_cleanup_subscriptions(self):
     sub_client = mock.Mock()
     sub = mock.Mock()
