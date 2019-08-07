@@ -116,13 +116,24 @@ public class BeamUnnestRel extends Uncollect implements BeamRelNode {
       if (rawValues == null) {
         return;
       }
+      Schema.TypeName typeName =
+          outputSchema.getField(unnestIndex).getType().getCollectionElementType().getTypeName();
 
       for (Object uncollectedValue : rawValues) {
-        out.output(
-            Row.withSchema(outputSchema)
-                .addValues(row.getValues())
-                .addValue(uncollectedValue)
-                .build());
+        if (typeName.equals(Schema.TypeName.ROW)) {
+          Row nestedRow = (Row) uncollectedValue;
+          out.output(
+              Row.withSchema(outputSchema)
+                  .addValues(row.getValues())
+                  .addValues(nestedRow.getValues())
+                  .build());
+        } else {
+          out.output(
+              Row.withSchema(outputSchema)
+                  .addValues(row.getValues())
+                  .addValue(uncollectedValue)
+                  .build());
+        }
       }
     }
   }
