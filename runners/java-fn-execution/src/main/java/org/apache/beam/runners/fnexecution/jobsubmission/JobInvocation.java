@@ -27,6 +27,7 @@ import java.util.concurrent.CancellationException;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
@@ -189,6 +190,16 @@ public class JobInvocation {
   /** Listen for job messages with a {@link Consumer}. */
   public synchronized void addMessageListener(Consumer<JobMessage> messageStreamObserver) {
     messageObservers.add(messageStreamObserver);
+  }
+
+  /** Convert to {@link JobApi.JobInfo}. */
+  public JobApi.JobInfo toProto() {
+    return JobApi.JobInfo.newBuilder()
+        .setJobId(jobInfo.jobId())
+        .setJobName(jobInfo.jobName())
+        .setPipelineOptions(jobInfo.pipelineOptions())
+        .setState(getState())
+        .build();
   }
 
   private synchronized void setState(JobState.Enum state) {
