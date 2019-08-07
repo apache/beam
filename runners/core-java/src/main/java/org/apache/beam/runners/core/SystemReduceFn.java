@@ -51,23 +51,30 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
     // accumulating
     final StateTag<BagState<T>> bufferTag =
         StateTags.makeSystemTagInternal(StateTags.bag(BUFFER_NAME, inputCoder));
-    // accumulating
-    final StateTag<BagState<T>> bufferRetractionTag =
-        StateTags.makeSystemTagInternal(StateTags.bag(BUFFER_RETRACTION, inputCoder));
 
-    return new SystemReduceFn<K, T, Iterable<T>, Iterable<T>, W>(bufferTag, bufferRetractionTag) {
+    return new SystemReduceFn<K, T, Iterable<T>, Iterable<T>, W>(bufferTag) {
       @Override
       public void prefetchOnMerge(MergingStateAccessor<K, W> state) throws Exception {
         StateMerging.prefetchBags(state, bufferTag);
-        StateMerging.prefetchBags(state, bufferRetractionTag);
       }
 
       @Override
       public void onMerge(OnMergeContext c) throws Exception {
         StateMerging.mergeBags(c.state(), bufferTag);
-        StateMerging.mergeBags(c.state(), bufferRetractionTag);
       }
     };
+  }
+
+  public static <K, T, W extends BoundedWindow>
+      SystemReduceFn<K, T, Iterable<T>, Iterable<T>, W> bufferingBag(final Coder<T> inputCoder) {
+    // accumulating
+    final StateTag<BagState<T>> bufferTag =
+        StateTags.makeSystemTagInternal(StateTags.bag(BUFFER_NAME, inputCoder));
+    // accumulating
+    final StateTag<BagState<T>> bufferRetractionTag =
+        StateTags.makeSystemTagInternal(StateTags.bag(BUFFER_RETRACTION, inputCoder));
+
+    return new SystemReduceFnWithBagStates(bufferTag, bufferRetractionTag);
   }
 
   /**
@@ -109,17 +116,9 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
   }
 
   private StateTag<? extends GroupingState<InputT, OutputT>> bufferTag;
-  private StateTag<? extends GroupingState<InputT, OutputT>> bufferRetractionTag;
 
   public SystemReduceFn(StateTag<? extends GroupingState<InputT, OutputT>> bufferTag) {
     this.bufferTag = bufferTag;
-  }
-
-  public SystemReduceFn(
-      StateTag<? extends GroupingState<InputT, OutputT>> bufferTag,
-      StateTag<? extends GroupingState<InputT, OutputT>> bufferRetractionTag) {
-    this.bufferTag = bufferTag;
-    this.bufferRetractionTag = bufferRetractionTag;
   }
 
   @VisibleForTesting
@@ -127,44 +126,96 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
     return bufferTag;
   }
 
-  @VisibleForTesting
-  StateTag<? extends GroupingState<InputT, OutputT>> getBufferRetractionTag() {
-    return bufferRetractionTag;
-  }
-
   @Override
   public void processValue(ProcessValueContext c) throws Exception {
-    // TODO: this is a performance regression. We should have better idea on how to update
-    // retraction state.
     c.state().access(bufferTag).add(c.value());
   }
 
   @Override
   public void prefetchOnTrigger(StateAccessor<K> state) {
     state.access(bufferTag).readLater();
-    state.access(bufferRetractionTag).readLater();
   }
 
   @Override
   public void onTrigger(OnTriggerContext c) throws Exception {
     c.output(c.state().access(bufferTag).read());
-    if (!c.state().access(bufferRetractionTag).isEmpty().read()) {
-      c.outputRetraction(c.state().access(bufferRetractionTag).read());
-      c.state().access(bufferRetractionTag).clear();
-    }
-
-    Iterable<InputT> iterable = (Iterable<InputT>) c.state().access(bufferTag).read();
-    iterable.forEach(elem -> c.state().access(bufferRetractionTag).add(elem));
   }
 
   @Override
   public void clearState(Context c) throws Exception {
     c.state().access(bufferTag).clear();
-    c.state().access(bufferRetractionTag).clear();
   }
 
   @Override
   public ReadableState<Boolean> isEmpty(StateAccessor<K> state) {
     return state.access(bufferTag).isEmpty();
+  }
+
+  private static class SystemReduceFnWithBagStates<K, InputT, W extends BoundedWindow>
+      extends SystemReduceFn<K, InputT, Iterable<InputT>, Iterable<InputT>, W> {
+
+    private StateTag<? extends BagState<InputT>> bufferTag;
+    private StateTag<? extends BagState<InputT>> bufferRetractionTag;
+
+    public SystemReduceFnWithBagStates(
+        StateTag<? extends BagState<InputT>> bufferTag,
+        StateTag<? extends BagState<InputT>> bufferRetractionTag) {
+      super(bufferTag);
+
+      this.bufferTag = bufferTag;
+      this.bufferRetractionTag = bufferRetractionTag;
+    }
+
+    @Override
+    public void onMerge(OnMergeContext context) throws Exception {
+      throw new UnsupportedOperationException("OnMerge unsupported");
+    }
+
+    @VisibleForTesting
+    @Override
+    StateTag<? extends BagState<InputT>> getBufferTag() {
+      return bufferTag;
+    }
+
+    @VisibleForTesting
+    StateTag<? extends BagState<InputT>> getBufferRetractionTag() {
+      return bufferRetractionTag;
+    }
+
+    @Override
+    public void processValue(ProcessValueContext c) throws Exception {
+      c.state().access(bufferTag).add(c.value());
+    }
+
+    @Override
+    public void prefetchOnTrigger(StateAccessor<K> state) {
+      state.access(bufferTag).readLater();
+      state.access(bufferRetractionTag).readLater();
+    }
+
+    @Override
+    public void onTrigger(OnTriggerContext c) throws Exception {
+      c.output(c.state().access(bufferTag).read());
+      if (!c.state().access(bufferRetractionTag).isEmpty().read()) {
+        c.outputRetraction(c.state().access(bufferRetractionTag).read());
+        c.state().access(bufferRetractionTag).clear();
+      }
+
+      ReadableState<Iterable<InputT>> readableState = c.state().access(bufferTag);
+      for (InputT element : readableState.read()) {
+        c.state().access(bufferRetractionTag).add(element);
+      }
+    }
+
+    @Override
+    public void clearState(Context c) throws Exception {
+      c.state().access(bufferTag).clear();
+      c.state().access(bufferRetractionTag).clear();
+    }
+
+    @Override
+    public ReadableState<Boolean> isEmpty(StateAccessor<K> state) {
+      return state.access(bufferTag).isEmpty();
+    }
   }
 }

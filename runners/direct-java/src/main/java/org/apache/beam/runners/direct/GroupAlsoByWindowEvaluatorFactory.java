@@ -144,7 +144,12 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
 
       Coder<V> valueCoder =
           application.getTransform().getValueCoder(inputBundle.getPCollection().getCoder());
-      reduceFn = SystemReduceFn.buffering(valueCoder);
+      if (windowingStrategy.getMode()
+          == WindowingStrategy.AccumulationMode.RETRACTING_FIRED_PANES) {
+        reduceFn = SystemReduceFn.bufferingBag(valueCoder);
+      } else {
+        reduceFn = SystemReduceFn.buffering(valueCoder);
+      }
       droppedDueToLateness =
           Metrics.counter(
               GroupAlsoByWindowEvaluator.class,
