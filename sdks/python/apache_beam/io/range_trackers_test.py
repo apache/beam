@@ -45,6 +45,32 @@ class OffsetRangeTrackerTest(unittest.TestCase):
     self.assertTrue(tracker.try_claim(5))
     self.assertFalse(tracker.try_claim(6))
 
+  def test_try_claim_update_last_attempt(self):
+    tracker = range_trackers.OffsetRangeTracker(1, 2)
+    self.assertTrue(tracker.try_claim(1))
+    self.assertEqual(1, tracker.last_attempted_record_start)
+
+    self.assertFalse(tracker.try_claim(3))
+    self.assertEqual(3, tracker.last_attempted_record_start)
+
+    self.assertFalse(tracker.try_claim(6))
+    self.assertEqual(6, tracker.last_attempted_record_start)
+
+    with self.assertRaises(Exception):
+      tracker.try_claim(6)
+
+  def test_set_current_position(self):
+    tracker = range_trackers.OffsetRangeTracker(0, 6)
+    self.assertTrue(tracker.try_claim(2))
+    # Cannot set current position before successful claimed pos.
+    with self.assertRaises(Exception):
+      tracker.set_current_position(1)
+
+    self.assertFalse(tracker.try_claim(10))
+    tracker.set_current_position(11)
+    self.assertEqual(10, tracker.last_attempted_record_start)
+    self.assertEqual(11, tracker.last_record_start)
+
   def test_try_return_record_continuous_until_split_point(self):
     tracker = range_trackers.OffsetRangeTracker(9, 18)
     # Return records with gaps of 2; every 3rd record is a split point.
@@ -93,7 +119,6 @@ class OffsetRangeTrackerTest(unittest.TestCase):
     self.assertFalse(tracker.try_claim(150))
     self.assertFalse(tracker.try_claim(151))
     # Should accept non-splitpoint records starting after stop offset.
-    tracker.set_current_position(135)
     tracker.set_current_position(152)
     tracker.set_current_position(160)
     tracker.set_current_position(171)

@@ -34,7 +34,7 @@ test {
 }
 
 dependencies {
-  compile library.java.vendored_guava_20_0
+  compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.google_http_client_jackson2
   compile library.java.google_auth_library_oauth2_http

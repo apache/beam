@@ -31,6 +31,7 @@ from apache_beam.internal import pickler
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import core
+from apache_beam.typehints import native_type_compatibility
 
 
 class Environment(object):
@@ -100,6 +101,9 @@ class _PipelineContextMap(object):
           return id
     return self.put_proto(self._unique_ref(label), maybe_new_proto)
 
+  def get_id_to_proto_map(self):
+    return self._id_to_proto
+
   def put_proto(self, id, proto):
     if id in self._id_to_proto:
       raise ValueError("Id '%s' is already taken." % id)
@@ -164,7 +168,8 @@ class PipelineContext(object):
     if self.use_fake_coders or coder_id not in self.coders:
       return pickler.loads(coder_id)
     else:
-      return self.coders[coder_id].to_type_hint()
+      return native_type_compatibility.convert_to_beam_type(
+          self.coders[coder_id].to_type_hint())
 
   @staticmethod
   def from_runner_api(proto):

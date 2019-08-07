@@ -541,50 +541,34 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
       assert_that(cncf_files,
                   matches_all([
                       stringmatches.matches_regexp(
-                          FileSystems.join(
-                              dir,
-                              'cncf-1970-01-01T00_00_00-1970-01-01T00_00_10--.*'
-                          )
+                          '.*cncf-1970-01-01T00_00_00-1970-01-01T00_00_10--.*'
                       ),
                       stringmatches.matches_regexp(
-                          FileSystems.join(
-                              dir,
-                              'cncf-1970-01-01T00_00_10-1970-01-01T00_00_20--.*'
-                          )
+                          '.*cncf-1970-01-01T00_00_10-1970-01-01T00_00_20--.*'
                       ),
                       stringmatches.matches_regexp(
-                          FileSystems.join(
-                              dir,
-                              'cncf-1970-01-01T00_00_20-1970-01-01T00_00_30--.*'
-                          )
+                          '.*cncf-1970-01-01T00_00_20-1970-01-01T00_00_30--.*'
                       ),
                       stringmatches.matches_regexp(
-                          FileSystems.join(
-                              dir,
-                              'cncf-1970-01-01T00_00_30-1970-01-01T00_00_40--.*'
-                          )
+                          '.*cncf-1970-01-01T00_00_30-1970-01-01T00_00_40--.*'
                       )
                   ]),
                   label='verifyCNCFFiles')
 
       assert_that(apache_files,
                   matches_all([
-                      stringmatches.matches_regexp(FileSystems.join(
-                          dir,
-                          'apache-1970-01-01T00_00_00-1970-01-01T00_00_10--.*')
-                                                  ),
-                      stringmatches.matches_regexp(FileSystems.join(
-                          dir,
-                          'apache-1970-01-01T00_00_10-1970-01-01T00_00_20--.*')
-                                                  ),
-                      stringmatches.matches_regexp(FileSystems.join(
-                          dir,
-                          'apache-1970-01-01T00_00_20-1970-01-01T00_00_30--.*')
-                                                  ),
-                      stringmatches.matches_regexp(FileSystems.join(
-                          dir,
-                          'apache-1970-01-01T00_00_30-1970-01-01T00_00_40--.*')
-                                                  )
+                      stringmatches.matches_regexp(
+                          '.*apache-1970-01-01T00_00_00-1970-01-01T00_00_10--.*'
+                      ),
+                      stringmatches.matches_regexp(
+                          '.*apache-1970-01-01T00_00_10-1970-01-01T00_00_20--.*'
+                      ),
+                      stringmatches.matches_regexp(
+                          '.*apache-1970-01-01T00_00_20-1970-01-01T00_00_30--.*'
+                      ),
+                      stringmatches.matches_regexp(
+                          '.*apache-1970-01-01T00_00_30-1970-01-01T00_00_40--.*'
+                      )
                   ]),
                   label='verifyApacheFiles')
 

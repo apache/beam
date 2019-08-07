@@ -60,6 +60,7 @@ else
   echo "Must set Python version with 'python2' or 'python3' from commandline."
   exit 1
 fi
+XUNIT_FILE="nosetests-$IMAGE_NAME.xml"
 
 # Verify in the root of the repository
 test -d sdks/python/container
@@ -110,6 +111,9 @@ python setup.py nosetests \
   --nologcapture \
   --processes=1 \
   --process-timeout=900 \
+  --with-xunitmp \
+  --xunitmp-file=$XUNIT_FILE \
+  --ignore-files '.*py3.py$' \
   --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \

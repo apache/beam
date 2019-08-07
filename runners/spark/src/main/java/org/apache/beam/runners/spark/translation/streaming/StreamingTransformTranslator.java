@@ -18,8 +18,8 @@
 package org.apache.beam.runners.spark.translation.streaming;
 
 import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectStateAndTimers;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import java.util.ArrayList;
@@ -49,13 +49,14 @@ import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.GroupCombineFunctions;
 import org.apache.beam.runners.spark.translation.MultiDoFnFunction;
 import org.apache.beam.runners.spark.translation.SparkAssignWindowFn;
-import org.apache.beam.runners.spark.translation.SparkKeyedCombineFn;
+import org.apache.beam.runners.spark.translation.SparkCombineFn;
 import org.apache.beam.runners.spark.translation.SparkPCollectionView;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformEvaluator;
 import org.apache.beam.runners.spark.translation.TranslationUtils;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
+import org.apache.beam.runners.spark.util.SparkCompat;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.Read;
@@ -82,7 +83,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.spark.HashPartitioner;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -243,7 +244,7 @@ public final class StreamingTransformTranslator {
         }
         // start by unifying streams into a single stream.
         JavaDStream<WindowedValue<T>> unifiedStreams =
-            context.getStreamingContext().union(dStreams.remove(0), dStreams);
+            SparkCompat.joinStreams(context.getStreamingContext(), dStreams);
         context.putDataset(transform, new UnboundedDataset<>(unifiedStreams, streamingSources));
       }
 
@@ -358,8 +359,8 @@ public final class StreamingTransformTranslator {
         JavaDStream<WindowedValue<KV<K, OutputT>>> outStream =
             dStream.transform(
                 rdd -> {
-                  SparkKeyedCombineFn<K, InputT, ?, OutputT> combineFnWithContext =
-                      new SparkKeyedCombineFn<>(
+                  SparkCombineFn<KV<K, InputT>, InputT, ?, OutputT> combineFnWithContext =
+                      SparkCombineFn.keyed(
                           fn,
                           options,
                           TranslationUtils.getSideInputs(

@@ -492,6 +492,11 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 	case graphx.URNFlatten:
 		u = &Flatten{UID: b.idgen.New(), N: len(transform.Inputs), Out: out[0]}
+	
+		// Use the same flatten instance for all the inputs links to this transform.
+		for i := 0; i < len(transform.Inputs); i++ {
+			b.links[linkID{id.to, i}] = u
+		}
 
 	case urnDataSink:
 		port, cid, err := unmarshalPort(payload)

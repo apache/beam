@@ -44,6 +44,7 @@ from apache_beam.io import filesystems as fs
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.transforms import trigger
 
 ONE_TERABYTE = (1 << 40)
 
@@ -57,6 +58,10 @@ _MAXIMUM_LOAD_SIZE = 15 * ONE_TERABYTE
 
 # Big query only supports up to 10 thousand URIs for a single load job.
 _MAXIMUM_SOURCE_URIS = 10*1000
+
+# If triggering_frequency is supplied, we will trigger the file write after
+# this many records are written.
+_FILE_TRIGGERING_RECORD_COUNT = 500000
 
 
 def _generate_load_job_name():
@@ -263,6 +268,10 @@ class TriggerCopyJobs(beam.DoFn):
   destination tables.
 
   This transform emits (destination, job_reference) pairs.
+
+  TODO(BEAM-7822): In file loads method of writing to BigQuery,
+    copying from temp_tables to destination_table is not atomic.
+    See: https://issues.apache.org/jira/browse/BEAM-7822
   """
   def __init__(self,
                create_disposition=None,
@@ -375,7 +384,6 @@ class TriggerLoadJobs(beam.DoFn):
     else:
       additional_parameters = self.additional_bq_parameters
 
-    job_count = 0
     batch_of_files = list(itertools.islice(files, _MAXIMUM_SOURCE_URIS))
     while batch_of_files:
 
@@ -383,16 +391,15 @@ class TriggerLoadJobs(beam.DoFn):
       if table_reference.projectId is None:
         table_reference.projectId = vp.RuntimeValueProvider.get_value(
             'project', str, '')
-
       # Load jobs for a single destination are always triggered from the same
       # worker. This means that we can generate a deterministic numbered job id,
       # and not need to worry.
+      destination_hash = _bq_uuid('%s:%s.%s' % (table_reference.projectId,
+                                                table_reference.datasetId,
+                                                table_reference.tableId))
+      timestamp = int(time.time())
       job_name = '%s_%s_%s' % (
-          load_job_name_prefix,
-          _bq_uuid('%s:%s.%s' % (table_reference.projectId,
-                                 table_reference.datasetId,
-                                 table_reference.tableId)),
-          job_count)
+          load_job_name_prefix, destination_hash, timestamp)
       logging.debug('Batch of files has %s files. Job name is %s.',
                     len(batch_of_files), job_name)
 
@@ -414,7 +421,6 @@ class TriggerLoadJobs(beam.DoFn):
       yield (destination, job_reference)
 
       # Prepare to trigger the next job
-      job_count += 1
       batch_of_files = list(itertools.islice(files, _MAXIMUM_SOURCE_URIS))
 
 
@@ -497,6 +503,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
       custom_gcs_temp_location=None,
       create_disposition=None,
       write_disposition=None,
+      triggering_frequency=None,
       coder=None,
       max_file_size=None,
       max_files_per_bundle=None,
@@ -504,10 +511,12 @@ class BigQueryBatchFileLoads(beam.PTransform):
       table_side_inputs=None,
       schema_side_inputs=None,
       test_client=None,
-      validate=True):
+      validate=True,
+      is_streaming_pipeline=False):
     self.destination = destination
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
+    self.triggering_frequency = triggering_frequency
     self.max_file_size = max_file_size or _DEFAULT_MAX_FILE_SIZE
     self.max_files_per_bundle = (max_files_per_bundle or
                                  _DEFAULT_MAX_WRITERS_PER_BUNDLE)
@@ -534,6 +543,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
     self.table_side_inputs = table_side_inputs or ()
     self.schema_side_inputs = schema_side_inputs or ()
 
+    self.is_streaming_pipeline = is_streaming_pipeline
     self._validate = validate
     if self._validate:
       self.verify()
@@ -550,30 +560,39 @@ class BigQueryBatchFileLoads(beam.PTransform):
                        'loaded into BigQuery. Please provide a GCS bucket, or '
                        'pass method="STREAMING_INSERTS" to WriteToBigQuery.'
                        % self._custom_gcs_temp_location.get())
+    if self.is_streaming_pipeline and not self.triggering_frequency:
+      raise ValueError('triggering_frequency must be specified to use file'
+                       'loads in streaming')
+    elif not self.is_streaming_pipeline and self.triggering_frequency:
+      raise ValueError('triggering_frequency can only be used with file'
+                       'loads in streaming')
 
-  def expand(self, pcoll):
-    p = pcoll.pipeline
+  def _window_fn(self):
+    """Set the correct WindowInto PTransform"""
 
-    temp_location = p.options.view_as(GoogleCloudOptions).temp_location
+    # The user-supplied triggering_frequency is often chosen to control how
+    # many BigQuery load jobs are triggered, to prevent going over BigQuery's
+    # daily quota for load jobs. If this is set to a large value, currently we
+    # have to buffer all the data until the trigger fires. Instead we ensure
+    # that the files are written if a threshold number of records are ready.
+    # We use only the user-supplied trigger on the actual BigQuery load.
+    # This allows us to offload the data to the filesystem.
+    if self.is_streaming_pipeline:
+      return beam.WindowInto(beam.window.GlobalWindows(),
+                             trigger=trigger.Repeatedly(
+                                 trigger.AfterAny(
+                                     trigger.AfterProcessingTime(
+                                         self.triggering_frequency),
+                                     trigger.AfterCount(
+                                         _FILE_TRIGGERING_RECORD_COUNT))),
+                             accumulation_mode=trigger.AccumulationMode\
+                                 .DISCARDING)
+    else:
+      return beam.WindowInto(beam.window.GlobalWindows())
 
-    load_job_name_pcv = pvalue.AsSingleton(
-        p
-        | "ImpulseJobName" >> beam.Create([None])
-        | beam.Map(lambda _: _generate_load_job_name()))
-
-    file_prefix_pcv = pvalue.AsSingleton(
-        p
-        | "CreateFilePrefixView" >> beam.Create([''])
-        | "GenerateFilePrefix" >> beam.Map(
-            file_prefix_generator(self._validate,
-                                  self._custom_gcs_temp_location,
-                                  temp_location)))
-
+  def _write_files(self, destination_data_kv_pc, file_prefix_pcv):
     outputs = (
-        pcoll
-        | "ApplyGlobalWindow" >> beam.WindowInto(beam.window.GlobalWindows())
-        | "AppendDestination" >> beam.ParDo(bigquery_tools.AppendDestinationsFn(
-            self.destination), *self.table_side_inputs)
+        destination_data_kv_pc
         | beam.ParDo(
             WriteRecordsToFile(max_files_per_bundle=self.max_files_per_bundle,
                                max_file_size=self.max_file_size,
@@ -598,12 +617,51 @@ class BigQueryBatchFileLoads(beam.PTransform):
         | "GroupShardedRows" >> beam.GroupByKey()
         | "DropShardNumber" >> beam.Map(lambda x: (x[0][0], x[1]))
         | "WriteGroupedRecordsToFile" >> beam.ParDo(WriteGroupedRecordsToFile(
-            coder=self.coder), file_prefix=file_prefix_pcv)
-    )
+            coder=self.coder), file_prefix=file_prefix_pcv))
 
     all_destination_file_pairs_pc = (
         (destination_files_kv_pc, more_destination_files_kv_pc)
         | "DestinationFilesUnion" >> beam.Flatten())
+
+    if self.is_streaming_pipeline:
+      # Apply the user's trigger back before we start triggering load jobs
+      all_destination_file_pairs_pc = (
+          all_destination_file_pairs_pc
+          | "ApplyUserTrigger" >> beam.WindowInto(
+              beam.window.GlobalWindows(),
+              trigger=trigger.Repeatedly(
+                  trigger.AfterAll(
+                      trigger.AfterProcessingTime(self.triggering_frequency),
+                      trigger.AfterCount(1))),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING))
+    return all_destination_file_pairs_pc
+
+  def expand(self, pcoll):
+    p = pcoll.pipeline
+
+    temp_location = p.options.view_as(GoogleCloudOptions).temp_location
+
+    load_job_name_pcv = pvalue.AsSingleton(
+        p
+        | "ImpulseJobName" >> beam.Create([None])
+        | beam.Map(lambda _: _generate_load_job_name()))
+
+    file_prefix_pcv = pvalue.AsSingleton(
+        p
+        | "CreateFilePrefixView" >> beam.Create([''])
+        | "GenerateFilePrefix" >> beam.Map(
+            file_prefix_generator(self._validate,
+                                  self._custom_gcs_temp_location,
+                                  temp_location)))
+
+    destination_data_kv_pc = (
+        pcoll
+        | "RewindowIntoGlobal" >> self._window_fn()
+        | "AppendDestination" >> beam.ParDo(bigquery_tools.AppendDestinationsFn(
+            self.destination), *self.table_side_inputs))
+
+    all_destination_file_pairs_pc = self._write_files(destination_data_kv_pc,
+                                                      file_prefix_pcv)
 
     grouped_files_pc = (
         all_destination_file_pairs_pc
@@ -622,8 +680,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 test_client=self.test_client,
                 temporary_tables=self.temp_tables,
                 additional_bq_parameters=self.additional_bq_parameters),
-            load_job_name_pcv, *self.schema_side_inputs).with_outputs(
-                TriggerLoadJobs.TEMP_TABLES, main='main')
+            load_job_name_pcv, *self.schema_side_inputs)
+        .with_outputs(TriggerLoadJobs.TEMP_TABLES, main='main')
     )
 
     destination_job_ids_pc = trigger_loads_outputs['main']
@@ -656,7 +714,6 @@ class BigQueryBatchFileLoads(beam.PTransform):
          | "RemoveTempTables/DeduplicateTables" >> beam.GroupByKey()
          | "RemoveTempTables/GetTableNames" >> beam.Map(lambda elm: elm[0])
          | "RemoveTempTables/Delete" >> beam.ParDo(DeleteTablesFn()))
-
     return {
         self.DESTINATION_JOBID_PAIRS: destination_job_ids_pc,
         self.DESTINATION_FILE_PAIRS: all_destination_file_pairs_pc,

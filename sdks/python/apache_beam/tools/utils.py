@@ -23,6 +23,7 @@ from __future__ import print_function
 
 import collections
 import gc
+import importlib
 import os
 import time
 
@@ -34,7 +35,7 @@ def check_compiled(module):
   Args:
     module: string, module name
   """
-  check_module = __import__(module, globals(), locals())
+  check_module = importlib.import_module(module)
   ext = os.path.splitext(check_module.__file__)[-1]
   if ext in ('.py', '.pyc'):
     raise RuntimeError(

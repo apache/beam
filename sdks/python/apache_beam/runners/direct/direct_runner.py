@@ -26,6 +26,7 @@ from __future__ import absolute_import
 import itertools
 import logging
 import time
+import typing
 
 from google.protobuf import wrappers_pb2
 
@@ -129,12 +130,12 @@ class SwitchingDirectRunner(PipelineRunner):
 
 
 # Type variables.
-K = typehints.TypeVariable('K')
-V = typehints.TypeVariable('V')
+K = typing.TypeVar('K')
+V = typing.TypeVar('V')
 
 
-@typehints.with_input_types(typehints.KV[K, V])
-@typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
+@typehints.with_input_types(typing.Tuple[K, V])
+@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
 class _StreamingGroupByKeyOnly(_GroupByKeyOnly):
   """Streaming GroupByKeyOnly placeholder for overriding in DirectRunner."""
   urn = "direct_runner:streaming_gbko:v0.1"
@@ -148,8 +149,8 @@ class _StreamingGroupByKeyOnly(_GroupByKeyOnly):
     return _StreamingGroupByKeyOnly()
 
 
-@typehints.with_input_types(typehints.KV[K, typehints.Iterable[V]])
-@typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
+@typehints.with_input_types(typing.Tuple[K, typing.Iterable[V]])
+@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
 class _StreamingGroupAlsoByWindow(_GroupAlsoByWindow):
   """Streaming GroupAlsoByWindow placeholder for overriding in DirectRunner."""
   urn = "direct_runner:streaming_gabw:v0.1"

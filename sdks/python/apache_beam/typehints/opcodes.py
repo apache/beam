@@ -29,6 +29,7 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 
 import inspect
+import logging
 import sys
 import types
 from functools import reduce
@@ -412,3 +413,38 @@ def make_closure(state, arg):
 
 def build_slice(state, arg):
   state.stack[-arg:] = [slice]  # a slice object
+
+
+def _unpack_lists(state, arg):
+  """Extract inner types of Lists and Tuples.
+
+  Pops arg count items from the stack, concatenates their inner types into 1
+  list, and returns that list.
+  Example: if stack[-arg:] == [[i1, i2], [i3]], the output is [i1, i2, i3]
+  """
+  types = []
+  for i in range(arg, 0, -1):
+    type_constraint = state.stack[-i]
+    if isinstance(type_constraint, typehints.IndexableTypeConstraint):
+      types.extend(type_constraint._inner_types())
+    else:
+      logging.debug('Unhandled type_constraint: %r', type_constraint)
+      types.append(typehints.Any)
+  state.stack[-arg:] = []
+  return types
+
+
+def build_list_unpack(state, arg):
+  """Joins arg count iterables from the stack into a single list."""
+  state.stack.append(List[Union[_unpack_lists(state, arg)]])
+
+
+def build_tuple_unpack(state, arg):
+  """Joins arg count iterables from the stack into a single tuple."""
+  state.stack.append(Tuple[_unpack_lists(state, arg)])
+
+
+def build_tuple_unpack_with_call(state, arg):
+  """Same as build_tuple_unpack, with an extra fn argument at the bottom of the
+  stack, which remains untouched."""
+  build_tuple_unpack(state, arg)

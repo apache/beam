@@ -18,10 +18,10 @@
 
 ###########################################################################
 #
-# This script is useful to run single or a set of Python integration tests
-# manually or through Gradle. Note, this script doesn't setup python
-# environment which is required before running tests. Use Gradle task
-# `:sdks:python:integrationTests` to do both together.
+# This script is used in Gradle to run single or a set of Python integration tests
+# locally or on Jenkins. Note, this script doesn't setup python environment which is
+# required for integration test. In order to do so, run Gradle tasks defined in
+# :sdks:python:test-suites instead.
 #
 # In order to run test with customer options, use following commandline flags:
 #
@@ -48,6 +48,9 @@
 #                      during execution. Commonly used options like `--attr`,
 #                      `--tests`, `--nologcapture`. More can be found in
 #                      https://nose.readthedocs.io/en/latest/man.html#options
+#     suite         -> Namespace for this run of tests. Required if running
+#                      under Jenkins. Used to differentiate runs of the same
+#                      tests with different interpreters/dependencies/etc.
 #
 # Example usages:
 #     - Run full set of PostCommit tests with default pipeline options:
@@ -72,6 +75,7 @@ SLEEP_SECS=20
 STREAMING=false
 WORKER_JAR=""
 KMS_KEY_NAME="projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
+SUITE=""
 
 # Default test (nose) options.
 # Run WordCountIT.test_wordcount_it by default if no test options are
@@ -142,12 +146,23 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --suite)
+        SUITE="$2"
+        shift # past argument
+        shift # past value
+        ;;
     *)    # unknown option
         echo "Unknown option: $1"
         exit 1
         ;;
 esac
 done
+
+if [[ "$JENKINS_HOME" != "" && "$SUITE" == "" ]]; then
+    echo "Argument --suite is required in a Jenkins environment."
+    exit 1
+fi
+XUNIT_FILE="nosetests-$SUITE.xml"
 
 set -o errexit
 
@@ -226,6 +241,10 @@ fi
 
 echo ">>> RUNNING integration tests with pipeline options: $PIPELINE_OPTS"
 echo ">>>   test options: $TEST_OPTS"
+# TODO(BEAM-3713): Pass $SUITE once migrated to pytest. xunitmp doesn't support
+#   suite names.
 python setup.py nosetests \
   --test-pipeline-options="$PIPELINE_OPTS" \
+  --with-xunitmp --xunitmp-file=$XUNIT_FILE \
+  --ignore-files '.*py3.py$' \
   $TEST_OPTS

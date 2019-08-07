@@ -59,7 +59,7 @@ class PubSubMatcherTest(unittest.TestCase):
 
   def test_message_matcher_success(self, mock_get_sub, unsued_mock):
     self.init_matcher()
-    self.pubsub_matcher.expected_msg = ['a', 'b']
+    self.pubsub_matcher.expected_msg = [b'a', b'b']
     mock_sub = mock_get_sub.return_value
     mock_sub.pull.side_effect = [
         create_pull_response([PullResponseMessage(b'a', {})]),
@@ -121,7 +121,7 @@ class PubSubMatcherTest(unittest.TestCase):
 
   def test_message_matcher_mismatch(self, mock_get_sub, unused_mock):
     self.init_matcher()
-    self.pubsub_matcher.expected_msg = ['a']
+    self.pubsub_matcher.expected_msg = [b'a']
     mock_sub = mock_get_sub.return_value
     mock_sub.pull.side_effect = [
         create_pull_response([PullResponseMessage(b'c', {}),
@@ -130,7 +130,7 @@ class PubSubMatcherTest(unittest.TestCase):
     with self.assertRaises(AssertionError) as error:
       hc_assert_that(self.mock_presult, self.pubsub_matcher)
     self.assertEqual(mock_sub.pull.call_count, 1)
-    self.assertCountEqual(['c', 'd'], self.pubsub_matcher.messages)
+    self.assertCountEqual([b'c', b'd'], self.pubsub_matcher.messages)
     self.assertTrue(
         '\nExpected: Expected 1 messages.\n     but: Got 2 messages.'
         in str(error.exception.args[0]))

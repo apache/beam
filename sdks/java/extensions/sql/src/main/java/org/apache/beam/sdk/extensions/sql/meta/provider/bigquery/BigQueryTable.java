@@ -21,7 +21,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigInteger;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.extensions.sql.impl.BeamRowCountStatistics;
+import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
@@ -35,7 +35,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +47,7 @@ import org.slf4j.LoggerFactory;
 class BigQueryTable extends BaseBeamTable implements Serializable {
   @VisibleForTesting final String bqLocation;
   private final ConversionOptions conversionOptions;
-  private BeamRowCountStatistics rowCountStatistics = null;
+  private BeamTableStatistics rowCountStatistics = null;
   private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryTable.class);
 
   BigQueryTable(Table table, BigQueryUtils.ConversionOptions options) {
@@ -57,7 +57,7 @@ class BigQueryTable extends BaseBeamTable implements Serializable {
   }
 
   @Override
-  public BeamRowCountStatistics getRowCount(PipelineOptions options) {
+  public BeamTableStatistics getTableStatistics(PipelineOptions options) {
 
     if (rowCountStatistics == null) {
       rowCountStatistics = getRowCountFromBQ(options, bqLocation);
@@ -93,22 +93,22 @@ class BigQueryTable extends BaseBeamTable implements Serializable {
             .to(bqLocation));
   }
 
-  private static BeamRowCountStatistics getRowCountFromBQ(PipelineOptions o, String bqLocation) {
+  private static BeamTableStatistics getRowCountFromBQ(PipelineOptions o, String bqLocation) {
     try {
       BigInteger rowCount =
           BigQueryHelpers.getNumRows(
               o.as(BigQueryOptions.class), BigQueryHelpers.parseTableSpec(bqLocation));
 
       if (rowCount == null) {
-        return BeamRowCountStatistics.UNKNOWN;
+        return BeamTableStatistics.BOUNDED_UNKNOWN;
       }
 
-      return BeamRowCountStatistics.createBoundedTableStatistics(rowCount);
+      return BeamTableStatistics.createBoundedTableStatistics(rowCount.doubleValue());
 
     } catch (IOException | InterruptedException e) {
       LOGGER.warn("Could not get the row count for the table " + bqLocation, e);
     }
 
-    return BeamRowCountStatistics.UNKNOWN;
+    return BeamTableStatistics.BOUNDED_UNKNOWN;
   }
 }

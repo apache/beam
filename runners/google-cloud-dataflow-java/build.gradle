@@ -39,7 +39,7 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '7',
     'dataflow.fnapi_environment_major_version' : '7',
-    'dataflow.container_version' : 'beam-master-20190415'
+    'dataflow.container_version' : 'beam-master-20190730'
   ]
 }
 
@@ -57,7 +57,7 @@ configurations {
 }
 
 dependencies {
-  compile library.java.vendored_guava_20_0
+  compile library.java.vendored_guava_26_0_jre
   compile project(path: ":model:pipeline", configuration: "shadow")
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
@@ -78,7 +78,7 @@ dependencies {
   compile library.java.jackson_databind
   compile library.java.joda_time
   compile library.java.slf4j_api
-  compile library.java.vendored_grpc_1_13_1
+  compile library.java.vendored_grpc_1_21_0
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
   testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
@@ -187,6 +187,7 @@ task validatesRunnerLegacyWorkerJava11Test(type: Test) {
             "--project=${dataflowProject}",
             "--tempRoot=${dataflowValidatesTempRoot}",
             "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+            "--workerHarnessContainerImage=",
     ])
     
     systemProperty "java.specification.version", "11"

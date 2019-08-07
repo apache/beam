@@ -77,7 +77,7 @@ dependencies {
   fmppTask "com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0"
   fmppTask "org.freemarker:freemarker:2.3.28"
   fmppTemplates "org.apache.calcite:calcite-core:$calcite_version"
-  shadow library.java.vendored_guava_20_0 // Internal use
+  shadow library.java.vendored_guava_26_0_jre // Internal use
   compile library.java.guava // Interfaces with Calcite use this
   compile "org.apache.calcite:calcite-core:$calcite_version"
   compile "org.apache.calcite:calcite-linq4j:$calcite_version"
@@ -96,6 +96,7 @@ dependencies {
   shadow project(path: ":runners:direct-java", configuration: "shadow")
   provided project(":sdks:java:io:kafka")
   provided project(":sdks:java:io:google-cloud-platform")
+  provided project(":sdks:java:io:parquet")
   provided library.java.kafka_clients
   shadowTest library.java.junit
   shadowTest library.java.hamcrest_core
@@ -106,6 +107,7 @@ dependencies {
 
   // Dependencies that we don't directly reference
   permitUnusedDeclared "com.jayway.jsonpath:json-path:2.4.0"
+  permitUnusedDeclared "net.jcip:jcip-annotations:1.0"
   permitUnusedDeclared library.java.jackson_dataformat_yaml
 
   // Dependencies that are bundled in when we bundle Calcite
@@ -115,7 +117,8 @@ dependencies {
   // Dependencies where one or the other appears "used" depending on classpath,
   // but it doesn't matter which is used
   permitUsedUndeclared "com.google.code.findbugs:jsr305:3.0.2"
-  permitUnusedDeclared "net.jcip:jcip-annotations:1.0"
+  permitUsedUndeclared "org.apache.avro:avro:1.8.2"
+
 }
 
 // Copy Caclcite templates and our own template into the build directory

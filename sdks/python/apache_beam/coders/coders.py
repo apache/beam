@@ -23,6 +23,7 @@ from __future__ import absolute_import
 
 import base64
 import sys
+import typing
 from builtins import object
 
 import google.protobuf.wrappers_pb2
@@ -30,6 +31,7 @@ from future.moves import pickle
 from past.builtins import unicode
 
 from apache_beam.coders import coder_impl
+from apache_beam.coders.avro_record import AvroRecord
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -57,9 +59,9 @@ except ImportError:
 
 
 __all__ = ['Coder',
-           'BytesCoder', 'DillCoder', 'FastPrimitivesCoder', 'FloatCoder',
-           'IterableCoder', 'PickleCoder', 'ProtoCoder', 'SingletonCoder',
-           'StrUtf8Coder', 'TimestampCoder', 'TupleCoder',
+           'AvroCoder', 'BytesCoder', 'DillCoder', 'FastPrimitivesCoder',
+           'FloatCoder', 'IterableCoder', 'PickleCoder', 'ProtoCoder',
+           'SingletonCoder', 'StrUtf8Coder', 'TimestampCoder', 'TupleCoder',
            'TupleSequenceCoder', 'VarIntCoder', 'WindowedValueCoder']
 
 
@@ -597,7 +599,7 @@ class PickleCoder(_PickleCoderBase):
     return DeterministicFastPrimitivesCoder(self, step_label)
 
   def to_type_hint(self):
-    return typehints.Any
+    return typing.Any
 
 
 class DillCoder(_PickleCoderBase):
@@ -631,7 +633,7 @@ class DeterministicFastPrimitivesCoder(FastCoder):
     return self
 
   def to_type_hint(self):
-    return typehints.Any
+    return typing.Any
 
 
 class FastPrimitivesCoder(FastCoder):
@@ -656,7 +658,7 @@ class FastPrimitivesCoder(FastCoder):
       return DeterministicFastPrimitivesCoder(self, step_label)
 
   def to_type_hint(self):
-    return typehints.Any
+    return typing.Any
 
   def as_cloud_object(self, coders_context=None, is_pair_like=True):
     value = super(FastCoder, self).as_cloud_object(coders_context)
@@ -784,6 +786,40 @@ class DeterministicProtoCoder(ProtoCoder):
 
   def as_deterministic_coder(self, step_label, error_message=None):
     return self
+
+
+AVRO_CODER_URN = "beam:coder:avro:v1"
+
+
+class AvroCoder(FastCoder):
+  """A coder used for AvroRecord values."""
+
+  def __init__(self, schema):
+    self.schema = schema
+
+  def _create_impl(self):
+    return coder_impl.AvroCoderImpl(self.schema)
+
+  def is_deterministic(self):
+    # TODO(BEAM-7903): need to confirm if it's deterministic
+    return False
+
+  def __eq__(self, other):
+    return (type(self) == type(other)
+            and self.schema == other.schema)
+
+  def __hash__(self):
+    return hash(self.schema)
+
+  def to_type_hint(self):
+    return AvroRecord
+
+  def to_runner_api_parameter(self, context):
+    return AVRO_CODER_URN, self.schema, ()
+
+  @Coder.register_urn(AVRO_CODER_URN, bytes)
+  def from_runner_api_parameter(payload, unused_components, unused_context):
+    return AvroCoder(payload)
 
 
 class TupleCoder(FastCoder):
@@ -1187,4 +1223,4 @@ class RunnerAPICoderHolder(Coder):
     return self._proto
 
   def to_type_hint(self):
-    return typehints.Any
+    return typing.Any

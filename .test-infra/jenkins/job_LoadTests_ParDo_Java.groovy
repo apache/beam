@@ -97,7 +97,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                                                       "valueSizeBytes": 90
                                                     }
                                                """.trim().replaceAll("\\s", ""),
-                            iterations          : 10,
+                            iterations          : 1,
                             numberOfCounters    : 1,
                             numberOfCounterOperations: 10,
                             maxNumWorkers       : 5,
@@ -125,7 +125,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                                                       "valueSizeBytes": 90
                                                     }
                                                """.trim().replaceAll("\\s", ""),
-                            iterations          : 10,
+                            iterations          : 1,
                             numberOfCounters    : 1,
                             numberOfCounterOperations: 100,
                             maxNumWorkers       : 5,

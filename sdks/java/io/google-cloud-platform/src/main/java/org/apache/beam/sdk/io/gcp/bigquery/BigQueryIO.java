@@ -21,10 +21,11 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdTok
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createTempTableReference;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getExtractJobId;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.json.JsonFactory;
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
@@ -107,13 +108,13 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1529,6 +1530,9 @@ public class BigQueryIO {
     @Nullable
     abstract ValueProvider<String> getJsonTimePartitioning();
 
+    @Nullable
+    abstract Clustering getClustering();
+
     abstract CreateDisposition getCreateDisposition();
 
     abstract WriteDisposition getWriteDisposition();
@@ -1597,6 +1601,8 @@ public class BigQueryIO {
       abstract Builder<T> setJsonSchema(ValueProvider<String> jsonSchema);
 
       abstract Builder<T> setJsonTimePartitioning(ValueProvider<String> jsonTimePartitioning);
+
+      abstract Builder<T> setClustering(Clustering clustering);
 
       abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
 
@@ -1732,6 +1738,10 @@ public class BigQueryIO {
     /**
      * Writes to table specified by the specified table function. The table is a function of {@link
      * ValueInSingleWindow}, so can be determined by the value or by the window.
+     *
+     * <p>If the function produces destinations configured with clustering fields, ensure that
+     * {@link #withClustering()} is also set so that the clustering configurations get properly
+     * encoded and decoded.
      */
     public Write<T> to(
         SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction) {
@@ -1739,7 +1749,13 @@ public class BigQueryIO {
       return toBuilder().setTableFunction(tableFunction).build();
     }
 
-    /** Writes to the table and schema specified by the {@link DynamicDestinations} object. */
+    /**
+     * Writes to the table and schema specified by the {@link DynamicDestinations} object.
+     *
+     * <p>If any of the returned destinations are configured with clustering fields, ensure that the
+     * passed {@link DynamicDestinations} object returns {@link TableDestinationCoderV3} when {@link
+     * DynamicDestinations#getDestinationCoder()} is called.
+     */
     public Write<T> to(DynamicDestinations<T, ?> dynamicDestinations) {
       checkArgument(dynamicDestinations != null, "dynamicDestinations can not be null");
       return toBuilder().setDynamicDestinations(dynamicDestinations).build();
@@ -1798,7 +1814,7 @@ public class BigQueryIO {
      * Allows newly created tables to include a {@link TimePartitioning} class. Can only be used
      * when writing to a single table. If {@link #to(SerializableFunction)} or {@link
      * #to(DynamicDestinations)} is used to write dynamic tables, time partitioning can be directly
-     * in the returned {@link TableDestination}.
+     * set in the returned {@link TableDestination}.
      */
     public Write<T> withTimePartitioning(TimePartitioning partitioning) {
       checkArgument(partitioning != null, "partitioning can not be null");
@@ -1820,6 +1836,34 @@ public class BigQueryIO {
     public Write<T> withJsonTimePartitioning(ValueProvider<String> partitioning) {
       checkArgument(partitioning != null, "partitioning can not be null");
       return toBuilder().setJsonTimePartitioning(partitioning).build();
+    }
+
+    /**
+     * Specifies the clustering fields to use when writing to a single output table. Can only be
+     * used when {@link#withTimePartitioning(TimePartitioning)} is set. If {@link
+     * #to(SerializableFunction)} or {@link #to(DynamicDestinations)} is used to write to dynamic
+     * tables, the fields here will be ignored; call {@link #withClustering()} instead.
+     */
+    public Write<T> withClustering(Clustering clustering) {
+      checkArgument(clustering != null, "clustering can not be null");
+      return toBuilder().setClustering(clustering).build();
+    }
+
+    /**
+     * Allows writing to clustered tables when {@link #to(SerializableFunction)} or {@link
+     * #to(DynamicDestinations)} is used. The returned {@link TableDestination} objects should
+     * specify the time partitioning and clustering fields per table. If writing to a single table,
+     * use {@link #withClustering(Clustering)} instead to pass a {@link Clustering} instance that
+     * specifies the static clustering fields to use.
+     *
+     * <p>Setting this option enables use of {@link TableDestinationCoderV3} which encodes
+     * clustering information. The updated coder is compatible with non-clustered tables, so can be
+     * freely set for newly deployed pipelines, but note that pipelines using an older coder must be
+     * drained before setting this option, since {@link TableDestinationCoderV3} will not be able to
+     * read state written with a previous version.
+     */
+    public Write<T> withClustering() {
+      return toBuilder().setClustering(new Clustering()).build();
     }
 
     /** Specifies whether the table should be created if it does not exist. */
@@ -1975,8 +2019,17 @@ public class BigQueryIO {
       return toBuilder().setBigQueryServices(testServices).build();
     }
 
-    @VisibleForTesting
-    Write<T> withMaxFilesPerBundle(int maxFilesPerBundle) {
+    /**
+     * Control how many files will be written concurrently by a single worker when using BigQuery
+     * load jobs before spilling to a shuffle. When data comes into this transform, it is written to
+     * one file per destination per worker. When there are more files than maxFilesPerBundle
+     * (DEFAULT: 20), the data is shuffled (i.e. Grouped By Destination), and written to files
+     * one-by-one-per-worker. This flag sets the maximum number of files that a single worker can
+     * write concurrently before shuffling the data. This flag should be used with caution. Setting
+     * a high number can increase the memory pressure on workers, and setting a low number can make
+     * a pipeline slower (due to the need to shuffle data).
+     */
+    public Write<T> withMaxFilesPerBundle(int maxFilesPerBundle) {
       checkArgument(
           maxFilesPerBundle > 0, "maxFilesPerBundle must be > 0, but was: %s", maxFilesPerBundle);
       return toBuilder().setMaxFilesPerBundle(maxFilesPerBundle).build();
@@ -2093,6 +2146,11 @@ public class BigQueryIO {
             "The supplied getTableFunction object can directly set TimePartitioning."
                 + " There is no need to call BigQueryIO.Write.withTimePartitioning.");
       }
+      if (getClustering() != null && getClustering().getFields() != null) {
+        checkArgument(
+            getJsonTimePartitioning() != null,
+            "Clustering fields can only be set when TimePartitioning is set.");
+      }
 
       DynamicDestinations<T, ?> dynamicDestinations = getDynamicDestinations();
       if (dynamicDestinations == null) {
@@ -2101,7 +2159,8 @@ public class BigQueryIO {
               DynamicDestinationsHelpers.ConstantTableDestinations.fromJsonTableRef(
                   getJsonTableRef(), getTableDescription());
         } else if (getTableFunction() != null) {
-          dynamicDestinations = new TableFunctionDestinations<>(getTableFunction());
+          dynamicDestinations =
+              new TableFunctionDestinations<>(getTableFunction(), getClustering() != null);
         }
 
         // Wrap with a DynamicDestinations class that will provide a schema. There might be no
@@ -2122,7 +2181,8 @@ public class BigQueryIO {
           dynamicDestinations =
               new ConstantTimePartitioningDestinations<>(
                   (DynamicDestinations<T, TableDestination>) dynamicDestinations,
-                  getJsonTimePartitioning());
+                  getJsonTimePartitioning(),
+                  StaticValueProvider.of(BigQueryHelpers.toJsonString(getClustering())));
         }
       }
       return expandTyped(input, dynamicDestinations);

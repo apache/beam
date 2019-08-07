@@ -24,6 +24,7 @@ import itertools
 import logging
 import math
 import random
+import re
 import time
 import unittest
 from builtins import object
@@ -563,7 +564,6 @@ class ReifyTest(unittest.TestCase):
       reified_pc = pc | util.Reify.Timestamp()
       assert_that(reified_pc, equal_to(expected), reify_windows=True)
 
-  @unittest.skip('BEAM-7499')
   def test_window(self):
     l = [GlobalWindows.windowed_value('a', 100),
          GlobalWindows.windowed_value('b', 200),
@@ -576,6 +576,13 @@ class ReifyTest(unittest.TestCase):
                                   [GlobalWindow()])]
     with TestPipeline() as p:
       pc = p | beam.Create(l)
+      # Map(lambda x: x) PTransform is added after Create here, because when
+      # a PCollection of WindowedValues is created with Create PTransform,
+      # the windows are not assigned to it. Adding a Map forces the
+      # PCollection to go through a DoFn so that the PCollection consists of
+      # the elements with timestamps assigned to them instead of a PCollection
+      # of WindowedValue(element, timestamp, window).
+      pc = pc | beam.Map(lambda x: x)
       reified_pc = pc | util.Reify.Window()
       assert_that(reified_pc, equal_to(expected), reify_windows=True)
 
@@ -610,6 +617,285 @@ class ReifyTest(unittest.TestCase):
       pc = p | beam.Create(l) | beam.Map(lambda x: x)
       reified_pc = pc | util.Reify.WindowInValue()
       assert_that(reified_pc, equal_to(expected), reify_windows=True)
+
+
+class RegexTest(unittest.TestCase):
+
+  def test_find(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["aj", "xj", "yj", "zj"])
+                | util.Regex.find("[xyz]"))
+      assert_that(result, equal_to(["x", "y", "z"]))
+
+  def test_find_pattern(self):
+    with TestPipeline() as p:
+      rc = re.compile("[xyz]")
+      result = (p | beam.Create(["aj", "xj", "yj", "zj"]) | util.Regex.find(rc))
+      assert_that(result, equal_to(["x", "y", "z"]))
+
+  def test_find_group(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["aj", "xj", "yj", "zj"])
+                | util.Regex.find("([xyz])j", group=1))
+      assert_that(result, equal_to(["x", "y", "z"]))
+
+  def test_find_empty(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a", "b", "c", "d"])
+                | util.Regex.find("[xyz]"))
+      assert_that(result, equal_to([]))
+
+  def test_find_group_name(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["aj", "xj", "yj", "zj"])
+                | util.Regex.find("(?P<namedgroup>[xyz])j", group="namedgroup"))
+      assert_that(result, equal_to(["x", "y", "z"]))
+
+  def test_find_group_name_pattern(self):
+    with TestPipeline() as p:
+      rc = re.compile("(?P<namedgroup>[xyz])j")
+      result = (p | beam.Create(["aj", "xj", "yj", "zj"]) | util.Regex.find(
+          rc, group="namedgroup"))
+      assert_that(result, equal_to(["x", "y", "z"]))
+
+  def test_find_all_groups(self):
+    data = ["abb ax abbb", "abc qwerty abcabcd xyz"]
+    with TestPipeline() as p:
+      pcol = (p | beam.Create(data))
+
+      assert_that(pcol | 'with default values' >> util.Regex.find_all('a(b*)'),
+                  equal_to([['abb', 'a', 'abbb'], ['ab', 'ab', 'ab']]),
+                  label='CheckWithDefaultValues')
+
+      assert_that(pcol | 'group 1' >> util.Regex.find_all('a(b*)', 1),
+                  equal_to([['b', 'b', 'b'], ['bb', '', 'bbb']]),
+                  label='CheckWithGroup1')
+
+      assert_that(pcol | 'group 1 non empty' >> util.Regex.find_all(
+          'a(b*)', 1, outputEmpty=False),
+                  equal_to([['b', 'b', 'b'], ['bb', 'bbb']]),
+                  label='CheckGroup1NonEmpty')
+
+      assert_that(pcol | 'named group' >> util.Regex.find_all(
+          'a(?P<namedgroup>b*)', 'namedgroup'),
+                  equal_to([['b', 'b', 'b'], ['bb', '', 'bbb']]),
+                  label='CheckNamedGroup')
+
+      assert_that(pcol | 'all groups' >> util.Regex.find_all(
+          'a(?P<namedgroup>b*)', util.Regex.ALL),
+                  equal_to([[('ab', 'b'), ('ab', 'b'), ('ab', 'b')],
+                            [('abb', 'bb'), ('a', ''), ('abbb', 'bbb')]]),
+                  label='CheckAllGroups')
+
+      assert_that(pcol | 'all non empty groups' >> util.Regex.find_all(
+          'a(b*)', util.Regex.ALL, outputEmpty=False),
+                  equal_to([[('ab', 'b'), ('ab', 'b'), ('ab', 'b')],
+                            [('abb', 'bb'), ('abbb', 'bbb')]]),
+                  label='CheckAllNonEmptyGroups')
+
+  def test_find_kv(self):
+    with TestPipeline() as p:
+      pcol = (p | beam.Create(['a b c d']))
+      assert_that(pcol | 'key 1' >> util.Regex.find_kv(
+          'a (b) (c)', 1,), equal_to([('b', 'a b c')]), label='CheckKey1')
+
+      assert_that(pcol | 'key 1 group 1' >> util.Regex.find_kv(
+          'a (b) (c)', 1, 2), equal_to([('b', 'c')]), label='CheckKey1Group1')
+
+  def test_find_kv_pattern(self):
+    with TestPipeline() as p:
+      rc = re.compile("a (b) (c)")
+      result = (p | beam.Create(["a b c"]) | util.Regex.find_kv(rc, 1, 2))
+      assert_that(result, equal_to([("b", "c")]))
+
+  def test_find_kv_none(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["x y z"])
+                | util.Regex.find_kv("a (b) (c)", 1, 2))
+      assert_that(result, equal_to([]))
+
+  def test_match(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a", "x", "y", "z"])
+                | util.Regex.matches("[xyz]"))
+      assert_that(result, equal_to(["x", "y", "z"]))
+
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a", "ax", "yby", "zzc"])
+                | util.Regex.matches("[xyz]"))
+      assert_that(result, equal_to(["y", "z"]))
+
+  def test_match_entire_line(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a", "x", "y", "ay", "zz"])
+                | util.Regex.matches("[xyz]$"))
+      assert_that(result, equal_to(["x", "y"]))
+
+  def test_match_pattern(self):
+    with TestPipeline() as p:
+      rc = re.compile("[xyz]")
+      result = (p | beam.Create(["a", "x", "y", "z"]) | util.Regex.matches(rc))
+      assert_that(result, equal_to(["x", "y", "z"]))
+
+  def test_match_none(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a", "b", "c", "d"])
+                | util.Regex.matches("[xyz]"))
+      assert_that(result, equal_to([]))
+
+  def test_match_group(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a", "x xxx", "x yyy", "x zzz"])
+                | util.Regex.matches("x ([xyz]*)", 1))
+      assert_that(result, equal_to(("xxx", "yyy", "zzz")))
+
+  def test_match_group_name(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a", "x xxx", "x yyy", "x zzz"])
+                | util.Regex.matches("x (?P<namedgroup>[xyz]*)", 'namedgroup'))
+      assert_that(result, equal_to(("xxx", "yyy", "zzz")))
+
+  def test_match_group_name_pattern(self):
+    with TestPipeline() as p:
+      rc = re.compile("x (?P<namedgroup>[xyz]*)")
+      result = (p | beam.Create(["a", "x xxx", "x yyy", "x zzz"])
+                | util.Regex.matches(rc, 'namedgroup'))
+      assert_that(result, equal_to(("xxx", "yyy", "zzz")))
+
+  def test_match_group_empty(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a", "b", "c", "d"])
+                | util.Regex.matches("x (?P<namedgroup>[xyz]*)", 'namedgroup'))
+      assert_that(result, equal_to([]))
+
+  def test_all_matched(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a x", "x x", "y y", "z z"])
+                | util.Regex.all_matches("([xyz]) ([xyz])"))
+      expected_result = [["x x", "x", "x"], ["y y", "y", "y"],
+                         ["z z", "z", "z"]]
+      assert_that(result, equal_to(expected_result))
+
+  def test_all_matched_pattern(self):
+    with TestPipeline() as p:
+      rc = re.compile("([xyz]) ([xyz])")
+      result = (p | beam.Create(["a x", "x x", "y y", "z z"])
+                | util.Regex.all_matches(rc))
+      expected_result = [["x x", "x", "x"], ["y y", "y", "y"],
+                         ["z z", "z", "z"]]
+      assert_that(result, equal_to(expected_result))
+
+  def test_match_group_kv(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a b c"])
+                | util.Regex.matches_kv("a (b) (c)", 1, 2))
+      assert_that(result, equal_to([("b", "c")]))
+
+  def test_match_group_kv_pattern(self):
+    with TestPipeline() as p:
+      rc = re.compile("a (b) (c)")
+      pcol = (p | beam.Create(["a b c"]))
+      assert_that(pcol | 'key 1' >> util.Regex.matches_kv(
+          rc, 1), equal_to([("b", "a b c")]), label="CheckKey1")
+
+      assert_that(pcol | 'key 1 group 2' >> util.Regex.matches_kv(
+          rc, 1, 2), equal_to([("b", "c")]), label="CheckKey1Group2")
+
+  def test_match_group_kv_none(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["x y z"])
+                | util.Regex.matches_kv("a (b) (c)", 1, 2))
+      assert_that(result, equal_to([]))
+
+  def test_match_kv_group_names(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a b c"]) | util.Regex.matches_kv(
+          "a (?P<keyname>b) (?P<valuename>c)", 'keyname', 'valuename'))
+      assert_that(result, equal_to([("b", "c")]))
+
+  def test_match_kv_group_names_pattern(self):
+    with TestPipeline() as p:
+      rc = re.compile("a (?P<keyname>b) (?P<valuename>c)")
+      result = (p | beam.Create(["a b c"]) | util.Regex.matches_kv(
+          rc, 'keyname', 'valuename'))
+      assert_that(result, equal_to([("b", "c")]))
+
+  def test_match_kv_group_name_none(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["x y z"]) | util.Regex.matches_kv(
+          "a (?P<keyname>b) (?P<valuename>c)", 'keyname', 'valuename'))
+      assert_that(result, equal_to([]))
+
+  def test_replace_all(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["xj", "yj", "zj"]) | util.Regex.replace_all(
+          "[xyz]", "new"))
+      assert_that(result, equal_to(["newj", "newj", "newj"]))
+
+  def test_replace_all_mixed(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["abc", "xj", "yj", "zj", "def"])
+                | util.Regex.replace_all("[xyz]", 'new'))
+      assert_that(result, equal_to(["abc", "newj", "newj", "newj", "def"]))
+
+  def test_replace_all_mixed_pattern(self):
+    with TestPipeline() as p:
+      rc = re.compile("[xyz]")
+      result = (p | beam.Create(
+          ["abc", "xj", "yj", "zj", "def"]) | util.Regex.replace_all(rc, 'new'))
+      assert_that(result, equal_to(["abc", "newj", "newj", "newj", "def"]))
+
+  def test_replace_first(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["xjx", "yjy", "zjz"])
+                | util.Regex.replace_first("[xyz]", 'new'))
+      assert_that(result, equal_to(["newjx", "newjy", "newjz"]))
+
+  def test_replace_first_mixed(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["abc", "xjx", "yjy", "zjz", "def"])
+                | util.Regex.replace_first("[xyz]", 'new'))
+      assert_that(result, equal_to(["abc", "newjx", "newjy", "newjz", "def"]))
+
+  def test_replace_first_mixed_pattern(self):
+    with TestPipeline() as p:
+      rc = re.compile("[xyz]")
+      result = (p | beam.Create(["abc", "xjx", "yjy", "zjz", "def"])
+                | util.Regex.replace_first(rc, 'new'))
+      assert_that(result, equal_to(["abc", "newjx", "newjy", "newjz", "def"]))
+
+  def test_split(self):
+    with TestPipeline() as p:
+      data = ["The  quick   brown fox jumps over    the lazy dog"]
+      result = (p | beam.Create(data) | util.Regex.split("\\W+"))
+      expected_result = [["The", "quick", "brown", "fox", "jumps", "over",
+                          "the", "lazy", "dog"]]
+      assert_that(result, equal_to(expected_result))
+
+  def test_split_pattern(self):
+    with TestPipeline() as p:
+      data = ["The  quick   brown fox jumps over    the lazy dog"]
+      rc = re.compile("\\W+")
+      result = (p | beam.Create(data) | util.Regex.split(rc))
+      expected_result = [["The", "quick", "brown", "fox", "jumps", "over",
+                          "the", "lazy", "dog"]]
+      assert_that(result, equal_to(expected_result))
+
+  def test_split_with_empty(self):
+    with TestPipeline() as p:
+      data = ["The  quick   brown fox jumps over    the lazy dog"]
+      result = (p | beam.Create(data) | util.Regex.split("\\s", True))
+      expected_result = [['The', '', 'quick', '', '', 'brown', 'fox', 'jumps',
+                          'over', '', '', '', 'the', 'lazy', 'dog']]
+      assert_that(result, equal_to(expected_result))
+
+  def test_split_without_empty(self):
+    with TestPipeline() as p:
+      data = ["The  quick   brown fox jumps over    the lazy dog"]
+      result = (p | beam.Create(data) | util.Regex.split("\\s", False))
+      expected_result = [["The", "quick", "brown", "fox", "jumps", "over",
+                          "the", "lazy", "dog"]]
+      assert_that(result, equal_to(expected_result))
 
 
 if __name__ == '__main__':

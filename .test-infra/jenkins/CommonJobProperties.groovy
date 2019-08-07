@@ -58,7 +58,7 @@ class CommonJobProperties {
         }
         branch('${sha1}')
         extensions {
-          cleanAfterCheckout()
+          wipeOutWorkspace()
           relativeTargetDirectory(checkoutDir)
           if (!allowRemotePoll) {
             disableRemotePoll()

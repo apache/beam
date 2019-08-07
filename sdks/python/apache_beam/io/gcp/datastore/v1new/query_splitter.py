@@ -27,6 +27,7 @@ from builtins import range
 from builtins import round
 
 from apache_beam.io.gcp.datastore.v1new import types
+from apache_beam.options.value_provider import ValueProvider
 
 __all__ = ['QuerySplitterError', 'SplitNotPossibleError', 'get_splits']
 
@@ -104,7 +105,11 @@ def validate_split(query):
     raise SplitNotPossibleError('Query cannot have a limit set.')
 
   for filter in query.filters:
-    if filter[1] in ['<', '<=', '>', '>=']:
+    if isinstance(filter[1], ValueProvider):
+      filter_operator = filter[1].get()
+    else:
+      filter_operator = filter[1]
+    if filter_operator in ['<', '<=', '>', '>=']:
       raise SplitNotPossibleError('Query cannot have any inequality filters.')
 
 

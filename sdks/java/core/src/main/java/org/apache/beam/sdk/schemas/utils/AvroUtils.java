@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
@@ -59,9 +59,9 @@ import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.CaseFormat;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
@@ -163,6 +163,22 @@ public class AvroUtils {
     }
   }
 
+  /** Get Beam Field from avro Field. */
+  public static Schema.Field toBeamField(org.apache.avro.Schema.Field field) {
+    TypeWithNullability nullableType = new TypeWithNullability(field.schema());
+    FieldType beamFieldType = toFieldType(nullableType);
+    return Field.of(field.name(), beamFieldType);
+  }
+
+  /** Get Avro Field from Beam Field. */
+  public static org.apache.avro.Schema.Field toAvroField(Schema.Field field) {
+    org.apache.avro.Schema fieldSchema = getFieldSchema(field.getType());
+    org.apache.avro.Schema.Field avroField =
+        new org.apache.avro.Schema.Field(
+            field.getName(), fieldSchema, field.getDescription(), (Object) null);
+    return avroField;
+  }
+
   private AvroUtils() {}
 
   /**
@@ -174,8 +190,7 @@ public class AvroUtils {
     Schema.Builder builder = Schema.builder();
 
     for (org.apache.avro.Schema.Field field : schema.getFields()) {
-      TypeWithNullability nullableType = new TypeWithNullability(field.schema());
-      Field beamField = Field.of(field.name(), toFieldType(nullableType));
+      Field beamField = toBeamField(field);
       if (field.doc() != null) {
         beamField = beamField.withDescription(field.doc());
       }
@@ -189,10 +204,7 @@ public class AvroUtils {
   public static org.apache.avro.Schema toAvroSchema(Schema beamSchema) {
     List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
     for (Schema.Field field : beamSchema.getFields()) {
-      org.apache.avro.Schema fieldSchema = getFieldSchema(field.getType());
-      org.apache.avro.Schema.Field recordField =
-          new org.apache.avro.Schema.Field(
-              field.getName(), fieldSchema, field.getDescription(), (Object) null);
+      org.apache.avro.Schema.Field recordField = toAvroField(field);
       fields.add(recordField);
     }
     org.apache.avro.Schema avroSchema = org.apache.avro.Schema.createRecord(fields);

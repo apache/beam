@@ -20,7 +20,7 @@ package org.apache.beam.runners.direct;
 import java.util.Objects;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /**
  * A (Step, Key) pair. This is useful as a map key or cache key for things that are available

@@ -46,10 +46,10 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.utils.AvroGenerators.RecordSchemaGenerator;
 import org.apache.beam.sdk.schemas.utils.AvroUtils.TypeWithNullability;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.joda.time.DateTime;
@@ -138,6 +138,38 @@ public class AvroUtilsTest {
         org.apache.avro.Schema.createUnion(
             org.apache.avro.Schema.create(Type.STRING), org.apache.avro.Schema.create(Type.LONG)),
         typeWithNullability.type);
+  }
+
+  @Test
+  public void testNullableArrayFieldToBeamArrayField() {
+    org.apache.avro.Schema.Field avroField =
+        new org.apache.avro.Schema.Field(
+            "arrayField",
+            ReflectData.makeNullable(
+                org.apache.avro.Schema.createArray((org.apache.avro.Schema.create(Type.INT)))),
+            "",
+            null);
+
+    Field expectedBeamField = Field.nullable("arrayField", FieldType.array(FieldType.INT32));
+
+    Field beamField = AvroUtils.toBeamField(avroField);
+    assertEquals(expectedBeamField, beamField);
+  }
+
+  @Test
+  public void testNullableBeamArrayFieldToAvroField() {
+    Field beamField = Field.nullable("arrayField", FieldType.array(FieldType.INT32));
+
+    org.apache.avro.Schema.Field expectedAvroField =
+        new org.apache.avro.Schema.Field(
+            "arrayField",
+            ReflectData.makeNullable(
+                org.apache.avro.Schema.createArray((org.apache.avro.Schema.create(Type.INT)))),
+            "",
+            null);
+
+    org.apache.avro.Schema.Field avroField = AvroUtils.toAvroField(beamField);
+    assertEquals(expectedAvroField, avroField);
   }
 
   private org.apache.avro.Schema getAvroSubSchema() {

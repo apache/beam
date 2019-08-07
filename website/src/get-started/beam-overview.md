@@ -51,6 +51,7 @@ Beam currently supports Runners that work with the following distributed process
 * Apache Samza ![Apache Samza logo]({{ "/images/logos/runners/samza.png" | prepend: site.baseurl }}){:height="20px" width="50"}
 * Apache Spark ![Apache Spark logo]({{ "/images/logos/runners/spark.png" | prepend: site.baseurl }})
 * Google Cloud Dataflow ![Google Cloud Dataflow logo]({{ "/images/logos/runners/dataflow.png" | prepend: site.baseurl }})
+* Hazelcast Jet ![Hazelcast Jet logo]({{ "/images/logos/runners/jet.png" | prepend: site.baseurl }})
 
 **Note:** You can always execute your pipeline locally for testing and debugging purposes.
 

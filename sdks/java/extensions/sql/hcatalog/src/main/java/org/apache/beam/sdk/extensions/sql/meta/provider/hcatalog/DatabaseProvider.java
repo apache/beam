@@ -25,7 +25,7 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.io.hcatalog.HCatalogBeamSchema;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 
 /**
  * Metastore has a structure of 'db.table'.

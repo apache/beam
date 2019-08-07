@@ -31,7 +31,7 @@ If you're interested in contributing to the Apache Beam Python codebase, see the
 
 ### Check your Python version
 
-The Beam SDK for Python requires Python version 2.7.x. Check that you have version 2.7.x by running:
+The Beam SDK requires Python 2 users to use Python 2.7 and Python 3 users to use Python 3.5 or higher. Check your version by running:
 
 ```
 python --version
@@ -176,17 +176,20 @@ This runner is not yet available for the Python SDK.
 
 {:.runner-flink-local}
 ```
-This runner is not yet available for the Python SDK.
+Currently, running wordcount.py on Flink requires a full download of the Beam source code.
+See https://beam.apache.org/roadmap/portability/#python-on-flink for more information.
 ```
 
 {:.runner-flink-cluster}
 ```
-This runner is not yet available for the Python SDK.
+Currently, running wordcount.py on Flink requires a full download of the Beam source code.
+See https://beam.apache.org/documentation/runners/flink/ for more information.
 ```
 
 {:.runner-spark}
 ```
-This runner is not yet available for the Python SDK.
+Currently, running wordcount.py on Spark requires a full download of the Beam source code.
+See https://beam.apache.org/roadmap/portability/#python-on-spark for more information.
 ```
 
 {:.runner-dataflow}

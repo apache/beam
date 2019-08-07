@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.fromJsonString;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.gax.rpc.FailedPreconditionException;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -50,7 +50,8 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -164,6 +165,8 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     private GenericRecord record;
     private T current;
     private long currentOffset;
+    private double fractionConsumed;
+    private double fractionConsumedFromLastResponse;
 
     private BigQueryStorageStreamReader(
         BigQueryStorageStreamSource<T> source, BigQueryOptions options) throws IOException {
@@ -174,6 +177,8 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       this.parseFn = source.parseFn;
       this.storageClient = source.bqServices.getStorageClient(options);
       this.tableSchema = fromJsonString(source.jsonTableSchema, TableSchema.class);
+      this.fractionConsumed = 0d;
+      this.fractionConsumedFromLastResponse = 0d;
     }
 
     @Override
@@ -201,15 +206,20 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     private synchronized boolean readNextRecord() throws IOException {
       while (decoder == null || decoder.isEnd()) {
         if (!responseIterator.hasNext()) {
+          fractionConsumed = 1d;
           return false;
         }
 
+        // N.B.: For simplicity, we update fractionConsumed once a new response is fetched, not
+        // when we reach the end of the current response. In practice, this choice is not
+        // consequential.
+        fractionConsumed = fractionConsumedFromLastResponse;
         ReadRowsResponse nextResponse = responseIterator.next();
-
         decoder =
             DecoderFactory.get()
                 .binaryDecoder(
                     nextResponse.getAvroRows().getSerializedBinaryRows().toByteArray(), decoder);
+        fractionConsumedFromLastResponse = getFractionConsumed(nextResponse);
       }
 
       record = datumReader.read(record, decoder);
@@ -310,8 +320,6 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
         // Cancels the parent stream before replacing it with the primary stream.
         responseStream.cancel();
-
-        currentOffset++;
         source = source.fromExisting(splitResponse.getPrimaryStream());
         responseStream = newResponseStream;
         responseIterator = newResponseIterator;
@@ -323,6 +331,24 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       LOGGER.info(
           "Successfully split BigQuery Storage API stream. Split response: {}", splitResponse);
       return source.fromExisting(splitResponse.getRemainderStream());
+    }
+
+    @Override
+    public synchronized Double getFractionConsumed() {
+      return fractionConsumed;
+    }
+
+    private static float getFractionConsumed(ReadRowsResponse response) {
+      // TODO(aryann): Once we rebuild the generated client code, we should change this to
+      // use getFractionConsumed().
+      List<Integer> fractionConsumedField =
+          response.getStatus().getUnknownFields().getField(2).getFixed32List();
+      if (fractionConsumedField.isEmpty()) {
+        Metrics.counter(BigQueryStorageStreamReader.class, "fraction-consumed-not-set").inc();
+        return 0f;
+      }
+
+      return Float.intBitsToFloat(Iterables.getOnlyElement(fractionConsumedField));
     }
   }
 }

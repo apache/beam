@@ -19,6 +19,7 @@
 package org.apache.beam.learning.katas.coretransforms.sideinput;
 
 import java.util.Map;
+import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -29,7 +30,6 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import util.Log;
 
 public class Task {
 
@@ -69,6 +69,7 @@ public class Task {
 
   static PCollectionView<Map<String, String>> createView(
       PCollection<KV<String, String>> citiesToCountries) {
+
     return citiesToCountries.apply(View.asMap());
   }
 

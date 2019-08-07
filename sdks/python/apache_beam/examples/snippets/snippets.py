@@ -446,7 +446,7 @@ def examples_wordcount_minimal(renames):
       # [END examples_wordcount_minimal_count]
 
       # [START examples_wordcount_minimal_map]
-      | beam.Map(lambda word_count: '%s: %s' % (word_count[0], word_count[1]))
+      | beam.MapTuple(lambda word, count: '%s: %s' % (word, count))
       # [END examples_wordcount_minimal_map]
 
       # [START examples_wordcount_minimal_write]

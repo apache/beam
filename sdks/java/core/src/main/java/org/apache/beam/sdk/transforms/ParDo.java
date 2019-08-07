@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
 import java.lang.reflect.ParameterizedType;
@@ -64,7 +64,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
  * {@link ParDo} is the core element-wise transform in Apache Beam, invoking a user-specified
@@ -382,8 +382,8 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
  * Beam makes heavy use of this modular, composable style, trusting to the runner to "flatten out"
  * all the compositions into highly optimized stages.
  *
- * @see <a href= "https://beam.apache.org/documentation/programming-guide/#transforms-pardo"> the
- *     web documentation for ParDo</a>
+ * @see <a href= "https://beam.apache.org/documentation/programming-guide/#pardo"> the web
+ *     documentation for ParDo</a>
  */
 public class ParDo {
 
