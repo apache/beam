@@ -127,6 +127,10 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     self._jobs[job_id].start()
     return beam_job_api_pb2.RunJobResponse(job_id=job_id)
 
+  def GetJobs(self, request, context=None):
+    return beam_job_api_pb2.GetJobsResponse(
+      [job.to_runner_api(context) for job in self._jobs.values()])
+
   def GetState(self, request, context=None):
     return beam_job_api_pb2.GetJobStateResponse(
         state=self._jobs[request.job_id].state)
@@ -293,6 +297,13 @@ class BeamJob(threading.Thread):
       yield msg
       if isinstance(msg, int):
         current_state = msg
+
+  def to_runner_api(self, context):
+    return beam_job_api_pb2.JobInfo(
+      job_id=self._job_id,
+      job_name=self._provision_info.job_name,
+      pipeline_options=self._pipeline_options,
+      state=self.state)
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
