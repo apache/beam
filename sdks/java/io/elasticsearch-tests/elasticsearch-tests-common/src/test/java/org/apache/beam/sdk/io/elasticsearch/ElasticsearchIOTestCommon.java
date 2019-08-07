@@ -46,7 +46,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.BiFunction;
-
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.DefaultRetryPredicate;
 import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.RetryPredicate;
@@ -204,10 +203,12 @@ class ElasticsearchIOTestCommon implements Serializable {
   }
 
   void testReadWithQueryValueProvider() throws Exception {
-    testReadWithQueryInternal((read, query) -> read.withQuery(ValueProvider.StaticValueProvider.of(query)));
+    testReadWithQueryInternal(
+        (read, query) -> read.withQuery(ValueProvider.StaticValueProvider.of(query)));
   }
 
-  private void testReadWithQueryInternal(BiFunction<Read, String, Read> queryConfigurer) throws IOException {
+  private void testReadWithQueryInternal(BiFunction<Read, String, Read> queryConfigurer)
+      throws IOException {
     if (!useAsITests) {
       ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
     }
@@ -223,10 +224,9 @@ class ElasticsearchIOTestCommon implements Serializable {
             + "  }\n"
             + "}";
 
-    Read read = ElasticsearchIO.read()
-            .withConnectionConfiguration(connectionConfiguration);
+    Read read = ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
 
-    read =   queryConfigurer.apply(read, query);
+    read = queryConfigurer.apply(read, query);
 
     PCollection<String> output = pipeline.apply(read);
 
