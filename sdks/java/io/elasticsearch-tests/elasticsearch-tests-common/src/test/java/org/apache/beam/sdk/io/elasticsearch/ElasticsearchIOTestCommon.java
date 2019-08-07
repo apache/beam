@@ -45,6 +45,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.BiFunction;
+
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.DefaultRetryPredicate;
 import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.RetryPredicate;
@@ -197,7 +199,15 @@ class ElasticsearchIOTestCommon implements Serializable {
     pipeline.run();
   }
 
-  void testReadWithQuery() throws Exception {
+  void testReadWithQueryString() throws Exception {
+    testReadWithQueryInternal(Read::withQuery);
+  }
+
+  void testReadWithQueryValueProvider() throws Exception {
+    testReadWithQueryInternal((read, query) -> read.withQuery(ValueProvider.StaticValueProvider.of(query)));
+  }
+
+  private void testReadWithQueryInternal(BiFunction<Read, String, Read> queryConfigurer) throws IOException {
     if (!useAsITests) {
       ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
     }
@@ -213,11 +223,13 @@ class ElasticsearchIOTestCommon implements Serializable {
             + "  }\n"
             + "}";
 
-    PCollection<String> output =
-        pipeline.apply(
-            ElasticsearchIO.read()
-                .withConnectionConfiguration(connectionConfiguration)
-                .withQuery(ValueProvider.StaticValueProvider.of(query)));
+    Read read = ElasticsearchIO.read()
+            .withConnectionConfiguration(connectionConfiguration);
+
+    read =   queryConfigurer.apply(read, query);
+
+    PCollection<String> output = pipeline.apply(read);
+
     PAssert.thatSingleton(output.apply("Count", Count.globally()))
         .isEqualTo(numDocs / NUM_SCIENTISTS);
     pipeline.run();

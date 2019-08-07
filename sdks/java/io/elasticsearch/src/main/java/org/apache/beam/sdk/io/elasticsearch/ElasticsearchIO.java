@@ -500,6 +500,21 @@ public class ElasticsearchIO {
      *     DSL</a>
      * @return a {@link PTransform} reading data from Elasticsearch.
      */
+    public Read withQuery(String query) {
+      checkArgument(query != null, "query can not be null");
+      checkArgument(!query.isEmpty(), "query can not be empty");
+      return withQuery(ValueProvider.StaticValueProvider.of(query));
+    }
+
+    /**
+     * Provide a {@link ValueProvider} that provides the query used while reading from
+     * Elasticsearch. This is useful for cases when the query must be dynamic.
+     *
+     * @param query the query. See <a
+     *     href="https://www.elastic.co/guide/en/elasticsearch/reference/2.4/query-dsl.html">Query
+     *     DSL</a>
+     * @return a {@link PTransform} reading data from Elasticsearch.
+     */
     public Read withQuery(ValueProvider<String> query) {
       checkArgument(query != null, "query can not be null");
       return builder().setQuery(query).build();
