@@ -20,19 +20,43 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.calcite.rel.RelNode;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-/** Test for {@code BeamUncollectRel}. */
+/** Tests for {@code BeamUncollectRel}. */
 public class BeamUncollectRelTest extends BaseRelTest {
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
+
+  private NodeStats getEstimateOf(String sql) {
+    RelNode root = env.parseQuery(sql);
+
+    while (!(root instanceof BeamUncollectRel)) {
+      root = root.getInput(0);
+    }
+
+    return BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
+  }
+
+  @Test
+  public void testNodeStats() {
+    NodeStats estimate =
+        getEstimateOf(
+            "SELECT * FROM UNNEST (SELECT * FROM (VALUES (ARRAY ['a', 'b', 'c']),(ARRAY ['a', 'b', 'c']))) t1");
+
+    Assert.assertEquals(4d, estimate.getRowCount(), 0.001);
+    Assert.assertEquals(4d, estimate.getWindow(), 0.001);
+    Assert.assertEquals(0., estimate.getRate(), 0.001);
+  }
 
   @Test
   public void testUncollectPrimitive() {

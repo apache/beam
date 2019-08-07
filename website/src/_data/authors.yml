@@ -25,6 +25,9 @@ altay:
 angoenka:
     name: Ankur Goenka
     email: goenka@apache.org
+anton:
+    name: Anton Kedin
+    email: anton@apache.org
 ccy:
     name: Charles Chen
     email: ccy@apache.org

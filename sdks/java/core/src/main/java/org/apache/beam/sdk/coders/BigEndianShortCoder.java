@@ -26,7 +26,7 @@ import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/** A {@link BigEndianShortCoder} encodes {@link Short Shorts} in 4 bytes, big-endian. */
+/** A {@link BigEndianShortCoder} encodes {@link Short Shorts} in 2 bytes, big-endian. */
 public class BigEndianShortCoder extends AtomicCoder<Short> {
 
   public static BigEndianShortCoder of() {

@@ -18,12 +18,15 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.extensions.sql.TestUtils;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.calcite.rel.RelNode;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -103,5 +106,26 @@ public class BeamValuesRelTest extends BaseRelTest {
                     Schema.FieldType.STRING, "EXPR$1")
                 .getRows());
     pipeline.run();
+  }
+
+  @Test
+  public void testNodeStatsEstimation() {
+    String sql =
+        "SELECT * FROM (VALUES ('value1'),('value2'),('value3'),('value4'),('value5'),"
+            + " ('value6'),('value7'),('value8'),('value9'))";
+
+    RelNode root = env.parseQuery(sql);
+
+    while (!(root instanceof BeamValuesRel)) {
+      root = root.getInput(0);
+    }
+
+    NodeStats estimate = BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
+
+    Assert.assertFalse(estimate.isUnknown());
+    Assert.assertEquals(0d, estimate.getRate(), 0.01);
+
+    Assert.assertEquals(9., estimate.getRowCount(), 0.01);
+    Assert.assertEquals(9., estimate.getWindow(), 0.01);
   }
 }

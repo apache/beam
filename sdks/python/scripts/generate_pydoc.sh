@@ -66,6 +66,7 @@ excluded_patterns=(
     apache_beam/runners/dataflow/internal/
     apache_beam/runners/portability/
     apache_beam/runners/worker/
+    apache_beam/testing/benchmarks/chicago_taxi/
     apache_beam/tools/map_fn_microbenchmark.*
     apache_beam/transforms/cy_combiners.*
     apache_beam/transforms/cy_dataflow_distribution_counter.*
@@ -75,6 +76,8 @@ excluded_patterns=(
     *_pb2.py
     *_test.py
     *_test_common.py
+    # TODO(BEAM-7847): Remove this once doc generation can parse Py3 syntax.
+    *py3.py
 )
 
 python $(type -p sphinx-apidoc) -fMeT -o target/docs/source apache_beam \

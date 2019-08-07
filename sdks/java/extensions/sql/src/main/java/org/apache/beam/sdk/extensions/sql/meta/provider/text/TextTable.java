@@ -70,7 +70,7 @@ public class TextTable extends BaseBeamTable {
   }
 
   @Override
-  public BeamTableStatistics getRowCount(PipelineOptions options) {
+  public BeamTableStatistics getTableStatistics(PipelineOptions options) {
     if (rowCountStatistics == null) {
       rowCountStatistics = getTextRowEstimate(options, getFilePattern());
     }
@@ -91,7 +91,7 @@ public class TextTable extends BaseBeamTable {
     } catch (IOException | TextRowCountEstimator.NoEstimationException e) {
       LOGGER.warn("Could not get the row count for the text table " + filePattern, e);
     }
-    return BeamTableStatistics.UNKNOWN;
+    return BeamTableStatistics.BOUNDED_UNKNOWN;
   }
 
   @Override

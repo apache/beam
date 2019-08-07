@@ -136,6 +136,11 @@ public abstract class WindowedValue<T> {
   /** Returns the pane of this {@code WindowedValue} in its window. */
   public abstract PaneInfo getPane();
 
+  /** Returns {@code true} if this WindowedValue has exactly one window. */
+  public boolean isSingleWindowedValue() {
+    return false;
+  }
+
   /**
    * Returns a collection of {@link WindowedValue WindowedValues} identical to this one, except each
    * is in exactly one of the windows that this {@link WindowedValue} is in.
@@ -177,11 +182,19 @@ public abstract class WindowedValue<T> {
   private static final Collection<? extends BoundedWindow> GLOBAL_WINDOWS =
       Collections.singletonList(GlobalWindow.INSTANCE);
 
+  /** A {@link WindowedValue} which holds exactly single window per value. */
+  public interface SingleWindowedValue {
+
+    /** @return the single window associated with this value. */
+    BoundedWindow getWindow();
+  }
+
   /**
    * An abstract superclass for implementations of {@link WindowedValue} that stores the value and
    * pane info.
    */
   private abstract static class SimpleWindowedValue<T> extends WindowedValue<T> {
+
     private final T value;
     private final PaneInfo pane;
 
@@ -214,7 +227,9 @@ public abstract class WindowedValue<T> {
   }
 
   /** The representation of a WindowedValue where timestamp == MIN and windows == {GlobalWindow}. */
-  private static class ValueInGlobalWindow<T> extends MinTimestampWindowedValue<T> {
+  private static class ValueInGlobalWindow<T> extends MinTimestampWindowedValue<T>
+      implements SingleWindowedValue {
+
     public ValueInGlobalWindow(T value, PaneInfo pane) {
       super(value, pane);
     }
@@ -227,6 +242,16 @@ public abstract class WindowedValue<T> {
     @Override
     public Collection<? extends BoundedWindow> getWindows() {
       return GLOBAL_WINDOWS;
+    }
+
+    @Override
+    public boolean isSingleWindowedValue() {
+      return true;
+    }
+
+    @Override
+    public BoundedWindow getWindow() {
+      return GlobalWindow.INSTANCE;
     }
 
     @Override
@@ -273,7 +298,9 @@ public abstract class WindowedValue<T> {
    * The representation of a WindowedValue where timestamp {@code >} MIN and windows ==
    * {GlobalWindow}.
    */
-  private static class TimestampedValueInGlobalWindow<T> extends TimestampedWindowedValue<T> {
+  private static class TimestampedValueInGlobalWindow<T> extends TimestampedWindowedValue<T>
+      implements SingleWindowedValue {
+
     public TimestampedValueInGlobalWindow(T value, Instant timestamp, PaneInfo pane) {
       super(value, timestamp, pane);
     }
@@ -286,6 +313,16 @@ public abstract class WindowedValue<T> {
     @Override
     public Collection<? extends BoundedWindow> getWindows() {
       return GLOBAL_WINDOWS;
+    }
+
+    @Override
+    public boolean isSingleWindowedValue() {
+      return true;
+    }
+
+    @Override
+    public BoundedWindow getWindow() {
+      return GlobalWindow.INSTANCE;
     }
 
     @Override
@@ -323,7 +360,9 @@ public abstract class WindowedValue<T> {
    * The representation of a WindowedValue where timestamp is arbitrary and windows == a single
    * non-Global window.
    */
-  private static class TimestampedValueInSingleWindow<T> extends TimestampedWindowedValue<T> {
+  private static class TimestampedValueInSingleWindow<T> extends TimestampedWindowedValue<T>
+      implements SingleWindowedValue {
+
     private final BoundedWindow window;
 
     public TimestampedValueInSingleWindow(
@@ -340,6 +379,16 @@ public abstract class WindowedValue<T> {
     @Override
     public Collection<? extends BoundedWindow> getWindows() {
       return Collections.singletonList(window);
+    }
+
+    @Override
+    public boolean isSingleWindowedValue() {
+      return true;
+    }
+
+    @Override
+    public BoundedWindow getWindow() {
+      return window;
     }
 
     @Override

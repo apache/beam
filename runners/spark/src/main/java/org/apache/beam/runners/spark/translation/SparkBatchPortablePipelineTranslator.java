@@ -53,7 +53,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
@@ -182,8 +181,7 @@ public class SparkBatchPortablePipelineTranslator {
 
     JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupedByKeyAndWindow;
     Partitioner partitioner = getPartitioner(context);
-    if (windowingStrategy.getWindowFn().isNonMerging()
-        && windowingStrategy.getTimestampCombiner() == TimestampCombiner.END_OF_WINDOW) {
+    if (GroupNonMergingWindowsFunctions.isEligibleForGroupByWindow(windowingStrategy)) {
       // we can have a memory sensitive translation for non-merging windows
       groupedByKeyAndWindow =
           GroupNonMergingWindowsFunctions.groupByKeyAndWindow(

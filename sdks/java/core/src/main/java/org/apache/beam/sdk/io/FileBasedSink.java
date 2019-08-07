@@ -791,7 +791,10 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
                   FileSystems.match(Collections.singletonList(tempDir.toString() + "*")));
           for (Metadata matchResult : singleMatch.metadata()) {
             if (allMatches.add(matchResult.resourceId())) {
-              LOG.info("Will also remove unknown temporary file {}", matchResult.resourceId());
+              LOG.warn(
+                  "Will also remove unknown temporary file {}. This might indicate that other process/job is using "
+                      + "the same temporary folder and result in data consistency issues.",
+                  matchResult.resourceId());
             }
           }
         } catch (Exception e) {

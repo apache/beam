@@ -104,3 +104,25 @@ def processing_time(test=None):
     # [END processing_time]
     if test:
       test(plant_processing_times)
+
+
+def time_tuple2unix_time():
+  # [START time_tuple2unix_time]
+  import time
+
+  time_tuple = time.strptime('2020-03-19 20:50:00', '%Y-%m-%d %H:%M:%S')
+  unix_time = time.mktime(time_tuple)
+  # [END time_tuple2unix_time]
+  return unix_time
+
+
+def datetime2unix_time():
+  # [START datetime2unix_time]
+  import time
+  import datetime
+
+  now = datetime.datetime.now()
+  time_tuple = now.timetuple()
+  unix_time = time.mktime(time_tuple)
+  # [END datetime2unix_time]
+  return unix_time

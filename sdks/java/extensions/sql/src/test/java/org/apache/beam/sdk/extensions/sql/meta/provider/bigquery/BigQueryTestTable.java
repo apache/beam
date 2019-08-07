@@ -34,9 +34,9 @@ public class BigQueryTestTable extends BigQueryTable {
   }
 
   @Override
-  public BeamTableStatistics getRowCount(PipelineOptions options) {
+  public BeamTableStatistics getTableStatistics(PipelineOptions options) {
     jobName = options.getJobName();
-    return super.getRowCount(options);
+    return super.getTableStatistics(options);
   }
 
   String getJobName() {

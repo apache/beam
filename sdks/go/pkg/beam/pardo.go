@@ -252,7 +252,7 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 // Beam makes heavy use of this modular, composable style, trusting to the
 // runner to "flatten out" all the compositions into highly optimized stages.
 //
-// See https://beam.apache.org/documentation/programming-guide/#transforms-pardo"
+// See https://beam.apache.org/documentation/programming-guide/#pardo
 // for the web documentation for ParDo
 func ParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) PCollection {
 	ret := MustN(TryParDo(s, dofn, col, opts...))

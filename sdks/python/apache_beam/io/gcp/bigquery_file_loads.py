@@ -268,6 +268,10 @@ class TriggerCopyJobs(beam.DoFn):
   destination tables.
 
   This transform emits (destination, job_reference) pairs.
+
+  TODO(BEAM-7822): In file loads method of writing to BigQuery,
+    copying from temp_tables to destination_table is not atomic.
+    See: https://issues.apache.org/jira/browse/BEAM-7822
   """
   def __init__(self,
                create_disposition=None,

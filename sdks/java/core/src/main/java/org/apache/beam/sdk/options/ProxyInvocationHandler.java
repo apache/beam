@@ -75,7 +75,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.MutableClassToInstanceMap;
 
 /**
- * Represents and {@link InvocationHandler} for a {@link Proxy}. The invocation handler uses bean
+ * Represents an {@link InvocationHandler} for a {@link Proxy}. The invocation handler uses bean
  * introspection of the proxy class to store and retrieve values based off of the property name.
  *
  * <p>Unset properties use the {@code @Default} metadata on the getter to return values. If there is
