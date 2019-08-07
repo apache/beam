@@ -28,6 +28,7 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.powermock.api.mockito.PowerMockito.when;
 
 import com.google.api.client.testing.http.FixedClock;
+import com.google.api.client.util.Clock;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Test;
@@ -45,7 +46,7 @@ public class HotKeyLoggerTest {
 
   @Before
   public void SetUp() {
-    clock = new FixedClock(0L);
+    clock = new FixedClock(Clock.SYSTEM.currentTimeMillis());
   }
 
   @Test
@@ -67,7 +68,7 @@ public class HotKeyLoggerTest {
   public void throttlesLoggingHotKeyMessage() {
     HotKeyLogger hotKeyLogger = new HotKeyLogger(clock);
 
-    clock.setTime(0L);
+    clock.setTime(Clock.SYSTEM.currentTimeMillis());
     assertFalse(hotKeyLogger.isThrottled());
     assertTrue(hotKeyLogger.isThrottled());
 

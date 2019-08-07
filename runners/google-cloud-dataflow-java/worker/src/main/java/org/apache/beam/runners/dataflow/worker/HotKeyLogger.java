@@ -34,7 +34,7 @@ public class HotKeyLogger {
    * The previous time the HotKeyDetection was logged. This is used to throttle logging to every 5
    * minutes.
    */
-  private long prevHotKeyDetectionLogMs = Long.MIN_VALUE + 1;
+  private long prevHotKeyDetectionLogMs = 0;
 
   /** Throttles logging the detection to every loggingPeriod */
   private final Duration loggingPeriod = Duration.standardMinutes(5);
