@@ -217,7 +217,7 @@ class ElasticsearchIOTestCommon implements Serializable {
         pipeline.apply(
             ElasticsearchIO.read()
                 .withConnectionConfiguration(connectionConfiguration)
-                    .withQuery(ValueProvider.StaticValueProvider.of(query)));
+                .withQuery(ValueProvider.StaticValueProvider.of(query)));
     PAssert.thatSingleton(output.apply("Count", Count.globally()))
         .isEqualTo(numDocs / NUM_SCIENTISTS);
     pipeline.run();
