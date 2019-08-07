@@ -296,6 +296,73 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestPartitionFiles(unittest.TestCase):
+
+  _ELEMENTS = [('destination0', ['file0', 'file1', 'file2', 'file3']),
+               ('destination1', ['file0', 'file1'])]
+
+  def test_partition(self):
+    partition = bqfl.PartitionFiles.Partition(1000, 1)
+    self.assertEqual(partition.can_accept(50), True)
+    self.assertEqual(partition.can_accept(2000), False)
+    self.assertEqual(partition.can_accept(1000), True)
+
+    partition.add('file1', 50)
+    self.assertEqual(partition.files, ['file1'])
+    self.assertEqual(partition.size, 50)
+    self.assertEqual(partition.can_accept(50), False)
+    self.assertEqual(partition.can_accept(0), False)
+
+  @mock.patch('apache_beam.io.gcp.bigquery_file_loads._file_size',
+              return_value=50)
+  def test_partition_files_dofn_file_split(self, _file_size):
+    """Force partitions to split based on max_files"""
+    multiple_partitions_result = [('destination0', ['file0', 'file1']),
+                                  ('destination0', ['file2', 'file3'])]
+    single_partition_result = [('destination1', ['file0', 'file1'])]
+    with TestPipeline() as p:
+      destination_file_pairs = p | beam.Create(self._ELEMENTS)
+      partitioned_files = (
+          destination_file_pairs
+          | beam.ParDo(bqfl.PartitionFiles(1000, 2))
+          .with_outputs(bqfl.PartitionFiles.MULTIPLE_PARTITIONS_TAG,
+                        bqfl.PartitionFiles.SINGLE_PARTITION_TAG))
+      multiple_partitions = partitioned_files[bqfl.PartitionFiles\
+        .MULTIPLE_PARTITIONS_TAG]
+      single_partition = partitioned_files[bqfl.PartitionFiles\
+        .SINGLE_PARTITION_TAG]
+
+    assert_that(multiple_partitions, equal_to(multiple_partitions_result),
+                label='CheckMultiplePartitions')
+    assert_that(single_partition, equal_to(single_partition_result),
+                label='CheckSinglePartition')
+
+  @mock.patch('apache_beam.io.gcp.bigquery_file_loads._file_size',
+              return_value=50)
+  def test_partition_files_dofn_size_split(self, _file_size):
+    """Force partitions to split based on max_partition_size"""
+    multiple_partitions_result = [('destination0', ['file0', 'file1', 'file2']),
+                                  ('destination0', ['file3'])]
+    single_partition_result = [('destination1', ['file0', 'file1'])]
+    with TestPipeline() as p:
+      destination_file_pairs = p | beam.Create(self._ELEMENTS)
+      partitioned_files = (
+          destination_file_pairs
+          | beam.ParDo(bqfl.PartitionFiles(150, 10))
+          .with_outputs(bqfl.PartitionFiles.MULTIPLE_PARTITIONS_TAG,
+                        bqfl.PartitionFiles.SINGLE_PARTITION_TAG))
+      multiple_partitions = partitioned_files[bqfl.PartitionFiles\
+        .MULTIPLE_PARTITIONS_TAG]
+      single_partition = partitioned_files[bqfl.PartitionFiles\
+        .SINGLE_PARTITION_TAG]
+
+    assert_that(multiple_partitions, equal_to(multiple_partitions_result),
+                label='CheckMultiplePartitions')
+    assert_that(single_partition, equal_to(single_partition_result),
+                label='CheckSinglePartition')
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
   def test_records_traverse_transform_with_mocks(self):
