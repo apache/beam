@@ -52,8 +52,10 @@ class _MockMongoColl(object):
     match = []
     if not filter:
       return self
-    start = filter['_id'].get('$gte')
-    end = filter['_id'].get('$lt')
+    if '$and' not in filter or not filter['$and']:
+      return self
+    start = filter['$and'][0]['_id'].get('$gte')
+    end = filter['$and'][0]['_id'].get('$lt')
     assert start is not None
     assert end is not None
     for doc in self.docs:
@@ -306,7 +308,7 @@ class ObjectIdHelperTest(TestCase):
       id = objectid.ObjectId()
       if sys.version_info[0] < 3:
         number = int(id.binary.encode('hex'), 16)
-      else: # PY3
+      else:  # PY3
         number = int(id.binary.hex(), 16)
       self.assertEqual(id, _ObjectIdHelper.int_to_id(number))
       self.assertEqual(number, _ObjectIdHelper.id_to_int(id))

@@ -156,21 +156,11 @@ class _BoundedMongoSource(iobase.BoundedSource):
 
   def estimate_size(self):
     with MongoClient(self.uri, **self.spec) as client:
-      size = client[self.db].command('collstats', self.coll).get('size')
-      if size is None or size <= 0:
-        raise ValueError('Collection %s not found or total doc size is '
-                         'incorrect' % self.coll)
-      return size
+      return client[self.db].command('collstats', self.coll).get('size')
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
-    # use document cursor index as the start and stop positions
-    if start_position is None:
-      start_position = self._get_head_document_id(ASCENDING)
-    if stop_position is None:
-      last_doc_id = self._get_head_document_id(DESCENDING)
-      # increment last doc id binary value by 1 to make sure the last document
-      # is not excluded
-      stop_position = _ObjectIdHelper.increment_id(last_doc_id, 1)
+    start_position, stop_position = self._replace_none_positions(
+        start_position, stop_position)
 
     desired_bundle_size_in_mb = desired_bundle_size // 1024 // 1024
     split_keys = self._get_split_keys(desired_bundle_size_in_mb, start_position,
@@ -178,7 +168,7 @@ class _BoundedMongoSource(iobase.BoundedSource):
 
     bundle_start = start_position
     for split_key_id in split_keys:
-      if bundle_start is not None or bundle_start >= stop_position:
+      if bundle_start >= stop_position:
         break
       bundle_end = min(stop_position, split_key_id)
       yield iobase.SourceBundle(weight=desired_bundle_size_in_mb,
@@ -194,13 +184,8 @@ class _BoundedMongoSource(iobase.BoundedSource):
                                 stop_position=stop_position)
 
   def get_range_tracker(self, start_position, stop_position):
-    if start_position is None:
-      start_position = self._get_head_document_id(ASCENDING)
-    if stop_position is None:
-      last_doc_id = self._get_head_document_id(DESCENDING)
-      # increment last doc id binary value by 1 to make sure the last document
-      # is not excluded
-      stop_position = _ObjectIdHelper.increment_id(last_doc_id, 1)
+    start_position, stop_position = self._replace_none_positions(
+        start_position, stop_position)
     return _ObjectIdRangeTracker(start_position, stop_position)
 
   def read(self, range_tracker):
@@ -223,8 +208,9 @@ class _BoundedMongoSource(iobase.BoundedSource):
     return res
 
   def _get_split_keys(self, desired_chunk_size_in_mb, start_pos, end_pos):
-    # if desired chunk size smaller than 1mb, use mongodb default split size of
-    # 1mb
+    # calls mongodb splitVector command to get document ids at split position
+    # for desired bundle size, if desired chunk size smaller than 1mb, use
+    # mongodb default split size of 1mb.
     if desired_chunk_size_in_mb < 1:
       desired_chunk_size_in_mb = 1
     if start_pos >= end_pos:
@@ -241,23 +227,24 @@ class _BoundedMongoSource(iobase.BoundedSource):
           maxChunkSize=desired_chunk_size_in_mb)['splitKeys'])
 
   def _merge_id_filter(self, range_tracker):
+    # Merge the default filter with refined _id field range of range_tracker.
     all_filters = self.filter.copy()
-    if '_id' in all_filters:
-      id_filter = all_filters['_id']
-      id_filter['$gte'] = (
-          max(id_filter['$gte'], range_tracker.start_position())
-          if '$gte' in id_filter else range_tracker.start_position())
 
-      id_filter['$lt'] = (min(id_filter['$lt'], range_tracker.stop_position())
-                          if '$lt' in id_filter else
-                          range_tracker.stop_position())
-    else:
-      all_filters.update({
-          '_id': {
-              '$gte': range_tracker.start_position(),
-              '$lt': range_tracker.stop_position()
-          }
-      })
+    # if there are no additional filters, initialize empty additional filters,
+    # see more at https://docs.mongodb.com/manual/reference/operator/query/and/
+    if '$and' not in all_filters:
+      all_filters['$and'] = []
+
+    # add additional range filter to query. $gte specifies start position (
+    # inclusive) and $lt specifies the end position (exclusive), see more at
+    # https://docs.mongodb.com/manual/reference/operator/query/gte/ and
+    # https://docs.mongodb.com/manual/reference/operator/query/lt/
+    all_filters['$and'] += [{
+        '_id': {
+            '$gte': range_tracker.start_position(),
+            '$lt': range_tracker.stop_position()
+        }
+    }]
     return all_filters
 
   def _get_head_document_id(self, sort_order):
@@ -270,12 +257,29 @@ class _BoundedMongoSource(iobase.BoundedSource):
       except IndexError:
         raise ValueError('Empty Mongodb collection')
 
+  def _replace_none_positions(self, start_position, stop_position):
+    if start_position is None:
+      start_position = self._get_head_document_id(ASCENDING)
+    if stop_position is None:
+      last_doc_id = self._get_head_document_id(DESCENDING)
+      # increment last doc id binary value by 1 to make sure the last document
+      # is not excluded
+      stop_position = _ObjectIdHelper.increment_id(last_doc_id, 1)
+    return start_position, stop_position
+
 
 class _ObjectIdHelper(object):
-  """A Utility class to bson object ids."""
+  """A Utility class to manipulate bson object ids."""
 
   @classmethod
   def id_to_int(cls, id):
+    """
+    Args:
+      id: ObjectId required for each MongoDB document _id field.
+
+    Returns: Converted integer value of ObjectId's 12 bytes binary value.
+
+    """
     # converts object id binary to integer
     # id object is bytes type with size of 12
     ints = struct.unpack('>III', id.binary)
@@ -283,6 +287,14 @@ class _ObjectIdHelper(object):
 
   @classmethod
   def int_to_id(cls, number):
+    """
+    Args:
+      number(int): The integer value to be used to convert to ObjectId.
+
+    Returns: The ObjectId that has the 12 bytes binary converted from the
+      integer value.
+
+    """
     # converts integer value to object id. Int value should be less than
     # (2 ^ 96) so it can be convert to 12 bytes required by object id.
     if number < 0 or number >= (1 << 96):
@@ -296,6 +308,14 @@ class _ObjectIdHelper(object):
 
   @classmethod
   def increment_id(cls, object_id, inc):
+    """
+    Args:
+      object_id: The ObjectId to change.
+      inc(int): The incremental int value to be added to ObjectId.
+
+    Returns:
+
+    """
     # increment object_id binary value by inc value and return new object id.
     id_number = _ObjectIdHelper.id_to_int(object_id)
     new_number = id_number + inc
