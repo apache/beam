@@ -19,11 +19,18 @@ package org.apache.beam.runners.direct;
 
 import static org.apache.beam.sdk.transforms.windowing.AfterWatermark.pastEndOfWindow;
 
+import java.util.Arrays;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.DoFn.ProcessRetraction;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -33,6 +40,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -44,6 +52,7 @@ public class RetractionTest {
   private static final Duration LATENESS_HORIZON = Duration.standardDays(1);
 
   @Test
+  @Ignore
   public void retractionSimpleTest() {
     Instant baseTime = new Instant(0L);
     Duration oneMin = Duration.standardMinutes(1);
@@ -64,7 +73,7 @@ public class RetractionTest {
             // Fire all
             .advanceWatermarkToInfinity();
 
-    PCollection<KV<String, Long>> pc =
+    PCollection<KV<Long, Iterable<String>>> pc =
         pipeline
             .apply(events)
             .apply(
@@ -75,28 +84,39 @@ public class RetractionTest {
                             .withLateFirings(AfterProcessingTime.pastFirstElementInPane()))
                     .withAllowedLateness(LATENESS_HORIZON)
                     .retractingFiredPanes())
-            .apply(Count.perElement());
+            .apply("WordCount", Count.perElement())
+            .apply("ReversedWordCount", ParDo.of(new KVSwap()))
+            .apply("FrequencyWordList", GroupByKey.create());
 
     IntervalWindow window = new IntervalWindow(baseTime, WINDOW_LENGTH);
 
     PAssert.that(pc)
         .filterAdditions()
         .inOnTimePane(window)
-        .containsInAnyOrder(KV.of("Java", 2L), KV.of("Python", 1L), KV.of("Go", 1L));
+        .containsInAnyOrder(
+            KV.of(2L, Arrays.asList("Java")), KV.of(1L, Arrays.asList("Go", "Python")));
 
-    PAssert.that(pc).filterAdditions().inLatePane(window).containsInAnyOrder(KV.of("Java", 3L));
-    PAssert.that(pc).filterRetractions().inLatePane(window).containsInAnyOrder(KV.of("Java", 2L));
+    PAssert.that(pc)
+        .filterAdditions()
+        .inLatePane(window)
+        .containsInAnyOrder(KV.of(3L, Arrays.asList("Java")));
+    PAssert.that(pc)
+        .filterRetractions()
+        .inLatePane(window)
+        .containsInAnyOrder(KV.of(2L, Arrays.asList("Java")));
 
     pipeline.run();
   }
 
-  // @Test
-  // public void retractionSimpleTest2() {
-  //   PCollection<KV<String, Long>> pc =
-  //       pipeline.apply(Create.of("Java", "Java", "Python", "Go")).apply(Count.perElement());
-  //
-  //   PAssert.that(pc).filterRetractions().containsInAnyOrder();
-  //
-  //   pipeline.run();
-  // }
+  static class KVSwap extends DoFn<KV<String, Long>, KV<Long, String>> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      c.output(KV.of(c.element().getValue(), c.element().getKey()));
+    }
+
+    @ProcessRetraction
+    public void processRetraction(ProcessContext c) {
+      c.outputRetraction(KV.of(c.element().getValue(), c.element().getKey()));
+    }
+  }
 }

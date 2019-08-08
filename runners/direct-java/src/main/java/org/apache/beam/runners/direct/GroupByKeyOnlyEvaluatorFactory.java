@@ -80,7 +80,8 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
             PCollection<KV<K, V>>, PCollection<KeyedWorkItem<K, V>>, DirectGroupByKeyOnly<K, V>>
         application;
     private final Coder<K> keyCoder;
-    private Map<StructuralKey<K>, List<WindowedValue<V>>> groupingMap;
+    private final Map<StructuralKey<K>, List<WindowedValue<V>>> groupingMap;
+    private final Map<StructuralKey<K>, List<WindowedValue<V>>> retractionGroupingMap;
 
     public GroupByKeyOnlyEvaluator(
         EvaluationContext evaluationContext,
@@ -94,6 +95,7 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
               ((PCollection<KV<K, V>>) Iterables.getOnlyElement(application.getInputs().values()))
                   .getCoder());
       this.groupingMap = new HashMap<>();
+      this.retractionGroupingMap = new HashMap<>();
     }
 
     private Coder<K> getKeyCoder(Coder<KV<K, V>> coder) {
@@ -114,16 +116,31 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
       KV<K, V> kv = element.getValue();
       K key = kv.getKey();
       StructuralKey<K> groupingKey = StructuralKey.of(key, keyCoder);
-      List<WindowedValue<V>> values =
-          groupingMap.computeIfAbsent(groupingKey, k -> new ArrayList<>());
+      Map<StructuralKey<K>, List<WindowedValue<V>>> curMap;
+      if (element.isRetraction()) {
+        curMap = retractionGroupingMap;
+      } else {
+        curMap = groupingMap;
+      }
+
+      List<WindowedValue<V>> values = curMap.computeIfAbsent(groupingKey, k -> new ArrayList<>());
       values.add(element.withValue(kv.getValue()));
     }
 
     @Override
     public TransformResult<KV<K, V>> finishBundle() {
       StepTransformResult.Builder resultBuilder = StepTransformResult.withoutHold(application);
-      for (Map.Entry<StructuralKey<K>, List<WindowedValue<V>>> groupedEntry :
-          groupingMap.entrySet()) {
+      processGroupedValues(resultBuilder, retractionGroupingMap, true);
+      processGroupedValues(resultBuilder, groupingMap, false);
+      return resultBuilder.build();
+    }
+
+    /** Process grouped additions and retractions. */
+    private void processGroupedValues(
+        StepTransformResult.Builder resultBuilder,
+        Map<StructuralKey<K>, List<WindowedValue<V>>> map,
+        boolean isRetraction) {
+      for (Map.Entry<StructuralKey<K>, List<WindowedValue<V>>> groupedEntry : map.entrySet()) {
         K key = groupedEntry.getKey().getKey();
         KeyedWorkItem<K, V> groupedKv =
             KeyedWorkItems.elementsWorkItem(key, groupedEntry.getValue());
@@ -132,10 +149,9 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
                 StructuralKey.of(key, keyCoder),
                 (PCollection<KeyedWorkItem<K, V>>)
                     Iterables.getOnlyElement(application.getOutputs().values()));
-        bundle.add(WindowedValue.valueInGlobalWindow(groupedKv));
+        bundle.add(WindowedValue.valueInGlobalWindow(groupedKv, isRetraction));
         resultBuilder.addOutput(bundle);
       }
-      return resultBuilder.build();
     }
   }
 }

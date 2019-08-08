@@ -116,6 +116,14 @@ public abstract class WindowedValue<T> {
   }
 
   /**
+   * Returns a {@code WindowedValue} with the given value and isRetraction in the {@link
+   * GlobalWindow} using the default timestamp and pane.
+   */
+  public static <T> WindowedValue<T> valueInGlobalWindow(T value, boolean isRetraction) {
+    return new ValueInGlobalWindow<>(value, PaneInfo.NO_FIRING, isRetraction);
+  }
+
+  /**
    * Returns a {@code WindowedValue} with the given value in the {@link GlobalWindow} using the
    * default timestamp and the specified pane.
    */
