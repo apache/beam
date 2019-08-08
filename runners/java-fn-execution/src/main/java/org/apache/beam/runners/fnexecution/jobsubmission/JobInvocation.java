@@ -55,6 +55,7 @@ public class JobInvocation {
   private List<Consumer<JobMessage>> messageObservers;
   private JobState.Enum jobState;
   private JobApi.MetricResults metrics;
+  private PortablePipelineResult resultHandle;
   @Nullable private ListenableFuture<PortablePipelineResult> invocationFuture;
 
   public JobInvocation(
@@ -97,6 +98,8 @@ public class JobInvocation {
 
               if (state.isTerminal()) {
                 metrics = pipelineResult.portableMetrics();
+              } else {
+                resultHandle = pipelineResult;
               }
 
               switch (state) {
@@ -180,6 +183,9 @@ public class JobInvocation {
   }
 
   public JobApi.MetricResults getMetrics() {
+    if (resultHandle != null) {
+      metrics = resultHandle.portableMetrics();
+    }
     return metrics;
   }
 
