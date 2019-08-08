@@ -221,30 +221,31 @@ class _BoundedMongoSource(iobase.BoundedSource):
       return (client[self.db].command(
           'splitVector',
           name_space,
-          keyPattern={'_id': 1},
+          keyPattern={'_id': 1},  # Ascending index
           min={'_id': start_pos},
           max={'_id': end_pos},
           maxChunkSize=desired_chunk_size_in_mb)['splitKeys'])
 
   def _merge_id_filter(self, range_tracker):
     # Merge the default filter with refined _id field range of range_tracker.
-    all_filters = self.filter.copy()
-
-    # if there are no additional filters, initialize empty additional filters,
     # see more at https://docs.mongodb.com/manual/reference/operator/query/and/
-    if '$and' not in all_filters:
-      all_filters['$and'] = []
+    all_filters = {
+        '$and': [
+            self.filter.copy(),
+            # add additional range filter to query. $gte specifies start
+            # position(inclusive) and $lt specifies the end position(exclusive),
+            # see more at
+            # https://docs.mongodb.com/manual/reference/operator/query/gte/ and
+            # https://docs.mongodb.com/manual/reference/operator/query/lt/
+            {
+                '_id': {
+                    '$gte': range_tracker.start_position(),
+                    '$lt': range_tracker.stop_position()
+                }
+            },
+        ]
+    }
 
-    # add additional range filter to query. $gte specifies start position (
-    # inclusive) and $lt specifies the end position (exclusive), see more at
-    # https://docs.mongodb.com/manual/reference/operator/query/gte/ and
-    # https://docs.mongodb.com/manual/reference/operator/query/lt/
-    all_filters['$and'] += [{
-        '_id': {
-            '$gte': range_tracker.start_position(),
-            '$lt': range_tracker.stop_position()
-        }
-    }]
     return all_filters
 
   def _get_head_document_id(self, sort_order):
@@ -338,14 +339,14 @@ class _ObjectIdRangeTracker(OrderedPositionRangeTracker):
     start_number = _ObjectIdHelper.id_to_int(start)
     end_number = _ObjectIdHelper.id_to_int(end)
     total = end_number - start_number
-    pos = _ObjectIdHelper.int_to_id(int(total * fraction + start_number))
+    pos = int(total * fraction + start_number)
     # make sure split position is larger than start position and smaller than
     # end position.
-    if pos == start:
-      return _ObjectIdHelper.increment_id(pos, 1)
-    if pos == end:
-      return _ObjectIdHelper.increment_id(pos, -1)
-    return pos
+    if pos <= start_number:
+      return _ObjectIdHelper.increment_id(start, 1)
+    if pos >= end_number:
+      return _ObjectIdHelper.increment_id(end, -1)
+    return _ObjectIdHelper.int_to_id(pos)
 
 
 @experimental()

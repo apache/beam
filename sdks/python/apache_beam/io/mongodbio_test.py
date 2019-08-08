@@ -15,9 +15,11 @@
 #
 
 from __future__ import absolute_import
+from __future__ import division
 
 import datetime
 import logging
+import random
 import sys
 import unittest
 from unittest import TestCase
@@ -54,8 +56,8 @@ class _MockMongoColl(object):
       return self
     if '$and' not in filter or not filter['$and']:
       return self
-    start = filter['$and'][0]['_id'].get('$gte')
-    end = filter['$and'][0]['_id'].get('$lt')
+    start = filter['$and'][1]['_id'].get('$gte')
+    end = filter['$and'][1]['_id'].get('$lt')
     assert start is not None
     assert end is not None
     for doc in self.docs:
@@ -99,9 +101,9 @@ class _MockMongoDb(object):
     if command == 'collstats':
       return {'size': 5, 'avgSize': 1}
     elif command == 'splitVector':
-      return self.get_split_key(command, *args, **kwargs)
+      return self.get_split_keys(command, *args, **kwargs)
 
-  def get_split_key(self, command, ns, min, max, maxChunkSize, **kwargs):
+  def get_split_keys(self, command, ns, min, max, maxChunkSize, **kwargs):
     # simulate mongo db splitVector command, return split keys base on chunk
     # size, assuming every doc is of size 1mb
     start_id = min['_id']
@@ -118,8 +120,9 @@ class _MockMongoDb(object):
         end_index += 1
       else:
         break
-    # return ids of elements in the range with chunk size skip and exclude
-    # head element.
+    # Return ids of elements in the range with chunk size skip and exclude
+    # head element. For simplicity of tests every document is considered 1Mb
+    # by default.
     return {
         'splitKeys':
         [x['_id'] for x in self.docs[start_index:end_index:maxChunkSize]][1:]
@@ -192,13 +195,44 @@ class MongoSourceTest(unittest.TestCase):
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_read(self, mock_client):
     mock_tracker = mock.MagicMock()
-    mock_tracker.start_position.return_value = self._ids[0]
-    mock_tracker.stop_position.return_value = self._ids[2]
-
+    test_cases = [
+        {
+            # range covers the first(inclusive) to third(exclusive) documents
+            'start': self._ids[0],
+            'stop': self._ids[2],
+            'expected': self._docs[0:2]
+        },
+        {
+            # range covers from the first to the third documents
+            'start': _ObjectIdHelper.int_to_id(0),  # smallest possible id
+            'stop': self._ids[2],
+            'expected': self._docs[0:2]
+        },
+        {
+            # range covers from the third to last documents
+            'start': self._ids[2],
+            'stop': _ObjectIdHelper.int_to_id(2**96 - 1),  # largest possible id
+            'expected': self._docs[2:]
+        },
+        {
+            # range covers all documents
+            'start': _ObjectIdHelper.int_to_id(0),
+            'stop': _ObjectIdHelper.int_to_id(2**96 - 1),
+            'expected': self._docs
+        },
+        {
+            # range doesn't include any document
+            'start': _ObjectIdHelper.increment_id(self._ids[2], 1),
+            'stop': _ObjectIdHelper.increment_id(self._ids[3], -1),
+            'expected': []
+        },
+    ]
     mock_client.return_value = _MockMongoClient(self._docs)
-
-    result = list(self.mongo_source.read(mock_tracker))
-    self.assertListEqual(self._docs[0:2], result)
+    for case in test_cases:
+      mock_tracker.start_position.return_value = case['start']
+      mock_tracker.stop_position.return_value = case['stop']
+      result = list(self.mongo_source.read(mock_tracker))
+      self.assertListEqual(case['expected'], result)
 
   def test_display_data(self):
     data = self.mongo_source.display_data()
@@ -328,6 +362,33 @@ class ObjectIdHelperTest(TestCase):
       id = objectid.ObjectId()
       self.assertLess(id, _ObjectIdHelper.increment_id(id, 1))
       self.assertGreater(id, _ObjectIdHelper.increment_id(id, -1))
+
+
+class ObjectRangeTrackerTest(TestCase):
+  def test_fraction_position_conversion(self):
+    start_int = 0
+    stop_int = 2**96 - 1
+    start = _ObjectIdHelper.int_to_id(start_int)
+    stop = _ObjectIdHelper.int_to_id(stop_int)
+    test_cases = ([start_int, stop_int, 2**32, 2**32 - 1, 2**64, 2**64 - 1] +
+                  [random.randint(start_int, stop_int) for _ in range(100)])
+    tracker = _ObjectIdRangeTracker()
+    for pos in test_cases:
+      id = _ObjectIdHelper.int_to_id(pos - start_int)
+      desired_fraction = (pos - start_int) / (stop_int - start_int)
+      self.assertAlmostEqual(tracker.position_to_fraction(id, start, stop),
+                             desired_fraction,
+                             places=20)
+
+      convert_id = tracker.fraction_to_position(
+          (pos - start_int) / (stop_int - start_int), start, stop)
+      # due to precision loss, the convert fraction is only gonna be close to
+      # original fraction.
+      convert_fraction = tracker.position_to_fraction(convert_id, start, stop)
+
+      self.assertGreater(convert_id, start)
+      self.assertLess(convert_id, stop)
+      self.assertAlmostEqual(convert_fraction, desired_fraction, places=20)
 
 
 if __name__ == '__main__':
