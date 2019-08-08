@@ -31,6 +31,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.common import DoFnSignature
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
+from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import trigger
 from apache_beam.transforms import userstate
@@ -41,6 +42,7 @@ from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import CombiningValueStateSpec
+from apache_beam.transforms.userstate import SetStateSpec
 from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.userstate import get_dofn_specs
 from apache_beam.transforms.userstate import is_stateful_dofn
@@ -114,7 +116,13 @@ class InterfaceTest(unittest.TestCase):
       CombiningValueStateSpec(123, VarIntCoder(), TopCombineFn(10))
     with self.assertRaises(TypeError):
       CombiningValueStateSpec('statename', VarIntCoder(), object())
-    # BagStateSpec('bag', )
+    SetStateSpec('setstatename', VarIntCoder())
+
+    with self.assertRaises(TypeError):
+      SetStateSpec(123, VarIntCoder())
+    with self.assertRaises(TypeError):
+      SetStateSpec('setstatename', object())
+
     # TODO: add more spec tests
     with self.assertRaises(ValueError):
       DoFn.TimerParam(BagStateSpec('elements', BytesCoder()))
@@ -414,6 +422,152 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
     self.assertEqual(
         ['extra'],
         StatefulDoFnOnDirectRunnerTest.all_records)
+
+  def test_simple_set_stateful_dofn(self):
+    class SimpleTestSetStatefulDoFn(DoFn):
+      BUFFER_STATE = SetStateSpec('buffer', VarIntCoder())
+      EXPIRY_TIMER = TimerSpec('expiry', TimeDomain.WATERMARK)
+
+      def process(self, element, buffer=DoFn.StateParam(BUFFER_STATE),
+                  timer1=DoFn.TimerParam(EXPIRY_TIMER)):
+        unused_key, value = element
+        buffer.add(value)
+        timer1.set(20)
+
+      @on_timer(EXPIRY_TIMER)
+      def expiry_callback(self, buffer=DoFn.StateParam(BUFFER_STATE)):
+        yield sorted(buffer.read())
+
+    with TestPipeline() as p:
+      test_stream = (TestStream()
+                     .advance_watermark_to(10)
+                     .add_elements([1, 2, 3])
+                     .add_elements([2])
+                     .advance_watermark_to(24))
+      (p
+       | test_stream
+       | beam.Map(lambda x: ('mykey', x))
+       | beam.ParDo(SimpleTestSetStatefulDoFn())
+       | beam.ParDo(self.record_dofn()))
+
+    # Two firings should occur: once after element 3 since the timer should
+    # fire after the watermark passes time 20, and another time after element
+    # 4, since the timer issued at that point should fire immediately.
+    self.assertEqual(
+        [[1, 2, 3]],
+        StatefulDoFnOnDirectRunnerTest.all_records)
+
+  def test_clearing_set_state(self):
+    class SetStateClearingStatefulDoFn(beam.DoFn):
+
+      SET_STATE = SetStateSpec('buffer', StrUtf8Coder())
+      EMIT_TIMER = TimerSpec('emit_timer', TimeDomain.WATERMARK)
+      CLEAR_TIMER = TimerSpec('clear_timer', TimeDomain.WATERMARK)
+
+      def process(self,
+                  element,
+                  set_state=beam.DoFn.StateParam(SET_STATE),
+                  emit_timer=beam.DoFn.TimerParam(EMIT_TIMER),
+                  clear_timer=beam.DoFn.TimerParam(CLEAR_TIMER)):
+        value = element[1]
+        set_state.add(value)
+        clear_timer.set(100)
+        emit_timer.set(1000)
+
+      @on_timer(EMIT_TIMER)
+      def emit_values(self, set_state=beam.DoFn.StateParam(SET_STATE)):
+        for value in set_state.read():
+          yield value
+
+      @on_timer(CLEAR_TIMER)
+      def clear_values(self, set_state=beam.DoFn.StateParam(SET_STATE)):
+        set_state.clear()
+        set_state.add('different-value')
+
+    with TestPipeline() as p:
+      test_stream = (TestStream()
+                     .advance_watermark_to(0)
+                     .add_elements([('key1', 'value1')])
+                     .advance_watermark_to(100))
+
+      _ = (p
+           | test_stream
+           | beam.ParDo(SetStateClearingStatefulDoFn())
+           | beam.ParDo(self.record_dofn()))
+
+    self.assertEqual(['different-value'],
+                     StatefulDoFnOnDirectRunnerTest.all_records)
+
+  def test_stateful_set_state_portably(self):
+
+    class SetStatefulDoFn(beam.DoFn):
+
+      SET_STATE = SetStateSpec('buffer', VarIntCoder())
+
+      def process(self,
+                  element,
+                  set_state=beam.DoFn.StateParam(SET_STATE)):
+        _, value = element
+        aggregated_value = 0
+        set_state.add(value)
+        for saved_value in set_state.read():
+          aggregated_value += saved_value
+        yield aggregated_value
+
+    p = TestPipeline()
+    values = p | beam.Create([('key', 1),
+                              ('key', 2),
+                              ('key', 3),
+                              ('key', 4),
+                              ('key', 3)])
+    actual_values = (values
+                     | beam.ParDo(SetStatefulDoFn()))
+
+    assert_that(actual_values, equal_to([1, 3, 6, 10, 10]))
+
+    result = p.run()
+    result.wait_until_finish()
+
+  def test_stateful_set_state_clean_portably(self):
+
+    class SetStateClearingStatefulDoFn(beam.DoFn):
+
+      SET_STATE = SetStateSpec('buffer', VarIntCoder())
+      EMIT_TIMER = TimerSpec('emit_timer', TimeDomain.WATERMARK)
+
+      def process(self,
+                  element,
+                  set_state=beam.DoFn.StateParam(SET_STATE),
+                  emit_timer=beam.DoFn.TimerParam(EMIT_TIMER)):
+        _, value = element
+        set_state.add(value)
+
+        all_elements = [element for element in set_state.read()]
+
+        if len(all_elements) == 5:
+          set_state.clear()
+          set_state.add(100)
+          emit_timer.set(1)
+
+      @on_timer(EMIT_TIMER)
+      def emit_values(self, set_state=beam.DoFn.StateParam(SET_STATE)):
+        yield sorted(set_state.read())
+
+    p = TestPipeline()
+    values = p | beam.Create([('key', 1),
+                              ('key', 2),
+                              ('key', 3),
+                              ('key', 4),
+                              ('key', 5)])
+    actual_values = (values
+                     | beam.Map(lambda t: window.TimestampedValue(t, 1))
+                     | beam.WindowInto(window.FixedWindows(1))
+                     | beam.ParDo(SetStateClearingStatefulDoFn()))
+
+    assert_that(actual_values, equal_to([[100]]))
+
+    result = p.run()
+    result.wait_until_finish()
 
   def test_stateful_dofn_nonkeyed_input(self):
     p = TestPipeline()
