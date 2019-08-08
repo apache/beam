@@ -164,6 +164,7 @@ class PullResponseMessage(object):
     self.ack_id = ack_id
     self.message_id = message_id
 
+
 def create_pull_response(responses):
   """Create an instance of ``google.cloud.pubsub.types.ReceivedMessage``.
 
