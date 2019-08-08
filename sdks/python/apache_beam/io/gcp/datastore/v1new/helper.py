@@ -100,6 +100,10 @@ def write_mutations(batch, throttler, rpc_stats_callback, throttle_delay=1):
 
   try:
     start_time = time.time()
+    if batch._status == batch._FINISHED:
+      # Mark batch as in progress again since we had a failure before,
+      # otherwise it cannot be commited (BEAM-7917)
+      batch._status = batch._IN_PROGRESS
     batch.commit()
     end_time = time.time()
 
