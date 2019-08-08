@@ -208,6 +208,7 @@ class _StateBackedIterable(object):
       self._coder_impl = coder_or_impl
 
   def __iter__(self):
+    # This is the continuation token this might be useful
     data, continuation_token = self._state_handler.blocking_get(self._state_key)
     while True:
       input_stream = coder_impl.create_InputStream(data)
@@ -389,31 +390,38 @@ class SynchronousSetRuntimeState(userstate.RuntimeState):
     self._cleared = False
     self._added_elements = set()
 
-  def _compact_data(self):
-    accumulator = set(self.read())
-    if accumulator:
+  def _compact_data(self, rewrite=True):
+    accumulator = set(_ConcatIterable(
+        set() if self._cleared else _StateBackedIterable(
+            self._state_handler, self._state_key, self._value_coder),
+        self._added_elements))
+
+    if rewrite and accumulator:
+      self._state_handler.blocking_clear(self._state_key)
+
       value_coder_impl = self._value_coder.get_impl()
       out = coder_impl.create_OutputStream()
-
       for element in accumulator:
         value_coder_impl.encode_to_stream(element, out, True)
-
-      self._state_handler.blocking_clear(self._state_key)
       self._state_handler.blocking_append(self._state_key, out.get())
+
       # Since everthing is already committed so we can safely reinitialize
       # added_elements here.
       self._added_elements = set()
 
+    return accumulator
+
   def read(self):
-    return _ConcatIterable(
-        set() if self._cleared else _StateBackedIterable(
-            self._state_handler, self._state_key, self._value_coder),
-        self._added_elements)
+    return self._compact_data(rewrite=False)
 
   def add(self, value):
-    self._added_elements.add(value)
+    if self._cleared:
+      # This is a good time explicitly clear.
+      self._state_handler.blocking_clear(self._state_key)
+      self._cleared = False
 
-    if random.random() < 0.5:
+    self._added_elements.add(value)
+    if random.random() > 0.5:
       self._compact_data()
 
   def clear(self):

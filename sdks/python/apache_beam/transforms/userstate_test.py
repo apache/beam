@@ -118,9 +118,9 @@ class InterfaceTest(unittest.TestCase):
       CombiningValueStateSpec('statename', VarIntCoder(), object())
     SetStateSpec('setstatename', VarIntCoder())
 
-    with self.assertRaises(AssertionError):
+    with self.assertRaises(TypeError):
       SetStateSpec(123, VarIntCoder())
-    with self.assertRaises(AssertionError):
+    with self.assertRaises(TypeError):
       SetStateSpec('setstatename', object())
 
     # TODO: add more spec tests
@@ -542,10 +542,12 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
         _, value = element
         set_state.add(value)
 
-        if value == 5:
+        all_elements = [element for element in set_state.read()]
+
+        if len(all_elements) == 5:
           set_state.clear()
           set_state.add(100)
-          emit_timer.set(6)
+          emit_timer.set(1)
 
       @on_timer(EMIT_TIMER)
       def emit_values(self, set_state=beam.DoFn.StateParam(SET_STATE)):
@@ -556,10 +558,9 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                               ('key', 2),
                               ('key', 3),
                               ('key', 4),
-                              ('key', 5),
-                              ('key', 6)])
+                              ('key', 5)])
     actual_values = (values
-                     | beam.Map(lambda t: window.TimestampedValue(t, t[1]))
+                     | beam.Map(lambda t: window.TimestampedValue(t, 1))
                      | beam.WindowInto(window.FixedWindows(1))
                      | beam.ParDo(SetStateClearingStatefulDoFn()))
 

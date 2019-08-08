@@ -64,8 +64,10 @@ class SetStateSpec(StateSpec):
   """Specification for a user DoFn Set State cell"""
 
   def __init__(self, name, coder):
-    assert isinstance(name, str)
-    assert isinstance(coder, Coder)
+    if not isinstance(name, str):
+      raise TypeError("SetState name is not a string")
+    if not isinstance(coder, Coder):
+      raise TypeError("SetState coder is not of type Coder")
     self.name = name
     self.coder = coder
 
