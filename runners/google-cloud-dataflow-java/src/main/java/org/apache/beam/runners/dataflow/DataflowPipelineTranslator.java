@@ -329,6 +329,8 @@ public class DataflowPipelineTranslator {
         List<String> experiments = options.getExperiments();
         if (experiments == null) {
           experiments = new ArrayList<String>();
+        } else {
+          experiments = new ArrayList<String>(experiments);
         }
         if (!experiments.contains(GcpOptions.STREAMING_ENGINE_EXPERIMENT)) {
           experiments.add(GcpOptions.STREAMING_ENGINE_EXPERIMENT);
