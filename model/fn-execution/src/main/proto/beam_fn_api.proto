@@ -627,6 +627,9 @@ message StateKey {
   message Runner {
     // (Required) Opaque information supplied by the runner. Used to support
     // remote references.
+    //
+    // Used by state backed iterable. And in this use case, request type can
+    // only be of type get.
     bytes key = 1;
   }
 
