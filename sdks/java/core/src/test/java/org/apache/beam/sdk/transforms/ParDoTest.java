@@ -740,6 +740,41 @@ public class ParDoTest implements Serializable {
 
     @Test
     @Category({ValidatesRunner.class, UsesSideInputs.class})
+    public void testSideInputAnnotation() {
+
+      final PCollectionView<List<Integer>> sideInput1 =
+          pipeline
+              .apply("CreateSideInput1", Create.of(2, 1, 0))
+              .apply("ViewSideInput1", View.asList());
+
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+
+      DoFn<Integer, List<Integer>> fn =
+          new DoFn<Integer, List<Integer>>() {
+            @ProcessElement
+            public void processElement(
+                @Element Integer element,
+                OutputReceiver<List<Integer>> r,
+                @SideInput(sideInputTag1) List<Integer> tag1) {
+
+              List<Integer> sideSorted = Lists.newArrayList(tag1);
+              Collections.sort(sideSorted);
+              r.output(sideSorted);
+            }
+          };
+
+      PCollection<List<Integer>> output =
+          pipeline
+              .apply("Create main input", Create.of(2))
+              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+
+      PAssert.that(output).containsInAnyOrder(Lists.newArrayList(0, 1, 2));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testParDoWithSideInputsIsCumulative() {
 
       List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -3310,47 +3345,6 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  /** Tests validating SideInput annotation behaviors. */
-  @RunWith(JUnit4.class)
-  public static class SideInputAnnotationTests extends SharedTestBase implements Serializable {
-
-    @Test
-    @Category({ValidatesRunner.class, UsesSideInputs.class})
-    public void testSideInputAnnotation() {
-
-      final PCollectionView<List<Integer>> sideInput1 =
-          pipeline
-              .apply("CreateSideInput1", Create.of(2, 1, 0))
-              .apply("ViewSideInput1", View.asList());
-
-      // SideInput tag id
-      final String sideInputTag1 = "tag1";
-
-      DoFn<Integer, List<Integer>> fn =
-          new DoFn<Integer, List<Integer>>() {
-            @ProcessElement
-            public void processElement(
-                ProcessContext c,
-                @Element Integer element,
-                OutputReceiver<List<Integer>> r,
-                @SideInput(sideInputTag1) List<Integer> tag1) {
-
-              List<Integer> sideSorted = Lists.newArrayList(tag1);
-              Collections.sort(sideSorted);
-              r.output(sideSorted);
-            }
-          };
-
-      PCollection<List<Integer>> output =
-          pipeline
-              .apply("Create main input", Create.of(2))
-              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
-
-      PAssert.that(output).containsInAnyOrder(Lists.newArrayList(0, 1, 2));
-      pipeline.run();
-    }
-  }
-
   private static class FnWithSideInputs extends DoFn<String, String> {
     private final PCollectionView<Integer> view;
 
@@ -3378,10 +3372,10 @@ public class ParDoTest implements Serializable {
 
     @Override
     public void encode(TestDummy value, OutputStream outStream)
-        throws CoderException, IOException {}
+        throws IOException {}
 
     @Override
-    public TestDummy decode(InputStream inStream) throws CoderException, IOException {
+    public TestDummy decode(InputStream inStream) throws IOException {
       return new TestDummy();
     }
 
@@ -3485,12 +3479,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Override
-    public void encode(MyInteger value, OutputStream outStream) throws CoderException, IOException {
+    public void encode(MyInteger value, OutputStream outStream) throws IOException {
       delegate.encode(value.getValue(), outStream);
     }
 
     @Override
-    public MyInteger decode(InputStream inStream) throws CoderException, IOException {
+    public MyInteger decode(InputStream inStream) throws IOException {
       return new MyInteger(delegate.decode(inStream));
     }
   }

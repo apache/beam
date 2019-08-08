@@ -59,7 +59,7 @@ public interface PCollectionView<T> extends PValue, Serializable {
   @Internal
   PCollection<?> getPCollection();
 
-  /** Sets the {@link PCollection} this {@link PCollectionView} was created from. * */
+  /** Sets the {@link PCollection} this {@link PCollectionView} was created from. */
   @Internal
   void setPCollection(PCollection<?> pCollection);
 

@@ -135,7 +135,7 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a reference to the input element. */
     InputT element(DoFn<InputT, OutputT> doFn);
 
-    /** Provide a reference to the input sideInput. */
+    /** Provide a reference to the input sideInput with the specified tag. */
     Object sideInput(String tagId);
 
     /**

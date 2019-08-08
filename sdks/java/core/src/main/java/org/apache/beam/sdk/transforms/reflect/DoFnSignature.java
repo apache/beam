@@ -573,11 +573,7 @@ public abstract class DoFnSignature {
       TimeDomainParameter() {}
     }
 
-    /**
-     * Descriptor for a {@link Parameter} of type {@link DoFn.SideInput}.
-     *
-     * <p>All such descriptors are equal.
-     */
+    /** Descriptor for a {@link Parameter} of type {@link DoFn.SideInput}. */
     @AutoValue
     public abstract static class SideInputParameter extends Parameter {
       SideInputParameter() {}
