@@ -161,7 +161,7 @@ class PubSubUtilTest(unittest.TestCase):
     subscription_path = "project/fakeproj/subscriptions/fakesub"
     data = b'data'
     ack_id = 'ack_id'
-    attributes = {'key': 'value'}
+    attributes = {'message_id': '', 'key': 'value'}
     message = PubsubMessage(data, attributes)
     pull_response = test_utils.create_pull_response(
         [test_utils.PullResponseMessage(data, attributes, ack_id=ack_id)])
@@ -213,6 +213,7 @@ class PubSubUtilTest(unittest.TestCase):
         'data {}'.format(i).encode("utf-8") for i in range(number_of_elements)
     ]
     attributes_list = [{
+        'message_id': '',
         'key': 'value {}'.format(i)
     } for i in range(number_of_elements)]
     ack_ids = ['ack_id_{}'.format(i) for i in range(number_of_elements)]
