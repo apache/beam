@@ -53,7 +53,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.SetCoder;
@@ -3371,8 +3370,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Override
-    public void encode(TestDummy value, OutputStream outStream)
-        throws IOException {}
+    public void encode(TestDummy value, OutputStream outStream) throws IOException {}
 
     @Override
     public TestDummy decode(InputStream inStream) throws IOException {
