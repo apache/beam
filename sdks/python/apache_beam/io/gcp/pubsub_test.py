@@ -27,7 +27,6 @@ from builtins import object
 import hamcrest as hc
 import mock
 
-
 import apache_beam as beam
 from apache_beam.io.gcp.pubsub import PubsubMessage
 from apache_beam.io.gcp.pubsub import ReadFromPubSub
