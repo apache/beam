@@ -269,6 +269,12 @@ public class BigQueryUtils {
     return fromTableFieldSchema(tableSchema.getFields());
   }
 
+  /** Convert a list of BigQuery {@link TableFieldSchema} to Avro {@link org.apache.avro.Schema}. */
+  public static org.apache.avro.Schema toGenericAvroSchema(
+      String schemaName, List<TableFieldSchema> fieldSchemas) {
+    return BigQueryAvroUtils.toGenericAvroSchema(schemaName, fieldSchemas);
+  }
+
   private static final BigQueryIO.TypedRead.ToBeamRowFunction<TableRow>
       TABLE_ROW_TO_BEAM_ROW_FUNCTION = beamSchema -> (TableRow tr) -> toBeamRow(beamSchema, tr);
 

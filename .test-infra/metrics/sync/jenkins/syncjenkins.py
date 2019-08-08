@@ -27,11 +27,12 @@ from xml.etree import ElementTree
 # cmd_out = subprocess.check_output(["ip", "route", "show"]).decode("utf-8")
 # host = cmd_out.split(" ")[2]
 
-host = os.environ['JENSYNC_HOST']
-port = os.environ['JENSYNC_PORT']
-dbname = os.environ['JENSYNC_DBNAME']
-dbusername = os.environ['JENSYNC_DBUSERNAME']
-dbpassword = os.environ['JENSYNC_DBPWD']
+host = os.environ['DB_HOST']
+port = os.environ['DB_PORT']
+dbname = os.environ['DB_DBNAME']
+dbusername = os.environ['DB_DBUSERNAME']
+dbpassword = os.environ['DB_DBPWD']
+
 
 jenkinsBuildsTableName = 'jenkins_builds'
 

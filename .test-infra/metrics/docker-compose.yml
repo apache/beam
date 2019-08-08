@@ -69,11 +69,11 @@ services:
       context: ./sync/jenkins
       dockerfile: Dockerfile
     environment:
-      - JENSYNC_HOST=beampostgresql
-      - JENSYNC_PORT=5432
-      - JENSYNC_DBNAME=beam_metrics
-      - JENSYNC_DBUSERNAME=admin
-      - JENSYNC_DBPWD=<PGPasswordHere>
+      - DB_HOST=beampostgresql
+      - DB_PORT=5432
+      - DB_DBNAME=beam_metrics
+      - DB_DBUSERNAME=admin
+      - DB_DBPWD=<PGPasswordHere>
   syncjira:
     image: syncjira
     container_name: beamsyncjira

@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
@@ -107,7 +111,7 @@ class CalciteQueryPlanner implements QueryPlanner {
         .traitDefs(traitDefs)
         .context(Contexts.of(connection.config()))
         .ruleSets(ruleSets)
-        .costFactory(null)
+        .costFactory(BeamCostModel.FACTORY)
         .typeSystem(connection.getTypeFactory().getTypeSystem())
         .operatorTable(ChainedSqlOperatorTable.of(opTab0, catalogReader))
         .build();
@@ -198,18 +202,16 @@ class CalciteQueryPlanner implements QueryPlanner {
       // here and based on the design we also need to remove the cached values
 
       // We need to first remove the cached values.
+      List<List> costKeys =
+          mq.map.entrySet().stream()
+              .filter(entry -> entry.getValue() instanceof BeamCostModel)
+              .filter(entry -> ((BeamCostModel) entry.getValue()).isInfinite())
+              .map(Map.Entry::getKey)
+              .collect(Collectors.toList());
 
-      //      List<List> costKeys =
-      //          mq.map.entrySet().stream()
-      //              .filter(entry -> entry.getValue() instanceof BeamCostModel)
-      //              .map(entry -> entry.getKey())
-      //              .collect(Collectors.toList());
-      //
-      //      for (List key : costKeys) {
-      //        mq.map.remove(key);
-      //      }
+      costKeys.forEach(mq.map::remove);
 
-      return rel.computeSelfCost(rel.getCluster().getPlanner(), mq);
+      return ((BeamRelNode) rel).beamComputeSelfCost(rel.getCluster().getPlanner(), mq);
     }
   }
 }

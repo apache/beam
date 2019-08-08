@@ -99,6 +99,7 @@ This is a collection of documents that may or may not be up to date.
 - Unbounded limit [[doc](https://docs.google.com/document/d/13zeTewHH9nfwhSlcE4x77WQwr1U2Z4sTiNRjOXUj2aw)]
 - Portable Beam Schemas [[doc](https://s.apache.org/beam-schemas)]
 - Cost Based Optimizer [[doc1](https://docs.google.com/document/d/1DM_bcfFbIoc_vEoqQxhC7AvHBUDVCAwToC8TYGukkII), [doc2](https://docs.google.com/document/d/1vi1PBBu5IqSy-qZl1Gk-49CcANOpbNs1UAud6LnOaiY/edit#heading=h.6rlkpwwx7gvf)]
+- ZetaSQL as a dialect in BeamSQL [[doc](https://docs.google.com/document/d/14Yi4oEMzqS3n9-LfSNi6Q6kQpEP3gWTHzX0HxqUksdc/edit?usp=sharing)]
 
 ### Portability
 - Fn API

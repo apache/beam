@@ -71,10 +71,10 @@ project.task('crossLanguagePythonJavaFlink') {
   dependsOn ':runners:flink:1.5:job-server-container:docker'
   dependsOn ':sdks:python:container:docker'
   dependsOn ':sdks:java:container:docker'
-  dependsOn ':runners:core-construction-java:buildTestExpansionServiceJar'
+  dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
 
   doLast {
-    def testServiceExpansionJar = project(":runners:core-construction-java:").buildTestExpansionServiceJar.archivePath
+    def testServiceExpansionJar = project(":sdks:java:testing:expansion-service:").buildTestExpansionServiceJar.archivePath
     def options = [
         "--runner=PortableRunner",
         "--experiments=worker_threads=100",
@@ -96,10 +96,10 @@ project.task('crossLanguagePortableWordCount') {
   dependsOn ':runners:flink:1.5:job-server-container:docker'
   dependsOn ':sdks:python:container:docker'
   dependsOn ':sdks:java:container:docker'
-  dependsOn ':runners:core-construction-java:buildTestExpansionServiceJar'
+  dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
 
   doLast {
-    def testServiceExpansionJar = project(":runners:core-construction-java:").buildTestExpansionServiceJar.archivePath
+    def testServiceExpansionJar = project(":sdks:java:testing:expansion-service:").buildTestExpansionServiceJar.archivePath
     def options = [
         "--input=/etc/profile",
         "--output=/tmp/py-wordcount-portable",
@@ -138,7 +138,7 @@ project.task('createProcessWorker') {
   doLast {
     sdkWorkerFile.write sdkWorkerFileCode
     exec {
-      commandLine('sh', '-c', ". ${project.ext.envdir}/bin/activate && cd ${pythonRootDir} && python setup.py install ")
+      commandLine('sh', '-c', ". ${project.ext.envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test]")
     }
     exec {
       commandLine('chmod', '+x', sdkWorkerFile)

@@ -70,6 +70,7 @@ task postCommitIT(dependsOn: ['installGcpTest', 'sdist']) {
     def testOpts = basicTestOpts + ["--attr=IT"]
     def cmdArgs = project.mapToArgString(["test_opts": testOpts,
                                           "worker_jar": dataflowWorkerJar,
+                                          "sdk_location": "${project.buildDir}/apache-beam.tar.gz",
                                           "suite": "postCommitIT-df"])
     exec {
       executable 'sh'
@@ -87,6 +88,7 @@ task validatesRunnerBatchTests(dependsOn: ['installGcpTest', 'sdist']) {
     def testOpts = basicTestOpts + ["--attr=ValidatesRunner"]
     def cmdArgs = project.mapToArgString(["test_opts": testOpts,
                                           "worker_jar": dataflowWorkerJar,
+                                          "sdk_location": "${project.buildDir}/apache-beam.tar.gz",
                                           "suite": "validatesRunnerBatchTests-df"])
     exec {
       executable 'sh'
@@ -106,11 +108,32 @@ task validatesRunnerStreamingTests(dependsOn: ['installGcpTest', 'sdist']) {
     def argMap = ["test_opts": testOpts,
                   "streaming": "true",
                   "worker_jar": dataflowWorkerJar,
+                  "sdk_location": "${project.buildDir}/apache-beam.tar.gz",
                   "suite": "validatesRunnerStreamingTests-df"]
     def cmdArgs = project.mapToArgString(argMap)
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
+task dataflowChicagoTaxiExample(dependsOn: ['installGcpTest', 'sdist']) {
+
+  def gcsRoot = findProperty('gcsRoot')
+  def runner = findProperty('runner')
+  def cliArgs = "${gcsRoot} ${runner} ${project.buildDir}/apache-beam.tar.gz"
+
+  doLast {
+    exec {
+      workingDir "$project.rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -r requirements.txt"
+    }
+    exec {
+      workingDir "$project.rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && ./run_chicago.sh ${cliArgs}"
     }
   }
 }

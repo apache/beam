@@ -18,10 +18,12 @@
 package org.apache.beam.sdk.extensions.sql.impl.planner;
 
 import org.apache.beam.sdk.extensions.sql.impl.rel.BaseRelTest;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
 import org.junit.Assert;
@@ -75,5 +77,18 @@ public class NodeStatsTest extends BaseRelTest {
     NodeStats nodeStats =
         root.metadata(NodeStatsMetadata.class, root.getCluster().getMetadataQuery()).getNodeStats();
     Assert.assertFalse(nodeStats.isUnknown());
+  }
+
+  @Test
+  public void testSubsetHavingBest() {
+    String sql = " select * from ORDER_DETAILS1 ";
+    RelNode root = env.parseQuery(sql);
+    root = root.getCluster().getPlanner().getRoot();
+
+    // tests if we are actually testing what we want.
+    Assert.assertTrue(root instanceof RelSubset);
+
+    NodeStats estimates = BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
+    Assert.assertFalse(estimates.isUnknown());
   }
 }

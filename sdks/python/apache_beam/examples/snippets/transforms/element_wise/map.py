@@ -114,6 +114,29 @@ def map_multiple_arguments(test=None):
       test(plants)
 
 
+def map_tuple(test=None):
+  # [START map_tuple]
+  import apache_beam as beam
+
+  with beam.Pipeline() as pipeline:
+    plants = (
+        pipeline
+        | 'Gardening plants' >> beam.Create([
+            ('🍓', 'Strawberry'),
+            ('🥕', 'Carrot'),
+            ('🍆', 'Eggplant'),
+            ('🍅', 'Tomato'),
+            ('🥔', 'Potato'),
+        ])
+        | 'Format' >> beam.MapTuple(
+            lambda icon, plant: '{}{}'.format(icon, plant))
+        | beam.Map(print)
+    )
+    # [END map_tuple]
+    if test:
+      test(plants)
+
+
 def map_side_inputs_singleton(test=None):
   # [START map_side_inputs_singleton]
   import apache_beam as beam

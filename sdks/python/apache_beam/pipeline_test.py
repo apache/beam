@@ -31,6 +31,7 @@ import mock
 
 import apache_beam as beam
 from apache_beam import typehints
+from apache_beam.coders import BytesCoder
 from apache_beam.io import Read
 from apache_beam.metrics import Metrics
 from apache_beam.pipeline import Pipeline
@@ -53,6 +54,7 @@ from apache_beam.transforms import Map
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import WindowInto
+from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
@@ -426,6 +428,38 @@ class PipelineTest(unittest.TestCase):
 
       p.replace_all([override])
       self.assertEqual(pcoll.producer.inputs[0].element_type, expected_type)
+
+  def test_kv_ptransform_honor_type_hints(self):
+
+    # The return type of this DoFn cannot be inferred by the default
+    # Beam type inference
+    class StatefulDoFn(DoFn):
+      BYTES_STATE = BagStateSpec('bytes', BytesCoder())
+
+      def return_recursive(self, count):
+        if count == 0:
+          return ["some string"]
+        else:
+          self.return_recursive(count-1)
+
+      def process(self, element, counter=DoFn.StateParam(BYTES_STATE)):
+        return self.return_recursive(1)
+
+    p = TestPipeline()
+    pcoll = (p
+             | beam.Create([(1, 1), (2, 2), (3, 3)])
+             | beam.GroupByKey()
+             | beam.ParDo(StatefulDoFn()))
+    p.run()
+    self.assertEqual(pcoll.element_type, typehints.Any)
+
+    p = TestPipeline()
+    pcoll = (p
+             | beam.Create([(1, 1), (2, 2), (3, 3)])
+             | beam.GroupByKey()
+             | beam.ParDo(StatefulDoFn()).with_output_types(str))
+    p.run()
+    self.assertEqual(pcoll.element_type, str)
 
 
 class DoFnTest(unittest.TestCase):

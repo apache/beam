@@ -18,12 +18,14 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Minus;
@@ -43,6 +45,17 @@ public class BeamMinusRel extends Minus implements BeamRelNode {
   }
 
   @Override
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+    NodeStats inputsEstimatesSummation =
+        inputs.stream()
+            .map(input -> BeamSqlRelUtils.getNodeStats(input, mq))
+            .reduce(NodeStats.create(0, 0, 0), NodeStats::plus);
+
+    return BeamCostModel.FACTORY.makeCost(
+        inputsEstimatesSummation.getRowCount(), inputsEstimatesSummation.getRate());
+  }
+
+  @Override
   public SetOp copy(RelTraitSet traitSet, List<RelNode> inputs, boolean all) {
     return new BeamMinusRel(getCluster(), traitSet, inputs, all);
   }
@@ -54,6 +67,12 @@ public class BeamMinusRel extends Minus implements BeamRelNode {
 
   @Override
   public NodeStats estimateNodeStats(RelMetadataQuery mq) {
-    return NodeStats.create(mq.getRowCount(this));
+    NodeStats firstInputEstimates = BeamSqlRelUtils.getNodeStats(inputs.get(0), mq);
+    // The first input minus half of the others. (We are assuming half of them have intersection)
+    for (int i = 1; i < inputs.size(); i++) {
+      NodeStats inputEstimate = BeamSqlRelUtils.getNodeStats(inputs.get(i), mq);
+      firstInputEstimates = firstInputEstimates.minus(inputEstimate.multiply(0.5));
+    }
+    return firstInputEstimates;
   }
 }

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.bigquery;
+package org.apache.beam.sdk.io.gcp.testing;
 
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableRow;

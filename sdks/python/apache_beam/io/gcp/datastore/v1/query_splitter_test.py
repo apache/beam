@@ -171,11 +171,16 @@ class QuerySplitterTest(unittest.TestCase):
       batch_size: the number of entities returned by fake datastore in one req.
     """
 
-    # Test for both random long ids and string ids.
-    id_or_name = [True, False]
+    # Test for random long ids, string ids, and a mix of both.
+    id_or_name = [True, False, None]
 
     for id_type in id_or_name:
-      entities = fake_datastore.create_entities(num_entities, id_type)
+      if id_type is None:
+        entities = fake_datastore.create_entities(num_entities, False)
+        entities.extend(fake_datastore.create_entities(num_entities, True))
+        num_entities *= 2
+      else:
+        entities = fake_datastore.create_entities(num_entities, id_type)
       mock_datastore = MagicMock()
       # Assign a fake run_query method as a side_effect to the mock.
       mock_datastore.run_query.side_effect = \

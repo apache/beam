@@ -113,6 +113,7 @@ python setup.py nosetests \
   --process-timeout=900 \
   --with-xunitmp \
   --xunitmp-file=$XUNIT_FILE \
+  --ignore-files '.*py3.py$' \
   --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \

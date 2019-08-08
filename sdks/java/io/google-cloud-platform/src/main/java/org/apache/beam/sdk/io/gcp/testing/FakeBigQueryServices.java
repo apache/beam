@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.bigquery;
+package org.apache.beam.sdk.io.gcp.testing;
 
 import com.google.api.client.util.Base64;
 import com.google.api.services.bigquery.model.Table;
@@ -29,6 +29,10 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
+import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
@@ -90,11 +94,11 @@ public class FakeBigQueryServices implements BigQueryServices {
     public void cancel() {}
   }
 
-  static String encodeQueryResult(Table table) throws IOException {
+  public static String encodeQueryResult(Table table) throws IOException {
     return encodeQueryResult(table, ImmutableList.of());
   }
 
-  static String encodeQueryResult(Table table, List<TableRow> rows) throws IOException {
+  public static String encodeQueryResult(Table table, List<TableRow> rows) throws IOException {
     KvCoder<String, List<TableRow>> coder =
         KvCoder.of(StringUtf8Coder.of(), ListCoder.of(TableRowJsonCoder.of()));
     KV<String, List<TableRow>> kv = KV.of(BigQueryHelpers.toJsonString(table), rows);
@@ -103,7 +107,7 @@ public class FakeBigQueryServices implements BigQueryServices {
     return Base64.encodeBase64String(outputStream.toByteArray());
   }
 
-  static KV<Table, List<TableRow>> decodeQueryResult(String queryResult) throws IOException {
+  public static KV<Table, List<TableRow>> decodeQueryResult(String queryResult) throws IOException {
     KvCoder<String, List<TableRow>> coder =
         KvCoder.of(StringUtf8Coder.of(), ListCoder.of(TableRowJsonCoder.of()));
     ByteArrayInputStream inputStream = new ByteArrayInputStream(Base64.decodeBase64(queryResult));
@@ -115,7 +119,7 @@ public class FakeBigQueryServices implements BigQueryServices {
   }
 
   // Longs tend to get converted back to Integers due to JSON serialization. Convert them back.
-  static TableRow convertNumbers(TableRow tableRow) {
+  public static TableRow convertNumbers(TableRow tableRow) {
     for (TableRow.Entry entry : tableRow.entrySet()) {
       if (entry.getValue() instanceof Integer) {
         entry.setValue(Long.valueOf((Integer) entry.getValue()));

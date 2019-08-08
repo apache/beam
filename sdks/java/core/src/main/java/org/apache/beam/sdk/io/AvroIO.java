@@ -75,7 +75,7 @@ import org.joda.time.Duration;
  * <p>To read a {@link PCollection} from one or more Avro files with the same schema known at
  * pipeline construction time, use {@link #read}, using {@link AvroIO.Read#from} to specify the
  * filename or filepattern to read from. If the filepatterns to be read are themselves in a {@link
- * PCollection} you can use {@link FileIO} to match them and {@link TextIO#readFiles} to read them.
+ * PCollection} you can use {@link FileIO} to match them and {@link AvroIO#readFiles} to read them.
  * If the schema is unknown at pipeline construction time, use {@link #parseGenericRecords} or
  * {@link #parseFilesGenericRecords}.
  *

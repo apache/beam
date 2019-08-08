@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.extensions.sql.TestUtils;
+import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSqlOutputToConsoleFn;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestUnboundedTable;
 import org.apache.beam.sdk.schemas.Schema;
@@ -26,8 +28,10 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.calcite.rel.RelNode;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -35,8 +39,8 @@ import org.junit.Test;
 /** Unbounded + Unbounded Test for {@code BeamJoinRel}. */
 public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
-  public static final DateTime FIRST_DATE = new DateTime(1);
-  public static final DateTime SECOND_DATE = new DateTime(1 + 3600 * 1000);
+  private static final DateTime FIRST_DATE = new DateTime(1);
+  private static final DateTime SECOND_DATE = new DateTime(1 + 3600 * 1000);
 
   private static final Duration WINDOW_SIZE = Duration.standardHours(1);
 
@@ -72,7 +76,8 @@ public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
                 2,
                 3,
                 3,
-                SECOND_DATE));
+                SECOND_DATE)
+            .setStatistics(BeamTableStatistics.createUnboundedTableStatistics(3d)));
   }
 
   @Test
@@ -100,6 +105,45 @@ public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
                 .addRows(1, 3, 1, 3, 2, 5, 2, 5)
                 .getStringRows());
     pipeline.run();
+  }
+
+  @Test
+  public void testNodeStatsEstimation() {
+    String sql =
+        "SELECT * FROM "
+            + "(select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
+            + "          GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)) o1 "
+            + " JOIN "
+            + "(select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
+            + "          GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)) o2 "
+            + " on "
+            + " o1.order_id=o2.order_id";
+
+    RelNode root = env.parseQuery(sql);
+
+    while (!(root instanceof BeamJoinRel)) {
+      root = root.getInput(0);
+    }
+
+    NodeStats estimate = BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
+    NodeStats leftEstimate =
+        BeamSqlRelUtils.getNodeStats(
+            ((BeamJoinRel) root).getLeft(), root.getCluster().getMetadataQuery());
+    NodeStats rightEstimate =
+        BeamSqlRelUtils.getNodeStats(
+            ((BeamJoinRel) root).getRight(), root.getCluster().getMetadataQuery());
+
+    Assert.assertFalse(estimate.isUnknown());
+    Assert.assertEquals(0d, estimate.getRowCount(), 0.01);
+
+    Assert.assertNotEquals(0d, estimate.getRate(), 0.001);
+    Assert.assertTrue(
+        estimate.getRate()
+            < leftEstimate.getRate() * rightEstimate.getWindow()
+                + rightEstimate.getRate() * leftEstimate.getWindow());
+
+    Assert.assertNotEquals(0d, estimate.getWindow(), 0.001);
+    Assert.assertTrue(estimate.getWindow() < leftEstimate.getWindow() * rightEstimate.getWindow());
   }
 
   @Test

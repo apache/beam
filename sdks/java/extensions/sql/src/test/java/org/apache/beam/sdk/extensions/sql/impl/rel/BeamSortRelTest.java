@@ -18,13 +18,16 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.extensions.sql.TestUtils;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.calcite.rel.RelNode;
 import org.joda.time.DateTime;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -102,7 +105,7 @@ public class BeamSortRelTest extends BaseRelTest {
   }
 
   @Test
-  public void testOrderBy_basic() throws Exception {
+  public void testOrderBy_basic() {
     String sql =
         "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
             + " order_id, site_id, price "
@@ -122,7 +125,7 @@ public class BeamSortRelTest extends BaseRelTest {
   }
 
   @Test
-  public void testOrderBy_timestamp() throws Exception {
+  public void testOrderBy_timestamp() {
     String sql =
         "SELECT order_id, site_id, price, order_time "
             + "FROM ORDER_DETAILS "
@@ -158,7 +161,7 @@ public class BeamSortRelTest extends BaseRelTest {
   }
 
   @Test
-  public void testOrderBy_nullsFirst() throws Exception {
+  public void testOrderBy_nullsFirst() {
     Schema schema =
         Schema.builder()
             .addField("order_id", Schema.FieldType.INT64)
@@ -188,7 +191,7 @@ public class BeamSortRelTest extends BaseRelTest {
   }
 
   @Test
-  public void testOrderBy_nullsLast() throws Exception {
+  public void testOrderBy_nullsLast() {
     Schema schema =
         Schema.builder()
             .addField("order_id", Schema.FieldType.INT64)
@@ -218,7 +221,7 @@ public class BeamSortRelTest extends BaseRelTest {
   }
 
   @Test
-  public void testOrderBy_with_offset2() throws Exception {
+  public void testOrderBy_with_offset2() {
     Schema schema = Schema.builder().addField("count_star", Schema.FieldType.INT64).build();
 
     String sql =
@@ -232,7 +235,7 @@ public class BeamSortRelTest extends BaseRelTest {
   }
 
   @Test
-  public void testOrderBy_with_offset() throws Exception {
+  public void testOrderBy_with_offset() {
     String sql =
         "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
             + " order_id, site_id, price "
@@ -252,7 +255,7 @@ public class BeamSortRelTest extends BaseRelTest {
   }
 
   @Test
-  public void testOrderBy_bigFetch() throws Exception {
+  public void testOrderBy_bigFetch() {
     String sql =
         "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
             + " order_id, site_id, price "
@@ -287,5 +290,27 @@ public class BeamSortRelTest extends BaseRelTest {
 
     TestPipeline pipeline = TestPipeline.create();
     compilePipeline(sql, pipeline);
+  }
+
+  @Test
+  public void testNodeStatsEstimation() {
+    String sql =
+        "SELECT order_id, site_id, price, order_time "
+            + "FROM ORDER_DETAILS "
+            + "ORDER BY order_time asc limit 11";
+
+    RelNode root = env.parseQuery(sql);
+
+    while (!(root instanceof BeamSortRel)) {
+      root = root.getInput(0);
+    }
+
+    NodeStats estimate = BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
+
+    Assert.assertFalse(estimate.isUnknown());
+    Assert.assertEquals(0d, estimate.getRate(), 0.01);
+
+    Assert.assertEquals(10., estimate.getRowCount(), 0.01);
+    Assert.assertEquals(10., estimate.getWindow(), 0.01);
   }
 }

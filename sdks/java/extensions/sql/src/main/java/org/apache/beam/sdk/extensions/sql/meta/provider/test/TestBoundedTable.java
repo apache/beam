@@ -47,7 +47,7 @@ public class TestBoundedTable extends TestTable {
   }
 
   @Override
-  public BeamTableStatistics getRowCount(PipelineOptions options) {
+  public BeamTableStatistics getTableStatistics(PipelineOptions options) {
     return BeamTableStatistics.createBoundedTableStatistics((double) rows.size());
   }
 

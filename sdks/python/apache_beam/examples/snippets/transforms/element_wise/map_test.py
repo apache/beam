@@ -23,10 +23,37 @@ import unittest
 
 import mock
 
-from apache_beam.examples.snippets.transforms.element_wise.map import *
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+
+from . import map
+
+
+def check_plants(actual):
+  # [START plants]
+  plants = [
+      '🍓Strawberry',
+      '🥕Carrot',
+      '🍆Eggplant',
+      '🍅Tomato',
+      '🥔Potato',
+  ]
+  # [END plants]
+  assert_that(actual, equal_to(plants))
+
+
+def check_plant_details(actual):
+  # [START plant_details]
+  plant_details = [
+      {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
+      {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
+      {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
+      {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
+      {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
+  ]
+  # [END plant_details]
+  assert_that(actual, equal_to(plant_details))
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
@@ -34,51 +61,29 @@ from apache_beam.testing.util import equal_to
 @mock.patch('apache_beam.examples.snippets.transforms.element_wise.map.print', lambda elem: elem)
 # pylint: enable=line-too-long
 class MapTest(unittest.TestCase):
-  def __init__(self, methodName):
-    super(MapTest, self).__init__(methodName)
-    # [START plants]
-    plants = [
-        '🍓Strawberry',
-        '🥕Carrot',
-        '🍆Eggplant',
-        '🍅Tomato',
-        '🥔Potato',
-    ]
-    # [END plants]
-    self.plants_test = lambda actual: assert_that(actual, equal_to(plants))
-
-    # [START plant_details]
-    plant_details = [
-        {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
-        {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
-        {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
-        {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
-        {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
-    ]
-    # [END plant_details]
-    self.plant_details_test = lambda actual: \
-        assert_that(actual, equal_to(plant_details))
-
   def test_map_simple(self):
-    map_simple(self.plants_test)
+    map.map_simple(check_plants)
 
   def test_map_function(self):
-    map_function(self.plants_test)
+    map.map_function(check_plants)
 
   def test_map_lambda(self):
-    map_lambda(self.plants_test)
+    map.map_lambda(check_plants)
 
   def test_map_multiple_arguments(self):
-    map_multiple_arguments(self.plants_test)
+    map.map_multiple_arguments(check_plants)
+
+  def test_map_tuple(self):
+    map.map_tuple(check_plants)
 
   def test_map_side_inputs_singleton(self):
-    map_side_inputs_singleton(self.plants_test)
+    map.map_side_inputs_singleton(check_plants)
 
   def test_map_side_inputs_iter(self):
-    map_side_inputs_iter(self.plants_test)
+    map.map_side_inputs_iter(check_plants)
 
   def test_map_side_inputs_dict(self):
-    map_side_inputs_dict(self.plant_details_test)
+    map.map_side_inputs_dict(check_plant_details)
 
 
 if __name__ == '__main__':
