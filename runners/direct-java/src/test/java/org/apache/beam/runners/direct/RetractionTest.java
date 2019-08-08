@@ -85,6 +85,7 @@ public class RetractionTest {
         .containsInAnyOrder(KV.of("Java", 2L), KV.of("Python", 1L), KV.of("Go", 1L));
 
     PAssert.that(pc).filterAdditions().inLatePane(window).containsInAnyOrder(KV.of("Java", 3L));
+    PAssert.that(pc).filterRetractions().inLatePane(window).containsInAnyOrder(KV.of("Java", 2L));
 
     pipeline.run();
   }

@@ -442,7 +442,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
 
     @Override
     public void outputRetraction(OutputT value) {
-      // TODO: none
+      callbacks.outputRetraction(value);
     }
 
     @Override

@@ -57,7 +57,7 @@ public abstract class WindowedValue<T> {
     return of(value, timestamp, windows, pane, false);
   }
 
-  /** Returns a {@code WindowedValue} with the given value, timestamp, windows and isRetraction */
+  /** Returns a {@code WindowedValue} with the given value, timestamp, windows and isRetraction. */
   public static <T> WindowedValue<T> of(
       T value,
       Instant timestamp,
@@ -262,7 +262,7 @@ public abstract class WindowedValue<T> {
 
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new ValueInGlobalWindow<>(newValue, getPane());
+      return new ValueInGlobalWindow<>(newValue, getPane(), isRetraction);
     }
 
     @Override
@@ -346,7 +346,8 @@ public abstract class WindowedValue<T> {
 
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new TimestampedValueInGlobalWindow<>(newValue, getTimestamp(), getPane());
+      return new TimestampedValueInGlobalWindow<>(
+          newValue, getTimestamp(), getPane(), isRetraction);
     }
 
     @Override
@@ -426,7 +427,8 @@ public abstract class WindowedValue<T> {
 
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new TimestampedValueInSingleWindow<>(newValue, getTimestamp(), window, getPane());
+      return new TimestampedValueInSingleWindow<>(
+          newValue, getTimestamp(), window, getPane(), isRetraction);
     }
 
     @Override
@@ -507,7 +509,8 @@ public abstract class WindowedValue<T> {
 
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new TimestampedValueInMultipleWindows<>(newValue, getTimestamp(), windows, getPane());
+      return new TimestampedValueInMultipleWindows<>(
+          newValue, getTimestamp(), windows, getPane(), isRetraction);
     }
 
     @Override

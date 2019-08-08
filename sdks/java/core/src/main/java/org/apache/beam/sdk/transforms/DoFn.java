@@ -157,6 +157,11 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      */
     public abstract void output(OutputT output);
 
+    /** Output as a retraction. */
+    public void outputRetraction(OutputT output) {
+      throw new UnsupportedOperationException("outputRetraction not supported");
+    }
+
     /**
      * Adds the given element to the main output {@code PCollection}, with the given timestamp.
      *
@@ -201,6 +206,11 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * @see ParDo.SingleOutput#withOutputTags
      */
     public abstract <T> void output(TupleTag<T> tag, T output);
+
+    /** Output as a retraction. */
+    public <T> void outputRetraction(TupleTag<T> tag, T output) {
+      throw new UnsupportedOperationException("outputRetraction not supported");
+    }
 
     /**
      * Adds the given element to the specified output {@code PCollection}, with the given timestamp.

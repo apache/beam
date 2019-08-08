@@ -211,7 +211,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   private void invokeProcessElement(WindowedValue<InputT> elem) {
     // This can contain user code. Wrap it in case it throws an exception.
     try {
-      invoker.invokeProcessElement(new DoFnProcessContext(elem));
+      if (elem.isRetraction()) {
+        invoker.invokeProcessRetraction(new DoFnProcessContext(elem));
+      } else {
+        invoker.invokeProcessElement(new DoFnProcessContext(elem));
+      }
     } catch (Exception ex) {
       throw wrapUserCodeException(ex);
     }
@@ -549,6 +553,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void outputRetraction(OutputT output) {
+      output(mainOutputTag, output);
+    }
+
+    @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
       checkTimestamp(timestamp);
       outputWithTimestamp(mainOutputTag, output, timestamp);
@@ -556,6 +565,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public <T> void output(TupleTag<T> tag, T output) {
+      checkNotNull(tag, "Tag passed to output cannot be null");
+      outputWindowedValue(tag, elem.withValue(output));
+    }
+
+    @Override
+    public <T> void outputRetraction(TupleTag<T> tag, T output) {
       checkNotNull(tag, "Tag passed to output cannot be null");
       outputWindowedValue(tag, elem.withValue(output));
     }

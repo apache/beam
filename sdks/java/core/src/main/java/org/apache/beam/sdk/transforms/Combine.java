@@ -2172,6 +2172,21 @@ public class Combine {
                           c.output(KV.of(key, output));
                         }
 
+                        @ProcessRetraction
+                        public void processRetraction(final ProcessContext c) {
+                          if (fn instanceof CombineFn) {
+                            c.outputRetraction(
+                                KV.of(
+                                    c.element().getKey(),
+                                    ((CombineFn<? super InputT, ?, OutputT>) fn)
+                                        .apply(c.element().getValue())));
+
+                          } else {
+                            throw new IllegalStateException(
+                                String.format("Unknown type of CombineFn: %s", fn.getClass()));
+                          }
+                        }
+
                         @Override
                         public void populateDisplayData(DisplayData.Builder builder) {
                           builder.delegate(Combine.GroupedValues.this);

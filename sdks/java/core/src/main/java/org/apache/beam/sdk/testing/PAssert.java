@@ -546,7 +546,7 @@ public class PAssert {
 
       @ProcessRetraction
       public void processRetraction(ProcessContext c) {
-        c.output(c.element());
+        c.outputRetraction(c.element());
       }
     };
   }
