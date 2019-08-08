@@ -451,6 +451,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Target({ElementType.FIELD, ElementType.PARAMETER})
   @Experimental(Kind.SCHEMAS)
   public @interface FieldAccess {
+    /** FieldAccess. */
     String value();
   }
 
