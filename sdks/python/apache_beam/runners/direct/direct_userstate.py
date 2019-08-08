@@ -18,9 +18,132 @@
 """Support for user state in the BundleBasedDirectRunner."""
 from __future__ import absolute_import
 
+import itertools
+
 from apache_beam.transforms import userstate
 from apache_beam.transforms.trigger import _ListStateTag
 from apache_beam.transforms.trigger import _SetStateTag
+
+
+class DirectRuntimeState(userstate.RuntimeState):
+  def __init__(self, state_spec, state_tag, current_value_accessor):
+    self._state_spec = state_spec
+    self._state_tag = state_tag
+    self._current_value_accessor = current_value_accessor
+
+  @staticmethod
+  def for_spec(state_spec, state_tag, current_value_accessor):
+    if isinstance(state_spec, userstate.BagStateSpec):
+      return BagRuntimeState(state_spec, state_tag, current_value_accessor)
+    elif isinstance(state_spec, userstate.CombiningValueStateSpec):
+      return CombiningValueRuntimeState(state_spec, state_tag,
+                                        current_value_accessor)
+    elif isinstance(state_spec, userstate.SetStateSpec):
+      return SetRuntimeState(state_spec, state_tag, current_value_accessor)
+    else:
+      raise ValueError('Invalid state spec: %s' % state_spec)
+
+  def _encode(self, value):
+    return self._state_spec.coder.encode(value)
+
+  def _decode(self, value):
+    return self._state_spec.coder.decode(value)
+
+
+# Sentinel designating an unread value.
+UNREAD_VALUE = object()
+
+
+class BagRuntimeState(DirectRuntimeState, userstate.BagRuntimeState):
+  def __init__(self, state_spec, state_tag, current_value_accessor):
+    super(BagRuntimeState, self).__init__(
+        state_spec, state_tag, current_value_accessor)
+    self._cached_value = UNREAD_VALUE
+    self._cleared = False
+    self._new_values = []
+
+  def read(self):
+    if self._cached_value is UNREAD_VALUE:
+      self._cached_value = self._current_value_accessor()
+    if not self._cleared:
+      encoded_values = itertools.chain(self._cached_value, self._new_values)
+    else:
+      encoded_values = self._new_values
+    return (self._decode(v) for v in encoded_values)
+
+  def add(self, value):
+    self._new_values.append(self._encode(value))
+
+  def clear(self):
+    self._cleared = True
+    self._cached_value = []
+    self._new_values = []
+
+
+class SetRuntimeState(DirectRuntimeState, userstate.SetRuntimeState):
+  def __init__(self, state_spec, state_tag, current_value_accessor):
+    super(SetRuntimeState, self).__init__(
+        state_spec, state_tag, current_value_accessor)
+    self._current_accumulator = UNREAD_VALUE
+    self._modified = False
+
+  def _read_initial_value(self):
+    if self._current_accumulator is UNREAD_VALUE:
+      self._current_accumulator = {
+          self._decode(a) for a in self._current_value_accessor()
+      }
+
+  def read(self):
+    self._read_initial_value()
+    return self._current_accumulator
+
+  def add(self, value):
+    self._read_initial_value()
+    self._modified = True
+    self._current_accumulator.add(value)
+
+  def clear(self):
+    self._current_accumulator = set()
+    self._modified = True
+
+  def is_modified(self):
+    return self._modified
+
+
+class CombiningValueRuntimeState(
+    DirectRuntimeState, userstate.CombiningValueRuntimeState):
+  """Combining value state interface object passed to user code."""
+
+  def __init__(self, state_spec, state_tag, current_value_accessor):
+    super(CombiningValueRuntimeState, self).__init__(
+        state_spec, state_tag, current_value_accessor)
+    self._current_accumulator = UNREAD_VALUE
+    self._modified = False
+    self._combine_fn = state_spec.combine_fn
+
+  def _read_initial_value(self):
+    if self._current_accumulator is UNREAD_VALUE:
+      existing_accumulators = list(
+          self._decode(a) for a in self._current_value_accessor())
+      if existing_accumulators:
+        self._current_accumulator = self._combine_fn.merge_accumulators(
+            existing_accumulators)
+      else:
+        self._current_accumulator = self._combine_fn.create_accumulator()
+
+  def read(self):
+    self._read_initial_value()
+    return self._combine_fn.extract_output(self._current_accumulator)
+
+  def add(self, value):
+    self._read_initial_value()
+    self._modified = True
+    self._current_accumulator = self._combine_fn.add_input(
+        self._current_accumulator, value)
+
+  def clear(self):
+    self._modified = True
+    self._current_accumulator = self._combine_fn.create_accumulator()
 
 
 class DirectUserStateContext(userstate.UserStateContext):
@@ -69,7 +192,7 @@ class DirectUserStateContext(userstate.UserStateContext):
       state_tag = self.state_tags[state_spec]
       value_accessor = (
           lambda: self._get_underlying_state(state_spec, key, window))
-      self.cached_states[cache_key] = userstate.RuntimeState.for_spec(
+      self.cached_states[cache_key] = DirectRuntimeState.for_spec(
           state_spec, state_tag, value_accessor)
     return self.cached_states[cache_key]
 
