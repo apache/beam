@@ -110,11 +110,6 @@ public class FetchAndFilterStreamingSideInputsOperation<T, W extends BoundedWind
     }
 
     @Override
-    public void setPCollection(PCollection<?> pCollection) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
     public TupleTag<?> getTagInternal() {
       return delegate.getTagInternal();
     }
@@ -137,11 +132,6 @@ public class FetchAndFilterStreamingSideInputsOperation<T, W extends BoundedWind
     @Override
     public Coder<?> getCoderInternal() {
       return delegate.getCoderInternal();
-    }
-
-    @Override
-    public void setTagInternalId(String id) {
-      throw new UnsupportedOperationException();
     }
 
     @Override

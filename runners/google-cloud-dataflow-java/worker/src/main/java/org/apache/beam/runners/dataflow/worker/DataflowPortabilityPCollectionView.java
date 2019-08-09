@@ -76,11 +76,6 @@ public class DataflowPortabilityPCollectionView<K, V, W extends BoundedWindow>
   }
 
   @Override
-  public void setPCollection(PCollection<?> pCollection) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
   public TupleTag<KV<K, V>> getTagInternal() {
     return tag;
   }
@@ -151,11 +146,6 @@ public class DataflowPortabilityPCollectionView<K, V, W extends BoundedWindow>
   @Override
   public Coder<?> getCoderInternal() {
     return coder.getValueCoder();
-  }
-
-  @Override
-  public void setTagInternalId(String id) {
-    throw new UnsupportedOperationException();
   }
 
   @Override

@@ -63,11 +63,6 @@ public class RunnerPCollectionView<T> extends PValueBase implements PCollectionV
   }
 
   @Override
-  public void setPCollection(PCollection<?> pCollectionData) {
-    pCollection = pCollectionData;
-  }
-
-  @Override
   public TupleTag<Iterable<WindowedValue<?>>> getTagInternal() {
     return tag;
   }
@@ -90,14 +85,6 @@ public class RunnerPCollectionView<T> extends PValueBase implements PCollectionV
   @Override
   public Coder<?> getCoderInternal() {
     return coder;
-  }
-
-  @Override
-  public void setTagInternalId(String id) {
-    throw new UnsupportedOperationException(
-        String.format(
-            "set tagInternalId cannot be called on %s",
-            RunnerPCollectionView.class.getSimpleName()));
   }
 
   @Override

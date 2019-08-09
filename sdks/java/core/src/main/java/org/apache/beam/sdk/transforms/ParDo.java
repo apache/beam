@@ -55,15 +55,18 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElem
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
+import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
@@ -657,8 +660,8 @@ public class ParDo {
      * <p>See the discussion of Side Inputs above for more explanation.
      */
     public SingleOutput<InputT, OutputT> withSideInput(String tagId, PCollectionView<?> sideInput) {
-      sideInput.setTagInternalId(tagId);
-      return withSideInputs(sideInput);
+      DelegatingPCollectionView delegatingPCollectionView = DelegatingPCollectionView.of(sideInput, tagId);
+      return withSideInputs(delegatingPCollectionView);
     }
 
     /**
@@ -760,6 +763,91 @@ public class ParDo {
     }
   }
 
+  public static class DelegatingPCollectionView<T> implements PCollectionView<T> {
+
+    private final PCollectionView<T> delegate;
+    private final TupleTag<?> tagId;
+
+    private DelegatingPCollectionView(PCollectionView<T> value, String tagId) {
+      this.delegate = value;
+      this.tagId = new TupleTag<>(tagId);
+    }
+
+    public static <T> DelegatingPCollectionView<T> of(PCollectionView<T> value, String tagId) {
+      return new DelegatingPCollectionView<>(value, tagId);
+    }
+
+    @Nullable
+    @Override
+    public PCollection<?> getPCollection() {
+      return delegate.getPCollection();
+    }
+
+    @Override
+    public TupleTag<?> getTagInternal() {
+      return this.tagId;
+    }
+
+    @Override
+    public ViewFn<?, T> getViewFn() {
+      return delegate.getViewFn();
+    }
+
+    @Override
+    public WindowMappingFn<?> getWindowMappingFn() {
+      return delegate.getWindowMappingFn();
+    }
+
+    @Override
+    public WindowingStrategy<?, ?> getWindowingStrategyInternal() {
+      return delegate.getWindowingStrategyInternal();
+    }
+
+    @Override
+    public Coder<?> getCoderInternal() {
+      return delegate.getCoderInternal();
+    }
+
+    @Override
+    public String getName() {
+      return delegate.getName();
+    }
+
+    @Override
+    public Pipeline getPipeline() {
+      return delegate.getPipeline();
+    }
+
+    @Override
+    public Map<TupleTag<?>, PValue> expand() {
+      return delegate.expand();
+    }
+
+    @Override
+    public void finishSpecifyingOutput(String transformName, PInput input, PTransform<?, ?> transform) {
+      delegate.finishSpecifyingOutput(transformName, input, transform);
+    }
+
+    @Override
+    public void finishSpecifying(PInput upstreamInput, PTransform<?, ?> upstreamTransform) {
+      delegate.finishSpecifying(upstreamInput, upstreamTransform);
+    }
+
+    @Override
+    public int hashCode() {
+      return delegate.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return delegate.equals(obj);
+    }
+
+    @Override
+    public String toString() {
+      return delegate.toString();
+    }
+  }
   /**
    * A {@link PTransform} that, when applied to a {@code PCollection<InputT>}, invokes a
    * user-specified {@code DoFn<InputT, OutputT>} on all its elements, which can emit elements to
@@ -809,7 +897,6 @@ public class ParDo {
      * <p>See the discussion of Side Inputs above for more explanation.
      */
     public MultiOutput<InputT, OutputT> withSideInput(String tagId, PCollectionView<?> sideInput) {
-      sideInput.setTagInternalId(tagId);
       return withSideInputs(sideInput);
     }
 

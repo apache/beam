@@ -339,7 +339,7 @@ public class PCollectionViews {
   public static class SimplePCollectionView<ElemT, PrimitiveViewT, ViewT, W extends BoundedWindow>
       extends PValueBase implements PCollectionView<ViewT> {
     /** The {@link PCollection} this view was originally created from. */
-    private transient PCollection<?> pCollection;
+    private transient PCollection<ElemT> pCollection;
 
     /** A unique tag for the view, typed according to the elements underlying the view. */
     private TupleTag<PrimitiveViewT> tag;
@@ -404,11 +404,6 @@ public class PCollectionViews {
       return pCollection;
     }
 
-    @Override
-    public void setPCollection(PCollection<?> pCollectionData) {
-      pCollection = pCollectionData;
-    }
-
     /**
      * Returns a unique {@link TupleTag} identifying this {@link PCollectionView}.
      *
@@ -434,12 +429,6 @@ public class PCollectionViews {
     public Coder<?> getCoderInternal() {
       return coder;
     }
-
-    @Override
-    public void setTagInternalId(String id) {
-      this.tag = new TupleTag<>(id);
-    }
-
     @Override
     public int hashCode() {
       return Objects.hash(tag);
