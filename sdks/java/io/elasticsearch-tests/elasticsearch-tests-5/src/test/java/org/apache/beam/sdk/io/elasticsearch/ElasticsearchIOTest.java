@@ -122,21 +122,12 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   }
 
   @Test
-  public void testReadWithQueryString() throws Exception {
+  public void testReadWithQuery() throws Exception {
     // need to create the index using the helper method (not create it at first insertion)
     // for the indexSettings() to be run
     createIndex(getEsIndex());
     elasticsearchIOTestCommon.setPipeline(pipeline);
-    elasticsearchIOTestCommon.testReadWithQueryString();
-  }
-
-  @Test
-  public void testReadWithQueryValueProvider() throws Exception {
-    // need to create the index using the helper method (not create it at first insertion)
-    // for the indexSettings() to be run
-    createIndex(getEsIndex());
-    elasticsearchIOTestCommon.setPipeline(pipeline);
-    elasticsearchIOTestCommon.testReadWithQueryValueProvider();
+    elasticsearchIOTestCommon.testReadWithQuery();
   }
 
   @Test
