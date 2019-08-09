@@ -131,15 +131,9 @@ public class ElasticsearchIOTest implements Serializable {
   }
 
   @Test
-  public void testReadWithQueryString() throws Exception {
+  public void testReadWithQuery() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
-    elasticsearchIOTestCommon.testReadWithQueryString();
-  }
-
-  @Test
-  public void testReadWithQueryValueProvider() throws Exception {
-    elasticsearchIOTestCommon.setPipeline(pipeline);
-    elasticsearchIOTestCommon.testReadWithQueryValueProvider();
+    elasticsearchIOTestCommon.testReadWithQuery();
   }
 
   @Test

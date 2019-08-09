@@ -45,13 +45,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.BiFunction;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.DefaultRetryPredicate;
 import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.RetryPredicate;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -198,17 +196,7 @@ class ElasticsearchIOTestCommon implements Serializable {
     pipeline.run();
   }
 
-  void testReadWithQueryString() throws Exception {
-    testReadWithQueryInternal(Read::withQuery);
-  }
-
-  void testReadWithQueryValueProvider() throws Exception {
-    testReadWithQueryInternal(
-        (read, query) -> read.withQuery(ValueProvider.StaticValueProvider.of(query)));
-  }
-
-  private void testReadWithQueryInternal(BiFunction<Read, String, Read> queryConfigurer)
-      throws IOException {
+  void testReadWithQuery() throws Exception {
     if (!useAsITests) {
       ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
     }
@@ -224,12 +212,11 @@ class ElasticsearchIOTestCommon implements Serializable {
             + "  }\n"
             + "}";
 
-    Read read = ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
-
-    read = queryConfigurer.apply(read, query);
-
-    PCollection<String> output = pipeline.apply(read);
-
+    PCollection<String> output =
+        pipeline.apply(
+            ElasticsearchIO.read()
+                .withConnectionConfiguration(connectionConfiguration)
+                .withQuery(query));
     PAssert.thatSingleton(output.apply("Count", Count.globally()))
         .isEqualTo(numDocs / NUM_SCIENTISTS);
     pipeline.run();
