@@ -429,6 +429,7 @@ public class PCollectionViews {
     public Coder<?> getCoderInternal() {
       return coder;
     }
+
     @Override
     public int hashCode() {
       return Objects.hash(tag);

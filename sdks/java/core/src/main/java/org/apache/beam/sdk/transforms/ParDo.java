@@ -660,7 +660,8 @@ public class ParDo {
      * <p>See the discussion of Side Inputs above for more explanation.
      */
     public SingleOutput<InputT, OutputT> withSideInput(String tagId, PCollectionView<?> sideInput) {
-      DelegatingPCollectionView delegatingPCollectionView = DelegatingPCollectionView.of(sideInput, tagId);
+      DelegatingPCollectionView delegatingPCollectionView =
+          DelegatingPCollectionView.of(sideInput, tagId);
       return withSideInputs(delegatingPCollectionView);
     }
 
@@ -763,6 +764,7 @@ public class ParDo {
     }
   }
 
+  /** A {@link PCollectionView} which forwards all calls to its delegate. */
   public static class DelegatingPCollectionView<T> implements PCollectionView<T> {
 
     private final PCollectionView<T> delegate;
@@ -824,7 +826,8 @@ public class ParDo {
     }
 
     @Override
-    public void finishSpecifyingOutput(String transformName, PInput input, PTransform<?, ?> transform) {
+    public void finishSpecifyingOutput(
+        String transformName, PInput input, PTransform<?, ?> transform) {
       delegate.finishSpecifyingOutput(transformName, input, transform);
     }
 
@@ -841,11 +844,6 @@ public class ParDo {
     @Override
     public boolean equals(Object obj) {
       return delegate.equals(obj);
-    }
-
-    @Override
-    public String toString() {
-      return delegate.toString();
     }
   }
   /**
