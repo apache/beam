@@ -25,7 +25,7 @@ applyPythonNature()
 
 task buildPython(dependsOn: 'setupVirtualenv') {
   doLast {
-    println 'Building Python Dependencies'
+    logger.info('Building Python Dependencies')
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && python setup.py build --build-base ${project.buildDir}"
@@ -50,7 +50,7 @@ task sdist {
 
     // we need a fixed name for the artifact
     copy { from collection.singleFile; into project.buildDir; rename { tarball } }
-    println "Create distribution tar file ${tarball} in ${project.buildDir}"
+    logger.info('Create distribution tar file {} in {}', tarball, project.buildDir)
   }
   inputs.files project.pythonSdkDeps
   outputs.file "${project.buildDir}/${tarball}"
@@ -68,11 +68,13 @@ artifacts {
 // Results will be stored in files under Gradle build directory.
 task depSnapshot(dependsOn: 'installGcpTest') {
   doLast {
-    println 'Snapshoting full dependencies requirements with versions info to requirements.txt.'
+    def requirements_file = new File("${project.buildDir}/requirements.txt")
+    requirements_file.createNewFile()
+    logger.info('Snapshoting full dependencies requirements with versions info to build/requirements.txt.')
     exec {
       // Remove useless item "pkg-resources" from file which is introduced by a bug in Ubuntu.
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && pip freeze --local --all | grep -v \"pkg-resources\" > ${project.buildDir}/requirements.txt"
+      args '-c', ". ${project.ext.envdir}/bin/activate && pip freeze --local --all | grep -v \"pkg-resources\" > ${requirements_file}"
     }
   }
 }
