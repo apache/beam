@@ -39,7 +39,7 @@ class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<UserT, Destin
       ValueProvider<ResourceId> outputPrefix,
       DynamicAvroDestinations<UserT, DestinationT, OutputT> dynamicDestinations,
       boolean genericRecords) {
-    // Avro handle compression internally using the codec.
+    // Avro handles compression internally using the codec.
     super(outputPrefix, dynamicDestinations, Compression.UNCOMPRESSED);
     this.genericRecords = genericRecords;
   }
