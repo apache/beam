@@ -25,8 +25,6 @@ The 'test_id' is common for all metrics for one run.
 Currently it is possible to have following metrics types:
 * runtime
 * total_bytes_count
-
-
 """
 
 from __future__ import absolute_import
@@ -34,7 +32,6 @@ from __future__ import absolute_import
 import logging
 import time
 import uuid
-from itertools import groupby
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
@@ -75,20 +72,9 @@ SCHEMA = [
     }
 ]
 
-def group_by_metrics_name(sorted_metrics):
-  """ Function groups metrics from pipeline result by metric name.
-
-  Args:
-    sorted_metrics(list): list of all metrics from pipeline result sorted by name
-
-  Returns:
-    map of key (name) and iterator of metrics with this name
-  """
-  return groupby(sorted_metrics, lambda x: x.key.metric.name)
-
 
 def parse_step(step_name):
-  """Funtion replaces white spaces and removes 'Step:' label
+  """Replaces white spaces and removes 'Step:' label
 
   Args:
     step_name(str): step name passed in metric ParDo
@@ -99,9 +85,87 @@ def parse_step(step_name):
   return step_name.lower().replace(' ', '_').strip('step:_')
 
 
+def split_metrics_by_namespace_and_name(metrics, namespace, name):
+  """Splits metrics list namespace and name.
+
+  Args:
+    metrics: list of metrics from pipeline result
+    namespace(str): filter metrics by namespace
+    name(str): filter metrics by name
+
+  Returns:
+    two lists - one of metrics which are matching filters
+    and second of not matching
+  """
+  matching_metrics = []
+  not_matching_metrics = []
+  for dist in metrics:
+    if dist.key.metric.namespace == namespace\
+        and dist.key.metric.name == name:
+      matching_metrics.append(dist)
+    else:
+      not_matching_metrics.append(dist)
+  return matching_metrics, not_matching_metrics
+
+
+def get_generic_distributions(generic_dists, metric_id):
+  """Creates flatten list of distributions per its value type.
+  A generic distribution is the one which is not processed but saved in
+  the most raw version.
+
+  Args:
+    generic_dists: list of distributions to be saved
+    metric_id(uuid): id of the current test run
+
+  Returns:
+    list of dictionaries made from :class:`DistributionMetric`
+  """
+  return sum(
+      (get_all_distributions_by_type(dist, metric_id)
+       for dist in generic_dists),
+      []
+  )
+
+
+def get_all_distributions_by_type(dist, metric_id):
+  """Creates new list of objects with type of each distribution
+  metric value.
+
+  Args:
+    dist(object): DistributionMetric object to be parsed
+    metric_id(uuid): id of the current test run
+  Returns:
+    list of :class:`DistributionMetric` objects
+  """
+  submit_timestamp = time.time()
+  dist_types = ['mean', 'max', 'min', 'sum']
+  return [
+      get_distribution_dict(dist_type, submit_timestamp,
+                            dist, metric_id)
+      for dist_type in dist_types
+  ]
+
+
+def get_distribution_dict(metric_type, submit_timestamp, dist, metric_id):
+  """Function creates :class:`DistributionMetric`
+
+  Args:
+    metric_type(str): type of value from distribution metric which will
+      be saved (ex. max, min, mean, sum)
+    submit_timestamp: timestamp when metric is saved
+    dist(object) distribution object from pipeline result
+    metric_id(uuid): id of the current test run
+
+  Returns:
+    dictionary prepared for saving according to schema
+  """
+  return DistributionMetric(dist, submit_timestamp, metric_id,
+                            metric_type).as_dict()
+
+
 class MetricsReader(object):
   """
-  A :class:`MetricReader` retrieves metrics from pipeline result,
+  A :class:`MetricsReader` retrieves metrics from pipeline result,
   prepares it for publishers and setup publishers.
   """
   publishers = []
@@ -114,9 +178,10 @@ class MetricsReader(object):
       project_name (str): project with BigQuery where metrics will be saved
       bq_table (str): BigQuery table where metrics will be saved
       bq_dataset (str): BigQuery dataset where metrics will be saved
+      filters: MetricFilter to query only filtered metrics
     """
-    self.publishers.append(ConsoleMetricsPublisher())
     self._namespace = bq_table
+    self.publishers.append(ConsoleMetricsPublisher())
     check = project_name and bq_table and bq_dataset
     if check:
       bq_publisher = BigQueryMetricsPublisher(
@@ -126,6 +191,12 @@ class MetricsReader(object):
 
   def publish_metrics(self, result):
     metrics = result.metrics().query(self.filters)
+
+    # Metrics from pipeline result are stored in map with keys: 'gauges',
+    # 'distributions' and 'counters'.
+    # Under each key there is list of objects of each metric type. It is
+    # required to prepare metrics for publishing purposes. Expected is to have
+    # a list of dictionaries matching the schema.
     insert_dicts = self._prepare_all_metrics(metrics)
     if len(insert_dicts):
       for publisher in self.publishers:
@@ -140,46 +211,32 @@ class MetricsReader(object):
 
   def _get_counters(self, counters, metric_id):
     submit_timestamp = time.time()
-    return [CounterMetric(counter, submit_timestamp, metric_id).as_dict()
-      for counter
-      in counters]
+    return [
+        CounterMetric(counter, submit_timestamp, metric_id).as_dict()
+        for counter in counters
+    ]
 
   def _get_distributions(self, distributions, metric_id):
-    sorted_dists = sorted(distributions, key=lambda x: x.key.metric.name)
     rows = []
-    for label, dists in group_by_metrics_name(sorted_dists):
-      dists = list(dists)
-      if label == RUNTIME_METRIC:
-        metric = RuntimeMetric(dists, metric_id)
-        rows.append(metric.as_dict())
-      else:
-        rows += self._get_generic_distributions(dists, metric_id)
+    matching_namsespace, not_matching_namespace = \
+      split_metrics_by_namespace_and_name(distributions, self._namespace,
+                                          RUNTIME_METRIC)
+    runtime_metric = RuntimeMetric(matching_namsespace, metric_id)
+    rows.append(runtime_metric.as_dict())
+
+    rows += get_generic_distributions(not_matching_namespace, metric_id)
     return rows
 
-  def _get_generic_distributions(self, generic_dists, metric_id):
-    return sum((self._get_all_distributions_by_type(dist, metric_id)
-               for dist
-               in generic_dists),
-               [])
-
-  def _get_all_distributions_by_type(self, dist, metric_id):
-    submit_timestamp = time.time()
-    dist_types = ['mean', 'max', 'min', 'sum']
-    return [self._get_distribution_dict(dist_type, submit_timestamp, dist, metric_id)
-            for dist_type
-            in dist_types]
-
-  def _get_distribution_dict(self, type, submit_timestamp, dist, metric_id):
-    return DistributionMetric(dist, submit_timestamp, metric_id, type).as_dict()
 
 class Metric(object):
   """Metric base class in ready-to-save format."""
 
-  def __init__(self, metric, submit_timestamp, metric_id, value, label = None):
+  def __init__(self, submit_timestamp, metric_id, value,
+               metric=None, label=None):
     """Initializes :class:`Metric`
 
     Args:
-      metric (object): metric object from MetricResult
+      metric (object): object of metric result
       submit_timestamp (float): date-time of saving metric to database
       metric_id (uuid): unique id to identify test run
       value: value of metric
@@ -210,7 +267,8 @@ class CounterMetric(Metric):
   """
   def __init__(self, counter_metric, submit_timestamp, metric_id):
     value = counter_metric.committed
-    super(CounterMetric, self).__init__(counter_metric, submit_timestamp, metric_id, value)
+    super(CounterMetric, self).__init__(submit_timestamp, metric_id,
+                                        value, counter_metric)
 
 
 class DistributionMetric(Metric):
@@ -227,23 +285,27 @@ class DistributionMetric(Metric):
                    '_' + metric_type + \
                    '_' + dist_metric.key.metric.name
     value = getattr(dist_metric.committed, metric_type)
-    super(DistributionMetric, self).__init__(dist_metric, submit_timestamp, metric_id, value, custom_label)
+    super(DistributionMetric, self) \
+      .__init__(submit_timestamp, metric_id, value, dist_metric, custom_label)
 
 
 class RuntimeMetric(Metric):
   """The Distribution Metric in ready-to-publish format.
 
   Args:
-    runtime_list (list): list of distributions metrics from MetricResult with runtime name
-    metric_id (uuid): unique id to identify test run
+    runtime_list: list of distributions metrics from MetricResult
+      with runtime name
+    metric_id(uuid): unique id to identify test run
   """
   def __init__(self, runtime_list, metric_id):
     value = self._prepare_runtime_metrics(runtime_list)
     submit_timestamp = time.time()
-    # Label does not include step name, because it is one value calculated out of many steps
+    # Label does not include step name, because it is one value calculated
+    # out of many steps
     label = runtime_list[0].key.metric.namespace + \
             '_' + RUNTIME_METRIC
-    super(RuntimeMetric, self).__init__(runtime_list, submit_timestamp, metric_id, value, label)
+    super(RuntimeMetric, self).__init__(submit_timestamp, metric_id,
+                                        value, None, label)
 
   def _prepare_runtime_metrics(self, distributions):
     min_values = []
@@ -261,7 +323,8 @@ class RuntimeMetric(Metric):
 
 
 class ConsoleMetricsPublisher(object):
-  """A :class:`ConsoleMetricsPublisher` publishes collected metrics to console output."""
+  """A :class:`ConsoleMetricsPublisher` publishes collected metrics
+  to console output."""
   def publish(self, results):
     if len(results) > 0:
       log = "Load test results for test: %s and timestamp: %s:" \
@@ -276,7 +339,8 @@ class ConsoleMetricsPublisher(object):
 
 
 class BigQueryMetricsPublisher(object):
-  """A :class:`BigQueryMetricsPublisher` publishes collected metrics to BigQuery output."""
+  """A :class:`BigQueryMetricsPublisher` publishes collected metrics
+  to BigQuery output."""
   def __init__(self, project_name, table, dataset):
     self.bq = BigQueryClient(project_name, table, dataset)
 
@@ -292,7 +356,8 @@ class BigQueryMetricsPublisher(object):
 
 
 class BigQueryClient(object):
-  """A :class:`BigQueryClient` publishes collected metrics to BigQuery output."""
+  """A :class:`BigQueryClient` publishes collected metrics to
+  BigQuery output."""
   def __init__(self, project_name, table, dataset):
     self._namespace = table
     self._client = bigquery.Client(project=project_name)
@@ -335,8 +400,13 @@ class BigQueryClient(object):
 
 
 class MeasureTime(beam.DoFn):
-  """A distribution metric prepared to be added to pipeline as ParDo to measure runtime."""
+  """A distribution metric prepared to be added to pipeline as ParDo
+   to measure runtime."""
   def __init__(self, namespace):
+    """Initializes :class:`MeasureTime`.
+
+      namespace(str): namespace of  metric
+    """
     self.namespace = namespace
     self.runtime = Metrics.distribution(self.namespace, RUNTIME_METRIC)
 
@@ -351,9 +421,16 @@ class MeasureTime(beam.DoFn):
 
 
 class MeasureBytes(beam.DoFn):
+  """Metric to measure how many bytes was observed in pipeline."""
   LABEL = 'total_bytes'
 
   def __init__(self, namespace, extractor=None):
+    """Initializes :class:`MeasureBytes`.
+
+    Args:
+      namespace(str): metric namespace
+      extractor: function to extract elements to be count
+    """
     self.namespace = namespace
     self.counter = Metrics.counter(self.namespace, self.LABEL)
     self.extractor = extractor if extractor else lambda x: (yield x)
