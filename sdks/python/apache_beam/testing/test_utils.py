@@ -156,13 +156,14 @@ class PullResponseMessage(object):
   """
   def __init__(self, data, attributes=None,
                publish_time_secs=None, publish_time_nanos=None, ack_id=None,
-               message_id=None):
+               message_id=None, publish_time=None):
     self.data = data
     self.attributes = attributes
     self.publish_time_secs = publish_time_secs
     self.publish_time_nanos = publish_time_nanos
     self.ack_id = ack_id
     self.message_id = message_id
+    self.publish_time = publish_time
 
 
 def create_pull_response(responses):
@@ -192,10 +193,12 @@ def create_pull_response(responses):
       message.publish_time.seconds = response.publish_time_secs
     if response.publish_time_nanos is not None:
       message.publish_time.nanos = response.publish_time_nanos
+    if response.message_id is not None:
+      message.message_id = response.message_id
+    if response.publish_time is not None:
+      message.publish_time = response.publish_time
 
     if response.ack_id is not None:
       received_message.ack_id = response.ack_id
-    if response.message_id is not None:
-      message.message_id = response.message_id
 
   return res
