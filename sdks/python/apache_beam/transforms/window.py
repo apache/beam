@@ -199,7 +199,12 @@ class BoundedWindow(object):
 
   def __init__(self, end):
     # type: (Union[int, float, Timestamp]) -> None
-    self.end = Timestamp.of(end)
+    self._end = Timestamp.of(end)
+
+  @property
+  def end(self):
+    # type: () -> Timestamp
+    return self._end
 
   def max_timestamp(self):
     return self.end.predecessor()
