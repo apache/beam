@@ -71,6 +71,8 @@ class PubsubMessage(object):
                        data, attributes)
     self.data = data
     self.attributes = attributes
+    self.message_id = message_id
+    self.publish_time = publish_time
 
   def __hash__(self):
     return hash((self.data, frozenset(self.attributes.items())))

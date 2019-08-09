@@ -78,56 +78,33 @@ class TestPubsubMessage(unittest.TestCase):
     data = b'data'
     attributes = {'k1': 'v1', 'k2': 'v2'}
     m = PubsubMessage(data, attributes)
-<<<<<<< Updated upstream
-    #add PubSub message_id parsed from PubSub protobuf
-    attributes.update(message_id='')
-=======
->>>>>>> Stashed changes
     m_converted = PubsubMessage._from_proto_str(m._to_proto_str())
     self.assertEqual(m_converted.data, data)
     self.assertEqual(m_converted.attributes, attributes)
 
   def test_eq(self):
-<<<<<<< Updated upstream
-    a = PubsubMessage(b'abc', {1: 2, 3: 4})
-    b = PubsubMessage(b'abc', {1: 2, 3: 4})
-    c = PubsubMessage(b'abc', {1: 2})
-=======
     current_time = time.time()
     a = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890',current_time)
     b = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890', current_time)
     c = PubsubMessage(b'abc', {1: 2}, '1234567890', current_time)
->>>>>>> Stashed changes
     self.assertTrue(a == b)
     self.assertTrue(a != c)
     self.assertTrue(b != c)
 
   def test_hash(self):
-<<<<<<< Updated upstream
-    a = PubsubMessage(b'abc', {1: 2, 3: 4})
-    b = PubsubMessage(b'abc', {1: 2, 3: 4})
-    c = PubsubMessage(b'abc', {1: 2})
-=======
     current_time = time.time()
     a = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890', current_time)
     b = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890', current_time)
     c = PubsubMessage(b'abc', {1: 2}, '1234567890', current_time)
->>>>>>> Stashed changes
     self.assertTrue(hash(a) == hash(b))
     self.assertTrue(hash(a) != hash(c))
     self.assertTrue(hash(b) != hash(c))
 
   def test_repr(self):
-<<<<<<< Updated upstream
-    a = PubsubMessage(b'abc', {1: 2, 3: 4})
-    b = PubsubMessage(b'abc', {1: 2, 3: 4})
-    c = PubsubMessage(b'abc', {1: 2})
-=======
     current_time = time.time()
     a = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890', current_time)
     b = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890', current_time)
     c = PubsubMessage(b'abc', {1: 2}, '1234567890', current_time)
->>>>>>> Stashed changes
     self.assertTrue(repr(a) == repr(b))
     self.assertTrue(repr(a) != repr(c))
     self.assertTrue(repr(b) != repr(c))
@@ -366,16 +343,12 @@ class TestReadFromPubSub(unittest.TestCase):
     attributes = {'key': 'value'}
     ack_id = 'ack_id'
     message_id = '1234567890'
-<<<<<<< Updated upstream
-=======
     publish_time = None
->>>>>>> Stashed changes
     pull_response = test_utils.create_pull_response([
         test_utils.PullResponseMessage(
             data, attributes, publish_time_secs, publish_time_nanos, ack_id,
             message_id)
     ])
-    attributes.update(message_id=message_id)
     expected_elements = [
         TestWindowedValue(PubsubMessage(data, attributes, message_id, publish_time),
                           timestamp.Timestamp(1520861821.234567),
@@ -447,13 +420,10 @@ class TestReadFromPubSub(unittest.TestCase):
     publish_time_secs = 1520861821
     publish_time_nanos = 234567000
     ack_id = 'ack_id'
-    message_id = '1234567890'
     pull_response = test_utils.create_pull_response([
         test_utils.PullResponseMessage(
-            data, attributes, publish_time_secs, publish_time_nanos, ack_id,
-            message_id)
+            data, attributes, publish_time_secs, publish_time_nanos, ack_id)
     ])
-    attributes.update(message_id=message_id)
     expected_elements = [
         TestWindowedValue(
             PubsubMessage(data, attributes),
@@ -483,18 +453,15 @@ class TestReadFromPubSub(unittest.TestCase):
     publish_time_secs = 1337000000
     publish_time_nanos = 133700000
     ack_id = 'ack_id'
-    message_id = '1234567890'
     pull_response = test_utils.create_pull_response([
         test_utils.PullResponseMessage(
-            data, attributes, publish_time_secs, publish_time_nanos, ack_id,
-            message_id)
+            data, attributes, publish_time_secs, publish_time_nanos, ack_id)
     ])
-    attributes.update(message_id=message_id)
     expected_elements = [
         TestWindowedValue(
             PubsubMessage(data, attributes),
             timestamp.Timestamp.from_rfc3339(attributes['time']),
-            [window.GlobalWindow()]),
+            [window.GlobalWindow()])
     ]
     mock_pubsub.return_value.pull.return_value = pull_response
 
@@ -520,13 +487,10 @@ class TestReadFromPubSub(unittest.TestCase):
     publish_time_nanos = 234567000
     publish_time = '2018-03-12T13:37:01.234567Z'
     ack_id = 'ack_id'
-    message_id = 'message_id'
     pull_response = test_utils.create_pull_response([
         test_utils.PullResponseMessage(
-            data, attributes, publish_time_secs, publish_time_nanos, ack_id,
-            message_id)
+            data, attributes, publish_time_secs, publish_time_nanos, ack_id)
     ])
-    attributes.update(message_id=message_id)
     expected_elements = [
         TestWindowedValue(
             PubsubMessage(data, attributes),
