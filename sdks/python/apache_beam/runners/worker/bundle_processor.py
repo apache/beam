@@ -293,7 +293,7 @@ class StateBackedSideInputMap(object):
     self._cache = {}
 
 
-class CombiningValueRuntimeState(userstate.RuntimeState):
+class CombiningValueRuntimeState(userstate.CombiningValueRuntimeState):
   def __init__(self, underlying_bag_state, combinefn):
     self._combinefn = combinefn
     self._underlying_bag_state = underlying_bag_state
@@ -348,7 +348,7 @@ coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(_ConcatIterable)
 
 
 # TODO(BEAM-5428): Implement cross-bundle state caching.
-class SynchronousBagRuntimeState(userstate.RuntimeState):
+class SynchronousBagRuntimeState(userstate.BagRuntimeState):
   def __init__(self, state_handler, state_key, value_coder):
     self._state_handler = state_handler
     self._state_key = state_key
@@ -381,7 +381,7 @@ class SynchronousBagRuntimeState(userstate.RuntimeState):
 
 
 # TODO(BEAM-5428): Implement cross-bundle state caching.
-class SynchronousSetRuntimeState(userstate.RuntimeState):
+class SynchronousSetRuntimeState(userstate.SetRuntimeState):
 
   def __init__(self, state_handler, state_key, value_coder):
     self._state_handler = state_handler
