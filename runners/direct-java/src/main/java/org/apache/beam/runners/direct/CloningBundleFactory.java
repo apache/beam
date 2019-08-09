@@ -82,6 +82,7 @@ class CloningBundleFactory implements BundleFactory {
         // does not expect to be used) that is reflected in the values given to downstream
         // transforms
         WindowedValue<T> clone = element.withValue(CoderUtils.clone(coder, element.getValue()));
+
         underlying.add(clone);
       } catch (CoderException e) {
         throw UserCodeException.wrap(e);

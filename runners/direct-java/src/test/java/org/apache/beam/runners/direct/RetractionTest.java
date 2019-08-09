@@ -19,7 +19,10 @@ package org.apache.beam.runners.direct;
 
 import static org.apache.beam.sdk.transforms.windowing.AfterWatermark.pastEndOfWindow;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -40,7 +43,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -52,7 +54,6 @@ public class RetractionTest {
   private static final Duration LATENESS_HORIZON = Duration.standardDays(1);
 
   @Test
-  @Ignore
   public void retractionSimpleTest() {
     Instant baseTime = new Instant(0L);
     Duration oneMin = Duration.standardMinutes(1);
@@ -73,9 +74,7 @@ public class RetractionTest {
             // Fire all
             .advanceWatermarkToInfinity();
 
-   PCollection<KV<Long, Iterable<String>>> pc =
-//     PCollection<KV<String, Long>> pc =
-
+    PCollection<KV<Long, Iterable<String>>> pc =
         pipeline
             .apply(events)
             .apply(
@@ -89,32 +88,25 @@ public class RetractionTest {
             .apply("WordCount", Count.perElement())
             .apply("ReversedWordCount", ParDo.of(new KVSwap()))
             .apply("FrequencyWordList", GroupByKey.create())
-    ;
+            .apply("SortFrequencyWordList", ParDo.of(new SortValues()));
 
     IntervalWindow window = new IntervalWindow(baseTime, WINDOW_LENGTH);
 
-    // PAssert.that(pc)
-    //     .filterAdditions()
-    //     .inOnTimePane(window)
-    //     .containsInAnyOrder(KV.of("Java", 2L), KV.of("Python", 1L), KV.of("Go", 1L));
-    //
-    // PAssert.that(pc).filterAdditions().inLatePane(window).containsInAnyOrder(KV.of("Java", 3L));
-    // PAssert.that(pc).filterRetractions().inLatePane(window).containsInAnyOrder(KV.of("Java", 2L));
+    PAssert.that(pc)
+        .filterAdditions()
+        .inOnTimePane(window)
+        .containsInAnyOrder(
+            KV.of(2L, Arrays.asList("Java")), KV.of(1L, Arrays.asList("Go", "Python")));
 
-    // PAssert.that(pc)
-    //     .filterAdditions()
-    //     .inOnTimePane(window)
-    //     .containsInAnyOrder(
-    //         KV.of(2L, Arrays.asList("Java")), KV.of(1L, Arrays.asList("Go", "Python")));
-    //
-    // PAssert.that(pc)
-    //     .filterAdditions()
-    //     .inLatePane(window)
-    //     .containsInAnyOrder(KV.of(3L, Arrays.asList("Java")));
-    // PAssert.that(pc)
-    //     .filterRetractions()
-    //     .inLatePane(window)
-    //     .containsInAnyOrder(KV.of(2L, Arrays.asList("Java")));
+    PAssert.that(pc)
+        .filterAdditions()
+        .inLatePane(window)
+        .containsInAnyOrder(
+            KV.of(3L, Arrays.asList("Java")), KV.of(2L, Arrays.asList("Java", "Java")));
+    PAssert.that(pc)
+        .filterRetractions()
+        .inLatePane(window)
+        .containsInAnyOrder(KV.of(2L, Arrays.asList("Java")));
 
     pipeline.run();
   }
@@ -128,6 +120,28 @@ public class RetractionTest {
     @ProcessRetraction
     public void processRetraction(ProcessContext c) {
       c.outputRetraction(KV.of(c.element().getValue(), c.element().getKey()));
+    }
+  }
+
+  static class SortValues extends DoFn<KV<Long, Iterable<String>>, KV<Long, Iterable<String>>> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+
+      c.output(KV.of(c.element().getKey(), sortString(c.element().getValue())));
+    }
+
+    @ProcessRetraction
+    public void processRetraction(ProcessContext c) {
+      c.outputRetraction(KV.of(c.element().getKey(), sortString(c.element().getValue())));
+    }
+
+    private Iterable<String> sortString(Iterable<String> strs) {
+      List<String> sortedList = new ArrayList<>();
+      for (String i : strs) {
+        sortedList.add(i);
+      }
+      Collections.sort(sortedList);
+      return sortedList;
     }
   }
 }
