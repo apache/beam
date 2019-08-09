@@ -342,15 +342,16 @@ class TestReadFromPubSub(unittest.TestCase):
     publish_time_nanos = 234567000
     attributes = {'key': 'value'}
     ack_id = 'ack_id'
-    message_id = '1234567890'
-    publish_time = None
+    message_id = '0123456789'
+    #publish_time = time.time()
     pull_response = test_utils.create_pull_response([
         test_utils.PullResponseMessage(
-            data, attributes, publish_time_secs, publish_time_nanos, ack_id,
-            message_id)
+            data, attributes, #message_id, #publish_time,
+            publish_time_secs, publish_time_nanos, ack_id)
     ])
     expected_elements = [
-        TestWindowedValue(PubsubMessage(data, attributes, message_id, publish_time),
+        TestWindowedValue(PubsubMessage(data, attributes),
+                          #message_id, publish_time),
                           timestamp.Timestamp(1520861821.234567),
                           [window.GlobalWindow()])]
     mock_pubsub.return_value.pull.return_value = pull_response
