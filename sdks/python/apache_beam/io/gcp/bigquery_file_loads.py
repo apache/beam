@@ -44,6 +44,7 @@ from apache_beam.io.gcp import bigquery_tools
 from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms import trigger
+from apache_beam.transforms.window import GlobalWindows
 
 ONE_TERABYTE = (1 << 40)
 
@@ -113,11 +114,6 @@ def _make_new_file_writer(file_prefix, destination):
   file_path = fs.FileSystems.join(file_prefix, destination, file_name)
 
   return file_path, fs.FileSystems.create(file_path, 'application/text')
-
-
-def _file_size(file_path):
-  filesystem = fs.FileSystems.get_filesystem(file_path)
-  return filesystem.size(file_path)
 
 
 def _bq_uuid(seed=None):
@@ -202,29 +198,37 @@ class WriteRecordsToFile(beam.DoFn):
     destination = bigquery_tools.get_hashable_destination(element[0])
     row = element[1]
 
-    if destination in self._destination_to_file_writer:
-      writer = self._destination_to_file_writer[destination]
-    elif len(self._destination_to_file_writer) < self.max_files_per_bundle:
-      (file_path, writer) = _make_new_file_writer(file_prefix, destination)
-      self._destination_to_file_writer[destination] = writer
-      yield pvalue.TaggedOutput(WriteRecordsToFile.WRITTEN_FILE_TAG,
-                                (element[0], file_path))
-    else:
-      yield pvalue.TaggedOutput(
-          WriteRecordsToFile.UNWRITTEN_RECORD_TAG, element)
-      return
+    if destination not in self._destination_to_file_writer:
+      if len(self._destination_to_file_writer) < self.max_files_per_bundle:
+        self._destination_to_file_writer[destination] = _make_new_file_writer(
+            file_prefix, destination)
+      else:
+        yield pvalue.TaggedOutput(
+            WriteRecordsToFile.UNWRITTEN_RECORD_TAG, element)
+        return
+
+    (file_path, writer) = self._destination_to_file_writer[destination]
 
     # TODO(pabloem): Is it possible for this to throw exception?
     writer.write(self.coder.encode(row))
     writer.write(b'\n')
 
-    if writer.tell() > self.max_file_size:
+    file_size = writer.tell()
+    if file_size > self.max_file_size:
       writer.close()
       self._destination_to_file_writer.pop(destination)
+      yield pvalue.TaggedOutput(WriteRecordsToFile.WRITTEN_FILE_TAG,
+                                (element[0], (file_path, file_size)))
 
   def finish_bundle(self):
-    for _, writer in iteritems(self._destination_to_file_writer):
+    for destination, file_path_writer in \
+      iteritems(self._destination_to_file_writer):
+      (file_path, writer) = file_path_writer
+      file_size = writer.tell()
       writer.close()
+      yield pvalue.TaggedOutput(WriteRecordsToFile.WRITTEN_FILE_TAG,
+                                GlobalWindows.windowed_value(
+                                    (destination, (file_path, file_size))))
     self._destination_to_file_writer = {}
 
 
@@ -248,19 +252,22 @@ class WriteGroupedRecordsToFile(beam.DoFn):
     destination = element[0]
     rows = element[1]
 
-    writer = None
+    file_path, writer = None, None
 
     for row in rows:
       if writer is None:
         (file_path, writer) = _make_new_file_writer(file_prefix, destination)
-        yield (destination, file_path)
 
       writer.write(self.coder.encode(row))
       writer.write(b'\n')
 
-      if writer.tell() > self.max_file_size:
+      file_size = writer.tell()
+      if file_size > self.max_file_size:
         writer.close()
-        writer = None
+        yield (destination, (file_path, file_size))
+        file_path, writer = None, None
+    if writer is not None:
+      yield (destination, (file_path, file_size))
 
 
 class TriggerCopyJobs(beam.DoFn):
@@ -452,15 +459,14 @@ class PartitionFiles(beam.DoFn):
     latest_partition = PartitionFiles.Partition(self.max_partition_size,
                                                 self.max_files_per_partition)
 
-    for file in files:
-      file_size = _file_size(file)
+    for file_path, file_size in files:
       if latest_partition.can_accept(file_size):
-        latest_partition.add(file, file_size)
+        latest_partition.add(file_path, file_size)
       else:
         partitions.append(latest_partition.files)
         latest_partition = PartitionFiles.\
           Partition(self.max_partition_size, self.max_files_per_partition)
-        latest_partition.add(file, file_size)
+        latest_partition.add(file_path, file_size)
     partitions.append(latest_partition.files)
 
     if len(partitions) > 1:
