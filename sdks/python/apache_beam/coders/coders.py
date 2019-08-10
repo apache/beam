@@ -369,8 +369,11 @@ class Coder(object):
     """Register a coder that's completely defined by its urn and its
     component(s), if any, which are passed to construct the instance.
     """
-    cls.to_runner_api_parameter = (
-        lambda self, unused_context: (urn, None, self._get_component_coders()))
+    def to_runner_api_parameter(self, context):
+      # type: (Coder, PipelineContext) -> Tuple[str, Any, Sequence[Coder]]
+      return (urn, None, self._get_component_coders())
+
+    setattr(cls, 'to_runner_api_parameter', to_runner_api_parameter)
 
     # pylint: disable=unused-variable
     @Coder.register_urn(urn, None)
