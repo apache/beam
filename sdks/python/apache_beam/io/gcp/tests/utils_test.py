@@ -33,10 +33,12 @@ try:
   from google.api_core import exceptions as gexc
   from google.cloud import bigquery
   from google.cloud import pubsub
+  from google.protobuf.timestamp_pb2 import Timestamp
 except ImportError:
   gexc = None
   bigquery = None
   pubsub = None
+  Timestamp = None
 
 
 @unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
@@ -161,10 +163,19 @@ class PubSubUtilTest(unittest.TestCase):
     subscription_path = "project/fakeproj/subscriptions/fakesub"
     data = b'data'
     ack_id = 'ack_id'
-    attributes = {'message_id': '', 'key': 'value'}
-    message = PubsubMessage(data, attributes)
+    attributes = {'key': 'value'}
+    message_id = '0123456789'
+    publish_seconds = 1520861821
+    publish_nanos = 234567000
+    publish_time = Timestamp(seconds=1520861821, nanos=234567000)
+    message = PubsubMessage(data, attributes, message_id, publish_time)
     pull_response = test_utils.create_pull_response(
-        [test_utils.PullResponseMessage(data, attributes, ack_id=ack_id)])
+        [test_utils.PullResponseMessage(data, attributes, 
+                                        message_id=message_id,
+                                        publish_time=publish_time,
+                                        publish_time_secs=publish_seconds,
+                                        publish_time_nanos=publish_nanos,
+                                        ack_id=ack_id)])
     mock_pubsub.pull.return_value = pull_response
     output = utils.read_from_pubsub(
         mock_pubsub,
