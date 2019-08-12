@@ -63,7 +63,6 @@ try:
 except ImportError:
   Timestamp = None
 
-
 class TestPubsubMessage(unittest.TestCase):
 
   def test_payload_valid(self):

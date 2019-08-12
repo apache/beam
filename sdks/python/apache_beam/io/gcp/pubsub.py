@@ -44,7 +44,6 @@ try:
 except ImportError:
   pubsub = None
 
-
 __all__ = ['PubsubMessage', 'ReadFromPubSub', 'ReadStringsFromPubSub',
            'WriteStringsToPubSub', 'WriteToPubSub']
 
