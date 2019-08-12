@@ -135,8 +135,8 @@ public class SqlCreateExternalTable extends SqlCreate implements SqlExecutableSt
 
   private void unparseColumn(SqlWriter writer, Schema.Field column) {
     writer.sep(",");
-    writer.identifier(column.getName());
-    writer.identifier(CalciteUtils.toSqlTypeName(column.getType()).name());
+    writer.identifier(column.getName(), false);
+    writer.identifier(CalciteUtils.toSqlTypeName(column.getType()).name(), false);
 
     if (column.getType().getNullable() != null && !column.getType().getNullable()) {
       writer.keyword("NOT NULL");
