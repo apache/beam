@@ -60,6 +60,7 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -67,6 +68,7 @@ import org.junit.Test;
  * This is an integration test for KafkaCSVTable. There should be a kafka server running and the
  * address should be passed to it. (https://issues.apache.org/jira/projects/BEAM/issues/BEAM-7523)
  */
+@Ignore("https://issues.apache.org/jira/projects/BEAM/issues/BEAM-7523")
 public class KafkaCSVTableIT {
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
