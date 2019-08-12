@@ -210,6 +210,16 @@ public class JobInvocation {
     messageObservers.add(messageStreamObserver);
   }
 
+  /** Convert to {@link JobApi.JobInfo}. */
+  public JobApi.JobInfo toProto() {
+    return JobApi.JobInfo.newBuilder()
+        .setJobId(jobInfo.jobId())
+        .setJobName(jobInfo.jobName())
+        .setPipelineOptions(jobInfo.pipelineOptions())
+        .setState(getState())
+        .build();
+  }
+
   private synchronized void setState(JobState.Enum state) {
     this.jobState = state;
     for (Consumer<JobState.Enum> observer : stateObservers) {
