@@ -20,6 +20,12 @@
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 
+dependencies {
+    distTarBall project(path: ":sdks:python", configuration: "distTarBall")
+}
+
+pythonVersion = '2.7'
+
 description = "Apache Beam :: SDKs :: Python :: Load Tests"
 
 def mainClassProperty = "loadTest.mainClass"
@@ -34,8 +40,8 @@ task run(type: Exec, dependsOn: installGcpTest) {
 
     def runnerArg = project.findProperty(runnerProperty) ?: ""
     if (runnerArg == 'DataflowRunner' || runnerArg == 'TestDataflowRunner') {
-        dependsOn 'sdist'
-        loadTestArgs +=" --sdk_location=${project.buildDir}/apache-beam.tar.gz"
+        dependsOn ':sdks:python:sdist'
+        loadTestArgs +=" --sdk_location=${files(configurations.distTarBall.files).singleFile}"
     }
 
     environment "LOAD_TEST_ENABLED", 'true'
