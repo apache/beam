@@ -145,8 +145,8 @@ if sys.version_info[0] > 2:
                                       fdefaults=None, fclosure=None, fdict=None,
                                       fkwdefaults=None):
     func = _create_function(fcode, fglobals, fname, fdefaults, fclosure, fdict)
-    if fkwdefaults is not None:
-      func.__kwdefaults__ = fkwdefaults
+    # fkwdefaults is not None when called from new_save_reduce, skip None check
+    func.__kwdefaults__ = fkwdefaults
     return func
 
   def new_save_reduce(self, func, args, state=None, listitems=None,

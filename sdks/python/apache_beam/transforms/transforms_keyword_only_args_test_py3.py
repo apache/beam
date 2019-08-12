@@ -40,6 +40,10 @@ class KeywordOnlyArgsTests(unittest.TestCase):
       for y in s:
         yield sorted([x] + y, reverse=reverse)
 
+    def sort_with_side_inputs_without_default_values(x, *s, reverse):
+      for y in s:
+        yield sorted([x] + y, reverse=reverse)
+
     pcol = pipeline | 'start' >> beam.Create([1, 2])
     side = pipeline | 'side' >> beam.Create([3, 4])  # 2 values in side input.
     result1 = pcol | 'compute1' >> beam.FlatMap(
@@ -60,6 +64,24 @@ class KeywordOnlyArgsTests(unittest.TestCase):
       sort_with_side_inputs, reverse=True)
     assert_that(result4, equal_to([]), label='assert4')
 
+    result5 = pcol | 'compute5' >> beam.FlatMap(
+      sort_with_side_inputs_without_default_values,
+      beam.pvalue.AsList(side), reverse=True)
+    assert_that(result5, equal_to([[4, 3, 1], [4, 3, 2]]), label='assert5')
+
+    result6 = pcol | 'compute6' >> beam.FlatMap(
+      sort_with_side_inputs_without_default_values,
+      beam.pvalue.AsList(side), reverse=False)
+    assert_that(result6, equal_to([[1, 3, 4], [2, 3, 4]]), label='assert6')
+
+    result7 = pcol | 'compute7' >> beam.FlatMap(
+      sort_with_side_inputs_without_default_values, reverse=False)
+    assert_that(result7, equal_to([]), label='assert7')
+
+    result8 = pcol | 'compute8' >> beam.FlatMap(
+      sort_with_side_inputs_without_default_values, reverse=True)
+    assert_that(result8, equal_to([]), label='assert8')
+
     pipeline.run()
 
   def test_combine_keyword_only_args(self):
@@ -68,16 +90,32 @@ class KeywordOnlyArgsTests(unittest.TestCase):
     def bounded_sum(values, *s, bound=500):
       return min(sum(values) + sum(s), bound)
 
+    def bounded_sum_without_default_values(values, *s, bound):
+      return min(sum(values) + sum(s), bound)
+
     pcoll = pipeline | 'start' >> beam.Create([6, 3, 1])
-    result1 = pcoll | 'sum1' >> beam.CombineGlobally(bounded_sum, 5, 8, bound=20)
-    result2 = pcoll | 'sum2' >> beam.CombineGlobally(bounded_sum, 5, 8)
+    result1 = pcoll | 'sum1' >> beam.CombineGlobally(bounded_sum, 5, 8,
+                                                     bound=20)
+    result2 = pcoll | 'sum2' >> beam.CombineGlobally(bounded_sum, 0, 0)
     result3 = pcoll | 'sum3' >> beam.CombineGlobally(bounded_sum)
     result4 = pcoll | 'sum4' >> beam.CombineGlobally(bounded_sum, bound=5)
+    result5 = pcoll | 'sum5' >> beam.CombineGlobally(
+      bounded_sum_without_default_values, 5, 8, bound=20)
+    result6 = pcoll | 'sum6' >> beam.CombineGlobally(
+      bounded_sum_without_default_values, 0, 0, bound=500)
+    result7 = pcoll | 'sum7' >> beam.CombineGlobally(
+      bounded_sum_without_default_values, bound=500)
+    result8 = pcoll | 'sum8' >> beam.CombineGlobally(
+      bounded_sum_without_default_values, bound=5)
 
     assert_that(result1, equal_to([20]), label='assert1')
-    assert_that(result2, equal_to([49]), label='assert2')
+    assert_that(result2, equal_to([10]), label='assert2')
     assert_that(result3, equal_to([10]), label='assert3')
     assert_that(result4, equal_to([5]), label='assert4')
+    assert_that(result5, equal_to([20]), label='assert5')
+    assert_that(result6, equal_to([10]), label='assert6')
+    assert_that(result7, equal_to([10]), label='assert7')
+    assert_that(result8, equal_to([5]), label='assert8')
 
     pipeline.run()
 
