@@ -22,9 +22,11 @@ applyPythonNature()
 // Required to setup a Python 3 virtualenv.
 pythonVersion = '3.7'
 
-def pythonDir = "${project.rootDir}/sdks/python"
+def pythonDir = "${rootDir}/sdks/python"
 
-task postCommitIT(dependsOn: 'installGcpTest') {
+task postCommitIT {
+  dependsOn 'installGcpTest'
+
   // Run IT tests with TestDirectRunner in batch in Python 3.
   doLast {
     def batchTests = [
@@ -45,19 +47,20 @@ task postCommitIT(dependsOn: 'installGcpTest') {
     def argMap = ["runner": "TestDirectRunner",
                   "test_opts": testOpts,
                   "suite": "postCommitIT-direct-py37"]
-    def batchCmdArgs = project.mapToArgString(argMap)
+    def batchCmdArgs = mapToArgString(argMap)
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ${pythonDir}/scripts/run_integration_test.sh $batchCmdArgs"
+      args '-c', ". ${envdir}/bin/activate && ${pythonDir}/scripts/run_integration_test.sh $batchCmdArgs"
     }
   }
 }
 
-task hdfsIntegrationTest(dependsOn: 'installGcpTest') {
+task hdfsIntegrationTest {
+  dependsOn 'installGcpTest'
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ${pythonDir}/apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh python:3.7"
+      args '-c', ". ${envdir}/bin/activate && ${pythonDir}/apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh python:3.7"
     }
   }
 }

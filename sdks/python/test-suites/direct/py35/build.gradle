@@ -22,9 +22,11 @@ applyPythonNature()
 // Required to setup a Python 3 virtualenv.
 pythonVersion = '3.5'
 
-def runScriptsDir = "${project.rootDir}/sdks/python/scripts"
+def runScriptsDir = "${rootDir}/sdks/python/scripts"
 
-task postCommitIT(dependsOn: 'installGcpTest') {
+task postCommitIT {
+  dependsOn 'installGcpTest'
+
   // Run IT tests with TestDirectRunner in batch in Python 3.
   doLast {
     def batchTests = [
@@ -45,10 +47,10 @@ task postCommitIT(dependsOn: 'installGcpTest') {
     def argMap = ["runner": "TestDirectRunner",
                   "test_opts": testOpts,
                   "suite": "postCommitIT-direct-py35"]
-    def batchCmdArgs = project.mapToArgString(argMap)
+    def batchCmdArgs = mapToArgString(argMap)
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $batchCmdArgs"
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $batchCmdArgs"
     }
   }
 }
