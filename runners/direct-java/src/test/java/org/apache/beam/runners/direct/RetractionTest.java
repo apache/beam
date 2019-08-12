@@ -20,29 +20,28 @@ package org.apache.beam.runners.direct;
 import static org.apache.beam.sdk.transforms.windowing.AfterWatermark.pastEndOfWindow;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.apache.avro.Schema.Field.Order;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
-import org.apache.beam.sdk.transforms.DoFn.ProcessRetraction;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -54,6 +53,7 @@ public class RetractionTest {
   private static final Duration LATENESS_HORIZON = Duration.standardDays(1);
 
   @Test
+  @Ignore
   public void retractionSimpleTest() {
     Instant baseTime = new Instant(0L);
     Duration oneMin = Duration.standardMinutes(1);
@@ -90,23 +90,27 @@ public class RetractionTest {
             .apply("FrequencyWordList", GroupByKey.create())
             .apply("SortFrequencyWordList", ParDo.of(new SortValues()));
 
-    IntervalWindow window = new IntervalWindow(baseTime, WINDOW_LENGTH);
+    pc.apply("ConvertToString", ParDo.of(new ConvertToString()))
+        .apply(
+            "Sinking", new OrderingGuaranteedLogFileSink("/usr/local/google/home/ruwang/Downloads/retraction_test/test.txt"));
 
-    PAssert.that(pc)
-        .filterAdditions()
-        .inOnTimePane(window)
-        .containsInAnyOrder(
-            KV.of(2L, Arrays.asList("Java")), KV.of(1L, Arrays.asList("Go", "Python")));
+    // IntervalWindow window = new IntervalWindow(baseTime, WINDOW_LENGTH);
 
-    PAssert.that(pc)
-        .filterAdditions()
-        .inLatePane(window)
-        .containsInAnyOrder(
-            KV.of(3L, Arrays.asList("Java")), KV.of(2L, Arrays.asList("Java", "Java")));
-    PAssert.that(pc)
-        .filterRetractions()
-        .inLatePane(window)
-        .containsInAnyOrder(KV.of(2L, Arrays.asList("Java")));
+    // PAssert.that(pc)
+    //     .filterAdditions()
+    //     .inOnTimePane(window)
+    //     .containsInAnyOrder(
+    //         KV.of(2L, Arrays.asList("Java")), KV.of(1L, Arrays.asList("Go", "Python")));
+    //
+    // PAssert.that(pc)
+    //     .filterAdditions()
+    //     .inLatePane(window)
+    //     .containsInAnyOrder(
+    //         KV.of(3L, Arrays.asList("Java")), KV.of(2L, Arrays.asList("Java", "Java")));
+    // PAssert.that(pc)
+    //     .filterRetractions()
+    //     .inLatePane(window)
+    //     .containsInAnyOrder(KV.of(2L, Arrays.asList("Java")));
 
     pipeline.run();
   }
@@ -122,6 +126,68 @@ public class RetractionTest {
       c.outputRetraction(KV.of(c.element().getValue(), c.element().getKey()));
     }
   }
+
+  static class ConvertToString extends DoFn<KV<Long, Iterable<String>>, String> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      StringBuilder builder = new StringBuilder();
+      c.output(convertToString(builder, c.element()));
+    }
+
+    @ProcessRetraction
+    public void processRetraction(ProcessContext c) {
+      StringBuilder builder = new StringBuilder();
+      builder.append('-');
+      builder.append('\t');
+      c.outputRetraction(convertToString(builder, c.element()));
+    }
+
+    private String convertToString(StringBuilder builder, KV<Long, Iterable<String>> element) {
+      builder.append(element.getKey());
+      builder.append('\t');
+      for (String s : element.getValue()) {
+        builder.append(s);
+        builder.append(',');
+      }
+
+      return builder.toString();
+    }
+  }
+
+
+  static class OrderingGuaranteedLogFileSink extends
+      PTransform<PCollection<String>, PDone> {
+    private String targetFilePath;
+
+    public OrderingGuaranteedLogFileSink(String filePath) {
+      targetFilePath = filePath;
+    }
+
+    @Override
+    public PDone expand(PCollection<String> input) {
+      input.apply(ParDo.of(new WriteToFile(targetFilePath)));
+      return PDone.in(input.getPipeline());
+    }
+  }
+
+  static class WriteToFile extends DoFn<String, Void> {
+    private String targetFilePath;
+
+    public WriteToFile(String filePath) {
+      targetFilePath = filePath;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      throw new UnsupportedOperationException("processElement");
+    }
+
+    @ProcessRetraction
+    public void processRetraction(ProcessContext c) {
+      throw new UnsupportedOperationException("processRetraction");
+    }
+  }
+
 
   static class SortValues extends DoFn<KV<Long, Iterable<String>>, KV<Long, Iterable<String>>> {
     @ProcessElement
