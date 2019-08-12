@@ -52,7 +52,6 @@ dependencies {
   provided library.java.jackson_databind
   // Calcite (a dependency of Hive) bundles without repackaging Guava which is why we redeclare it
   // here so that it appears on the compile/test/runtime classpath before Calcite.
-  provided library.java.guava
   provided library.java.hadoop_common
   provided "org.apache.hive:hive-exec:$hive_version"
   provided(group: "org.apache.hive.hcatalog", name: "hive-hcatalog-core", version: hive_version) {

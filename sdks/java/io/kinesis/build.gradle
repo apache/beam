@@ -31,7 +31,6 @@ test {
 
 dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.guava
   compile library.java.slf4j_api
   compile library.java.joda_time
   compile library.java.jackson_dataformat_cbor
