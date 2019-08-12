@@ -411,12 +411,11 @@ message Parameter {
 
 message StateSpec {
   oneof spec {
-    ReadModifyWriteStateSpec value_spec = 1;  // This has been deprecated, and should not be used.
+    ReadModifyWriteStateSpec read_modify_write_spec = 1;
     BagStateSpec bag_spec = 2;
     CombiningStateSpec combining_spec = 3;
     MapStateSpec map_spec = 4;
     SetStateSpec set_spec = 5;
-    ReadModifyWriteStateSpec read_modify_write_spec = 6;
   }
 }
 
