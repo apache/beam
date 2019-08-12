@@ -26,7 +26,6 @@ from builtins import object
 
 import hamcrest as hc
 import mock
-from google.protobuf.timestamp_pb2 import Timestamp
 
 import apache_beam as beam
 from apache_beam.io.gcp.pubsub import PubsubMessage
@@ -58,7 +57,12 @@ try:
   from google.cloud import pubsub
 except ImportError:
   pubsub = None
-  
+
+try:
+  from google.protobuf.timestamp_pb2 import Timestamp
+except ImportError:
+  Timestamp = None
+
 
 class TestPubsubMessage(unittest.TestCase):
 
