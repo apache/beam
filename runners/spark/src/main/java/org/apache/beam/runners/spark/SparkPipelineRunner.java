@@ -29,6 +29,7 @@ import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.core.construction.graph.PipelineTrimmer;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
+import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
@@ -54,7 +55,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
   }
 
   @Override
-  public SparkPipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo) {
+  public PortablePipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo) {
     SparkBatchPortablePipelineTranslator translator = new SparkBatchPortablePipelineTranslator();
 
     // Don't let the fuser fuse any subcomponents of native transforms.
@@ -102,7 +103,8 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
               LOG.info(String.format("Job %s finished.", jobInfo.jobId()));
             });
 
-    SparkPipelineResult result = new SparkPipelineResult.BatchMode(submissionFuture, jsc);
+    PortablePipelineResult result =
+        new SparkPipelineResult.PortableBatchMode(submissionFuture, jsc);
     MetricsPusher metricsPusher =
         new MetricsPusher(
             MetricsAccumulator.getInstance().value(),

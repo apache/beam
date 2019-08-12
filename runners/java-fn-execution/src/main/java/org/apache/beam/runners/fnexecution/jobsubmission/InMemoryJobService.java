@@ -22,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.DescribePipelineOptionsRequest;
@@ -332,6 +333,29 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       LOG.error(errMessage, e);
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
     }
+  }
+
+  @Override
+  public void getJobMetrics(
+      JobApi.GetJobMetricsRequest request,
+      StreamObserver<JobApi.GetJobMetricsResponse> responseObserver) {
+
+    String invocationId = request.getJobId();
+    LOG.info("Getting job metrics for {}", invocationId);
+
+    try {
+      JobInvocation invocation = getInvocation(invocationId);
+      JobApi.MetricResults metrics = invocation.getMetrics();
+      JobApi.GetJobMetricsResponse response =
+          JobApi.GetJobMetricsResponse.newBuilder().setMetrics(metrics).build();
+
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (Exception e) {
+      LOG.error(String.format("Encountered exception for job invocation %s", invocationId), e);
+      responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+    }
+    LOG.info("Finished getting job metrics for {}", invocationId);
   }
 
   @Override
