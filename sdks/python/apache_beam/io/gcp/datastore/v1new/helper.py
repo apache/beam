@@ -44,6 +44,8 @@ _RETRYABLE_DATASTORE_ERRORS = (
     exceptions.InternalServerError,
     exceptions.ServiceUnavailable,
 )
+_WRITE_MUTATION = 0
+_DELETE_MUTATION = 1
 
 
 @ttl_cache(maxsize=128, ttl=3600)
@@ -63,7 +65,8 @@ def retry_on_rpc_error(exception):
 
 @retry.with_exponential_backoff(num_retries=5,
                                 retry_filter=retry_on_rpc_error)
-def write_mutations(batch, throttler, rpc_stats_callback, throttle_delay=1):
+def write_mutations(batch, mutations, throttler, rpc_stats_callback,
+                    throttle_delay=1):
   """A helper function to write a batch of mutations to Cloud Datastore.
 
   If a commit fails, it will be retried up to 5 times. All mutations in the
@@ -79,7 +82,10 @@ def write_mutations(batch, throttler, rpc_stats_callback, throttle_delay=1):
 
   Args:
     batch: (:class:`~google.cloud.datastore.batch.Batch`) An instance of an
-      in-progress batch.
+      batch.
+    mutations: (:class:`list`) of tuples with mutation type (write or delete)
+      and mutation element itself which could be an entity or a key. Only
+      used on retries to reconstruct batch from scratch.
     rpc_stats_callback: a function to call with arguments `successes` and
         `failures` and `throttled_secs`; this is called to record successful
         and failed RPCs to Datastore and time spent waiting for throttling.
@@ -99,11 +105,20 @@ def write_mutations(batch, throttler, rpc_stats_callback, throttle_delay=1):
     rpc_stats_callback(throttled_secs=throttle_delay)
 
   try:
+    try:
+      batch.begin()
+    except ValueError:
+      # batch has already been started previously (and failed),
+      # we need to build it again from scratch (BEAM-7917)
+      batch = get_client(batch.project, batch.namespace).batch()
+      for mutation_type, mutation_element in mutations:
+        if mutation_type == _WRITE_MUTATION:
+          batch.put(mutation_element)
+        elif mutation_type == _DELETE_MUTATION:
+          batch.delete(mutation_element)
+      batch.begin()
+
     start_time = time.time()
-    if batch._status == batch._FINISHED:
-      # Mark batch as in progress again since we had a failure before,
-      # otherwise it cannot be commited (BEAM-7917)
-      batch._status = batch._IN_PROGRESS
     batch.commit()
     end_time = time.time()
 

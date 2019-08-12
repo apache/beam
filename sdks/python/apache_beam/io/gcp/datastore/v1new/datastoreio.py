@@ -340,12 +340,13 @@ class _Mutate(PTransform):
     def _init_batch(self):
       self._batch_bytes_size = 0
       self._batch = self._client.batch()
-      self._batch.begin()
+      self._batch_mutations = []
 
     def _flush_batch(self):
       # Flush the current batch of mutations to Cloud Datastore.
       latency_ms = helper.write_mutations(
-          self._batch, self._throttler, self._update_rpc_stats,
+          self._batch, self._batch_mutations, self._throttler,
+          rpc_stats_callback=self._update_rpc_stats,
           throttle_delay=util.WRITE_BATCH_TARGET_LATENCY_MS // 1000)
       logging.debug("Successfully wrote %d mutations in %dms.",
                     len(self._batch.mutations), latency_ms)
@@ -391,6 +392,7 @@ class WriteToDatastore(_Mutate):
         raise ValueError('Entities to be written to Cloud Datastore must '
                          'have complete keys:\n%s' % client_entity)
       self._batch.put(client_entity)
+      self._batch_mutations.append((helper._WRITE_MUTATION, client_entity))
 
     def display_data(self):
       return {
@@ -432,6 +434,7 @@ class DeleteFromDatastore(_Mutate):
         raise ValueError('Keys to be deleted from Cloud Datastore must be '
                          'complete:\n%s' % client_key)
       self._batch.delete(client_key)
+      self._batch_mutations.append((helper._DELETE_MUTATION, client_key))
 
     def display_data(self):
       return {

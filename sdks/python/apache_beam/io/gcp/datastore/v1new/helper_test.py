@@ -44,10 +44,26 @@ class HelperTest(unittest.TestCase):
     mock_throttler = mock.MagicMock()
     rpc_stats_callback = mock.MagicMock()
     mock_throttler.throttle_request.return_value = []
-    helper.write_mutations(mock_batch, mock_throttler, rpc_stats_callback)
+    helper.write_mutations(mock_batch, [], mock_throttler, rpc_stats_callback)
     rpc_stats_callback.assert_has_calls([
         mock.call(successes=1),
     ])
+
+  @mock.patch('apache_beam.io.gcp.datastore.v1new.helper.get_client')
+  def test_write_mutations_reconstruct_on_error(self, mock_client):
+    mock_batch = mock.MagicMock()
+    mock_batch.begin.side_effect = [None, ValueError]
+    mock_batch.commit.side_effect = [exceptions.DeadlineExceeded('retryable'),
+                                     None]
+    mock_throttler = mock.MagicMock()
+    rpc_stats_callback = mock.MagicMock()
+    mock_throttler.throttle_request.return_value = []
+    helper.write_mutations(mock_batch, [(0, '')], mock_throttler,
+                           rpc_stats_callback)
+    rpc_stats_callback.assert_has_calls([
+        mock.call(successes=1),
+    ])
+    self.assertEqual(1, mock_client.call_count)
 
   def test_write_mutations_throttle_delay_retryable_error(self):
     mock_batch = mock.MagicMock()
@@ -58,8 +74,9 @@ class HelperTest(unittest.TestCase):
     # First try: throttle once [True, False]
     # Second try: no throttle [False]
     mock_throttler.throttle_request.side_effect = [True, False, False]
-    helper.write_mutations(mock_batch, mock_throttler, rpc_stats_callback,
-                           throttle_delay=0)
+    helper.write_mutations(
+        mock_batch, [], mock_throttler, rpc_stats_callback,
+        throttle_delay=0)
     rpc_stats_callback.assert_has_calls([
         mock.call(successes=1),
         mock.call(throttled_secs=mock.ANY),
@@ -76,7 +93,7 @@ class HelperTest(unittest.TestCase):
     rpc_stats_callback = mock.MagicMock()
     mock_throttler.throttle_request.return_value = False
     with self.assertRaises(exceptions.InvalidArgument):
-      helper.write_mutations(mock_batch, mock_throttler, rpc_stats_callback,
+      helper.write_mutations(mock_batch, [], mock_throttler, rpc_stats_callback,
                              throttle_delay=0)
     rpc_stats_callback.assert_called_once_with(errors=1)
 
