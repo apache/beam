@@ -55,9 +55,6 @@ from __future__ import absolute_import
 
 import logging
 
-from pymongo import MongoClient
-from pymongo import ReplaceOne
-
 import apache_beam as beam
 from apache_beam.io import iobase
 from apache_beam.io.range_trackers import OffsetRangeTracker
@@ -69,9 +66,13 @@ from apache_beam.utils.annotations import experimental
 try:
   # Mongodb has its own bundled bson, which is not compatible with bson pakcage.
   # (https://github.com/py-bson/bson/issues/82). Try to import objectid and if
-  # it fails because bson package is installed, MongoDB Io will not work bu at
+  # it fails because bson package is installed, MongoDB IO will not work but at
   # least rest of the SDK will work.
   from bson import objectid
+
+  # pymongo also internally depends on bson.
+  from pymongo import MongoClient
+  from pymongo import ReplaceOne
 except ImportError:
   objectid = None
   logging.warning("Could not find a compatible bson package.")
