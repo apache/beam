@@ -126,8 +126,8 @@ public interface DataflowPipelineOptions
   @Description(
       "The Google Compute Engine region for creating Dataflow jobs. See "
           + "https://cloud.google.com/compute/docs/regions-zones/regions-zones for a list of valid "
-          + "options. Default is up to the Dataflow service.")
-  @Default.String("us-central1")
+          + "options. Currently defaults to us-central1, but future releases of Beam will "
+          + "require the user to set the region explicitly.")
   String getRegion();
 
   void setRegion(String region);
