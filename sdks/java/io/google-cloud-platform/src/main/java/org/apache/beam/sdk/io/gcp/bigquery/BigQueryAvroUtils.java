@@ -65,7 +65,7 @@ class BigQueryAvroUtils {
    * <p>Some BigQuery types are duplicated here since slightly different Avro records are produced
    * when exporting data in Avro format and when reading data directly using the read API.
    */
-  public static final ImmutableMultimap<String, Type> BIG_QUERY_TO_AVRO_TYPES =
+  static final ImmutableMultimap<String, Type> BIG_QUERY_TO_AVRO_TYPES =
       ImmutableMultimap.<String, Type>builder()
           .put("STRING", Type.STRING)
           .put("GEOGRAPHY", Type.STRING)

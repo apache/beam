@@ -21,9 +21,9 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.More
 
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
-import net.bytebuddy.NamingStrategy;
-import net.bytebuddy.description.type.TypeDescription;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.NamingStrategy;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.type.TypeDescription;
 
 /**
  * A naming strategy for ByteBuddy invokers ({@link DoFnInvoker} and {@link OnTimerInvoker}) that is

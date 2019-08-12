@@ -103,9 +103,16 @@ class QuerySplitterTest(QuerySplitterTestBase):
       unused_batch_size: ignored in v1new since query results are entirely
         handled by the Datastore client.
     """
-    # Test for both random long ids and string ids.
-    for id_or_name in [True, False]:
-      client_entities = helper.create_client_entities(num_entities, id_or_name)
+    # Test for random long ids, string ids, and a mix of both.
+    for id_or_name in [True, False, None]:
+      if id_or_name is None:
+        client_entities = helper.create_client_entities(num_entities, False)
+        client_entities.extend(helper.create_client_entities(num_entities,
+                                                             True))
+        num_entities *= 2
+      else:
+        client_entities = helper.create_client_entities(num_entities,
+                                                        id_or_name)
 
       mock_client = mock.MagicMock()
       mock_client_query = mock.MagicMock()
@@ -154,6 +161,19 @@ class QuerySplitterTest(QuerySplitterTestBase):
           if lt_key is None:
             last_query_seen = True
 
+  def test_id_or_name(self):
+    id_ = query_splitter.IdOrName(1)
+    self.assertEqual(1, id_.id)
+    self.assertIsNone(id_.name)
+    name = query_splitter.IdOrName('1')
+    self.assertIsNone(name.id)
+    self.assertEqual('1', name.name)
+    self.assertEqual(query_splitter.IdOrName(1), query_splitter.IdOrName(1))
+    self.assertEqual(query_splitter.IdOrName('1'), query_splitter.IdOrName('1'))
+    self.assertLess(query_splitter.IdOrName(2), query_splitter.IdOrName('1'))
+    self.assertLess(query_splitter.IdOrName(1), query_splitter.IdOrName(2))
+    self.assertLess(query_splitter.IdOrName('1'), query_splitter.IdOrName('2'))
+
   def test_client_key_sort_key(self):
     k = key.Key('kind1', 1, project=self._PROJECT, namespace=self._NAMESPACE)
     k2 = key.Key('kind2', 'a', parent=k)
@@ -162,6 +182,31 @@ class QuerySplitterTest(QuerySplitterTestBase):
     k5 = key.Key('kind1', 'a', project=self._PROJECT)
     keys = [k5, k, k4, k3, k2, k2, k]
     expected_sort = [k5, k, k, k2, k2, k3, k4]
+    keys.sort(key=query_splitter.client_key_sort_key)
+    self.assertEqual(expected_sort, keys)
+
+  def test_client_key_sort_key_ids(self):
+    k1 = key.Key('kind', 2, project=self._PROJECT)
+    k2 = key.Key('kind', 1, project=self._PROJECT)
+    keys = [k1, k2]
+    expected_sort = [k2, k1]
+    keys.sort(key=query_splitter.client_key_sort_key)
+    self.assertEqual(expected_sort, keys)
+
+  def test_client_key_sort_key_names(self):
+    k1 = key.Key('kind', '2', project=self._PROJECT)
+    k2 = key.Key('kind', '1', project=self._PROJECT)
+    keys = [k1, k2]
+    expected_sort = [k2, k1]
+    keys.sort(key=query_splitter.client_key_sort_key)
+    self.assertEqual(expected_sort, keys)
+
+  def test_client_key_sort_key_ids_vs_names(self):
+    # Keys with IDs always come before keys with names.
+    k1 = key.Key('kind', '1', project=self._PROJECT)
+    k2 = key.Key('kind', 2, project=self._PROJECT)
+    keys = [k1, k2]
+    expected_sort = [k2, k1]
     keys.sort(key=query_splitter.client_key_sort_key)
     self.assertEqual(expected_sort, keys)
 

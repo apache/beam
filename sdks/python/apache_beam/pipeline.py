@@ -641,8 +641,10 @@ class Pipeline(object):
           if len(transform_node.outputs) == 1:
             # The runner often has expectations about the output types as well.
             output, = transform_node.outputs.values()
-            output.element_type = transform_node.transform.infer_output_type(
-                pcoll.element_type)
+            if not output.element_type:
+              output.element_type = transform_node.transform.infer_output_type(
+                  pcoll.element_type
+              )
         for side_input in transform_node.transform.side_inputs:
           if side_input.requires_keyed_input():
             side_input.pvalue.element_type = typehints.coerce_to_kv_type(

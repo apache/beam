@@ -30,6 +30,7 @@ try:
   from apache_beam.io.gcp.datastore.v1new.types import Entity
   from apache_beam.io.gcp.datastore.v1new.types import Key
   from apache_beam.io.gcp.datastore.v1new.types import Query
+  from apache_beam.options.value_provider import StaticValueProvider
 # TODO(BEAM-4543): Remove TypeError once googledatastore dependency is removed.
 except (ImportError, TypeError):
   client = None
@@ -51,18 +52,23 @@ class TypesTest(unittest.TestCase):
     kc = k.to_client_key()
     exclude_from_indexes = ('efi1', 'efi2')
     e = Entity(k, exclude_from_indexes=exclude_from_indexes)
-    e.set_properties({'efi1': 'value', 'property': 'value'})
+    ref = Key(['kind2', 1235])
+    e.set_properties({'efi1': 'value', 'property': 'value', 'ref': ref})
     ec = e.to_client_entity()
     self.assertEqual(kc, ec.key)
     self.assertSetEqual(set(exclude_from_indexes), ec.exclude_from_indexes)
     self.assertEqual('kind', ec.kind)
     self.assertEqual(1234, ec.id)
+    self.assertEqual('kind2', ec['ref'].kind)
+    self.assertEqual(1235, ec['ref'].id)
+    self.assertEqual(self._PROJECT, ec['ref'].project)
 
   def testEntityFromClientEntity(self):
     k = Key(['kind', 1234], project=self._PROJECT)
     exclude_from_indexes = ('efi1', 'efi2')
     e = Entity(k, exclude_from_indexes=exclude_from_indexes)
-    e.set_properties({'efi1': 'value', 'property': 'value'})
+    ref = Key(['kind2', 1235])
+    e.set_properties({'efi1': 'value', 'property': 'value', 'ref': ref})
     efc = Entity.from_client_entity(e.to_client_entity())
     self.assertEqual(e, efc)
 
@@ -101,6 +107,10 @@ class TypesTest(unittest.TestCase):
     kfc3 = Key.from_client_key(kfc2.to_client_key())
     self.assertEqual(kfc2, kfc3)
 
+    kfc4 = Key.from_client_key(kfc2.to_client_key())
+    kfc4.project = 'other'
+    self.assertNotEqual(kfc2, kfc4)
+
   def testKeyFromClientKeyNoNamespace(self):
     k = Key(['k1', 1234], project=self._PROJECT)
     ck = k.to_client_key()
@@ -133,6 +143,31 @@ class TypesTest(unittest.TestCase):
     self.assertEqual(distinct_on, cq.distinct_on)
 
     logging.info('query: %s', q)  # Test __repr__()
+
+  def testValueProviderFilters(self):
+    self.vp_filters = [
+        [(
+            StaticValueProvider(str, 'property_name'),
+            StaticValueProvider(str, '='),
+            StaticValueProvider(str, 'value'))],
+        [(
+            StaticValueProvider(str, 'property_name'),
+            StaticValueProvider(str, '='),
+            StaticValueProvider(str, 'value')),
+         ('property_name', '=', 'value')],
+    ]
+    self.expected_filters = [[('property_name', '=', 'value')],
+                             [('property_name', '=', 'value'),
+                              ('property_name', '=', 'value')],
+                            ]
+
+    for vp_filter, exp_filter in zip(self.vp_filters, self.expected_filters):
+      q = Query(kind='kind', project=self._PROJECT, namespace=self._NAMESPACE,
+                filters=vp_filter)
+      cq = q._to_client_query(self._test_client)
+      self.assertEqual(exp_filter, cq.filters)
+
+      logging.info('query: %s', q)  # Test __repr__()
 
   def testQueryEmptyNamespace(self):
     # Test that we can pass a namespace of None.

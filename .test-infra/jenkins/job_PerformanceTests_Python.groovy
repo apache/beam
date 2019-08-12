@@ -41,7 +41,7 @@ class PerformanceTestConfigurations {
   String itModule
   // A benchmark defined flag, will pass to benchmark as "--beam_python_sdk_location".
   // It's the location of Python SDK distribution archive which is required for TestDataflowRunner.
-  String pythonSdkLocation = ''
+  String pythonSdkLocation = 'build/apache-beam.tar.gz'
   // A benchmark defined flag, will pass to benchmark as "--beam_runner"
   String runner = 'TestDataflowRunner'
   // A benchmark defined flag, will pass to benchmark as "--beam_it_timeout"
@@ -152,8 +152,7 @@ private void createPythonPerformanceTestJob(PerformanceTestConfigurations testCo
         beam_it_class           : testConfig.itClass,
         beam_it_module          : testConfig.itModule,
         beam_prebuilt           : 'true',   // Python benchmark don't need to prebuild repo before running
-        beam_python_sdk_location: getSDKLocationFromModule(testConfig.pythonSdkLocation,
-                                                           testConfig.itModule),
+        beam_python_sdk_location: testConfig.pythonSdkLocation,
         beam_runner             : testConfig.runner,
         beam_it_timeout         : testConfig.itTimeoutSec.toString(),
         beam_it_args            : joinPipelineArgs(testConfig.extraPipelineArgs),
@@ -171,14 +170,4 @@ private static String joinPipelineArgs(Map pipelineArgs) {
     key, value -> pipelineArgList.add("--$key=$value")
   })
   return pipelineArgList.join(',')
-}
-
-
-// Get relative path of sdk location based on itModule if the location is not provided.
-private static String getSDKLocationFromModule(String pythonSDKLocation, String itModule) {
-  if (!pythonSDKLocation && itModule.startsWith(":sdks:python")) {
-    def projectPath = (itModule - ':sdks:python').replace(':', '/')
-    return (projectPath + "/build/apache-beam.tar.gz").substring(1)
-  }
-  return pythonSDKLocation
 }

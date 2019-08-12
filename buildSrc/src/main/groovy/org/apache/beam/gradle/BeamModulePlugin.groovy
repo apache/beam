@@ -297,6 +297,29 @@ class BeamModulePlugin implements Plugin<Project> {
     }
   }
 
+  // A class defining the configuration for CrossLanguageValidatesRunner.
+  class CrossLanguageValidatesRunnerConfiguration {
+    // Task name for cross-language validate runner case.
+    String name = 'validatesCrossLanguageRunner'
+    // Fully qualified JobServerClass name to use.
+    String jobServerDriver
+    // A string representing the jobServer Configuration.
+    String jobServerConfig
+    // Number of parallel test runs.
+    Integer numParallelTests = 1
+    // Extra options to pass to TestPipeline
+    String[] pipelineOpts = []
+    // Categories for tests to run.
+    Closure testCategories = {
+      includeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
+      // Use the following to include / exclude categories:
+      // includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      // excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+    }
+    // Configuration for the classpath when running the test.
+    Configuration testClasspathConfiguration
+  }
+
   def isRelease(Project project) {
     return project.hasProperty('isRelease')
   }
@@ -352,7 +375,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // non-declared dependency, since these can break users (as in BEAM-6558)
     //
     // Though this is Java-specific, it is required to be applied to the root
-    // project due to implemeentation-details of the plugin. It can be enabled/disabled
+    // project due to implementation-details of the plugin. It can be enabled/disabled
     // via JavaNatureConfiguration per project. It is disabled by default until we can
     // make all of our deps good.
     project.apply plugin: "ca.cutterslade.analyze"
@@ -439,7 +462,6 @@ class BeamModulePlugin implements Plugin<Project> {
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         bigtable_client_core                        : "com.google.cloud.bigtable:bigtable-client-core:1.8.0",
         bigtable_protos                             : "com.google.api.grpc:grpc-google-cloud-bigtable-v2:$generated_grpc_beta_version",
-        byte_buddy                                  : "net.bytebuddy:byte-buddy:1.9.3",
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
         commons_codec                               : "commons-codec:commons-codec:1.10",
@@ -500,7 +522,7 @@ class BeamModulePlugin implements Plugin<Project> {
         jackson_annotations                         : "com.fasterxml.jackson.core:jackson-annotations:$jackson_version",
         jackson_jaxb_annotations                    : "com.fasterxml.jackson.module:jackson-module-jaxb-annotations:$jackson_version",
         jackson_core                                : "com.fasterxml.jackson.core:jackson-core:$jackson_version",
-        jackson_databind                            : "com.fasterxml.jackson.core:jackson-databind:$jackson_version",
+        jackson_databind                            : "com.fasterxml.jackson.core:jackson-databind:2.9.9.3",
         jackson_dataformat_cbor                     : "com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:$jackson_version",
         jackson_dataformat_yaml                     : "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jackson_version",
         jackson_datatype_joda                       : "com.fasterxml.jackson.datatype:jackson-datatype-joda:$jackson_version",
@@ -508,7 +530,7 @@ class BeamModulePlugin implements Plugin<Project> {
         jaxb_api                                    : "javax.xml.bind:jaxb-api:$jaxb_api_version",
         joda_time                                   : "joda-time:joda-time:2.10.1",
         junit                                       : "junit:junit:4.13-beta-1",
-        kafka_2_11                                  : "org.apache.kafka:kafka_2.11:$kafka_version",
+        kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
         malhar_library                              : "org.apache.apex:malhar-library:$apex_malhar_version",
         mockito_core                                : "org.mockito:mockito-core:1.10.19",
@@ -533,6 +555,7 @@ class BeamModulePlugin implements Plugin<Project> {
         spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:3.1.4",
+        vendored_bytebuddy_1_9_3                    : "org.apache.beam:beam-vendor-bytebuddy-1_9_3:0.1",
         vendored_grpc_1_21_0                        : "org.apache.beam:beam-vendor-grpc-1_21_0:0.1",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
@@ -808,7 +831,6 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: "net.ltgt.apt-eclipse"
 
       // Enables a plugin which can apply code formatting to source.
-      // TODO(https://issues.apache.org/jira/browse/BEAM-4394): Should this plugin be enabled for all projects?
       project.apply plugin: "com.diffplug.gradle.spotless"
       // scan CVE
       project.apply plugin: "net.ossindex.audit"
@@ -1650,7 +1672,6 @@ class BeamModulePlugin implements Plugin<Project> {
        */
       project.evaluationDependsOn(":sdks:java:core")
       project.evaluationDependsOn(":runners:core-java")
-      project.evaluationDependsOn(":runners:core-construction-java")
       def config = it ? it as PortableValidatesRunnerConfiguration : new PortableValidatesRunnerConfiguration()
       def name = config.name
       def beamTestPipelineOptions = [
@@ -1658,8 +1679,6 @@ class BeamModulePlugin implements Plugin<Project> {
         "--jobServerDriver=${config.jobServerDriver}",
         "--environmentCacheMillis=10000"
       ]
-      def expansionPort = startingExpansionPortNumber.getAndDecrement()
-      config.systemProperties.put("expansionPort", expansionPort)
       beamTestPipelineOptions.addAll(config.pipelineOpts)
       if (config.environment == PortableValidatesRunnerConfiguration.Environment.EMBEDDED) {
         beamTestPipelineOptions += "--defaultEnvironmentType=EMBEDDED"
@@ -1682,6 +1701,113 @@ class BeamModulePlugin implements Plugin<Project> {
         if (config.environment == PortableValidatesRunnerConfiguration.Environment.DOCKER) {
           dependsOn ':sdks:java:container:docker'
         }
+      }
+    }
+
+    /** ***********************************************************************************************/
+
+    // Method to create the crossLanguageValidatesRunnerTask.
+    // The method takes crossLanguageValidatesRunnerConfiguration as parameter.
+    project.ext.createCrossLanguageValidatesRunnerTask = {
+      def config = it ? it as CrossLanguageValidatesRunnerConfiguration : new CrossLanguageValidatesRunnerConfiguration()
+
+      project.evaluationDependsOn(":sdks:python")
+      project.evaluationDependsOn(":sdks:java:testing:expansion-service")
+      project.evaluationDependsOn(":runners:core-construction-java")
+
+      // Task for launching expansion services
+      def envDir = project.project(":sdks:python").envdir
+      def pythonDir = project.project(":sdks:python").projectDir
+      def javaPort = startingExpansionPortNumber.getAndDecrement()
+      def pythonPort = startingExpansionPortNumber.getAndDecrement()
+      def expansionJar = project.project(':sdks:java:testing:expansion-service').buildTestExpansionServiceJar.archivePath
+      def expansionServiceOpts = [
+        "group_id": project.name,
+        "java_expansion_service_jar": expansionJar,
+        "java_port": javaPort,
+        "python_virtualenv_dir": envDir,
+        "python_expansion_service_module": "apache_beam.runners.portability.expansion_service_test",
+        "python_port": pythonPort
+      ]
+      def serviceArgs = project.project(':sdks:python').mapToArgString(expansionServiceOpts)
+      def setupTask = project.tasks.create(name: config.name+"Setup", type: Exec) {
+        dependsOn ':sdks:java:container:docker'
+        dependsOn ':sdks:python:container:docker'
+        dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
+        dependsOn ":sdks:python:installGcpTest"
+        // setup test env
+        executable 'sh'
+        args '-c', "$pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name} && $pythonDir/scripts/run_expansion_services.sh start $serviceArgs"
+      }
+
+      def mainTask = project.tasks.create(name: config.name) {
+        group = "Verification"
+        description = "Validates cross-language capability of runner"
+      }
+
+      def cleanupTask = project.tasks.create(name: config.name+'Cleanup', type: Exec) {
+        // teardown test env
+        executable 'sh'
+        args '-c', "$pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name}"
+      }
+      setupTask.finalizedBy cleanupTask
+
+      // Task for running testcases in Java SDK
+      def beamJavaTestPipelineOptions = [
+        "--runner=org.apache.beam.runners.reference.testing.TestPortableRunner",
+        "--jobServerDriver=${config.jobServerDriver}",
+        "--environmentCacheMillis=10000"
+      ]
+      beamJavaTestPipelineOptions.addAll(config.pipelineOpts)
+      if (config.jobServerConfig) {
+        beamJavaTestPipelineOptions.add("--jobServerConfig=${config.jobServerConfig}")
+      }
+      ['Java': javaPort, 'Python': pythonPort].each { sdk, port ->
+        def javaTask = project.tasks.create(name: config.name+"JavaUsing"+sdk, type: Test) {
+          group = "Verification"
+          description = "Validates runner for cross-language capability of using ${sdk} transforms from Java SDK"
+          systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamJavaTestPipelineOptions)
+          systemProperty "expansionPort", port
+          classpath = config.testClasspathConfiguration
+          testClassesDirs = project.files(project.project(":runners:core-construction-java").sourceSets.test.output.classesDirs)
+          maxParallelForks config.numParallelTests
+          useJUnit(config.testCategories)
+          // increase maxHeapSize as this is directly correlated to direct memory,
+          // see https://issues.apache.org/jira/browse/BEAM-6698
+          maxHeapSize = '4g'
+          dependsOn setupTask
+        }
+        mainTask.dependsOn javaTask
+        cleanupTask.mustRunAfter javaTask
+
+        // Task for running testcases in Python SDK
+        def testOpts = [
+          "--attr=UsesCrossLanguageTransforms"
+        ]
+        def pipelineOpts = [
+          "--runner=PortableRunner",
+          "--environment_cache_millis=10000"
+        ]
+        def beamPythonTestPipelineOptions = [
+          "pipeline_opts": pipelineOpts,
+          "test_opts": testOpts,
+          "suite": "xlangValidateRunner"
+        ]
+        def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
+        def pythonTask = project.tasks.create(name: config.name+"PythonUsing"+sdk, type: Exec) {
+          group = "Verification"
+          description = "Validates runner for cross-language capability of using ${sdk} transforms from Python SDK"
+          environment "EXPANSION_JAR", expansionJar
+          environment "EXPANSION_PORT", port
+          executable 'sh'
+          args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
+          dependsOn setupTask
+          // We need flink-job-server-container dependency since Python PortableRunner automatically
+          // brings the flink-job-server-container up when --job_endpoint is not specified.
+          dependsOn ':runners:flink:1.5:job-server-container:docker'
+        }
+        mainTask.dependsOn pythonTask
+        cleanupTask.mustRunAfter pythonTask
       }
     }
 
@@ -1731,7 +1857,7 @@ class BeamModulePlugin implements Plugin<Project> {
         outputs.dirs(project.ext.envdir)
       }
 
-      def pythonSdkDeps = project.files(
+      project.ext.pythonSdkDeps = project.files(
               project.fileTree(
               dir: "${project.rootDir}",
               include: ['model/**', 'sdks/python/**'],
@@ -1744,35 +1870,10 @@ class BeamModulePlugin implements Plugin<Project> {
               ])
               )
       def copiedSrcRoot = "${project.buildDir}/srcs"
-      def tarball = "apache-beam.tar.gz"
 
-      project.configurations { distConfig }
-
-      project.task('sdist', dependsOn: 'setupVirtualenv') {
-        doLast {
-          // Copy sdk sources to an isolated directory
-          project.copy {
-            from pythonSdkDeps
-            into copiedSrcRoot
-          }
-
-          // Build artifact
-          project.exec {
-            executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedSrcRoot}/sdks/python && python setup.py -q sdist --formats zip,gztar --dist-dir ${project.buildDir}"
-          }
-          def collection = project.fileTree("${project.buildDir}"){ include '**/*.tar.gz' exclude '**/apache-beam.tar.gz', 'srcs/**'}
-
-          // we need a fixed name for the artifact
-          project.copy { from collection.singleFile; into "${project.buildDir}"; rename { tarball } }
-        }
-        inputs.files pythonSdkDeps
-        outputs.file "${project.buildDir}/${tarball}"
-      }
-
-      project.artifacts {
-        distConfig file: project.file("${project.buildDir}/${tarball}"), builtBy: project.sdist
-      }
+      // Create new configuration distTarBall which represents Python source
+      // distribution tarball generated by :sdks:python:sdist.
+      project.configurations { distTarBall }
 
       project.task('installGcpTest', dependsOn: 'setupVirtualenv') {
         doLast {
@@ -1782,7 +1883,7 @@ class BeamModulePlugin implements Plugin<Project> {
           }
         }
       }
-      project.installGcpTest.mustRunAfter project.sdist
+      project.installGcpTest.mustRunAfter project.configurations.distTarBall
 
       project.task('cleanPython') {
         doLast {
@@ -1820,15 +1921,23 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.ext.toxTask = { name, tox_env ->
         project.tasks.create(name) {
-          dependsOn = ['sdist']
+          dependsOn 'setupVirtualenv'
+          dependsOn ':sdks:python:sdist'
+
           doLast {
+            // Python source directory is also tox execution workspace, We want
+            // to isolate them per tox suite to avoid conflict when running
+            // multiple tox suites in parallel.
+            project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
+
             def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
+            def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
             project.exec {
               executable 'sh'
-              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env ${project.buildDir}/apache-beam.tar.gz"
+              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env $distTarBall"
             }
           }
-          inputs.files pythonSdkDeps
+          inputs.files project.pythonSdkDeps
           outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
         }
       }
@@ -1842,7 +1951,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
         project.task('integrationTest') {
           dependsOn 'installGcpTest'
-          dependsOn 'sdist'
+          dependsOn ':sdks:python:sdist'
 
           doLast {
             def argMap = [:]

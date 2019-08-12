@@ -1318,7 +1318,8 @@ public class TextIO {
       if (getFooter() != null) {
         writer.println(getFooter());
       }
-      writer.close();
+      // BEAM-7813: don't close writer here
+      writer.flush();
     }
   }
 

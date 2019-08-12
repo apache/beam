@@ -85,9 +85,9 @@ class BigqueryMatcher(BaseMatcher):
       response = self._query_with_retry()
       logging.info('Read from given query (%s), total rows %d',
                    self.query, len(response))
+      self.checksum = compute_hash(response)
+      logging.info('Generate checksum: %s', self.checksum)
 
-    self.checksum = compute_hash(response)
-    logging.info('Generate checksum: %s', self.checksum)
     return self.checksum == self.expected_checksum
 
   @retry.with_exponential_backoff(

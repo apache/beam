@@ -114,6 +114,14 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="message" value="You should not use TestNG classes in Beam."/>
     </module>
 
+    <!-- Forbid Non-vendored byte-buddy imports. -->
+    <module name="RegexpSinglelineJava">
+      <property name="id" value="ForbidByteBuddy"/>
+      <property name="format" value="(\snet\.bytebuddy)"/>
+      <property name="severity" value="error"/>
+      <property name="message" value="You are using raw byte-buddy, please use vendored byte-buddy classes."/>
+    </module>
+
     <module name="UnusedImports">
       <property name="severity" value="error"/>
       <property name="processJavadoc" value="true"/>

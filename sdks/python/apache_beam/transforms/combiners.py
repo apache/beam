@@ -133,10 +133,12 @@ class Count(object):
 
     def expand(self, pcoll):
       paired_with_void_type = typehints.Tuple[pcoll.element_type, Any]
+      output_type = typehints.KV[pcoll.element_type, int]
       return (pcoll
               | ('%s:PairWithVoid' % self.label >> core.Map(lambda x: (x, None))
                  .with_output_types(paired_with_void_type))
-              | core.CombinePerKey(CountCombineFn()))
+              | core.CombinePerKey(CountCombineFn())
+              .with_output_types(output_type))
 
 
 @with_input_types(Any)

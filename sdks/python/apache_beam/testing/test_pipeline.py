@@ -112,6 +112,9 @@ class TestPipeline(Pipeline):
 
     return result
 
+  def get_pipeline_options(self):
+    return self._options
+
   def _parse_test_option_args(self, argv):
     """Parse value of command line argument: --test-pipeline-options to get
     pipeline options.

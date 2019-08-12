@@ -208,6 +208,7 @@ class _StateBackedIterable(object):
       self._coder_impl = coder_or_impl
 
   def __iter__(self):
+    # This is the continuation token this might be useful
     data, continuation_token = self._state_handler.blocking_get(self._state_key)
     while True:
       input_stream = coder_impl.create_InputStream(data)
@@ -292,7 +293,7 @@ class StateBackedSideInputMap(object):
     self._cache = {}
 
 
-class CombiningValueRuntimeState(userstate.RuntimeState):
+class CombiningValueRuntimeState(userstate.CombiningValueRuntimeState):
   def __init__(self, underlying_bag_state, combinefn):
     self._combinefn = combinefn
     self._underlying_bag_state = underlying_bag_state
@@ -347,7 +348,7 @@ coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(_ConcatIterable)
 
 
 # TODO(BEAM-5428): Implement cross-bundle state caching.
-class SynchronousBagRuntimeState(userstate.RuntimeState):
+class SynchronousBagRuntimeState(userstate.BagRuntimeState):
   def __init__(self, state_handler, state_key, value_coder):
     self._state_handler = state_handler
     self._state_key = state_key
@@ -367,6 +368,65 @@ class SynchronousBagRuntimeState(userstate.RuntimeState):
   def clear(self):
     self._cleared = True
     self._added_elements = []
+
+  def _commit(self):
+    if self._cleared:
+      self._state_handler.blocking_clear(self._state_key)
+    if self._added_elements:
+      value_coder_impl = self._value_coder.get_impl()
+      out = coder_impl.create_OutputStream()
+      for element in self._added_elements:
+        value_coder_impl.encode_to_stream(element, out, True)
+      self._state_handler.blocking_append(self._state_key, out.get())
+
+
+# TODO(BEAM-5428): Implement cross-bundle state caching.
+class SynchronousSetRuntimeState(userstate.SetRuntimeState):
+
+  def __init__(self, state_handler, state_key, value_coder):
+    self._state_handler = state_handler
+    self._state_key = state_key
+    self._value_coder = value_coder
+    self._cleared = False
+    self._added_elements = set()
+
+  def _compact_data(self, rewrite=True):
+    accumulator = set(_ConcatIterable(
+        set() if self._cleared else _StateBackedIterable(
+            self._state_handler, self._state_key, self._value_coder),
+        self._added_elements))
+
+    if rewrite and accumulator:
+      self._state_handler.blocking_clear(self._state_key)
+
+      value_coder_impl = self._value_coder.get_impl()
+      out = coder_impl.create_OutputStream()
+      for element in accumulator:
+        value_coder_impl.encode_to_stream(element, out, True)
+      self._state_handler.blocking_append(self._state_key, out.get())
+
+      # Since everthing is already committed so we can safely reinitialize
+      # added_elements here.
+      self._added_elements = set()
+
+    return accumulator
+
+  def read(self):
+    return self._compact_data(rewrite=False)
+
+  def add(self, value):
+    if self._cleared:
+      # This is a good time explicitly clear.
+      self._state_handler.blocking_clear(self._state_key)
+      self._cleared = False
+
+    self._added_elements.add(value)
+    if random.random() > 0.5:
+      self._compact_data()
+
+  def clear(self):
+    self._cleared = True
+    self._added_elements = set()
 
   def _commit(self):
     if self._cleared:
@@ -454,6 +514,16 @@ class FnApiUserStateContext(userstate.UserStateContext):
         return bag_state
       else:
         return CombiningValueRuntimeState(bag_state, state_spec.combine_fn)
+    elif isinstance(state_spec, userstate.SetStateSpec):
+      return SynchronousSetRuntimeState(
+          self._state_handler,
+          state_key=beam_fn_api_pb2.StateKey(
+              bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
+                  ptransform_id=self._transform_id,
+                  user_state_id=state_spec.name,
+                  window=self._window_coder.encode(window),
+                  key=self._key_coder.encode(key))),
+          value_coder=state_spec.coder)
     else:
       raise NotImplementedError(state_spec)
 

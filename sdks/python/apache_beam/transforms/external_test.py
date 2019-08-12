@@ -20,21 +20,22 @@
 from __future__ import absolute_import
 
 import argparse
+import os
 import subprocess
 import sys
 import unittest
 
 import grpc
 from mock import patch
+from nose.plugins.attrib import attr
 from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam import Pipeline
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.portability import python_urns
 from apache_beam.runners.portability import expansion_service
 from apache_beam.runners.portability.expansion_service_test import FibTransform
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -47,6 +48,7 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
+@attr('UsesCrossLanguageTransforms')
 class ExternalTransformTest(unittest.TestCase):
 
   # This will be overwritten if set via a flag.
@@ -55,26 +57,33 @@ class ExternalTransformTest(unittest.TestCase):
 
   class _RunWithExpansion(object):
 
-    def __init__(self, port, expansion_service_jar):
-      self._port = port
-      self._expansion_service_jar = expansion_service_jar
+    def __init__(self):
+      self._server = None
 
     def __enter__(self):
-      if not ExternalTransformTest.expansion_service_jar:
-        raise unittest.SkipTest('No expansion service jar provided.')
+      if not (ExternalTransformTest.expansion_service_jar or
+              ExternalTransformTest.expansion_service_port):
+        raise unittest.SkipTest('No expansion service jar or port provided.')
+
+      ExternalTransformTest.expansion_service_port = (
+          ExternalTransformTest.expansion_service_port or 8091)
+
+      jar = ExternalTransformTest.expansion_service_jar
+      port = ExternalTransformTest.expansion_service_port
 
       # Start the java server and wait for it to be ready.
-      self._server = subprocess.Popen(
-          ['java', '-jar', self._expansion_service_jar, str(self._port)])
+      if jar:
+        self._server = subprocess.Popen(['java', '-jar', jar, str(port)])
 
-      port = ExternalTransformTest.expansion_service_port or 8091
       address = 'localhost:%s' % str(port)
 
       with grpc.insecure_channel(address) as channel:
         grpc.channel_ready_future(channel).result()
 
     def __exit__(self, type, value, traceback):
-      self._server.kill()
+      if self._server:
+        self._server.kill()
+        self._server = None
 
   def test_pipeline_generation(self):
     pipeline = beam.Pipeline()
@@ -137,17 +146,10 @@ class ExternalTransformTest(unittest.TestCase):
       assert_that(p | FibTransform(6), equal_to([8]))
 
   def test_java_expansion_portable_runner(self):
-    pipeline_options = PipelineOptions(
-        ['--runner=PortableRunner',
-         '--experiments=beam_fn_api',
-         '--environment_type=%s' % python_urns.EMBEDDED_PYTHON,
-         '--job_endpoint=embed'])
+    ExternalTransformTest.expansion_service_port = os.environ.get(
+        'EXPANSION_PORT')
 
-    # We use the save_main_session option because one or more DoFn's in this
-    # workflow rely on global context (e.g., a module imported at module level).
-    pipeline_options.view_as(SetupOptions).save_main_session = True
-
-    ExternalTransformTest.run_pipeline_with_portable_runner(pipeline_options)
+    ExternalTransformTest.run_pipeline_with_portable_runner(None)
 
   @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
   def test_java_expansion_dataflow(self):
@@ -156,21 +158,17 @@ class ExternalTransformTest(unittest.TestCase):
 
     with patch.object(
         apiclient.DataflowApplicationClient, 'create_job') as mock_create_job:
-      port = ExternalTransformTest.expansion_service_port or 8091
-      with self._RunWithExpansion(port, self.expansion_service_jar):
+      with self._RunWithExpansion():
         pipeline_options = PipelineOptions(
             ['--runner=DataflowRunner',
              '--project=dummyproject',
              '--experiments=beam_fn_api',
              '--temp_location=gs://dummybucket/'])
 
-        # We use the save_main_session option because one or more DoFn's in this
-        # workflow rely on global context (e.g., a module imported at module
-        # level).
-        pipeline_options.view_as(SetupOptions).save_main_session = True
-
         # Run a simple count-filtered-letters pipeline.
-        self.run_pipeline(pipeline_options, port, False)
+        self.run_pipeline(
+            pipeline_options, ExternalTransformTest.expansion_service_port,
+            False)
 
         mock_args = mock_create_job.call_args_list
         assert mock_args
@@ -181,24 +179,22 @@ class ExternalTransformTest(unittest.TestCase):
 
   @staticmethod
   def run_pipeline_with_portable_runner(pipeline_options):
-
-    port = ExternalTransformTest.expansion_service_port or 8091
-
-    with ExternalTransformTest._RunWithExpansion(
-        port, ExternalTransformTest.expansion_service_jar):
+    with ExternalTransformTest._RunWithExpansion():
       # Run a simple count-filtered-letters pipeline.
-      ExternalTransformTest.run_pipeline(pipeline_options, port, True)
+      ExternalTransformTest.run_pipeline(
+          pipeline_options, ExternalTransformTest.expansion_service_port, True)
 
   @staticmethod
   def run_pipeline(
       pipeline_options, expansion_service_port, wait_until_finish=True):
     # The actual definitions of these transforms is in
     # org.apache.beam.runners.core.construction.TestExpansionService.
-    TEST_COUNT_URN = "pytest:beam:transforms:count"
-    TEST_FILTER_URN = "pytest:beam:transforms:filter_less_than"
+    TEST_COUNT_URN = "beam:transforms:xlang:count"
+    TEST_FILTER_URN = "beam:transforms:xlang:filter_less_than_eq"
 
     # Run a simple count-filtered-letters pipeline.
-    p = beam.Pipeline(options=pipeline_options)
+    p = TestPipeline(options=pipeline_options)
+
     address = 'localhost:%s' % str(expansion_service_port)
     res = (
         p

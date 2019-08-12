@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.math.BigDecimal;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestUnboundedTable;
 import org.apache.beam.sdk.schemas.Schema;
@@ -36,8 +37,8 @@ import org.junit.Test;
 public class BeamIOSourceRelTest extends BaseRelTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
-  public static final DateTime FIRST_DATE = new DateTime(1);
-  public static final DateTime SECOND_DATE = new DateTime(1 + 3600 * 1000);
+  private static final DateTime FIRST_DATE = new DateTime(1);
+  private static final DateTime SECOND_DATE = new DateTime(1 + 3600 * 1000);
 
   private static final Duration WINDOW_SIZE = Duration.standardHours(1);
 
@@ -107,7 +108,7 @@ public class BeamIOSourceRelTest extends BaseRelTest {
     RelNode root = env.parseQuery(sql);
 
     while (!(root instanceof BeamIOSourceRel)) {
-      root = env.parseQuery(sql).getInput(0);
+      root = root.getInput(0);
     }
 
     Assert.assertEquals(5d, root.estimateRowCount(RelMetadataQuery.instance()), 0.001);
@@ -120,9 +121,43 @@ public class BeamIOSourceRelTest extends BaseRelTest {
     RelNode root = env.parseQuery(sql);
 
     while (!(root instanceof BeamIOSourceRel)) {
-      root = env.parseQuery(sql).getInput(0);
+      root = root.getInput(0);
     }
 
     Assert.assertEquals(2d, root.estimateRowCount(RelMetadataQuery.instance()), 0.001);
+  }
+
+  @Test
+  public void testBoundedNodeStats() {
+    String sql = "SELECT * FROM ORDER_DETAILS_BOUNDED";
+
+    RelNode root = env.parseQuery(sql);
+
+    while (!(root instanceof BeamIOSourceRel)) {
+      root = root.getInput(0);
+    }
+
+    NodeStats estimate = BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
+
+    Assert.assertEquals(5d, estimate.getRowCount(), 0.01);
+    Assert.assertEquals(0d, estimate.getRate(), 0.01);
+    Assert.assertEquals(5d, estimate.getWindow(), 0.01);
+  }
+
+  @Test
+  public void testUnboundedNodeStats() {
+    String sql = "SELECT * FROM ORDER_DETAILS_UNBOUNDED";
+
+    RelNode root = env.parseQuery(sql);
+
+    while (!(root instanceof BeamIOSourceRel)) {
+      root = root.getInput(0);
+    }
+
+    NodeStats estimate = BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
+
+    Assert.assertEquals(0d, estimate.getRowCount(), 0.01);
+    Assert.assertEquals(2d, estimate.getRate(), 0.01);
+    Assert.assertEquals(BeamIOSourceRel.CONSTANT_WINDOW_SIZE, estimate.getWindow(), 0.01);
   }
 }

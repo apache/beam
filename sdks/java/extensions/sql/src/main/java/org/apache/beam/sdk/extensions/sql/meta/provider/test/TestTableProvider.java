@@ -139,7 +139,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
     }
 
     @Override
-    public BeamTableStatistics getRowCount(PipelineOptions options) {
+    public BeamTableStatistics getTableStatistics(PipelineOptions options) {
       return BeamTableStatistics.createBoundedTableStatistics(
           (double) tableWithRows.getRows().size());
     }
