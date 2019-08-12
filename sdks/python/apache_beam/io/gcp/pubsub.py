@@ -44,6 +44,11 @@ try:
 except ImportError:
   pubsub = None
 
+try:
+  from google.protobuf.timestamp_pb2 import Timestamp
+except ImportError:
+  Timestamp = None
+
 __all__ = ['PubsubMessage', 'ReadFromPubSub', 'ReadStringsFromPubSub',
            'WriteStringsToPubSub', 'WriteToPubSub']
 
@@ -76,7 +81,10 @@ class PubsubMessage(object):
     self.data = data
     self.attributes = attributes
     self.message_id = message_id
-    self.publish_time = publish_time
+    if publish_time is None:
+      self.publish_time = Timestamp()
+    else:
+      self.publish_time = publish_time
 
   def __hash__(self):
     return hash((self.data, frozenset(self.attributes.items()),
