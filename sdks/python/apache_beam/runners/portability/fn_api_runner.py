@@ -1344,7 +1344,7 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
            # TODO:  credentials
            '--network=host',
            self._container_image,
-           '--id=%s' % uuid.uuid4(),
+           '--id=%s' % self.worker_id,
            '--logging_endpoint=%s' % self.logging_api_service_descriptor().url,
            '--control_endpoint=%s' % self.control_address,
            '--artifact_endpoint=%s' % self.control_address,
@@ -1359,6 +1359,8 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
             '{{.State.Status}}',
             self._container_id]).strip()
         if status == 'running':
+          logging.info('Docker container is running. container_id = %s, '
+                       'worker_id = %s', self._container_id, self.worker_id)
           break
         elif status in ('dead', 'exited'):
           subprocess.call([
@@ -1367,11 +1369,11 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
               'logs',
               self._container_id])
           raise RuntimeError('SDK failed to start.')
-        time.sleep(1)
+      time.sleep(1)
 
   def stop_worker(self):
-    with SUBPROCESS_LOCK:
-      if self._container_id:
+    if self._container_id:
+      with SUBPROCESS_LOCK:
         subprocess.call([
             'docker',
             'kill',
@@ -1391,7 +1393,6 @@ class WorkerHandlerManager(object):
       # Any environment will do, pick one arbitrarily.
       environment_id = next(iter(self._environments.keys()))
     environment = self._environments[environment_id]
-    # assume it's using grpc if environment is not EMBEDDED_PYTHON.
     max_total_workers = num_workers * len(self._environments)
 
     # assume all environments except EMBEDDED_PYTHON use gRPC.
@@ -1410,6 +1411,7 @@ class WorkerHandlerManager(object):
       raise RuntimeError('gRPC servers are running with %s threads, we cannot '
                          'attach %s workers.' % (self._grpc_server.max_workers,
                                                  max_total_workers))
+
     worker_handler_list = self._cached_handlers[environment_id]
     if len(worker_handler_list) < num_workers:
       for _ in range(len(worker_handler_list), num_workers):
