@@ -22,9 +22,7 @@ import static org.apache.beam.sdk.transforms.windowing.AfterWatermark.pastEndOfW
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.avro.Schema.Field.Order;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Count;
@@ -92,7 +90,9 @@ public class RetractionTest {
 
     pc.apply("ConvertToString", ParDo.of(new ConvertToString()))
         .apply(
-            "Sinking", new OrderingGuaranteedLogFileSink("/usr/local/google/home/ruwang/Downloads/retraction_test/test.txt"));
+            "Sinking",
+            new OrderingGuaranteedLogFileSink(
+                "/usr/local/google/home/ruwang/Downloads/retraction_test/test.txt"));
 
     // IntervalWindow window = new IntervalWindow(baseTime, WINDOW_LENGTH);
 
@@ -154,9 +154,16 @@ public class RetractionTest {
     }
   }
 
-
-  static class OrderingGuaranteedLogFileSink extends
-      PTransform<PCollection<String>, PDone> {
+  /**
+   * The ordering guarantee that this sink provides is: 1. assume there will only be one destination
+   * file. 2. ordering is guaranteed within the file. 3. for any retraction, it should be written
+   * into the file after a corresponding addition. 4. Corresponding addition of a retraction is
+   * defined as, for the same key, same window, if an addition has the same value as a retraction,
+   * we say this addition is the corresponding addition to that retraction. 5. item 4 actually means
+   * we are modeling a PColection as [value, #count], thus addition are +1 on the count and
+   * retraction are -1 on the count.
+   */
+  static class OrderingGuaranteedLogFileSink extends PTransform<PCollection<String>, PDone> {
     private String targetFilePath;
 
     public OrderingGuaranteedLogFileSink(String filePath) {
@@ -187,7 +194,6 @@ public class RetractionTest {
       throw new UnsupportedOperationException("processRetraction");
     }
   }
-
 
   static class SortValues extends DoFn<KV<Long, Iterable<String>>, KV<Long, Iterable<String>>> {
     @ProcessElement
