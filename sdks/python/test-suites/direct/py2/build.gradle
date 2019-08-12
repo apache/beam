@@ -57,6 +57,7 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
         "apache_beam.io.gcp.bigquery_test:BigQueryStreamingInsertTransformIntegrationTests\
 .test_multiple_destinations_transform",
         "apache_beam.io.gcp.bigquery_file_loads_test:BigQueryFileLoadsIT.test_bqfl_streaming",
+        "apache_beam.io.gcp.bigquery_test:PubSubBigQueryIT",
     ]
     def streamingTestOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
     def argMap = ["runner": "TestDirectRunner",
