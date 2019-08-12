@@ -64,7 +64,6 @@ dependencies {
   shadow library.java.vendored_guava_26_0_jre
   compile library.java.antlr_runtime
   compile library.java.protobuf_java
-  compile library.java.byte_buddy
   compile library.java.commons_compress
   compile library.java.commons_lang3
   shadow library.java.jackson_core
