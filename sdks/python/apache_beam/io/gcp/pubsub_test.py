@@ -22,13 +22,11 @@ from __future__ import absolute_import
 
 import logging
 import unittest
-import datetime
-import time
-from datetime import datetime
 from builtins import object
 
 import hamcrest as hc
 import mock
+from google.protobuf.timestamp_pb2 import Timestamp
 
 import apache_beam as beam
 from apache_beam.io.gcp.pubsub import PubsubMessage
@@ -55,14 +53,12 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.utils import timestamp
 
-from google.protobuf.timestamp_pb2 import Timestamp
-
 # Protect against environments where the PubSub library is not available.
 try:
   from google.cloud import pubsub
 except ImportError:
   pubsub = None
-
+  
 
 class TestPubsubMessage(unittest.TestCase):
 
@@ -90,7 +86,7 @@ class TestPubsubMessage(unittest.TestCase):
     publish_time_secs = 1520861821
     publish_time_nanos = 234567000
     publish_time = Timestamp(seconds=publish_time_secs,
-                                       nanos=publish_time_nanos)
+                             nanos=publish_time_nanos)
     a = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890', publish_time)
     b = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890', publish_time)
     c = PubsubMessage(b'abc', {1: 2}, '1234567890', publish_time)
@@ -511,7 +507,8 @@ class TestReadFromPubSub(unittest.TestCase):
     publish_time_nanos = 234567000
     publish_time = '2018-03-12T13:37:01.234567Z'
     ack_id = 'ack_id'
-    pubsub_publish_time = Timestamp(seconds=publish_time_secs, nanos=publish_time_nanos)
+    pubsub_publish_time = Timestamp(seconds=publish_time_secs,
+                                    nanos=publish_time_nanos)
     message_id = '0123456789'
     pull_response = test_utils.create_pull_response([
         test_utils.PullResponseMessage(

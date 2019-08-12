@@ -34,7 +34,6 @@ from mock import patch
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.utils import retry
-from apache_beam.utils import timestamp
 
 DEFAULT_HASHING_ALG = 'sha1'
 
@@ -157,8 +156,7 @@ class PullResponseMessage(object):
   """
   def __init__(self, data, attributes=None, message_id=None,
                publish_time=None, publish_time_secs=None,
-               publish_time_nanos=None, ack_id=None
-               ):
+               publish_time_nanos=None, ack_id=None):
     self.data = data
     self.attributes = attributes
     self.message_id = message_id
