@@ -28,6 +28,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -49,6 +50,12 @@ public class InMemoryJobServiceTest {
   private static final String TEST_RETRIEVAL_TOKEN = "test-staging-token";
   private static final RunnerApi.Pipeline TEST_PIPELINE = RunnerApi.Pipeline.getDefaultInstance();
   private static final Struct TEST_OPTIONS = Struct.getDefaultInstance();
+  private static final JobApi.JobInfo TEST_JOB_INFO =
+      JobApi.JobInfo.newBuilder()
+          .setJobId(TEST_JOB_ID)
+          .setJobName(TEST_JOB_NAME)
+          .setPipelineOptions(TEST_OPTIONS)
+          .build();
 
   Endpoints.ApiServiceDescriptor stagingServiceDescriptor;
   @Mock JobInvoker invoker;
@@ -65,6 +72,7 @@ public class InMemoryJobServiceTest {
     when(invoker.invoke(TEST_PIPELINE, TEST_OPTIONS, TEST_RETRIEVAL_TOKEN)).thenReturn(invocation);
     when(invocation.getId()).thenReturn(TEST_JOB_ID);
     when(invocation.getPipeline()).thenReturn(TEST_PIPELINE);
+    when(invocation.toProto()).thenReturn(TEST_JOB_INFO);
   }
 
   private JobApi.PrepareJobResponse prepareJob() {
@@ -110,6 +118,23 @@ public class InMemoryJobServiceTest {
     JobApi.PrepareJobResponse response = recorder.values.get(0);
     assertThat(response.getArtifactStagingEndpoint(), notNullValue());
     assertThat(response.getPreparationId(), notNullValue());
+  }
+
+  @Test
+  public void testGetJobsIsSuccessful() throws Exception {
+    prepareAndRunJob();
+
+    JobApi.GetJobsRequest request = JobApi.GetJobsRequest.newBuilder().build();
+    RecordingObserver<JobApi.GetJobsResponse> recorder = new RecordingObserver<>();
+    service.getJobs(request, recorder);
+    assertThat(recorder.isSuccessful(), is(true));
+    assertThat(recorder.values, hasSize(1));
+    JobApi.GetJobsResponse response = recorder.values.get(0);
+    List<JobApi.JobInfo> jobs = response.getJobInfoList();
+    assertThat(jobs, hasSize(1));
+    JobApi.JobInfo job = jobs.get(0);
+    assertThat(job.getJobId(), is(TEST_JOB_ID));
+    assertThat(job.getJobName(), is(TEST_JOB_NAME));
   }
 
   @Test
