@@ -25,12 +25,12 @@ import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.core.Correlate;
+import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.Uncollect;
 import org.apache.calcite.rel.logical.LogicalCorrelate;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.SemiJoinType;
 
 /**
  * A {@code ConverterRule} to replace {@link Correlate} {@link Uncollect} with {@link
@@ -61,7 +61,7 @@ public class BeamUnnestRule extends RelOptRule {
       // can only unnest a single column
       return;
     }
-    if (correlate.getJoinType() != SemiJoinType.INNER) {
+    if (correlate.getJoinType() != JoinRelType.INNER) {
       return;
     }
 
