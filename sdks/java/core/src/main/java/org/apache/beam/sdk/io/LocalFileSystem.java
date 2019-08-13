@@ -275,7 +275,9 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
   private File getSpecNonGlobPrefixParentFile(String spec) {
     String specNonWildcardPrefix = getNonWildcardPrefix(spec);
     File file = new File(specNonWildcardPrefix);
-    return specNonWildcardPrefix.endsWith(File.separator) ? file : file.getAbsoluteFile().getParentFile();
+    return specNonWildcardPrefix.endsWith(File.separator) ?
+        file
+        : file.getAbsoluteFile().getParentFile();
   }
 
   private Metadata toMetadata(File file) {
