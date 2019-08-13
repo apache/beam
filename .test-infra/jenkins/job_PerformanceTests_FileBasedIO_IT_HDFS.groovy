@@ -17,6 +17,7 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import Kubernetes
 
 def testsConfigurations = [
         [
@@ -26,7 +27,7 @@ def testsConfigurations = [
                 bqTable           : 'beam_performance.textioit_hdfs_pkb_results',
                 prCommitStatusName: 'Java TextIO Performance Test on HDFS',
                 prTriggerPhase    : 'Run Java TextIO Performance Test HDFS',
-                extraPipelineArgs: [
+                pipelineOptions: [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable: 'textioit_hdfs_results',
                         numberOfRecords: '1000000'
@@ -40,7 +41,7 @@ def testsConfigurations = [
                 bqTable            : 'beam_performance.compressed_textioit_hdfs_pkb_results',
                 prCommitStatusName : 'Java CompressedTextIO Performance Test on HDFS',
                 prTriggerPhase     : 'Run Java CompressedTextIO Performance Test HDFS',
-                extraPipelineArgs: [
+                pipelineOptions: [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable: 'compressed_textioit_hdfs_results',
                         numberOfRecords: '1000000',
@@ -54,7 +55,7 @@ def testsConfigurations = [
                 bqTable           : 'beam_performance.many_files_textioit_hdfs_pkb_results',
                 prCommitStatusName: 'Java ManyFilesTextIO Performance Test on HDFS',
                 prTriggerPhase    : 'Run Java ManyFilesTextIO Performance Test HDFS',
-                extraPipelineArgs: [
+                pipelineOptions: [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable: 'many_files_textioit_hdfs_results',
                         reportGcsPerformanceMetrics: 'true',
@@ -71,7 +72,7 @@ def testsConfigurations = [
                 bqTable           : 'beam_performance.avroioit_hdfs_pkb_results',
                 prCommitStatusName: 'Java AvroIO Performance Test on HDFS',
                 prTriggerPhase    : 'Run Java AvroIO Performance Test HDFS',
-                extraPipelineArgs: [
+                pipelineOptions: [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable: 'avroioit_hdfs_results',
                         numberOfRecords: '1000000'
@@ -86,7 +87,7 @@ def testsConfigurations = [
 //                bqTable           : 'beam_performance.tfrecordioit_hdfs_pkb_results',
 //                prCommitStatusName: 'Java TFRecordIO Performance Test on HDFS',
 //                prTriggerPhase    : 'Run Java TFRecordIO Performance Test HDFS',
-//                extraPipelineArgs: [
+//                pipelineOptions: [
 //                        numberOfRecords: '1000000'
 //                ]
 //        ],
@@ -97,7 +98,7 @@ def testsConfigurations = [
                 bqTable           : 'beam_performance.xmlioit_hdfs_pkb_results',
                 prCommitStatusName: 'Java XmlIOPerformance Test on HDFS',
                 prTriggerPhase    : 'Run Java XmlIO Performance Test HDFS',
-                extraPipelineArgs: [
+                pipelineOptions: [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable: 'xmlioit_hdfs_results',
                         numberOfRecords: '100000',
@@ -111,7 +112,7 @@ def testsConfigurations = [
                 bqTable           : 'beam_performance.parquetioit_hdfs_pkb_results',
                 prCommitStatusName: 'Java ParquetIOPerformance Test on HDFS',
                 prTriggerPhase    : 'Run Java ParquetIO Performance Test HDFS',
-                extraPipelineArgs: [
+                pipelineOptions: [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable: 'parquetioit_hdfs_results',
                         numberOfRecords: '1000000'
@@ -145,43 +146,37 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
                 delegate,
                 'H */6 * * *')
 
-        def pipelineArgs = [
-                project        : 'apache-beam-testing',
-                tempRoot       : 'gs://temp-storage-for-perf-tests',
-        ]
-        if (testConfiguration.containsKey('extraPipelineArgs')) {
-            pipelineArgs << testConfiguration.extraPipelineArgs
-        }
-
-        def pipelineArgList = []
-        pipelineArgs.each({
-            key, value -> pipelineArgList.add("\"--$key=$value\"")
-        })
-        def pipelineArgsJoined = "[" + pipelineArgList.join(',') + "]"
-
         String namespace = commonJobProperties.getKubernetesNamespace(testConfiguration.jobName)
         String kubeconfig = commonJobProperties.getKubeconfigLocationForNamespace(namespace)
+        Kubernetes k8s = Kubernetes.create(delegate, kubeconfig, namespace)
 
-        def argMap = [
-                kubeconfig              : kubeconfig,
-                benchmarks              : 'beam_integration_benchmark',
-                beam_it_timeout         : '1200',
-                beam_prebuilt           : 'false',
-                beam_sdk                : 'java',
-                beam_it_module          : ':sdks:java:io:file-based-io-tests',
-                beam_it_class           : testConfiguration.itClass,
-                beam_it_options         : pipelineArgsJoined,
-                beam_extra_properties   : '["filesystem=hdfs"]',
-                bigquery_table          : testConfiguration.bqTable,
-                beam_options_config_file: makePathAbsolute('pkb-config.yml'),
-                beam_kubernetes_scripts : makePathAbsolute('hdfs-multi-datanode-cluster.yml')
+        k8s.apply(commonJobProperties.makePathAbsolute("src/.test-infra/kubernetes/hadoop/LargeITCluster/hdfs-multi-datanode-cluster.yml"))
+        String hostName = "LOAD_BALANCER_IP"
+        k8s.loadBalancerIP("hadoop", hostName)
+
+        Map additionalOptions = [
+                runner  : 'DataflowRunner',
+                project : 'apache-beam-testing',
+                tempRoot: 'gs://temp-storage-for-perf-tests',
+                hdfsConfiguration: /[{\\\"fs.defaultFS\\\":\\\"hdfs:$${hostName}:9000\\\",\\\"dfs.replication\\\":1}]/,
+                filenamePrefix   : "hdfs://\$${hostName}:9000/TEXTIO_IT_"
         ]
-        commonJobProperties.setupKubernetes(delegate, namespace, kubeconfig)
-        commonJobProperties.buildPerformanceTest(delegate, argMap)
-        commonJobProperties.cleanupKubernetes(delegate, namespace, kubeconfig)
-    }
-}
 
-static def makePathAbsolute(String path) {
-    return '"$WORKSPACE/src/.test-infra/kubernetes/hadoop/LargeITCluster/' + path + '"'
+        Map allPipelineOptions = testConfiguration.pipelineOptions << additionalOptions
+        String runner = "dataflow"
+        String filesystem = "hdfs"
+        String testTask = ":sdks:java:io:file-based-io-tests:integrationTest"
+
+        steps {
+          gradle {
+            rootBuildScriptDir(commonJobProperties.checkoutDir)
+            commonJobProperties.setGradleSwitches(delegate)
+            switches("--info")
+            switches("-DintegrationTestPipelineOptions=\'${commonJobProperties.joinPipelineOptions(allPipelineOptions)}\'")
+            switches("-Dfilesystem=\'${filesystem}\'")
+            switches("-DintegrationTestRunner=\'${runner}\'")
+            tasks("${testTask} --tests ${testConfiguration.itClass}")
+          }
+        }
+    }
 }
