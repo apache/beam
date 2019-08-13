@@ -39,13 +39,12 @@ from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils.annotations import deprecated
 
-from google.protobuf.timestamp_pb2 import Timestamp
 try:
   from google.cloud import pubsub
 except ImportError:
   pubsub = None
 
-  __all__ = ['PubsubMessage', 'ReadFromPubSub', 'ReadStringsFromPubSub',
+__all__ = ['PubsubMessage', 'ReadFromPubSub', 'ReadStringsFromPubSub',
            'WriteStringsToPubSub', 'WriteToPubSub']
 
 
@@ -408,7 +407,6 @@ class _PubSubSink(dataflow_io.NativeSink):
     self.id_label = id_label
     self.with_attributes = with_attributes
     self.timestamp_attribute = timestamp_attribute
-
     self.project, self.topic_name = parse_topic(topic)
 
   @property
