@@ -185,6 +185,31 @@ public class LocalFileSystemTest {
   }
 
   @Test
+  public void testMatchWithGlob() throws Exception {
+    String globPattern = "/A/a=[0-9][0-9][0-9]/*/*";
+    File baseFolder = temporaryFolder.newFolder("A");
+    File folder1 = new File(baseFolder, "a=100");
+    File folder2 = new File(baseFolder, "a=233");
+    File dataFolder1 = new File(folder1, "data1");
+    File dataFolder2 = new File(folder2, "data_dir");
+    File expectedFile1 = new File(dataFolder1, "file1");
+    File expectedFile2 = new File(dataFolder2, "data_file2");
+
+    createEmptyFile(expectedFile1);
+    createEmptyFile(expectedFile2);
+
+    List<String> expected =
+        ImmutableList.of(expectedFile1.getAbsolutePath(), expectedFile2.getAbsolutePath());
+
+    List<MatchResult> matchResults =
+        matchGlobWithPathPrefix(temporaryFolder.getRoot().toPath(), globPattern);
+
+    assertThat(
+        toFilenames(matchResults),
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
   public void testMatchExact() throws Exception {
     List<String> expected = ImmutableList.of(temporaryFolder.newFile("a").toString());
     temporaryFolder.newFile("aa");
@@ -421,5 +446,11 @@ public class LocalFileSystemTest {
             })
         .transform(metadata -> ((LocalResourceId) metadata.resourceId()).getPath().toString())
         .toList();
+  }
+
+  private static void createEmptyFile(File file) throws IOException {
+    if (!file.getParentFile().mkdirs() || !file.createNewFile()) {
+      throw new IOException("Failed creating empty file " + file.getAbsolutePath());
+    }
   }
 }
