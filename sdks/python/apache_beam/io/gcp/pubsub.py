@@ -41,12 +41,9 @@ from apache_beam.utils.annotations import deprecated
 
 try:
   from google.cloud import pubsub
-except ImportError:
-  pubsub = None
-
-try:
   from google.protobuf.timestamp_pb2 import Timestamp
 except ImportError:
+  pubsub = None
   Timestamp = None
 
 __all__ = ['PubsubMessage', 'ReadFromPubSub', 'ReadStringsFromPubSub',

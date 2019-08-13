@@ -44,8 +44,8 @@ except ImportError:
 
 
 @unittest.skipIf(pubsub is None, 'PubSub dependencies are not installed.')
-@unittest.skipIf(Timestamp is None, 
-                'Google Protobuf dependencies are not installed.')
+@unittest.skipIf(Timestamp is None,
+                 'Google Protobuf dependencies are not installed.')
 @mock.patch('time.sleep', return_value=None)
 @mock.patch('google.cloud.pubsub.SubscriberClient')
 class PubSubMatcherTest(unittest.TestCase):

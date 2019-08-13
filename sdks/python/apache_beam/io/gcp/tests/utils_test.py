@@ -170,7 +170,7 @@ class PubSubUtilTest(unittest.TestCase):
     publish_time = Timestamp(seconds=publish_seconds, nanos=publish_nanos)
     message = PubsubMessage(data, attributes, message_id, publish_time)
     pull_response = test_utils.create_pull_response(
-        [test_utils.PullResponseMessage(data, attributes, 
+        [test_utils.PullResponseMessage(data, attributes,
                                         message_id=message_id,
                                         publish_time=publish_time,
                                         publish_time_secs=publish_seconds,
@@ -225,29 +225,29 @@ class PubSubUtilTest(unittest.TestCase):
     ]
     attributes_list = [{
         'key': 'value {}'.format(i)} for i in range(number_of_elements)]
-    message_id_list = ['0123456789_{}'.format(i) 
-        for i in range(number_of_elements)]
+    message_id_list = ['0123456789_{}'.format(i)
+                       for i in range(number_of_elements)]
     publish_time_secs = 1520861821
     publish_time_nanos = 234567000
     publish_time_list = [Timestamp(seconds=publish_time_secs,
-                             nanos=publish_time_nanos)
-        for i in range(number_of_elements)]
+                                   nanos=publish_time_nanos)
+                         for i in range(number_of_elements)]
     ack_ids = ['ack_id_{}'.format(i) for i in range(number_of_elements)]
     messages = [
         PubsubMessage(data, attributes, message_id, publish_time)
         for data, attributes, message_id, publish_time
-          in zip(data_list, attributes_list,
-                   message_id_list, publish_time_list)
+        in zip(data_list, attributes_list,
+               message_id_list, publish_time_list)
     ]
     response_messages = [
         test_utils.PullResponseMessage(
-          data, attributes, message_id,
-          publish_time_secs=publish_time.seconds,
-          publish_time_nanos=publish_time.nanos,
-          ack_id=ack_id)
+            data, attributes, message_id,
+            publish_time_secs=publish_time.seconds,
+            publish_time_nanos=publish_time.nanos,
+            ack_id=ack_id)
         for data, attributes, message_id, publish_time, ack_id
-          in zip(data_list, attributes_list, message_id_list,
-                 publish_time_list, ack_ids)
+        in zip(data_list, attributes_list, message_id_list,
+               publish_time_list, ack_ids)
     ]
 
     class SequentialPullResponse(object):

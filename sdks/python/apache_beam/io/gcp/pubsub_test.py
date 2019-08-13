@@ -55,13 +55,11 @@ from apache_beam.utils import timestamp
 # Protect against environments where the PubSub library is not available.
 try:
   from google.cloud import pubsub
-except ImportError:
-  pubsub = None
-
-try:
   from google.protobuf.timestamp_pb2 import Timestamp
 except ImportError:
+  pubsub = None
   Timestamp = None
+
 
 class TestPubsubMessage(unittest.TestCase):
 
