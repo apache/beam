@@ -19,7 +19,7 @@
 plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
-def runScriptsDir = "${project.rootDir}/sdks/python/scripts"
+def runScriptsDir = "${rootDir}/sdks/python/scripts"
 
 // Basic test options for ITs running on Jenkins.
 def basicTestOpts = [
@@ -28,7 +28,9 @@ def basicTestOpts = [
     "--process-timeout=4500", // timeout of whole command execution
 ]
 
-task directRunnerIT(dependsOn: 'installGcpTest') {
+task directRunnerIT {
+  dependsOn 'installGcpTest'
+
   // Run IT tests with TestDirectRunner in batch.
   doLast {
     def tests = [
@@ -42,10 +44,10 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
     def argMap = ["runner": "TestDirectRunner",
                   "test_opts": batchTestOpts,
                   "suite": "directRunnerIT-batch"]
-    def batchCmdArgs = project.mapToArgString(argMap)
+    def batchCmdArgs = mapToArgString(argMap)
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $batchCmdArgs"
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $batchCmdArgs"
     }
   }
 
@@ -63,24 +65,25 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
                   "streaming": "true",
                   "test_opts": streamingTestOpts,
                   "suite": "directRunnerIT-streaming"]
-    def streamingCmdArgs = project.mapToArgString(argMap)
+    def streamingCmdArgs = mapToArgString(argMap)
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $streamingCmdArgs"
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $streamingCmdArgs"
     }
   }
 }
 
-task hdfsIntegrationTest(dependsOn: 'installGcpTest') {
+task hdfsIntegrationTest {
+  dependsOn 'installGcpTest'
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ${project.rootDir}/sdks/python/apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh python:2"
+      args '-c', ". ${envdir}/bin/activate && ${rootDir}/sdks/python/apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh python:2"
     }
   }
 }
 
-project.task('mongodbioIT') {
+task mongodbioIT {
   dependsOn 'setupVirtualenv'
 
   Random r = new Random()
@@ -102,7 +105,7 @@ project.task('mongodbioIT') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e ${project.rootDir}/sdks/python/[test] && python -m apache_beam.io.mongodbio_it_test ${options.join(' ')}"
+      args '-c', ". ${envdir}/bin/activate && pip install -e ${rootDir}/sdks/python/[test] && python -m apache_beam.io.mongodbio_it_test ${options.join(' ')}"
     }
     exec {
       executable 'sh'
