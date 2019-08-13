@@ -28,7 +28,6 @@ dependencies {
   compile library.java.jackson_core
   compile library.java.jackson_annotations
   compile library.java.jackson_databind
-  compile library.java.guava
   compile project(path: ":sdks:java:core", configuration: "shadow")
 
   testCompile library.java.vendored_guava_26_0_jre

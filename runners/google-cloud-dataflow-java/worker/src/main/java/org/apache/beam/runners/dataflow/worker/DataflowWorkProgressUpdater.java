@@ -25,9 +25,9 @@ import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import com.google.api.services.dataflow.model.HotKeyDetection;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
-import java.text.MessageFormat;
 import java.util.concurrent.ScheduledExecutorService;
 import javax.annotation.concurrent.NotThreadSafe;
+import org.apache.beam.runners.dataflow.util.TimeUtil;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkProgressUpdater;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -49,17 +49,14 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
   /** The WorkItem for which work progress updates are sent. */
   private final WorkItem workItem;
 
-  /**
-   * The previous time the HotKeyDetection was logged. This is used to throttle logging to every 5
-   * minutes.
-   */
-  private long prevHotKeyDetectionLogMs = 0;
+  private HotKeyLogger hotKeyLogger;
 
   public DataflowWorkProgressUpdater(
       WorkItemStatusClient workItemStatusClient, WorkItem workItem, WorkExecutor worker) {
     super(worker, Integer.MAX_VALUE);
     this.workItemStatusClient = workItemStatusClient;
     this.workItem = workItem;
+    this.hotKeyLogger = new HotKeyLogger();
   }
 
   /**
@@ -73,10 +70,12 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
       WorkItem workItem,
       WorkExecutor worker,
       ScheduledExecutorService executor,
-      Clock clock) {
+      Clock clock,
+      HotKeyLogger hotKeyLogger) {
     super(worker, Integer.MAX_VALUE, executor, clock);
     this.workItemStatusClient = workItemStatusClient;
     this.workItem = workItem;
+    this.hotKeyLogger = hotKeyLogger;
   }
 
   @Override
@@ -101,8 +100,12 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
             dynamicSplitResultToReport, Duration.millis(requestedLeaseDurationMs));
 
     if (result != null) {
-      if (shouldLogHotKeyMessage(result)) {
-        LOG.warn(getHotKeyMessage(result));
+      if (result.getHotKeyDetection() != null
+          && result.getHotKeyDetection().getUserStepName() != null) {
+        HotKeyDetection hotKeyDetection = result.getHotKeyDetection();
+        hotKeyLogger.logHotKeyDetection(
+            hotKeyDetection.getUserStepName(),
+            TimeUtil.fromCloudDuration(hotKeyDetection.getHotKeyAge()));
       }
 
       // Resets state after a successful progress report.
@@ -121,40 +124,6 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
                 SourceTranslationUtils.toDynamicSplitRequest(suggestedStopPoint));
       }
     }
-  }
-
-  /**
-   * Returns true if the class should log the HotKeyMessage. This method throttles logging to every
-   * 5 minutes.
-   */
-  protected boolean shouldLogHotKeyMessage(WorkItemServiceState workItemServiceState) {
-    String hotKeyMessage = getHotKeyMessage(workItemServiceState);
-    if (hotKeyMessage.isEmpty()) {
-      return false;
-    }
-
-    // Throttle logging the HotKeyDetection to every 5 minutes.
-    long nowMs = clock.currentTimeMillis();
-    if (nowMs - prevHotKeyDetectionLogMs < Duration.standardMinutes(5).getMillis()) {
-      return false;
-    }
-    prevHotKeyDetectionLogMs = nowMs;
-
-    return true;
-  }
-
-  protected String getHotKeyMessage(WorkItemServiceState workItemServiceState) {
-    if (workItemServiceState.getHotKeyDetection() == null
-        || workItemServiceState.getHotKeyDetection().getUserStepName() == null) {
-      return "";
-    }
-
-    HotKeyDetection hotKeyDetection = workItemServiceState.getHotKeyDetection();
-    return MessageFormat.format(
-        "A hot key was detected in step ''{0}'' with age of ''{1}''. This is"
-            + " a symptom of key distribution being skewed. To fix, please inspect your data and "
-            + "pipeline to ensure that elements are evenly distributed across your key space.",
-        hotKeyDetection.getUserStepName(), hotKeyDetection.getHotKeyAge());
   }
 
   /** Returns the given work unit's lease expiration timestamp. */

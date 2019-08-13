@@ -340,7 +340,6 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   public Aggregate copy(
       RelTraitSet traitSet,
       RelNode input,
-      boolean indicator,
       ImmutableBitSet groupSet,
       List<ImmutableBitSet> groupSets,
       List<AggregateCall> aggCalls) {

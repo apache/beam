@@ -24,6 +24,7 @@ import logging
 import random
 import re
 import types
+import typing
 from builtins import map
 from builtins import object
 from builtins import range
@@ -54,10 +55,6 @@ from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
-from apache_beam.typehints import KV
-from apache_beam.typehints import Any
-from apache_beam.typehints import Iterable
-from apache_beam.typehints import Union
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
@@ -91,9 +88,9 @@ __all__ = [
     ]
 
 # Type variables
-T = typehints.TypeVariable('T')
-K = typehints.TypeVariable('K')
-V = typehints.TypeVariable('V')
+T = typing.TypeVar('T')
+K = typing.TypeVar('K')
+V = typing.TypeVar('V')
 
 
 class DoFnContext(object):
@@ -550,7 +547,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     # type inferencer understands.
     if (type_hint in annotations
         or trivial_inference.element_type(type_hint) in annotations):
-      return Any
+      return typehints.Any
     return type_hint
 
   def _process_argspec_fn(self):
@@ -648,7 +645,8 @@ class CallableWrapperDoFn(DoFn):
     # TODO(robertwb): Should we require an iterable specification for FlatMap?
     if type_hints.output_types:
       args, kwargs = type_hints.output_types
-      if len(args) == 1 and is_consistent_with(args[0], Iterable[Any]):
+      if len(args) == 1 and is_consistent_with(
+          args[0], typehints.Iterable[typehints.Any]):
         type_hints = type_hints.copy()
         type_hints.set_output_types(element_type(args[0]), **kwargs)
     return type_hints
@@ -919,7 +917,8 @@ class CallableWrapperCombineFn(CombineFn):
           input_args, input_kwargs = tuple(input_kwargs.values()), {}
         else:
           raise TypeError('Combiner input type must be specified positionally.')
-      if not is_consistent_with(input_args[0], Iterable[Any]):
+      if not is_consistent_with(
+          input_args[0], typehints.Iterable[typehints.Any]):
         raise TypeCheckError(
             'All functions for a Combine PTransform must accept a '
             'single argument compatible with: Iterable[Any]. '
@@ -1631,7 +1630,7 @@ class CombineGlobally(PTransform):
     combined = (pcoll
                 | 'KeyWithVoid' >> add_input_types(
                     Map(lambda v: (None, v)).with_output_types(
-                        KV[None, pcoll.element_type]))
+                        typehints.KV[None, pcoll.element_type]))
                 | 'CombinePerKey' >> combine_per_key
                 | 'UnKey' >> Map(lambda k_v: k_v[1]))
 
@@ -1947,8 +1946,8 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
         | CombinePerKey(PostCombineFn()))
 
 
-@typehints.with_input_types(typehints.KV[K, V])
-@typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
+@typehints.with_input_types(typing.Tuple[K, V])
+@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
 class GroupByKey(PTransform):
   """A group by key transform.
 
@@ -1974,7 +1973,8 @@ class GroupByKey(PTransform):
 
     def infer_output_type(self, input_type):
       key_type, value_type = trivial_inference.key_value_types(input_type)
-      return Iterable[KV[key_type, typehints.WindowedValue[value_type]]]
+      return typehints.Iterable[
+          typehints.KV[key_type, typehints.WindowedValue[value_type]]]
 
   def expand(self, pcoll):
     # This code path is only used in the local direct runner.  For Dataflow
@@ -1985,15 +1985,19 @@ class GroupByKey(PTransform):
       # downstream to further PTransforms.
       key_type, value_type = trivial_inference.key_value_types(input_type)
       # Enforce the input to a GBK has a KV element type.
-      pcoll.element_type = KV[key_type, value_type]
+      pcoll.element_type = typehints.KV[key_type, value_type]
       typecoders.registry.verify_deterministic(
           typecoders.registry.get_coder(key_type),
           'GroupByKey operation "%s"' % self.label)
 
-      reify_output_type = KV[key_type, typehints.WindowedValue[value_type]]
+      reify_output_type = typehints.KV[
+          key_type, typehints.WindowedValue[value_type]]
       gbk_input_type = (
-          KV[key_type, Iterable[typehints.WindowedValue[value_type]]])
-      gbk_output_type = KV[key_type, Iterable[value_type]]
+          typehints.KV[
+              key_type,
+              typehints.Iterable[typehints.WindowedValue[value_type]]])
+      gbk_output_type = typehints.KV[
+          key_type, typehints.Iterable[value_type]]
 
       # pylint: disable=bad-continuation
       return (pcoll
@@ -2014,7 +2018,7 @@ class GroupByKey(PTransform):
 
   def infer_output_type(self, input_type):
     key_type, value_type = trivial_inference.key_value_types(input_type)
-    return KV[key_type, Iterable[value_type]]
+    return typehints.KV[key_type, typehints.Iterable[value_type]]
 
   def to_runner_api_parameter(self, unused_context):
     return common_urns.primitives.GROUP_BY_KEY.urn, None
@@ -2027,21 +2031,21 @@ class GroupByKey(PTransform):
     return True
 
 
-@typehints.with_input_types(typehints.KV[K, V])
-@typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
+@typehints.with_input_types(typing.Tuple[K, V])
+@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
 class _GroupByKeyOnly(PTransform):
   """A group by key transform, ignoring windows."""
   def infer_output_type(self, input_type):
     key_type, value_type = trivial_inference.key_value_types(input_type)
-    return KV[key_type, Iterable[value_type]]
+    return typehints.KV[key_type, typehints.Iterable[value_type]]
 
   def expand(self, pcoll):
     self._check_pcollection(pcoll)
     return pvalue.PCollection(pcoll.pipeline)
 
 
-@typehints.with_input_types(typehints.KV[K, typehints.Iterable[V]])
-@typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
+@typehints.with_input_types(typing.Tuple[K, typing.Iterable[V]])
+@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
 class _GroupAlsoByWindow(ParDo):
   """The GroupAlsoByWindow transform."""
   def __init__(self, windowing):
@@ -2065,7 +2069,8 @@ class _GroupAlsoByWindowDoFn(DoFn):
     key_type, windowed_value_iter_type = trivial_inference.key_value_types(
         input_type)
     value_type = windowed_value_iter_type.inner_type.inner_type
-    return Iterable[KV[key_type, Iterable[value_type]]]
+    return typehints.Iterable[
+        typehints.KV[key_type, typehints.Iterable[value_type]]]
 
   def start_bundle(self):
     # pylint: disable=wrong-import-order, wrong-import-position
@@ -2381,8 +2386,9 @@ class Create(PTransform):
 
   def infer_output_type(self, unused_input_type):
     if not self.values:
-      return Any
-    return Union[[trivial_inference.instance_to_type(v) for v in self.values]]
+      return typehints.Any
+    return typehints.Union[
+        [trivial_inference.instance_to_type(v) for v in self.values]]
 
   def get_output_type(self):
     return (self.get_type_hints().simple_output_type(self.label) or
