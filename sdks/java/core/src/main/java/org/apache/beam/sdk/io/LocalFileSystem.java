@@ -223,12 +223,15 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     // it considers it an invalid file system pattern. We should use
     // new File(spec) to avoid such validation.
     // See https://bugs.openjdk.java.net/browse/JDK-8197918
-    final File file = new File(getNonWildcardPrefix(spec));
+    final File file = new File(spec);
     if (file.exists()) {
       return MatchResult.create(Status.OK, ImmutableList.of(toMetadata(file)));
     }
 
-    File parent = file.getAbsoluteFile();
+    File parent = getSpecNonGlobPrefixParentFile(spec);
+    if (!parent.exists()) {
+      return MatchResult.create(Status.NOT_FOUND, Collections.emptyList());
+    }
 
     // Method getAbsolutePath() on Windows platform may return something like
     // "c:\temp\file.txt". FileSystem.getPathMatcher() call below will treat
@@ -269,6 +272,12 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     }
   }
 
+  private File getSpecNonGlobPrefixParentFile(String spec) {
+    String specNonWildcardPrefix = getNonWildcardPrefix(spec);
+    File file = new File(specNonWildcardPrefix);
+    return specNonWildcardPrefix.endsWith(File.separator) ? file : file.getAbsoluteFile().getParentFile();
+  }
+
   private Metadata toMetadata(File file) {
     return Metadata.builder()
         .setResourceId(LocalResourceId.fromPath(file.toPath(), file.isDirectory()))
@@ -278,14 +287,8 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
         .build();
   }
 
-  /** Returns the prefix portion of the glob that doesn't contain wildcards. */
-  public static String getNonWildcardPrefix(String globExp) {
+  private static String getNonWildcardPrefix(String globExp) {
     Matcher m = GLOB_PREFIX.matcher(globExp);
-    checkArgument(m.matches(), String.format("Glob expression: [%s] is not expandable.", globExp));
-    return m.group("PREFIX");
-  }
-
-  public static void main(String[] args) {
-    System.out.println(getNonWildcardPrefix("c/**"));
+    return !m.matches() ? globExp : m.group("PREFIX");
   }
 }
