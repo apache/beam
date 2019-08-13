@@ -74,6 +74,10 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BigQueryIOIT {
   private static final String NAMESPACE = BigQueryIOIT.class.getName();
+  private static final String TEST_ID = UUID.randomUUID().toString();
+  private static final String TEST_TIMESTAMP = Timestamp.now().toString();
+  private static final String READ_TIME_METRIC_NAME = "read_time";
+  private static final String WRITE_TIME_METRIC_NAME = "write_time";
   private static String metricsBigQueryTable;
   private static String metricsBigQueryDataset;
   private static String testBigQueryDataset;
@@ -82,44 +86,6 @@ public class BigQueryIOIT {
   private static String tableQualifier;
   private static String tempRoot;
   private static BigQueryPerfTestOptions options;
-  private static final String TEST_ID = UUID.randomUUID().toString();
-  private static final String TEST_TIMESTAMP = Timestamp.now().toString();
-  private static final String READ_TIME_METRIC_NAME = "read_time";
-  private static final String WRITE_TIME_METRIC_NAME = "write_time";
-
-  /** Options for this io performance test. */
-  public interface BigQueryPerfTestOptions extends IOTestPipelineOptions {
-    @Description("Synthetic source options")
-    @Validation.Required
-    String getSourceOptions();
-
-    void setSourceOptions(String value);
-
-    @Description("BQ dataset for the test data")
-    String getTestBigQueryDataset();
-
-    void setTestBigQueryDataset(String dataset);
-
-    @Description("BQ table for test data")
-    String getTestBigQueryTable();
-
-    void setTestBigQueryTable(String table);
-
-    @Description("BQ dataset for the metrics data")
-    String getMetricsBigQueryDataset();
-
-    void setMetricsBigQueryDataset(String dataset);
-
-    @Description("BQ table for metrics data")
-    String getMetricsBigQueryTable();
-
-    void setMetricsBigQueryTable(String table);
-
-    @Description("Should test use streaming writes or batch loads to BQ")
-    String getWriteMethod();
-
-    void setWriteMethod(Boolean value);
-  }
 
   @BeforeClass
   public static void setup() throws IOException {
@@ -182,6 +148,16 @@ public class BigQueryIOIT {
     extractAndPublishTime(pipelineResult, WRITE_TIME_METRIC_NAME);
   }
 
+  private void testRead() {
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline
+        .apply("Read from BQ", BigQueryIO.readTableRows().from(tableQualifier))
+        .apply("Gather time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)));
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+    extractAndPublishTime(result, READ_TIME_METRIC_NAME);
+  }
+
   private void extractAndPublishTime(PipelineResult pipelineResult, String writeTimeMetricName) {
     NamedTestResult metricResult =
         getMetricSupplier(writeTimeMetricName).apply(new MetricsReader(pipelineResult, NAMESPACE));
@@ -193,16 +169,6 @@ public class BigQueryIOIT {
         Collections.singletonList(metricResult));
   }
 
-  private void testRead() {
-    Pipeline pipeline = Pipeline.create(options);
-    pipeline
-        .apply("Read from BQ", BigQueryIO.readTableRows().from(tableQualifier))
-        .apply("Gather time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)));
-    PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
-    extractAndPublishTime(result, READ_TIME_METRIC_NAME);
-  }
-
   private static Function<MetricsReader, NamedTestResult> getMetricSupplier(String metricName) {
     return reader -> {
       long startTime = reader.getStartTimeMetric(metricName);
@@ -210,6 +176,40 @@ public class BigQueryIOIT {
       return NamedTestResult.create(
           TEST_ID, TEST_TIMESTAMP, metricName, (endTime - startTime) / 1e3);
     };
+  }
+
+  /** Options for this io performance test. */
+  public interface BigQueryPerfTestOptions extends IOTestPipelineOptions {
+    @Description("Synthetic source options")
+    @Validation.Required
+    String getSourceOptions();
+
+    void setSourceOptions(String value);
+
+    @Description("BQ dataset for the test data")
+    String getTestBigQueryDataset();
+
+    void setTestBigQueryDataset(String dataset);
+
+    @Description("BQ table for test data")
+    String getTestBigQueryTable();
+
+    void setTestBigQueryTable(String table);
+
+    @Description("BQ dataset for the metrics data")
+    String getMetricsBigQueryDataset();
+
+    void setMetricsBigQueryDataset(String dataset);
+
+    @Description("BQ table for metrics data")
+    String getMetricsBigQueryTable();
+
+    void setMetricsBigQueryTable(String table);
+
+    @Description("Should test use streaming writes or batch loads to BQ")
+    String getWriteMethod();
+
+    void setWriteMethod(Boolean value);
   }
 
   private static class MapKVToV extends DoFn<KV<byte[], byte[]>, byte[]> {
