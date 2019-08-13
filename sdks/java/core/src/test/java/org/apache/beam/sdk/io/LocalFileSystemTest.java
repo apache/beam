@@ -198,7 +198,7 @@ public class LocalFileSystemTest {
     createEmptyFile(expectedFile1);
     createEmptyFile(expectedFile2);
 
-    List<String> expected = ImmutableList.of(expectedFile1.toString(), expectedFile2.toString());
+    List<String> expected = ImmutableList.of(expectedFile1.getAbsolutePath(), expectedFile2.getAbsolutePath());
 
     List<MatchResult> matchResults =
         matchGlobWithPathPrefix(temporaryFolder.getRoot().toPath(), globPattern);
@@ -448,7 +448,7 @@ public class LocalFileSystemTest {
   }
 
   private static void createEmptyFile(File file) throws IOException {
-    if (!file.mkdirs() || !file.createNewFile()) {
+    if (!file.getParentFile().mkdirs() || !file.createNewFile()) {
       throw new IOException("Failed creating empty file " + file.getAbsolutePath());
     }
   }
