@@ -36,7 +36,6 @@ import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema.Type;
 import org.apache.avro.data.TimeConversions;
 import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericEnumSymbol;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
@@ -62,6 +61,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.joda.time.Days;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
@@ -410,6 +411,8 @@ public class AvroUtils {
         // TODO: There is a desire to move Beam schema DATETIME to a micros representation. When
         // this is done, this logical type needs to be changed.
         fieldType = FieldType.DATETIME;
+      } else if (logicalType instanceof LogicalTypes.Date) {
+        fieldType = FieldType.DATETIME;
       }
     }
 
@@ -599,8 +602,16 @@ public class AvroUtils {
         return new Conversions.DecimalConversion().toBytes(decimal, null, logicalType);
 
       case DATETIME:
-        ReadableInstant instant = (ReadableInstant) value;
-        return instant.getMillis();
+        if (typeWithNullability.type.getType() == Type.INT) {
+          ReadableInstant instant = (ReadableInstant) value;
+          return (int) Days.daysBetween(Instant.EPOCH, instant).getDays();
+        } else if (typeWithNullability.type.getType() == Type.LONG) {
+          ReadableInstant instant = (ReadableInstant) value;
+          return (long) instant.getMillis();
+        } else {
+          throw new IllegalArgumentException(
+              "Can't represent " + fieldType + " as " + typeWithNullability.type.getType());
+        }
 
       case BYTES:
         return ByteBuffer.wrap((byte[]) value);
@@ -686,6 +697,13 @@ public class AvroUtils {
         } else {
           return convertDateTimeStrict((Long) value, fieldType);
         }
+      } else if (logicalType instanceof LogicalTypes.Date) {
+        if (value instanceof ReadableInstant) {
+          int epochDays = Days.daysBetween(Instant.EPOCH, (ReadableInstant) value).getDays();
+          return convertDateStrict(epochDays, fieldType);
+        } else {
+          return convertDateStrict((Integer) value, fieldType);
+        }
       }
     }
 
@@ -718,7 +736,9 @@ public class AvroUtils {
         return convertRecordStrict((GenericRecord) value, fieldType);
 
       case ENUM:
-        return convertEnumStrict((GenericEnumSymbol) value, fieldType);
+        // enums are either Java enums, or GenericEnumSymbol,
+        // they don't share common interface, but override toString()
+        return convertEnumStrict(value, fieldType);
 
       case ARRAY:
         return convertArrayStrict((List<Object>) value, type.type.getElementType(), fieldType);
@@ -778,6 +798,11 @@ public class AvroUtils {
     return value;
   }
 
+  private static Object convertDateStrict(Integer epochDays, Schema.FieldType fieldType) {
+    checkTypeName(fieldType.getTypeName(), TypeName.DATETIME, "date");
+    return Instant.EPOCH.plus(Duration.standardDays(epochDays));
+  }
+
   private static Object convertDateTimeStrict(Long value, Schema.FieldType fieldType) {
     checkTypeName(fieldType.getTypeName(), TypeName.DATETIME, "dateTime");
     return new Instant(value);
@@ -798,7 +823,7 @@ public class AvroUtils {
     return value;
   }
 
-  private static Object convertEnumStrict(GenericEnumSymbol value, Schema.FieldType fieldType) {
+  private static Object convertEnumStrict(Object value, Schema.FieldType fieldType) {
     checkTypeName(fieldType.getTypeName(), Schema.TypeName.STRING, "enum");
     return value.toString();
   }
