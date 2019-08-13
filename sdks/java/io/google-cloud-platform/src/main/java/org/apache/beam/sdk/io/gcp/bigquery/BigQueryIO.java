@@ -619,7 +619,6 @@ public class BigQueryIO {
   @AutoValue
   public abstract static class TypedRead<T> extends PTransform<PBegin, PCollection<T>> {
     /** Determines the method used to read data from BigQuery. */
-    @Experimental(Experimental.Kind.SOURCE_SINK)
     public enum Method {
       /** The default behavior if no method is explicitly set. Currently {@link #EXPORT}. */
       DEFAULT,
@@ -629,7 +628,12 @@ public class BigQueryIO {
        */
       EXPORT,
 
-      /** Read the contents of a table directly using the BigQuery storage API. */
+      /**
+       * Read the contents of a table directly using the BigQuery Storage API.
+       *
+       * <p><strong>Note:</strong>The BigQuery Storage API is currently in beta.
+       */
+      @Experimental(Experimental.Kind.SOURCE_SINK)
       DIRECT_READ,
     }
 
