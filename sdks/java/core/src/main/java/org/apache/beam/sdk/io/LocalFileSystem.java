@@ -40,6 +40,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.io.fs.CreateOptions;
@@ -81,6 +82,9 @@ import org.slf4j.LoggerFactory;
 class LocalFileSystem extends FileSystem<LocalResourceId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(LocalFileSystem.class);
+
+  /** Matches a glob containing a wildcard, capturing the portion before the first wildcard. */
+  private static final Pattern GLOB_PREFIX = Pattern.compile("(?<PREFIX>[^\\[*?]*)[\\[*?].*");
 
   LocalFileSystem() {}
 
@@ -219,19 +223,12 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     // it considers it an invalid file system pattern. We should use
     // new File(spec) to avoid such validation.
     // See https://bugs.openjdk.java.net/browse/JDK-8197918
-    final File file = new File(spec);
+    final File file = new File(getNonWildcardPrefix(spec));
     if (file.exists()) {
       return MatchResult.create(Status.OK, ImmutableList.of(toMetadata(file)));
     }
 
-    File parent = file.getAbsoluteFile().getParentFile();
-    while (parent != null && !parent.exists()) {
-      parent = parent.getParentFile();
-    }
-
-    if (parent == null) {
-      return MatchResult.create(Status.NOT_FOUND, Collections.emptyList());
-    }
+    File parent = file.getAbsoluteFile();
 
     // Method getAbsolutePath() on Windows platform may return something like
     // "c:\temp\file.txt". FileSystem.getPathMatcher() call below will treat
@@ -279,5 +276,16 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
         .setSizeBytes(file.length())
         .setLastModifiedMillis(file.lastModified())
         .build();
+  }
+
+  /** Returns the prefix portion of the glob that doesn't contain wildcards. */
+  public static String getNonWildcardPrefix(String globExp) {
+    Matcher m = GLOB_PREFIX.matcher(globExp);
+    checkArgument(m.matches(), String.format("Glob expression: [%s] is not expandable.", globExp));
+    return m.group("PREFIX");
+  }
+
+  public static void main(String[] args) {
+    System.out.println(getNonWildcardPrefix("c/**"));
   }
 }
