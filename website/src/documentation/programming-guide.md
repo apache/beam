@@ -2907,3 +2907,137 @@ elements, or after a minute.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_other_composite_triggers
 %}```
+
+## 9. Metrics {#metrics}
+The Beam model provides a way to use different types of metrics in a user pipeline.  There could be 
+different reasons for that, for instance:
+*   Check the number of errors encountered while running a specific step in the pipeline;
+*   Monitor the number of RPCs made to backend service;
+*   Retrieve an accurate count of the number of elements that have been processed;
+*   ...and so on.
+
+### 9.1 The main concepts of Beam metrics
+*   **Named**. Each metric has a name which consists of a namespace and an actual name. The 
+    namespace can be used to differentiate between multiple metrics with the same name and also 
+    allows querying for all metrics within a specific namespace. 
+*   **Scoped**. Each metric is reported against a specific step in the pipeline, indicating what 
+    code was running when the metric was incremented.
+*   **Dynamically Created**. Metrics may be created during runtime without pre-declaring them, in 
+    much the same way a logger could be created. This makes it easier to produce metrics in utility 
+    code and have them usefully reported. 
+*   **Degrade Gracefully**. If a runner doesn’t support some part of reporting metrics, the 
+    fallback behavior is to drop the metric updates rather than failing the pipeline. If a runner 
+    doesn’t support some part of querying metrics, the runner will not return the associated data.
+
+Reported metrics are implicitly scoped to the transform within the pipeline that reported them. 
+This allows reporting the same metric name in multiple places and identifying the value each 
+transform reported, as well as aggregating the metric across
+
+> **Note:** It is runner-dependent whether metrics are accessible during pipeline execution or only 
+after jobs have completed.
+
+### 9.2 Types of metrics {#types-of-metrics}
+There are three types of metrics that are supported for the moment: `Counter`, `Distribution` and 
+`Gauge`.
+
+**Counter**: A metric that reports a single long value and can be incremented or decremented.
+
+```java
+Counter counter = Metrics.counter( "namespace", "counter1");
+
+@ProcessElement
+public void processElement(ProcessContext context) {
+  // count the elements
+  counter.inc();
+  ...
+}
+```
+
+**Distribution**: A metric that reports information about the distribution of reported values.
+
+```java
+Distribution distribution = Metrics.distribution( "namespace", "distribution1");
+
+@ProcessElement
+public void processElement(ProcessContext context) {
+  Integer element = context.element();
+    // create a distribution (histogram) of the values 
+    distribution.update(element);
+    ...
+}
+```
+
+**Gauge**: A metric that reports the latest value out of reported values. Since metrics are 
+collected from many workers the value may not be the absolute last, but one of the latest values.
+
+```java
+Gauge gauge = Metrics.gauge( "namespace", "gauge1");
+
+@ProcessElement
+public void processElement(ProcessContext context) {
+  Integer element = context.element();
+  // create a gauge (latest value received) of the values 
+  gauge.set(element);
+  ...
+}
+```
+
+### 9.3 Querying metrics {#querying-metrics}
+`PipelineResult` has a method `metrics()` which returns a `MetricResults` object that allows 
+accessing metrics. The main method available in `MetricResults` allows querying for all metrics 
+matching a given filter.
+
+```java
+public interface PipelineResult {
+  MetricResults metrics();
+}
+
+public abstract class MetricResults {
+  public abstract MetricQueryResults queryMetrics(@Nullable MetricsFilter filter);
+}
+
+public interface MetricQueryResults {
+  Iterable<MetricResult<Long>> getCounters();
+  Iterable<MetricResult<DistributionResult>> getDistributions();
+  Iterable<MetricResult<GaugeResult>> getGauges();
+}
+
+public interface MetricResult<T> {
+  MetricName getName();
+  String getStep();
+  T getCommitted();
+  T getAttempted();
+}
+```
+
+### 9.4 Using metrics in pipeline {#using-metrics}
+Below, there is a simple example of how to use `Counter` metric in user pipeline.
+
+```java
+// creating a pipeline with custom metrics DoFn
+pipeline
+    .apply(...)
+    .apply(ParDo.of(new MyMetricsDoFn()));
+
+pipelineResult = pipeline.run().waitUntilFinish(...);
+
+// query metric by namespace and metric name
+MetricQueryResults metrics =
+    pipelineResult
+        .metrics()
+        .queryMetrics(
+            MetricsFilter.builder()
+                .addNameFilter(MetricNameFilter.named("namespace", "counter1"))
+                .build());
+
+public class MyMetricsDoFn extends DoFn<Integer, Integer> {
+  private final Counter counter = Metrics.counter( "namespace", "counter1");
+
+  @ProcessElement
+  public void processElement(ProcessContext context) {
+    // count the elements
+    counter.inc();
+    context.output(context.element());
+  }
+}
+```
