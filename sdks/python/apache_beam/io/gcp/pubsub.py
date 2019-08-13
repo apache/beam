@@ -39,14 +39,13 @@ from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils.annotations import deprecated
 
+from google.protobuf.timestamp_pb2 import Timestamp
 try:
   from google.cloud import pubsub
-  from google.protobuf.timestamp_pb2 import Timestamp
 except ImportError:
   pubsub = None
-  Timestamp = None
 
-__all__ = ['PubsubMessage', 'ReadFromPubSub', 'ReadStringsFromPubSub',
+  __all__ = ['PubsubMessage', 'ReadFromPubSub', 'ReadStringsFromPubSub',
            'WriteStringsToPubSub', 'WriteToPubSub']
 
 
@@ -78,10 +77,7 @@ class PubsubMessage(object):
     self.data = data
     self.attributes = attributes
     self.message_id = message_id
-    if publish_time is None:
-      self.publish_time = Timestamp(seconds=0,nanos=0)
-    else:
-      self.publish_time = publish_time
+    self.publish_time = publish_time
 
   def __hash__(self):
     return hash((self.data, frozenset(self.attributes.items()),
