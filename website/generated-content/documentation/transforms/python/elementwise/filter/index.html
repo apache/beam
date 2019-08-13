@@ -490,13 +490,14 @@ on the comparison ordering of the element.</p>
 
 <h2 id="examples">Examples</h2>
 
-<p>In the following examples, we create a pipeline with a <code class="highlighter-rouge">PCollection</code> of produce their icon, name, and duration.
+<p>In the following examples, we create a pipeline with a <code class="highlighter-rouge">PCollection</code> of produce with their icon, name, and duration.
 Then, we apply <code class="highlighter-rouge">Filter</code> in multiple ways to filter out produce by their duration value.</p>
+
+<p><code class="highlighter-rouge">Filter</code> accepts a function that keeps elements that return <code class="highlighter-rouge">True</code>, and filters out the remaining elements.</p>
 
 <h3 id="example-1-filtering-with-a-function">Example 1: Filtering with a function</h3>
 
-<p>We define a function <code class="highlighter-rouge">is_perennial</code> which returns <code class="highlighter-rouge">True</code> if the element’s duration equals <code class="highlighter-rouge">'perennial'</code>, and <code class="highlighter-rouge">False</code> otherwise.
-<code class="highlighter-rouge">Filter</code> accepts this function, keeps elements that return <code class="highlighter-rouge">True</code>, and filters out the remaining elements.</p>
+<p>We define a function <code class="highlighter-rouge">is_perennial</code> which returns <code class="highlighter-rouge">True</code> if the element’s duration equals <code class="highlighter-rouge">'perennial'</code>, and <code class="highlighter-rouge">False</code> otherwise.</p>
 
 <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
 
@@ -516,6 +517,16 @@ Then, we apply <code class="highlighter-rouge">Filter</code> in multiple ways to
       <span class="o">|</span> <span class="s">'Filter perennials'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span><span class="n">is_perennial</span><span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Filter</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>perennials = [
+    {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
+    {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
+    {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
+]
 </code></pre>
 </div>
 
@@ -549,6 +560,16 @@ Then, we apply <code class="highlighter-rouge">Filter</code> in multiple ways to
           <span class="k">lambda</span> <span class="n">plant</span><span class="p">:</span> <span class="n">plant</span><span class="p">[</span><span class="s">'duration'</span><span class="p">]</span> <span class="o">==</span> <span class="s">'perennial'</span><span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Filter</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>perennials = [
+    {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
+    {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
+    {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
+]
 </code></pre>
 </div>
 
@@ -587,6 +608,16 @@ They are passed as additional positional arguments or keyword arguments to the f
       <span class="o">|</span> <span class="s">'Filter perennials'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span><span class="n">has_duration</span><span class="p">,</span> <span class="s">'perennial'</span><span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Filter</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>perennials = [
+    {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
+    {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
+    {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
+]
 </code></pre>
 </div>
 
@@ -631,6 +662,16 @@ We then use that value to filter out perennials.</p>
 </code></pre>
 </div>
 
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Filter</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>perennials = [
+    {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
+    {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
+    {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
+]
+</code></pre>
+</div>
+
 <table>
   <td>
     <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
@@ -671,6 +712,17 @@ so it is possible to iterate over large <code class="highlighter-rouge">PCollect
       <span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Filter</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>valid_plants = [
+    {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
+    {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
+    {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
+    {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
+]
 </code></pre>
 </div>
 
@@ -720,6 +772,16 @@ If the <code class="highlighter-rouge">PCollection</code> won’t fit into memor
       <span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Filter</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>perennials = [
+    {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
+    {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
+    {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
+]
 </code></pre>
 </div>
 
