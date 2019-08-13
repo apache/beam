@@ -106,6 +106,14 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="message" value="You are using raw guava, please use vendored guava classes."/>
     </module>
 
+    <!-- Forbid guava imports from gRPC vendored guava version. -->
+    <module name="RegexpSinglelineJava">
+      <property name="id" value="ForbidGrpcVendoredGuava"/>
+      <property name="format" value="(\sorg\.apache\.beam\.vendor\.grpc\.(.*)\.com\.google\.common\.(?!testing))|(\sorg\.apache\.beam\.vendor\.grpc\.(.*)\.com\.google\.thirdparty)"/>
+      <property name="severity" value="error"/>
+      <property name="message" value="You are using raw guava, please use vendored guava classes."/>
+    </module>
+
     <!-- Forbid TestNG imports that may leak because of dependencies. -->
     <module name="RegexpSinglelineJava">
       <property name="id" value="ForbidTestNG"/>
