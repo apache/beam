@@ -39,7 +39,7 @@ dependencies {
     build name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
     test name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
   }
-  sdkSourceTarball project(path: ":sdks:python", configuration: "distConfig")
+  sdkSourceTarball project(path: ":sdks:python", configuration: "distTarBall")
 }
 
 task copyDockerfileDependencies(type: Copy, dependsOn: goBuild) {

@@ -101,7 +101,12 @@ public class BeamUncollectRel extends Uncollect implements BeamRelNode {
     @ProcessElement
     public void process(@Element Row inputRow, OutputReceiver<Row> output) {
       for (Object element : inputRow.getArray(0)) {
-        output.output(Row.withSchema(schema).addValue(element).build());
+        if (element instanceof Row) {
+          Row nestedRow = (Row) element;
+          output.output(Row.withSchema(schema).addValues(nestedRow.getValues()).build());
+        } else {
+          output.output(Row.withSchema(schema).addValue(element).build());
+        }
       }
     }
   }

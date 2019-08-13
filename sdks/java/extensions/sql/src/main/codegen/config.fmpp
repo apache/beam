@@ -385,6 +385,10 @@ data: {
         "parserImpls.ftl"
       ]
 
+      # List of methods for parsing builtin function calls.
+      builtinFunctionCallMethods: [
+      ]
+
       includeCompoundIdentifier: true
       includeBraces: true
       includeAdditionalDeclarations: false

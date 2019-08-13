@@ -30,7 +30,7 @@ configurations {
 }
 
 dependencies {
-  sdkSourceTarball project(path: ":sdks:python", configuration: "distConfig")
+  sdkSourceTarball project(path: ":sdks:python", configuration: "distTarBall")
   sdkHarnessLauncher project(path: ":sdks:python:container", configuration: "sdkHarnessLauncher")
 }
 

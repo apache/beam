@@ -25,14 +25,40 @@ applyPythonNature()
 
 task buildPython(dependsOn: 'setupVirtualenv') {
   doLast {
-    println 'Building Python Dependencies'
+    logger.info('Building Python Dependencies')
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && python setup.py build --build-base ${project.buildDir}"
+      args '-c', ". ${envdir}/bin/activate && python setup.py build --build-base ${buildDir}"
     }
   }
 }
 build.dependsOn buildPython
+
+// Create a Python source distribution tarball.
+def tarball = "apache-beam.tar.gz"
+task sdist {
+  dependsOn setupVirtualenv
+
+  doLast {
+    // Build artifact
+    project.exec {
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && python setup.py -q sdist --formats zip,gztar --dist-dir ${project.buildDir}"
+    }
+
+    def collection = fileTree(project.buildDir){ include '**/*.tar.gz' exclude '**/apache-beam.tar.gz', 'srcs/**'}
+
+    // we need a fixed name for the artifact
+    copy { from collection.singleFile; into project.buildDir; rename { tarball } }
+    logger.info('Create distribution tar file {} in {}', tarball, project.buildDir)
+  }
+  inputs.files project.pythonSdkDeps
+  outputs.file "${project.buildDir}/${tarball}"
+}
+
+artifacts {
+  distTarBall file: file("${project.buildDir}/${tarball}"), builtBy: sdist
+}
 
 
 /*************************************************************************************************/
@@ -42,11 +68,17 @@ build.dependsOn buildPython
 // Results will be stored in files under Gradle build directory.
 task depSnapshot(dependsOn: 'installGcpTest') {
   doLast {
-    println 'Snapshoting full dependencies requirements with versions info to requirements.txt.'
+    def outputDir = file(project.buildDir)
+    if (!outputDir.exists()) {
+      outputDir.mkdirs()
+    }
+    def requirementsFile = "${outputDir}/requirements.txt"
+
+    logger.info('Snapshoting full dependencies requirements with versions info to build/requirements.txt.')
     exec {
       // Remove useless item "pkg-resources" from file which is introduced by a bug in Ubuntu.
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && pip freeze --local --all | grep -v \"pkg-resources\" > ${project.buildDir}/requirements.txt"
+      args '-c', ". ${project.ext.envdir}/bin/activate && pip freeze --local --all | grep -v \"pkg-resources\" > ${requirementsFile}"
     }
   }
 }

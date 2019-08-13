@@ -59,7 +59,6 @@ dependencies {
   compile project(":runners:core-construction-java")
   compile project(":runners:core-java")
   compile project(":runners:java-fn-execution")
-  compile library.java.guava
   compile library.java.jackson_annotations
   compile library.java.slf4j_api
   compile library.java.joda_time

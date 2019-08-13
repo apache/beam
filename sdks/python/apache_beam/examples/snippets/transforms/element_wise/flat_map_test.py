@@ -23,10 +23,36 @@ import unittest
 
 import mock
 
-from apache_beam.examples.snippets.transforms.element_wise.flat_map import *
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+
+from . import flat_map
+
+
+def check_plants(actual):
+  # [START plants]
+  plants = [
+      '🍓Strawberry',
+      '🥕Carrot',
+      '🍆Eggplant',
+      '🍅Tomato',
+      '🥔Potato',
+  ]
+  # [END plants]
+  assert_that(actual, equal_to(plants))
+
+
+def check_valid_plants(actual):
+  # [START valid_plants]
+  valid_plants = [
+      {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
+      {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
+      {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
+      {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
+  ]
+  # [END valid_plants]
+  assert_that(actual, equal_to(valid_plants))
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
@@ -34,53 +60,32 @@ from apache_beam.testing.util import equal_to
 @mock.patch('apache_beam.examples.snippets.transforms.element_wise.flat_map.print', lambda elem: elem)
 # pylint: enable=line-too-long
 class FlatMapTest(unittest.TestCase):
-  def __init__(self, methodName):
-    super(FlatMapTest, self).__init__(methodName)
-    # [START plants]
-    plants = [
-        '🍓Strawberry',
-        '🥕Carrot',
-        '🍆Eggplant',
-        '🍅Tomato',
-        '🥔Potato',
-    ]
-    # [END plants]
-    self.plants_test = lambda actual: assert_that(actual, equal_to(plants))
-
-    # [START valid_plants]
-    valid_plants = [
-        {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
-        {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
-        {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
-        {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
-    ]
-    # [END valid_plants]
-    self.valid_plants_test = lambda actual: \
-        assert_that(actual, equal_to(valid_plants))
-
   def test_flat_map_simple(self):
-    flat_map_simple(self.plants_test)
+    flat_map.flat_map_simple(check_plants)
 
   def test_flat_map_function(self):
-    flat_map_function(self.plants_test)
+    flat_map.flat_map_function(check_plants)
 
   def test_flat_map_lambda(self):
-    flat_map_lambda(self.plants_test)
+    flat_map.flat_map_lambda(check_plants)
 
   def test_flat_map_generator(self):
-    flat_map_generator(self.plants_test)
+    flat_map.flat_map_generator(check_plants)
 
   def test_flat_map_multiple_arguments(self):
-    flat_map_multiple_arguments(self.plants_test)
+    flat_map.flat_map_multiple_arguments(check_plants)
+
+  def test_flat_map_tuple(self):
+    flat_map.flat_map_tuple(check_plants)
 
   def test_flat_map_side_inputs_singleton(self):
-    flat_map_side_inputs_singleton(self.plants_test)
+    flat_map.flat_map_side_inputs_singleton(check_plants)
 
   def test_flat_map_side_inputs_iter(self):
-    flat_map_side_inputs_iter(self.valid_plants_test)
+    flat_map.flat_map_side_inputs_iter(check_valid_plants)
 
   def test_flat_map_side_inputs_dict(self):
-    flat_map_side_inputs_dict(self.valid_plants_test)
+    flat_map.flat_map_side_inputs_dict(check_valid_plants)
 
 
 if __name__ == '__main__':
