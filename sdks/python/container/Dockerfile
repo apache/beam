@@ -16,7 +16,8 @@
 # limitations under the License.
 ###############################################################################
 
-FROM python:2-stretch
+ARG py_version
+FROM python:"${py_version}"-stretch
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
 
 # Install native bindings required for dependencies.

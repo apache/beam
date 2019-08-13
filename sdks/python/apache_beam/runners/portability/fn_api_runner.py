@@ -1326,40 +1326,44 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
     self._container_id = None
 
   def start_worker(self):
-    try:
-      subprocess.check_call(['docker', 'pull', self._container_image])
-    except Exception:
-      logging.info('Unable to pull image %s' % self._container_image)
-    self._container_id = subprocess.check_output(
-        ['docker',
-         'run',
-         '-d',
-         # TODO:  credentials
-         '--network=host',
-         self._container_image,
-         '--id=%s' % uuid.uuid4(),
-         '--logging_endpoint=%s' % self.logging_api_service_descriptor().url,
-         '--control_endpoint=%s' % self.control_address,
-         '--artifact_endpoint=%s' % self.control_address,
-         '--provision_endpoint=%s' % self.control_address,
-        ]).strip()
-    while True:
-      logging.info('Waiting for docker to start up...')
-      status = subprocess.check_output([
-          'docker',
-          'inspect',
-          '-f',
-          '{{.State.Status}}',
-          self._container_id]).strip()
-      if status == 'running':
-        break
-      elif status in ('dead', 'exited'):
-        subprocess.call([
+    with SUBPROCESS_LOCK:
+      try:
+        subprocess.check_call(['docker', 'pull', self._container_image])
+      except Exception:
+        logging.info('Unable to pull image %s' % self._container_image)
+      self._container_id = subprocess.check_output(
+          ['docker',
+           'run',
+           '-d',
+           # TODO:  credentials
+           '--network=host',
+           self._container_image,
+           '--id=%s' % self.worker_id,
+           '--logging_endpoint=%s' % self.logging_api_service_descriptor().url,
+           '--control_endpoint=%s' % self.control_address,
+           '--artifact_endpoint=%s' % self.control_address,
+           '--provision_endpoint=%s' % self.control_address,
+          ]).strip()
+      while True:
+        status = subprocess.check_output([
             'docker',
-            'container',
-            'logs',
-            self._container_id])
-        raise RuntimeError('SDK failed to start.')
+            'inspect',
+            '-f',
+            '{{.State.Status}}',
+            self._container_id]).strip()
+        logging.info('Waiting for docker to start up... current status = %s'
+                     % status)
+        if status == b'running':
+          logging.info('Docker container is running. container_id = %s, '
+                       'worker_id = %s', self._container_id, self.worker_id)
+          break
+        elif status in (b'dead', b'exited'):
+          subprocess.call([
+              'docker',
+              'container',
+              'logs',
+              self._container_id])
+          raise RuntimeError('SDK failed to start. final status = %s' % status)
       time.sleep(1)
 
   def stop_worker(self):

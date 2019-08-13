@@ -2006,7 +2006,9 @@ class BeamModulePlugin implements Plugin<Project> {
           mustRunAfter = [
             ':runners:flink:1.5:job-server-container:docker',
             ':sdks:python:container:docker',
-            ':sdks:python:container:py3:docker'
+            ':sdks:python:container:py35:docker',
+            ':sdks:python:container:py36:docker',
+            ':sdks:python:container:py37:docker'
           ]
           doLast {
             // TODO: Figure out GCS credentials and use real GCS input and output.

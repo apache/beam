@@ -13,8 +13,10 @@
 :beam-sdks-python-test-suites-tox-py36 :sdks:python:test-suites:tox:py36
 :beam-sdks-python-test-suites-tox-py37 :sdks:python:test-suites:tox:py37
 :beam-sdks-python-load-tests :sdks:python:apache_beam:testing:load_tests
-:beam-sdks-python-container-py3 :sdks:python:container:py3
 :beam-sdks-python-container :sdks:python:container
+:beam-sdks-python-container-py35 :sdks:python:container:py35
+:beam-sdks-python-container-py36 :sdks:python:container:py36
+:beam-sdks-python-container-py37 :sdks:python:container:py37
 :beam-sdks-python :sdks:python
 :beam-sdks-java-test-utils :sdks:java:testing:test-utils
 :beam-sdks-java-nexmark :sdks:java:testing:nexmark

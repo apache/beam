@@ -22,7 +22,7 @@ plugins {
 }
 applyDockerNature()
 
-description = "Apache Beam :: SDKs :: Python :: Container :: Python 3 Container"
+description = "Apache Beam :: SDKs :: Python :: Container :: Python 37 Container"
 
 configurations {
   sdkSourceTarball
@@ -36,17 +36,26 @@ dependencies {
 
 task copyDockerfileDependencies(type: Copy) {
   from configurations.sdkSourceTarball
-  from configurations.sdkHarnessLauncher
   from file("../base_image_requirements.txt")
   into "build/target"
-  if(configurations.sdkSourceTarball.isEmpty() || configurations.sdkHarnessLauncher.isEmpty()) {
+  if(configurations.sdkSourceTarball.isEmpty()) {
+    throw new StopExecutionException();
+  }
+}
+
+task copyLauncherDependencies(type: Copy) {
+  from configurations.sdkHarnessLauncher
+  into "build/target/launcher"
+  if(configurations.sdkHarnessLauncher.isEmpty()) {
     throw new StopExecutionException();
   }
 }
 
 docker {
-  name containerImageName(name: "python3")
-  files "./build"
+  name containerImageName(name: "python37")
+  files "../Dockerfile", "./build"
+  buildArgs(['py_version': "3.7"])
 }
 
+dockerPrepare.dependsOn copyLauncherDependencies
 dockerPrepare.dependsOn copyDockerfileDependencies
