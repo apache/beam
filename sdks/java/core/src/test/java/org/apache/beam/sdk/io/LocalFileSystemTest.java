@@ -198,7 +198,8 @@ public class LocalFileSystemTest {
     createEmptyFile(expectedFile1);
     createEmptyFile(expectedFile2);
 
-    List<String> expected = ImmutableList.of(expectedFile1.getAbsolutePath(), expectedFile2.getAbsolutePath());
+    List<String> expected =
+        ImmutableList.of(expectedFile1.getAbsolutePath(), expectedFile2.getAbsolutePath());
 
     List<MatchResult> matchResults =
         matchGlobWithPathPrefix(temporaryFolder.getRoot().toPath(), globPattern);
