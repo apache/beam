@@ -79,7 +79,7 @@ class PubsubMessage(object):
     self.attributes = attributes
     self.message_id = message_id
     if publish_time is None:
-      self.publish_time = Timestamp()
+      self.publish_time = Timestamp(seconds=0,nanos=0)
     else:
       self.publish_time = publish_time
 
