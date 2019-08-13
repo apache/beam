@@ -208,12 +208,6 @@ public class LocalFileSystemTest {
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
-  private static void createEmptyFile(File file) throws IOException {
-    if (!file.mkdirs() || !file.createNewFile()) {
-      throw new IOException("Failed creating empty file " + file.getAbsolutePath());
-    }
-  }
-
   @Test
   public void testMatchExact() throws Exception {
     List<String> expected = ImmutableList.of(temporaryFolder.newFile("a").toString());
@@ -387,6 +381,16 @@ public class LocalFileSystemTest {
   }
 
   @Test
+  public void testMatchWithoutParentDirectory() throws Exception {
+    Path pattern =
+        LocalResourceId.fromPath(temporaryFolder.getRoot().toPath(), true /* isDirectory */)
+            .resolve("non_existing_dir", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("*", StandardResolveOptions.RESOLVE_FILE)
+            .getPath();
+    assertTrue(toFilenames(localFileSystem.match(ImmutableList.of(pattern.toString()))).isEmpty());
+  }
+
+  @Test
   public void testMatchNewResource() throws Exception {
     LocalResourceId fileResource =
         localFileSystem.matchNewResource("/some/test/resource/path", false /* isDirectory */);
@@ -441,5 +445,11 @@ public class LocalFileSystemTest {
             })
         .transform(metadata -> ((LocalResourceId) metadata.resourceId()).getPath().toString())
         .toList();
+  }
+
+  private static void createEmptyFile(File file) throws IOException {
+    if (!file.mkdirs() || !file.createNewFile()) {
+      throw new IOException("Failed creating empty file " + file.getAbsolutePath());
+    }
   }
 }
