@@ -1340,7 +1340,6 @@ public class PAssert {
     @Override
     public PDone expand(PCollection<T> input) {
       input
-          // TODO: add a filter to get either additions or retractions
           .apply("ElementFilter", ParDo.of(elementFilter))
           .apply("GroupGlobally", new GroupGlobally<>(rewindowingStrategy))
           .apply("GetPane", MapElements.via(paneExtractor))
