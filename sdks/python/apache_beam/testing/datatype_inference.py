@@ -36,6 +36,17 @@ except ImportError:
 
 
 def infer_element_type(elements):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Infer a Beam type for a list of elements.
+
+  Args:
+    elements (List[Any]): A list of elements for which the type should be
+        inferred.
+
+  Returns:
+    A Beam type encompassing all elements.
+  """
   element_type = typehints.Union[[
       trivial_inference.instance_to_type(e) for e in elements
   ]]
@@ -43,8 +54,15 @@ def infer_element_type(elements):
 
 
 def infer_typehints_schema(data):
-  """
-  TODO: For internal use only.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Infer Beam types for tabular data.
+
+  Args:
+    data (List[dict]): A list of dictionaries representing rows in a table.
+
+  Returns:
+    An OrderedDict mapping column names to Beam types.
   """
   column_data = OrderedDict()
   for row in data:
@@ -57,8 +75,17 @@ def infer_typehints_schema(data):
 
 
 def infer_avro_schema(data, use_fastavro=False):
-  """
-  TODO: For internal use only.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Infer avro schema for tabular data.
+
+  Args:
+    data (List[dict]): A list of dictionaries representing rows in a table.
+    use_fastavro (bool): A flag indicating whether the schema should be
+        constructed using fastavro.
+
+  Returns:
+    An avro schema object.
   """
   _typehint_to_avro_type = {
       type(None): "null",
@@ -97,8 +124,15 @@ def infer_avro_schema(data, use_fastavro=False):
 
 
 def infer_pyarrow_schema(data):
-  """
-  TODO: For internal use only.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Infer PyArrow schema for tabular data.
+
+  Args:
+    data (List[dict]): A list of dictionaries representing rows in a table.
+
+  Returns:
+    A PyArrow schema object.
   """
   column_data = OrderedDict()
   for row in data:
