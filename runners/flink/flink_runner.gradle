@@ -125,6 +125,7 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
   testCompile library.java.mockito_core
+  testCompile library.java.powermock
   testCompile library.java.google_api_services_bigquery
   testCompile project(":sdks:java:io:google-cloud-platform")
   testCompile library.java.jackson_dataformat_yaml

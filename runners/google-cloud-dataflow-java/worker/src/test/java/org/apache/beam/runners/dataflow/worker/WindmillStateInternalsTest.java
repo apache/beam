@@ -407,12 +407,12 @@ public class WindmillStateInternalsTest {
   public void testCombiningAddPersistWithCompact() throws Exception {
     forceCompactOnWrite();
 
-    Mockito.stub(
+    Mockito.when(
             mockReader.bagFuture(
                 org.mockito.Matchers.<ByteString>any(),
                 org.mockito.Matchers.<String>any(),
                 org.mockito.Matchers.<Coder<int[]>>any()))
-        .toReturn(
+        .thenReturn(
             Futures.<Iterable<int[]>>immediateFuture(
                 ImmutableList.of(new int[] {40}, new int[] {60})));
 

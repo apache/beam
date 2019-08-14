@@ -371,7 +371,7 @@ public class DoFnSignatures {
 
       TimerDeclaration timerDecl = fnContext.getTimerDeclarations().get(id);
       errors.checkArgument(
-          timerDecl.field().getDeclaringClass().equals(onTimerMethod.getDeclaringClass()),
+          timerDecl.field().getDeclaringClass().equals(getDeclaringClass(onTimerMethod)),
           "Callback %s is for timer %s declared in a different class %s."
               + " Timer callbacks must be declared in the same lexical scope as their timer",
           onTimerMethod,
@@ -477,6 +477,14 @@ public class DoFnSignatures {
     }
 
     return signature;
+  }
+
+  private static Class<?> getDeclaringClass(Method onTimerMethod) {
+    Class<?> declaringClass = onTimerMethod.getDeclaringClass();
+    if (declaringClass.getName().contains("$MockitoMock$")) {
+      declaringClass = declaringClass.getSuperclass();
+    }
+    return declaringClass;
   }
 
   /**
@@ -969,7 +977,7 @@ public class DoFnSignatures {
           id);
 
       paramErrors.checkArgument(
-          timerDecl.field().getDeclaringClass().equals(param.getMethod().getDeclaringClass()),
+          timerDecl.field().getDeclaringClass().equals(getDeclaringClass(param.getMethod())),
           "%s %s declared in a different class %s."
               + " Timers may be referenced only in the lexical scope where they are declared.",
           TimerId.class.getSimpleName(),
@@ -1008,7 +1016,7 @@ public class DoFnSignatures {
           formatType(stateDecl.stateType()));
 
       paramErrors.checkArgument(
-          stateDecl.field().getDeclaringClass().equals(param.getMethod().getDeclaringClass()),
+          stateDecl.field().getDeclaringClass().equals(getDeclaringClass(param.getMethod())),
           "%s %s declared in a different class %s."
               + " State may be referenced only in the class where it is declared.",
           StateId.class.getSimpleName(),
