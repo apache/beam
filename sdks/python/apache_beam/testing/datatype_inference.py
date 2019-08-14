@@ -61,26 +61,27 @@ def infer_avro_schema(data, use_fastavro=False):
   TODO: For internal use only.
   """
   _typehint_to_avro_type = {
+      type(None): "null",
       int: "int",
-      typehints.Union[int, type(None)]: ["int", "null"],
       float: "double",
-      typehints.Union[float, type(None)]: ["double", "null"],
       str: "string",
-      typehints.Union[str, type(None)]: ["string", "null"],
       unicode: "string",
-      typehints.Union[unicode, type(None)]: ["string", "null"],
       bytes: "bytes",
-      typehints.Union[bytes, type(None)]: ["bytes", "null"],
       np.ndarray: "bytes",
-      typehints.Union[np.ndarray, type(None)]: ["bytes", "null"],
       array.array: "bytes",
-      typehints.Union[array.array, type(None)]: ["bytes", "null"],
   }
+
+  def typehint_to_avro_type(value):
+    if isinstance(value, typehints.UnionConstraint):
+      return sorted(
+          typehint_to_avro_type(union_type) for union_type in value.union_types)
+    else:
+      return _typehint_to_avro_type[value]
 
   column_types = infer_typehints_schema(data)
   avro_fields = [{
       "name": str(key),
-      "type": _typehint_to_avro_type[value]
+      "type": typehint_to_avro_type(value)
   } for key, value in column_types.items()]
   schema_dict = {
       "namespace": "example.avro",

@@ -121,12 +121,12 @@ def nullify_data_and_schemas(test_data):
       if isinstance(field["type"], str):
         new_fields.append({
             "name": field["name"],
-            "type": [field["type"], "null"]
+            "type": sorted([field["type"], "null"])
         })
       else:
         new_fields.append({
             "name": field["name"],
-            "type": field["type"] + ["null"]
+            "type": sorted(field["type"] + ["null"])
         })
     schema["fields"] = new_fields
     return schema
