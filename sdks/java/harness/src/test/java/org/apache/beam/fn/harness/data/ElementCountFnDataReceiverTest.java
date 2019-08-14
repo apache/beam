@@ -92,7 +92,7 @@ public class ElementCountFnDataReceiverTest {
     verify(consumer, times(1)).accept(element);
 
     // Verify that static scopedMetricsContainer is called with unbound container.
-    PowerMockito.verifyStatic(times(1));
+    PowerMockito.verifyStatic(MetricsEnvironment.class, times(1));
     MetricsEnvironment.scopedMetricsContainer(metricsContainerRegistry.getUnboundContainer());
   }
 }
