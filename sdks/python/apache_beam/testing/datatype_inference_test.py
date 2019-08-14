@@ -65,11 +65,11 @@ TEST_DATA = [
         ],
         "type_schema":
         OrderedDict([
-            ("a", typehints.Union[[int]]),
-            ("b", typehints.Union[[float]]),
-            ("c", typehints.Union[[unicode]]),
-            ("d", typehints.Union[[np.ndarray]]),
-            ("e", typehints.Union[[bytes]]),
+            ("a", typehints.Union[int]),
+            ("b", typehints.Union[float]),
+            ("c", typehints.Union[unicode]),
+            ("d", typehints.Union[np.ndarray]),
+            ("e", typehints.Union[bytes]),
         ]),
         "pyarrow_schema":
         pa.schema([
@@ -155,7 +155,7 @@ def nullify_data_and_schemas(test_data):
         OrderedDict([(c, None) for c in columns])
     ]
     test_case["type_schema"] = OrderedDict([
-        (k, typehints.Union[[v, type(None)]])
+        (k, typehints.Union[v, type(None)])
         for k, v in test_case["type_schema"].items()
     ])
     test_case["avro_schema"] = nullify_avro_schema(test_case["avro_schema"])

@@ -61,20 +61,20 @@ def infer_avro_schema(data, use_fastavro=False):
   TODO: For internal use only.
   """
   _typehint_to_avro_type = {
-      typehints.Union[[int]]: "int",
-      typehints.Union[[int, type(None)]]: ["int", "null"],
-      typehints.Union[[float]]: "double",
-      typehints.Union[[float, type(None)]]: ["double", "null"],
-      typehints.Union[[str]]: "string",
-      typehints.Union[[str, type(None)]]: ["string", "null"],
-      typehints.Union[[unicode]]: "string",
-      typehints.Union[[unicode, type(None)]]: ["string", "null"],
-      typehints.Union[[bytes]]: "bytes",
-      typehints.Union[[bytes, type(None)]]: ["bytes", "null"],
-      typehints.Union[[np.ndarray]]: "bytes",
-      typehints.Union[[np.ndarray, type(None)]]: ["bytes", "null"],
-      typehints.Union[[array.array]]: "bytes",
-      typehints.Union[[array.array, type(None)]]: ["bytes", "null"],
+      typehints.Union[int]: "int",
+      typehints.Union[int, type(None)]: ["int", "null"],
+      typehints.Union[float]: "double",
+      typehints.Union[float, type(None)]: ["double", "null"],
+      typehints.Union[str]: "string",
+      typehints.Union[str, type(None)]: ["string", "null"],
+      typehints.Union[unicode]: "string",
+      typehints.Union[unicode, type(None)]: ["string", "null"],
+      typehints.Union[bytes]: "bytes",
+      typehints.Union[bytes, type(None)]: ["bytes", "null"],
+      typehints.Union[np.ndarray]: "bytes",
+      typehints.Union[np.ndarray, type(None)]: ["bytes", "null"],
+      typehints.Union[array.array]: "bytes",
+      typehints.Union[array.array, type(None)]: ["bytes", "null"],
   }
 
   column_types = infer_typehints_schema(data)
