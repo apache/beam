@@ -44,7 +44,6 @@ TEST_DATA = [
         "name":
         "main",
         "data": [
-            # TODO: Add unicode. Add mixed types
             OrderedDict([
                 #
                 ("a", 1),
