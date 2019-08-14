@@ -40,6 +40,7 @@ from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.pubsub import ReadFromPubSub
+from apache_beam.io.gcp.tests import utils
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigQueryTableMatcher
@@ -706,14 +707,9 @@ class PubSubBigQueryIT(unittest.TestCase):
         self.input_topic.name)
 
     # Set up BQ
-    self.dataset_id = '%s%s%d' % (self.BIG_QUERY_DATASET_ID,
-                                  str(int(time.time())),
-                                  random.randint(0, 10000))
-    self.bigquery_client = bigquery_tools.BigQueryWrapper()
-    self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
-    self.output_table = "%s.output_table" % (self.dataset_id)
-    logging.info("Created dataset %s in project %s",
-                 self.dataset_id, self.project)
+    self.dataset_ref = utils.create_bq_dataset(self.project,
+                                               self.BIG_QUERY_DATASET_ID)
+    self.output_table = "%s.output_table" % (self.dataset_ref.dataset_id)
 
   def tearDown(self):
     # Tear down PubSub
@@ -722,16 +718,7 @@ class PubSubBigQueryIT(unittest.TestCase):
     test_utils.cleanup_subscriptions(self.sub_client,
                                      [self.input_sub])
     # Tear down BigQuery
-    request = bigquery.BigqueryDatasetsDeleteRequest(
-        projectId=self.project, datasetId=self.dataset_id,
-        deleteContents=True)
-    try:
-      logging.info("Deleting dataset %s in project %s",
-                   self.dataset_id, self.project)
-      self.bigquery_client.client.datasets.Delete(request)
-    except HttpError:
-      logging.debug('Failed to clean up dataset %s in project %s',
-                    self.dataset_id, self.project)
+    utils.delete_bq_dataset(self.project, self.dataset_ref)
 
   def _run_pubsub_bq_pipeline(self, method, triggering_frequency=None):
     l = [i for i in range(self._SIZE)]
