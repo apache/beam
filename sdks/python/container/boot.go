@@ -40,6 +40,7 @@ var (
 
 	// Contract: https://s.apache.org/beam-fn-api-container-contract.
 
+	workerPool        = flag.Bool("worker_pool", false, "Run as worker pool (optional).")
 	id                = flag.String("id", "", "Local identifier (required).")
 	loggingEndpoint   = flag.String("logging_endpoint", "", "Logging endpoint (required).")
 	artifactEndpoint  = flag.String("artifact_endpoint", "", "Artifact endpoint (required).")
@@ -59,6 +60,18 @@ const (
 
 func main() {
 	flag.Parse()
+
+	if *workerPool == true {
+		args := []string{
+			"-m",
+			"apache_beam.runners.worker.worker_pool_main",
+			"--service_port=50000",
+			"--container_executable=/opt/apache/beam/boot",
+		}
+		log.Printf("Starting Python SDK worker pool: python %v", strings.Join(args, " "))
+		log.Fatalf("Python SDK worker pool exited: %v", execx.Execute("python", args...))
+	}
+
 	if *id == "" {
 		log.Fatal("No id provided.")
 	}
