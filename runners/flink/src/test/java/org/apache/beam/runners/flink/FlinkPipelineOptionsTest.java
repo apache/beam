@@ -77,7 +77,7 @@ public class FlinkPipelineOptionsTest {
     assertThat(options.getLatencyTrackingInterval(), is(0L));
     assertThat(options.isShutdownSourcesOnFinalWatermark(), is(false));
     assertThat(options.getObjectReuse(), is(false));
-    assertThat(options.getCheckpointingMode(), is(CheckpointingMode.EXACTLY_ONCE));
+    assertThat(options.getCheckpointingMode(), is(CheckpointingMode.EXACTLY_ONCE.name()));
     assertThat(options.getMinPauseBetweenCheckpoints(), is(-1L));
     assertThat(options.getCheckpointingInterval(), is(-1L));
     assertThat(options.getCheckpointTimeoutMillis(), is(-1L));
@@ -85,10 +85,10 @@ public class FlinkPipelineOptionsTest {
     assertThat(options.getNumberOfExecutionRetries(), is(-1));
     assertThat(options.getExecutionRetryDelay(), is(-1L));
     assertThat(options.getRetainExternalizedCheckpointsOnCancellation(), is(false));
-    assertThat(options.getStateBackend(), is(nullValue()));
+    assertThat(options.getStateBackendFactory(), is(nullValue()));
     assertThat(options.getMaxBundleSize(), is(1000L));
     assertThat(options.getMaxBundleTimeMills(), is(1000L));
-    assertThat(options.getExecutionModeForBatch(), is(ExecutionMode.PIPELINED));
+    assertThat(options.getExecutionModeForBatch(), is(ExecutionMode.PIPELINED.name()));
     assertThat(options.getSavepointPath(), is(nullValue()));
     assertThat(options.getAllowNonRestoredState(), is(false));
   }

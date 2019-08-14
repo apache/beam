@@ -254,7 +254,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     if (requiresStableInput) {
       Preconditions.checkState(
-          flinkOptions.getCheckpointingMode() == CheckpointingMode.EXACTLY_ONCE,
+          CheckpointingMode.valueOf(flinkOptions.getCheckpointingMode())
+              == CheckpointingMode.EXACTLY_ONCE,
           "Checkpointing mode is not set to exactly once but @RequiresStableInput is used.");
       Preconditions.checkState(
           flinkOptions.getCheckpointingInterval() > 0,
