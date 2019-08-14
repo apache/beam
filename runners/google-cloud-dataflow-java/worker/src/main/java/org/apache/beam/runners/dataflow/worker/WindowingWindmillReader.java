@@ -36,6 +36,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
  * A Reader that receives input data from a Windmill server, and returns a singleton iterable
@@ -116,6 +117,9 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
     final WorkItem workItem = context.getWork();
     KeyedWorkItem<K, T> keyedWorkItem =
         new WindmillKeyedWorkItem<>(key, workItem, windowCoder, windowsCoder, valueCoder);
+    final boolean isEmptyWorkItem =
+        (Iterables.isEmpty(keyedWorkItem.timersIterable())
+            && Iterables.isEmpty(keyedWorkItem.elementsIterable()));
     final WindowedValue<KeyedWorkItem<K, T>> value = new ValueInEmptyWindows<>(keyedWorkItem);
 
     return new NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>>() {
@@ -123,6 +127,9 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
 
       @Override
       public boolean start() throws IOException {
+        if (isEmptyWorkItem) {
+          return false;
+        }
         current = value;
         return true;
       }
