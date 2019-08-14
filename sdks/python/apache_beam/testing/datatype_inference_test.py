@@ -65,11 +65,11 @@ TEST_DATA = [
         ],
         "type_schema":
         OrderedDict([
-            ("a", typehints.Union[int]),
-            ("b", typehints.Union[float]),
-            ("c", typehints.Union[unicode]),
-            ("d", typehints.Union[np.ndarray]),
-            ("e", typehints.Union[bytes]),
+            ("a", int),
+            ("b", float),
+            ("c", unicode),
+            ("d", np.ndarray),
+            ("e", bytes),
         ]),
         "pyarrow_schema":
         pa.schema([
