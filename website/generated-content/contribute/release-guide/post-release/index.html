@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam Release Guide</title>
+  <title>Beam Release Guide: 09 - Post Release</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/contribute/release-guide/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/contribute/release-guide/post-release/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -141,7 +141,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/contribute/release-guide/index.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/contribute/release-guide/9-post-release.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -233,10 +233,9 @@
 
 
 <ul class="nav">
-  <li><a href="#introduction">Introduction</a></li>
-  <li><a href="#overview">Overview</a></li>
-  <li><a href="#decide-to-release">Decide to release</a></li>
-  <li><a href="#checklist-to-proceed-to-the-next-step">Checklist to proceed to the next step</a></li>
+  <li><a href="#apache-mailing-lists">Apache mailing lists</a></li>
+  <li><a href="#social-media">Social media</a></li>
+  <li><a href="#checklist-to-declare-the-process-completed">Checklist to declare the process completed</a></li>
 </ul>
 
 
@@ -257,59 +256,47 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="apache-beam-release-guide">Apache Beam Release Guide</h1>
+<h1 id="promote-the-release">Promote the release</h1>
+
+<p>Once the release has been finalized, the last step of the process is to promote the release within the project and beyond.</p>
+
+<h2 id="apache-mailing-lists">Apache mailing lists</h2>
+
+<p>Announce on the <a href="mailto:dev@beam.apache.org">dev@</a> mailing list that the release has been finished.</p>
+
+<p>Announce on the release on the <a href="mailto:user@beam.apache.org">user@</a> mailing list, listing major improvements and contributions.</p>
+
+<p>Announce the release on the <a href="mailto:announce@apache.org">announce@apache.org</a> mailing list.
+<strong>NOTE</strong>: This can only be done from <code class="highlighter-rouge">@apache.org</code> email address. Good luck.</p>
+
+<h2 id="social-media">Social media</h2>
+
+<p>Tweet, post on Facebook, LinkedIn, and other platforms. Ask other contributors to do the same.</p>
+
+<p>Also, update <a href="https://en.wikipedia.org/wiki/Apache_Beam">the Wikipedia article on Apache Beam</a>.</p>
 
 <hr />
 
-<h3 id="introduction">Introduction</h3>
-
-<p>The Apache Beam project periodically declares and publishes releases. A release is one or more packages of the project artifact(s) that are approved for general public distribution and use. They may come with various degrees of caveat regarding their perceived quality and potential for change, such as “alpha”, “beta”, “incubating”, “stable”, etc.</p>
-
-<p>The Beam community treats releases with great importance. They are a public face of the project and most users interact with the project only through the releases. Releases are signed off by the entire Beam community in a public vote.</p>
-
-<p>Each release is executed by a <em>Release Manager</em>, who is selected among the Beam committers. This document describes the process that the Release Manager follows to perform a release. Any changes to this process should be discussed and adopted on the <a href="/get-started/support/">dev@ mailing list</a>.</p>
-
-<p>Please remember that publishing software has legal consequences. This guide complements the foundation-wide <a href="http://www.apache.org/dev/release.html">Product Release Policy</a> and <a href="http://www.apache.org/dev/release-distribution">Release Distribution Policy</a>.</p>
-
-<h3 id="overview">Overview</h3>
-
-<p><img src="/images/release-guide-1.png" alt="Alt text" title="Release Process" width="100%" /></p>
-
-<p>The release process consists of several steps:</p>
+<h2 id="checklist-to-declare-the-process-completed">Checklist to declare the process completed</h2>
 
 <ol>
-  <li>Decide to release</li>
-  <li>Prepare for the release</li>
-  <li>Build a release candidate</li>
-  <li>Vote on the release candidate</li>
-  <li>During vote process, run validation tests</li>
-  <li>If necessary, fix any issues and go back to step 3.</li>
-  <li>Finalize the release</li>
-  <li>Promote the release</li>
+  <li>Release announced on <code class="highlighter-rouge">user@</code>;</li>
+  <li>Blog post published;</li>
+  <li>Release recorded in <code class="highlighter-rouge">reporter.apache.org</code>;</li>
+  <li>Release announced on social media;</li>
+  <li>Completion declared on <code class="highlighter-rouge">dev@</code>;</li>
+  <li>Wikipedia Apache Beam article updated;</li>
 </ol>
 
 <hr />
 
-<h3 id="decide-to-release">Decide to release</h3>
+<h1 id="improve-the-process">Improve the process</h1>
 
-<p>Deciding to release and selecting a Release Manager is the first step of the release process. This is a consensus-based decision of the entire community.</p>
+<p>It is important that we improve the release processes over time. Once you’ve finished the release,
+please take a step back and look what areas of this process and be improved. 
+Perhaps some part of the process can be simplified. Perhaps parts of this guide can be clarified.</p>
 
-<p>Anybody can propose a release on the dev@ mailing list, giving a solid argument and nominating a committer as the Release Manager (including themselves). There’s no formal process, no vote requirements, and no timing requirements. Any objections should be resolved by consensus before starting the release.</p>
-
-<p>If you’re not a committer you might not be able to perform most of the steps.</p>
-
-<p>Some steps require PMC permissions so you will need to reach out to get help if you’re not a PMC member.</p>
-
-<h3 id="checklist-to-proceed-to-the-next-step">Checklist to proceed to the next step</h3>
-
-<ol>
-  <li>Community agrees to release</li>
-  <li>Community selects a Release Manager</li>
-</ol>
-
-<hr />
-
-<p><a class="button button--primary" href="/contribute/release-guide/prepare/">Next Step: Prepare for Release</a></p>
+<p>If we have specific ideas, please start a discussion on the <code class="highlighter-rouge">dev@</code> mailing list and/or propose a pull request to update this guide. Thanks!</p>
 
       </div>
     </div>

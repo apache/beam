@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam Release Guide</title>
+  <title>Beam Release Guide: 02 - Create Branch</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/contribute/release-guide/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/contribute/release-guide/create-branch/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -141,7 +141,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/contribute/release-guide/index.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/contribute/release-guide/2-create-branch.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -233,10 +233,15 @@
 
 
 <ul class="nav">
-  <li><a href="#introduction">Introduction</a></li>
-  <li><a href="#overview">Overview</a></li>
-  <li><a href="#decide-to-release">Decide to release</a></li>
-  <li><a href="#checklist-to-proceed-to-the-next-step">Checklist to proceed to the next step</a></li>
+  <li><a href="#use-cut_release_branchsh-to-cut-the-release-branch">Use <code class="highlighter-rouge">cut_release_branch.sh</code> to cut the release branch</a></li>
+  <li><a href="#alternative-create-the-release-branch-manually">(Alternative) Create the release branch manually</a></li>
+  <li><a href="#start-a-snapshot-build">Start a snapshot build</a>
+    <ul>
+      <li><a href="#run-start_snapshot_buildsh-to-trigger-build">Run <code class="highlighter-rouge">start_snapshot_build.sh</code> to trigger build</a></li>
+      <li><a href="#verify-the-snapshot-build">Verify the <code class="highlighter-rouge">SNAPSHOT</code> build</a></li>
+      <li><a href="#alternative-start-the-snapshot-build-manually">(Alternative) Start the snapshot build manually</a></li>
+    </ul>
+  </li>
 </ul>
 
 
@@ -257,59 +262,139 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="apache-beam-release-guide">Apache Beam Release Guide</h1>
+<h1 id="create-the-release-branch">Create the release branch</h1>
 
 <hr />
 
-<h3 id="introduction">Introduction</h3>
+<p>Release candidates are built from a release branch. As a final step in preparation for the release,
+you should create the release branch in `apache/beam/ repository, push it to the Apache code repository,
+and update version information on the original branch.</p>
 
-<p>The Apache Beam project periodically declares and publishes releases. A release is one or more packages of the project artifact(s) that are approved for general public distribution and use. They may come with various degrees of caveat regarding their perceived quality and potential for change, such as “alpha”, “beta”, “incubating”, “stable”, etc.</p>
+<h2 id="use-cut_release_branchsh-to-cut-the-release-branch">Use <code class="highlighter-rouge">cut_release_branch.sh</code> to cut the release branch</h2>
 
-<p>The Beam community treats releases with great importance. They are a public face of the project and most users interact with the project only through the releases. Releases are signed off by the entire Beam community in a public vote.</p>
+<ul>
+  <li>
+    <p>Script: <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh">cut_release_branch.sh</a></p>
+  </li>
+  <li>Usage
+    <div class="language-sh highlighter-rouge"><pre class="highlight"><code><span class="c"># Cut a release branch</span>
+./beam/release/src/main/scripts/cut_release_branch.sh <span class="se">\</span>
+--release<span class="o">=</span><span class="k">${</span><span class="nv">RELEASE_VERSION</span><span class="k">}</span> <span class="se">\</span>
+--next_release<span class="o">=</span><span class="k">${</span><span class="nv">NEXT_VERSION</span><span class="k">}</span>
+  
+<span class="c"># Show help page</span>
+./beam/release/src/main/scripts/cut_release_branch.sh -h
+</code></pre>
+    </div>
+  </li>
+  <li>The script will:
+    <ol>
+      <li>Create <code class="highlighter-rouge">release-${RELEASE_VERSION}</code> branch locally.</li>
+      <li>
+        <p>Change and commit dev versoin number in master branch:</p>
 
-<p>Each release is executed by a <em>Release Manager</em>, who is selected among the Beam committers. This document describes the process that the Release Manager follows to perform a release. Any changes to this process should be discussed and adopted on the <a href="/get-started/support/">dev@ mailing list</a>.</p>
+        <p><a href="https://github.com/apache/beam/blob/e8abafe360e126818fe80ae0f6075e71f0fc227d/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy#L209">BeamModulePlugin.groovy</a>,
+<a href="https://github.com/apache/beam/blob/e8abafe360e126818fe80ae0f6075e71f0fc227d/gradle.properties#L25">gradle.properties</a>,
+<a href="https://github.com/apache/beam/blob/e8abafe360e126818fe80ae0f6075e71f0fc227d/sdks/python/apache_beam/version.py#L21">version.py</a></p>
+      </li>
+      <li>
+        <p>Change and commit version number in release branch:</p>
 
-<p>Please remember that publishing software has legal consequences. This guide complements the foundation-wide <a href="http://www.apache.org/dev/release.html">Product Release Policy</a> and <a href="http://www.apache.org/dev/release-distribution">Release Distribution Policy</a>.</p>
+        <p><a href="https://github.com/apache/beam/blob/release-2.6.0/sdks/python/apache_beam/version.py#L21">version.py</a>, 
+<a href="https://github.com/apache/beam/blob/release-2.6.0/runners/google-cloud-dataflow-java/build.gradle#L39">build.gradle</a></p>
+      </li>
+    </ol>
+  </li>
+</ul>
 
-<h3 id="overview">Overview</h3>
+<hr />
 
-<p><img src="/images/release-guide-1.png" alt="Alt text" title="Release Process" width="100%" /></p>
+<h2 id="alternative-create-the-release-branch-manually">(Alternative) Create the release branch manually</h2>
 
-<p>The release process consists of several steps:</p>
+<p>Instead of running <code class="highlighter-rouge">cut_release_branch.sh</code> you can run all the commands manually.</p>
 
+<p><strong>NOTE</strong>: For each step make sure you understand what the script does before running the commands.</p>
+
+<p>Run the commands from the script one-by-one manually:</p>
+
+<ul>
+  <li>
+    <p>Use Bash, as it’s what the scripts are written for;</p>
+  </li>
+  <li>
+    <p>Check out the version of the codebase from which you start the release. For a new minor or major release, this may be <code class="highlighter-rouge">HEAD</code> of the <code class="highlighter-rouge">master</code> branch. To build a hotfix/incremental release, instead of the <code class="highlighter-rouge">master</code> branch, use the release tag of the release being patched.
+(Please make sure your cloned repository is up-to-date before starting.)</p>
+
+    <p><strong>NOTE</strong>: If you are doing an incremental/hotfix release (e.g. 2.5.1), please check out the previous release tag, rather than the master branch.</p>
+  </li>
+  <li>
+    <p>Set up a few environment variables to simplify Maven commands that follow, e.g. <code class="highlighter-rouge">RELEASE</code>, <code class="highlighter-rouge">NEXT_VERSION_IN_BASE_BRANCH</code>, etc.;</p>
+
+    <p><strong>NOTE</strong>: Only if you are doing an incremental/hotfix release (e.g. 2.5.1), please check out the previous release tag;</p>
+
+    <p><strong>NOTE</strong>: After creating the release branch the script updates the master branch with the next version;</p>
+  </li>
+  <li>
+    <p>Create release branch locally;</p>
+  </li>
+  <li>
+    <p>Update version files in the <code class="highlighter-rouge">master</code> branch. E.g. <code class="highlighter-rouge">build_rules.gradle</code>, <code class="highlighter-rouge">gradle.properties</code>, <code class="highlighter-rouge">version.py</code>;</p>
+  </li>
+  <li>
+    <p>Update version files in release branch, e.g. <code class="highlighter-rouge">version.py</code>, <code class="highlighter-rouge">build.gradle</code> in Dataflow runner project;e</p>
+  </li>
+</ul>
+
+<hr />
+
+<h2 id="start-a-snapshot-build">Start a snapshot build</h2>
+
+<p>Start a build of <a href="https://builds.apache.org/view/A-D/view/Beam/job/beam_Release_NightlySnapshot/">the nightly snapshot</a> against master branch.
+Some processes, including our archetype tests, rely on having a live <code class="highlighter-rouge">SNAPSHOT</code> of the current version
+from the <code class="highlighter-rouge">master</code> branch. Once the release branch is cut, these <code class="highlighter-rouge">SNAPSHOT</code> versions are no longer found,
+so builds will be broken until a new snapshot is available.</p>
+
+<h3 id="run-start_snapshot_buildsh-to-trigger-build">Run <code class="highlighter-rouge">start_snapshot_build.sh</code> to trigger build</h3>
+
+<ul>
+  <li>
+    <p>Script: <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/start_snapshot_build.sh">start_snapshot_build.sh</a></p>
+  </li>
+  <li>Usage
+    <div class="language-sh highlighter-rouge"><pre class="highlight"><code>./beam/release/src/main/scripts/start_snapshot_build.sh
+</code></pre>
+    </div>
+  </li>
+  <li>The script does the following:
+    <ol>
+      <li>Installs <a href="https://github.com/github/hub">hub</a> with your agreement;</li>
+      <li>Touches an empty <code class="highlighter-rouge">txt</code> file and commits changes into <code class="highlighter-rouge">${your remote beam repo}/snapshot_build</code>;</li>
+      <li>Uses <code class="highlighter-rouge">hub</code> to create a PR against <code class="highlighter-rouge">master</code>, which triggers a Jenkins job to build a snapshot;</li>
+    </ol>
+  </li>
+</ul>
+
+<h3 id="verify-the-snapshot-build">Verify the <code class="highlighter-rouge">SNAPSHOT</code> build</h3>
+
+<p>Tasks you need to do manually</p>
 <ol>
-  <li>Decide to release</li>
-  <li>Prepare for the release</li>
-  <li>Build a release candidate</li>
-  <li>Vote on the release candidate</li>
-  <li>During vote process, run validation tests</li>
-  <li>If necessary, fix any issues and go back to step 3.</li>
-  <li>Finalize the release</li>
-  <li>Promote the release</li>
+  <li>Check whether the Jenkins job gets triggered. If not, please comment <code class="highlighter-rouge">Run Gradle Publish</code> into the generated PR.</li>
+  <li>After verifying build succeeded, you need to close PR manually.</li>
 </ol>
 
 <hr />
 
-<h3 id="decide-to-release">Decide to release</h3>
+<h3 id="alternative-start-the-snapshot-build-manually">(Alternative) Start the snapshot build manually</h3>
 
-<p>Deciding to release and selecting a Release Manager is the first step of the release process. This is a consensus-based decision of the entire community.</p>
-
-<p>Anybody can propose a release on the dev@ mailing list, giving a solid argument and nominating a committer as the Release Manager (including themselves). There’s no formal process, no vote requirements, and no timing requirements. Any objections should be resolved by consensus before starting the release.</p>
-
-<p>If you’re not a committer you might not be able to perform most of the steps.</p>
-
-<p>Some steps require PMC permissions so you will need to reach out to get help if you’re not a PMC member.</p>
-
-<h3 id="checklist-to-proceed-to-the-next-step">Checklist to proceed to the next step</h3>
-
-<ol>
-  <li>Community agrees to release</li>
-  <li>Community selects a Release Manager</li>
-</ol>
+<ul>
+  <li>Find one PR against <code class="highlighter-rouge">master</code> in Beam;</li>
+  <li>Comment  <code class="highlighter-rouge">Run Gradle Publish</code> in this pull request to trigger build;</li>
+  <li>Verify that build succeeds;</li>
+</ul>
 
 <hr />
 
-<p><a class="button button--primary" href="/contribute/release-guide/prepare/">Next Step: Prepare for Release</a></p>
+<p><a class="button button--primary" href="/contribute/release-guide/verify-branch/">Next Step: Verify Branch</a></p>
 
       </div>
     </div>

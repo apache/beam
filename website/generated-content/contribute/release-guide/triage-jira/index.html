@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam Release Guide</title>
+  <title>Beam Release Guide: 05 - Triage JIRAs</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/contribute/release-guide/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/contribute/release-guide/triage-jira/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -141,7 +141,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/contribute/release-guide/index.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/contribute/release-guide/5-triage-jira.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -233,10 +233,9 @@
 
 
 <ul class="nav">
-  <li><a href="#introduction">Introduction</a></li>
-  <li><a href="#overview">Overview</a></li>
-  <li><a href="#decide-to-release">Decide to release</a></li>
-  <li><a href="#checklist-to-proceed-to-the-next-step">Checklist to proceed to the next step</a></li>
+  <li><a href="#triage-release-blocking-issues-in-jira">Triage release-blocking issues in JIRA</a></li>
+  <li><a href="#review-release-notes-in-jira">Review Release Notes in JIRA</a></li>
+  <li><a href="#review-cherry-picks">Review cherry-picks</a></li>
 </ul>
 
 
@@ -257,59 +256,80 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="apache-beam-release-guide">Apache Beam Release Guide</h1>
+<h1 id="check-the-blockers">Check the blockers</h1>
 
 <hr />
 
-<h3 id="introduction">Introduction</h3>
+<h2 id="triage-release-blocking-issues-in-jira">Triage release-blocking issues in JIRA</h2>
 
-<p>The Apache Beam project periodically declares and publishes releases. A release is one or more packages of the project artifact(s) that are approved for general public distribution and use. They may come with various degrees of caveat regarding their perceived quality and potential for change, such as “alpha”, “beta”, “incubating”, “stable”, etc.</p>
+<p>There could be outstanding release-blocking issues, which should be triaged before proceeding to build a release candidate.
+We track them by assigning a specific <code class="highlighter-rouge">Fix version</code> field even before the issue resolved.</p>
 
-<p>The Beam community treats releases with great importance. They are a public face of the project and most users interact with the project only through the releases. Releases are signed off by the entire Beam community in a public vote.</p>
+<p>The list of release-blocking issues is available at the 
+<a href="https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:versions-panel">version status page</a>. 
+Triage each unresolved issue with one of the following resolutions:</p>
 
-<p>Each release is executed by a <em>Release Manager</em>, who is selected among the Beam committers. This document describes the process that the Release Manager follows to perform a release. Any changes to this process should be discussed and adopted on the <a href="/get-started/support/">dev@ mailing list</a>.</p>
+<p>For all JIRA issues:</p>
 
-<p>Please remember that publishing software has legal consequences. This guide complements the foundation-wide <a href="http://www.apache.org/dev/release.html">Product Release Policy</a> and <a href="http://www.apache.org/dev/release-distribution">Release Distribution Policy</a>.</p>
+<ul>
+  <li>If the issue has been resolved and JIRA was not updated, resolve it accordingly.</li>
+</ul>
 
-<h3 id="overview">Overview</h3>
+<p>For JIRA issues with type “Bug” or labeled “flaky”:</p>
 
-<p><img src="/images/release-guide-1.png" alt="Alt text" title="Release Process" width="100%" /></p>
+<ul>
+  <li>If the issue is a known continuously failing test, it is not acceptable to defer this until the next release. Please work with the Beam community to resolve the issue.</li>
+  <li>If the issue is a known flaky test, make an attempt to delegate a fix. However, if the issue may take too long to fix (to the discretion of the release manager):
+    <ul>
+      <li>Delegate manual testing of the flaky issue to ensure no release blocking issues.</li>
+      <li>Update the <code class="highlighter-rouge">Fix Version</code> field to the version of the next release. Please consider discussing this with stakeholders and the dev@ mailing list, as appropriate.</li>
+    </ul>
+  </li>
+</ul>
 
-<p>The release process consists of several steps:</p>
+<p>For all other JIRA issues:</p>
 
-<ol>
-  <li>Decide to release</li>
-  <li>Prepare for the release</li>
-  <li>Build a release candidate</li>
-  <li>Vote on the release candidate</li>
-  <li>During vote process, run validation tests</li>
-  <li>If necessary, fix any issues and go back to step 3.</li>
-  <li>Finalize the release</li>
-  <li>Promote the release</li>
-</ol>
+<ul>
+  <li>If the issue has not been resolved and it is acceptable to defer this until the next release, update the <code class="highlighter-rouge">Fix Version</code> field to the new version you just created. Please consider discussing this with stakeholders and the dev@ mailing list, as appropriate.</li>
+  <li>If the issue has not been resolved and it is not acceptable to release until it is fixed, the release cannot proceed. Instead, work with the Beam community to resolve the issue.</li>
+</ul>
 
-<hr />
-
-<h3 id="decide-to-release">Decide to release</h3>
-
-<p>Deciding to release and selecting a Release Manager is the first step of the release process. This is a consensus-based decision of the entire community.</p>
-
-<p>Anybody can propose a release on the dev@ mailing list, giving a solid argument and nominating a committer as the Release Manager (including themselves). There’s no formal process, no vote requirements, and no timing requirements. Any objections should be resolved by consensus before starting the release.</p>
-
-<p>If you’re not a committer you might not be able to perform most of the steps.</p>
-
-<p>Some steps require PMC permissions so you will need to reach out to get help if you’re not a PMC member.</p>
-
-<h3 id="checklist-to-proceed-to-the-next-step">Checklist to proceed to the next step</h3>
-
-<ol>
-  <li>Community agrees to release</li>
-  <li>Community selects a Release Manager</li>
-</ol>
+<p>If there is a bug found in the RC creation process/tools, those issues should be considered high priority and fixed in 7 days.</p>
 
 <hr />
 
-<p><a class="button button--primary" href="/contribute/release-guide/prepare/">Next Step: Prepare for Release</a></p>
+<h2 id="review-release-notes-in-jira">Review Release Notes in JIRA</h2>
+
+<p>JIRA automatically generates Release Notes based on the <code class="highlighter-rouge">Fix Version</code> field applied to issues.
+Release Notes are intended for Beam users (not Beam committers/contributors).
+You should ensure that Release Notes are informative and useful.</p>
+
+<p>Open the release notes from the 
+<a href="https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:versions-panel">version status page</a> 
+by choosing the release underway and clicking Release Notes.</p>
+
+<p>You should verify that the issues listed automatically by JIRA are appropriate to appear in the Release Notes. 
+Specifically, issues should:</p>
+
+<ul>
+  <li>Be appropriately classified as <code class="highlighter-rouge">Bug</code>, <code class="highlighter-rouge">New Feature</code>, <code class="highlighter-rouge">Improvement</code>, etc.</li>
+  <li>Represent noteworthy user-facing changes, such as new functionality, backward-incompatible API changes, or performance improvements.</li>
+  <li>Have occurred since the previous release; an issue that was introduced and fixed between releases should not appear in the Release Notes.</li>
+  <li>Have an issue title that makes sense when read on its own.</li>
+</ul>
+
+<p>Adjust any of the above properties to the improve clarity and presentation of the Release Notes.</p>
+
+<hr />
+
+<h2 id="review-cherry-picks">Review cherry-picks</h2>
+
+<p>Check if there are outstanding cherry-picks into the release branch, <a href="https://github.com/apache/beam/pulls?utf8=%E2%9C%93&amp;q=is%3Apr+base%3Arelease-2.14.0">e.g. for <code class="highlighter-rouge">2.14.0</code></a>.</p>
+
+<p>Make sure they have blocker JIRAs attached and are OK to get into the release by checking with community if needed.</p>
+
+<hr />
+<p><a class="button button--primary" href="/contribute/release-guide/prepare-docs/">Next Step: Prepare Documentation</a></p>
 
       </div>
     </div>

@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam Release Guide</title>
+  <title>Beam Release Guide: 08 - Finalize</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/contribute/release-guide/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/contribute/release-guide/finalize/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -141,7 +141,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/contribute/release-guide/index.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/contribute/release-guide/8-finalize.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -233,9 +233,13 @@
 
 
 <ul class="nav">
-  <li><a href="#introduction">Introduction</a></li>
-  <li><a href="#overview">Overview</a></li>
-  <li><a href="#decide-to-release">Decide to release</a></li>
+  <li><a href="#deploy-artifacts-to-maven-central-repository">Deploy artifacts to Maven Central Repository</a></li>
+  <li><a href="#deploy-python-artifacts-to-pypi">Deploy Python artifacts to PyPI</a></li>
+  <li><a href="#deploy-source-release-to-distapacheorg">Deploy source release to <code class="highlighter-rouge">dist.apache.org</code></a></li>
+  <li><a href="#git-tag">Git tag</a></li>
+  <li><a href="#merge-website-pull-requests">Merge website pull requests</a></li>
+  <li><a href="#mark-the-version-as-released-in-jira">Mark the version as released in JIRA</a></li>
+  <li><a href="#record-keeping-with-asf">Record keeping with ASF</a></li>
   <li><a href="#checklist-to-proceed-to-the-next-step">Checklist to proceed to the next step</a></li>
 </ul>
 
@@ -257,59 +261,98 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="apache-beam-release-guide">Apache Beam Release Guide</h1>
+<h1 id="finalize-the-release">Finalize the release</h1>
 
 <hr />
 
-<h3 id="introduction">Introduction</h3>
+<p>Once the release candidate has been reviewed and approved by the community, the release should be finalized.
+This involves the final deployment of the release candidate to the release repositories, merging of the website changes, etc.</p>
 
-<p>The Apache Beam project periodically declares and publishes releases. A release is one or more packages of the project artifact(s) that are approved for general public distribution and use. They may come with various degrees of caveat regarding their perceived quality and potential for change, such as “alpha”, “beta”, “incubating”, “stable”, etc.</p>
+<h2 id="deploy-artifacts-to-maven-central-repository">Deploy artifacts to Maven Central Repository</h2>
 
-<p>The Beam community treats releases with great importance. They are a public face of the project and most users interact with the project only through the releases. Releases are signed off by the entire Beam community in a public vote.</p>
+<p>Use the Apache Nexus repository to release the staged binary artifacts to the Maven Central repository.
+In the <code class="highlighter-rouge">Staging Repositories</code> section, find the relevant release candidate <code class="highlighter-rouge">orgapachebeam-XXX</code> entry and click <code class="highlighter-rouge">Release</code>.
+Drop all other release candidates that are not being released.</p>
 
-<p>Each release is executed by a <em>Release Manager</em>, who is selected among the Beam committers. This document describes the process that the Release Manager follows to perform a release. Any changes to this process should be discussed and adopted on the <a href="/get-started/support/">dev@ mailing list</a>.</p>
+<p>The artifacts will disappear from Nexus immediately but will not appear in Maven Central for about an hour. Take a break.</p>
 
-<p>Please remember that publishing software has legal consequences. This guide complements the foundation-wide <a href="http://www.apache.org/dev/release.html">Product Release Policy</a> and <a href="http://www.apache.org/dev/release-distribution">Release Distribution Policy</a>.</p>
+<hr />
 
-<h3 id="overview">Overview</h3>
-
-<p><img src="/images/release-guide-1.png" alt="Alt text" title="Release Process" width="100%" /></p>
-
-<p>The release process consists of several steps:</p>
+<h2 id="deploy-python-artifacts-to-pypi">Deploy Python artifacts to PyPI</h2>
 
 <ol>
-  <li>Decide to release</li>
-  <li>Prepare for the release</li>
-  <li>Build a release candidate</li>
-  <li>Vote on the release candidate</li>
-  <li>During vote process, run validation tests</li>
-  <li>If necessary, fix any issues and go back to step 3.</li>
-  <li>Finalize the release</li>
-  <li>Promote the release</li>
+  <li>Download everything from https://dist.apache.org/repos/dist/dev/beam/2.14.0/python/ ;</li>
+  <li>Keep only things that you see in https://pypi.org/project/apache-beam/#files , e.g. <code class="highlighter-rouge">.zip</code>, <code class="highlighter-rouge">.whl</code>,
+delete the <code class="highlighter-rouge">.asc</code>, <code class="highlighter-rouge">.sha512</code>;</li>
+  <li>Upload the new release <code class="highlighter-rouge">twine upload .</code> from the directory with the <code class="highlighter-rouge">.zip</code> and <code class="highlighter-rouge">.whl</code> files;</li>
 </ol>
 
 <hr />
 
-<h3 id="decide-to-release">Decide to release</h3>
+<h2 id="deploy-source-release-to-distapacheorg">Deploy source release to <code class="highlighter-rouge">dist.apache.org</code></h2>
 
-<p>Deciding to release and selecting a Release Manager is the first step of the release process. This is a consensus-based decision of the entire community.</p>
+<p>Copy the source release from the <code class="highlighter-rouge">dev</code> repository to the <code class="highlighter-rouge">release</code> repository at <code class="highlighter-rouge">dist.apache.org</code> using Subversion.
+Move last release artifacts from <code class="highlighter-rouge">dist.apache.org</code> to <code class="highlighter-rouge">archive.apache.org</code> using Subversion.</p>
 
-<p>Anybody can propose a release on the dev@ mailing list, giving a solid argument and nominating a committer as the Release Manager (including themselves). There’s no formal process, no vote requirements, and no timing requirements. Any objections should be resolved by consensus before starting the release.</p>
+<p><strong>NOTE</strong>: Only PMC members have permissions to do it, ping <a href="mailto:dev@beam.apache.org">dev@</a> for assitance;</p>
 
-<p>If you’re not a committer you might not be able to perform most of the steps.</p>
-
-<p>Some steps require PMC permissions so you will need to reach out to get help if you’re not a PMC member.</p>
-
-<h3 id="checklist-to-proceed-to-the-next-step">Checklist to proceed to the next step</h3>
-
-<ol>
-  <li>Community agrees to release</li>
-  <li>Community selects a Release Manager</li>
-</ol>
+<p>Make sure the download address for last release version is upldaed, <a href="https://github.com/apache/beam-site/pull/478">example PR</a>.</p>
 
 <hr />
 
-<p><a class="button button--primary" href="/contribute/release-guide/prepare/">Next Step: Prepare for Release</a></p>
+<h2 id="git-tag">Git tag</h2>
+
+<p>Create and push a new <strong>signed</strong> tag for the released version by copying the tag for the final release candidate, as follows:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>VERSION_TAG="v${RELEASE}"
+git tag -s "$VERSION_TAG" "$RC_TAG"
+git push github "$VERSION_TAG"
+</code></pre>
+</div>
+
+<hr />
+
+<h2 id="merge-website-pull-requests">Merge website pull requests</h2>
+
+<ul>
+  <li>Merge the website pull request to <a href="/get-started/downloads/">list the release</a>;</li>
+  <li>Merge the <a href="https://beam.apache.org/releases/javadoc/">Java API reference manual</a> created earlier, does not require LGTMs;</li>
+  <li>Publish the <a href="https://beam.apache.org/releases/pydoc/">Python API reference manual</a>;</li>
+</ul>
+
+<hr />
+
+<h2 id="mark-the-version-as-released-in-jira">Mark the version as released in JIRA</h2>
+
+<p>In JIRA, inside <a href="https://issues.apache.org/jira/plugins/servlet/project-config/BEAM/versions">version management</a>,
+hover over the current release and a settings menu will appear. Click <code class="highlighter-rouge">Release</code>, and select today’s date.</p>
+
+<p><strong>NOTE</strong>: Only PMC members have permissions to do it, ping <a href="mailto:dev@beam.apache.org">dev@</a> for assitance;</p>
+
+<hr />
+
+<h2 id="record-keeping-with-asf">Record keeping with ASF</h2>
+
+<p>Use https://reporter.apache.org to seed the information about the release into future project reports.</p>
+
+<p><strong>NOTE</strong>: Only PMC members have permissions to do it, ping <a href="mailto:dev@beam.apache.org">dev@</a> for assitance;</p>
+
+<hr />
+
+<h2 id="checklist-to-proceed-to-the-next-step">Checklist to proceed to the next step</h2>
+
+<ul>
+  <li>Maven artifacts released and indexed in the <a href="https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22">Maven Central Repository</a>;</li>
+  <li>Source distribution available in the release repository of <a href="https://dist.apache.org/repos/dist/release/beam/">dist.apache.org</a>;</li>
+  <li>Source distribution removed from the dev repository of <a href="https://dist.apache.org/repos/dist/dev/beam/">dist.apache.org</a>;</li>
+  <li>Website pull request to <a href="/get-started/downloads/">list the release</a> and publish the <a href="https://beam.apache.org/releases/javadoc/">API reference manual</a> merged;</li>
+  <li>Release tagged in the source code repository;</li>
+  <li>Release version finalized in JIRA;</li>
+  <li>Release version is listed at reporter.apache.org;</li>
+</ul>
+
+<hr />
+<p><a class="button button--primary" href="/contribute/release-guide/post-release/">Next Step: Promote the Release</a></p>
 
       </div>
     </div>

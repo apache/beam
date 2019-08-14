@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam Release Guide</title>
+  <title>Beam Release Guide: 06 - Prepare Docs</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/contribute/release-guide/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/contribute/release-guide/prepare-docs/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -141,7 +141,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/contribute/release-guide/index.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/contribute/release-guide/6-prepare-docs.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -233,9 +233,15 @@
 
 
 <ul class="nav">
-  <li><a href="#introduction">Introduction</a></li>
-  <li><a href="#overview">Overview</a></li>
-  <li><a href="#decide-to-release">Decide to release</a></li>
+  <li><a href="#update-and-verify-javadoc">Update and Verify Javadoc</a></li>
+  <li><a href="#build-the-pydoc-api-reference">Build the Pydoc API reference</a></li>
+  <li><a href="#propose-pull-requests-for-website-updates">Propose pull requests for website updates</a>
+    <ul>
+      <li><a href="#javadoc-pr-against-apachebeam-site">Javadoc PR against <code class="highlighter-rouge">apache/beam-site</code></a></li>
+      <li><a href="#website-update-for-new-release-version">Website update for new release version</a></li>
+      <li><a href="#blog-post">Blog post</a></li>
+    </ul>
+  </li>
   <li><a href="#checklist-to-proceed-to-the-next-step">Checklist to proceed to the next step</a></li>
 </ul>
 
@@ -257,59 +263,188 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="apache-beam-release-guide">Apache Beam Release Guide</h1>
+<h1 id="prepare-the-documentation">Prepare the documentation</h1>
 
 <hr />
 
-<h3 id="introduction">Introduction</h3>
+<h2 id="update-and-verify-javadoc">Update and Verify Javadoc</h2>
 
-<p>The Apache Beam project periodically declares and publishes releases. A release is one or more packages of the project artifact(s) that are approved for general public distribution and use. They may come with various degrees of caveat regarding their perceived quality and potential for change, such as “alpha”, “beta”, “incubating”, “stable”, etc.</p>
+<p>The build with <code class="highlighter-rouge">-PisRelease</code> creates the combined Javadoc for the release in <code class="highlighter-rouge">sdks/java/javadoc</code>.</p>
 
-<p>The Beam community treats releases with great importance. They are a public face of the project and most users interact with the project only through the releases. Releases are signed off by the entire Beam community in a public vote.</p>
+<p>The file <code class="highlighter-rouge">sdks/java/javadoc/build.gradle</code> contains a list of modules to include
+in and exclude, plus a list of offline URLs that populate links from Beam’s
+Javadoc to the Javadoc for other modules that Beam depends on.</p>
 
-<p>Each release is executed by a <em>Release Manager</em>, who is selected among the Beam committers. This document describes the process that the Release Manager follows to perform a release. Any changes to this process should be discussed and adopted on the <a href="/get-started/support/">dev@ mailing list</a>.</p>
+<ul>
+  <li>
+    <p>Confirm that new modules added since the last release have been added to the
+inclusion list as appropriate.</p>
+  </li>
+  <li>
+    <p>Confirm that the excluded package list is up to date.</p>
+  </li>
+  <li>
+    <p>Verify the version numbers for offline links match the versions used by Beam. If
+the version number has changed, download a new version of the corresponding
+<code class="highlighter-rouge">&lt;module&gt;-docs/package-list</code> file.</p>
+  </li>
+</ul>
 
-<p>Please remember that publishing software has legal consequences. This guide complements the foundation-wide <a href="http://www.apache.org/dev/release.html">Product Release Policy</a> and <a href="http://www.apache.org/dev/release-distribution">Release Distribution Policy</a>.</p>
+<hr />
 
-<h3 id="overview">Overview</h3>
+<h2 id="build-the-pydoc-api-reference">Build the Pydoc API reference</h2>
 
-<p><img src="/images/release-guide-1.png" alt="Alt text" title="Release Process" width="100%" /></p>
+<p>Make sure you have <code class="highlighter-rouge">tox</code> installed:</p>
 
-<p>The release process consists of several steps:</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>pip install tox
+</code></pre>
+</div>
+
+<p>Create the Python SDK documentation using sphinx by running a helper script.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>cd sdks/python &amp;&amp; tox -e docs
+</code></pre>
+</div>
+
+<p>By default the Pydoc is generated in <code class="highlighter-rouge">sdks/python/target/docs/_build</code>.</p>
+
+<p>Set <code class="highlighter-rouge">${PYDOC_ROOT}</code> be the absolute path to <code class="highlighter-rouge">_build</code>.</p>
+
+<hr />
+
+<h2 id="propose-pull-requests-for-website-updates">Propose pull requests for website updates</h2>
+
+<p>Beam publishes API reference manuals for each release on the website. For Java
+and Python SDKs, that’s Javadoc and PyDoc, respectively. The final step of
+building the candidate is to propose website pull requests that update these
+manuals.</p>
+
+<p>Merge the pull requests only after finalizing the release. To avoid invalid
+redirects for the ‘current’ version, merge these PRs in the order listed. Once
+the PR is merged, the new contents will get picked up automatically and served
+to the Beam website, usually within an hour.</p>
+
+<h3 id="javadoc-pr-against-apachebeam-site">Javadoc PR against <code class="highlighter-rouge">apache/beam-site</code></h3>
+
+<p>This pull request is against the <code class="highlighter-rouge">apache/beam-site</code> repo, on the <code class="highlighter-rouge">release-docs</code>
+branch.</p>
+
+<ul>
+  <li>Add the new Javadoc to <a href="https://beam.apache.org/releases/javadoc/">SDK API Reference page</a> page, as follows:
+    <ul>
+      <li>Unpack the Maven artifact <code class="highlighter-rouge">org.apache.beam:beam-sdks-java-javadoc</code> into some temporary location. Call this <code class="highlighter-rouge">${JAVADOC_TMP}</code>.</li>
+      <li>Copy the generated Javadoc into the website repository: <code class="highlighter-rouge">cp -r ${JAVADOC_TMP} javadoc/${RELEASE}</code>.</li>
+    </ul>
+  </li>
+  <li>Add the new Pydoc to <a href="https://beam.apache.org/releases/pydoc/">SDK API Reference page</a> page, as follows:
+    <ul>
+      <li>Copy the generated Pydoc into the website repository: <code class="highlighter-rouge">cp -r ${PYDOC_ROOT} pydoc/${RELEASE}</code>.</li>
+      <li>Remove <code class="highlighter-rouge">.doctrees</code> directory.</li>
+    </ul>
+  </li>
+  <li>Stage files using: <code class="highlighter-rouge">git add --all javadoc/ pydoc/</code>.</li>
+</ul>
+
+<h3 id="website-update-for-new-release-version">Website update for new release version</h3>
+
+<p>This pull request is against the <code class="highlighter-rouge">apache/beam</code> repo, on the <code class="highlighter-rouge">master</code> branch.</p>
+
+<ul>
+  <li>Update the <code class="highlighter-rouge">release_latest</code> version flag in <code class="highlighter-rouge">/website/_config.yml</code>, and list
+the new release in <code class="highlighter-rouge">/website/src/get-started/downloads.md</code>, linking to the
+source code download and the Release Notes in JIRA.</li>
+  <li>Update the <code class="highlighter-rouge">RedirectMatch</code> rule in
+<a href="https://github.com/apache/beam/blob/master/website/src/.htaccess">/website/src/.htaccess</a>
+to point to the new release. See file history for examples.</li>
+</ul>
+
+<h3 id="blog-post">Blog post</h3>
+
+<p>Write a blog post similar to https://beam.apache.org/blog/2019/07/31/beam-2.14.0.html</p>
+
+<p><strong>Tip</strong>: Use git log to find contributors to the releases. (e.g: <code class="highlighter-rouge">git log --pretty='%aN' ^v2.10.0 v2.11.0 | sort | uniq</code>).
+Make sure to clean it up, as there may be duplicate or incorrect user names.</p>
+
+<p><strong>NOTE</strong>: Make sure to include any breaking changes, even to <code class="highlighter-rouge">@Experimental</code> features,
+all major features and bug fixes, and all known issues.</p>
+
+<p>Template:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>
+    We are happy to present the new {$RELEASE_VERSION} release of Beam. This release includes both improvements and new functionality.
+    See the [download page](/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.&lt;!--more--&gt;
+    For more information on changes in {$RELEASE_VERSION}, check out the
+    [detailed release notes]({$JIRA_RELEASE_NOTES}).
+    
+    ## Highlights
+    
+     * New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+     * New highly anticipated feature Y added to JavaSDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+    
+    {$TOPICS e.g.:}
+    ### I/Os
+    * Support for X source added (Java) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+    {$TOPICS}
+    
+    ### New Features / Improvements
+    
+    * X feature added (Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+    * Y feature added (Java) [BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y).
+    
+    ### Breaking Changes
+    
+    * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+    * Y behavior was changed ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-X)).
+    
+    ### Deprecations
+    
+    * X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+    
+    ### Bugfixes
+    
+    * Fixed X (Python) ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-X)).
+    * Fixed Y (Java) ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+    
+    ### Known Issues
+    
+    * {$KNOWN_ISSUE_1}
+    * {$KNOWN_ISSUE_2}
+    
+    
+    ## List of Contributors
+    
+    According to git shortlog, the following people contributed to the 2.XX.0 release. Thank you to all contributors!
+    
+    ${CONTRIBUTORS}
+
+</code></pre>
+</div>
+
+<hr />
+
+<h2 id="checklist-to-proceed-to-the-next-step">Checklist to proceed to the next step</h2>
 
 <ol>
-  <li>Decide to release</li>
-  <li>Prepare for the release</li>
-  <li>Build a release candidate</li>
-  <li>Vote on the release candidate</li>
-  <li>During vote process, run validation tests</li>
-  <li>If necessary, fix any issues and go back to step 3.</li>
-  <li>Finalize the release</li>
-  <li>Promote the release</li>
+  <li>Maven artifacts deployed to the staging repository of <a href="https://repository.apache.org/content/repositories/">repository.apache.org</a>;</li>
+  <li>Source distribution deployed to the dev repository of <a href="https://dist.apache.org/repos/dist/dev/beam/">dist.apache.org</a>;</li>
+  <li>Website pull request proposed to list the
+<a href="/get-started/downloads/">release</a>, 
+publish the <a href="https://beam.apache.org/releases/javadoc/">Java API reference manual</a>, 
+and publish the <a href="https://beam.apache.org/releases/pydoc/">Python API reference manual</a>;</li>
+</ol>
+
+<p>You can (optionally) also do additional verification by:</p>
+<ol>
+  <li>Check that Python zip file contains the <code class="highlighter-rouge">README.md</code>, <code class="highlighter-rouge">NOTICE</code>, and <code class="highlighter-rouge">LICENSE</code> files;</li>
+  <li>Check hashes (e.g. <code class="highlighter-rouge">md5sum -c *.md5</code> and <code class="highlighter-rouge">sha1sum -c *.sha1</code>);</li>
+  <li>Check signatures (e.g. <code class="highlighter-rouge">gpg --verify apache-beam-1.2.3-python.zip.asc apache-beam-1.2.3-python.zip</code>);</li>
+  <li><code class="highlighter-rouge">grep</code> for legal headers in each file;</li>
+  <li>Run all jenkins suites and include links to passing tests in the voting email. (Select “Run with parameters”);</li>
 </ol>
 
 <hr />
 
-<h3 id="decide-to-release">Decide to release</h3>
-
-<p>Deciding to release and selecting a Release Manager is the first step of the release process. This is a consensus-based decision of the entire community.</p>
-
-<p>Anybody can propose a release on the dev@ mailing list, giving a solid argument and nominating a committer as the Release Manager (including themselves). There’s no formal process, no vote requirements, and no timing requirements. Any objections should be resolved by consensus before starting the release.</p>
-
-<p>If you’re not a committer you might not be able to perform most of the steps.</p>
-
-<p>Some steps require PMC permissions so you will need to reach out to get help if you’re not a PMC member.</p>
-
-<h3 id="checklist-to-proceed-to-the-next-step">Checklist to proceed to the next step</h3>
-
-<ol>
-  <li>Community agrees to release</li>
-  <li>Community selects a Release Manager</li>
-</ol>
-
-<hr />
-
-<p><a class="button button--primary" href="/contribute/release-guide/prepare/">Next Step: Prepare for Release</a></p>
+<p><a class="button button--primary" href="/contribute/release-guide/validate-candidate/">Next Step: Validate the Release Candidate</a></p>
 
       </div>
     </div>

@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam Release Guide</title>
+  <title>Beam Release Guide: 03 - Verify Branch</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/contribute/release-guide/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/contribute/release-guide/verify-branch/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -141,7 +141,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/contribute/release-guide/index.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/contribute/release-guide/3-verify-branch.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -233,9 +233,13 @@
 
 
 <ul class="nav">
-  <li><a href="#introduction">Introduction</a></li>
-  <li><a href="#overview">Overview</a></li>
-  <li><a href="#decide-to-release">Decide to release</a></li>
+  <li><a href="#run-verify_release_buildsh">Run <code class="highlighter-rouge">verify_release_build.sh</code></a>
+    <ul>
+      <li><a href="#verify-the-build-succeeds">Verify the build succeeds</a></li>
+    </ul>
+  </li>
+  <li><a href="#alternative-run-all-commands-manually">(Alternative) Run all commands manually</a></li>
+  <li><a href="#create-release-blocking-issues-in-jira">Create release-blocking issues in JIRA</a></li>
   <li><a href="#checklist-to-proceed-to-the-next-step">Checklist to proceed to the next step</a></li>
 </ul>
 
@@ -257,59 +261,139 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="apache-beam-release-guide">Apache Beam Release Guide</h1>
+<h1 id="verify-the-release-branch">Verify the release branch</h1>
 
 <hr />
 
-<h3 id="introduction">Introduction</h3>
+<p>After the release branch is cut you need to make sure it builds and has no significant issues that would block the
+creation of the release candidate.</p>
 
-<p>The Apache Beam project periodically declares and publishes releases. A release is one or more packages of the project artifact(s) that are approved for general public distribution and use. They may come with various degrees of caveat regarding their perceived quality and potential for change, such as “alpha”, “beta”, “incubating”, “stable”, etc.</p>
+<h2 id="run-verify_release_buildsh">Run <code class="highlighter-rouge">verify_release_build.sh</code></h2>
+<ul>
+  <li>
+    <p>Script: <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh">verify_release_build.sh</a></p>
+  </li>
+  <li>
+    <p>Usage</p>
 
-<p>The Beam community treats releases with great importance. They are a public face of the project and most users interact with the project only through the releases. Releases are signed off by the entire Beam community in a public vote.</p>
+    <div class="language-sh highlighter-rouge"><pre class="highlight"><code>./beam/release/src/main/scripts/verify_release_build.sh
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p>The script does the following:</p>
+    <ol>
+      <li>Installs <code class="highlighter-rouge">pip</code>, <code class="highlighter-rouge">virtualenv</code>, <code class="highlighter-rouge">cython</code> and <code class="highlighter-rouge">/usr/bin/time</code> with your agreements;</li>
+      <li>Runs <code class="highlighter-rouge">gradle release build</code> against release branch;</li>
+    </ol>
+  </li>
+</ul>
 
-<p>Each release is executed by a <em>Release Manager</em>, who is selected among the Beam committers. This document describes the process that the Release Manager follows to perform a release. Any changes to this process should be discussed and adopted on the <a href="/get-started/support/">dev@ mailing list</a>.</p>
+<p>Basically it does <code class="highlighter-rouge">./gradlew build -PisRelease</code> from the root of Beam repository.
+This only verifies that everything builds with unit tests passing.</p>
 
-<p>Please remember that publishing software has legal consequences. This guide complements the foundation-wide <a href="http://www.apache.org/dev/release.html">Product Release Policy</a> and <a href="http://www.apache.org/dev/release-distribution">Release Distribution Policy</a>.</p>
+<p>To speed things up locally you might want to omit <code class="highlighter-rouge">--no-parallel</code>.
+You might want to omit <code class="highlighter-rouge">--continue</code> if you want the script to fail after the first error instead of continuing,
+it may be easier and faster to find environment issues this way without having to wait until the full build completes.</p>
 
-<h3 id="overview">Overview</h3>
+<p>There are some projects that don’t produce the artifacts, e.g. <code class="highlighter-rouge">beam-test-tools</code>`, you may be able to
+ignore failures there.</p>
 
-<p><img src="/images/release-guide-1.png" alt="Alt text" title="Release Process" width="100%" /></p>
+<p>To triage the failures and narrow things down you may want to look at <code class="highlighter-rouge">settings.gradle</code> and run the build only for the
+projects you’re interested at the moment, e.g. <code class="highlighter-rouge">./gradlew :runners:java-fn-execution</code>.</p>
 
-<p>The release process consists of several steps:</p>
+<h3 id="verify-the-build-succeeds">Verify the build succeeds</h3>
 
+<p>Tasks you need to do manually:</p>
 <ol>
-  <li>Decide to release</li>
-  <li>Prepare for the release</li>
-  <li>Build a release candidate</li>
-  <li>Vote on the release candidate</li>
-  <li>During vote process, run validation tests</li>
-  <li>If necessary, fix any issues and go back to step 3.</li>
-  <li>Finalize the release</li>
-  <li>Promote the release</li>
+  <li>Check the build result;</li>
+  <li>If build failed, scan log will contain all failures;</li>
+  <li>You should stabilize the release branch until release build succeeded;</li>
+  <li>The script will output a set of Jenkins phrases to enter in the created PR;</li>
 </ol>
 
 <hr />
 
-<h3 id="decide-to-release">Decide to release</h3>
+<h2 id="alternative-run-all-commands-manually">(Alternative) Run all commands manually</h2>
 
-<p>Deciding to release and selecting a Release Manager is the first step of the release process. This is a consensus-based decision of the entire community.</p>
+<p>Follow the scripts and run all the steps manually, overall you need to do:</p>
 
-<p>Anybody can propose a release on the dev@ mailing list, giving a solid argument and nominating a committer as the Release Manager (including themselves). There’s no formal process, no vote requirements, and no timing requirements. Any objections should be resolved by consensus before starting the release.</p>
+<ul>
+  <li>
+    <p>Install python dependencies, e.g. <code class="highlighter-rouge">pip</code>, <code class="highlighter-rouge">virtualenv</code>, <code class="highlighter-rouge">cython</code>;</p>
+  </li>
+  <li>
+    <p>Run gradle release build, along these lines (check the script):</p>
 
-<p>If you’re not a committer you might not be able to perform most of the steps.</p>
+    <ol>
+      <li>
+        <p>Unlock the secret key, e.g.:</p>
 
-<p>Some steps require PMC permissions so you will need to reach out to get help if you’re not a PMC member.</p>
+        <div class="language-sh highlighter-rouge"><pre class="highlight"><code>gpg --output ~/doc.sig --sign ~/.bashrc
+</code></pre>
+        </div>
+      </li>
+      <li>
+        <p>Run build command, e.g.:</p>
 
-<h3 id="checklist-to-proceed-to-the-next-step">Checklist to proceed to the next step</h3>
-
-<ol>
-  <li>Community agrees to release</li>
-  <li>Community selects a Release Manager</li>
-</ol>
+        <div class="language-sh highlighter-rouge"><pre class="highlight"><code>./gradlew build -PisRelease
+</code></pre>
+        </div>
+      </li>
+    </ol>
+  </li>
+</ul>
 
 <hr />
 
-<p><a class="button button--primary" href="/contribute/release-guide/prepare/">Next Step: Prepare for Release</a></p>
+<h2 id="create-release-blocking-issues-in-jira">Create release-blocking issues in JIRA</h2>
+
+<p>The <code class="highlighter-rouge">verify_release_build.sh</code> script may include failing or flaky tests. For each of the failing tests create a JIRA with the following properties:</p>
+
+<ul>
+  <li>
+    <p>Issue Type: Bug</p>
+  </li>
+  <li>
+    <p>Summary: Name of failing gradle task and name of failing test (where applicable) in form of <em>:MyGradleProject:SomeGradleTask NameOfFailedTest: Short description of failure</em></p>
+  </li>
+  <li>
+    <p>Priority: Major</p>
+  </li>
+  <li>
+    <p>Component: “test-failures”</p>
+  </li>
+  <li>
+    <p>Fix Version: Release number of verified release branch</p>
+  </li>
+  <li>
+    <p>Description: Description of failure</p>
+  </li>
+</ul>
+
+<hr />
+
+<h2 id="checklist-to-proceed-to-the-next-step">Checklist to proceed to the next step</h2>
+
+<ul>
+  <li>Release Manager’s GPG key is published to <code class="highlighter-rouge">dist.apache.org</code>;</li>
+  <li>Release Manager’s GPG key is configured in <code class="highlighter-rouge">git</code> configuration;</li>
+  <li>Release Manager has <code class="highlighter-rouge">org.apache.beam</code> listed under <code class="highlighter-rouge">Staging Profiles</code> in Nexus;</li>
+  <li>Release Manager’s Nexus User Token is configured in <code class="highlighter-rouge">settings.xml</code>;</li>
+  <li>JIRA release item for the subsequent release has been created;</li>
+  <li>All test failures from branch verification have associated JIRA issues;</li>
+  <li>There are no release blocking JIRA issues;</li>
+  <li>Release Notes in JIRA have been audited and adjusted;</li>
+  <li>Combined javadoc has the appropriate contents;</li>
+  <li>Release branch has been created;</li>
+  <li>There are no open pull requests to release branch;</li>
+  <li>Originating branch has the version information updated to the new version;</li>
+  <li>Nightly snapshot is in progress (do revisit it continually);</li>
+</ul>
+
+<hr />
+
+<p><a class="button button--primary" href="/contribute/release-guide/build-candidate/">Next Step: Build the Release Candidate</a></p>
 
       </div>
     </div>
