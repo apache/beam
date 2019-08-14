@@ -796,7 +796,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     checkState(
         !"${pom.version}".equals(version),
         "Unable to submit a job to the Dataflow service with unset version ${pom.version}");
-    System.out.println("Dataflow SDK version: " + version);
+    LOG.info("Dataflow SDK version: {}", version);
 
     newJob.getEnvironment().setUserAgent((Map) dataflowRunnerInfo.getProperties());
     // The Dataflow Service may write to the temporary directory directly, so
@@ -973,7 +973,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         "To access the Dataflow monitoring console, please navigate to {}",
         MonitoringUtil.getJobMonitoringPageURL(
             options.getProject(), options.getRegion(), jobResult.getId()));
-    System.out.println("Submitted job: " + jobResult.getId());
+    LOG.info("Submitted job: {}", jobResult.getId());
 
     LOG.info(
         "To cancel the job using the 'gcloud' tool, run:\n> {}",
