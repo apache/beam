@@ -17,12 +17,14 @@
 from __future__ import absolute_import
 
 import unittest
+from collections import OrderedDict
 
+import numpy as np
 import pyarrow as pa
 from parameterized import parameterized
 from past.builtins import unicode
 
-from apache_beam.runners.interactive.caching.datatype_inference import *
+from apache_beam.testing import datatype_inference
 from apache_beam.typehints import typehints
 
 TEST_DATA = [
@@ -172,14 +174,14 @@ class DatatypeInferenceTest(unittest.TestCase):
       (d["name"], d["data"], d["type_schema"]) for d in TEST_DATA
   ])
   def test_infer_typehints_schema(self, _, data, schema):
-    typehints_schema = infer_typehints_schema(data)
+    typehints_schema = datatype_inference.infer_typehints_schema(data)
     self.assertEqual(typehints_schema, schema)
 
   @parameterized.expand([
       (d["name"], d["data"], d["pyarrow_schema"]) for d in TEST_DATA
   ])
   def test_infer_pyarrow_schema(self, _, data, schema):
-    pyarrow_schema = infer_pyarrow_schema(data)
+    pyarrow_schema = datatype_inference.infer_pyarrow_schema(data)
     self.assertEqual(pyarrow_schema, schema)
 
   @parameterized.expand([
@@ -187,7 +189,7 @@ class DatatypeInferenceTest(unittest.TestCase):
   ])
   def test_infer_avro_schema(self, _, data, schema):
     schema = schema.copy()  # Otherwise, it would be mutated by `.pop()`
-    avro_schema = infer_avro_schema(data, use_fastavro=False)
+    avro_schema = datatype_inference.infer_avro_schema(data, use_fastavro=False)
     avro_schema = avro_schema.to_json()
     fields1 = avro_schema.pop("fields")
     fields2 = schema.pop("fields")
@@ -201,7 +203,7 @@ class DatatypeInferenceTest(unittest.TestCase):
   def test_infer_fastavro_schema(self, _, data, schema):
     from fastavro import parse_schema
     schema = parse_schema(schema)
-    avro_schema = infer_avro_schema(data, use_fastavro=True)
+    avro_schema = datatype_inference.infer_avro_schema(data, use_fastavro=True)
     fields1 = avro_schema.pop("fields")
     fields2 = schema.pop("fields")
     self.assertDictEqual(avro_schema, schema)
