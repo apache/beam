@@ -318,8 +318,10 @@ Sometimes the scripts don’t handle the errors correctly and might leave everyt
 (e.g. if you fail to enter the GitHub password correctly multiple times);</li>
     </ul>
   </li>
-  <li>Usage
-    <div class="language-sh highlighter-rouge"><pre class="highlight"><code>./beam/release/src/main/scripts/preparation_before_release.sh
+  <li>
+    <p>Usage</p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code>./beam/release/src/main/scripts/preparation_before_release.sh
 </code></pre>
     </div>
   </li>
@@ -394,11 +396,11 @@ number.</p>
 <p>You should already have setup a local clone of <code class="highlighter-rouge">apache/beam</code>. Setting up a clone
 of <code class="highlighter-rouge">apache/beam-site</code> is similar:</p>
 
-<div class="language-sh highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>git clone -b release-docs https://github.com/apache/beam-site.git
-<span class="gp">$ </span><span class="nb">cd </span>beam-site
-<span class="gp">$ </span>git remote add &lt;GitHub_user&gt; git@github.com:&lt;GitHub_user&gt;/beam-site.git
-<span class="gp">$ </span>git fetch --all
-<span class="gp">$ </span>git checkout -b &lt;my-branch&gt; origin/release-docs
+<div class="highlighter-rouge"><pre class="highlight"><code>  $ git clone -b release-docs https://github.com/apache/beam-site.git
+  $ cd beam-site
+  $ git remote add &lt;GitHub_user&gt; git@github.com:&lt;GitHub_user&gt;/beam-site.git
+  $ git fetch --all
+  $ git checkout -b &lt;my-branch&gt; origin/release-docs
 </code></pre>
 </div>
 

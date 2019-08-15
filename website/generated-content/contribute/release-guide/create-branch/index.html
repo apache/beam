@@ -277,12 +277,12 @@ and update version information on the original branch.</p>
     <p>Script: <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh">cut_release_branch.sh</a></p>
   </li>
   <li>Usage
-    <div class="language-sh highlighter-rouge"><pre class="highlight"><code><span class="c"># Cut a release branch</span>
-./beam/release/src/main/scripts/cut_release_branch.sh <span class="se">\</span>
---release<span class="o">=</span><span class="k">${</span><span class="nv">RELEASE_VERSION</span><span class="k">}</span> <span class="se">\</span>
---next_release<span class="o">=</span><span class="k">${</span><span class="nv">NEXT_VERSION</span><span class="k">}</span>
+    <div class="highlighter-rouge"><pre class="highlight"><code># Cut a release branch
+./beam/release/src/main/scripts/cut_release_branch.sh \
+--release=${RELEASE_VERSION} \
+--next_release=${NEXT_VERSION}
   
-<span class="c"># Show help page</span>
+# Show help page
 ./beam/release/src/main/scripts/cut_release_branch.sh -h
 </code></pre>
     </div>
@@ -361,7 +361,7 @@ so builds will be broken until a new snapshot is available.</p>
     <p>Script: <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/start_snapshot_build.sh">start_snapshot_build.sh</a></p>
   </li>
   <li>Usage
-    <div class="language-sh highlighter-rouge"><pre class="highlight"><code>./beam/release/src/main/scripts/start_snapshot_build.sh
+    <div class="highlighter-rouge"><pre class="highlight"><code>./beam/release/src/main/scripts/start_snapshot_build.sh
 </code></pre>
     </div>
   </li>
