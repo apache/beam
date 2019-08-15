@@ -645,7 +645,7 @@ class CallableWrapperDoFn(DoFn):
     else:
       # For cases such as set / list where fn is callable but not a function
       self.process = lambda element: fn(element)
-      
+
     super(CallableWrapperDoFn, self).__init__()
 
   def display_data(self):

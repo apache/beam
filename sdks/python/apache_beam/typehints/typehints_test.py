@@ -894,6 +894,7 @@ class TakesDecoratorTestCase(TypeHintTestCase):
 
     self.assertEqual(3, add(1, 2))
 
+
 class InputDecoratorTestCase(TypeHintTestCase):
   def test_valid_hint(self):
     @with_input_types(int, int)
@@ -1213,6 +1214,7 @@ class TestGetYieldedType(unittest.TestCase):
   def test_not_iterable(self):
     with self.assertRaisesRegexp(ValueError, r'not iterable'):
       typehints.get_yielded_type(int)
+
 
 class TestCoerceToKvType(TypeHintTestCase):
   def test_coercion_success(self):

@@ -37,7 +37,6 @@ from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints.decorators import GeneratorWrapper
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import _check_instance_type
-from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.typehints import CompositeTypeHintError
 from apache_beam.typehints.typehints import SimpleTypeHintError

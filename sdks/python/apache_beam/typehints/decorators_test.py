@@ -23,7 +23,6 @@ import sys
 import unittest
 
 from apache_beam.typehints import Any
-from apache_beam.typehints import TypeVariable
 from apache_beam.typehints import WithTypeHints
 from apache_beam.typehints import decorators
 
