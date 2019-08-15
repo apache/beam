@@ -521,6 +521,9 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       element: The element to be processed
       *args: side inputs
       **kwargs: other keyword arguments.
+
+    Returns:
+      An Iterable of output elements.
     """
     raise NotImplementedError
 
@@ -568,12 +571,11 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   def get_function_arguments(self, func):
     return get_function_arguments(self, func)
 
-  # TODO: should this be in all fn accepting transforms?
   def default_type_hints(self):
-    # TODO: Needs discussion if this should be enabled for existing pipelines,
-    #   as it might uncover type hinting bugs. If not, return None in Py2.
-    # TODO: annotations_required=True? test
-    return typehints.decorators.IOTypeHints.from_callable(self.process)
+    fn_type_hints = typehints.decorators.IOTypeHints.from_callable(self.process)
+    if fn_type_hints is not None:
+      fn_type_hints.strip_iterable()
+    return fn_type_hints
 
   # TODO(sourabhbajaj): Do we want to remove the responsibility of these from
   # the DoFn or maybe the runner
@@ -643,7 +645,7 @@ class CallableWrapperDoFn(DoFn):
     else:
       # For cases such as set / list where fn is callable but not a function
       self.process = lambda element: fn(element)
-
+      
     super(CallableWrapperDoFn, self).__init__()
 
   def display_data(self):
@@ -660,13 +662,10 @@ class CallableWrapperDoFn(DoFn):
     return 'CallableWrapperDoFn(%s)' % self._fn
 
   def default_type_hints(self):
-    # TODO: test that this is okay when get_type_hints sets:
-    #   hints.set_input_types(fn.__objclass__)
-    type_hints = get_type_hints(self._fn).with_defaults(
-        typehints.decorators.IOTypeHints.from_callable(self._fn))
-    # TODO(udim): This branch is written for use with FlatMap, however
-    #   CallableWrapperDoFn is used in more generic from_callable and make_fn
-    #   methods in this file.
+    fn_type_hints = typehints.decorators.IOTypeHints.from_callable(self._fn)
+    if fn_type_hints is not None:
+      fn_type_hints.strip_iterable()
+    type_hints = get_type_hints(self._fn).with_defaults(fn_type_hints)
     # If the fn was a DoFn annotated with a type-hint that hinted a return
     # type compatible with Iterable[Any], then we strip off the outer
     # container type due to the 'flatten' portion of FlatMap.
@@ -1350,8 +1349,10 @@ def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
   # Proxy the type-hint information from the original function to this new
   # wrapped function.
-  get_type_hints(wrapper).input_types = get_type_hints(fn).input_types
-  output_hint = get_type_hints(fn).simple_output_type(label)
+  type_hints = get_type_hints(fn).with_defaults(
+      typehints.decorators.IOTypeHints.from_callable(fn))
+  get_type_hints(wrapper).input_types = type_hints.input_types
+  output_hint = type_hints.simple_output_type(label)
   if output_hint:
     get_type_hints(wrapper).set_output_types(typehints.Iterable[output_hint])
   # pylint: disable=protected-access
@@ -1406,7 +1407,6 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
   label = 'MapTuple(%s)' % ptransform.label_from_callable(fn)
 
-  # TODO: fix this
   arg_names, defaults = get_function_args_defaults(fn)
   num_defaults = len(defaults)
   if num_defaults < len(args) + len(kwargs):
@@ -1419,16 +1419,16 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
   # Proxy the type-hint information from the original function to this new
   # wrapped function.
-  get_type_hints(wrapper).input_types = get_type_hints(fn).input_types
-  output_hint = get_type_hints(fn).simple_output_type(label)
+  type_hints = get_type_hints(fn).with_defaults(
+      typehints.decorators.IOTypeHints.from_callable(fn))
+  get_type_hints(wrapper).input_types = type_hints.input_types
+  output_hint = type_hints.simple_output_type(label)
   if output_hint:
     get_type_hints(wrapper).set_output_types(typehints.Iterable[output_hint])
 
   # Replace the first (args) component.
   modified_arg_names = ['tuple_element'] + arg_names[-num_defaults:]
   modified_argspec = (modified_arg_names, defaults)
-  # TODO: Why is the fullargspec override necessary here? Isn't
-  #   get_function_args_defaults(wrapper) enough?
   pardo = ParDo(CallableWrapperDoFn(
       wrapper, fullargspec=modified_argspec), *args, **kwargs)
   pardo.label = label
@@ -1478,27 +1478,28 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
   label = 'FlatMapTuple(%s)' % ptransform.label_from_callable(fn)
 
-  # TODO: fix this
-  argspec = get_function_args_defaults(fn)
-  num_defaults = len(argspec.defaults or ())
+  arg_names, defaults = get_function_args_defaults(fn)
+  num_defaults = len(defaults)
   if num_defaults < len(args) + len(kwargs):
     raise TypeError('Side inputs must have defaults for FlatMapTuple.')
 
-  if argspec.defaults or args or kwargs:
+  if defaults or args or kwargs:
     wrapper = lambda x, *args, **kwargs: fn(*(tuple(x) + args), **kwargs)
   else:
     wrapper = lambda x: fn(*x)
 
   # Proxy the type-hint information from the original function to this new
   # wrapped function.
-  get_type_hints(wrapper).input_types = get_type_hints(fn).input_types
-  output_hint = get_type_hints(fn).simple_output_type(label)
+  type_hints = get_type_hints(fn).with_defaults(
+      typehints.decorators.IOTypeHints.from_callable(fn))
+  get_type_hints(wrapper).input_types = type_hints.input_types
+  output_hint = type_hints.simple_output_type(label)
   if output_hint:
     get_type_hints(wrapper).set_output_types(output_hint)
 
   # Replace the first (args) component.
-  modified_args = ['tuple_element'] + argspec.args[-num_defaults:]
-  modified_argspec = type(argspec)(*((modified_args,) + argspec[1:]))
+  modified_arg_names = ['tuple_element'] + arg_names[-num_defaults:]
+  modified_argspec = (modified_arg_names, defaults)
   pardo = ParDo(CallableWrapperDoFn(
       wrapper, fullargspec=modified_argspec), *args, **kwargs)
   pardo.label = label
@@ -1510,7 +1511,8 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
   elements.
 
   Args:
-    fn (callable): a callable object.
+    fn (Callable[..., bool]): a callable object. First argument will be an
+      element.
     *args: positional arguments passed to the transform callable.
     **kwargs: keyword arguments passed to the transform callable.
 
@@ -1537,8 +1539,10 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
     wrapper.__name__ = fn.__name__
   # Proxy the type-hint information from the function being wrapped, setting the
   # output type to be the same as the input type.
-  get_type_hints(wrapper).input_types = get_type_hints(fn).input_types
-  output_hint = get_type_hints(fn).simple_output_type(label)
+  type_hints = get_type_hints(fn).with_defaults(
+      typehints.decorators.IOTypeHints.from_callable(fn))
+  get_type_hints(wrapper).input_types = type_hints.input_types
+  output_hint = type_hints.simple_output_type(label)
   if (output_hint is None
       and get_type_hints(wrapper).input_types
       and get_type_hints(wrapper).input_types[0]):

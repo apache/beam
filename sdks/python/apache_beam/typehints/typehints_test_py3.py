@@ -25,26 +25,28 @@ import unittest
 
 from apache_beam.transforms.core import DoFn
 from apache_beam.typehints import KV
+from apache_beam.typehints import Iterable
 
 
 class TestParDoAnnotations(unittest.TestCase):
   def test_with_side_input(self):
     class MyDoFn(DoFn):
-      def process(self, element: float, side_input: str) -> KV[str, float]:
+      def process(self, element: float, side_input: str) -> \
+          Iterable[KV[str, float]]:
         pass
     th = MyDoFn().get_type_hints()
-    self.assertEqual(th.input_types, ([float, str], {}))
-    self.assertEqual(th.output_types, ([KV[str, float]], {}))
+    self.assertEqual(th.input_types, ((float, str), {}))
+    self.assertEqual(th.output_types, ((KV[str, float],), {}))
 
   def test_pep484_annotations(self):
     class MyDoFn(DoFn):
-      def process(self, element: int) -> str:
+      def process(self, element: int) -> Iterable[str]:
         pass
 
     print(MyDoFn().get_type_hints())
     th = MyDoFn().get_type_hints()
-    self.assertEqual(th.input_types, ([int], {}))
-    self.assertEqual(th.output_types, ([str], {}))
+    self.assertEqual(th.input_types, ((int,), {}))
+    self.assertEqual(th.output_types, ((str,), {}))
 
 
 if __name__ == '__main__':

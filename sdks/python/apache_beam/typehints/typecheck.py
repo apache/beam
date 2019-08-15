@@ -37,6 +37,7 @@ from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints.decorators import GeneratorWrapper
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import _check_instance_type
+from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.typehints import CompositeTypeHintError
 from apache_beam.typehints.typehints import SimpleTypeHintError
@@ -127,8 +128,6 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
 
   def process(self, *args, **kwargs):
     if self._input_hints:
-      # TODO: use get_signature and bind
-      # TODO: try using decorators.getcallargs_forhints, or similar?
       actual_inputs = inspect.getcallargs(self._process_fn, *args, **kwargs)
       for var, hint in self._input_hints.items():
         if hint is actual_inputs[var]:

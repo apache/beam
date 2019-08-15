@@ -263,10 +263,6 @@ class DoFnSignature(object):
 
   def get_restriction_provider(self):
     return self.process_method.restriction_provider
-    # TODO: test and remove
-    # result = _find_param_with_default(self.process_method,
-    #                                   default_as_type=DoFn.RestrictionParam)
-    # return result[1].restriction_provider if result else None
 
   def _validate(self):
     self._validate_process()
@@ -277,7 +273,6 @@ class DoFnSignature(object):
   def _validate_process(self):
     """Validate that none of the DoFnParameters are repeated in the function
     """
-    # TODO: test defaults usage
     param_ids = [d.param_id for d in self.process_method.defaults
                  if isinstance(d, core._DoFnParam)]
     if len(param_ids) != len(set(param_ids)):
@@ -289,7 +284,6 @@ class DoFnSignature(object):
     """Validate that none of the DoFnParameters are used in the function
     """
     for param in core.DoFn.DoFnProcessParams:
-      # TODO: test defaults usage
       if param in method_wrapper.defaults:
         raise ValueError(
             'DoFn.process() method-only parameter %s cannot be used in %s.' %
@@ -299,8 +293,6 @@ class DoFnSignature(object):
     userstate.validate_stateful_dofn(self.do_fn)
 
   def is_splittable_dofn(self):
-    # TODO: test defaults usage
-    # TODO: swap impl with this, need to test
     return self.get_restriction_provider() is not None
 
   def is_stateful_dofn(self):
@@ -363,7 +355,6 @@ class DoFnInvoker(object):
                                 allows a callback to be registered.
     """
     side_inputs = side_inputs or []
-    # TODO: test defaults usage
     default_arg_values = signature.process_method.defaults
     use_simple_invoker = not process_invocation or (
         not side_inputs and not input_args and not input_kwargs and
@@ -460,7 +451,6 @@ class PerWindowInvoker(DoFnInvoker):
     self.side_inputs = side_inputs
     self.context = context
     self.process_method = signature.process_method.method_value
-    # TODO: test defaults usage
     default_arg_values = signature.process_method.defaults
     self.has_windowed_inputs = (
         not all(si.is_globally_windowed() for si in side_inputs) or
@@ -571,10 +561,6 @@ class PerWindowInvoker(DoFnInvoker):
         # the upstream pair-with-restriction.
         raise NotImplementedError(
             'SDFs in multiply-windowed values with windowed arguments.')
-      # TODO: remove
-      # restriction_tracker_param = _find_param_with_default(
-      #     self.signature.process_method,
-      #     default_as_type=DoFn.RestrictionParam)[0]
       restriction_tracker_param = (
           self.signature.process_method.restriction_provider_arg_name)
       if not restriction_tracker_param:

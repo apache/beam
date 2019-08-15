@@ -94,6 +94,16 @@ class MainInputTest(unittest.TestCase):
                                  r'requires.*int.*got.*str'):
       [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
 
+  # TODO(BEAM-7981): Iterable in output type should not be removed.
+  # def test_typed_callable_iterable_output(self):
+  #   @typehints.with_input_types(int)
+  #   @typehints.with_output_types(typehints.Iterable[str])
+  #   def do_fn(element):
+  #     return [[str(element)] * 2]
+  #
+  #   result = [1, 2] | beam.ParDo(do_fn)
+  #   self.assertEqual([['1', '1'], ['2', '2']], sorted(result))
+
   def test_typed_dofn_instance(self):
     class MyDoFn(beam.DoFn):
       def process(self, element):
@@ -292,6 +302,27 @@ class CustomTransformTest(unittest.TestCase):
       self.test_input | self.CustomTransform().with_input_types(int)
     with self.assertRaises(typehints.TypeCheckError):
       self.test_input | self.CustomTransform().with_output_types(int)
+
+
+class AnnotationsTest(unittest.TestCase):
+
+  def test_pardo_wrapper_builtin(self):
+    th = beam.ParDo(str.strip).get_type_hints()
+    if sys.version_info < (3, 7):
+      self.assertEqual(th.input_types, ((str,), {}))
+    else:
+      # Python 3.7+ has annotations for CPython builtins
+      # (_MethodDescriptorType).
+      self.assertEqual(th.input_types, ((str, typehints.Any), {}))
+    self.assertEqual(th.output_types, ((typehints.Any,), {}))
+
+    th = beam.ParDo(list).get_type_hints()
+    self.assertIsNone(th.input_types)
+    self.assertIsNone(th.output_types)
+
+    th = beam.ParDo(len).get_type_hints()
+    self.assertIsNone(th.input_types)
+    self.assertIsNone(th.output_types)
 
 
 if __name__ == '__main__':

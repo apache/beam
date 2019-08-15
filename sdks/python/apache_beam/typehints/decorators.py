@@ -131,6 +131,7 @@ except AttributeError:  # Python 2
 
 
 def getfullargspec(func):
+  # Python 3: Use get_signature instead.
   assert sys.version_info < (3,), 'This method should not be used in Python 3'
   try:
     return _original_getfullargspec(func)
@@ -217,8 +218,8 @@ class IOTypeHints(object):
   def from_callable(fn):
     """Construct an IOTypeHints object from a callable's signature.
 
-    Callable must have Python 3 annotations.
-    Sets unknown types to Any, _ANY_VAR_POSITIONAL, or _ANY_VAR_KEYWORD.
+    Supports Python 3 annotations. For partial annotations, sets unknown types
+    to Any, _ANY_VAR_POSITIONAL, or _ANY_VAR_KEYWORD.
 
     Returns:
       A new IOTypeHints or None if no annotations found.
@@ -241,11 +242,13 @@ class IOTypeHints(object):
         else:
           input_args.append(typehints.Any)
       else:
-        # TODO: ensure test coverage for both kinds
-        # TODO: support input_kwargs in getcallargs_forhint
         if param.kind in [param.KEYWORD_ONLY, param.VAR_KEYWORD]:
           input_kwargs[param.name] = param.annotation
         else:
+          assert param.kind in [param.POSITIONAL_ONLY,
+                                param.POSITIONAL_OR_KEYWORD,
+                                param.VAR_POSITIONAL], \
+              'Unsupported Parameter kind: %s' % param.kind
           input_args.append(param.annotation)
     output_args = []
     if signature.return_annotation != signature.empty:
@@ -253,8 +256,8 @@ class IOTypeHints(object):
     else:
       output_args.append(typehints.Any)
 
-    return IOTypeHints(input_types=(input_args, input_kwargs),
-                       output_types=(output_args, {}))
+    return IOTypeHints(input_types=(tuple(input_args), input_kwargs),
+                       output_types=(tuple(output_args), {}))
 
   def set_input_types(self, *args, **kwargs):
     self.input_types = args, kwargs
@@ -270,6 +273,27 @@ class IOTypeHints(object):
             'Expected single output type hint for %s but got: %s' % (
                 context, self.output_types))
       return args[0]
+
+  def has_simple_output_type(self):
+    """Whether there's a single positional output type."""
+    return (self.output_types and len(self.output_types[0]) == 1 and
+            not self.output_types[1])
+
+  def strip_iterable(self):
+    """Removes outer Iterable (or equivalent) from output type.
+
+    Only affects instances with simple output types, otherwise is a no-op.
+
+    Example: Generator[Tuple(int, int)] becomes Tuple(int, int)
+
+    Raises:
+      ValueError if output type is simple and not iterable.
+    """
+    if not self.has_simple_output_type():
+      return
+    yielded_type = typehints.get_yielded_type(self.output_types[0][0])
+    if yielded_type is not None:
+      self.output_types = ((yielded_type,), {})
 
   def copy(self):
     return IOTypeHints(self.input_types, self.output_types)
@@ -346,6 +370,19 @@ class WithTypeHints(object):
 
 class TypeCheckError(Exception):
   pass
+
+
+def _positional_arg_hints(arg, hints):
+  """Returns the type of a (possibly tuple-packed) positional argument.
+
+  E.g. for lambda ((a, b), c): None the single positional argument is (as
+  returned by inspect) [[a, b], c] which should have type
+  Tuple[Tuple[Int, Any], float] when applied to the type hints
+  {a: int, b: Any, c: float}.
+  """
+  if isinstance(arg, list):
+    return typehints.Tuple[[_positional_arg_hints(a, hints) for a in arg]]
+  return hints.get(arg, typehints.Any)
 
 
 def _unpack_positional_arg_hints(arg, hint):
@@ -504,7 +541,8 @@ def get_type_hints(fn):
       # Can't add arbitrary attributes to this object,
       # but might have some restrictions anyways...
       hints = IOTypeHints()
-      if isinstance(fn, _MethodDescriptorType):
+      # Python 3.7 introduces annotations for _MethodDescriptorTypes.
+      if isinstance(fn, _MethodDescriptorType) and sys.version_info < (3, 7):
         hints.set_input_types(fn.__objclass__)
       return hints
   return fn._type_hints
@@ -708,6 +746,45 @@ def _check_instance_type(
                             verbose_instance, type(instance)))
   except CompositeTypeHintError as e:
     raise TypeCheckError('Type-hint for %s violated: %s' % (hint_type, e))
+
+
+def _interleave_type_check(type_constraint, var_name=None):
+  """Lazily type-check the type-hint for a lazily generated sequence type.
+
+  This function can be applied as a decorator or called manually in a curried
+  manner:
+    * @_interleave_type_check(List[int])
+      def gen():
+        yield 5
+
+    or
+
+     * gen = _interleave_type_check(Tuple[int, int], 'coord_gen')(gen)
+
+  As a result, all type-checking for the passed generator will occur at 'yield'
+  time. This way, we avoid having to depleat the generator in order to
+  type-check it.
+
+  Args:
+    type_constraint: An instance of a TypeConstraint. The output yielded of
+      'gen' will be type-checked according to this type constraint.
+    var_name: The variable name binded to 'gen' if type-checking a function
+      argument. Used solely for templating in error message generation.
+
+  Returns:
+    A function which takes a generator as an argument and returns a wrapped
+    version of the generator that interleaves type-checking at 'yield'
+    iteration. If the generator received is already wrapped, then it is simply
+    returned to avoid nested wrapping.
+  """
+  def wrapper(gen):
+    if isinstance(gen, GeneratorWrapper):
+      return gen
+    return GeneratorWrapper(
+        gen,
+        lambda x: _check_instance_type(type_constraint, x, var_name)
+    )
+  return wrapper
 
 
 class GeneratorWrapper(object):

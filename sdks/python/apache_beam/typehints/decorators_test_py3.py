@@ -39,17 +39,17 @@ class IOTypeHintsTest(unittest.TestCase):
       return a, b, args, foo, kwargs
     th = decorators.IOTypeHints.from_callable(fn)
     self.assertEqual(th.input_types, (
-        [int, str, Tuple[T]], {'foo': List[int], 'kwargs': Dict[str, str]}))
-    self.assertEqual(th.output_types, ([Tuple], {}))
+        (int, str, Tuple[T]), {'foo': List[int], 'kwargs': Dict[str, str]}))
+    self.assertEqual(th.output_types, ((Tuple,), {}))
 
   def test_from_callable_partial_annotations(self):
     def fn(a: int, b=None, *args, foo: List[int], **kwargs):
       return a, b, args, foo, kwargs
     th = decorators.IOTypeHints.from_callable(fn)
     self.assertEqual(th.input_types,
-                     ([int, Any, Tuple[Any, ...]],
+                     ((int, Any, Tuple[Any, ...]),
                       {'foo': List[int], 'kwargs': Dict[Any, Any]}))
-    self.assertEqual(th.output_types, ([Any], {}))
+    self.assertEqual(th.output_types, ((Any,), {}))
 
   def test_from_callable_class(self):
     class Class(object):
@@ -57,8 +57,8 @@ class IOTypeHintsTest(unittest.TestCase):
         pass
 
     th = decorators.IOTypeHints.from_callable(Class)
-    self.assertEqual(th.input_types, ([int], {}))
-    self.assertEqual(th.output_types, ([Any], {}))
+    self.assertEqual(th.input_types, ((int,), {}))
+    self.assertEqual(th.output_types, ((Any,), {}))
 
   def test_from_callable_method(self):
     class Class(object):
@@ -66,12 +66,12 @@ class IOTypeHintsTest(unittest.TestCase):
         pass
 
     th = decorators.IOTypeHints.from_callable(Class.method)
-    self.assertEqual(th.input_types, ([Any, T], {}))
-    self.assertEqual(th.output_types, ([None], {}))
+    self.assertEqual(th.input_types, ((Any, T), {}))
+    self.assertEqual(th.output_types, ((None,), {}))
 
     th = decorators.IOTypeHints.from_callable(Class().method)
-    self.assertEqual(th.input_types, ([T], {}))
-    self.assertEqual(th.output_types, ([None], {}))
+    self.assertEqual(th.input_types, ((T,), {}))
+    self.assertEqual(th.output_types, ((None,), {}))
 
   def test_getcallargs_forhints(self):
     def fn(a: int, b: str = None, *args: Tuple[T], foo: List[int],

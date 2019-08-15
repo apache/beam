@@ -233,7 +233,6 @@ class DataflowRunnerTest(unittest.TestCase):
       def display_data(self):
         return {'dofn_value': 42}
 
-      # TODO: why is this failing in this PR?
       def process(self):
         pass
 
