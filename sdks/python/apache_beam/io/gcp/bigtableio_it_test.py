@@ -17,6 +17,8 @@
 
 """ Integration test for GCP Bigtable testing."""
 from __future__ import absolute_import
+from __future__ import print_function
+
 import argparse
 import datetime
 import logging
@@ -24,22 +26,22 @@ import random
 import string
 import time
 import unittest
-from nose.plugins.attrib import attr
 
 import apache_beam as beam
 import apache_beam.io.gcp.bigtableio as bigtableio
-
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.util import assert_that, equal_to
 from apache_beam.transforms.combiners import Count
+from nose.plugins.attrib import attr
 
 try:
   from google.cloud.bigtable import row, column_family, Client
 except ImportError:
   Client = None
 
+PROJECT_ID = ""
 
 class GenerateTestRows(beam.PTransform):
   """ A PTransform to generate dummy rows to write to a Bigtable Table.
@@ -95,9 +97,9 @@ class BigtableIOTest(unittest.TestCase):
 
   @attr('IT')
   def test_bigtable_io(self):
-    print 'Project ID: ', PROJECT_ID
-    print 'Instance ID:', INSTANCE_ID
-    print 'Table ID:   ', TABLE_ID
+    print('Project ID: ', PROJECT_ID)
+    print('Instance ID:', INSTANCE_ID)
+    print('Table ID:   ', TABLE_ID)
 
     pipeline_options = PipelineOptions(
         pipeline_parameters(job_name=make_job_name()))
