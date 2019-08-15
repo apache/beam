@@ -58,7 +58,7 @@ class GenerateTestRows(beam.PTransform):
       key = "key_%s" % ('{0:012}'.format(i))
       test_row = row.DirectRow(row_key=key)
       value = ''.join(
-        random.choice(LETTERS_AND_DIGITS) for _ in range(CELL_SIZE))
+          random.choice(LETTERS_AND_DIGITS) for _ in range(CELL_SIZE))
       for j in range(COLUMN_COUNT):
         test_row.set_cell(column_family_id=COLUMN_FAMILY_ID,
                           column=('field%s' % j).encode('utf-8'),
@@ -99,7 +99,7 @@ class BigtableIOTest(unittest.TestCase):
     print 'Table ID:   ', TABLE_ID
 
     pipeline_options = PipelineOptions(
-      pipeline_parameters(job_name=make_job_name()))
+        pipeline_parameters(job_name=make_job_name()))
     p = beam.Pipeline(options=pipeline_options)
     _ = (p | 'Write Test Rows' >> GenerateTestRows())
 
@@ -110,14 +110,14 @@ class BigtableIOTest(unittest.TestCase):
 
     if not hasattr(self.result, 'has_job') or self.result.has_job:
       query_result = self.result.metrics().query(
-        MetricsFilter().with_name('Written Row'))
+          MetricsFilter().with_name('Written Row'))
       if query_result['counters']:
         read_counter = query_result['counters'][0]
         logging.info('Number of Rows written: %d', read_counter.committed)
         assert read_counter.committed == ROW_COUNT
 
     pipeline_options = PipelineOptions(
-      pipeline_parameters(job_name=make_job_name('read')))
+        pipeline_parameters(job_name=make_job_name('read')))
     p = beam.Pipeline(options=pipeline_options)
     count = (p
              | 'Read from Bigtable' >> bigtableio.ReadFromBigTable(PROJECT_ID,
@@ -169,7 +169,7 @@ if __name__ == '__main__':
 
   def make_job_name(job_type='write'):
     return 'bigtableio-it-test-{}-{}k-{}'.format(
-      job_type, ROW_COUNT_K, TIME_STAMP)
+        job_type, ROW_COUNT_K, TIME_STAMP)
 
   def pipeline_parameters(experiments=args.experiments,
                           project=PROJECT_ID,
