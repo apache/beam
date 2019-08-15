@@ -109,7 +109,7 @@ In case of script failure, you can still run all of them manually.
 * Usage
   1. First update [script.config](https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config) with correct config value (e.g. release version, rc number).
   1. Then run
-     ```sh
+     ```
      ./beam/release/src/main/scripts/run_rc_validation.sh
      ```
 

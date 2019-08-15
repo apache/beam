@@ -31,7 +31,7 @@ creation of the release candidate.
 
 * Usage
 
-  ```sh
+  ```
   ./beam/release/src/main/scripts/verify_release_build.sh
   ```
 
@@ -74,13 +74,13 @@ Follow the scripts and run all the steps manually, overall you need to do:
 
   1. Unlock the secret key, e.g.:
 
-     ```sh
+     ```
      gpg --output ~/doc.sig --sign ~/.bashrc
      ```
 
   1. Run build command, e.g.:
 
-     ```sh
+     ```
      ./gradlew build -PisRelease
      ```
 
