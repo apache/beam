@@ -460,24 +460,85 @@ limitations under the License.
 -->
 
 <h1 id="kvswap">Kvswap</h1>
-<table align="left">
-    <a target="_blank" class="button" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.KvSwap">
+
+<script type="text/javascript">
+localStorage.setItem('language', 'language-py')
+</script>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.KvSwap">
       <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
-     Pydoc
+      Pydoc
     </a>
+  </td>
 </table>
-<p><br />
-Takes a collection of key-value pairs and returns a collection of key-value pairs 
+<p><br /></p>
+
+<p>Takes a collection of key-value pairs and returns a collection of key-value pairs
 which has each key and value swapped.</p>
 
 <h2 id="examples">Examples</h2>
-<p>See <a href="https://issues.apache.org/jira/browse/BEAM-7389">BEAM-7389</a> for updates.</p>
+
+<p>In the following example, we create a pipeline with a <code class="highlighter-rouge">PCollection</code> of key-value pairs.
+Then, we apply <code class="highlighter-rouge">KvSwap</code> to swap the keys and values.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">plants</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="p">(</span><span class="s">'🍓'</span><span class="p">,</span> <span class="s">'Strawberry'</span><span class="p">),</span>
+          <span class="p">(</span><span class="s">'🥕'</span><span class="p">,</span> <span class="s">'Carrot'</span><span class="p">),</span>
+          <span class="p">(</span><span class="s">'🍆'</span><span class="p">,</span> <span class="s">'Eggplant'</span><span class="p">),</span>
+          <span class="p">(</span><span class="s">'🍅'</span><span class="p">,</span> <span class="s">'Tomato'</span><span class="p">),</span>
+          <span class="p">(</span><span class="s">'🥔'</span><span class="p">,</span> <span class="s">'Potato'</span><span class="p">),</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'Key-Value swap'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">KvSwap</span><span class="p">()</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">KvSwap</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plants = [
+    ('Strawberry', '🍓'),
+    ('Carrot', '🥕'),
+    ('Eggplant', '🍆'),
+    ('Tomato', '🍅'),
+    ('Potato', '🥔'),
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/kvswap.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
 
 <h2 id="related-transforms">Related transforms</h2>
+
 <ul>
   <li><a href="/documentation/transforms/python/elementwise/keys">Keys</a> for extracting the key of each component.</li>
   <li><a href="/documentation/transforms/python/elementwise/values">Values</a> for extracting the value of each element.</li>
 </ul>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.KvSwap">
+      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
+      Pydoc
+    </a>
+  </td>
+</table>
+<p><br /></p>
 
       </div>
     </div>

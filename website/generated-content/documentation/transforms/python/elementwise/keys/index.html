@@ -437,7 +437,7 @@
 
 
 <ul class="nav">
-  <li><a href="#examples">Examples</a></li>
+  <li><a href="#example">Example</a></li>
   <li><a href="#related-transforms">Related transforms</a></li>
 </ul>
 
@@ -460,24 +460,84 @@ limitations under the License.
 -->
 
 <h1 id="keys">Keys</h1>
-<table align="left">
-    <a target="_blank" class="button" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Keys">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
-     Pydoc
-    </a>
-</table>
-<p><br />
-Takes a collection of key-value pairs and returns the key of each element.</p>
 
-<h2 id="examples">Examples</h2>
-<p>See <a href="https://issues.apache.org/jira/browse/BEAM-7389">BEAM-7389</a> for updates.</p>
+<script type="text/javascript">
+localStorage.setItem('language', 'language-py')
+</script>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Keys">
+      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
+      Pydoc
+    </a>
+  </td>
+</table>
+<p><br /></p>
+
+<p>Takes a collection of key-value pairs and returns the key of each element.</p>
+
+<h2 id="example">Example</h2>
+
+<p>In the following example, we create a pipeline with a <code class="highlighter-rouge">PCollection</code> of key-value pairs.
+Then, we apply <code class="highlighter-rouge">Keys</code> to extract the keys and discard the values.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">icons</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="p">(</span><span class="s">'🍓'</span><span class="p">,</span> <span class="s">'Strawberry'</span><span class="p">),</span>
+          <span class="p">(</span><span class="s">'🥕'</span><span class="p">,</span> <span class="s">'Carrot'</span><span class="p">),</span>
+          <span class="p">(</span><span class="s">'🍆'</span><span class="p">,</span> <span class="s">'Eggplant'</span><span class="p">),</span>
+          <span class="p">(</span><span class="s">'🍅'</span><span class="p">,</span> <span class="s">'Tomato'</span><span class="p">),</span>
+          <span class="p">(</span><span class="s">'🥔'</span><span class="p">,</span> <span class="s">'Potato'</span><span class="p">),</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'Keys'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Keys</span><span class="p">()</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Keys</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>icons = [
+    '🍓',
+    '🥕',
+    '🍆',
+    '🍅',
+    '🥔',
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/keys.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
 
 <h2 id="related-transforms">Related transforms</h2>
+
 <ul>
   <li><a href="/documentation/transforms/python/elementwise/kvswap">KvSwap</a> swaps the key and value of each element.</li>
   <li><a href="/documentation/transforms/python/elementwise/values">Values</a> for extracting the value of each element.</li>
 </ul>
 
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Keys">
+      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
+      Pydoc
+    </a>
+  </td>
+</table>
+<p><br /></p>
 
       </div>
     </div>

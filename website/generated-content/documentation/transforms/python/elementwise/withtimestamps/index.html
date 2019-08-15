@@ -437,7 +437,13 @@
 
 
 <ul class="nav">
-  <li><a href="#examples">Examples</a></li>
+  <li><a href="#examples">Examples</a>
+    <ul>
+      <li><a href="#example-1-timestamp-by-event-time">Example 1: Timestamp by event time</a></li>
+      <li><a href="#example-2-timestamp-by-logical-clock">Example 2: Timestamp by logical clock</a></li>
+      <li><a href="#example-3-timestamp-by-processing-time">Example 3: Timestamp by processing time</a></li>
+    </ul>
+  </li>
   <li><a href="#related-transforms">Related transforms</a></li>
 </ul>
 
@@ -460,12 +466,209 @@ limitations under the License.
 -->
 
 <h1 id="withtimestamps">WithTimestamps</h1>
+
+<script type="text/javascript">
+localStorage.setItem('language', 'language-py')
+</script>
+
 <p>Assigns timestamps to all the elements of a collection.</p>
 
 <h2 id="examples">Examples</h2>
-<p>See <a href="https://issues.apache.org/jira/browse/BEAM-7389">BEAM-7389</a> for updates.</p>
+
+<p>In the following examples, we create a pipeline with a <code class="highlighter-rouge">PCollection</code> and attach a timestamp value to each of its elements.
+When windowing and late data play an important role in streaming pipelines, timestamps are especially useful.</p>
+
+<h3 id="example-1-timestamp-by-event-time">Example 1: Timestamp by event time</h3>
+
+<p>The elements themselves often already contain a timestamp field.
+<code class="highlighter-rouge">beam.window.TimestampedValue</code> takes a value and a
+<a href="https://en.wikipedia.org/wiki/Unix_time">Unix timestamp</a>
+in the form of seconds.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="k">class</span> <span class="nc">GetTimestamp</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plant</span><span class="p">,</span> <span class="n">timestamp</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">TimestampParam</span><span class="p">):</span>
+    <span class="k">yield</span> <span class="s">'{} - {}'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">timestamp</span><span class="o">.</span><span class="n">to_utc_datetime</span><span class="p">(),</span> <span class="n">plant</span><span class="p">[</span><span class="s">'name'</span><span class="p">])</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">plant_timestamps</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'season'</span><span class="p">:</span> <span class="mi">1585699200</span><span class="p">},</span> <span class="c"># April, 2020</span>
+          <span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'season'</span><span class="p">:</span> <span class="mi">1590969600</span><span class="p">},</span>     <span class="c"># June, 2020</span>
+          <span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'Artichoke'</span><span class="p">,</span> <span class="s">'season'</span><span class="p">:</span> <span class="mi">1583020800</span><span class="p">},</span>  <span class="c"># March, 2020</span>
+          <span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'season'</span><span class="p">:</span> <span class="mi">1588291200</span><span class="p">},</span>     <span class="c"># May, 2020</span>
+          <span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'season'</span><span class="p">:</span> <span class="mi">1598918400</span><span class="p">},</span>     <span class="c"># September, 2020</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'With timestamps'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+          <span class="k">lambda</span> <span class="n">plant</span><span class="p">:</span> <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">TimestampedValue</span><span class="p">(</span><span class="n">plant</span><span class="p">,</span> <span class="n">plant</span><span class="p">[</span><span class="s">'season'</span><span class="p">]))</span>
+      <span class="o">|</span> <span class="s">'Get timestamp'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">GetTimestamp</span><span class="p">())</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after getting the timestamps:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plant_timestamps = [
+    '2020-04-01 00:00:00 - Strawberry',
+    '2020-06-01 00:00:00 - Carrot',
+    '2020-03-01 00:00:00 - Artichoke',
+    '2020-05-01 00:00:00 - Tomato',
+    '2020-09-01 00:00:00 - Potato',
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
+
+<p>To convert from a
+<a href="https://docs.python.org/3/library/time.html#time.struct_time"><code class="highlighter-rouge">time.struct_time</code></a>
+to <code class="highlighter-rouge">unix_time</code> you can use
+<a href="https://docs.python.org/3/library/time.html#time.mktime"><code class="highlighter-rouge">time.mktime</code></a>.
+For more information on time formatting options, see
+<a href="https://docs.python.org/3/library/time.html#time.strftime"><code class="highlighter-rouge">time.strftime</code></a>.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>import time
+
+time_tuple = time.strptime('2020-03-19 20:50:00', '%Y-%m-%d %H:%M:%S')
+unix_time = time.mktime(time_tuple)
+</code></pre>
+</div>
+
+<p>To convert from a
+<a href="https://docs.python.org/3/library/datetime.html#datetime.datetime"><code class="highlighter-rouge">datetime.datetime</code></a>
+to <code class="highlighter-rouge">unix_time</code> you can use convert it to a <code class="highlighter-rouge">time.struct_time</code> first with
+<a href="https://docs.python.org/3/library/datetime.html#datetime.datetime.timetuple"><code class="highlighter-rouge">datetime.timetuple</code></a>.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>import time
+import datetime
+
+now = datetime.datetime.now()
+time_tuple = now.timetuple()
+unix_time = time.mktime(time_tuple)
+</code></pre>
+</div>
+
+<h3 id="example-2-timestamp-by-logical-clock">Example 2: Timestamp by logical clock</h3>
+
+<p>If each element has a chronological number, these numbers can be used as a
+<a href="https://en.wikipedia.org/wiki/Logical_clock">logical clock</a>.
+These numbers have to be converted to a <em>“seconds”</em> equivalent, which can be especially important depending on your windowing and late data rules.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="k">class</span> <span class="nc">GetTimestamp</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plant</span><span class="p">,</span> <span class="n">timestamp</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">TimestampParam</span><span class="p">):</span>
+    <span class="n">event_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">timestamp</span><span class="o">.</span><span class="n">micros</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">)</span>  <span class="c"># equivalent to seconds</span>
+    <span class="k">yield</span> <span class="s">'{} - {}'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">event_id</span><span class="p">,</span> <span class="n">plant</span><span class="p">[</span><span class="s">'name'</span><span class="p">])</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">plant_events</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'event_id'</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'event_id'</span><span class="p">:</span> <span class="mi">4</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'Artichoke'</span><span class="p">,</span> <span class="s">'event_id'</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'event_id'</span><span class="p">:</span> <span class="mi">3</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'event_id'</span><span class="p">:</span> <span class="mi">5</span><span class="p">},</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'With timestamps'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">plant</span><span class="p">:</span> \
+          <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">TimestampedValue</span><span class="p">(</span><span class="n">plant</span><span class="p">,</span> <span class="n">plant</span><span class="p">[</span><span class="s">'event_id'</span><span class="p">]))</span>
+      <span class="o">|</span> <span class="s">'Get timestamp'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">GetTimestamp</span><span class="p">())</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after getting the timestamps:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plant_events = [
+    '1 - Strawberry',
+    '4 - Carrot',
+    '2 - Artichoke',
+    '3 - Tomato',
+    '5 - Potato',
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
+
+<h3 id="example-3-timestamp-by-processing-time">Example 3: Timestamp by processing time</h3>
+
+<p>If the elements do not have any time data available, you can also use the current processing time for each element.
+Note that this grabs the local time of the <em>worker</em> that is processing each element.
+Workers might have time deltas, so using this method is not a reliable way to do precise ordering.</p>
+
+<p>By using processing time, there is no way of knowing if data is arriving late because the timestamp is attached when the element <em>enters</em> into the pipeline.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="k">class</span> <span class="nc">GetTimestamp</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plant</span><span class="p">,</span> <span class="n">timestamp</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">TimestampParam</span><span class="p">):</span>
+    <span class="k">yield</span> <span class="s">'{} - {}'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">timestamp</span><span class="o">.</span><span class="n">to_utc_datetime</span><span class="p">(),</span> <span class="n">plant</span><span class="p">[</span><span class="s">'name'</span><span class="p">])</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">plant_processing_times</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'Strawberry'</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'Carrot'</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'Artichoke'</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'Tomato'</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'Potato'</span><span class="p">},</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'With timestamps'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">plant</span><span class="p">:</span> \
+          <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">TimestampedValue</span><span class="p">(</span><span class="n">plant</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()))</span>
+      <span class="o">|</span> <span class="s">'Get timestamp'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">GetTimestamp</span><span class="p">())</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after getting the timestamps:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plant_processing_times = [
+    '2020-03-20 20:12:42.145594 - Strawberry',
+    '2020-03-20 20:12:42.145827 - Carrot',
+    '2020-03-20 20:12:42.145962 - Artichoke',
+    '2020-03-20 20:12:42.146093 - Tomato',
+    '2020-03-20 20:12:42.146216 - Potato',
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
 
 <h2 id="related-transforms">Related transforms</h2>
+
 <ul>
   <li><a href="/documentation/transforms/python/elementwise/reify">Reify</a> converts between explicit and implicit forms of Beam values.</li>
 </ul>
