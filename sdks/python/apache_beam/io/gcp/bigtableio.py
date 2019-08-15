@@ -47,8 +47,6 @@ from apache_beam.transforms.display import DisplayDataItem
 
 try:
   from google.cloud.bigtable import Client
-  from google.cloud.bigtable.row_set import RowRange
-  from google.cloud.bigtable.row_set import RowSet
 except ImportError:
   Client = None
 
@@ -137,8 +135,8 @@ class WriteToBigTable(beam.PTransform):
     """
     super(WriteToBigTable, self).__init__()
     self._beam_options = {'project_id': project_id,
-                         'instance_id': instance_id,
-                         'table_id': table_id}
+                          'instance_id': instance_id,
+                          'table_id': table_id}
 
   def expand(self, pvalue):
     beam_options = self._beam_options
@@ -207,7 +205,7 @@ class _BigtableReadFn(beam.DoFn):
                                        label='Bigtable Table Id'),
             'filter_': DisplayDataItem(str(self._beam_options['filter_']),
                                        label='Bigtable Filter')
-            }
+           }
 
 
 class ReadFromBigTable(beam.PTransform):
@@ -222,15 +220,15 @@ class ReadFromBigTable(beam.PTransform):
     """
     super(self.__class__, self).__init__()
     self._beam_options = {'project_id': project_id,
-                         'instance_id': instance_id,
-                         'table_id': table_id,
-                         'filter_': filter_}
+                          'instance_id': instance_id,
+                          'table_id': table_id,
+                          'filter_': filter_}
 
   def __getstate__(self):
-      return self._beam_options
+    return self._beam_options
 
   def __setstate__(self, options):
-      self._beam_options = options
+    self._beam_options = options
 
   def expand(self, pbegin):
     from apache_beam.transforms import util
@@ -242,21 +240,22 @@ class ReadFromBigTable(beam.PTransform):
     sample_row_keys = list(table.sample_row_keys())
 
     if len(sample_row_keys) > 1 and sample_row_keys[0].row_key != b'':
-        SampleRowKey = namedtuple("SampleRowKey", "row_key offset_bytes")
-        first_key = SampleRowKey(b'', 0)
-        sample_row_keys.insert(0, first_key)
-        sample_row_keys = list(sample_row_keys)
+      SampleRowKey = namedtuple("SampleRowKey", "row_key offset_bytes")
+      first_key = SampleRowKey(b'', 0)
+      sample_row_keys.insert(0, first_key)
+      sample_row_keys = list(sample_row_keys)
 
     def split_source(unused_impulse):
       bundles = []
       for i in range(1, len(sample_row_keys)):
         key_1 = sample_row_keys[i - 1].row_key
         key_2 = sample_row_keys[i].row_key
-        size = sample_row_keys[i].offset_bytes - sample_row_keys[i - 1].offset_bytes
+        size = sample_row_keys[i].offset_bytes \
+               - sample_row_keys[i - 1].offset_bytes
         bundles.append(iobase.SourceBundle(size, None, key_1, key_2))
 
       from random import shuffle
-      # Shuffle is needed to allow reading from different locations of the table for better efficiency
+      # Shuffle randomizes reading locations for better performance
       shuffle(bundles)
       return bundles
 
@@ -264,7 +263,8 @@ class ReadFromBigTable(beam.PTransform):
             | core.Impulse()
             | 'Split' >> core.FlatMap(split_source)
             | util.Reshuffle()
-            | 'Read Bundles' >> beam.ParDo(_BigtableReadFn(project_id=beam_options['project_id'],
-                                                           instance_id=beam_options['instance_id'],
-                                                           table_id=beam_options['table_id'],
-                                                           filter_=beam_options['filter_'])))
+            | 'Read Bundles' >> beam.ParDo(
+                _BigtableReadFn(project_id=beam_options['project_id'],
+                                instance_id=beam_options['instance_id'],
+                                table_id=beam_options['table_id'],
+                                filter_=beam_options['filter_'])))
