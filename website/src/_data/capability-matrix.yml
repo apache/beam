@@ -453,7 +453,8 @@ categories:
             l3: Allow transforms to gather simple metrics across bundles in a <tt>PTransform</tt>. Provide a mechanism to obtain both committed and attempted metrics. Semantically similar to using an additional output, but support partial results as the transform executes, and support both committed and attempted values. Will likely want to augment <tt>Metrics</tt> to be more useful for processing unbounded data by making them windowed.
           - class: dataflow
             l1: 'Yes'
-            l2: Gauge metrics are not supported. All other metric types are supported.
+            l2: ''
+            l3: Gauge metrics are not supported. All other metric types are supported.
           - class: flink
             l1: 'Partially'
             l2: All metrics types are supported.
