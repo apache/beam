@@ -34,12 +34,13 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.util import assert_that, equal_to
 from apache_beam.transforms.combiners import Count
 
+import apache_beam.io.gcp.bigtableio as bigtableio
+
 try:
   from google.cloud.bigtable import enums, row, column_family, Client
 except ImportError:
   Client = None
 
-import bigtableio
 
 class GenerateTestRows(beam.PTransform):
   """ A PTransform to generate dummy rows to write to a Bigtable Table.
