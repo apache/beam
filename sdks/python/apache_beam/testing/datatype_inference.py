@@ -106,14 +106,10 @@ def infer_avro_schema(data, use_fastavro=False):
       return _typehint_to_avro_type[value]
 
   column_types = infer_typehints_schema(data)
-  avro_fields = [{
-      "name": str(key),
-      "type": typehint_to_avro_type(value)
-  } for key, value in column_types.items()]
+  avro_fields = [{"name": str(key), "type": typehint_to_avro_type(value)}
+                 for key, value in column_types.items()]
   schema_dict = {
-      "namespace": "example.avro",
-      "name": "User",
-      "type": "record",
+      "namespace": "example.avro", "name": "User", "type": "record",
       "fields": avro_fields
   }
   if use_fastavro:
