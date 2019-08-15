@@ -771,7 +771,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // spotbugs-annotations artifact is licensed under LGPL and cannot be included in the
         // Apache Beam distribution, but may be relied on during build.
         // See: https://www.apache.org/legal/resolved.html#prohibited
-        "com.github.spotbugs:spotbugs-annotations:3.1.11",
+        "com.github.spotbugs:spotbugs-annotations:3.1.12",
         "net.jcip:jcip-annotations:1.0",
       ]
 
@@ -814,7 +814,7 @@ class BeamModulePlugin implements Plugin<Project> {
         showViolations = true
         maxErrors = 0
       }
-      project.checkstyle { toolVersion = "8.7" }
+      project.checkstyle { toolVersion = "8.23" }
 
       // Configures javadoc plugin and ensure check runs javadoc.
       project.tasks.withType(Javadoc) {
@@ -853,7 +853,7 @@ class BeamModulePlugin implements Plugin<Project> {
       if (configuration.enableSpotbugs) {
         project.apply plugin: 'com.github.spotbugs'
         project.dependencies {
-          spotbugs "com.github.spotbugs:spotbugs:3.1.10"
+          spotbugs "com.github.spotbugs:spotbugs:3.1.12"
           spotbugs "com.google.auto.value:auto-value:1.6.3"
           compileOnlyAnnotationDeps.each { dep -> spotbugs dep }
         }
@@ -1508,7 +1508,8 @@ class BeamModulePlugin implements Plugin<Project> {
     project.ext.applyGrpcNature = {
       project.apply plugin: "com.google.protobuf"
       project.protobuf {
-        protoc { // The artifact spec for the Protobuf Compiler
+        protoc {
+          // The artifact spec for the Protobuf Compiler
           artifact = "com.google.protobuf:protoc:3.6.0" }
 
         // Configure the codegen plugins
@@ -1583,7 +1584,8 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.apply plugin: "com.google.protobuf"
       project.protobuf {
-        protoc { // The artifact spec for the Protobuf Compiler
+        protoc {
+          // The artifact spec for the Protobuf Compiler
           artifact = "com.google.protobuf:protoc:3.7.1" }
 
         // Configure the codegen plugins
