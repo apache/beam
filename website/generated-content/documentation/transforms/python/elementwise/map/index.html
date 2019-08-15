@@ -437,7 +437,18 @@
 
 
 <ul class="nav">
-  <li><a href="#examples">Examples</a></li>
+  <li><a href="#examples">Examples</a>
+    <ul>
+      <li><a href="#example-1-map-with-a-predefined-function">Example 1: Map with a predefined function</a></li>
+      <li><a href="#example-2-map-with-a-function">Example 2: Map with a function</a></li>
+      <li><a href="#example-3-map-with-a-lambda-function">Example 3: Map with a lambda function</a></li>
+      <li><a href="#example-4-map-with-multiple-arguments">Example 4: Map with multiple arguments</a></li>
+      <li><a href="#example-5-maptuple-for-key-value-pairs">Example 5: MapTuple for key-value pairs</a></li>
+      <li><a href="#example-6-map-with-side-inputs-as-singletons">Example 6: Map with side inputs as singletons</a></li>
+      <li><a href="#example-7-map-with-side-inputs-as-iterators">Example 7: Map with side inputs as iterators</a></li>
+      <li><a href="#example-8-map-with-side-inputs-as-dictionaries">Example 8: Map with side inputs as dictionaries</a></li>
+    </ul>
+  </li>
   <li><a href="#related-transforms">Related transforms</a></li>
 </ul>
 
@@ -460,27 +471,451 @@ limitations under the License.
 -->
 
 <h1 id="map">Map</h1>
-<table align="left">
-    <a target="_blank" class="button" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Map">
+
+<script type="text/javascript">
+localStorage.setItem('language', 'language-py')
+</script>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Map">
       <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
-     Pydoc
+      Pydoc
     </a>
+  </td>
 </table>
-<p><br />
-Applies a simple 1-to-1 mapping function over each element in the collection.</p>
+<p><br /></p>
+
+<p>Applies a simple 1-to-1 mapping function over each element in the collection.</p>
 
 <h2 id="examples">Examples</h2>
-<p>See <a href="https://issues.apache.org/jira/browse/BEAM-7389">BEAM-7389</a> for updates.</p>
+
+<p>In the following examples, we create a pipeline with a <code class="highlighter-rouge">PCollection</code> of produce with their icon, name, and duration.
+Then, we apply <code class="highlighter-rouge">Map</code> in multiple ways to transform every element in the <code class="highlighter-rouge">PCollection</code>.</p>
+
+<p><code class="highlighter-rouge">Map</code> accepts a function that returns a single element for every input element in the <code class="highlighter-rouge">PCollection</code>.</p>
+
+<h3 id="example-1-map-with-a-predefined-function">Example 1: Map with a predefined function</h3>
+
+<p>We use the function <code class="highlighter-rouge">str.strip</code> which takes a single <code class="highlighter-rouge">str</code> element and outputs a <code class="highlighter-rouge">str</code>.
+It strips the input element’s whitespaces, including newlines and tabs.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">plants</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s">'   🍓Strawberry   </span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'   🥕Carrot   </span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'   🍆Eggplant   </span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'   🍅Tomato   </span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'   🥔Potato   </span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'Strip'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="nb">str</span><span class="o">.</span><span class="n">strip</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Map</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plants = [
+    '🍓Strawberry',
+    '🥕Carrot',
+    '🍆Eggplant',
+    '🍅Tomato',
+    '🥔Potato',
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
+
+<h3 id="example-2-map-with-a-function">Example 2: Map with a function</h3>
+
+<p>We define a function <code class="highlighter-rouge">strip_header_and_newline</code> which strips any <code class="highlighter-rouge">'#'</code>, <code class="highlighter-rouge">' '</code>, and <code class="highlighter-rouge">'\n'</code> characters from each element.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="k">def</span> <span class="nf">strip_header_and_newline</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+  <span class="k">return</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s">'# </span><span class="se">\n</span><span class="s">'</span><span class="p">)</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">plants</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s">'# 🍓Strawberry</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'# 🥕Carrot</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'# 🍆Eggplant</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'# 🍅Tomato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'# 🥔Potato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'Strip header'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">strip_header_and_newline</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Map</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plants = [
+    '🍓Strawberry',
+    '🥕Carrot',
+    '🍆Eggplant',
+    '🍅Tomato',
+    '🥔Potato',
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
+
+<h3 id="example-3-map-with-a-lambda-function">Example 3: Map with a lambda function</h3>
+
+<p>We can also use lambda functions to simplify <strong>Example 2</strong>.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">plants</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s">'# 🍓Strawberry</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'# 🥕Carrot</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'# 🍆Eggplant</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'# 🍅Tomato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'# 🥔Potato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'Strip header'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">text</span><span class="p">:</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s">'# </span><span class="se">\n</span><span class="s">'</span><span class="p">))</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Map</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plants = [
+    '🍓Strawberry',
+    '🥕Carrot',
+    '🍆Eggplant',
+    '🍅Tomato',
+    '🥔Potato',
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
+
+<h3 id="example-4-map-with-multiple-arguments">Example 4: Map with multiple arguments</h3>
+
+<p>You can pass functions with multiple arguments to <code class="highlighter-rouge">Map</code>.
+They are passed as additional positional arguments or keyword arguments to the function.</p>
+
+<p>In this example, <code class="highlighter-rouge">strip</code> takes <code class="highlighter-rouge">text</code> and <code class="highlighter-rouge">chars</code> as arguments.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="k">def</span> <span class="nf">strip</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">chars</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+  <span class="k">return</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="n">chars</span><span class="p">)</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">plants</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s">'# 🍓Strawberry</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'# 🥕Carrot</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'# 🍆Eggplant</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'# 🍅Tomato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'# 🥔Potato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'Strip header'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">strip</span><span class="p">,</span> <span class="n">chars</span><span class="o">=</span><span class="s">'# </span><span class="se">\n</span><span class="s">'</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Map</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plants = [
+    '🍓Strawberry',
+    '🥕Carrot',
+    '🍆Eggplant',
+    '🍅Tomato',
+    '🥔Potato',
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
+
+<h3 id="example-5-maptuple-for-key-value-pairs">Example 5: MapTuple for key-value pairs</h3>
+
+<p>If your <code class="highlighter-rouge">PCollection</code> consists of <code class="highlighter-rouge">(key, value)</code> pairs,
+you can use <code class="highlighter-rouge">MapTuple</code> to unpack them into different function arguments.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">plants</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="p">(</span><span class="s">'🍓'</span><span class="p">,</span> <span class="s">'Strawberry'</span><span class="p">),</span>
+          <span class="p">(</span><span class="s">'🥕'</span><span class="p">,</span> <span class="s">'Carrot'</span><span class="p">),</span>
+          <span class="p">(</span><span class="s">'🍆'</span><span class="p">,</span> <span class="s">'Eggplant'</span><span class="p">),</span>
+          <span class="p">(</span><span class="s">'🍅'</span><span class="p">,</span> <span class="s">'Tomato'</span><span class="p">),</span>
+          <span class="p">(</span><span class="s">'🥔'</span><span class="p">,</span> <span class="s">'Potato'</span><span class="p">),</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'Format'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">MapTuple</span><span class="p">(</span>
+          <span class="k">lambda</span> <span class="n">icon</span><span class="p">,</span> <span class="n">plant</span><span class="p">:</span> <span class="s">'{}{}'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">icon</span><span class="p">,</span> <span class="n">plant</span><span class="p">))</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">MapTuple</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plants = [
+    '🍓Strawberry',
+    '🥕Carrot',
+    '🍆Eggplant',
+    '🍅Tomato',
+    '🥔Potato',
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
+
+<h3 id="example-6-map-with-side-inputs-as-singletons">Example 6: Map with side inputs as singletons</h3>
+
+<p>If the <code class="highlighter-rouge">PCollection</code> has a single value, such as the average from another computation,
+passing the <code class="highlighter-rouge">PCollection</code> as a <em>singleton</em> accesses that value.</p>
+
+<p>In this example, we pass a <code class="highlighter-rouge">PCollection</code> the value <code class="highlighter-rouge">'# \n'</code> as a singleton.
+We then use that value as the characters for the <code class="highlighter-rouge">str.strip</code> method.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">chars</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s">'Create chars'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s">'# </span><span class="se">\n</span><span class="s">'</span><span class="p">])</span>
+
+  <span class="n">plants</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s">'# 🍓Strawberry</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'# 🥕Carrot</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'# 🍆Eggplant</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'# 🍅Tomato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'# 🥔Potato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'Strip header'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+          <span class="k">lambda</span> <span class="n">text</span><span class="p">,</span> <span class="n">chars</span><span class="p">:</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="n">chars</span><span class="p">),</span>
+          <span class="n">chars</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">(</span><span class="n">chars</span><span class="p">),</span>
+      <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Map</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plants = [
+    '🍓Strawberry',
+    '🥕Carrot',
+    '🍆Eggplant',
+    '🍅Tomato',
+    '🥔Potato',
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
+
+<h3 id="example-7-map-with-side-inputs-as-iterators">Example 7: Map with side inputs as iterators</h3>
+
+<p>If the <code class="highlighter-rouge">PCollection</code> has multiple values, pass the <code class="highlighter-rouge">PCollection</code> as an <em>iterator</em>.
+This accesses elements lazily as they are needed,
+so it is possible to iterate over large <code class="highlighter-rouge">PCollection</code>s that won’t fit into memory.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">chars</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s">'Create chars'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s">'#'</span><span class="p">,</span> <span class="s">' '</span><span class="p">,</span> <span class="s">'</span><span class="se">\n</span><span class="s">'</span><span class="p">])</span>
+
+  <span class="n">plants</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s">'# 🍓Strawberry</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'# 🥕Carrot</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'# 🍆Eggplant</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'# 🍅Tomato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+          <span class="s">'# 🥔Potato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'Strip header'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+          <span class="k">lambda</span> <span class="n">text</span><span class="p">,</span> <span class="n">chars</span><span class="p">:</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s">''</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">chars</span><span class="p">)),</span>
+          <span class="n">chars</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsIter</span><span class="p">(</span><span class="n">chars</span><span class="p">),</span>
+      <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Map</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plants = [
+    '🍓Strawberry',
+    '🥕Carrot',
+    '🍆Eggplant',
+    '🍅Tomato',
+    '🥔Potato',
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
+
+<blockquote>
+  <p><strong>Note</strong>: You can pass the <code class="highlighter-rouge">PCollection</code> as a <em>list</em> with <code class="highlighter-rouge">beam.pvalue.AsList(pcollection)</code>,
+but this requires that all the elements fit into memory.</p>
+</blockquote>
+
+<h3 id="example-8-map-with-side-inputs-as-dictionaries">Example 8: Map with side inputs as dictionaries</h3>
+
+<p>If a <code class="highlighter-rouge">PCollection</code> is small enough to fit into memory, then that <code class="highlighter-rouge">PCollection</code> can be passed as a <em>dictionary</em>.
+Each element must be a <code class="highlighter-rouge">(key, value)</code> pair.
+Note that all the elements of the <code class="highlighter-rouge">PCollection</code> must fit into memory for this.
+If the <code class="highlighter-rouge">PCollection</code> won’t fit into memory, use <code class="highlighter-rouge">beam.pvalue.AsIter(pcollection)</code> instead.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="k">def</span> <span class="nf">replace_duration</span><span class="p">(</span><span class="n">plant</span><span class="p">,</span> <span class="n">durations</span><span class="p">):</span>
+  <span class="n">plant</span><span class="p">[</span><span class="s">'duration'</span><span class="p">]</span> <span class="o">=</span> <span class="n">durations</span><span class="p">[</span><span class="n">plant</span><span class="p">[</span><span class="s">'duration'</span><span class="p">]]</span>
+  <span class="k">return</span> <span class="n">plant</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">durations</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s">'Durations'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+      <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s">'annual'</span><span class="p">),</span>
+      <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s">'biennial'</span><span class="p">),</span>
+      <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s">'perennial'</span><span class="p">),</span>
+  <span class="p">])</span>
+
+  <span class="n">plant_details</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍓'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥕'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍆'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Eggplant'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍅'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥔'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'Replace duration'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+          <span class="n">replace_duration</span><span class="p">,</span>
+          <span class="n">durations</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsDict</span><span class="p">(</span><span class="n">durations</span><span class="p">),</span>
+      <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Map</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plant_details = [
+    {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
+    {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
+    {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
+    {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
+    {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/map.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
 
 <h2 id="related-transforms">Related transforms</h2>
+
 <ul>
   <li><a href="/documentation/transforms/python/elementwise/flatmap">FlatMap</a> behaves the same as <code class="highlighter-rouge">Map</code>, but for
 each input it may produce zero or more outputs.</li>
-  <li><a href="/documentation/transforms/python/elementwise/filter">Filter</a> is useful if the function is just 
+  <li><a href="/documentation/transforms/python/elementwise/filter">Filter</a> is useful if the function is just
 deciding whether to output an element or not.</li>
   <li><a href="/documentation/transforms/python/elementwise/pardo">ParDo</a> is the most general element-wise mapping
 operation, and includes other abilities such as multiple output collections and side-inputs.</li>
 </ul>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Map">
+      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
+      Pydoc
+    </a>
+  </td>
+</table>
+<p><br /></p>
 
       </div>
     </div>
