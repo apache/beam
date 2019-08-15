@@ -41,7 +41,11 @@ try:
 except ImportError:
   Client = None
 
-PROJECT_ID = ""
+PROJECT_ID = ''
+INSTANCE_ID = ''
+TABLE_ID = ''
+COLUMN_FAMILY_ID = 'cf1'
+
 
 class GenerateTestRows(beam.PTransform):
   """ A PTransform to generate dummy rows to write to a Bigtable Table.
@@ -160,7 +164,6 @@ if __name__ == '__main__':
   COLUMN_COUNT = args.column_count
   CELL_SIZE = args.cell_size
 
-  COLUMN_FAMILY_ID = 'cf1'
   _current_time = datetime.datetime.fromtimestamp(time.time())
   TIME_STAMP = _current_time.strftime('%Y%m%d-%H%M%S')
   LETTERS_AND_DIGITS = string.ascii_letters + string.digits
