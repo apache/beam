@@ -402,8 +402,8 @@ class TriggerLoadJobs(beam.DoFn):
     uid = _bq_uuid()
     job_name = '%s_%s_%s' % (
         load_job_name_prefix, destination_hash, uid)
-    logging.warn('Load job has %s files. Job name is %s.',
-                 len(files), job_name)
+    logging.debug('Load job has %s files. Job name is %s.',
+                  len(files), job_name)
 
     if self.temporary_tables:
       # For temporary tables, we create a new table with the name with JobId.
@@ -587,6 +587,10 @@ class BigQueryBatchFileLoads(beam.PTransform):
     self.schema = schema
     self.coder = coder or bigquery_tools.RowAsDictJsonCoder()
 
+    # If we have multiple destinations, then we will have multiple load jobs,
+    # thus we will need temporary tables for atomicity.
+    self.dynamic_destinations = True if callable(destination) else False
+
     self.additional_bq_parameters = additional_bq_parameters or {}
     self.table_side_inputs = table_side_inputs or ()
     self.schema_side_inputs = schema_side_inputs or ()
@@ -684,9 +688,9 @@ class BigQueryBatchFileLoads(beam.PTransform):
               accumulation_mode=trigger.AccumulationMode.DISCARDING))
     return all_destination_file_pairs_pc
 
-  def _load_data(self, multiple_partitions_per_destination_pc,
-                 single_partition_per_destination_pc, load_job_name_pcv,
-                 empty_pc):
+  def _load_data(self, partitions_using_temp_tables,
+                 partitions_direct_to_destination, load_job_name_pcv,
+                 singleton_pc):
     """Load data to BigQuery
 
     Data is loaded into BigQuery in the following two ways:
@@ -702,27 +706,9 @@ class BigQueryBatchFileLoads(beam.PTransform):
          of the load jobs would fail but not other. If any of them fails, then
          copy jobs are not triggered.
     """
-    single_partition_load_job_ids_pc = (
-        single_partition_per_destination_pc
-        | "TriggerLoadJobsWithoutTempTables" >> beam.ParDo(
-            TriggerLoadJobs(
-                schema=self.schema,
-                write_disposition=self.write_disposition,
-                create_disposition=self.create_disposition,
-                test_client=self.test_client,
-                temporary_tables=False,
-                additional_bq_parameters=self.additional_bq_parameters),
-            load_job_name_pcv, *self.schema_side_inputs)
-    )
-
-    _ = (
-        empty_pc
-        | "WaitForDestinationLoadJobs" >> beam.ParDo(
-            WaitForBQJobs(self.test_client),
-            beam.pvalue.AsList(single_partition_load_job_ids_pc)))
-
+    # Load data using temp tables
     trigger_loads_outputs = (
-        multiple_partitions_per_destination_pc
+        partitions_using_temp_tables
         | "TriggerLoadJobsWithTempTables" >> beam.ParDo(
             TriggerLoadJobs(
                 schema=self.schema,
@@ -735,21 +721,21 @@ class BigQueryBatchFileLoads(beam.PTransform):
         .with_outputs(TriggerLoadJobs.TEMP_TABLES, main='main')
     )
 
-    multiple_partitions_load_job_ids_pc = trigger_loads_outputs['main']
+    temp_tables_load_job_ids_pc = trigger_loads_outputs['main']
     temp_tables_pc = trigger_loads_outputs[TriggerLoadJobs.TEMP_TABLES]
 
     destination_copy_job_ids_pc = (
-        empty_pc
+        singleton_pc
         | "WaitForTempTableLoadJobs" >> beam.ParDo(
             WaitForBQJobs(self.test_client),
-            beam.pvalue.AsList(multiple_partitions_load_job_ids_pc))
+            beam.pvalue.AsList(temp_tables_load_job_ids_pc))
         | beam.ParDo(TriggerCopyJobs(
             create_disposition=self.create_disposition,
             write_disposition=self.write_disposition,
             test_client=self.test_client), load_job_name_pcv))
 
     finished_copy_jobs_pc = (
-        empty_pc
+        singleton_pc
         | "WaitForCopyJobs" >> beam.ParDo(
             WaitForBQJobs(self.test_client),
             beam.pvalue.AsList(destination_copy_job_ids_pc)))
@@ -763,8 +749,28 @@ class BigQueryBatchFileLoads(beam.PTransform):
          | "RemoveTempTables/GetTableNames" >> beam.Map(lambda elm: elm[0])
          | "RemoveTempTables/Delete" >> beam.ParDo(DeleteTablesFn()))
 
+    # Load data directly to destination table
     destination_load_job_ids_pc = (
-        (multiple_partitions_load_job_ids_pc, single_partition_load_job_ids_pc)
+        partitions_direct_to_destination
+        | "TriggerLoadJobsWithoutTempTables" >> beam.ParDo(
+            TriggerLoadJobs(
+                schema=self.schema,
+                write_disposition=self.write_disposition,
+                create_disposition=self.create_disposition,
+                test_client=self.test_client,
+                temporary_tables=False,
+                additional_bq_parameters=self.additional_bq_parameters),
+            load_job_name_pcv, *self.schema_side_inputs)
+    )
+
+    _ = (
+        singleton_pc
+        | "WaitForDestinationLoadJobs" >> beam.ParDo(
+            WaitForBQJobs(self.test_client),
+            beam.pvalue.AsList(destination_load_job_ids_pc)))
+
+    destination_load_job_ids_pc = (
+        (temp_tables_load_job_ids_pc, destination_load_job_ids_pc)
         | beam.Flatten())
 
     return destination_load_job_ids_pc, destination_copy_job_ids_pc
@@ -774,14 +780,15 @@ class BigQueryBatchFileLoads(beam.PTransform):
 
     temp_location = p.options.view_as(GoogleCloudOptions).temp_location
 
-    empty_pc = p | "ImpulseEmptyPC" >> beam.Create([None])
+    empty_pc = p | "ImpulseEmptyPC" >> beam.Create([])
+    singleton_pc = p | "ImpulseSingleElementPC" >> beam.Create([None])
 
     load_job_name_pcv = pvalue.AsSingleton(
-        empty_pc
+        singleton_pc
         | beam.Map(lambda _: _generate_load_job_name()))
 
     file_prefix_pcv = pvalue.AsSingleton(
-        empty_pc
+        singleton_pc
         | "GenerateFilePrefix" >> beam.Map(
             file_prefix_generator(self._validate,
                                   self._custom_gcs_temp_location,
@@ -811,11 +818,21 @@ class BigQueryBatchFileLoads(beam.PTransform):
     single_partition_per_destination_pc = partitions[PartitionFiles\
       .SINGLE_PARTITION_TAG]
 
-    destination_load_job_ids_pc, destination_copy_job_ids_pc = self._load_data(
-        multiple_partitions_per_destination_pc,
-        single_partition_per_destination_pc,
-        load_job_name_pcv,
-        empty_pc)
+    # When using dynamic destinations, elements with both single as well as
+    # multiple partitions are loaded into BigQuery using temporary tables to
+    # ensure atomicity.
+    if self.dynamic_destinations:
+      all_partitions = ((multiple_partitions_per_destination_pc,
+                         single_partition_per_destination_pc)
+                        | "FlattenPartitions" >> beam.Flatten())
+      destination_load_job_ids_pc, destination_copy_job_ids_pc = self.\
+        _load_data(all_partitions, empty_pc, load_job_name_pcv,
+                   singleton_pc)
+    else:
+      destination_load_job_ids_pc, destination_copy_job_ids_pc = self.\
+        _load_data(multiple_partitions_per_destination_pc,
+                   single_partition_per_destination_pc,
+                   load_job_name_pcv, singleton_pc)
 
     return {
         self.DESTINATION_JOBID_PAIRS: destination_load_job_ids_pc,
