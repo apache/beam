@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.InMemoryStateInternals.InMemoryBag;
 import org.apache.beam.runners.core.InMemoryStateInternals.InMemoryCombiningState;
@@ -51,7 +52,6 @@ import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
@@ -162,9 +162,9 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
     private Optional<Instant> earliestWatermarkHold;
 
     public CopyOnAccessInMemoryStateTable(StateTable underlying) {
-      this.underlying = Optional.fromNullable(underlying);
+      this.underlying = Optional.ofNullable(underlying);
       binderFactory = new CopyOnBindBinderFactory(this.underlying);
-      earliestWatermarkHold = Optional.absent();
+      earliestWatermarkHold = Optional.empty();
     }
 
     /**
@@ -193,7 +193,7 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
       earliestWatermarkHold = Optional.of(earliestHold);
       clearEmpty();
       binderFactory = new InMemoryStateBinderFactory();
-      underlying = Optional.absent();
+      underlying = Optional.empty();
     }
 
     /**
