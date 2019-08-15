@@ -1134,11 +1134,12 @@ class GrpcServer(object):
 
   _DEFAULT_SHUTDOWN_TIMEOUT_SECS = 5
 
-  def __init__(self, state, provision_info):
+  def __init__(self, state, provision_info, max_workers):
     self.state = state
     self.provision_info = provision_info
+    self.max_workers = max_workers
     self.control_server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=10))
+        futures.ThreadPoolExecutor(max_workers=self.max_workers))
     self.control_port = self.control_server.add_insecure_port('[::]:0')
     self.control_address = 'localhost:%s' % self.control_port
 
@@ -1148,12 +1149,12 @@ class GrpcServer(object):
     no_max_message_sizes = [("grpc.max_receive_message_length", -1),
                             ("grpc.max_send_message_length", -1)]
     self.data_server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=10),
+        futures.ThreadPoolExecutor(max_workers=self.max_workers),
         options=no_max_message_sizes)
     self.data_port = self.data_server.add_insecure_port('[::]:0')
 
     self.state_server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=10),
+        futures.ThreadPoolExecutor(max_workers=self.max_workers),
         options=no_max_message_sizes)
     self.state_port = self.state_server.add_insecure_port('[::]:0')
 
@@ -1297,6 +1298,11 @@ class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
     self.worker_thread.join()
 
 
+# The subprocesses module is not threadsafe on Python 2.7. Use this lock to
+# prevent concurrent calls to POpen().
+SUBPROCESS_LOCK = threading.Lock()
+
+
 @WorkerHandler.register_environment(python_urns.SUBPROCESS_SDK, bytes)
 class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
   def __init__(self, worker_command_line, state, provision_info, grpc_server):
@@ -1368,10 +1374,11 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
 
   def stop_worker(self):
     if self._container_id:
-      subprocess.call([
-          'docker',
-          'kill',
-          self._container_id])
+      with SUBPROCESS_LOCK:
+        subprocess.call([
+            'docker',
+            'kill',
+            self._container_id])
 
 
 class WorkerHandlerManager(object):
@@ -1387,10 +1394,25 @@ class WorkerHandlerManager(object):
       # Any environment will do, pick one arbitrarily.
       environment_id = next(iter(self._environments.keys()))
     environment = self._environments[environment_id]
-    # assume it's using grpc if environment is not EMBEDDED_PYTHON.
-    if environment.urn != python_urns.EMBEDDED_PYTHON and \
-        self._grpc_server is None:
-      self._grpc_server = GrpcServer(self._state, self._job_provision_info)
+    max_total_workers = num_workers * len(self._environments)
+
+    # assume all environments except EMBEDDED_PYTHON use gRPC.
+    if environment.urn == python_urns.EMBEDDED_PYTHON:
+      pass # no need for a gRPC server
+    elif self._grpc_server is None:
+      self._grpc_server = GrpcServer(self._state, self._job_provision_info,
+                                     max_total_workers)
+    elif max_total_workers > self._grpc_server.max_workers:
+      # each gRPC server is running with fixed number of threads (
+      # max_total_workers), which is defined by the first call to
+      # get_worker_handlers(). Assumption here is a worker has a connection to a
+      # gRPC server. In case a stage tries to add more workers
+      # than the max_total_workers, some workers cannot connect to gRPC and
+      # pipeline will hang, hence raise an error here.
+      raise RuntimeError('gRPC servers are running with %s threads, we cannot '
+                         'attach %s workers.' % (self._grpc_server.max_workers,
+                                                 max_total_workers))
+
     worker_handler_list = self._cached_handlers[environment_id]
     if len(worker_handler_list) < num_workers:
       for _ in range(len(worker_handler_list), num_workers):
