@@ -144,6 +144,19 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     return beam_job_api_pb2.CancelJobRequest(
         state=self._jobs[request.job_id].state)
 
+  def Delete(self, request, context=None):
+    if request.job_id not in self._jobs:
+      raise LookupError("Job {} does not exist".format(request.job_id))
+
+    job = self._jobs[request.job_id]
+    if request.force:
+      job.cancel()
+    if job.state not in TERMINAL_STATES:
+      raise RuntimeError("Job cannot be canceled because it is still running. "
+                         "Set force option to cancel")
+    self._jobs.pop(request.job_id)
+    return beam_job_api_pb2.DeleteJobResponse(state=job.state)
+
   def GetStateStream(self, request, context=None):
     """Yields state transitions since the stream started.
       """

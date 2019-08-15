@@ -73,6 +73,7 @@ public class InMemoryJobServiceTest {
     when(invocation.getId()).thenReturn(TEST_JOB_ID);
     when(invocation.getPipeline()).thenReturn(TEST_PIPELINE);
     when(invocation.toProto()).thenReturn(TEST_JOB_INFO);
+    when(invocation.getState()).thenReturn(JobApi.JobState.Enum.DONE);
   }
 
   private JobApi.PrepareJobResponse prepareJob() {
@@ -162,6 +163,21 @@ public class InMemoryJobServiceTest {
     assertThat(recorder.values, hasSize(1));
     JobApi.GetJobPipelineResponse response = recorder.values.get(0);
     assertThat(response.getPipeline(), is(TEST_PIPELINE));
+  }
+
+  @Test
+  public void testJobDeleteIsSuccessful() throws Exception {
+    prepareAndRunJob();
+
+    JobApi.DeleteJobRequest request =
+        JobApi.DeleteJobRequest.newBuilder().setJobId(TEST_JOB_ID).setForce(false).build();
+    RecordingObserver<JobApi.DeleteJobResponse> recorder = new RecordingObserver<>();
+    service.delete(request, recorder);
+    assertThat(recorder.isSuccessful(), is(true));
+    assertThat(recorder.values, hasSize(1));
+    JobApi.DeleteJobResponse response = recorder.values.get(0);
+    System.out.println(response.getState());
+    assertThat(response.getState(), is(JobApi.JobState.Enum.DONE));
   }
 
   @Test

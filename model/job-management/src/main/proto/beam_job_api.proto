@@ -55,6 +55,9 @@ service JobService {
   // Cancel the job
   rpc Cancel (CancelJobRequest) returns (CancelJobResponse);
 
+  // Delete the job from job service state
+  rpc Delete (DeleteJobRequest) returns (DeleteJobResponse);
+
   // Subscribe to a stream of state changes of the job, will immediately return the current state of the job as the first response.
   rpc GetStateStream (GetJobStateRequest) returns (stream GetJobStateResponse);
 
@@ -125,6 +128,23 @@ message CancelJobRequest {
 message CancelJobResponse {
   JobState.Enum state = 1; // (required)
 }
+
+
+// Delete is a synchronus request that returns a job state back
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+// Throws error NOT_FOUND if the jobId is not found
+// Throws error ABORTED if force is false and the job is not in a terminal state
+message DeleteJobRequest {
+  string job_id = 1; // (required)
+  // cancel the job if it is still running
+  bool force = 2; // (required)
+}
+
+// Valid responses include any terminal state
+message DeleteJobResponse {
+  JobState.Enum state = 1; // (required)
+}
+
 
 // A subset of info provided by ProvisionApi.ProvisionInfo
 message JobInfo {

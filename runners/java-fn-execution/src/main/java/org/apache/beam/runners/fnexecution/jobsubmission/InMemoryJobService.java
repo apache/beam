@@ -27,6 +27,8 @@ import java.util.function.Function;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobResponse;
+import org.apache.beam.model.jobmanagement.v1.JobApi.DeleteJobRequest;
+import org.apache.beam.model.jobmanagement.v1.JobApi.DeleteJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.DescribePipelineOptionsRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.DescribePipelineOptionsResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobPipelineRequest;
@@ -294,6 +296,36 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       invocation.cancel();
       JobState.Enum state = invocation.getState();
       CancelJobResponse response = CancelJobResponse.newBuilder().setState(state).build();
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException | StatusException e) {
+      responseObserver.onError(e);
+    } catch (Exception e) {
+      String errMessage =
+          String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
+      LOG.error(errMessage, e);
+      responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+    }
+  }
+
+  @Override
+  public void delete(DeleteJobRequest request, StreamObserver<DeleteJobResponse> responseObserver) {
+    LOG.trace("{} {}", DeleteJobRequest.class.getSimpleName(), request);
+    String invocationId = request.getJobId();
+    try {
+      JobInvocation invocation = getInvocation(invocationId);
+      if (request.getForce()) {
+        invocation.cancel();
+      }
+      JobState.Enum state = invocation.getState();
+      if (!JobInvocation.isTerminated(state)) {
+        throw Status.ABORTED
+            .withDescription(
+                "Job cannot be canceled because it is still running. Set force option to cancel")
+            .asException();
+      }
+      invocations.remove(invocationId);
+      DeleteJobResponse response = DeleteJobResponse.newBuilder().setState(state).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (StatusRuntimeException | StatusException e) {
