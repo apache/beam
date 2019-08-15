@@ -34,8 +34,8 @@ import org.apache.calcite.sql.SqlNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** TableResolutionUtils. */
-public class TableResolutionUtils {
+/** Utils to wire up the custom table resolution into Calcite's planner. */
+class TableResolutionUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(TableResolutionUtils.class);
 
