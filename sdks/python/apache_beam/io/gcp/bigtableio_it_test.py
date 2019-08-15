@@ -74,6 +74,7 @@ class GenerateTestRows(beam.PTransform):
                 instance_id=self.beam_options['instance_id'],
                 table_id=self.beam_options['table_id']))
 
+
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
 class BigtableIOTest(unittest.TestCase):
   """ Bigtable IO Connector Test
