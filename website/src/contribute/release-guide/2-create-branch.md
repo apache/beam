@@ -34,7 +34,7 @@ and update version information on the original branch.
 * Script: [cut_release_branch.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh)
 
 * Usage
-  ```sh
+  ```
   # Cut a release branch
   ./beam/release/src/main/scripts/cut_release_branch.sh \
   --release=${RELEASE_VERSION} \
@@ -103,7 +103,7 @@ so builds will be broken until a new snapshot is available.
 * Script: [start_snapshot_build.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/start_snapshot_build.sh)
 
 * Usage
-  ```sh
+  ```
   ./beam/release/src/main/scripts/start_snapshot_build.sh
   ```
 
