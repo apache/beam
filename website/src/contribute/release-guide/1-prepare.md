@@ -74,7 +74,8 @@ There are 2 ways to configure your GPG key for release, either using release aut
   (e.g. if you fail to enter the GitHub password correctly multiple times); 
 
 * Usage
-  ```sh
+
+  ```
   ./beam/release/src/main/scripts/preparation_before_release.sh
   ```
 * Th script does the following:
@@ -145,13 +146,13 @@ number.
 You should already have setup a local clone of `apache/beam`. Setting up a clone
 of `apache/beam-site` is similar:
 
-```sh
-$ git clone -b release-docs https://github.com/apache/beam-site.git
-$ cd beam-site
-$ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam-site.git
-$ git fetch --all
-$ git checkout -b <my-branch> origin/release-docs
-```
+  ```
+  $ git clone -b release-docs https://github.com/apache/beam-site.git
+  $ cd beam-site
+  $ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam-site.git
+  $ git fetch --all
+  $ git checkout -b <my-branch> origin/release-docs
+  ```
 
 Further instructions on website development on `apache/beam` is
 [here](https://github.com/apache/beam/blob/master/website). Background
