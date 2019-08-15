@@ -158,6 +158,7 @@ task javaPostCommit() {
 task sqlPostCommit() {
   dependsOn ":sdks:java:extensions:sql:postCommit"
   dependsOn ":sdks:java:extensions:sql:jdbc:postCommit"
+  dependsOn ":sdks:java:extensions:sql:datacatalog:postCommit"
 }
 
 task javaPostCommitPortabilityApi () {
