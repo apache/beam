@@ -19,13 +19,13 @@ package org.apache.beam.sdk.schemas.utils;
 
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeThat;
 
 import com.pholser.junit.quickcheck.From;
 import com.pholser.junit.quickcheck.Property;
 import com.pholser.junit.quickcheck.runner.JUnitQuickcheck;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -40,11 +40,16 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.util.Utf8;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.utils.AvroGenerators.RecordSchemaGenerator;
 import org.apache.beam.sdk.schemas.utils.AvroUtils.TypeWithNullability;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -82,8 +87,8 @@ public class AvroUtilsTest {
 
   @Property(trials = 1000)
   @SuppressWarnings("unchecked")
-  public void avroToBeamRoudTrip(
-      @From(RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) throws IOException {
+  public void avroToBeamRoundTrip(
+      @From(RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) {
     // not everything is possible to translate
     assumeThat(avroSchema, not(containsField(AvroUtilsTest::hasNonNullUnion)));
     // roundtrip for enums returns strings because Beam doesn't have enum type
@@ -172,17 +177,21 @@ public class AvroUtilsTest {
     assertEquals(expectedAvroField, avroField);
   }
 
-  private org.apache.avro.Schema getAvroSubSchema() {
+  private static List<org.apache.avro.Schema.Field> getAvroSubSchemaFields() {
     List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
     fields.add(
         new org.apache.avro.Schema.Field(
             "bool", org.apache.avro.Schema.create(Type.BOOLEAN), "", null));
     fields.add(
         new org.apache.avro.Schema.Field("int", org.apache.avro.Schema.create(Type.INT), "", null));
-    return org.apache.avro.Schema.createRecord(fields);
+    return fields;
   }
 
-  private org.apache.avro.Schema getAvroSchema() {
+  private static org.apache.avro.Schema getAvroSubSchema() {
+    return org.apache.avro.Schema.createRecord(getAvroSubSchemaFields());
+  }
+
+  private static org.apache.avro.Schema getAvroSchema() {
     List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
     fields.add(
         new org.apache.avro.Schema.Field(
@@ -228,7 +237,7 @@ public class AvroUtilsTest {
     return org.apache.avro.Schema.createRecord(fields);
   }
 
-  private Schema getBeamSubSchema() {
+  private static Schema getBeamSubSchema() {
     return new Schema.Builder()
         .addField(Field.of("bool", FieldType.BOOLEAN))
         .addField(Field.of("int", FieldType.INT32))
@@ -253,10 +262,10 @@ public class AvroUtilsTest {
         .build();
   }
 
-  static final byte[] BYTE_ARRAY = new byte[] {1, 2, 3, 4};
-  static final DateTime DATE_TIME =
-      new DateTime().withDate(1979, 03, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
-  static final BigDecimal BIG_DECIMAL = new BigDecimal(3600);
+  private static final byte[] BYTE_ARRAY = new byte[] {1, 2, 3, 4};
+  private static final DateTime DATE_TIME =
+      new DateTime().withDate(1979, 3, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
+  private static final BigDecimal BIG_DECIMAL = new BigDecimal(3600);
 
   private Row getBeamRow() {
     Row subRow = Row.withSchema(getBeamSubSchema()).addValues(true, 42).build();
@@ -276,8 +285,7 @@ public class AvroUtilsTest {
         .build();
   }
 
-  private GenericRecord getGenericRecord() {
-
+  private static GenericRecord getGenericRecord() {
     GenericRecord subRecord =
         new GenericRecordBuilder(getAvroSubSchema()).set("bool", true).set("int", 42).build();
 
@@ -424,6 +432,33 @@ public class AvroUtilsTest {
   public void testGenericRecordToBeamRow() {
     Row row = AvroUtils.toBeamRowStrict(getGenericRecord(), null);
     assertEquals(getBeamRow(), row);
+  }
+
+  @Test
+  public void testAvroSchemaCoders() {
+    Pipeline pipeline = Pipeline.create();
+    org.apache.avro.Schema schema =
+        org.apache.avro.Schema.createRecord(
+            "TestSubRecord",
+            "TestSubRecord doc",
+            "org.apache.beam.sdk.schemas.utils",
+            false,
+            getAvroSubSchemaFields());
+    GenericRecord record =
+        new GenericRecordBuilder(getAvroSubSchema()).set("bool", true).set("int", 42).build();
+
+    PCollection<GenericRecord> records =
+        pipeline.apply(Create.of(record).withCoder(AvroCoder.of(schema)));
+    assertFalse(records.hasSchema());
+    records.setCoder(AvroUtils.schemaCoder(schema));
+    assertTrue(records.hasSchema());
+
+    AvroGeneratedUser user = new AvroGeneratedUser("foo", 42, "green");
+    PCollection<AvroGeneratedUser> users =
+        pipeline.apply(Create.of(user).withCoder(AvroCoder.of(AvroGeneratedUser.class)));
+    assertFalse(users.hasSchema());
+    users.setCoder(AvroUtils.schemaCoder((AvroCoder<AvroGeneratedUser>) users.getCoder()));
+    assertTrue(users.hasSchema());
   }
 
   public static ContainsField containsField(Function<org.apache.avro.Schema, Boolean> predicate) {

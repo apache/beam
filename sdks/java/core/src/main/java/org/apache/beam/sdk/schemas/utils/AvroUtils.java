@@ -46,6 +46,7 @@ import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.schemas.AvroRecordSchema;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
@@ -54,6 +55,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
@@ -208,8 +210,7 @@ public class AvroUtils {
       org.apache.avro.Schema.Field recordField = toAvroField(field);
       fields.add(recordField);
     }
-    org.apache.avro.Schema avroSchema = org.apache.avro.Schema.createRecord(fields);
-    return avroSchema;
+    return org.apache.avro.Schema.createRecord(fields);
   }
 
   /**
@@ -309,6 +310,57 @@ public class AvroUtils {
   public static SerializableFunction<Row, GenericRecord> getRowToGenericRecordFunction(
       @Nullable org.apache.avro.Schema avroSchema) {
     return g -> toGenericRecord(g, avroSchema);
+  }
+
+  /**
+   * Returns an {@code SchemaCoder} instance for the provided element type.
+   *
+   * @param <T> the element type
+   */
+  public static <T> SchemaCoder<T> schemaCoder(TypeDescriptor<T> type) {
+    @SuppressWarnings("unchecked")
+    Class<T> clazz = (Class<T>) type.getRawType();
+    return schemaCoder(clazz);
+  }
+
+  /**
+   * Returns an {@code SchemaCoder} instance for the provided element class.
+   *
+   * @param <T> the element type
+   */
+  public static <T> SchemaCoder<T> schemaCoder(Class<T> clazz) {
+    return schemaCoder(clazz, new ReflectData(clazz.getClassLoader()).getSchema(clazz));
+  }
+
+  /**
+   * Returns an {@code SchemaCoder} instance for the Avro schema. The implicit type is
+   * GenericRecord.
+   */
+  public static SchemaCoder<GenericRecord> schemaCoder(org.apache.avro.Schema schema) {
+    return schemaCoder(GenericRecord.class, schema);
+  }
+
+  /**
+   * Returns an {@code SchemaCoder} instance for the provided element type using the provided Avro
+   * schema.
+   *
+   * <p>If the type argument is GenericRecord, the schema may be arbitrary. Otherwise, the schema
+   * must correspond to the type provided.
+   *
+   * @param <T> the element type
+   */
+  public static <T> SchemaCoder<T> schemaCoder(Class<T> clazz, org.apache.avro.Schema schema) {
+    return SchemaCoder.of(
+        getSchema(clazz, schema), getToRowFunction(clazz, schema), getFromRowFunction(clazz));
+  }
+
+  /**
+   * Returns an {@code SchemaCoder} instance based on the provided AvroCoder for the element type.
+   *
+   * @param <T> the element type
+   */
+  public static <T> SchemaCoder<T> schemaCoder(AvroCoder<T> avroCoder) {
+    return schemaCoder(avroCoder.getType(), avroCoder.getSchema());
   }
 
   private static final class AvroSpecificRecordFieldValueTypeSupplier

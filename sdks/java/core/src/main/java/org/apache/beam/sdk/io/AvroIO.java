@@ -61,8 +61,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.joda.time.Duration;
@@ -185,6 +187,49 @@ import org.joda.time.Duration;
  * thousands or more), use {@link Read#withHintMatchesManyFiles} for better performance and
  * scalability. Note that it may decrease performance if the filepattern matches only a small number
  * of files.
+ *
+ * <h3>Inferring Beam schemas from Avro files</h3>
+ *
+ * <p>If you want to use SQL or schema based operations on an Avro-based PCollection, you must
+ * configure the read transform to infer the Beam schema and automatically setup the Beam related
+ * coders by doing:
+ *
+ * <pre>{@code
+ * PCollection<AvroAutoGenClass> records =
+ *     p.apply(AvroIO.read(...).from(...).withBeamSchemas(true);
+ * }</pre>
+ *
+ * <h3>Inferring Beam schemas from Avro PCollections</h3>
+ *
+ * <p>If you created an Avro-based PCollection by other means e.g. reading records from Kafka or as
+ * the output of another PTransform, you may be interested on making your PCollection schema-aware
+ * so you can use the Schema-based APIs or Beam's SqlTransform.
+ *
+ * <p>If you are using Avro specific records (generated classes from an Avro schema), you can
+ * register a schema provider for the specific Avro class to make any PCollection of these objects
+ * schema-aware.
+ *
+ * <pre>{@code
+ * pipeline.getSchemaRegistry().registerSchemaProvider(AvroAutoGenClass.class, AvroAutoGenClass.getClassSchema());
+ * }</pre>
+ *
+ * You can also manually set an Avro-backed Schema coder for a PCollection using {@link
+ * org.apache.beam.sdk.schemas.utils.AvroUtils#schemaCoder(Class, Schema)} to make it schema-aware.
+ *
+ * <pre>{@code
+ * PCollection<AvroAutoGenClass> records = ...
+ * AvroCoder<AvroAutoGenClass> coder = (AvroCoder<AvroAutoGenClass>) users.getCoder();
+ * records.setCoder(AvroUtils.schemaCoder(coder.getType(), coder.getSchema()));
+ * }</pre>
+ *
+ * <p>If you are using GenericRecords you may need to set a specific Beam schema coder for each
+ * PCollection to match their internal Avro schema.
+ *
+ * <pre>{@code
+ * org.apache.avro.Schema avroSchema = ...
+ * PCollection<GenericRecord> records = ...
+ * records.setCoder(AvroUtils.schemaCoder(avroSchema));
+ * }</pre>
  *
  * <h2>Writing Avro files</h2>
  *
@@ -625,6 +670,10 @@ public class AvroIO {
       return toBuilder().setHintMatchesManyFiles(true).build();
     }
 
+    /**
+     * If set to true, a Beam schema will be inferred from the AVRO schema. This allows the output
+     * to be used by SQL and by the schema-transform library.
+     */
     @Experimental(Kind.SCHEMAS)
     public Read<T> withBeamSchemas(boolean withBeamSchemas) {
       return toBuilder().setInferBeamSchema(withBeamSchemas).build();
@@ -864,7 +913,9 @@ public class AvroIO {
 
     CreateSourceFn(Class<T> recordClass, String jsonSchema) {
       this.recordClass = recordClass;
-      this.schemaSupplier = AvroUtils.serializableSchemaSupplier(jsonSchema);
+      this.schemaSupplier =
+          Suppliers.memoize(
+              Suppliers.compose(new JsonToSchema(), Suppliers.ofInstance(jsonSchema)));
     }
 
     @Override
@@ -874,6 +925,13 @@ public class AvroIO {
           EmptyMatchTreatment.DISALLOW,
           recordClass,
           schemaSupplier.get());
+    }
+
+    private static class JsonToSchema implements Function<String, Schema>, Serializable {
+      @Override
+      public Schema apply(String input) {
+        return new Schema.Parser().parse(input);
+      }
     }
   }
 
