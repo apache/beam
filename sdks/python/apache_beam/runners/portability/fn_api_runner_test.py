@@ -56,6 +56,7 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
+from apache_beam.io.sdf_line_source import SdfReadLineSource
 
 if statesampler.FAST_SAMPLER:
   DEFAULT_SAMPLING_PERIOD_MS = statesampler.DEFAULT_SAMPLING_PERIOD_MS
@@ -1567,6 +1568,21 @@ class FnApiRunnerSplitTestWithMultiWorkers(FnApiRunnerSplitTest):
 
   def test_split_half(self):
     raise unittest.SkipTest("This test is for a single worker only.")
+
+class FnApiRunnerSdfSourceTest(unittest.TestCase):
+  def _create_temp_file(self, contents):
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+      f.write(contents)
+      return f.name
+
+  def create_pipeline(self):
+    return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
+
+  def test_basic_read(self):
+    file_name = self._create_temp_file(b'aaaa\nbbbb\ncccc\ndddd')
+    with self.create_pipeline() as p:
+      actual = (p | SdfReadLineSource([file_name]))
+      assert_that(actual, equal_to([b'aaaa', b'bbbb', b'cccc', b'dddd']))
 
 
 if __name__ == '__main__':
