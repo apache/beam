@@ -437,7 +437,13 @@
 
 
 <ul class="nav">
-  <li><a href="#examples">Examples</a></li>
+  <li><a href="#examples">Examples</a>
+    <ul>
+      <li><a href="#example-1-partition-with-a-function">Example 1: Partition with a function</a></li>
+      <li><a href="#example-2-partition-with-a-lambda-function">Example 2: Partition with a lambda function</a></li>
+      <li><a href="#example-3-partition-with-multiple-arguments">Example 3: Partition with multiple arguments</a></li>
+    </ul>
+  </li>
   <li><a href="#related-transforms">Related transforms</a></li>
 </ul>
 
@@ -460,11 +466,18 @@ limitations under the License.
 -->
 
 <h1 id="partition">Partition</h1>
-<table align="left">
-    <a target="_blank" class="button" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Partition">
+
+<script type="text/javascript">
+localStorage.setItem('language', 'language-py')
+</script>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Partition">
       <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
-     Pydoc
+      Pydoc
     </a>
+  </td>
 </table>
 <p><br />
 Separates elements in a collection into multiple output
@@ -478,17 +491,256 @@ You cannot determine the number of partitions in mid-pipeline</p>
 <p>See more information in the <a href="/documentation/programming-guide/#partition">Beam Programming Guide</a>.</p>
 
 <h2 id="examples">Examples</h2>
-<p>See <a href="https://issues.apache.org/jira/browse/BEAM-7389">BEAM-7389</a> for updates.</p>
+
+<p>In the following examples, we create a pipeline with a <code class="highlighter-rouge">PCollection</code> of produce with their icon, name, and duration.
+Then, we apply <code class="highlighter-rouge">Partition</code> in multiple ways to split the <code class="highlighter-rouge">PCollection</code> into multiple <code class="highlighter-rouge">PCollections</code>.</p>
+
+<p><code class="highlighter-rouge">Partition</code> accepts a function that receives the number of partitions,
+and returns the index of the desired partition for the element.
+The number of partitions passed must be a positive integer,
+and it must return an integer in the range <code class="highlighter-rouge">0</code> to <code class="highlighter-rouge">num_partitions-1</code>.</p>
+
+<h3 id="example-1-partition-with-a-function">Example 1: Partition with a function</h3>
+
+<p>In the following example, we have a known list of durations.
+We partition the <code class="highlighter-rouge">PCollection</code> into one <code class="highlighter-rouge">PCollection</code> for every duration type.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="n">durations</span> <span class="o">=</span> <span class="p">[</span><span class="s">'annual'</span><span class="p">,</span> <span class="s">'biennial'</span><span class="p">,</span> <span class="s">'perennial'</span><span class="p">]</span>
+
+<span class="k">def</span> <span class="nf">by_duration</span><span class="p">(</span><span class="n">plant</span><span class="p">,</span> <span class="n">num_partitions</span><span class="p">):</span>
+  <span class="k">return</span> <span class="n">durations</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">plant</span><span class="p">[</span><span class="s">'duration'</span><span class="p">])</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">annuals</span><span class="p">,</span> <span class="n">biennials</span><span class="p">,</span> <span class="n">perennials</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍓'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥕'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'biennial'</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍆'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Eggplant'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍅'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'annual'</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥔'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'Partition'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Partition</span><span class="p">(</span><span class="n">by_duration</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">durations</span><span class="p">))</span>
+  <span class="p">)</span>
+  <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">annuals</span>
+      <span class="o">|</span> <span class="s">'Annuals'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'annual: '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+  <span class="p">)</span>
+  <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">biennials</span>
+      <span class="o">|</span> <span class="s">'Biennials'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'biennial: '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+  <span class="p">)</span>
+  <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">perennials</span>
+      <span class="o">|</span> <span class="s">'Perennials'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'perennial: '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code>s:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>annuals = [
+    {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
+]
+biennials = [
+    {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
+]
+perennials = [
+    {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
+    {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
+    {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/partition.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
+
+<h3 id="example-2-partition-with-a-lambda-function">Example 2: Partition with a lambda function</h3>
+
+<p>We can also use lambda functions to simplify <strong>Example 1</strong>.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="n">durations</span> <span class="o">=</span> <span class="p">[</span><span class="s">'annual'</span><span class="p">,</span> <span class="s">'biennial'</span><span class="p">,</span> <span class="s">'perennial'</span><span class="p">]</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">annuals</span><span class="p">,</span> <span class="n">biennials</span><span class="p">,</span> <span class="n">perennials</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍓'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥕'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'biennial'</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍆'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Eggplant'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍅'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'annual'</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥔'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'Partition'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Partition</span><span class="p">(</span>
+          <span class="k">lambda</span> <span class="n">plant</span><span class="p">,</span> <span class="n">num_partitions</span><span class="p">:</span> <span class="n">durations</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">plant</span><span class="p">[</span><span class="s">'duration'</span><span class="p">]),</span>
+          <span class="nb">len</span><span class="p">(</span><span class="n">durations</span><span class="p">),</span>
+      <span class="p">)</span>
+  <span class="p">)</span>
+  <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">annuals</span>
+      <span class="o">|</span> <span class="s">'Annuals'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'annual: '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+  <span class="p">)</span>
+  <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">biennials</span>
+      <span class="o">|</span> <span class="s">'Biennials'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'biennial: '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+  <span class="p">)</span>
+  <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">perennials</span>
+      <span class="o">|</span> <span class="s">'Perennials'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'perennial: '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code>s:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>annuals = [
+    {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
+]
+biennials = [
+    {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
+]
+perennials = [
+    {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
+    {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
+    {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/partition.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
+
+<h3 id="example-3-partition-with-multiple-arguments">Example 3: Partition with multiple arguments</h3>
+
+<p>You can pass functions with multiple arguments to <code class="highlighter-rouge">Partition</code>.
+They are passed as additional positional arguments or keyword arguments to the function.</p>
+
+<p>In machine learning, it is a common task to split data into
+<a href="https://en.wikipedia.org/wiki/Training,_validation,_and_test_sets">training and a testing datasets</a>.
+Typically, 80% of the data is used for training a model and 20% is used for testing.</p>
+
+<p>In this example, we split a <code class="highlighter-rouge">PCollection</code> dataset into training and testing datasets.
+We define <code class="highlighter-rouge">split_dataset</code>, which takes the <code class="highlighter-rouge">plant</code> element, <code class="highlighter-rouge">num_partitions</code>,
+and an additional argument <code class="highlighter-rouge">ratio</code>.
+The <code class="highlighter-rouge">ratio</code> is a list of numbers which represents the ratio of how many items will go into each partition.
+<code class="highlighter-rouge">num_partitions</code> is used by <code class="highlighter-rouge">Partitions</code> as a positional argument,
+while <code class="highlighter-rouge">plant</code> and <code class="highlighter-rouge">ratio</code> are passed to <code class="highlighter-rouge">split_dataset</code>.</p>
+
+<p>If we want an 80%/20% split, we can specify a ratio of <code class="highlighter-rouge">[8, 2]</code>, which means that for every 10 elements,
+8 go into the first partition and 2 go into the second.
+In order to determine which partition to send each element, we have different buckets.
+For our case <code class="highlighter-rouge">[8, 2]</code> has <strong>10</strong> buckets,
+where the first 8 buckets represent the first partition and the last 2 buckets represent the second partition.</p>
+
+<p>First, we check that the ratio list’s length corresponds to the <code class="highlighter-rouge">num_partitions</code> we pass.
+We then get a bucket index for each element, in the range from 0 to 9 (<code class="highlighter-rouge">num_buckets-1</code>).
+We could do <code class="highlighter-rouge">hash(element) % len(ratio)</code>, but instead we sum all the ASCII characters of the
+JSON representation to make it deterministic.
+Finally, we loop through all the elements in the ratio and have a running total to
+identify the partition index to which that bucket corresponds.</p>
+
+<p>This <code class="highlighter-rouge">split_dataset</code> function is generic enough to support any number of partitions by any ratio.
+You might want to adapt the bucket assignment to use a more appropriate or randomized hash for your dataset.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<span class="kn">import</span> <span class="nn">json</span>
+
+<span class="k">def</span> <span class="nf">split_dataset</span><span class="p">(</span><span class="n">plant</span><span class="p">,</span> <span class="n">num_partitions</span><span class="p">,</span> <span class="n">ratio</span><span class="p">):</span>
+  <span class="k">assert</span> <span class="n">num_partitions</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">ratio</span><span class="p">)</span>
+  <span class="n">bucket</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">ord</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">plant</span><span class="p">)))</span> <span class="o">%</span> <span class="nb">sum</span><span class="p">(</span><span class="n">ratio</span><span class="p">)</span>
+  <span class="n">total</span> <span class="o">=</span> <span class="mi">0</span>
+  <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">part</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">ratio</span><span class="p">):</span>
+    <span class="n">total</span> <span class="o">+=</span> <span class="n">part</span>
+    <span class="k">if</span> <span class="n">bucket</span> <span class="o">&lt;</span> <span class="n">total</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">i</span>
+  <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">ratio</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">train_dataset</span><span class="p">,</span> <span class="n">test_dataset</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍓'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥕'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'biennial'</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍆'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Eggplant'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍅'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'annual'</span><span class="p">},</span>
+          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥔'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'Partition'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Partition</span><span class="p">(</span><span class="n">split_dataset</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">ratio</span><span class="o">=</span><span class="p">[</span><span class="mi">8</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+  <span class="p">)</span>
+  <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">train_dataset</span>
+      <span class="o">|</span> <span class="s">'Train'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'train: '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+  <span class="p">)</span>
+  <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">test_dataset</span>
+      <span class="o">|</span> <span class="s">'Test'</span>  <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'test: '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code>s:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>train_dataset = [
+    {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
+    {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
+    {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
+]
+test_dataset = [
+    {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
+    {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/partition.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
 
 <h2 id="related-transforms">Related transforms</h2>
+
 <ul>
-  <li><a href="/documentation/transforms/python/elementwise/filter">Filter</a> is useful if the function is just 
+  <li><a href="/documentation/transforms/python/elementwise/filter">Filter</a> is useful if the function is just
 deciding whether to output an element or not.</li>
   <li><a href="/documentation/transforms/python/elementwise/pardo">ParDo</a> is the most general element-wise mapping
 operation, and includes other abilities such as multiple output collections and side-inputs.</li>
   <li><a href="/documentation/transforms/python/aggregation/cogroupbykey">CoGroupByKey</a>
 performs a per-key equijoin.</li>
 </ul>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Partition">
+      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
+      Pydoc
+    </a>
+  </td>
+</table>
+<p><br /></p>
 
       </div>
     </div>
