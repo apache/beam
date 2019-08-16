@@ -52,12 +52,13 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.utils import timestamp
 
-from google.protobuf.timestamp_pb2 import Timestamp
 # Protect against environments where the PubSub library is not available.
 try:
   from google.cloud import pubsub
+  from google.protobuf.timestamp_pb2 import Timestamp
 except ImportError:
   pubsub = None
+  Timestamp = None
 
 
 class TestPubsubMessage(unittest.TestCase):
@@ -83,40 +84,55 @@ class TestPubsubMessage(unittest.TestCase):
     self.assertEqual(m_converted.attributes, attributes)
 
   def test_eq(self):
-    publish_time_secs = 1520861821
-    publish_time_nanos = 234567000
-    publish_time = Timestamp(seconds=publish_time_secs,
-                             nanos=publish_time_nanos)
+    publish_time = Timestamp(seconds=1520861821,
+                             nanos=234567000)
     a = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890', publish_time)
     b = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890', publish_time)
     c = PubsubMessage(b'abc', {1: 2}, '1234567890', publish_time)
+    d = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234', publish_time)
+    e = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890',
+                      Timestamp(seconds=0, nanos=0))
     self.assertTrue(a == b)
     self.assertTrue(a != c)
     self.assertTrue(b != c)
+    self.assertTrue(a != d)
+    self.assertTrue(b != d)
+    self.assertTrue(a != e)
+    self.assertTrue(b != e)
 
   def test_hash(self):
-    publish_time_secs = 1520861821
-    publish_time_nanos = 234567000
-    publish_time = Timestamp(seconds=publish_time_secs,
-                             nanos=publish_time_nanos)
+    publish_time = Timestamp(seconds=1520861821,
+                             nanos=234567000)
     a = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890', publish_time)
     b = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890', publish_time)
     c = PubsubMessage(b'abc', {1: 2}, '1234567890', publish_time)
+    d = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234', publish_time)
+    e = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890',
+                      Timestamp(seconds=0, nanos=0))
     self.assertTrue(hash(a) == hash(b))
     self.assertTrue(hash(a) != hash(c))
     self.assertTrue(hash(b) != hash(c))
+    self.assertTrue(hash(a) != hash(d))
+    self.assertTrue(hash(b) != hash(d))
+    self.assertTrue(hash(a) != hash(e))
+    self.assertTrue(hash(b) != hash(e))
 
   def test_repr(self):
-    publish_time_secs = 1520861821
-    publish_time_nanos = 234567000
-    publish_time = Timestamp(seconds=publish_time_secs,
-                             nanos=publish_time_nanos)
+    publish_time = Timestamp(seconds=1520861821,
+                             nanos=234567000)
     a = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890', publish_time)
     b = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890', publish_time)
     c = PubsubMessage(b'abc', {1: 2}, '1234567890', publish_time)
+    d = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234', publish_time)
+    e = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890',
+                      Timestamp(seconds=0, nanos=0))
     self.assertTrue(repr(a) == repr(b))
     self.assertTrue(repr(a) != repr(c))
     self.assertTrue(repr(b) != repr(c))
+    self.assertTrue(repr(a) != repr(d))
+    self.assertTrue(repr(b) != repr(d))
+    self.assertTrue(repr(a) != repr(e))
+    self.assertTrue(repr(b) != repr(e))
 
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')

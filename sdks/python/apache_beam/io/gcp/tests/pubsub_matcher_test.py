@@ -34,12 +34,9 @@ from apache_beam.testing.test_utils import create_pull_response
 # Protect against environments where pubsub library is not available.
 try:
   from google.cloud import pubsub
-except ImportError:
-  pubsub = None
-
-try:
   from google.protobuf.timestamp_pb2 import Timestamp
 except ImportError:
+  pubsub = None
   Timestamp = None
 
 
