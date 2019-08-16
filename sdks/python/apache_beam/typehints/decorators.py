@@ -344,8 +344,8 @@ class WithTypeHints(object):
 
     If type hints have not been set, attempts to initialize type hints in this
     order:
-      - Using self.default_type_hints().
-      - Using self.__class__ type hints.
+    - Using self.default_type_hints().
+    - Using self.__class__ type hints.
     """
     return (self._get_or_create_type_hints()
             .with_defaults(self.default_type_hints())

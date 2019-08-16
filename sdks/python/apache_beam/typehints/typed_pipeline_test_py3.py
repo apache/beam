@@ -96,7 +96,6 @@ class MainInputTest(unittest.TestCase):
     def do_fn(element: int) -> typehints.Iterable[typehints.Iterable[str]]:
       return [[str(element)] * 2]
 
-    print(beam.ParDo(do_fn).get_type_hints())
     result = [1, 2] | beam.ParDo(do_fn)
     self.assertEqual([['1', '1'], ['2', '2']], sorted(result))
 
