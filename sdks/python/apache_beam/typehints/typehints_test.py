@@ -1169,7 +1169,7 @@ class DecoratorHelpers(TypeHintTestCase):
                              e=Dict[str, Union[int, str]]))
 
   def test_getcallargs_forhints_builtins(self):
-    if sys.version_info.major < 3:
+    if sys.version_info < (3, ):
       self.assertEqual(
           {'_': str,
            '__unknown__varargs': Tuple[Any, ...],
@@ -1184,12 +1184,24 @@ class DecoratorHelpers(TypeHintTestCase):
           {'_': str,
            '__unknown__varargs': Tuple[Any, ...],
            '__unknown__keywords': typehints.Dict[Any, Any]},
-          getcallargs_forhints(False, str.join, str, list))
-    elif sys.version_info.minor < 7:
+          getcallargs_forhints(False, str.join, str, typehints.List[int]))
+    elif sys.version_info < (3, 7):
       # Signatures for builtins are not supported in 3.5 and 3.6.
-      self.assertEqual({}, getcallargs_forhints(False, str.upper, str))
-      self.assertEqual({}, getcallargs_forhints(False, str.strip, str, str))
-      self.assertEqual({}, getcallargs_forhints(False, str.join, str, list))
+      self.assertEqual(
+          {'_': str,
+           '__unknown__varargs': Tuple[Any, ...],
+           '__unknown__keywords': typehints.Dict[Any, Any]},
+          getcallargs_forhints(False, str.upper, str))
+      self.assertEqual(
+          {'_': str,
+           '__unknown__varargs': Tuple[str, ...],
+           '__unknown__keywords': typehints.Dict[Any, Any]},
+          getcallargs_forhints(False, str.strip, str, str))
+      self.assertEqual(
+          {'_': str,
+           '__unknown__varargs': Tuple[typehints.List[int], ...],
+           '__unknown__keywords': typehints.Dict[Any, Any]},
+          getcallargs_forhints(False, str.join, str, typehints.List[int]))
     else:
       self.assertEqual(
           {'self': str},
@@ -1197,8 +1209,9 @@ class DecoratorHelpers(TypeHintTestCase):
       # str.strip has an optional second argument.
       self.assertEqual({'self': str, 'chars': Any},
                        getcallargs_forhints(False, str.strip, str))
-      self.assertEqual({'self': str, 'iterable': list},
-                       getcallargs_forhints(False, str.join, str, list))
+      self.assertEqual(
+          {'self': str, 'iterable': typehints.List[int]},
+          getcallargs_forhints(False, str.join, str, typehints.List[int]))
 
 
 class TestGetYieldedType(unittest.TestCase):

@@ -203,9 +203,9 @@ class IOTypeHints(object):
   may also be attached to other objects (such as Python functions).
 
   Attributes:
-    input_types: (list, dict) List of typing types, plus an optional dictionary.
+    input_types: (tuple, dict) List of typing types, and an optional dictionary.
       May be None. The list and dict correspond to args and kwargs.
-    output_types: (list, dict) List of typing types, plus an optional dictionary
+    output_types: (tuple, dict) List of typing types, and an optional dictionary
       (unused). Only the first element of the list is used. May be None.
   """
   __slots__ = ('input_types', 'output_types')
@@ -292,8 +292,7 @@ class IOTypeHints(object):
     if not self.has_simple_output_type():
       return
     yielded_type = typehints.get_yielded_type(self.output_types[0][0])
-    if yielded_type is not None:
-      self.output_types = ((yielded_type,), {})
+    self.output_types = ((yielded_type,), {})
 
   def copy(self):
     return IOTypeHints(self.input_types, self.output_types)
@@ -392,7 +391,6 @@ def _unpack_positional_arg_hints(arg, hint):
   this function would return ((Any, Any), int) so it can be used in conjunction
   with inspect.getcallargs.
   """
-  assert isinstance(arg, str)
   if isinstance(arg, list):
     tuple_constraint = typehints.Tuple[[typehints.Any] * len(arg)]
     if not typehints.is_consistent_with(hint, tuple_constraint):
@@ -454,7 +452,8 @@ def getcallargs_forhints_impl_py2(func, typeargs, typekwargs):
         callargs[var] = typehints.Any
   # Patch up varargs and keywords
   if argspec.varargs:
-    # TODO(udim): This should be "callargs.get(...) or _ANY_VAR_POSITIONAL".
+    # TODO(udim): This will always assign _ANY_VAR_POSITIONAL. Should be
+    #   "callargs.get(...) or _ANY_VAR_POSITIONAL".
     callargs[argspec.varargs] = typekwargs.get(
         argspec.varargs, _ANY_VAR_POSITIONAL)
 
@@ -493,21 +492,26 @@ def getcallargs_forhints_impl_py3(using_var_hints,
   bound_args = bindings.arguments
   for param in signature.parameters.values():
     if param.name in bound_args:
+      # Bound: unpack/convert variadic arguments.
       if param.kind == param.VAR_POSITIONAL:
         args = bound_args[param.name]
         if type(args) != tuple or (using_var_hints and len(args) != 1):
           raise TypeCheckError('Unexpected VAR_POSITIONAL value: %s' % args)
         if using_var_hints:
+          # Example: tuple(Tuple[Any, ...]) -> Tuple[Any, ...]
           bound_args[param.name] = args[0]
         else:
+          # Example: tuple(int, str) -> Tuple[Union[int, str], ...]
           bound_args[param.name] = typehints.Tuple[typehints.Union[args], ...]
       elif param.kind == param.VAR_KEYWORD:
         kwargs = bound_args[param.name]
         if type(kwargs) != dict or (using_var_hints and len(kwargs) != 1):
           raise TypeCheckError('Unexpected VAR_KEYWORD value: %s' % kwargs)
         if using_var_hints:
+          # Example: dict(k1=Dict[str, Any]) -> Dict[str, Any]
           bound_args[param.name] = list(kwargs.values())[0]
         else:
+          # Example: dict(k1=str, k2=int) -> Dict[str, Union[str,int]]
           bound_args[param.name] = typehints.Dict[
               str, typehints.Union[list(kwargs.values())]]
     else:

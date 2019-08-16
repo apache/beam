@@ -89,15 +89,16 @@ class MainInputTest(unittest.TestCase):
                                 r'requires.*int.*got.*str'):
       [1, 2, 3] | (pardo | 'again' >> pardo)
 
-  # TODO(BEAM-7981): Both Iterables get stripped in
-  #   CallableWrapperDoFn.default_type_hints, but only one should.
-  # def test_typed_callable_iterable_output(self):
-  #   def do_fn(element: int) -> typehints.Iterable[typehints.Iterable[str]]:
-  #     return [[str(element)] * 2]
-  #
-  #   print(beam.ParDo(do_fn).get_type_hints())
-  #   result = [1, 2] | beam.ParDo(do_fn)
-  #   self.assertEqual([['1', '1'], ['2', '2']], sorted(result))
+  @unittest.skip('BEAM-7981: Iterable in output type should not be removed.')
+  def test_typed_callable_iterable_output(self):
+    # TODO(BEAM-7981): Both Iterables get stripped in
+    #   CallableWrapperDoFn.default_type_hints, but only one should.
+    def do_fn(element: int) -> typehints.Iterable[typehints.Iterable[str]]:
+      return [[str(element)] * 2]
+
+    print(beam.ParDo(do_fn).get_type_hints())
+    result = [1, 2] | beam.ParDo(do_fn)
+    self.assertEqual([['1', '1'], ['2', '2']], sorted(result))
 
   def test_typed_dofn_method_not_iterable(self):
     class MyDoFn(beam.DoFn):
