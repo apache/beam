@@ -17,6 +17,7 @@
 
 """ Integration test for GCP Bigtable testing."""
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import argparse
@@ -32,12 +33,15 @@ import apache_beam.io.gcp.bigtableio as bigtableio
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.runner import PipelineState
-from apache_beam.testing.util import assert_that, equal_to
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms.combiners import Count
 from nose.plugins.attrib import attr
 
 try:
-  from google.cloud.bigtable import row, column_family, Client
+  from google.cloud.bigtable import Client
+  from google.cloud.bigtable import column_family
+  from google.cloud.bigtable import row
 except ImportError:
   Client = None
 
@@ -90,9 +94,9 @@ class BigtableIOTest(unittest.TestCase):
   """
   def setUp(self):
     self.result = None
-    self.table = Client(project=PROJECT_ID, admin=True)\
-                    .instance(instance_id=INSTANCE_ID)\
-                    .table(TABLE_ID)
+    client = Client(project=PROJECT_ID, admin=True)
+    instance = client.instance(instance_id=INSTANCE_ID)
+    self.table = instance.table(table_id=TABLE_ID)
 
     if not self.table.exists():
       column_families = {COLUMN_FAMILY_ID: column_family.MaxVersionsGCRule(2)}
