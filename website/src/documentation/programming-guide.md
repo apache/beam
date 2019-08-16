@@ -2909,8 +2909,8 @@ elements, or after a minute.
 %}```
 
 ## 9. Metrics {#metrics}
-The Beam model provides a way to use different types of metrics in a user pipeline.  There could be 
-different reasons for that, for instance:
+In the Beam model, metrics provide some insight into the current state of a user pipeline, 
+potentially while the pipeline is running. There could be different reasons for that, for instance:
 *   Check the number of errors encountered while running a specific step in the pipeline;
 *   Monitor the number of RPCs made to backend service;
 *   Retrieve an accurate count of the number of elements that have been processed;
@@ -2931,7 +2931,7 @@ different reasons for that, for instance:
 
 Reported metrics are implicitly scoped to the transform within the pipeline that reported them. 
 This allows reporting the same metric name in multiple places and identifying the value each 
-transform reported, as well as aggregating the metric across
+transform reported, as well as aggregating the metric across the entire pipeline.
 
 > **Note:** It is runner-dependent whether metrics are accessible during pipeline execution or only 
 after jobs have completed.
@@ -3011,7 +3011,7 @@ public interface MetricResult<T> {
 ```
 
 ### 9.4 Using metrics in pipeline {#using-metrics}
-Below, there is a simple example of how to use `Counter` metric in user pipeline.
+Below, there is a simple example of how to use a `Counter` metric in a user pipeline.
 
 ```java
 // creating a pipeline with custom metrics DoFn
@@ -3029,6 +3029,11 @@ MetricQueryResults metrics =
             MetricsFilter.builder()
                 .addNameFilter(MetricNameFilter.named("namespace", "counter1"))
                 .build());
+
+// Find and print the queried counter:
+for (MetricResult<Long> counter: metrics.getCounters()) {
+  System.out.println(counter.getName() + ":" + counter.getAttempted());
+}
 
 public class MyMetricsDoFn extends DoFn<Integer, Integer> {
   private final Counter counter = Metrics.counter( "namespace", "counter1");
