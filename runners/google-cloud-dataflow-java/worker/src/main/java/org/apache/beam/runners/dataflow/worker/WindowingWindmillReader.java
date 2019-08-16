@@ -122,7 +122,7 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
             && Iterables.isEmpty(keyedWorkItem.elementsIterable()));
     final WindowedValue<KeyedWorkItem<K, T>> value = new ValueInEmptyWindows<>(keyedWorkItem);
 
-    // Return a non-op iterator when current workitem is an empty workitem.
+    // Return a noop iterator when current workitem is an empty workitem.
     if (isEmptyWorkItem) {
       return new NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>>() {
         @Override
