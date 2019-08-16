@@ -221,7 +221,7 @@ class ApproximateUniqueCombineFn(CombineFn):
     except Exception as e:
       raise RuntimeError("Runtime exception: %s", e)
 
-  # created an issue https://issues.apache.org/jira/browse/BEAM-7285 to speep up
+  # created an issue https://issues.apache.org/jira/browse/BEAM-7285 to speed up
   # merge process.
   def merge_accumulators(self, accumulators, *args, **kwargs):
     merged_accumulator = self.create_accumulator()
@@ -489,7 +489,6 @@ class ApproximateQuantilesCombineFn(CombineFn):
                      _QuantileBuffer(elements=qs.unbuffered_elements))
       qs.unbuffered_elements = []
       self._collapse_if_needed(qs)
-    return qs
 
   def _offset(self, newWeight):
     """
@@ -587,8 +586,8 @@ class ApproximateQuantilesCombineFn(CombineFn):
       quantile_state.min_val = element
     elif self._comparator(element, quantile_state.max_val) > 0:
       quantile_state.max_val = element
-    qs = self._add_unbuffered(quantile_state, elem=element)
-    return qs
+    self._add_unbuffered(quantile_state, elem=element)
+    return quantile_state
 
   def merge_accumulators(self, accumulators):
     """Merges all the accumulators (quantile state) as one."""
@@ -604,7 +603,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
         qs.max_val = accumulator.max_val
 
       for unbuffered_element in accumulator.unbuffered_elements:
-        qs = self._add_unbuffered(qs, unbuffered_element)
+        self._add_unbuffered(qs, unbuffered_element)
 
       qs.buffers.extend(accumulator.buffers)
     self._collapse_if_needed(qs)

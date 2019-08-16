@@ -390,30 +390,31 @@ class ApproximateQuantilesTest(unittest.TestCase):
 
   def test_quantiles_globaly(self):
     with TestPipeline() as p:
-      pc = p | Create(range(101))
-      quantiles = pc | beam.ApproximateQuantiles.Globally(5)
-      assert_that(quantiles, equal_to([[0, 25, 50, 75, 100]]))
+      pc = p | Create(list(range(101)))
 
-  def test_quantiles_globaly_reversed(self):
-    with TestPipeline() as p:
-      data = range(101)
-      pc = p | Create(data)
-      quantiles = pc | beam.ApproximateQuantiles.Globally(5, reverse=True)
-      assert_that(quantiles, equal_to([[100, 75, 50, 25, 0]]))
+      quantiles = pc | 'Quantiles globally' >> \
+                  beam.ApproximateQuantiles.Globally(5)
+      quantiles_reversed = pc | 'Quantiles globally reversed' >> \
+                           beam.ApproximateQuantiles.Globally(5, reverse=True)
+
+      assert_that(quantiles, equal_to([[0, 25, 50, 75, 100]]),
+                  label='checkQuantilesGlobally')
+      assert_that(quantiles_reversed, equal_to([[100, 75, 50, 25, 0]]),
+                  label='checkReversedQuantiles')
 
   def test_quantiles_per_key(self):
     with TestPipeline() as p:
       data = self._kv_data
       pc = p | Create(data)
-      quantiles = pc | beam.ApproximateQuantiles.PerKey(2)
-      assert_that(quantiles, equal_to([('a', [1, 3]), ('b', [1, 100])]))
 
-  def test_quantiles_per_key_reversed(self):
-    with TestPipeline() as p:
-      data = self._kv_data
-      pc = p | Create(data)
-      quantiles = pc | beam.ApproximateQuantiles.PerKey(2, reverse=True)
-      assert_that(quantiles, equal_to([('a', [3, 1]), ('b', [100, 1])]))
+      per_key = pc | 'Quantiles PerKey' >> beam.ApproximateQuantiles.PerKey(2)
+      per_key_reversed = (pc  | 'Quantiles PerKey Reversed' >>
+                          beam.ApproximateQuantiles.PerKey(2, reverse=True))
+
+      assert_that(per_key, equal_to([('a', [1, 3]), ('b', [1, 100])]),
+                  label='checkQuantilePerKey')
+      assert_that(per_key_reversed, equal_to([('a', [3, 1]), ('b', [100, 1])]),
+                  label='checkReversedQuantilesPerKey')
 
   def test_quantiles_per_key_with_key_argument(self):
     with TestPipeline() as p:
@@ -421,8 +422,8 @@ class ApproximateQuantilesTest(unittest.TestCase):
       pc = p | Create(data)
 
       per_key = pc | 'Per Key' >> beam.ApproximateQuantiles.PerKey(2, key=len)
-      per_key_reversed = pc | 'Per Key Reversed' >> beam.ApproximateQuantiles.\
-        PerKey(2, key=len, reverse=True)
+      per_key_reversed = (pc | 'Per Key Reversed' >> beam.ApproximateQuantiles.
+                          PerKey(2, key=len, reverse=True))
 
       assert_that(per_key, equal_to([('a', ['a', 'a' * 3]),
                                      ('b', ['b', 'b' * 100])]),
@@ -440,8 +441,7 @@ class ApproximateQuantilesTest(unittest.TestCase):
 
   def test_uneven_quantiles(self):
     with TestPipeline() as p:
-      data = range(5000)
-      pc = p | Create(data)
+      pc = p | Create(list(range(5000)))
       qunatiles = pc | beam.ApproximateQuantiles.Globally(37)
       aprox_quantiles = self._approx_quantile_generator(size=5000,
                                                         num_of_quantiles=37,
@@ -450,8 +450,7 @@ class ApproximateQuantilesTest(unittest.TestCase):
 
   def test_large_quantiles(self):
     with TestPipeline() as p:
-      data = range(10001)
-      pc = p | Create(data)
+      pc = p | Create(list(range(10001)))
       qunatiles = pc | beam.ApproximateQuantiles.Globally(50)
       aprox_quantiles = self._approx_quantile_generator(size=10001,
                                                         num_of_quantiles=50,
@@ -474,10 +473,10 @@ class ApproximateQuantilesTest(unittest.TestCase):
 
     with TestPipeline() as p:
       pc = p | Create(data)
-      quantiles = pc | 'Quantiles Globally' >> \
-                  beam.ApproximateQuantiles.Globally(5)
-      quantiles_reversed = pc | 'Quantiles Reversed' >> \
-                           beam.ApproximateQuantiles.Globally(5, reverse=True)
+      quantiles = (pc | 'Quantiles Globally' >>
+                   beam.ApproximateQuantiles.Globally(5))
+      quantiles_reversed = (pc | 'Quantiles Reversed' >>
+                            beam.ApproximateQuantiles.Globally(5, reverse=True))
 
       assert_that(quantiles, equal_to([[0, 25, 50, 75, 100]]),
                   label="checkQuantilesGlobally")
@@ -515,11 +514,11 @@ class ApproximateQuantilesTest(unittest.TestCase):
       pc = p | Create(data)
 
       globally = pc | 'Globally' >> beam.ApproximateQuantiles.Globally(3)
-      with_key = pc | 'Globally with key' >> \
-                          beam.ApproximateQuantiles.Globally(3, key=len)
-      key_with_reversed = pc | 'Globally with key and reversed' >> \
-                          beam.ApproximateQuantiles.Globally(3, key=len,
-                                                             reverse=True)
+      with_key = (pc | 'Globally with key' >>
+                  beam.ApproximateQuantiles.Globally(3, key=len))
+      key_with_reversed = (pc | 'Globally with key and reversed' >>
+                           beam.ApproximateQuantiles.Globally(
+                               3, key=len, reverse=True))
 
       assert_that(globally, equal_to([["aa", "b", "zz"]]),
                   label='checkGlobally')
@@ -589,7 +588,7 @@ def _build_quantilebuffer_test_data():
 
 
 class ApproximateQuantilesBufferTest(unittest.TestCase):
-  """ Approximate Qunatiles Buffer Tests to ensure we are calculating the
+  """ Approximate Quantiles Buffer Tests to ensure we are calculating the
   optimal buffers."""
 
   @parameterized.expand(_build_quantilebuffer_test_data)
