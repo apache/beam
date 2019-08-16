@@ -36,6 +36,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
  * A Reader that receives input data from a Windmill server, and returns a singleton iterable
@@ -116,31 +117,54 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
     final WorkItem workItem = context.getWork();
     KeyedWorkItem<K, T> keyedWorkItem =
         new WindmillKeyedWorkItem<>(key, workItem, windowCoder, windowsCoder, valueCoder);
+    final boolean isEmptyWorkItem =
+        (Iterables.isEmpty(keyedWorkItem.timersIterable())
+            && Iterables.isEmpty(keyedWorkItem.elementsIterable()));
     final WindowedValue<KeyedWorkItem<K, T>> value = new ValueInEmptyWindows<>(keyedWorkItem);
 
-    return new NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>>() {
-      private WindowedValue<KeyedWorkItem<K, T>> current;
+    // Return a noop iterator when current workitem is an empty workitem.
+    if (isEmptyWorkItem) {
+      return new NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>>() {
+        @Override
+        public boolean start() throws IOException {
+          return false;
+        }
 
-      @Override
-      public boolean start() throws IOException {
-        current = value;
-        return true;
-      }
+        @Override
+        public boolean advance() throws IOException {
+          return false;
+        }
 
-      @Override
-      public boolean advance() throws IOException {
-        current = null;
-        return false;
-      }
-
-      @Override
-      public WindowedValue<KeyedWorkItem<K, T>> getCurrent() {
-        if (current == null) {
+        @Override
+        public WindowedValue<KeyedWorkItem<K, T>> getCurrent() {
           throw new NoSuchElementException();
         }
-        return value;
-      }
-    };
+      };
+    } else {
+      return new NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>>() {
+        private WindowedValue<KeyedWorkItem<K, T>> current;
+
+        @Override
+        public boolean start() throws IOException {
+          current = value;
+          return true;
+        }
+
+        @Override
+        public boolean advance() throws IOException {
+          current = null;
+          return false;
+        }
+
+        @Override
+        public WindowedValue<KeyedWorkItem<K, T>> getCurrent() {
+          if (current == null) {
+            throw new NoSuchElementException();
+          }
+          return value;
+        }
+      };
+    }
   }
 
   @Override
