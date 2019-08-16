@@ -1511,7 +1511,7 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
   elements.
 
   Args:
-    fn (Callable[..., bool]): a callable object. First argument will be an
+    fn (``Callable[..., bool]``): a callable object. First argument will be an
       element.
     *args: positional arguments passed to the transform callable.
     **kwargs: keyword arguments passed to the transform callable.
