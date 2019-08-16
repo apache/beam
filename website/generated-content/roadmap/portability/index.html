@@ -402,10 +402,10 @@ for details.</p>
 <ol>
   <li>Run once to build the SDK harness container: <code class="highlighter-rouge">./gradlew :sdks:python:container:docker</code></li>
   <li>Start the Flink portable JobService endpoint: <code class="highlighter-rouge">./gradlew :runners:flink:1.5:job-server:runShadow</code></li>
-  <li>In a new terminal, submit the wordcount pipeline to above endpoint: <code class="highlighter-rouge">./gradlew :sdks:python:portableWordCount -PjobEndpoint=localhost:8099 -PenvironmentType=LOOPBACK</code></li>
+  <li>In a new terminal, submit the wordcount pipeline to above endpoint: <code class="highlighter-rouge">./gradlew portableWordCount -PjobEndpoint=localhost:8099 -PenvironmentType=LOOPBACK</code></li>
 </ol>
 
-<p>To run the pipeline in streaming mode: <code class="highlighter-rouge">./gradlew :sdks:python:portableWordCount -PjobEndpoint=localhost:8099 -Pstreaming</code></p>
+<p>To run the pipeline in streaming mode: <code class="highlighter-rouge">./gradlew portableWordCount -PjobEndpoint=localhost:8099 -Pstreaming</code></p>
 
 <p>Please see the <a href="/documentation/runners/flink/">Flink Runner page</a> for more information on
 how to run portable pipelines on top of Flink.</p>
@@ -417,7 +417,7 @@ how to run portable pipelines on top of Flink.</p>
 <ol>
   <li>Run once to build the SDK harness container: <code class="highlighter-rouge">./gradlew :sdks:python:container:docker</code></li>
   <li>Start the Spark portable JobService endpoint: <code class="highlighter-rouge">./gradlew :runners:spark:job-server:runShadow</code></li>
-  <li>In a new terminal, submit the wordcount pipeline to above endpoint: <code class="highlighter-rouge">./gradlew :sdks:python:portableWordCount -PjobEndpoint=localhost:8099 -PenvironmentType=LOOPBACK</code></li>
+  <li>In a new terminal, submit the wordcount pipeline to above endpoint: <code class="highlighter-rouge">./gradlew portableWordCount -PjobEndpoint=localhost:8099 -PenvironmentType=LOOPBACK</code></li>
 </ol>
 
 <p>Python streaming mode is not yet supported on Spark.</p>
