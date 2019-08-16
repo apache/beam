@@ -60,7 +60,6 @@ task runDataCatalogExample(type: JavaExec) {
   ]
 }
 
-
 task integrationTest(type: Test) {
   group = "Verification"
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
