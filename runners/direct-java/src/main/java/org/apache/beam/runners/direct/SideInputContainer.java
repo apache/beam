@@ -49,6 +49,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCac
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.sdk.transforms.ParDo.DelegatingPCollectionView;
 
 /**
  * An in-process container for {@link PCollectionView PCollectionViews}, which provides methods for
@@ -60,7 +61,6 @@ class SideInputContainer {
   private final LoadingCache<
           PCollectionViewWindow<?>, AtomicReference<Iterable<? extends WindowedValue<?>>>>
       viewByWindows;
-  private final Map<String, PCollectionView<?>> sideInputsMap;
 
   /** Create a new {@link SideInputContainer} with the provided views and the provided context. */
   public static SideInputContainer create(
@@ -86,10 +86,6 @@ class SideInputContainer {
           viewByWindows) {
     this.containedViews = ImmutableSet.copyOf(containedViews);
     this.viewByWindows = viewByWindows;
-    this.sideInputsMap = new HashMap<>();
-    for (PCollectionView<?> pCollectionView : containedViews) {
-      sideInputsMap.put(pCollectionView.getTagInternal().getId(), pCollectionView);
-    }
   }
 
   /**
@@ -225,10 +221,19 @@ class SideInputContainer {
     private final LoadingCache<
             PCollectionViewWindow<?>, Optional<? extends Iterable<? extends WindowedValue<?>>>>
         viewContents;
+    private final Map<String, PCollectionView<?>> sideInputsMap;
 
     private SideInputContainerSideInputReader(Collection<PCollectionView<?>> readerViews) {
       this.readerViews = ImmutableSet.copyOf(readerViews);
       this.viewContents = CacheBuilder.newBuilder().build(new CurrentViewContentsLoader());
+      this.sideInputsMap = new HashMap<>();
+      for(PCollectionView pCollectionView : readerViews) {
+        if(pCollectionView instanceof DelegatingPCollectionView) {
+          sideInputsMap.put(((DelegatingPCollectionView) pCollectionView).getTagId().getId(), pCollectionView);
+        }else {
+          sideInputsMap.put(pCollectionView.getTagInternal().getId(), pCollectionView);
+        }
+      }
     }
 
     @Override

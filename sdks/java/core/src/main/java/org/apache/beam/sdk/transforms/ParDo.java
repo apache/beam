@@ -787,7 +787,7 @@ public class ParDo {
 
     @Override
     public TupleTag<?> getTagInternal() {
-      return this.tagId;
+      return delegate.getTagInternal();
     }
 
     @Override
@@ -844,6 +844,10 @@ public class ParDo {
     @Override
     public boolean equals(Object obj) {
       return delegate.equals(obj);
+    }
+
+    public TupleTag<?> getTagId() {
+      return tagId;
     }
   }
   /**
