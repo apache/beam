@@ -122,32 +122,49 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
             && Iterables.isEmpty(keyedWorkItem.elementsIterable()));
     final WindowedValue<KeyedWorkItem<K, T>> value = new ValueInEmptyWindows<>(keyedWorkItem);
 
-    return new NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>>() {
-      private WindowedValue<KeyedWorkItem<K, T>> current;
-
-      @Override
-      public boolean start() throws IOException {
-        if (isEmptyWorkItem) {
+    // Return a non-op iterator when current workitem is an empty workitem.
+    if (isEmptyWorkItem) {
+      return new NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>>() {
+        @Override
+        public boolean start() throws IOException {
           return false;
         }
-        current = value;
-        return true;
-      }
 
-      @Override
-      public boolean advance() throws IOException {
-        current = null;
-        return false;
-      }
+        @Override
+        public boolean advance() throws IOException {
+          return false;
+        }
 
-      @Override
-      public WindowedValue<KeyedWorkItem<K, T>> getCurrent() {
-        if (current == null) {
+        @Override
+        public WindowedValue<KeyedWorkItem<K, T>> getCurrent() {
           throw new NoSuchElementException();
         }
-        return value;
-      }
-    };
+      };
+    } else {
+      return new NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>>() {
+        private WindowedValue<KeyedWorkItem<K, T>> current;
+
+        @Override
+        public boolean start() throws IOException {
+          current = value;
+          return true;
+        }
+
+        @Override
+        public boolean advance() throws IOException {
+          current = null;
+          return false;
+        }
+
+        @Override
+        public WindowedValue<KeyedWorkItem<K, T>> getCurrent() {
+          if (current == null) {
+            throw new NoSuchElementException();
+          }
+          return value;
+        }
+      };
+    }
   }
 
   @Override
