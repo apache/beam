@@ -28,6 +28,8 @@ import string
 import time
 import unittest
 
+from nose.plugins.attrib import attr
+
 import apache_beam as beam
 import apache_beam.io.gcp.bigtableio as bigtableio
 from apache_beam.metrics.metric import MetricsFilter
@@ -36,7 +38,6 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.combiners import Count
-from nose.plugins.attrib import attr
 
 try:
   from google.cloud.bigtable import Client
@@ -98,7 +99,7 @@ class BigtableIOTest(unittest.TestCase):
     instance = client.instance(instance_id=INSTANCE_ID)
     self.table = instance.table(table_id=TABLE_ID)
 
-    if not self.table.exists():
+    if self.table and not self.table.exists():
       column_families = {COLUMN_FAMILY_ID: column_family.MaxVersionsGCRule(2)}
       self.table.create(column_families=column_families)
       logging.info('Table %s has been created!', TABLE_ID)
