@@ -253,7 +253,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       GetJobStateResponse response = GetJobStateResponse.newBuilder().setState(state).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
-    } catch (StatusException e) {
+    } catch (StatusRuntimeException | StatusException e) {
       responseObserver.onError(e);
     } catch (Exception e) {
       String errMessage =
@@ -275,7 +275,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
           GetJobPipelineResponse.newBuilder().setPipeline(pipeline).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
-    } catch (StatusException e) {
+    } catch (StatusRuntimeException | StatusException e) {
       responseObserver.onError(e);
     } catch (Exception e) {
       String errMessage =
@@ -296,7 +296,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       CancelJobResponse response = CancelJobResponse.newBuilder().setState(state).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
-    } catch (StatusException e) {
+    } catch (StatusRuntimeException | StatusException e) {
       responseObserver.onError(e);
     } catch (Exception e) {
       String errMessage =
@@ -321,7 +321,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
             }
           };
       invocation.addStateListener(stateListener);
-    } catch (StatusException e) {
+    } catch (StatusRuntimeException | StatusException e) {
       responseObserver.onError(e);
     } catch (Exception e) {
       String errMessage =
@@ -358,7 +358,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
 
       invocation.addStateListener(stateListener);
       invocation.addMessageListener(messageListener);
-    } catch (StatusException e) {
+    } catch (StatusRuntimeException | StatusException e) {
       responseObserver.onError(e);
     } catch (Exception e) {
       String errMessage =
@@ -384,7 +384,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
 
       responseObserver.onNext(response);
       responseObserver.onCompleted();
-    } catch (StatusException e) {
+    } catch (StatusRuntimeException | StatusException e) {
       responseObserver.onError(e);
     } catch (Exception e) {
       LOG.error(String.format("Encountered exception for job invocation %s", invocationId), e);
