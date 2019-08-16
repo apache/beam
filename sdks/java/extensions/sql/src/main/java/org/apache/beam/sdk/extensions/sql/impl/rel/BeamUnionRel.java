@@ -69,6 +69,14 @@ public class BeamUnionRel extends Union implements BeamRelNode {
 
   @Override
   public SetOp copy(RelTraitSet traitSet, List<RelNode> inputs, boolean all) {
+    if(inputs.get(0).getDescription().equalsIgnoreCase("BeamUnionRel#96")){
+      RelNode first = inputs.get(0).getInput(0);
+      RelNode second = inputs.get(0).getInput(1);
+      RelNode third = inputs.get(1);
+      inputs.set(0,first);
+      inputs.set(1,second);
+      inputs.add(third);
+    }
     return new BeamUnionRel(getCluster(), traitSet, inputs, all);
   }
 

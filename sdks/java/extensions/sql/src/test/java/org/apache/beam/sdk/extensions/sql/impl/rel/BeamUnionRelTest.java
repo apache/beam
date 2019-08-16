@@ -67,6 +67,26 @@ public class BeamUnionRelTest extends BaseRelTest {
   }
 
   @Test
+  public void testThreewayUnion() throws Exception {
+    String sql =
+            "SELECT "
+                    + " 1 FROM ORDER_DETAILS "
+                    + " UNION SELECT "
+                    + " 2 FROM ORDER_DETAILS "
+                    + " UNION SELECT "
+                    + " 3 FROM ORDER_DETAILS ";
+
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
+    PAssert.that(rows)
+            .containsInAnyOrder(
+                    TestUtils.RowsBuilder.of(
+                            Schema.FieldType.INT32, "site_id")
+                            .addRows( 1,2,3 )
+                            .getRows());
+    pipeline.run();
+  }
+
+  @Test
   public void testUnionAll() throws Exception {
     String sql =
         "SELECT "

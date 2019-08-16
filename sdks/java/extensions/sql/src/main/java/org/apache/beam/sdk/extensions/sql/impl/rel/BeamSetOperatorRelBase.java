@@ -59,16 +59,19 @@ public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCo
   @Override
   public PCollection<Row> expand(PCollectionList<Row> inputs) {
     checkArgument(
-        inputs.size() == 2,
+        inputs.size() == 3,
         "Wrong number of arguments to %s: %s",
         beamRelNode.getClass().getSimpleName(),
         inputs);
     PCollection<Row> leftRows = inputs.get(0);
-    PCollection<Row> rightRows = inputs.get(1);
+    PCollection<Row> middleRows = inputs.get(1);
+    PCollection<Row> rightRows = inputs.get(2);
 
     WindowFn leftWindow = leftRows.getWindowingStrategy().getWindowFn();
+    WindowFn middleWindow = middleRows.getWindowingStrategy().getWindowFn();
     WindowFn rightWindow = rightRows.getWindowingStrategy().getWindowFn();
-    if (!leftWindow.isCompatible(rightWindow)) {
+    if (!leftWindow.isCompatible(rightWindow) || !middleWindow.isCompatible(rightWindow)
+            || !rightWindow.isCompatible(leftWindow)){
       throw new IllegalArgumentException(
           "inputs of "
               + opType
@@ -79,6 +82,7 @@ public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCo
     }
 
     final TupleTag<Row> leftTag = new TupleTag<>();
+    final TupleTag<Row> middleTag = new TupleTag<>();
     final TupleTag<Row> rightTag = new TupleTag<>();
 
     // co-group
@@ -88,15 +92,20 @@ public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCo
                 leftRows.apply(
                     "CreateLeftIndex",
                     MapElements.via(new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())))
-            .and(
-                rightTag,
-                rightRows.apply(
-                    "CreateRightIndex",
-                    MapElements.via(new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())))
-            .apply(CoGroupByKey.create());
+                .and(
+                        middleTag,
+                        middleRows.apply(
+                                "CreateLastIndex",
+                                MapElements.via(new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())))
+                .and(
+                        rightTag,
+                        rightRows.apply(
+                                "CreateRightIndex",
+                                MapElements.via(new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())))
+                .apply(CoGroupByKey.create());
     return coGbkResultCollection.apply(
         ParDo.of(
             new BeamSetOperatorsTransforms.SetOperatorFilteringDoFn(
-                leftTag, rightTag, opType, all)));
+                leftTag, middleTag, rightTag, opType, all)));
   }
 }

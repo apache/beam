@@ -40,6 +40,7 @@ public abstract class BeamSetOperatorsTransforms {
   /** Filter function used for Set operators. */
   public static class SetOperatorFilteringDoFn extends DoFn<KV<Row, CoGbkResult>, Row> {
     private TupleTag<Row> leftTag;
+    private TupleTag<Row> middleTag;
     private TupleTag<Row> rightTag;
     private BeamSetOperatorRelBase.OpType opType;
     // ALL?
@@ -47,10 +48,12 @@ public abstract class BeamSetOperatorsTransforms {
 
     public SetOperatorFilteringDoFn(
         TupleTag<Row> leftTag,
+        TupleTag<Row> middleTag,
         TupleTag<Row> rightTag,
         BeamSetOperatorRelBase.OpType opType,
         boolean all) {
       this.leftTag = leftTag;
+      this.middleTag = middleTag;
       this.rightTag = rightTag;
       this.opType = opType;
       this.all = all;
@@ -60,12 +63,17 @@ public abstract class BeamSetOperatorsTransforms {
     public void processElement(ProcessContext ctx) {
       CoGbkResult coGbkResult = ctx.element().getValue();
       Iterable<Row> leftRows = coGbkResult.getAll(leftTag);
+      Iterable<Row> middleRows = coGbkResult.getAll(middleTag);
       Iterable<Row> rightRows = coGbkResult.getAll(rightTag);
       switch (opType) {
         case UNION:
           if (all) {
             // output both left & right
             Iterator<Row> iter = leftRows.iterator();
+            while (iter.hasNext()) {
+              ctx.output(iter.next());
+            }
+            iter = middleRows.iterator();
             while (iter.hasNext()) {
               ctx.output(iter.next());
             }
