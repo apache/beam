@@ -52,11 +52,12 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.utils import timestamp
 
-from google.protobuf.timestamp_pb2 import Timestamp
 # Protect against environments where the PubSub library is not available.
 try:
+  from google.protobuf.timestamp_pb2 import Timestamp
   from google.cloud import pubsub
 except ImportError:
+  Timestamp = None  
   pubsub = None
 
 
