@@ -688,7 +688,7 @@ class PubSubBigQueryIT(unittest.TestCase):
   SCHEMA = {'fields': [
       {'name': 'number', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
 
-  _SIZE = 10
+  _SIZE = 4
 
   def setUp(self):
     # Set up PubSub
