@@ -3,13 +3,14 @@
 
 package jobmanagement_v1
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
-
 import (
-	context "golang.org/x/net/context"
+	context "context"
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -21,7 +22,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // An artifact identifier and associated metadata.
 type ArtifactMetadata struct {
@@ -44,16 +45,17 @@ func (m *ArtifactMetadata) Reset()         { *m = ArtifactMetadata{} }
 func (m *ArtifactMetadata) String() string { return proto.CompactTextString(m) }
 func (*ArtifactMetadata) ProtoMessage()    {}
 func (*ArtifactMetadata) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_d51e52a8ee148278, []int{0}
+	return fileDescriptor_8ef4db42c81e3972, []int{0}
 }
+
 func (m *ArtifactMetadata) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ArtifactMetadata.Unmarshal(m, b)
 }
 func (m *ArtifactMetadata) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ArtifactMetadata.Marshal(b, m, deterministic)
 }
-func (dst *ArtifactMetadata) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ArtifactMetadata.Merge(dst, src)
+func (m *ArtifactMetadata) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ArtifactMetadata.Merge(m, src)
 }
 func (m *ArtifactMetadata) XXX_Size() int {
 	return xxx_messageInfo_ArtifactMetadata.Size(m)
@@ -104,16 +106,17 @@ func (m *Manifest) Reset()         { *m = Manifest{} }
 func (m *Manifest) String() string { return proto.CompactTextString(m) }
 func (*Manifest) ProtoMessage()    {}
 func (*Manifest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_d51e52a8ee148278, []int{1}
+	return fileDescriptor_8ef4db42c81e3972, []int{1}
 }
+
 func (m *Manifest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Manifest.Unmarshal(m, b)
 }
 func (m *Manifest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Manifest.Marshal(b, m, deterministic)
 }
-func (dst *Manifest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Manifest.Merge(dst, src)
+func (m *Manifest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Manifest.Merge(m, src)
 }
 func (m *Manifest) XXX_Size() int {
 	return xxx_messageInfo_Manifest.Size(m)
@@ -144,16 +147,17 @@ func (m *ProxyManifest) Reset()         { *m = ProxyManifest{} }
 func (m *ProxyManifest) String() string { return proto.CompactTextString(m) }
 func (*ProxyManifest) ProtoMessage()    {}
 func (*ProxyManifest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_d51e52a8ee148278, []int{2}
+	return fileDescriptor_8ef4db42c81e3972, []int{2}
 }
+
 func (m *ProxyManifest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProxyManifest.Unmarshal(m, b)
 }
 func (m *ProxyManifest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ProxyManifest.Marshal(b, m, deterministic)
 }
-func (dst *ProxyManifest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ProxyManifest.Merge(dst, src)
+func (m *ProxyManifest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProxyManifest.Merge(m, src)
 }
 func (m *ProxyManifest) XXX_Size() int {
 	return xxx_messageInfo_ProxyManifest.Size(m)
@@ -190,16 +194,17 @@ func (m *ProxyManifest_Location) Reset()         { *m = ProxyManifest_Location{}
 func (m *ProxyManifest_Location) String() string { return proto.CompactTextString(m) }
 func (*ProxyManifest_Location) ProtoMessage()    {}
 func (*ProxyManifest_Location) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_d51e52a8ee148278, []int{2, 0}
+	return fileDescriptor_8ef4db42c81e3972, []int{2, 0}
 }
+
 func (m *ProxyManifest_Location) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProxyManifest_Location.Unmarshal(m, b)
 }
 func (m *ProxyManifest_Location) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ProxyManifest_Location.Marshal(b, m, deterministic)
 }
-func (dst *ProxyManifest_Location) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ProxyManifest_Location.Merge(dst, src)
+func (m *ProxyManifest_Location) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProxyManifest_Location.Merge(m, src)
 }
 func (m *ProxyManifest_Location) XXX_Size() int {
 	return xxx_messageInfo_ProxyManifest_Location.Size(m)
@@ -238,16 +243,17 @@ func (m *GetManifestRequest) Reset()         { *m = GetManifestRequest{} }
 func (m *GetManifestRequest) String() string { return proto.CompactTextString(m) }
 func (*GetManifestRequest) ProtoMessage()    {}
 func (*GetManifestRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_d51e52a8ee148278, []int{3}
+	return fileDescriptor_8ef4db42c81e3972, []int{3}
 }
+
 func (m *GetManifestRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetManifestRequest.Unmarshal(m, b)
 }
 func (m *GetManifestRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetManifestRequest.Marshal(b, m, deterministic)
 }
-func (dst *GetManifestRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetManifestRequest.Merge(dst, src)
+func (m *GetManifestRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetManifestRequest.Merge(m, src)
 }
 func (m *GetManifestRequest) XXX_Size() int {
 	return xxx_messageInfo_GetManifestRequest.Size(m)
@@ -277,16 +283,17 @@ func (m *GetManifestResponse) Reset()         { *m = GetManifestResponse{} }
 func (m *GetManifestResponse) String() string { return proto.CompactTextString(m) }
 func (*GetManifestResponse) ProtoMessage()    {}
 func (*GetManifestResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_d51e52a8ee148278, []int{4}
+	return fileDescriptor_8ef4db42c81e3972, []int{4}
 }
+
 func (m *GetManifestResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetManifestResponse.Unmarshal(m, b)
 }
 func (m *GetManifestResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetManifestResponse.Marshal(b, m, deterministic)
 }
-func (dst *GetManifestResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetManifestResponse.Merge(dst, src)
+func (m *GetManifestResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetManifestResponse.Merge(m, src)
 }
 func (m *GetManifestResponse) XXX_Size() int {
 	return xxx_messageInfo_GetManifestResponse.Size(m)
@@ -320,16 +327,17 @@ func (m *GetArtifactRequest) Reset()         { *m = GetArtifactRequest{} }
 func (m *GetArtifactRequest) String() string { return proto.CompactTextString(m) }
 func (*GetArtifactRequest) ProtoMessage()    {}
 func (*GetArtifactRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_d51e52a8ee148278, []int{5}
+	return fileDescriptor_8ef4db42c81e3972, []int{5}
 }
+
 func (m *GetArtifactRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetArtifactRequest.Unmarshal(m, b)
 }
 func (m *GetArtifactRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetArtifactRequest.Marshal(b, m, deterministic)
 }
-func (dst *GetArtifactRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetArtifactRequest.Merge(dst, src)
+func (m *GetArtifactRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetArtifactRequest.Merge(m, src)
 }
 func (m *GetArtifactRequest) XXX_Size() int {
 	return xxx_messageInfo_GetArtifactRequest.Size(m)
@@ -366,16 +374,17 @@ func (m *ArtifactChunk) Reset()         { *m = ArtifactChunk{} }
 func (m *ArtifactChunk) String() string { return proto.CompactTextString(m) }
 func (*ArtifactChunk) ProtoMessage()    {}
 func (*ArtifactChunk) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_d51e52a8ee148278, []int{6}
+	return fileDescriptor_8ef4db42c81e3972, []int{6}
 }
+
 func (m *ArtifactChunk) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ArtifactChunk.Unmarshal(m, b)
 }
 func (m *ArtifactChunk) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ArtifactChunk.Marshal(b, m, deterministic)
 }
-func (dst *ArtifactChunk) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ArtifactChunk.Merge(dst, src)
+func (m *ArtifactChunk) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ArtifactChunk.Merge(m, src)
 }
 func (m *ArtifactChunk) XXX_Size() int {
 	return xxx_messageInfo_ArtifactChunk.Size(m)
@@ -408,16 +417,17 @@ func (m *PutArtifactMetadata) Reset()         { *m = PutArtifactMetadata{} }
 func (m *PutArtifactMetadata) String() string { return proto.CompactTextString(m) }
 func (*PutArtifactMetadata) ProtoMessage()    {}
 func (*PutArtifactMetadata) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_d51e52a8ee148278, []int{7}
+	return fileDescriptor_8ef4db42c81e3972, []int{7}
 }
+
 func (m *PutArtifactMetadata) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PutArtifactMetadata.Unmarshal(m, b)
 }
 func (m *PutArtifactMetadata) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PutArtifactMetadata.Marshal(b, m, deterministic)
 }
-func (dst *PutArtifactMetadata) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PutArtifactMetadata.Merge(dst, src)
+func (m *PutArtifactMetadata) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PutArtifactMetadata.Merge(m, src)
 }
 func (m *PutArtifactMetadata) XXX_Size() int {
 	return xxx_messageInfo_PutArtifactMetadata.Size(m)
@@ -459,16 +469,17 @@ func (m *PutArtifactRequest) Reset()         { *m = PutArtifactRequest{} }
 func (m *PutArtifactRequest) String() string { return proto.CompactTextString(m) }
 func (*PutArtifactRequest) ProtoMessage()    {}
 func (*PutArtifactRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_d51e52a8ee148278, []int{8}
+	return fileDescriptor_8ef4db42c81e3972, []int{8}
 }
+
 func (m *PutArtifactRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PutArtifactRequest.Unmarshal(m, b)
 }
 func (m *PutArtifactRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PutArtifactRequest.Marshal(b, m, deterministic)
 }
-func (dst *PutArtifactRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PutArtifactRequest.Merge(dst, src)
+func (m *PutArtifactRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PutArtifactRequest.Merge(m, src)
 }
 func (m *PutArtifactRequest) XXX_Size() int {
 	return xxx_messageInfo_PutArtifactRequest.Size(m)
@@ -486,12 +497,14 @@ type isPutArtifactRequest_Content interface {
 type PutArtifactRequest_Metadata struct {
 	Metadata *PutArtifactMetadata `protobuf:"bytes,1,opt,name=metadata,proto3,oneof"`
 }
+
 type PutArtifactRequest_Data struct {
 	Data *ArtifactChunk `protobuf:"bytes,2,opt,name=data,proto3,oneof"`
 }
 
 func (*PutArtifactRequest_Metadata) isPutArtifactRequest_Content() {}
-func (*PutArtifactRequest_Data) isPutArtifactRequest_Content()     {}
+
+func (*PutArtifactRequest_Data) isPutArtifactRequest_Content() {}
 
 func (m *PutArtifactRequest) GetContent() isPutArtifactRequest_Content {
 	if m != nil {
@@ -514,78 +527,12 @@ func (m *PutArtifactRequest) GetData() *ArtifactChunk {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*PutArtifactRequest) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _PutArtifactRequest_OneofMarshaler, _PutArtifactRequest_OneofUnmarshaler, _PutArtifactRequest_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*PutArtifactRequest) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*PutArtifactRequest_Metadata)(nil),
 		(*PutArtifactRequest_Data)(nil),
 	}
-}
-
-func _PutArtifactRequest_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*PutArtifactRequest)
-	// content
-	switch x := m.Content.(type) {
-	case *PutArtifactRequest_Metadata:
-		b.EncodeVarint(1<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Metadata); err != nil {
-			return err
-		}
-	case *PutArtifactRequest_Data:
-		b.EncodeVarint(2<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Data); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("PutArtifactRequest.Content has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _PutArtifactRequest_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*PutArtifactRequest)
-	switch tag {
-	case 1: // content.metadata
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(PutArtifactMetadata)
-		err := b.DecodeMessage(msg)
-		m.Content = &PutArtifactRequest_Metadata{msg}
-		return true, err
-	case 2: // content.data
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ArtifactChunk)
-		err := b.DecodeMessage(msg)
-		m.Content = &PutArtifactRequest_Data{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _PutArtifactRequest_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*PutArtifactRequest)
-	// content
-	switch x := m.Content.(type) {
-	case *PutArtifactRequest_Metadata:
-		s := proto.Size(x.Metadata)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *PutArtifactRequest_Data:
-		s := proto.Size(x.Data)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 type PutArtifactResponse struct {
@@ -598,16 +545,17 @@ func (m *PutArtifactResponse) Reset()         { *m = PutArtifactResponse{} }
 func (m *PutArtifactResponse) String() string { return proto.CompactTextString(m) }
 func (*PutArtifactResponse) ProtoMessage()    {}
 func (*PutArtifactResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_d51e52a8ee148278, []int{9}
+	return fileDescriptor_8ef4db42c81e3972, []int{9}
 }
+
 func (m *PutArtifactResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PutArtifactResponse.Unmarshal(m, b)
 }
 func (m *PutArtifactResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PutArtifactResponse.Marshal(b, m, deterministic)
 }
-func (dst *PutArtifactResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PutArtifactResponse.Merge(dst, src)
+func (m *PutArtifactResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PutArtifactResponse.Merge(m, src)
 }
 func (m *PutArtifactResponse) XXX_Size() int {
 	return xxx_messageInfo_PutArtifactResponse.Size(m)
@@ -635,16 +583,17 @@ func (m *CommitManifestRequest) Reset()         { *m = CommitManifestRequest{} }
 func (m *CommitManifestRequest) String() string { return proto.CompactTextString(m) }
 func (*CommitManifestRequest) ProtoMessage()    {}
 func (*CommitManifestRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_d51e52a8ee148278, []int{10}
+	return fileDescriptor_8ef4db42c81e3972, []int{10}
 }
+
 func (m *CommitManifestRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CommitManifestRequest.Unmarshal(m, b)
 }
 func (m *CommitManifestRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_CommitManifestRequest.Marshal(b, m, deterministic)
 }
-func (dst *CommitManifestRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CommitManifestRequest.Merge(dst, src)
+func (m *CommitManifestRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitManifestRequest.Merge(m, src)
 }
 func (m *CommitManifestRequest) XXX_Size() int {
 	return xxx_messageInfo_CommitManifestRequest.Size(m)
@@ -684,16 +633,17 @@ func (m *CommitManifestResponse) Reset()         { *m = CommitManifestResponse{}
 func (m *CommitManifestResponse) String() string { return proto.CompactTextString(m) }
 func (*CommitManifestResponse) ProtoMessage()    {}
 func (*CommitManifestResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_d51e52a8ee148278, []int{11}
+	return fileDescriptor_8ef4db42c81e3972, []int{11}
 }
+
 func (m *CommitManifestResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CommitManifestResponse.Unmarshal(m, b)
 }
 func (m *CommitManifestResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_CommitManifestResponse.Marshal(b, m, deterministic)
 }
-func (dst *CommitManifestResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CommitManifestResponse.Merge(dst, src)
+func (m *CommitManifestResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitManifestResponse.Merge(m, src)
 }
 func (m *CommitManifestResponse) XXX_Size() int {
 	return xxx_messageInfo_CommitManifestResponse.Size(m)
@@ -725,6 +675,52 @@ func init() {
 	proto.RegisterType((*PutArtifactResponse)(nil), "org.apache.beam.model.job_management.v1.PutArtifactResponse")
 	proto.RegisterType((*CommitManifestRequest)(nil), "org.apache.beam.model.job_management.v1.CommitManifestRequest")
 	proto.RegisterType((*CommitManifestResponse)(nil), "org.apache.beam.model.job_management.v1.CommitManifestResponse")
+}
+
+func init() { proto.RegisterFile("beam_artifact_api.proto", fileDescriptor_8ef4db42c81e3972) }
+
+var fileDescriptor_8ef4db42c81e3972 = []byte{
+	// 626 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x56, 0xc1, 0x6e, 0xd3, 0x40,
+	0x10, 0xed, 0xba, 0x55, 0x49, 0xc7, 0xb4, 0x54, 0x5b, 0xb5, 0x58, 0x39, 0x45, 0x46, 0xa2, 0x39,
+	0x59, 0xad, 0x51, 0x2b, 0x21, 0x0a, 0x55, 0xdb, 0x43, 0x7b, 0x68, 0xa4, 0xe2, 0x82, 0x84, 0xca,
+	0xc1, 0xda, 0x24, 0xdb, 0x64, 0x69, 0xbc, 0x6b, 0xec, 0x4d, 0x04, 0x77, 0x0e, 0x88, 0x1b, 0x57,
+	0x4e, 0x7c, 0x00, 0x3f, 0xc0, 0x27, 0xf0, 0x31, 0xfc, 0x03, 0xf2, 0xda, 0xeb, 0xc6, 0x8d, 0x23,
+	0x39, 0xa1, 0xb7, 0xc9, 0x6c, 0xde, 0x9b, 0x37, 0x6f, 0x66, 0x57, 0x86, 0xc7, 0x6d, 0x4a, 0x02,
+	0x9f, 0x44, 0x92, 0x5d, 0x93, 0x8e, 0xf4, 0x49, 0xc8, 0x9c, 0x30, 0x12, 0x52, 0xe0, 0x6d, 0x11,
+	0xf5, 0x1c, 0x12, 0x92, 0x4e, 0x9f, 0x3a, 0xc9, 0x7f, 0x9c, 0x40, 0x74, 0xe9, 0xc0, 0xf9, 0x20,
+	0xda, 0x7e, 0x40, 0x38, 0xe9, 0xd1, 0x80, 0x72, 0xe9, 0x8c, 0x76, 0x6d, 0x09, 0xeb, 0x47, 0x19,
+	0xbc, 0x45, 0x25, 0xe9, 0x12, 0x49, 0x30, 0x86, 0x25, 0x4e, 0x02, 0x6a, 0xa1, 0x06, 0x6a, 0xae,
+	0x78, 0x2a, 0xc6, 0x0d, 0x30, 0x43, 0x1a, 0x05, 0x2c, 0x8e, 0x99, 0xe0, 0xb1, 0x65, 0x34, 0x50,
+	0x73, 0xd5, 0x1b, 0x4f, 0x25, 0xa8, 0xa0, 0xbb, 0xf7, 0xce, 0x5a, 0x4c, 0x51, 0x49, 0x8c, 0xb7,
+	0x60, 0x39, 0xee, 0x13, 0x77, 0x6f, 0xdf, 0x5a, 0x52, 0xd9, 0xec, 0x97, 0x4d, 0xa0, 0xd6, 0x22,
+	0x9c, 0x5d, 0xd3, 0x58, 0xe2, 0xb7, 0x50, 0xd3, 0x0d, 0x58, 0xa8, 0xb1, 0xd8, 0x34, 0xdd, 0xe7,
+	0x4e, 0x45, 0xf5, 0xce, 0x5d, 0xe9, 0x5e, 0x4e, 0x65, 0xff, 0x45, 0xb0, 0x7a, 0x11, 0x89, 0x4f,
+	0x9f, 0xf3, 0x42, 0x2d, 0xa8, 0x05, 0x59, 0xac, 0x5a, 0x33, 0xdd, 0xdd, 0xca, 0x85, 0x34, 0x89,
+	0x97, 0x53, 0xe0, 0xf7, 0x50, 0x1b, 0x88, 0x0e, 0x91, 0x4c, 0x70, 0xcb, 0x50, 0xba, 0x0f, 0x2b,
+	0xd3, 0x15, 0x84, 0x39, 0xe7, 0x19, 0x8d, 0x97, 0x13, 0xd6, 0x77, 0xa0, 0xa6, 0xb3, 0xa5, 0xe3,
+	0x58, 0x87, 0xc5, 0x61, 0xc4, 0xd4, 0x18, 0x56, 0xbc, 0x24, 0xb4, 0x5f, 0x02, 0x3e, 0xa5, 0x32,
+	0xd7, 0x49, 0x3f, 0x0e, 0x13, 0x91, 0xdb, 0xf0, 0x28, 0xa2, 0x32, 0x62, 0x74, 0x44, 0x06, 0xbe,
+	0x14, 0x37, 0x94, 0x67, 0x34, 0x6b, 0x79, 0xfa, 0x4d, 0x92, 0xb5, 0xbb, 0xb0, 0x51, 0x80, 0xc7,
+	0xa1, 0xe0, 0x31, 0xbd, 0x67, 0xcf, 0xec, 0xd7, 0x4a, 0xa4, 0x9e, 0x9a, 0x16, 0x59, 0xd6, 0x60,
+	0x89, 0x70, 0xa3, 0x54, 0xf8, 0x13, 0x58, 0xd5, 0x7c, 0x27, 0xfd, 0x21, 0xbf, 0x49, 0xd8, 0x92,
+	0x55, 0x50, 0x6c, 0x0f, 0x3d, 0x15, 0xdb, 0x3f, 0x11, 0x6c, 0x5c, 0x0c, 0xe5, 0xc4, 0xa6, 0xbb,
+	0xb0, 0x19, 0x4b, 0xd2, 0x63, 0xbc, 0xe7, 0xc7, 0x54, 0xed, 0x71, 0xc1, 0xa4, 0x8d, 0xec, 0xf0,
+	0x32, 0x3d, 0x53, 0x05, 0x93, 0x7d, 0x0d, 0x32, 0xbc, 0x92, 0xf4, 0x7f, 0xfb, 0xaa, 0xa9, 0xec,
+	0x3f, 0x08, 0xf0, 0x98, 0x44, 0xed, 0xcd, 0xd5, 0x58, 0xb5, 0x74, 0x00, 0x07, 0xd5, 0xb7, 0x6c,
+	0xb2, 0xe3, 0xb3, 0x85, 0xdb, 0x92, 0xf8, 0x3c, 0x73, 0x2a, 0xed, 0x62, 0x7f, 0xe6, 0x2e, 0x94,
+	0xdf, 0x67, 0x0b, 0xa9, 0xc7, 0xc7, 0x2b, 0xf0, 0xa0, 0x23, 0xb8, 0xa4, 0x5c, 0xda, 0x9b, 0x05,
+	0xb7, 0xf5, 0x32, 0xd9, 0x3f, 0x10, 0x6c, 0x9e, 0x88, 0x20, 0x60, 0x13, 0x6b, 0x7a, 0xcf, 0x57,
+	0x73, 0xea, 0x58, 0x8d, 0xa9, 0x63, 0xb5, 0x8f, 0x60, 0xeb, 0xae, 0xb6, 0xec, 0x0e, 0x54, 0xbd,
+	0x43, 0xee, 0x6f, 0x03, 0xb6, 0x74, 0xd3, 0x97, 0xba, 0x44, 0x34, 0x62, 0x1d, 0x8a, 0xbf, 0x21,
+	0x30, 0xc7, 0x2c, 0xc1, 0x2f, 0xe6, 0x19, 0x62, 0xe6, 0x56, 0xfd, 0x60, 0x3e, 0x70, 0xda, 0x4e,
+	0x13, 0xe1, 0xef, 0x08, 0xd6, 0x8a, 0xbd, 0xe2, 0x57, 0x95, 0x29, 0x4b, 0x07, 0x58, 0x3f, 0x9c,
+	0x1b, 0x9f, 0xaa, 0x72, 0x7f, 0x19, 0x60, 0xdd, 0x4a, 0xcd, 0x6c, 0xd5, 0xee, 0x7d, 0x45, 0x60,
+	0x8e, 0xbd, 0x4e, 0x33, 0xb8, 0x37, 0xf9, 0x24, 0xce, 0xe0, 0x5e, 0xd9, 0x83, 0xf8, 0x25, 0x95,
+	0x32, 0xc7, 0x20, 0x27, 0x1f, 0xbe, 0xfa, 0x9c, 0x57, 0x6e, 0x07, 0x1d, 0x9f, 0xc2, 0xd3, 0xa9,
+	0xd0, 0x02, 0xf2, 0xd8, 0xd4, 0xd0, 0xa3, 0x90, 0x5d, 0xad, 0x17, 0x8e, 0xfd, 0xd1, 0x6e, 0x7b,
+	0x59, 0x7d, 0x2f, 0x3c, 0xfb, 0x17, 0x00, 0x00, 0xff, 0xff, 0x03, 0x0a, 0x3b, 0x02, 0x4a, 0x08,
+	0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -812,6 +808,17 @@ type ArtifactStagingServiceServer interface {
 	//
 	// Throws error INVALID_ARGUMENT if not all of the members of the manifest are present
 	CommitManifest(context.Context, *CommitManifestRequest) (*CommitManifestResponse, error)
+}
+
+// UnimplementedArtifactStagingServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedArtifactStagingServiceServer struct {
+}
+
+func (*UnimplementedArtifactStagingServiceServer) PutArtifact(srv ArtifactStagingService_PutArtifactServer) error {
+	return status.Errorf(codes.Unimplemented, "method PutArtifact not implemented")
+}
+func (*UnimplementedArtifactStagingServiceServer) CommitManifest(ctx context.Context, req *CommitManifestRequest) (*CommitManifestResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CommitManifest not implemented")
 }
 
 func RegisterArtifactStagingServiceServer(s *grpc.Server, srv ArtifactStagingServiceServer) {
@@ -948,6 +955,17 @@ type ArtifactRetrievalServiceServer interface {
 	GetArtifact(*GetArtifactRequest, ArtifactRetrievalService_GetArtifactServer) error
 }
 
+// UnimplementedArtifactRetrievalServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedArtifactRetrievalServiceServer struct {
+}
+
+func (*UnimplementedArtifactRetrievalServiceServer) GetManifest(ctx context.Context, req *GetManifestRequest) (*GetManifestResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetManifest not implemented")
+}
+func (*UnimplementedArtifactRetrievalServiceServer) GetArtifact(req *GetArtifactRequest, srv ArtifactRetrievalService_GetArtifactServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetArtifact not implemented")
+}
+
 func RegisterArtifactRetrievalServiceServer(s *grpc.Server, srv ArtifactRetrievalServiceServer) {
 	s.RegisterService(&_ArtifactRetrievalService_serviceDesc, srv)
 }
@@ -1008,52 +1026,4 @@ var _ArtifactRetrievalService_serviceDesc = grpc.ServiceDesc{
 		},
 	},
 	Metadata: "beam_artifact_api.proto",
-}
-
-func init() {
-	proto.RegisterFile("beam_artifact_api.proto", fileDescriptor_beam_artifact_api_d51e52a8ee148278)
-}
-
-var fileDescriptor_beam_artifact_api_d51e52a8ee148278 = []byte{
-	// 626 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x56, 0xc1, 0x6e, 0xd3, 0x40,
-	0x10, 0xed, 0xba, 0x55, 0x49, 0xc7, 0xb4, 0x54, 0x5b, 0xb5, 0x58, 0x39, 0x45, 0x46, 0xa2, 0x39,
-	0x59, 0xad, 0x51, 0x2b, 0x21, 0x0a, 0x55, 0xdb, 0x43, 0x7b, 0x68, 0xa4, 0xe2, 0x82, 0x84, 0xca,
-	0xc1, 0xda, 0x24, 0xdb, 0x64, 0x69, 0xbc, 0x6b, 0xec, 0x4d, 0x04, 0x77, 0x0e, 0x88, 0x1b, 0x57,
-	0x4e, 0x7c, 0x00, 0x3f, 0xc0, 0x27, 0xf0, 0x31, 0xfc, 0x03, 0xf2, 0xda, 0xeb, 0xc6, 0x8d, 0x23,
-	0x39, 0xa1, 0xb7, 0xc9, 0x6c, 0xde, 0x9b, 0x37, 0x6f, 0x66, 0x57, 0x86, 0xc7, 0x6d, 0x4a, 0x02,
-	0x9f, 0x44, 0x92, 0x5d, 0x93, 0x8e, 0xf4, 0x49, 0xc8, 0x9c, 0x30, 0x12, 0x52, 0xe0, 0x6d, 0x11,
-	0xf5, 0x1c, 0x12, 0x92, 0x4e, 0x9f, 0x3a, 0xc9, 0x7f, 0x9c, 0x40, 0x74, 0xe9, 0xc0, 0xf9, 0x20,
-	0xda, 0x7e, 0x40, 0x38, 0xe9, 0xd1, 0x80, 0x72, 0xe9, 0x8c, 0x76, 0x6d, 0x09, 0xeb, 0x47, 0x19,
-	0xbc, 0x45, 0x25, 0xe9, 0x12, 0x49, 0x30, 0x86, 0x25, 0x4e, 0x02, 0x6a, 0xa1, 0x06, 0x6a, 0xae,
-	0x78, 0x2a, 0xc6, 0x0d, 0x30, 0x43, 0x1a, 0x05, 0x2c, 0x8e, 0x99, 0xe0, 0xb1, 0x65, 0x34, 0x50,
-	0x73, 0xd5, 0x1b, 0x4f, 0x25, 0xa8, 0xa0, 0xbb, 0xf7, 0xce, 0x5a, 0x4c, 0x51, 0x49, 0x8c, 0xb7,
-	0x60, 0x39, 0xee, 0x13, 0x77, 0x6f, 0xdf, 0x5a, 0x52, 0xd9, 0xec, 0x97, 0x4d, 0xa0, 0xd6, 0x22,
-	0x9c, 0x5d, 0xd3, 0x58, 0xe2, 0xb7, 0x50, 0xd3, 0x0d, 0x58, 0xa8, 0xb1, 0xd8, 0x34, 0xdd, 0xe7,
-	0x4e, 0x45, 0xf5, 0xce, 0x5d, 0xe9, 0x5e, 0x4e, 0x65, 0xff, 0x45, 0xb0, 0x7a, 0x11, 0x89, 0x4f,
-	0x9f, 0xf3, 0x42, 0x2d, 0xa8, 0x05, 0x59, 0xac, 0x5a, 0x33, 0xdd, 0xdd, 0xca, 0x85, 0x34, 0x89,
-	0x97, 0x53, 0xe0, 0xf7, 0x50, 0x1b, 0x88, 0x0e, 0x91, 0x4c, 0x70, 0xcb, 0x50, 0xba, 0x0f, 0x2b,
-	0xd3, 0x15, 0x84, 0x39, 0xe7, 0x19, 0x8d, 0x97, 0x13, 0xd6, 0x77, 0xa0, 0xa6, 0xb3, 0xa5, 0xe3,
-	0x58, 0x87, 0xc5, 0x61, 0xc4, 0xd4, 0x18, 0x56, 0xbc, 0x24, 0xb4, 0x5f, 0x02, 0x3e, 0xa5, 0x32,
-	0xd7, 0x49, 0x3f, 0x0e, 0x13, 0x91, 0xdb, 0xf0, 0x28, 0xa2, 0x32, 0x62, 0x74, 0x44, 0x06, 0xbe,
-	0x14, 0x37, 0x94, 0x67, 0x34, 0x6b, 0x79, 0xfa, 0x4d, 0x92, 0xb5, 0xbb, 0xb0, 0x51, 0x80, 0xc7,
-	0xa1, 0xe0, 0x31, 0xbd, 0x67, 0xcf, 0xec, 0xd7, 0x4a, 0xa4, 0x9e, 0x9a, 0x16, 0x59, 0xd6, 0x60,
-	0x89, 0x70, 0xa3, 0x54, 0xf8, 0x13, 0x58, 0xd5, 0x7c, 0x27, 0xfd, 0x21, 0xbf, 0x49, 0xd8, 0x92,
-	0x55, 0x50, 0x6c, 0x0f, 0x3d, 0x15, 0xdb, 0x3f, 0x11, 0x6c, 0x5c, 0x0c, 0xe5, 0xc4, 0xa6, 0xbb,
-	0xb0, 0x19, 0x4b, 0xd2, 0x63, 0xbc, 0xe7, 0xc7, 0x54, 0xed, 0x71, 0xc1, 0xa4, 0x8d, 0xec, 0xf0,
-	0x32, 0x3d, 0x53, 0x05, 0x93, 0x7d, 0x0d, 0x32, 0xbc, 0x92, 0xf4, 0x7f, 0xfb, 0xaa, 0xa9, 0xec,
-	0x3f, 0x08, 0xf0, 0x98, 0x44, 0xed, 0xcd, 0xd5, 0x58, 0xb5, 0x74, 0x00, 0x07, 0xd5, 0xb7, 0x6c,
-	0xb2, 0xe3, 0xb3, 0x85, 0xdb, 0x92, 0xf8, 0x3c, 0x73, 0x2a, 0xed, 0x62, 0x7f, 0xe6, 0x2e, 0x94,
-	0xdf, 0x67, 0x0b, 0xa9, 0xc7, 0xc7, 0x2b, 0xf0, 0xa0, 0x23, 0xb8, 0xa4, 0x5c, 0xda, 0x9b, 0x05,
-	0xb7, 0xf5, 0x32, 0xd9, 0x3f, 0x10, 0x6c, 0x9e, 0x88, 0x20, 0x60, 0x13, 0x6b, 0x7a, 0xcf, 0x57,
-	0x73, 0xea, 0x58, 0x8d, 0xa9, 0x63, 0xb5, 0x8f, 0x60, 0xeb, 0xae, 0xb6, 0xec, 0x0e, 0x54, 0xbd,
-	0x43, 0xee, 0x6f, 0x03, 0xb6, 0x74, 0xd3, 0x97, 0xba, 0x44, 0x34, 0x62, 0x1d, 0x8a, 0xbf, 0x21,
-	0x30, 0xc7, 0x2c, 0xc1, 0x2f, 0xe6, 0x19, 0x62, 0xe6, 0x56, 0xfd, 0x60, 0x3e, 0x70, 0xda, 0x4e,
-	0x13, 0xe1, 0xef, 0x08, 0xd6, 0x8a, 0xbd, 0xe2, 0x57, 0x95, 0x29, 0x4b, 0x07, 0x58, 0x3f, 0x9c,
-	0x1b, 0x9f, 0xaa, 0x72, 0x7f, 0x19, 0x60, 0xdd, 0x4a, 0xcd, 0x6c, 0xd5, 0xee, 0x7d, 0x45, 0x60,
-	0x8e, 0xbd, 0x4e, 0x33, 0xb8, 0x37, 0xf9, 0x24, 0xce, 0xe0, 0x5e, 0xd9, 0x83, 0xf8, 0x25, 0x95,
-	0x32, 0xc7, 0x20, 0x27, 0x1f, 0xbe, 0xfa, 0x9c, 0x57, 0x6e, 0x07, 0x1d, 0x9f, 0xc2, 0xd3, 0xa9,
-	0xd0, 0x02, 0xf2, 0xd8, 0xd4, 0xd0, 0xa3, 0x90, 0x5d, 0xad, 0x17, 0x8e, 0xfd, 0xd1, 0x6e, 0x7b,
-	0x59, 0x7d, 0x2f, 0x3c, 0xfb, 0x17, 0x00, 0x00, 0xff, 0xff, 0x03, 0x0a, 0x3b, 0x02, 0x4a, 0x08,
-	0x00, 0x00,
 }
