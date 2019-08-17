@@ -160,9 +160,9 @@ function run_release_candidate_python_mobile_gaming() {
 
   install_sdk $1 $2
   verify_userscore_direct
-  verify_userscore_dataflow
+  #verify_userscore_dataflow
   verify_hourlyteamscore_direct
-  verify_hourlyteamscore_dataflow
+  #verify_hourlyteamscore_dataflow
 
   complete "SUCCEED: Mobile Gaming Verification Complete"
 }
