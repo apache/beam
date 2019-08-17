@@ -43,6 +43,7 @@ import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.chrono.ISOChronology;
+import org.joda.time.format.ISODateTimeFormat;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -55,7 +56,10 @@ public class BigQueryUtilsTest {
           .addNullableField("id", Schema.FieldType.INT64)
           .addNullableField("value", Schema.FieldType.DOUBLE)
           .addNullableField("name", Schema.FieldType.STRING)
-          .addNullableField("timestamp", Schema.FieldType.DATETIME)
+          .addNullableField("timestamp_variant1", Schema.FieldType.DATETIME)
+          .addNullableField("timestamp_variant2", Schema.FieldType.DATETIME)
+          .addNullableField("timestamp_variant3", Schema.FieldType.DATETIME)
+          .addNullableField("timestamp_variant4", Schema.FieldType.DATETIME)
           .addNullableField("valid", Schema.FieldType.BOOLEAN)
           .addNullableField("binary", Schema.FieldType.BYTES)
           .build();
@@ -114,6 +118,15 @@ public class BigQueryUtilsTest {
               123L,
               123.456,
               "test",
+              ISODateTimeFormat.dateHourMinuteSecondFraction()
+                  .withZoneUTC()
+                  .parseDateTime("2019-08-16T13:52:07.000"),
+              ISODateTimeFormat.dateHourMinuteSecondFraction()
+                  .withZoneUTC()
+                  .parseDateTime("2019-08-17T14:52:07.123"),
+              ISODateTimeFormat.dateHourMinuteSecondFraction()
+                  .withZoneUTC()
+                  .parseDateTime("2019-08-18T15:52:07.123"),
               new DateTime(123456),
               false,
               Base64.getDecoder().decode("ABCD1234"))
@@ -124,22 +137,31 @@ public class BigQueryUtilsTest {
           .set("id", "123")
           .set("value", "123.456")
           .set("name", "test")
+          .set("timestamp_variant1", "2019-08-16 13:52:07 UTC")
+          .set("timestamp_variant2", "2019-08-17 14:52:07.123 UTC")
+          // we'll loose precession, but it's something BigQuery can output!
+          .set("timestamp_variant3", "2019-08-18 15:52:07.123456 UTC")
           .set(
-              "timestamp",
+              "timestamp_variant4",
               String.valueOf(
                   new DateTime(123456L, ISOChronology.getInstanceUTC()).getMillis() / 1000.0D))
           .set("valid", "false")
           .set("binary", "ABCD1234");
 
   private static final Row NULL_FLAT_ROW =
-      Row.withSchema(FLAT_TYPE).addValues(null, null, null, null, null, null).build();
+      Row.withSchema(FLAT_TYPE)
+          .addValues(null, null, null, null, null, null, null, null, null)
+          .build();
 
   private static final TableRow BQ_NULL_FLAT_ROW =
       new TableRow()
           .set("id", null)
           .set("value", null)
           .set("name", null)
-          .set("timestamp", null)
+          .set("timestamp1", null)
+          .set("timestamp2", null)
+          .set("timestamp3", null)
+          .set("timestamp4", null)
           .set("valid", null)
           .set("binary", null);
 
