@@ -61,7 +61,7 @@ public class PubsubMessage {
     return attributes;
   }
 
-  /** Returns the messageId of the message. */
+  /** Returns the messageId of the message populated by Cloud Pub/Sub. */
   @Nullable
   public String getMessageId() {
     return messageId;

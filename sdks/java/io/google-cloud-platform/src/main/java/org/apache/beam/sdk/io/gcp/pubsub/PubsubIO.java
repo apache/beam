@@ -463,8 +463,9 @@ public class PubsubIO {
 
   /**
    * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. The
-   * messages will only contain a {@link PubsubMessage#getPayload() payload} with the messageId from
-   * PubSub, but no {@link PubsubMessage#getAttributeMap() attributes}.
+   * messages will only contain a {@link PubsubMessage#getPayload() payload} with the {@link
+   * PubsubMessage#getMessageId() messageId} from PubSub, but no {@link
+   * PubsubMessage#getAttributeMap() attributes}.
    */
   public static Read<PubsubMessage> readMessagesWithMessageId() {
     return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
@@ -494,7 +495,8 @@ public class PubsubIO {
   /**
    * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. The
    * messages will contain both a {@link PubsubMessage#getPayload() payload} and {@link
-   * PubsubMessage#getAttributeMap() attributes}, along with the messageId from PubSub.
+   * PubsubMessage#getAttributeMap() attributes}, along with the {@link PubsubMessage#getMessageId()
+   * messageId} from PubSub.
    */
   public static Read<PubsubMessage> readMessagesWithAttributesAndMessageId() {
     return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
