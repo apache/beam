@@ -561,6 +561,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
       coder=None,
       max_file_size=None,
       max_files_per_bundle=None,
+      max_partition_size=None,
+      max_files_per_partition=None,
       additional_bq_parameters=None,
       table_side_inputs=None,
       schema_side_inputs=None,
@@ -574,6 +576,9 @@ class BigQueryBatchFileLoads(beam.PTransform):
     self.max_file_size = max_file_size or _DEFAULT_MAX_FILE_SIZE
     self.max_files_per_bundle = (max_files_per_bundle or
                                  _DEFAULT_MAX_WRITERS_PER_BUNDLE)
+    self.max_partition_size = max_partition_size or _MAXIMUM_LOAD_SIZE
+    self.max_files_per_partition = (max_files_per_partition or
+                                    _MAXIMUM_SOURCE_URIS)
     if (isinstance(custom_gcs_temp_location, str)
         or custom_gcs_temp_location is None):
       self._custom_gcs_temp_location = vp.StaticValueProvider(
@@ -747,7 +752,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
          | "RemoveTempTables/AddUselessValue" >> beam.Map(lambda x: (x, None))
          | "RemoveTempTables/DeduplicateTables" >> beam.GroupByKey()
          | "RemoveTempTables/GetTableNames" >> beam.Map(lambda elm: elm[0])
-         | "RemoveTempTables/Delete" >> beam.ParDo(DeleteTablesFn()))
+         | "RemoveTempTables/Delete" >> beam.ParDo(
+             DeleteTablesFn(self.test_client)))
 
     # Load data directly to destination table
     destination_load_job_ids_pc = (
@@ -808,8 +814,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
         | "GroupFilesByTableDestinations" >> beam.GroupByKey())
 
     partitions = (grouped_files_pc
-                  | beam.ParDo(PartitionFiles(_MAXIMUM_LOAD_SIZE,
-                                              _MAXIMUM_SOURCE_URIS))
+                  | beam.ParDo(PartitionFiles(self.max_partition_size,
+                                              self.max_files_per_partition))
                   .with_outputs(PartitionFiles.MULTIPLE_PARTITIONS_TAG,
                                 PartitionFiles.SINGLE_PARTITION_TAG))
 

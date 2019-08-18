@@ -48,6 +48,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import combiners
 from apache_beam.typehints.typehints import Tuple
 
 try:
@@ -135,7 +136,7 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
       dest_file_pc = output_pcs[bqfl.WriteRecordsToFile.WRITTEN_FILE_TAG]
 
       files = dest_file_pc | "GetFiles" >> beam.Map(lambda x: x[1][0])
-      file_count = files | "CountFiles" >> beam.combiners.Count.Globally()
+      file_count = files | "CountFiles" >> combiners.Count.Globally()
 
       _ = files | "FilesExist" >> beam.Map(
           lambda x: hamcrest_assert(os.path.exists(x), is_(True)))
@@ -166,7 +167,7 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
       files_per_dest = (dest_file_pc
                         | beam.Map(lambda x: x).with_output_types(
                             beam.typehints.KV[str, Tuple[str, int]])
-                        | beam.combiners.Count.PerKey())
+                        | combiners.Count.PerKey())
       files_per_dest = (
           files_per_dest
           | "GetDests" >> beam.Map(
@@ -202,13 +203,13 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
           bqfl.WriteRecordsToFile.UNWRITTEN_RECORD_TAG]
 
       spilled_records_count = (spilled_records_pc |
-                               beam.combiners.Count.Globally())
+                               combiners.Count.Globally())
       assert_that(spilled_records_count, equal_to([3]), label='spilled count')
 
       files_per_dest = (dest_file_pc
                         | beam.Map(lambda x: x).with_output_types(
                             beam.typehints.KV[str, Tuple[str, int]])
-                        | beam.combiners.Count.PerKey())
+                        | combiners.Count.PerKey())
       files_per_dest = (
           files_per_dest
           | "GetDests" >> beam.Map(
@@ -252,7 +253,7 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
 
     def check_files_created(output_pc):
       files = output_pc | "GetFiles" >> beam.Map(lambda x: x[1][0])
-      file_count = files | "CountFiles" >> beam.combiners.Count.Globally()
+      file_count = files | "CountFiles" >> combiners.Count.Globally()
 
       _ = files | "FilesExist" >> beam.Map(
           lambda x: hamcrest_assert(os.path.exists(x), is_(True)))
@@ -279,7 +280,7 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
     self.tmpdir = self._new_tempdir()
 
     def check_multiple_files(output_pc):
-      files_per_dest = output_pc | beam.combiners.Count.PerKey()
+      files_per_dest = output_pc | combiners.Count.PerKey()
       files_per_dest = (
           files_per_dest
           | "GetDests" >> beam.Map(
@@ -404,7 +405,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
           | "GetDests" >> beam.Map(
               lambda x: (
                   bigquery_tools.get_hashable_destination(x[0]), x[1]))
-          | "GetUniques" >> beam.combiners.Count.PerKey()
+          | "GetUniques" >> combiners.Count.PerKey()
           | "GetFinalDests" >>beam.Keys())
 
       # All files exist
@@ -412,7 +413,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
           lambda x: hamcrest_assert(os.path.exists(x), is_(True))))
 
       # One file per destination
-      assert_that(files | beam.combiners.Count.Globally(),
+      assert_that(files | combiners.Count.Globally(),
                   equal_to([1]),
                   label='CountFiles')
 
@@ -422,6 +423,76 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
       assert_that(jobs,
                   equal_to([job_reference]), label='CheckJobs')
+
+  def test_multiple_partition_files(self):
+    destination = 'project1:dataset1.table1'
+
+    job_reference = bigquery_api.JobReference()
+    job_reference.projectId = 'project1'
+    job_reference.jobId = 'job_name1'
+    result_job = mock.Mock()
+    result_job.jobReference = job_reference
+
+    mock_job = mock.Mock()
+    mock_job.status.state = 'DONE'
+    mock_job.status.errorResult = None
+    mock_job.jobReference = job_reference
+
+    bq_client = mock.Mock()
+    bq_client.jobs.Get.return_value = mock_job
+
+    bq_client.jobs.Insert.return_value = result_job
+    bq_client.tables.Delete.return_value = None
+
+    with TestPipeline('DirectRunner') as p:
+      outputs = (p
+                 | beam.Create(_ELEMENTS)
+                 | bqfl.BigQueryBatchFileLoads(destination,
+                                               custom_gcs_temp_location=self\
+                                                ._new_tempdir(),
+                                               test_client=bq_client,
+                                               validate=False,
+                                               coder=CustomRowCoder(),
+                                               max_file_size=45,
+                                               max_partition_size=80,
+                                               max_files_per_partition=2))
+
+      dest_files = outputs[bqfl.BigQueryBatchFileLoads\
+          .DESTINATION_FILE_PAIRS]
+      dest_load_jobs = outputs[bqfl.BigQueryBatchFileLoads\
+          .DESTINATION_JOBID_PAIRS]
+      dest_copy_jobs = outputs[bqfl.BigQueryBatchFileLoads\
+          .DESTINATION_COPY_JOBID_PAIRS]
+
+      load_jobs = dest_load_jobs | "GetLoadJobs" >> beam.Map(lambda x: x[1])
+      copy_jobs = dest_copy_jobs | "GetCopyJobs" >> beam.Map(lambda x: x[1])
+
+      files = dest_files | "GetFiles" >> beam.Map(lambda x: x[1][0])
+      destinations = (
+          dest_files
+          | "GetDests" >> beam.Map(
+              lambda x: (
+                  bigquery_tools.get_hashable_destination(x[0]), x[1]))
+          | "GetUniques" >> combiners.Count.PerKey()
+          | "GetFinalDests" >>beam.Keys())
+
+      # All files exist
+      _ = (files | beam.Map(
+          lambda x: hamcrest_assert(os.path.exists(x), is_(True))))
+
+      # One file per destination
+      assert_that(files | "CountFiles" >> combiners.Count.Globally(),
+                  equal_to([6]),
+                  label='CheckFileCount')
+
+      assert_that(destinations,
+                  equal_to([destination]),
+                  label='CheckDestinations')
+
+      assert_that(load_jobs | "CountLoadJobs" >> combiners.Count.Globally(),
+                  equal_to([6]), label='CheckLoadJobCount')
+      assert_that(copy_jobs | "CountCopyJobs" >> combiners.Count.Globally(),
+                  equal_to([6]), label='CheckCopyJobCount')
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
