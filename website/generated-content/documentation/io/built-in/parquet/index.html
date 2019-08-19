@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Built-in I/O Transforms</title>
+  <title>Apache Parquet I/O connector</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/io/built-in/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/io/built-in/parquet/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -141,7 +141,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/io/built-in.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/io/built-in-parquet.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -436,6 +436,9 @@
 
 
 
+<ul class="nav">
+  <li><a href="#before-you-start">Before you start</a></li>
+</ul>
 
 
       </nav>
@@ -455,130 +458,126 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="built-in-io-transforms">Built-in I/O Transforms</h1>
+<p><a href="/documentation/io/built-in/">Built-in I/O Transforms</a></p>
 
-<p>This table contains the currently available I/O transforms.</p>
+<h1 id="apache-parquet-io-connector">Apache Parquet I/O connector</h1>
 
-<p>Consult the <a href="/documentation/programming-guide#pipeline-io">Programming Guide I/O section</a> for general usage instructions, and see the javadoc/pydoc for the particular I/O transforms.</p>
+<nav class="language-switcher">
+  <strong>Adapt for:</strong>
+  <ul>
+    <li data-type="language-java" class="active">Java SDK</li>
+    <li data-type="language-py">Python SDK</li>
+  </ul>
+</nav>
 
-<table class="table table-bordered">
-<tr>
-  <th>Language</th>
-  <th>File-based</th>
-  <th>Messaging</th>
-  <th>Database</th>
-</tr>
-<tr>
-  <td>Java</td>
-  <td>
-    <p>Beam Java supports Apache HDFS, Amazon S3, Google Cloud Storage, and local filesystems.</p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/FileIO.java">FileIO</a> (general-purpose reading, writing, and matching of files)</p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/AvroIO.java">AvroIO</a></p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/TextIO.java">TextIO</a></p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/TFRecordIO.java">TFRecordIO</a></p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/xml/src/main/java/org/apache/beam/sdk/io/xml/XmlIO.java">XmlIO</a></p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/tika/src/main/java/org/apache/beam/sdk/io/tika/TikaIO.java">TikaIO</a></p>
-    <p><a href="/documentation/io/built-in/parquet">ParquetIO</a></p>
-  </td>
-  <td>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/kinesis">Amazon Kinesis</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/amqp">AMQP</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/kafka">Apache Kafka</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/pubsub">Google Cloud Pub/Sub</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/jms">JMS</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/mqtt">MQTT</a></p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/rabbitmq/src/main/java/org/apache/beam/sdk/io/rabbitmq/RabbitMqIO.java">RabbitMqIO</a></p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/amazon-web-services/src/main/java/org/apache/beam/sdk/io/aws/sqs/SqsIO.java">SqsIO</a></p>
-  </td>
-  <td>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/cassandra">Apache Cassandra</a></p>
-    <p><a href="/documentation/io/built-in/hadoop/">Apache Hadoop Input/Output Format</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/hbase">Apache HBase</a></p>
-    <p><a href="/documentation/io/built-in/hcatalog">Apache Hive (HCatalog)</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/kudu">Apache Kudu</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/solr">Apache Solr</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/elasticsearch">Elasticsearch (v2.x, v5.x, v6.x)</a></p>
-    <p><a href="/documentation/io/built-in/google-bigquery/">Google BigQuery</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigtable">Google Cloud Bigtable</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/datastore">Google Cloud Datastore</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/spanner">Google Cloud Spanner</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/jdbc">JDBC</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/mongodb">MongoDB</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/redis">Redis</a></p>
-  </td>
-</tr>
-<tr>
-  <td>Python/Batch</td>
-  <td>
-    <p>Beam Python supports Apache HDFS, Google Cloud Storage, and local filesystems.</p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/avroio.py">avroio</a></p>
-    <p><a href="/documentation/io/built-in/parquet">parquetio.py</a></p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/textio.py">textio</a></p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/tfrecordio.py">tfrecordio</a></p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/vcfio.py">vcfio</a></p>
-  </td>
-  <td>
-  </td>
-  <td>
-    <p><a href="/documentation/io/built-in/google-bigquery/">Google BigQuery</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/io/gcp/datastore">Google Cloud Datastore</a></p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/bigtableio.py">Google Cloud Bigtable</a> (Write)</p>
-  </td>
-</tr>
-<tr>
-  <td>Python/Streaming</td>
-  <td>
-  </td>
-  <td>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/pubsub.py">Google Cloud Pub/Sub</a></p>
-  </td>
-  <td>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/bigquery.py">Google BigQuery (sink only)</a></p>
-  </td>
-</tr>
-</table>
+<p>The Beam SDKs include built-in transforms that can read data from and write data
+to <a href="https://parquet.apache.org">Apache Parquet</a> files.</p>
 
-<h1 id="in-progress-io-transforms">In-Progress I/O Transforms</h1>
+<h2 id="before-you-start">Before you start</h2>
 
-<p>This table contains I/O transforms that are currently planned or in-progress. Status information can be found on the JIRA issue, or on the GitHub PR linked to by the JIRA issue (if there is one).</p>
+<!-- Java specific -->
 
-<table class="table table-bordered">
-  <tr>
-    <th>Name</th><th>Language</th><th>JIRA</th>
-  </tr>
-  <tr>
-    <td>Apache DistributedLog</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-607">BEAM-607</a></td>
-  </tr>
-  <tr>
-    <td>Apache Kafka</td><td>Python</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-3788">BEAM-3788</a></td>
-  </tr>
-  <tr>
-    <td>Apache Sqoop</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-67">BEAM-67</a></td>
-  </tr>
-  <tr>
-    <td>Couchbase</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-1893">BEAM-1893</a></td>
-  </tr>
-  <tr>
-    <td>InfluxDB</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-2546">BEAM-2546</a></td>
-  </tr>
-  <tr>
-    <td>Memcached</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-1678">BEAM-1678</a></td>
-  </tr>
-  <tr>
-    <td>Neo4j</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-1857">BEAM-1857</a></td>
-  </tr>
-  <tr>
-    <td>RestIO</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-1946">BEAM-1946</a></td>
-  </tr>
-</table>
+<p class="language-java">To use ParquetIO, add the Maven artifact dependency to your <code class="highlighter-rouge">pom.xml</code> file.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">beam</span><span class="o">-</span><span class="n">sdks</span><span class="o">-</span><span class="n">java</span><span class="o">-</span><span class="n">io</span><span class="o">-</span><span class="n">parquet</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="mf">2.14</span><span class="o">.</span><span class="mi">0</span><span class="o">&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
+<span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
+</code></pre>
+</div>
+
+<p class="language-java">Additional resources:</p>
+
+<ul class="language-java">
+  <li><a href="https://github.com/apache/beam/blob/master/sdks/java/io/parquet/src/main/java/org/apache/beam/sdk/io/parquet/ParquetIO.java">ParquetIO source code</a></li>
+  <li><a href="https://beam.apache.org/releases/javadoc/2.14.0/org/apache/beam/sdk/io/parquet/ParquetIO.html">ParquetIO Javadoc</a></li>
+</ul>
+
+<!-- Python specific -->
+
+<p class="language-py">ParquetIO comes preinstalled with the Apache Beam python sdk..</p>
+
+<p class="language-py">Additional resources:</p>
+
+<ul class="language-py">
+  <li><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/parquetio.py">ParquetIO source code</a></li>
+  <li><a href="https://beam.apache.org/releases/pydoc/2.14.0/apache_beam.io.parquetio.html">ParquetIO Pydoc</a></li>
+</ul>
+
+<h4 class="language-java" id="using-parquetio-with-spark-before-24">Using ParquetIO with Spark before 2.4</h4>
+
+<p class="language-java"><code class="highlighter-rouge">ParquetIO</code> depends on an API introduced in Apache Parquet 1.10.0.  <strong>Spark 2.4.x is compatible and no additional steps are necessary</strong>.  Older versions of Spark will not work out of the box since a pre-installed version of Parquet libraries will take precedence during execution.  The following workaround should be applied.</p>
+
+<blockquote class="language-java">
+  <p><strong>Note</strong>: The following technique allows you to execute your pipeline with <code class="highlighter-rouge">ParquetIO</code> correctly.
+The Parquet files that are consumed or generated by this Beam connector should remain interoperable with the other tools on your cluster.</p>
+</blockquote>
+
+<p class="language-java">Include the Parquet artifact normally and ensure that it brings in the correct version of Parquet as a transitive dependency.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">beam</span><span class="o">-</span><span class="n">sdks</span><span class="o">-</span><span class="n">java</span><span class="o">-</span><span class="n">io</span><span class="o">-</span><span class="n">parquet</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="err">$</span><span class="o">{</span><span class="n">beam</span><span class="o">.</span><span class="na">version</span><span class="o">}&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
+<span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
+</code></pre>
+</div>
+
+<p class="language-java">Relocate the following packages:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">plugin</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">maven</span><span class="o">.</span><span class="na">plugins</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">maven</span><span class="o">-</span><span class="n">shade</span><span class="o">-</span><span class="n">plugin</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">configuration</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">createDependencyReducedPom</span><span class="o">&gt;</span><span class="kc">false</span><span class="o">&lt;/</span><span class="n">createDependencyReducedPom</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">filters</span><span class="o">&gt;</span>
+      <span class="o">&lt;</span><span class="n">filter</span><span class="o">&gt;</span>
+        <span class="o">&lt;</span><span class="n">artifact</span><span class="o">&gt;*:*&lt;/</span><span class="n">artifact</span><span class="o">&gt;</span>
+        <span class="o">&lt;</span><span class="n">excludes</span><span class="o">&gt;</span>
+          <span class="o">&lt;</span><span class="n">exclude</span><span class="o">&gt;</span><span class="n">META</span><span class="o">-</span><span class="n">INF</span><span class="o">/*.</span><span class="na">SF</span><span class="o">&lt;/</span><span class="n">exclude</span><span class="o">&gt;</span>
+          <span class="o">&lt;</span><span class="n">exclude</span><span class="o">&gt;</span><span class="n">META</span><span class="o">-</span><span class="n">INF</span><span class="o">/*.</span><span class="na">DSA</span><span class="o">&lt;/</span><span class="n">exclude</span><span class="o">&gt;</span>
+          <span class="o">&lt;</span><span class="n">exclude</span><span class="o">&gt;</span><span class="n">META</span><span class="o">-</span><span class="n">INF</span><span class="o">/*.</span><span class="na">RSA</span><span class="o">&lt;/</span><span class="n">exclude</span><span class="o">&gt;</span>
+        <span class="o">&lt;/</span><span class="n">excludes</span><span class="o">&gt;</span>
+      <span class="o">&lt;/</span><span class="n">filter</span><span class="o">&gt;</span>
+    <span class="o">&lt;/</span><span class="n">filters</span><span class="o">&gt;</span>
+  <span class="o">&lt;/</span><span class="n">configuration</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">executions</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">execution</span><span class="o">&gt;</span>
+      <span class="o">&lt;</span><span class="n">phase</span><span class="o">&gt;</span><span class="kn">package</span><span class="o">&lt;/</span><span class="n">phase</span><span class="o">&gt;</span>
+      <span class="o">&lt;</span><span class="n">goals</span><span class="o">&gt;</span>
+        <span class="o">&lt;</span><span class="n">goal</span><span class="o">&gt;</span><span class="n">shade</span><span class="o">&lt;/</span><span class="n">goal</span><span class="o">&gt;</span>
+      <span class="o">&lt;/</span><span class="n">goals</span><span class="o">&gt;</span>
+      <span class="o">&lt;</span><span class="n">configuration</span><span class="o">&gt;</span>
+        <span class="o">&lt;</span><span class="n">shadedArtifactAttached</span><span class="o">&gt;</span><span class="kc">true</span><span class="o">&lt;/</span><span class="n">shadedArtifactAttached</span><span class="o">&gt;</span>
+        <span class="o">&lt;</span><span class="n">shadedClassifierName</span><span class="o">&gt;</span><span class="n">shaded</span><span class="o">&lt;/</span><span class="n">shadedClassifierName</span><span class="o">&gt;</span>
+        <span class="o">&lt;</span><span class="n">relocations</span><span class="o">&gt;</span>
+          <span class="o">&lt;</span><span class="n">relocation</span><span class="o">&gt;</span>
+            <span class="o">&lt;</span><span class="n">pattern</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">parquet</span><span class="o">&lt;/</span><span class="n">pattern</span><span class="o">&gt;</span>
+            <span class="o">&lt;</span><span class="n">shadedPattern</span><span class="o">&gt;</span><span class="n">shaded</span><span class="o">.</span><span class="na">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">parquet</span><span class="o">&lt;/</span><span class="n">shadedPattern</span><span class="o">&gt;</span>
+          <span class="o">&lt;/</span><span class="n">relocation</span><span class="o">&gt;</span>
+          <span class="o">&lt;!--</span> <span class="n">Some</span> <span class="n">packages</span> <span class="n">are</span> <span class="n">shaded</span> <span class="n">already</span><span class="o">,</span> <span class="n">and</span> <span class="n">on</span> <span class="n">the</span> <span class="n">original</span> <span class="n">spark</span> <span class="n">classpath</span><span class="o">.</span> <span class="n">Shade</span> <span class="n">them</span> <span class="n">more</span><span class="o">.</span> <span class="o">--&gt;</span>
+          <span class="o">&lt;</span><span class="n">relocation</span><span class="o">&gt;</span>
+            <span class="o">&lt;</span><span class="n">pattern</span><span class="o">&gt;</span><span class="n">shaded</span><span class="o">.</span><span class="na">parquet</span><span class="o">&lt;/</span><span class="n">pattern</span><span class="o">&gt;</span>
+            <span class="o">&lt;</span><span class="n">shadedPattern</span><span class="o">&gt;</span><span class="n">reshaded</span><span class="o">.</span><span class="na">parquet</span><span class="o">&lt;/</span><span class="n">shadedPattern</span><span class="o">&gt;</span>
+          <span class="o">&lt;/</span><span class="n">relocation</span><span class="o">&gt;</span>
+          <span class="o">&lt;</span><span class="n">relocation</span><span class="o">&gt;</span>
+            <span class="o">&lt;</span><span class="n">pattern</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">avro</span><span class="o">&lt;/</span><span class="n">pattern</span><span class="o">&gt;</span>
+            <span class="o">&lt;</span><span class="n">shadedPattern</span><span class="o">&gt;</span><span class="n">shaded</span><span class="o">.</span><span class="na">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">avro</span><span class="o">&lt;/</span><span class="n">shadedPattern</span><span class="o">&gt;</span>
+          <span class="o">&lt;/</span><span class="n">relocation</span><span class="o">&gt;</span>
+        <span class="o">&lt;/</span><span class="n">relocations</span><span class="o">&gt;</span>
+        <span class="o">&lt;</span><span class="n">transformers</span><span class="o">&gt;</span>
+          <span class="o">&lt;</span><span class="n">transformer</span>
+            <span class="n">implementation</span><span class="o">=</span><span class="s">"org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"</span><span class="o">/&gt;</span>
+        <span class="o">&lt;/</span><span class="n">transformers</span><span class="o">&gt;</span>
+      <span class="o">&lt;/</span><span class="n">configuration</span><span class="o">&gt;</span>
+    <span class="o">&lt;/</span><span class="n">execution</span><span class="o">&gt;</span>
+  <span class="o">&lt;/</span><span class="n">executions</span><span class="o">&gt;</span>
+<span class="o">&lt;/</span><span class="n">plugin</span><span class="o">&gt;</span>
+</code></pre>
+</div>
+
+<p class="language-java">This technique has been tested to work on Spark 2.2.3, Spark 2.3.3 and Spark 2.4.3 (although it is optional for Spark 2.4+).</p>
 
       </div>
     </div>
