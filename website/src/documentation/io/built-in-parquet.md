@@ -33,10 +33,9 @@ limitations under the License.
 The Beam SDKs include built-in transforms that can read data from and write data
 to [Apache Parquet](https://parquet.apache.org) files.
 
-<!-- Java specific -->
-
-{:.language-java}
 ## Before you start
+
+<!-- Java specific -->
 
 {:.language-java}
 To use ParquetIO, add the Maven artifact dependency to your `pom.xml` file.
@@ -68,9 +67,8 @@ Additional resources:
 * [ParquetIO source code](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/parquetio.py)
 * [ParquetIO Pydoc](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.io.parquetio.html)
 
-
 {:.language-java}
-### Using ParquetIO with Spark before 2.4
+#### Using ParquetIO with Spark before 2.4
 
 {:.language-java}
 `ParquetIO` depends on an API introduced in Apache Parquet 1.10.0.  **Spark 2.4.x is compatible and no additional steps are necessary**.  Older versions of Spark will not work out of the box since a pre-installed version of Parquet libraries will take precedence during execution.  The following workaround should be applied.
