@@ -84,7 +84,6 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.spark.HashPartitioner;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.JavaSparkContext$;
@@ -302,20 +301,9 @@ public final class StreamingTransformTranslator {
         final WindowedValue.WindowedValueCoder<V> wvCoder =
             WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
 
-        // --- group by key only.
-        JavaDStream<KV<K, Iterable<WindowedValue<V>>>> groupedByKeyStream =
-            dStream.transform(
-                rdd ->
-                    GroupCombineFunctions.groupByKeyOnly(
-                        rdd,
-                        coder.getKeyCoder(),
-                        wvCoder,
-                        new HashPartitioner(rdd.rdd().sparkContext().defaultParallelism())));
-
-        // --- now group also by window.
         JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outStream =
-            SparkGroupAlsoByWindowViaWindowSet.groupAlsoByWindow(
-                groupedByKeyStream,
+            SparkGroupAlsoByWindowViaWindowSet.groupByKeyAndWindow(
+                dStream,
                 coder.getKeyCoder(),
                 wvCoder,
                 windowingStrategy,
