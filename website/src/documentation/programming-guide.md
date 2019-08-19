@@ -3021,7 +3021,7 @@ pipeline
 
 pipelineResult = pipeline.run().waitUntilFinish(...);
 
-// query metric by namespace and metric name
+// request the metric called "counter1" in namespace called "namespace"
 MetricQueryResults metrics =
     pipelineResult
         .metrics()
@@ -3030,7 +3030,8 @@ MetricQueryResults metrics =
                 .addNameFilter(MetricNameFilter.named("namespace", "counter1"))
                 .build());
 
-// Find and print the queried counter:
+// print the metric value - there should be only one line because there is only one metric 
+// called "counter1" in the namespace called "namespace"
 for (MetricResult<Long> counter: metrics.getCounters()) {
   System.out.println(counter.getName() + ":" + counter.getAttempted());
 }
