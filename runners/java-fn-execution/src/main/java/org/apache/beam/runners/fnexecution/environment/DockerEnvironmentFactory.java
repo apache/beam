@@ -152,21 +152,27 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       containerId = docker.runImage(containerImage, dockerArgsBuilder.build(), args);
       LOG.debug("Created Docker Container with Container ID {}", containerId);
       // Wait on a client from the gRPC server.
-      while (instructionHandler == null) {
+      final int maxRetries = 5;
+      for (int retry = 1; retry <= maxRetries; retry++) {
         try {
-          instructionHandler = clientSource.take(workerId, Duration.ofMinutes(1));
+          instructionHandler = clientSource.take(workerId, Duration.ofMinutes(2));
+          return DockerContainerEnvironment.create(
+              docker, environment, containerId, instructionHandler);
         } catch (TimeoutException timeoutEx) {
-          Preconditions.checkArgument(
-              docker.isContainerRunning(containerId), "No container running for id " + containerId);
           LOG.info(
-              "Still waiting for startup of environment {} for worker id {}",
+              "Still waiting for startup of environment {} for worker id {} (attempt {} timed out)",
               dockerPayload.getContainerImage(),
-              workerId);
+              workerId,
+              retry);
         } catch (InterruptedException interruptEx) {
           Thread.currentThread().interrupt();
           throw new RuntimeException(interruptEx);
         }
       }
+      throw new TimeoutException(
+          String.format(
+              "Gave up waiting for startup of environment %s for worker id %s after %d attempts",
+              dockerPayload.getContainerImage(), workerId, maxRetries));
     } catch (Exception e) {
       if (containerId != null) {
         // Kill the launched docker container if we can't retrieve a client for it.
@@ -178,8 +184,6 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       }
       throw e;
     }
-
-    return DockerContainerEnvironment.create(docker, environment, containerId, instructionHandler);
   }
 
   private List<String> gcsCredentialArgs() {
