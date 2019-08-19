@@ -79,6 +79,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWor
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkResponseChunk;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
@@ -176,12 +177,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
     options.setJobId("job");
     options.setWorkerId("worker");
     if (enableStreamingEngine) {
-      List<String> experiments = this.options.getExperiments();
-      if (experiments == null) {
-        experiments = new ArrayList<>();
-      }
-      experiments.add(GcpOptions.STREAMING_ENGINE_EXPERIMENT);
-      options.setExperiments(experiments);
+      ExperimentalOptions.addExperiment(options, GcpOptions.STREAMING_ENGINE_EXPERIMENT);
     }
     this.stubList.add(CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel(name)));
   }
