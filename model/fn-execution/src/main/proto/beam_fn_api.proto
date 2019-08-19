@@ -627,9 +627,11 @@ message StateKey {
   message Runner {
     // (Required) Opaque information supplied by the runner. Used to support
     // remote references.
+    // https://s.apache.org/beam-fn-api-send-and-receive-data
     //
     // Used by state backed iterable. And in this use case, request type can
-    // only be of type get.
+    // only be of type get. Details see:
+    // https://s.apache.org/beam-fn-api-state-backed-iterables
     bytes key = 1;
   }
 
