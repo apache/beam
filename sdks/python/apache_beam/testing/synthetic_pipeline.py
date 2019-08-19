@@ -149,7 +149,7 @@ class NonLiquidShardingOffsetRangeTracker(OffsetRestrictionTracker):
     pass  # Don't split.
 
   def checkpoint(self):
-    pass # Don't split.
+    pass  # Don't split.
 
 
 class SyntheticSDFStepRestrictionProvider(RestrictionProvider):
@@ -174,33 +174,33 @@ class SyntheticSDFStepRestrictionProvider(RestrictionProvider):
     self._size_estimate_override = size_estimate_override
 
   def initial_restriction(self, element):
-    return (0, self._num_records)
+    return OffsetRange(0, self._num_records)
 
   def create_tracker(self, restriction):
     if self._disable_liquid_sharding:
-      return NonLiquidShardingOffsetRangeTracker(restriction[0],
-                                                 restriction[1])
+      return NonLiquidShardingOffsetRangeTracker(restriction)
     else:
-      return OffsetRestrictionTracker(restriction[0], restriction[1])
+      return OffsetRestrictionTracker(restriction)
 
   def split(self, element, restriction):
-    elems = restriction[1] - restriction[0]
+    elems = restriction.size()
     if (self._initial_splitting_uneven_chunks and
         self._initial_splitting_num_bundles > 1 and elems > 1):
-      return initial_splitting_zipf(restriction[0], restriction[1],
+      bundle_ranges = initial_splitting_zipf(restriction.start, restriction.stop,
                                     self._initial_splitting_num_bundles, 3.0)
+      for start, stop in bundle_ranges:
+        yield OffsetRange(start, stop)
+
     else:
       offsets_per_split = max(1, (elems // self._initial_splitting_num_bundles))
-      result = list(
-          OffsetRange(restriction[0], restriction[1]).split(
-              offsets_per_split, offsets_per_split // 2))
-      return [(x.start, x.stop) for x in result]
+      for split in restriction.split(offsets_per_split, offsets_per_split // 2):
+        yield split
 
   def restriction_size(self, element, restriction):
     if self._size_estimate_override is not None:
       return self._size_estimate_override
     element_size = len(element) if isinstance(element, str) else 1
-    return (restriction[1] - restriction[0]) * element_size
+    return restriction.size() * element_size
 
 
 def get_synthetic_sdf_step(per_element_delay_sec=0,
@@ -259,15 +259,14 @@ def get_synthetic_sdf_step(per_element_delay_sec=0,
         if np.random.random() < self._output_filter_ratio:
           filter_element = True
 
-      for k in range(*restriction_tracker.current_restriction()):
-        if not restriction_tracker.try_claim(k):
-          return
-
+      cur = restriction_tracker.start_position()
+      while restriction_tracker.try_claim(cur):
         if self._per_element_delay_sec:
           time.sleep(self._per_element_delay_sec)
 
         if not filter_element:
           yield element
+        cur += 1
 
   return SyntheticSDFStep(per_element_delay_sec, per_bundle_delay_sec,
                           output_filter_ratio, output_records_per_input_record)
@@ -432,15 +431,15 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
   """
 
   def initial_restriction(self, element):
-    return (0, element['num_records'])
+    return OffsetRange(0, element['num_records'])
 
   def create_tracker(self, restriction):
-    return restriction_trackers.OffsetRestrictionTracker(
-        restriction[0], restriction[1])
+    return restriction_trackers.OffsetRestrictionTracker(restriction)
 
   def split(self, element, restriction):
     bundle_ranges = []
-    start_position, stop_position = restriction
+    start_position = restriction.start
+    stop_position = restriction.stop
     element_size = element['key_size'] + element['value_size']
     estimate_size = element_size * element['num_records']
     if element['initial_splitting'] == 'zipf':
@@ -457,11 +456,11 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
       index = 0
       while start < stop_position:
         if index == desired_num_bundles - 1:
-          bundle_ranges.append((start, stop_position))
+          bundle_ranges.append(OffsetRange(start, stop_position))
           break
         stop = start + int(
             element['num_records'] * relative_bundle_sizes[index])
-        bundle_ranges.append((start, stop))
+        bundle_ranges.append(OffsetRange(start, stop))
         start = stop
         index += 1
     else:
@@ -477,12 +476,12 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
       for start in range(start_position, stop_position,
                          bundle_size_in_elements):
         stop = min(start + bundle_size_in_elements, stop_position)
-        bundle_ranges.append((start, stop))
+        bundle_ranges.append(OffsetRange(start, stop))
     return bundle_ranges
 
   def restriction_size(self, element, restriction):
     return ((element['key_size'] + element['value_size'])
-            * (restriction[1] - restriction[0]))
+            * restriction.size())
 
 
 class SyntheticSDFAsSource(beam.DoFn):
@@ -520,12 +519,12 @@ class SyntheticSDFAsSource(beam.DoFn):
       element,
       restriction_tracker=beam.DoFn.RestrictionParam(
           SyntheticSDFSourceRestrictionProvider())):
-    for k in range(*restriction_tracker.current_restriction()):
-      if not restriction_tracker.try_claim(k):
-        return
-      r = np.random.RandomState(k)
+    cur = restriction_tracker.start_position()
+    while restriction_tracker.try_claim(cur):
+      r = np.random.RandomState(cur)
       time.sleep(element['sleep_per_input_record_sec'])
       yield r.bytes(element['key_size']), r.bytes(element['value_size'])
+      cur += 1
 
 
 class ShuffleBarrier(beam.PTransform):

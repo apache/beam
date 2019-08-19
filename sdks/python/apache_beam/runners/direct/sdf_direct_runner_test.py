@@ -30,6 +30,7 @@ from apache_beam import Create
 from apache_beam import DoFn
 from apache_beam.io import filebasedsource_test
 from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
+from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.pvalue import AsList
 from apache_beam.pvalue import AsSingleton
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -45,10 +46,10 @@ class ReadFilesProvider(RestrictionProvider):
 
   def initial_restriction(self, element):
     size = os.path.getsize(element)
-    return (0, size)
+    return OffsetRange(0, size)
 
   def create_tracker(self, restriction):
-    return OffsetRestrictionTracker(*restriction)
+    return OffsetRestrictionTracker(restriction)
 
 
 class ReadFiles(DoFn):
@@ -94,11 +95,12 @@ class ReadFiles(DoFn):
 class ExpandStringsProvider(RestrictionProvider):
 
   def initial_restriction(self, element):
-    return (0, len(element[0]))
+    return OffsetRange(0, len(element[0]))
 
   def create_tracker(self, restriction):
-    return OffsetRestrictionTracker(restriction[0], restriction[1])
+    return OffsetRestrictionTracker(restriction)
 
+  # No initial split performed.
   def split(self, element, restriction):
     return [restriction,]
 

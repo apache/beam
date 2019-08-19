@@ -66,89 +66,89 @@ class OffsetRangeTest(unittest.TestCase):
 class OffsetRestrictionTrackerTest(unittest.TestCase):
 
   def test_try_claim(self):
-    tracker = OffsetRestrictionTracker(100, 200)
-    self.assertEqual((100, 200), tracker.current_restriction())
+    tracker = OffsetRestrictionTracker(OffsetRange(100, 200))
+    self.assertEqual(OffsetRange(100, 200), tracker.current_restriction())
     self.assertTrue(tracker.try_claim(100))
     self.assertTrue(tracker.try_claim(150))
     self.assertTrue(tracker.try_claim(199))
     self.assertFalse(tracker.try_claim(200))
 
   def test_checkpoint_unstarted(self):
-    tracker = OffsetRestrictionTracker(100, 200)
+    tracker = OffsetRestrictionTracker(OffsetRange(100, 200))
     checkpoint = tracker.checkpoint()
-    self.assertEqual((100, 100), tracker.current_restriction())
-    self.assertEqual((100, 200), checkpoint)
+    self.assertEqual(OffsetRange(100, 100), tracker.current_restriction())
+    self.assertEqual(OffsetRange(100, 200), checkpoint)
 
   def test_checkpoint_just_started(self):
-    tracker = OffsetRestrictionTracker(100, 200)
+    tracker = OffsetRestrictionTracker(OffsetRange(100, 200))
     self.assertTrue(tracker.try_claim(100))
     checkpoint = tracker.checkpoint()
-    self.assertEqual((100, 101), tracker.current_restriction())
-    self.assertEqual((101, 200), checkpoint)
+    self.assertEqual(OffsetRange(100, 101), tracker.current_restriction())
+    self.assertEqual(OffsetRange(101, 200), checkpoint)
 
   def test_checkpoint_regular(self):
-    tracker = OffsetRestrictionTracker(100, 200)
+    tracker = OffsetRestrictionTracker(OffsetRange(100, 200))
     self.assertTrue(tracker.try_claim(105))
     self.assertTrue(tracker.try_claim(110))
     checkpoint = tracker.checkpoint()
-    self.assertEqual((100, 111), tracker.current_restriction())
-    self.assertEqual((111, 200), checkpoint)
+    self.assertEqual(OffsetRange(100, 111), tracker.current_restriction())
+    self.assertEqual(OffsetRange(111, 200), checkpoint)
 
   def test_checkpoint_claimed_last(self):
-    tracker = OffsetRestrictionTracker(100, 200)
+    tracker = OffsetRestrictionTracker(OffsetRange(100, 200))
     self.assertTrue(tracker.try_claim(105))
     self.assertTrue(tracker.try_claim(110))
     self.assertTrue(tracker.try_claim(199))
     checkpoint = tracker.checkpoint()
-    self.assertEqual((100, 200), tracker.current_restriction())
-    self.assertEqual((200, 200), checkpoint)
+    self.assertEqual(OffsetRange(100, 200), tracker.current_restriction())
+    self.assertEqual(OffsetRange(200, 200), checkpoint)
 
   def test_checkpoint_after_failed_claim(self):
-    tracker = OffsetRestrictionTracker(100, 200)
+    tracker = OffsetRestrictionTracker(OffsetRange(100, 200))
     self.assertTrue(tracker.try_claim(105))
     self.assertTrue(tracker.try_claim(110))
     self.assertTrue(tracker.try_claim(160))
     self.assertFalse(tracker.try_claim(240))
 
     checkpoint = tracker.checkpoint()
-    self.assertTrue((100, 161), tracker.current_restriction())
-    self.assertTrue((161, 200), checkpoint)
+    self.assertTrue(OffsetRange(100, 161), tracker.current_restriction())
+    self.assertTrue(OffsetRange(161, 200), checkpoint)
 
   def test_non_monotonic_claim(self):
     with self.assertRaises(ValueError):
-      tracker = OffsetRestrictionTracker(100, 200)
+      tracker = OffsetRestrictionTracker(OffsetRange(100, 200))
       self.assertTrue(tracker.try_claim(105))
       self.assertTrue(tracker.try_claim(110))
       self.assertTrue(tracker.try_claim(103))
 
   def test_claim_before_starting_range(self):
     with self.assertRaises(ValueError):
-      tracker = OffsetRestrictionTracker(100, 200)
+      tracker = OffsetRestrictionTracker(OffsetRange(100, 200))
       tracker.try_claim(90)
 
   def test_check_done_after_try_claim_past_end_of_range(self):
-    tracker = OffsetRestrictionTracker(100, 200)
+    tracker = OffsetRestrictionTracker(OffsetRange(100, 200))
     self.assertTrue(tracker.try_claim(150))
     self.assertTrue(tracker.try_claim(175))
     self.assertFalse(tracker.try_claim(220))
     tracker.check_done()
 
   def test_check_done_after_try_claim_past_end_of_range(self):
-    tracker = OffsetRestrictionTracker(100, 200)
+    tracker = OffsetRestrictionTracker(OffsetRange(100, 200))
     self.assertTrue(tracker.try_claim(150))
     self.assertTrue(tracker.try_claim(175))
     self.assertFalse(tracker.try_claim(200))
     tracker.check_done()
 
   def test_check_done_after_try_claim_right_before_end_of_range(self):
-    tracker = OffsetRestrictionTracker(100, 200)
+    tracker = OffsetRestrictionTracker(OffsetRange(100, 200))
     self.assertTrue(tracker.try_claim(150))
     self.assertTrue(tracker.try_claim(175))
     self.assertTrue(tracker.try_claim(199))
     tracker.check_done()
 
   def test_check_done_when_not_done(self):
-    tracker = OffsetRestrictionTracker(100, 200)
+    tracker = OffsetRestrictionTracker(OffsetRange(100, 200))
     self.assertTrue(tracker.try_claim(150))
     self.assertTrue(tracker.try_claim(175))
 
