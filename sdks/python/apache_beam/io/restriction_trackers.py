@@ -72,6 +72,7 @@ class OffsetRange(object):
   def size(self):
     return self.stop - self.start
 
+
 class OffsetRestrictionTracker(RestrictionTracker):
   """An `iobase.RestrictionTracker` implementations for an offset range.
 

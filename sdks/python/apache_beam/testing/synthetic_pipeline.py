@@ -186,8 +186,9 @@ class SyntheticSDFStepRestrictionProvider(RestrictionProvider):
     elems = restriction.size()
     if (self._initial_splitting_uneven_chunks and
         self._initial_splitting_num_bundles > 1 and elems > 1):
-      bundle_ranges = initial_splitting_zipf(restriction.start, restriction.stop,
-                                    self._initial_splitting_num_bundles, 3.0)
+      bundle_ranges = initial_splitting_zipf(
+          restriction.start, restriction.stop,
+          self._initial_splitting_num_bundles, 3.0)
       for start, stop in bundle_ranges:
         yield OffsetRange(start, stop)
 

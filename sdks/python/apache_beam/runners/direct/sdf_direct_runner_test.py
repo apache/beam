@@ -29,8 +29,8 @@ import apache_beam as beam
 from apache_beam import Create
 from apache_beam import DoFn
 from apache_beam.io import filebasedsource_test
-from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
 from apache_beam.io.restriction_trackers import OffsetRange
+from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
 from apache_beam.pvalue import AsList
 from apache_beam.pvalue import AsSingleton
 from apache_beam.testing.test_pipeline import TestPipeline
