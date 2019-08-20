@@ -187,14 +187,7 @@ public class GreedyPipelineFuser {
         rootNode.getId(),
         rootNode.getTransform().getInputsMap());
     checkArgument(
-        !pipeline.getEnvironment(rootNode).isPresent()
-            // We allow Read transforms as root transforms. The Runner can choose whether it
-            // wants to translate them natively (e.g. Java Read) or through an environment.
-            || rootNode
-                .getTransform()
-                .getSpec()
-                .getUrn()
-                .equals(PTransformTranslation.READ_TRANSFORM_URN),
+        !pipeline.getEnvironment(rootNode).isPresent(),
         "%s requires all root nodes to be runner-implemented %s or %s primitives, "
             + "but transform %s executes in environment %s",
         GreedyPipelineFuser.class.getSimpleName(),
