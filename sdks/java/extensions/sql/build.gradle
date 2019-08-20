@@ -81,6 +81,7 @@ configurations {
 
 def calcite_version = "1.20.0"
 def avatica_version = "1.15.0"
+def zetasql_version = "2019.07.1"
 
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
@@ -93,9 +94,9 @@ dependencies {
   compile "org.apache.calcite:calcite-linq4j:$calcite_version"
   compile "org.apache.calcite.avatica:avatica-core:$avatica_version"
   compile "com.google.api.grpc:proto-google-common-protos:1.12.0" // Interfaces with ZetaSQL use this
-  compile "com.google.zetasql:zetasql-jni-channel:2019.07.1"
-  compile "com.google.zetasql:zetasql-client:2019.07.1"
-  compile "com.google.zetasql:zetasql-types:2019.07.1"
+  compile "com.google.zetasql:zetasql-jni-channel:$zetasql_version"
+  compile "com.google.zetasql:zetasql-client:$zetasql_version"
+  compile "com.google.zetasql:zetasql-types:$zetasql_version"
   shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow project(":sdks:java:extensions:join-library")
   shadow library.java.slf4j_api
@@ -211,7 +212,7 @@ task runZetaSQLTest(type: Test) {
   // Disable Gradle cache (it should not be used because the IT's won't run).
   outputs.upToDateWhen { false }
 
-  include '**/*ZetaSQL.class'
+  include '**/*TestZetaSQL.class'
   classpath = project(":sdks:java:extensions:sql")
           .sourceSets
           .test

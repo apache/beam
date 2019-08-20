@@ -79,7 +79,7 @@ public class SqlStdOperatorMappingTable {
           FunctionSignatureId.FN_CASE_NO_VALUE,
           FunctionSignatureId.FN_CASE_WITH_VALUE,
           FunctionSignatureId.FN_TIMESTAMP_ADD,
-          // FunctionSignatureId.FN_TIMESTAMP_SUB,
+          // TODO: FunctionSignatureId.FN_TIMESTAMP_SUB,
           FunctionSignatureId.FN_FLOOR_DOUBLE,
           FunctionSignatureId.FN_FLOOR_NUMERIC,
           FunctionSignatureId.FN_CEIL_DOUBLE,
@@ -98,9 +98,9 @@ public class SqlStdOperatorMappingTable {
           FunctionSignatureId.FN_EXTRACT_FROM_TIMESTAMP,
           FunctionSignatureId.FN_TIMESTAMP_FROM_STRING,
           FunctionSignatureId.FN_TIMESTAMP_FROM_DATE,
-          // FunctionSignatureId.FN_TIMESTAMP_FROM_DATETIME
+          // TODO: FunctionSignatureId.FN_TIMESTAMP_FROM_DATETIME
           FunctionSignatureId.FN_DATE_FROM_YEAR_MONTH_DAY
-          // FunctionSignatureId.FN_DATE_FROM_TIMESTAMP
+          // TODO: FunctionSignatureId.FN_DATE_FROM_TIMESTAMP
           );
 
   // todo: Some of operators defined here are later overridden in ZetaSQLPlannerImpl.
