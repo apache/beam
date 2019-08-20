@@ -1565,16 +1565,23 @@ together.
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_with_undeclared_outputs
 %}```
 
-{:.language-java}
 #### 4.5.3. Accessing additional parameters in your DoFn {#other-dofn-parameters}
 
 {:.language-java}
 In addition to the element and the `OutputReceiver`, Beam will populate other parameters to your DoFn's `@ProcessElement` method.
 Any combination of these parameters can be added to your process method in any order.
 
+{:.language-py}
+In addition to the element, Beam will populate other parameters to your DoFn's `process` method.
+Any combination of these parameters can be added to your process method in any order.
+
 {:.language-java}
 **Timestamp:**
 To access the timestamp of an input element, add a parameter annotated with `@Timestamp` of type `Instant`. For example:
+
+{:.language-py}
+**Timestamp:**
+To access the timestamp of an input element, add a keyword parameter default to `DoFn.TimestampParam`. For example:
 
 ```java
 .of(new DoFn<String, String>() {
@@ -1582,6 +1589,16 @@ To access the timestamp of an input element, add a parameter annotated with `@Ti
   }})
 ```
 
+```py
+import apache_beam as beam
+
+class ProcessRecord(beam.DoFn):
+
+  def process(self, element, timestamp=beam.DoFn.TimestampParam):
+     # access timestamp of element.
+     pass  
+  
+```
 
 {:.language-java}
 **Window:**
@@ -1591,11 +1608,18 @@ will be raised. If an element falls in multiple windows (for example, this will 
 `@ProcessElement` method will be invoked multiple time for the element, once for each window. For example, when fixed windows
 are being used, the window is of type `IntervalWindow`.
 
+{:.language-py}
+**Window:**
+To access the window an input element falls into, add a keyword parameter default to `DoFn.WindowParam`.
+If an element falls in multiple windows (for example, this will happen when using `SlidingWindows`), then the
+`process` method will be invoked multiple time for the element, once for each window. 
+
 ```java
 .of(new DoFn<String, String>() {
      public void processElement(@Element String word, IntervalWindow window) {
   }})
 ```
+
 ```py
 import apache_beam as beam
 
@@ -1606,15 +1630,33 @@ class ProcessRecord(beam.DoFn):
      pass  
   
 ```
+
 {:.language-java}
 **PaneInfo:**
 When triggers are used, Beam provides a `PaneInfo` object that contains information about the current firing. Using `PaneInfo`
 you can determine whether this is an early or a late firing, and how many times this window has already fired for this key.
 
+{:.language-py}
+**PaneInfo:**
+When triggers are used, Beam provides a `DoFn.PaneInfoParam` object that contains information about the current firing. Using `DoFn.PaneInfoParam`
+you can determine whether this is an early or a late firing, and how many times this window has already fired for this key. 
+This feature implementation in python sdk is not fully completed, see more at [BEAM-3759](https://issues.apache.org/jira/browse/BEAM-3759).
+
 ```java
 .of(new DoFn<String, String>() {
      public void processElement(@Element String word, PaneInfo paneInfo) {
   }})
+```
+
+```py
+import apache_beam as beam
+
+class ProcessRecord(beam.DoFn):
+
+  def process(self, element, pane_info=beam.DoFn.PaneInfoParam):
+     # access pane info e.g pane_info.is_first, pane_info.is_last, pane_info.timing
+     pass  
+  
 ```
 
 {:.language-java}
@@ -1632,6 +1674,13 @@ The `PipelineOptions` for the current pipeline can always be accessed in a proce
 a parameter of type `TimeDomain` which tells whether the timer is based on event time or processing time.
 Timers are explained in more detail in the
 [Timely (and Stateful) Processing with Apache Beam]({{ site.baseurl }}/blog/2017/08/28/timely-processing.html) blog post.
+
+{:.language-py}
+**Timer and State:**
+In addition to aforementioned parameters, user defined Timer and State parameters can be used in a Stateful DoFn.
+Timers and States are explained in more detail in the
+[Timely (and Stateful) Processing with Apache Beam]({{ site.baseurl }}/blog/2017/08/28/timely-processing.html) blog post.
+
 ```py
 
 class StatefulDoFn(beam.DoFn):
