@@ -19,6 +19,7 @@ package org.apache.beam.sdk.util;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.util.Map;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.values.TupleTag;
@@ -27,13 +28,19 @@ import org.apache.beam.sdk.values.TupleTag;
 @AutoValue
 public abstract class DoFnWithExecutionInformation implements Serializable {
   public static DoFnWithExecutionInformation of(
-      DoFn<?, ?> fn, TupleTag<?> tag, DoFnSchemaInformation doFnSchemaInformation) {
-    return new AutoValue_DoFnWithExecutionInformation(fn, tag, doFnSchemaInformation);
+      DoFn<?, ?> fn,
+      TupleTag<?> tag,
+      Map<String, String> sideInputMapping,
+      DoFnSchemaInformation doFnSchemaInformation) {
+    return new AutoValue_DoFnWithExecutionInformation(
+        fn, tag, sideInputMapping, doFnSchemaInformation);
   }
 
   public abstract DoFn<?, ?> getDoFn();
 
   public abstract TupleTag<?> getMainOutputTag();
+
+  public abstract Map<String, String> getSideInputMapping();
 
   public abstract DoFnSchemaInformation getSchemaInformation();
 }

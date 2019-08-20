@@ -502,12 +502,14 @@ class FlinkBatchTransformTranslators {
 
       TupleTag<?> mainOutputTag;
       DoFnSchemaInformation doFnSchemaInformation;
+      Map<String, String> sideInputMapping;
       try {
         mainOutputTag = ParDoTranslation.getMainOutputTag(context.getCurrentTransform());
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
       doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+      sideInputMapping = ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
       Map<TupleTag<?>, Integer> outputMap = Maps.newHashMap();
       // put the main output at index 0, FlinkMultiOutputDoFnFunction  expects this
       outputMap.put(mainOutputTag, 0);
@@ -590,7 +592,8 @@ class FlinkBatchTransformTranslators {
                 mainOutputTag,
                 inputCoder,
                 outputCoderMap,
-                doFnSchemaInformation);
+                doFnSchemaInformation,
+                sideInputMapping);
 
         // Based on the fact that the signature is stateful, DoFnSignatures ensures
         // that it is also keyed.
@@ -611,7 +614,8 @@ class FlinkBatchTransformTranslators {
                 mainOutputTag,
                 context.getInput(transform).getCoder(),
                 outputCoderMap,
-                doFnSchemaInformation);
+                doFnSchemaInformation,
+                sideInputMapping);
 
         outputDataSet =
             new MapPartitionOperator<>(inputDataSet, typeInformation, doFnWrapper, fullName);

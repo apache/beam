@@ -46,6 +46,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -746,8 +747,16 @@ public class ParDoTest implements Serializable {
               .apply("CreateSideInput1", Create.of(2, 1, 0))
               .apply("ViewSideInput1", View.asList());
 
+      final PCollectionView<List<Integer>> sideInput2 =
+          pipeline
+              .apply("CreateSideInput2", Create.of(4, 5, 6))
+              .apply("ViewSideInput2", View.asList());
+
       // SideInput tag id
       final String sideInputTag1 = "tag1";
+
+      Map<String, PCollectionView<?>> sideInputs = new HashMap<>();
+      sideInputs.put(sideInputTag1, sideInput1);
 
       DoFn<Integer, List<Integer>> fn =
           new DoFn<Integer, List<Integer>>() {
@@ -766,7 +775,7 @@ public class ParDoTest implements Serializable {
       PCollection<List<Integer>> output =
           pipeline
               .apply("Create main input", Create.of(2))
-              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+              .apply(ParDo.of(fn).withSideInputs(sideInputs));
 
       PAssert.that(output).containsInAnyOrder(Lists.newArrayList(0, 1, 2));
       pipeline.run();

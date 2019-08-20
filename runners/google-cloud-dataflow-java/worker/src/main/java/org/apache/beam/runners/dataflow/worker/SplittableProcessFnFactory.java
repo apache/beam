@@ -96,7 +96,8 @@ class SplittableProcessFnFactory {
               doFnInfo.getWindowingStrategy().getWindowFn().windowCoder()),
           doFnInfo.getOutputCoders(),
           doFnInfo.getMainOutput(),
-          doFnInfo.getDoFnSchemaInformation());
+          doFnInfo.getDoFnSchemaInformation(),
+          doFnInfo.getSideInputMapping());
     }
   }
 
@@ -121,7 +122,8 @@ class SplittableProcessFnFactory {
         DataflowExecutionContext.DataflowStepContext stepContext,
         DataflowExecutionContext.DataflowStepContext userStepContext,
         OutputManager outputManager,
-        DoFnSchemaInformation doFnSchemaInformation) {
+        DoFnSchemaInformation doFnSchemaInformation,
+        Map<String, String> sideInputMapping) {
       ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
           (ProcessFn<InputT, OutputT, RestrictionT, TrackerT>) fn;
       processFn.setStateInternalsFactory(key -> (StateInternals) stepContext.stateInternals());
@@ -170,7 +172,8 @@ class SplittableProcessFnFactory {
               inputCoder,
               outputCoders,
               processFn.getInputWindowingStrategy(),
-              doFnSchemaInformation);
+              doFnSchemaInformation,
+              sideInputMapping);
       DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> fnRunner =
           new DataflowProcessFnRunner<>(simpleRunner);
       boolean hasStreamingSideInput =

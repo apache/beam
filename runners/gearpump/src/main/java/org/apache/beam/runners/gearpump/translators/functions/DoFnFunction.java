@@ -74,7 +74,8 @@ public class DoFnFunction<InputT, OutputT>
       TupleTag<OutputT> mainOutput,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       List<TupleTag<?>> sideOutputs,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, String> sideInputMapping) {
     this.doFn = doFn;
     this.outputManager = new DoFnOutputManager();
     this.doFnRunnerFactory =
@@ -88,7 +89,8 @@ public class DoFnFunction<InputT, OutputT>
             new NoOpStepContext(),
             outputCoders,
             windowingStrategy,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
     this.sideInputs = sideInputs;
     this.tagsToSideInputs = sideInputTagMapping;
     this.mainOutput = mainOutput;

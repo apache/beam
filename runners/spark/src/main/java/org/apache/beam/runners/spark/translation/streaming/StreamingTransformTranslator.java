@@ -408,6 +408,9 @@ public final class StreamingTransformTranslator {
         final DoFnSchemaInformation doFnSchemaInformation =
             ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
 
+        final Map<String, String> sideInputMapping =
+            ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
+
         final String stepName = context.getCurrentTransform().getFullName();
         JavaPairDStream<TupleTag<?>, WindowedValue<?>> all =
             dStream.transformToPair(
@@ -417,7 +420,7 @@ public final class StreamingTransformTranslator {
                   final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>>
                       sideInputs =
                           TranslationUtils.getSideInputs(
-                              transform.getSideInputs(),
+                              transform.getSideInputs().values(),
                               JavaSparkContext.fromSparkContext(rdd.context()),
                               pviews);
 
@@ -434,7 +437,8 @@ public final class StreamingTransformTranslator {
                           sideInputs,
                           windowingStrategy,
                           false,
-                          doFnSchemaInformation));
+                          doFnSchemaInformation,
+                          sideInputMapping));
                 });
 
         Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);

@@ -24,8 +24,9 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
@@ -55,19 +56,16 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElem
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
-import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * {@link ParDo} is the core element-wise transform in Apache Beam, invoking a user-specified
@@ -398,7 +396,7 @@ public class ParDo {
    */
   public static <InputT, OutputT> SingleOutput<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
     validate(fn);
-    return new SingleOutput<>(fn, Collections.emptyList(), displayDataForFn(fn));
+    return new SingleOutput<>(fn, Collections.emptyMap(), displayDataForFn(fn));
   }
 
   private static <T> DisplayData.ItemSpec<? extends Class<?>> displayDataForFn(T fn) {
@@ -631,13 +629,13 @@ public class ParDo {
 
     private static final String MAIN_OUTPUT_TAG = "output";
 
-    private final List<PCollectionView<?>> sideInputs;
+    private final Map<String, PCollectionView<?>> sideInputs;
     private final DoFn<InputT, OutputT> fn;
     private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
 
     SingleOutput(
         DoFn<InputT, OutputT> fn,
-        List<PCollectionView<?>> sideInputs,
+        Map<String, PCollectionView<?>> sideInputs,
         DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
       this.fn = fn;
       this.fnDisplayData = fnDisplayData;
@@ -659,10 +657,12 @@ public class ParDo {
      *
      * <p>See the discussion of Side Inputs above for more explanation.
      */
-    public SingleOutput<InputT, OutputT> withSideInput(String tagId, PCollectionView<?> sideInput) {
-      DelegatingPCollectionView delegatingPCollectionView =
-          DelegatingPCollectionView.of(sideInput, tagId);
-      return withSideInputs(delegatingPCollectionView);
+    public SingleOutput<InputT, OutputT> withSideInputs(
+        Iterable<? extends PCollectionView<?>> sideInputs) {
+      Map<String, PCollectionView<?>> mappedInputs =
+          StreamSupport.stream(sideInputs.spliterator(), false)
+              .collect(Collectors.toMap(v -> v.getTagInternal().getId(), v -> v));
+      return withSideInputs(mappedInputs);
     }
 
     /**
@@ -672,12 +672,12 @@ public class ParDo {
      * <p>See the discussion of Side Inputs above for more explanation.
      */
     public SingleOutput<InputT, OutputT> withSideInputs(
-        Iterable<? extends PCollectionView<?>> sideInputs) {
+        Map<String, PCollectionView<?>> sideInputs) {
       return new SingleOutput<>(
           fn,
-          ImmutableList.<PCollectionView<?>>builder()
-              .addAll(this.sideInputs)
-              .addAll(sideInputs)
+          ImmutableMap.<String, PCollectionView<?>>builder()
+              .putAll(this.sideInputs)
+              .putAll(sideInputs)
               .build(),
           fnDisplayData);
     }
@@ -744,7 +744,7 @@ public class ParDo {
       return fn;
     }
 
-    public List<PCollectionView<?>> getSideInputs() {
+    public Map<String, PCollectionView<?>> getSideInputs() {
       return sideInputs;
     }
 
@@ -755,7 +755,7 @@ public class ParDo {
      */
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-      return PCollectionViews.toAdditionalInputs(sideInputs);
+      return PCollectionViews.toAdditionalInputs(sideInputs.values());
     }
 
     @Override
@@ -764,92 +764,6 @@ public class ParDo {
     }
   }
 
-  /** A {@link PCollectionView} which forwards all calls to its delegate. */
-  public static class DelegatingPCollectionView<T> implements PCollectionView<T> {
-
-    private final PCollectionView<T> delegate;
-    private final TupleTag<?> tagId;
-
-    private DelegatingPCollectionView(PCollectionView<T> value, String tagId) {
-      this.delegate = value;
-      this.tagId = new TupleTag<>(tagId);
-    }
-
-    public static <T> DelegatingPCollectionView<T> of(PCollectionView<T> value, String tagId) {
-      return new DelegatingPCollectionView<>(value, tagId);
-    }
-
-    @Nullable
-    @Override
-    public PCollection<?> getPCollection() {
-      return delegate.getPCollection();
-    }
-
-    @Override
-    public TupleTag<?> getTagInternal() {
-      return delegate.getTagInternal();
-    }
-
-    @Override
-    public ViewFn<?, T> getViewFn() {
-      return delegate.getViewFn();
-    }
-
-    @Override
-    public WindowMappingFn<?> getWindowMappingFn() {
-      return delegate.getWindowMappingFn();
-    }
-
-    @Override
-    public WindowingStrategy<?, ?> getWindowingStrategyInternal() {
-      return delegate.getWindowingStrategyInternal();
-    }
-
-    @Override
-    public Coder<?> getCoderInternal() {
-      return delegate.getCoderInternal();
-    }
-
-    @Override
-    public String getName() {
-      return delegate.getName();
-    }
-
-    @Override
-    public Pipeline getPipeline() {
-      return delegate.getPipeline();
-    }
-
-    @Override
-    public Map<TupleTag<?>, PValue> expand() {
-      return delegate.expand();
-    }
-
-    @Override
-    public void finishSpecifyingOutput(
-        String transformName, PInput input, PTransform<?, ?> transform) {
-      delegate.finishSpecifyingOutput(transformName, input, transform);
-    }
-
-    @Override
-    public void finishSpecifying(PInput upstreamInput, PTransform<?, ?> upstreamTransform) {
-      delegate.finishSpecifying(upstreamInput, upstreamTransform);
-    }
-
-    @Override
-    public int hashCode() {
-      return delegate.hashCode();
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      return delegate.equals(obj);
-    }
-
-    public TupleTag<?> getTagId() {
-      return tagId;
-    }
-  }
   /**
    * A {@link PTransform} that, when applied to a {@code PCollection<InputT>}, invokes a
    * user-specified {@code DoFn<InputT, OutputT>} on all its elements, which can emit elements to
@@ -861,7 +775,7 @@ public class ParDo {
    */
   public static class MultiOutput<InputT, OutputT>
       extends PTransform<PCollection<? extends InputT>, PCollectionTuple> {
-    private final List<PCollectionView<?>> sideInputs;
+    private final Map<String, PCollectionView<?>> sideInputs;
     private final TupleTag<OutputT> mainOutputTag;
     private final TupleTagList additionalOutputTags;
     private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
@@ -869,7 +783,7 @@ public class ParDo {
 
     MultiOutput(
         DoFn<InputT, OutputT> fn,
-        List<PCollectionView<?>> sideInputs,
+        Map<String, PCollectionView<?>> sideInputs,
         TupleTag<OutputT> mainOutputTag,
         TupleTagList additionalOutputTags,
         ItemSpec<? extends Class<?>> fnDisplayData) {
@@ -891,15 +805,12 @@ public class ParDo {
       return withSideInputs(Arrays.asList(sideInputs));
     }
 
-    /**
-     * Returns a new multi-output {@link ParDo} {@link PTransform} that's like this {@link
-     * PTransform} but with the specified additional side inputs. Does not modify this {@link
-     * PTransform}.
-     *
-     * <p>See the discussion of Side Inputs above for more explanation.
-     */
-    public MultiOutput<InputT, OutputT> withSideInput(String tagId, PCollectionView<?> sideInput) {
-      return withSideInputs(sideInput);
+    public MultiOutput<InputT, OutputT> withSideInputs(
+        Iterable<? extends PCollectionView<?>> sideInputs) {
+      Map<String, PCollectionView<?>> mappedInputs =
+          StreamSupport.stream(sideInputs.spliterator(), false)
+              .collect(Collectors.toMap(v -> v.getTagInternal().getId(), v -> v));
+      return withSideInputs(mappedInputs);
     }
 
     /**
@@ -909,13 +820,12 @@ public class ParDo {
      *
      * <p>See the discussion of Side Inputs above for more explanation.
      */
-    public MultiOutput<InputT, OutputT> withSideInputs(
-        Iterable<? extends PCollectionView<?>> sideInputs) {
+    public MultiOutput<InputT, OutputT> withSideInputs(Map<String, PCollectionView<?>> sideInputs) {
       return new MultiOutput<>(
           fn,
-          ImmutableList.<PCollectionView<?>>builder()
-              .addAll(this.sideInputs)
-              .addAll(sideInputs)
+          ImmutableMap.<String, PCollectionView<?>>builder()
+              .putAll(this.sideInputs)
+              .putAll(sideInputs)
               .build(),
           mainOutputTag,
           additionalOutputTags,
@@ -992,7 +902,7 @@ public class ParDo {
       return additionalOutputTags;
     }
 
-    public List<PCollectionView<?>> getSideInputs() {
+    public Map<String, PCollectionView<?>> getSideInputs() {
       return sideInputs;
     }
 
@@ -1003,7 +913,7 @@ public class ParDo {
      */
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-      return PCollectionViews.toAdditionalInputs(sideInputs);
+      return PCollectionViews.toAdditionalInputs(sideInputs.values());
     }
 
     @Override

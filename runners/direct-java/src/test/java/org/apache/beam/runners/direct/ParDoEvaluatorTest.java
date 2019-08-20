@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
@@ -162,6 +163,7 @@ public class ParDoEvaluatorTest {
         additionalOutputTags,
         ImmutableMap.of(mainOutputTag, output),
         DoFnSchemaInformation.create(),
+        Collections.emptyMap(),
         ParDoEvaluator.defaultRunnerFactory());
   }
 

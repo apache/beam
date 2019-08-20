@@ -172,7 +172,7 @@ public class ParDoTranslation {
             .map(TupleTag::getId)
             .collect(Collectors.toSet());
     Set<String> sideInputs =
-        parDo.getSideInputs().stream()
+        parDo.getSideInputs().values().stream()
             .map(s -> s.getTagInternal().getId())
             .collect(Collectors.toSet());
     Set<String> timerInputs = signature.timerDeclarations().keySet();
@@ -208,8 +208,17 @@ public class ParDoTranslation {
         new ParDoLike() {
           @Override
           public SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
+            Map<String, String> sideInputMapping =
+                parDo.getSideInputs().entrySet().stream()
+                    .collect(
+                        Collectors.toMap(
+                            e -> e.getKey(), e -> e.getValue().getTagInternal().getId()));
             return ParDoTranslation.translateDoFn(
-                parDo.getFn(), parDo.getMainOutputTag(), doFnSchemaInformation, newComponents);
+                parDo.getFn(),
+                parDo.getMainOutputTag(),
+                sideInputMapping,
+                doFnSchemaInformation,
+                newComponents);
           }
 
           @Override
@@ -221,7 +230,7 @@ public class ParDoTranslation {
           @Override
           public Map<String, SideInput> translateSideInputs(SdkComponents components) {
             Map<String, SideInput> sideInputs = new HashMap<>();
-            for (PCollectionView<?> sideInput : parDo.getSideInputs()) {
+            for (PCollectionView<?> sideInput : parDo.getSideInputs().values()) {
               sideInputs.put(
                   sideInput.getTagInternal().getId(), translateView(sideInput, components));
             }
@@ -315,6 +324,26 @@ public class ParDoTranslation {
     return doFnWithExecutionInformationFromProto(payload.getDoFn()).getMainOutputTag();
   }
 
+  public static Map<String, String> getSideInputMapping(AppliedPTransform<?, ?, ?> application) {
+    try {
+      return getSideInputMapping(getParDoPayload(application));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static Map<String, String> getSideInputMapping(RunnerApi.PTransform pTransform) {
+    try {
+      return getSideInputMapping(getParDoPayload(pTransform));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static Map<String, String> getSideInputMapping(ParDoPayload payload) {
+    return doFnWithExecutionInformationFromProto(payload.getDoFn()).getSideInputMapping();
+  }
+
   public static TupleTag<?> getMainOutputTag(AppliedPTransform<?, ?, ?> application)
       throws IOException {
     PTransform<?, ?> transform = application.getTransform();
@@ -359,7 +388,8 @@ public class ParDoTranslation {
       throws IOException {
     PTransform<?, ?> transform = application.getTransform();
     if (transform instanceof ParDo.MultiOutput) {
-      return ((ParDo.MultiOutput<?, ?>) transform).getSideInputs();
+      return ((ParDo.MultiOutput<?, ?>) transform)
+          .getSideInputs().values().stream().collect(Collectors.toList());
     }
 
     SdkComponents sdkComponents = SdkComponents.create(application.getPipeline().getOptions());
@@ -551,6 +581,7 @@ public class ParDoTranslation {
   public static SdkFunctionSpec translateDoFn(
       DoFn<?, ?> fn,
       TupleTag<?> tag,
+      Map<String, String> sideInputMapping,
       DoFnSchemaInformation doFnSchemaInformation,
       SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
@@ -561,7 +592,8 @@ public class ParDoTranslation {
                 .setPayload(
                     ByteString.copyFrom(
                         SerializableUtils.serializeToByteArray(
-                            DoFnWithExecutionInformation.of(fn, tag, doFnSchemaInformation))))
+                            DoFnWithExecutionInformation.of(
+                                fn, tag, sideInputMapping, doFnSchemaInformation))))
                 .build())
         .build();
   }

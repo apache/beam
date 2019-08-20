@@ -104,6 +104,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private transient List<WindowedValue<InT>> pushbackValues;
   private transient StageBundleFactory stageBundleFactory;
   private DoFnSchemaInformation doFnSchemaInformation;
+  private Map<String, String> sideInputMapping;
 
   public DoFnOp(
       TupleTag<FnOutT> mainOutputTag,
@@ -122,7 +123,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       boolean isPortable,
       RunnerApi.ExecutableStagePayload stagePayload,
       Map<String, TupleTag<?>> idToTupleTagMap,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, String> sideInputMapping) {
     this.mainOutputTag = mainOutputTag;
     this.doFn = doFn;
     this.sideInputs = sideInputs;
@@ -140,6 +142,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     this.stagePayload = stagePayload;
     this.idToTupleTagMap = new HashMap<>(idToTupleTagMap);
     this.doFnSchemaInformation = doFnSchemaInformation;
+    this.sideInputMapping = sideInputMapping;
   }
 
   @Override
@@ -207,7 +210,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
               inputCoder,
               sideOutputTags,
               outputCoders,
-              doFnSchemaInformation);
+              doFnSchemaInformation,
+              sideInputMapping);
     }
 
     this.pushbackFnRunner =

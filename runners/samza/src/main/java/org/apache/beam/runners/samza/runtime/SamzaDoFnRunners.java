@@ -71,7 +71,8 @@ public class SamzaDoFnRunners {
       Coder<InT> inputCoder,
       List<TupleTag<?>> sideOutputTags,
       Map<TupleTag<?>, Coder<?>> outputCoders,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, String> sideInputMapping) {
     final KeyedInternals keyedInternals;
     final TimerInternals timerInternals;
     final StateInternals stateInternals;
@@ -104,7 +105,8 @@ public class SamzaDoFnRunners {
             inputCoder,
             outputCoders,
             windowingStrategy,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
 
     final DoFnRunner<InT, FnOutT> doFnRunnerWithMetrics =
         pipelineOptions.getEnableMetrics()

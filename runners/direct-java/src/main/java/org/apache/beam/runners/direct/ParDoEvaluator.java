@@ -62,7 +62,8 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         @Nullable Coder<InputT> inputCoder,
         Map<TupleTag<?>, Coder<?>> outputCoders,
         WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy,
-        DoFnSchemaInformation doFnSchemaInformation);
+        DoFnSchemaInformation doFnSchemaInformation,
+        Map<String, String> sideInputMapping);
   }
 
   public static <InputT, OutputT> DoFnRunnerFactory<InputT, OutputT> defaultRunnerFactory() {
@@ -77,7 +78,8 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         schemaCoder,
         outputCoders,
         windowingStrategy,
-        doFnSchemaInformation) -> {
+        doFnSchemaInformation,
+        sideInputMapping) -> {
       DoFnRunner<InputT, OutputT> underlying =
           DoFnRunners.simpleRunner(
               options,
@@ -90,7 +92,8 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
               schemaCoder,
               outputCoders,
               windowingStrategy,
-              doFnSchemaInformation);
+              doFnSchemaInformation,
+              sideInputMapping);
       return SimplePushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
     };
   }
@@ -109,6 +112,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
       List<TupleTag<?>> additionalOutputTags,
       Map<TupleTag<?>, PCollection<?>> outputs,
       DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, String> sideInputMapping,
       DoFnRunnerFactory<InputT, OutputT> runnerFactory) {
 
     BundleOutputManager outputManager = createOutputManager(evaluationContext, key, outputs);
@@ -133,7 +137,8 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
             inputCoder,
             outputCoders,
             windowingStrategy,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
 
     return create(runner, stepContext, application, outputManager);
   }

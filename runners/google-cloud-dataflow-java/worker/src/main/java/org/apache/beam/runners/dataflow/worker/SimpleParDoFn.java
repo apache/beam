@@ -93,6 +93,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   private final boolean hasStreamingSideInput;
   private final OutputsPerElementTracker outputsPerElementTracker;
   private final DoFnSchemaInformation doFnSchemaInformation;
+  private final Map<String, String> sideInputMapping;
 
   // Various DoFn helpers, null between bundles
   @Nullable private DoFnRunner<InputT, OutputT> fnRunner;
@@ -113,6 +114,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
       DataflowExecutionContext.DataflowStepContext stepContext,
       DataflowOperationContext operationContext,
       DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, String> sideInputMapping,
       DoFnRunnerFactory runnerFactory) {
     this.options = options;
     this.doFnInstanceManager = doFnInstanceManager;
@@ -143,6 +145,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
         options.as(StreamingOptions.class).isStreaming() && !sideInputReader.isEmpty();
     this.outputsPerElementTracker = createOutputsPerElementTracker();
     this.doFnSchemaInformation = doFnSchemaInformation;
+    this.sideInputMapping = sideInputMapping;
   }
 
   private OutputsPerElementTracker createOutputsPerElementTracker() {
@@ -302,7 +305,8 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
             stepContext,
             userStepContext,
             outputManager,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
 
     fnRunner.startBundle();
   }

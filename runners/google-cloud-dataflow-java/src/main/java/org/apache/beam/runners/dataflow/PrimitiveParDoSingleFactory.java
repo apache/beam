@@ -118,13 +118,13 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
       return onlyOutputTag;
     }
 
-    public List<PCollectionView<?>> getSideInputs() {
+    public Map<String, PCollectionView<?>> getSideInputs() {
       return original.getSideInputs();
     }
 
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-      return PCollectionViews.toAdditionalInputs(getSideInputs());
+      return PCollectionViews.toAdditionalInputs(getSideInputs().values());
     }
 
     @Override
@@ -177,10 +177,7 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
       // TODO: Is there a better way to do this?
       Set<String> allInputs =
           transform.getInputs().keySet().stream().map(TupleTag::getId).collect(Collectors.toSet());
-      Set<String> sideInputs =
-          parDo.getSideInputs().stream()
-              .map(s -> s.getTagInternal().getId())
-              .collect(Collectors.toSet());
+      Set<String> sideInputs = parDo.getSideInputs().keySet();
       Set<String> timerInputs = signature.timerDeclarations().keySet();
       String mainInputName =
           Iterables.getOnlyElement(Sets.difference(allInputs, Sets.union(sideInputs, timerInputs)));
@@ -195,7 +192,11 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
             @Override
             public RunnerApi.SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
               return ParDoTranslation.translateDoFn(
-                  parDo.getFn(), parDo.getMainOutputTag(), doFnSchemaInformation, newComponents);
+                  parDo.getFn(),
+                  parDo.getMainOutputTag(),
+                  ParDoTranslation.getSideInputMapping(transform),
+                  doFnSchemaInformation,
+                  newComponents);
             }
 
             @Override
@@ -206,7 +207,8 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
 
             @Override
             public Map<String, RunnerApi.SideInput> translateSideInputs(SdkComponents components) {
-              return ParDoTranslation.translateSideInputs(parDo.getSideInputs(), components);
+              return ParDoTranslation.translateSideInputs(
+                  parDo.getSideInputs().values().stream().collect(Collectors.toList()), components);
             }
 
             @Override

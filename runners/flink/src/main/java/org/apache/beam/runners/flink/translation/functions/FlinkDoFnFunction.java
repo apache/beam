@@ -67,6 +67,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
   private final Coder<InputT> inputCoder;
   private final Map<TupleTag<?>, Coder<?>> outputCoderMap;
   private final DoFnSchemaInformation doFnSchemaInformation;
+  private final Map<String, String> sideInputMapping;
 
   private transient DoFnInvoker<InputT, OutputT> doFnInvoker;
 
@@ -80,7 +81,8 @@ public class FlinkDoFnFunction<InputT, OutputT>
       TupleTag<OutputT> mainOutputTag,
       Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoderMap,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, String> sideInputMapping) {
 
     this.doFn = doFn;
     this.stepName = stepName;
@@ -92,6 +94,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
     this.inputCoder = inputCoder;
     this.outputCoderMap = outputCoderMap;
     this.doFnSchemaInformation = doFnSchemaInformation;
+    this.sideInputMapping = sideInputMapping;
   }
 
   @Override
@@ -123,7 +126,8 @@ public class FlinkDoFnFunction<InputT, OutputT>
             inputCoder,
             outputCoderMap,
             windowingStrategy,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
 
     if ((serializedOptions.get().as(FlinkPipelineOptions.class)).getEnableMetrics()) {
       doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());

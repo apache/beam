@@ -87,6 +87,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -115,7 +116,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
   private final WindowingStrategy<?, ?> windowingStrategy;
 
   @Bind(JavaSerializer.class)
-  private final List<PCollectionView<?>> sideInputs;
+  private final Iterable<PCollectionView<?>> sideInputs;
 
   @Bind(JavaSerializer.class)
   private final Coder<WindowedValue<InputT>> windowedInputCoder;
@@ -128,6 +129,9 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
 
   @Bind(JavaSerializer.class)
   private final DoFnSchemaInformation doFnSchemaInformation;
+
+  @Bind(JavaSerializer.class)
+  private final Map<String, String> sideInputMapping;
 
   private StateInternalsProxy<?> currentKeyStateInternals;
   private final ApexTimerInternals<Object> currentKeyTimerInternals;
@@ -152,10 +156,11 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       WindowingStrategy<?, ?> windowingStrategy,
-      List<PCollectionView<?>> sideInputs,
+      Iterable<PCollectionView<?>> sideInputs,
       Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, String> sideInputMapping,
       ApexStateBackend stateBackend) {
     this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
     this.doFn = doFn;
@@ -186,6 +191,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
         TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
     this.currentKeyTimerInternals = new ApexTimerInternals<>(timerCoder);
     this.doFnSchemaInformation = doFnSchemaInformation;
+    this.sideInputMapping = sideInputMapping;
 
     if (doFn instanceof ProcessFn) {
       // we know that it is keyed on byte[]
@@ -219,6 +225,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
     this.outputCoders = Collections.emptyMap();
     this.currentKeyTimerInternals = null;
     this.doFnSchemaInformation = null;
+    this.sideInputMapping = null;
   }
 
   public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>> input =
@@ -260,7 +267,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
             LOG.debug("\nsideInput {} {}\n", sideInputIndex, t.getValue());
           }
 
-          PCollectionView<?> sideInput = sideInputs.get(sideInputIndex);
+          PCollectionView<?> sideInput = Iterables.get(sideInputs, sideInputIndex);
           sideInputHandler.addSideInputValue(sideInput, t.getValue());
 
           List<WindowedValue<InputT>> newPushedBack = new ArrayList<>();
@@ -408,7 +415,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
             currentInputWatermark);
       }
     }
-    if (sideInputs.isEmpty()) {
+    if (Iterables.isEmpty(sideInputs)) {
       outputWatermark(mark);
       return;
     }
@@ -439,8 +446,9 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
         ApexStreamTuple.Logging.isDebugEnabled(
             pipelineOptions.get().as(ApexPipelineOptions.class), this);
     SideInputReader sideInputReader = NullSideInputReader.of(sideInputs);
-    if (!sideInputs.isEmpty()) {
-      sideInputHandler = new SideInputHandler(sideInputs, sideInputStateInternals);
+    if (!Iterables.isEmpty(sideInputs)) {
+      sideInputHandler =
+          new SideInputHandler(Lists.newArrayList(sideInputs), sideInputStateInternals);
       sideInputReader = sideInputHandler;
     }
 
@@ -476,7 +484,8 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
             inputCoder,
             outputCoders,
             windowingStrategy,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
 
     doFnInvoker = DoFnInvokers.invokerFor(doFn);
     doFnInvoker.invokeSetup();
@@ -501,7 +510,8 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
     }
 
     pushbackDoFnRunner =
-        SimplePushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
+        SimplePushbackSideInputDoFnRunner.create(
+            doFnRunner, Lists.newArrayList(sideInputs), sideInputHandler);
 
     if (doFn instanceof ProcessFn) {
 

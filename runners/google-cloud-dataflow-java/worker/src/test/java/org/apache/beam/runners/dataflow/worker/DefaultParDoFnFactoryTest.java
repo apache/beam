@@ -45,6 +45,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.util.Collections;
+
 /** Tests for {@link DefaultParDoFnFactory}. */
 @RunWith(JUnit4.class)
 public class DefaultParDoFnFactoryTest {
@@ -91,7 +93,8 @@ public class DefaultParDoFnFactoryTest {
                     null /* side input views */,
                     null /* input coder */,
                     new TupleTag<>("output") /* main output */,
-                    DoFnSchemaInformation.create())));
+                    DoFnSchemaInformation.create(),
+                        Collections.emptyMap())));
     CloudObject cloudUserFn = CloudObject.forClassName("DoFn");
     addString(cloudUserFn, "serialized_fn", serializedFn);
 

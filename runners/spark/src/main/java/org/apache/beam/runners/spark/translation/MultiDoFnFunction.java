@@ -75,6 +75,7 @@ public class MultiDoFnFunction<InputT, OutputT>
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final boolean stateful;
   private final DoFnSchemaInformation doFnSchemaInformation;
+  private final Map<String, String> sideInputMapping;
 
   /**
    * @param metricsAccum The Spark {@link AccumulatorV2} that backs the Beam metrics.
@@ -100,7 +101,8 @@ public class MultiDoFnFunction<InputT, OutputT>
       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
       WindowingStrategy<?, ?> windowingStrategy,
       boolean stateful,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, String> sideInputMapping) {
     this.metricsAccum = metricsAccum;
     this.stepName = stepName;
     this.doFn = SerializableUtils.clone(doFn);
@@ -113,6 +115,7 @@ public class MultiDoFnFunction<InputT, OutputT>
     this.windowingStrategy = windowingStrategy;
     this.stateful = stateful;
     this.doFnSchemaInformation = doFnSchemaInformation;
+    this.sideInputMapping = sideInputMapping;
   }
 
   @Override
@@ -166,7 +169,8 @@ public class MultiDoFnFunction<InputT, OutputT>
             inputCoder,
             outputCoders,
             windowingStrategy,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
 
     DoFnRunnerWithMetrics<InputT, OutputT> doFnRunnerWithMetrics =
         new DoFnRunnerWithMetrics<>(stepName, doFnRunner, metricsAccum);

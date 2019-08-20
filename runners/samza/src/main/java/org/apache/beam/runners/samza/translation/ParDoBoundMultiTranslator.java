@@ -106,7 +106,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
     final MessageStream<OpMessage<InT>> inputStream = ctx.getMessageStream(input);
     final List<MessageStream<OpMessage<InT>>> sideInputStreams =
-        transform.getSideInputs().stream()
+        transform.getSideInputs().values().stream()
             .map(ctx::<InT>getViewStream)
             .collect(Collectors.toList());
     final ArrayList<Map.Entry<TupleTag<?>, PValue>> outputs =
@@ -128,12 +128,15 @@ class ParDoBoundMultiTranslator<InT, OutT>
     }
 
     final HashMap<String, PCollectionView<?>> idToPValueMap = new HashMap<>();
-    for (PCollectionView<?> view : transform.getSideInputs()) {
+    for (PCollectionView<?> view : transform.getSideInputs().values()) {
       idToPValueMap.put(ctx.getViewId(view), view);
     }
 
     DoFnSchemaInformation doFnSchemaInformation;
     doFnSchemaInformation = ParDoTranslation.getSchemaInformation(ctx.getCurrentTransform());
+
+    Map<String, String> sideInputMapping =
+        ParDoTranslation.getSideInputMapping(ctx.getCurrentTransform());
 
     final DoFnOp<InT, OutT, RawUnionValue> op =
         new DoFnOp<>(
@@ -142,7 +145,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
             keyCoder,
             (Coder<InT>) input.getCoder(),
             outputCoders,
-            transform.getSideInputs(),
+            transform.getSideInputs().values(),
             transform.getAdditionalOutputTags().getAll(),
             input.getWindowingStrategy(),
             idToPValueMap,
@@ -154,7 +157,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
             false,
             null,
             Collections.emptyMap(),
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
 
     final MessageStream<OpMessage<InT>> mergedStreams;
     if (sideInputStreams.isEmpty()) {
@@ -240,6 +244,9 @@ class ParDoBoundMultiTranslator<InT, OutT>
     final DoFnSchemaInformation doFnSchemaInformation;
     doFnSchemaInformation = ParDoTranslation.getSchemaInformation(transform.getTransform());
 
+    Map<String, String> sideInputMapping =
+        ParDoTranslation.getSideInputMapping(transform.getTransform());
+
     final RunnerApi.PCollection input = pipeline.getComponents().getPcollectionsOrThrow(inputId);
     final PCollection.IsBounded isBounded = SamzaPipelineTranslatorUtils.isBounded(input);
 
@@ -262,7 +269,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
             true,
             stagePayload,
             idToTupleTagMap,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
 
     final MessageStream<OpMessage<InT>> mergedStreams;
     if (sideInputStreams.isEmpty()) {

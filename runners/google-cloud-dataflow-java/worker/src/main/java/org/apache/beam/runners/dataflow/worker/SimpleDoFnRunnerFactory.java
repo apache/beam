@@ -49,7 +49,8 @@ class SimpleDoFnRunnerFactory<InputT, OutputT> implements DoFnRunnerFactory<Inpu
       DataflowExecutionContext.DataflowStepContext stepContext,
       DataflowExecutionContext.DataflowStepContext userStepContext,
       OutputManager outputManager,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, String> sideInputMapping) {
     DoFnRunner<InputT, OutputT> fnRunner =
         DoFnRunners.simpleRunner(
             options,
@@ -62,7 +63,8 @@ class SimpleDoFnRunnerFactory<InputT, OutputT> implements DoFnRunnerFactory<Inpu
             inputCoder,
             outputCoders,
             windowingStrategy,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
     boolean hasStreamingSideInput =
         options.as(StreamingOptions.class).isStreaming() && !sideInputReader.isEmpty();
     if (hasStreamingSideInput) {

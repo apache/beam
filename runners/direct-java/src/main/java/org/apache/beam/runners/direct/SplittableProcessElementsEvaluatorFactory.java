@@ -20,6 +20,7 @@ package org.apache.beam.runners.direct;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -124,7 +125,8 @@ class SplittableProcessElementsEvaluatorFactory<InputT, OutputT, RestrictionT, P
                 application.getTransform().getSideInputs(),
                 application.getTransform().getMainOutputTag(),
                 application.getTransform().getAdditionalOutputTags().getAll(),
-                DoFnSchemaInformation.create());
+                DoFnSchemaInformation.create(),
+                Collections.emptyMap());
     final ParDoEvaluator<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> pde =
         evaluator.getParDoEvaluator();
     final ProcessFn<InputT, OutputT, RestrictionT, PositionT> processFn =
@@ -188,7 +190,8 @@ class SplittableProcessElementsEvaluatorFactory<InputT, OutputT, RestrictionT, P
         inputCoder,
         outputCoders,
         windowingStrategy,
-        doFnSchemaInformation) -> {
+        doFnSchemaInformation,
+        sideInputMapping) -> {
       ProcessFn<InputT, OutputT, RestrictionT, ?> processFn = (ProcessFn) fn;
       return DoFnRunners.newProcessFnRunner(
           processFn,
@@ -202,7 +205,8 @@ class SplittableProcessElementsEvaluatorFactory<InputT, OutputT, RestrictionT, P
           inputCoder,
           outputCoders,
           windowingStrategy,
-          doFnSchemaInformation);
+          doFnSchemaInformation,
+          sideInputMapping);
     };
   }
 }

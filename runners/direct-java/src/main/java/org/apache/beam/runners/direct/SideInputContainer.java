@@ -34,7 +34,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
-import org.apache.beam.sdk.transforms.ParDo.DelegatingPCollectionView;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -228,12 +227,7 @@ class SideInputContainer {
       this.viewContents = CacheBuilder.newBuilder().build(new CurrentViewContentsLoader());
       this.sideInputsMap = new HashMap<>();
       for (PCollectionView pCollectionView : readerViews) {
-        if (pCollectionView instanceof DelegatingPCollectionView) {
-          sideInputsMap.put(
-              ((DelegatingPCollectionView) pCollectionView).getTagId().getId(), pCollectionView);
-        } else {
-          sideInputsMap.put(pCollectionView.getTagInternal().getId(), pCollectionView);
-        }
+        sideInputsMap.put(pCollectionView.getTagInternal().getId(), pCollectionView);
       }
     }
 
