@@ -129,8 +129,7 @@ public class ReadTranslation {
         .build();
   }
 
-  public static UnboundedSource<?, ?> unboundedSourceFromProto(ReadPayload payload)
-      throws InvalidProtocolBufferException {
+  public static UnboundedSource<?, ?> unboundedSourceFromProto(ReadPayload payload) {
     checkArgument(payload.getIsBounded().equals(IsBounded.Enum.UNBOUNDED));
     return (UnboundedSource<?, ?>)
         SerializableUtils.deserializeFromByteArray(
