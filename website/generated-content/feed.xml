@@ -52,7 +52,7 @@ For more information on changes in 2.14.0, check out the
 
 &lt;ul&gt;
   &lt;li&gt;Schema support added to BigQuery reads. (Java) (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-6673&quot;&gt;BEAM-6673&lt;/a&gt;)&lt;/li&gt;
-  &lt;li&gt;Schema support added to JDBC source and sink. (Java) (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-6674&quot;&gt;BEAM-6674&lt;/a&gt;, &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-6675&quot;&gt;BEAM-6675&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Schema support added to JDBC source. (Java) (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-6674&quot;&gt;BEAM-6674&lt;/a&gt;)&lt;/li&gt;
   &lt;li&gt;BigQuery support for &lt;code class=&quot;highlighter-rouge&quot;&gt;bytes&lt;/code&gt; is fixed. (Python 3) (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-6769&quot;&gt;BEAM-6769&lt;/a&gt;)&lt;/li&gt;
   &lt;li&gt;Added DynamoDB IO. (Java) (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7043&quot;&gt;BEAM-7043&lt;/a&gt;)&lt;/li&gt;
   &lt;li&gt;Added support unbounded reads with HCatalogIO (Java) (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7450&quot;&gt;BEAM-7450&lt;/a&gt;)&lt;/li&gt;
