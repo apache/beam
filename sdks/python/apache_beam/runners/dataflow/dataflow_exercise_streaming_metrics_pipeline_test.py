@@ -23,7 +23,6 @@ import logging
 import unittest
 import uuid
 
-from google.cloud import pubsub
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
@@ -57,6 +56,7 @@ class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):
     self.uuid = str(uuid.uuid4())
 
     # Set up PubSub environment.
+    from google.cloud import pubsub
     self.pub_client = pubsub.PublisherClient()
     self.input_topic_name = INPUT_TOPIC + self.uuid
     self.input_topic = self.pub_client.create_topic(
