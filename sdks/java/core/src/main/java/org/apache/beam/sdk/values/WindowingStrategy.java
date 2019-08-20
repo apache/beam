@@ -48,6 +48,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   public enum AccumulationMode {
     DISCARDING_FIRED_PANES,
     ACCUMULATING_FIRED_PANES,
+    // RETRACTING_FIRED_PANES is experimental. There is no backwards-compatibility guarantees.
+    @Experimental
     RETRACTING_FIRED_PANES,
   }
 
