@@ -690,6 +690,8 @@ class PubSubBigQueryIT(unittest.TestCase):
 
   _SIZE = 4
 
+  WAIT_UNTIL_FINISH_DURATION = 15 * 60 * 1000
+
   def setUp(self):
     # Set up PubSub
     self.test_pipeline = TestPipeline(is_integration_test=True)
@@ -732,6 +734,7 @@ class PubSubBigQueryIT(unittest.TestCase):
 
     args = self.test_pipeline.get_full_options_as_args(
         on_success_matcher=hc.all_of(*matchers),
+        wait_until_finish_duration=self.WAIT_UNTIL_FINISH_DURATION,
         experiments='use_beam_bq_sink',
         streaming=True)
 
