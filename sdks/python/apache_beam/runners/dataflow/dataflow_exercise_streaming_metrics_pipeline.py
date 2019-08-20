@@ -19,16 +19,12 @@
 
 from __future__ import absolute_import
 
-import time
-
-from apache_beam.metrics import Metrics
 import argparse
 import logging
-import re
-
-from past.builtins import unicode
+import time
 
 import apache_beam as beam
+from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -57,13 +53,13 @@ class StreamingUserMetricsDoFn(beam.DoFn):
     self.double_message_counter.inc()
     self.msg_len_dist_metric.update(len(text_line))
 
-    logging.debug(
-      "Done processing returning element array: '{}'".format(element))
+    logging.debug("Done processing returning element array: '%s'", element)
 
     return [element]
 
   def finish_bundle(self):
     time.sleep(SLEEP_TIME_SECS)
+
 
 def run(argv=None):
   """Given an initialized Pipeline applies transforms and runs it."""
@@ -97,6 +93,7 @@ def run(argv=None):
   result = pipeline.run()
   result.wait_until_finish()
   return result
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

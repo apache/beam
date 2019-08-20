@@ -19,27 +19,23 @@
 
 from __future__ import absolute_import
 
+import logging
 import unittest
 import uuid
 
+from google.cloud import pubsub
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
-from apache_beam.runners.dataflow import dataflow_exercise_streaming_metrics_pipeline
-
-from apache_beam.testing import metric_result_matchers
-from apache_beam.testing.test_pipeline import TestPipeline
-
 from apache_beam.io.gcp.tests.pubsub_matcher import PubSubMessageMatcher
+from apache_beam.runners.dataflow import dataflow_exercise_streaming_metrics_pipeline
 from apache_beam.runners.runner import PipelineState
+from apache_beam.testing import metric_result_matchers
 from apache_beam.testing import test_utils
-from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
-import logging
-
 from apache_beam.testing.metric_result_matchers import DistributionMatcher
 from apache_beam.testing.metric_result_matchers import MetricResultMatcher
-
-from google.cloud import pubsub
+from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
+from apache_beam.testing.test_pipeline import TestPipeline
 
 INPUT_TOPIC = 'exercise_streaming_metrics_topic_input'
 INPUT_SUB = 'exercise_streaming_metrics_subscription_input'
@@ -112,7 +108,7 @@ class ExerciseStreamingMetricsPipelineIT(unittest.TestCase):
                   'experiment': 'beam_fn_api',
                   'input_subscription': self.input_sub.name,
                   'output_topic': self.output_topic.name,
-                  }
+                 }
 
     argv = self.test_pipeline.get_full_options_as_args(**extra_opts)
     return dataflow_exercise_streaming_metrics_pipeline.run(argv)
@@ -122,8 +118,9 @@ class ExerciseStreamingMetricsPipelineIT(unittest.TestCase):
     self._inject_words(self.input_topic, MESSAGES_TO_PUBLISH)
     result = self.run_pipeline()
 
-    METRIC_NAMESPACE = ('apache_beam.runners.dataflow.'
-                        'dataflow_exercise_streaming_metrics_pipeline.StreamingUserMetricsDoFn')
+    METRIC_NAMESPACE = \
+      ('apache_beam.runners.dataflow.'
+       'dataflow_exercise_streaming_metrics_pipeline.StreamingUserMetricsDoFn')
     matchers = [
         # User Counter Metrics.
         MetricResultMatcher(
