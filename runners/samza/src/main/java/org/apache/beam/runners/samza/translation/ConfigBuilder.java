@@ -29,6 +29,7 @@ import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.samza.SamzaExecutionEnvironment;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.container.BeamContainerRunner;
+import org.apache.beam.runners.samza.runtime.SamzaStoreStateInternals;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.StringUtils;
@@ -227,9 +228,12 @@ public class ConfigBuilder {
             .put(
                 "stores.beamStore.factory",
                 "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory")
-            .put("stores.beamStore.key.serde", "byteSerde")
+            .put("stores.beamStore.key.serde", "byteArraySerde")
             .put("stores.beamStore.msg.serde", "byteSerde")
-            .put("serializers.registry.byteSerde.class", ByteSerdeFactory.class.getName());
+            .put("serializers.registry.byteSerde.class", ByteSerdeFactory.class.getName())
+            .put(
+                "serializers.registry.byteArraySerde.class",
+                SamzaStoreStateInternals.ByteArraySerdeFactory.class.getName());
 
     if (options.getStateDurable()) {
       configBuilder.put("stores.beamStore.changelog", getChangelogTopic(options, "beamStore"));
