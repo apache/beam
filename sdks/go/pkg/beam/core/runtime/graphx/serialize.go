@@ -27,7 +27,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
+	v1 "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -425,6 +425,11 @@ func encodeType(t reflect.Type) (*v1.Type, error) {
 		var fields []*v1.Type_StructField
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i)
+
+			if f.PkgPath != "" {
+				wrapped := errors.Errorf("type has unexported field: %v", f.Name)
+				return nil, errors.WithContextf(wrapped, "encoding struct %v", t)
+			}
 
 			fType, err := encodeType(f.Type)
 			if err != nil {
