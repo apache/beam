@@ -209,7 +209,7 @@ class CombineValuesFnFactory implements ParDoFnFactory {
           Collections.emptyMap(), // Not needed here.
           new TupleTag<>(PropertyNames.OUTPUT),
           DoFnSchemaInformation.create(),
-              Collections.emptyMap());
+          Collections.emptyMap());
     }
 
     private final GlobalCombineFnRunner<InputT, AccumT, ?> combineFnRunner;
@@ -269,7 +269,7 @@ class CombineValuesFnFactory implements ParDoFnFactory {
           Collections.emptyMap(), // Not needed here.
           new TupleTag<>(PropertyNames.OUTPUT),
           DoFnSchemaInformation.create(),
-              Collections.emptyMap());
+          Collections.emptyMap());
     }
 
     private final GlobalCombineFnRunner<?, AccumT, ?> combineFnRunner;
@@ -319,7 +319,7 @@ class CombineValuesFnFactory implements ParDoFnFactory {
           Collections.emptyMap(), // Not needed here.
           new TupleTag<>(PropertyNames.OUTPUT),
           DoFnSchemaInformation.create(),
-              Collections.emptyMap());
+          Collections.emptyMap());
     }
 
     private final GlobalCombineFnRunner<?, AccumT, OutputT> combineFnRunner;

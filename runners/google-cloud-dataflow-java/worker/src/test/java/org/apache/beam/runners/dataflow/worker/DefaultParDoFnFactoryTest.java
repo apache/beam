@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import java.util.Collections;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
@@ -44,8 +45,6 @@ import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.Collections;
 
 /** Tests for {@link DefaultParDoFnFactory}. */
 @RunWith(JUnit4.class)
@@ -94,7 +93,7 @@ public class DefaultParDoFnFactoryTest {
                     null /* input coder */,
                     new TupleTag<>("output") /* main output */,
                     DoFnSchemaInformation.create(),
-                        Collections.emptyMap())));
+                    Collections.emptyMap())));
     CloudObject cloudUserFn = CloudObject.forClassName("DoFn");
     addString(cloudUserFn, "serialized_fn", serializedFn);
 
