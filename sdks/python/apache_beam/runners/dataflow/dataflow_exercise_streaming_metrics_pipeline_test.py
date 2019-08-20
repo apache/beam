@@ -48,7 +48,7 @@ MESSAGES_TO_PUBLISH = ["message a", "message b b", "message c"]
 SLEEP_TIME_SECS = 1
 
 
-class ExerciseStreamingMetricsPipelineIT(unittest.TestCase):
+class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):
 
   def setUp(self):
     """Creates all required topics and subs."""
@@ -114,7 +114,7 @@ class ExerciseStreamingMetricsPipelineIT(unittest.TestCase):
     return dataflow_exercise_streaming_metrics_pipeline.run(argv)
 
   @attr('IT', 'ValidatesContainer')
-  def test_fnapi_streaming_pipeline_returns_expected_user_metrics(self):
+  def test_streaming_pipeline_returns_expected_user_metrics_fnapi_it(self):
     self._inject_words(self.input_topic, MESSAGES_TO_PUBLISH)
     result = self.run_pipeline()
 
