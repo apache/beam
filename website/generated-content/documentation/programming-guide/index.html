@@ -268,6 +268,16 @@
         <li><a href="/documentation/programming-guide/#composite-triggers">Composite triggers</a></li>
       </ul>
     </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Metrics</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#metrics">Metrics basics</a></li>
+        <li><a href="/documentation/programming-guide/#types-of-metrics">Types of metrics</a></li>
+        <li><a href="/documentation/programming-guide/#querying-metrics">Querying metrics</a></li>
+        <li><a href="/documentation/programming-guide/#using-metrics">Using metrics in pipeline</a></li>
+      </ul>
+    </li>
   </ul>
 </li>
 
@@ -489,6 +499,14 @@
       <li><a href="#data-driven-triggers">8.3. Data-driven triggers</a></li>
       <li><a href="#setting-a-trigger">8.4. Setting a trigger</a></li>
       <li><a href="#composite-triggers">8.5. Composite triggers</a></li>
+    </ul>
+  </li>
+  <li><a href="#metrics">9. Metrics</a>
+    <ul>
+      <li><a href="#91-the-main-concepts-of-beam-metrics">9.1 The main concepts of Beam metrics</a></li>
+      <li><a href="#types-of-metrics">9.2 Types of metrics</a></li>
+      <li><a href="#querying-metrics">9.3 Querying metrics</a></li>
+      <li><a href="#using-metrics">9.4 Using metrics in pipeline</a></li>
     </ul>
   </li>
 </ul>
@@ -3700,6 +3718,152 @@ elements, or after a minute.</p>
             <span class="n">AfterCount</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span>
             <span class="n">AfterProcessingTime</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="mi">60</span><span class="p">))),</span>
     <span class="n">accumulation_mode</span><span class="o">=</span><span class="n">AccumulationMode</span><span class="o">.</span><span class="n">DISCARDING</span><span class="p">)</span>
+</code></pre>
+</div>
+
+<h2 id="metrics">9. Metrics</h2>
+<p>In the Beam model, metrics provide some insight into the current state of a user pipeline, 
+potentially while the pipeline is running. There could be different reasons for that, for instance:</p>
+<ul>
+  <li>Check the number of errors encountered while running a specific step in the pipeline;</li>
+  <li>Monitor the number of RPCs made to backend service;</li>
+  <li>Retrieve an accurate count of the number of elements that have been processed;</li>
+  <li>…and so on.</li>
+</ul>
+
+<h3 id="91-the-main-concepts-of-beam-metrics">9.1 The main concepts of Beam metrics</h3>
+<ul>
+  <li><strong>Named</strong>. Each metric has a name which consists of a namespace and an actual name. The 
+namespace can be used to differentiate between multiple metrics with the same name and also 
+allows querying for all metrics within a specific namespace.</li>
+  <li><strong>Scoped</strong>. Each metric is reported against a specific step in the pipeline, indicating what 
+code was running when the metric was incremented.</li>
+  <li><strong>Dynamically Created</strong>. Metrics may be created during runtime without pre-declaring them, in 
+much the same way a logger could be created. This makes it easier to produce metrics in utility 
+code and have them usefully reported.</li>
+  <li><strong>Degrade Gracefully</strong>. If a runner doesn’t support some part of reporting metrics, the 
+fallback behavior is to drop the metric updates rather than failing the pipeline. If a runner 
+doesn’t support some part of querying metrics, the runner will not return the associated data.</li>
+</ul>
+
+<p>Reported metrics are implicitly scoped to the transform within the pipeline that reported them. 
+This allows reporting the same metric name in multiple places and identifying the value each 
+transform reported, as well as aggregating the metric across the entire pipeline.</p>
+
+<blockquote>
+  <p><strong>Note:</strong> It is runner-dependent whether metrics are accessible during pipeline execution or only 
+after jobs have completed.</p>
+</blockquote>
+
+<h3 id="types-of-metrics">9.2 Types of metrics</h3>
+<p>There are three types of metrics that are supported for the moment: <code class="highlighter-rouge">Counter</code>, <code class="highlighter-rouge">Distribution</code> and 
+<code class="highlighter-rouge">Gauge</code>.</p>
+
+<p><strong>Counter</strong>: A metric that reports a single long value and can be incremented or decremented.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">Counter</span> <span class="n">counter</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="na">counter</span><span class="o">(</span> <span class="s">"namespace"</span><span class="o">,</span> <span class="s">"counter1"</span><span class="o">);</span>
+
+<span class="nd">@ProcessElement</span>
+<span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">context</span><span class="o">)</span> <span class="o">{</span>
+  <span class="c1">// count the elements</span>
+  <span class="n">counter</span><span class="o">.</span><span class="na">inc</span><span class="o">();</span>
+  <span class="o">...</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<p><strong>Distribution</strong>: A metric that reports information about the distribution of reported values.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">Distribution</span> <span class="n">distribution</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="na">distribution</span><span class="o">(</span> <span class="s">"namespace"</span><span class="o">,</span> <span class="s">"distribution1"</span><span class="o">);</span>
+
+<span class="nd">@ProcessElement</span>
+<span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">context</span><span class="o">)</span> <span class="o">{</span>
+  <span class="n">Integer</span> <span class="n">element</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="na">element</span><span class="o">();</span>
+    <span class="c1">// create a distribution (histogram) of the values </span>
+    <span class="n">distribution</span><span class="o">.</span><span class="na">update</span><span class="o">(</span><span class="n">element</span><span class="o">);</span>
+    <span class="o">...</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<p><strong>Gauge</strong>: A metric that reports the latest value out of reported values. Since metrics are 
+collected from many workers the value may not be the absolute last, but one of the latest values.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">Gauge</span> <span class="n">gauge</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="na">gauge</span><span class="o">(</span> <span class="s">"namespace"</span><span class="o">,</span> <span class="s">"gauge1"</span><span class="o">);</span>
+
+<span class="nd">@ProcessElement</span>
+<span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">context</span><span class="o">)</span> <span class="o">{</span>
+  <span class="n">Integer</span> <span class="n">element</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="na">element</span><span class="o">();</span>
+  <span class="c1">// create a gauge (latest value received) of the values </span>
+  <span class="n">gauge</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">element</span><span class="o">);</span>
+  <span class="o">...</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<h3 id="querying-metrics">9.3 Querying metrics</h3>
+<p><code class="highlighter-rouge">PipelineResult</code> has a method <code class="highlighter-rouge">metrics()</code> which returns a <code class="highlighter-rouge">MetricResults</code> object that allows 
+accessing metrics. The main method available in <code class="highlighter-rouge">MetricResults</code> allows querying for all metrics 
+matching a given filter.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">PipelineResult</span> <span class="o">{</span>
+  <span class="n">MetricResults</span> <span class="nf">metrics</span><span class="o">();</span>
+<span class="o">}</span>
+
+<span class="kd">public</span> <span class="kd">abstract</span> <span class="kd">class</span> <span class="nc">MetricResults</span> <span class="o">{</span>
+  <span class="kd">public</span> <span class="kd">abstract</span> <span class="n">MetricQueryResults</span> <span class="nf">queryMetrics</span><span class="o">(</span><span class="nd">@Nullable</span> <span class="n">MetricsFilter</span> <span class="n">filter</span><span class="o">);</span>
+<span class="o">}</span>
+
+<span class="kd">public</span> <span class="kd">interface</span> <span class="nc">MetricQueryResults</span> <span class="o">{</span>
+  <span class="n">Iterable</span><span class="o">&lt;</span><span class="n">MetricResult</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="nf">getCounters</span><span class="o">();</span>
+  <span class="n">Iterable</span><span class="o">&lt;</span><span class="n">MetricResult</span><span class="o">&lt;</span><span class="n">DistributionResult</span><span class="o">&gt;&gt;</span> <span class="nf">getDistributions</span><span class="o">();</span>
+  <span class="n">Iterable</span><span class="o">&lt;</span><span class="n">MetricResult</span><span class="o">&lt;</span><span class="n">GaugeResult</span><span class="o">&gt;&gt;</span> <span class="nf">getGauges</span><span class="o">();</span>
+<span class="o">}</span>
+
+<span class="kd">public</span> <span class="kd">interface</span> <span class="nc">MetricResult</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="o">{</span>
+  <span class="n">MetricName</span> <span class="nf">getName</span><span class="o">();</span>
+  <span class="n">String</span> <span class="nf">getStep</span><span class="o">();</span>
+  <span class="n">T</span> <span class="nf">getCommitted</span><span class="o">();</span>
+  <span class="n">T</span> <span class="nf">getAttempted</span><span class="o">();</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<h3 id="using-metrics">9.4 Using metrics in pipeline</h3>
+<p>Below, there is a simple example of how to use a <code class="highlighter-rouge">Counter</code> metric in a user pipeline.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// creating a pipeline with custom metrics DoFn</span>
+<span class="n">pipeline</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(...)</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">MyMetricsDoFn</span><span class="o">()));</span>
+
+<span class="n">pipelineResult</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="na">run</span><span class="o">().</span><span class="na">waitUntilFinish</span><span class="o">(...);</span>
+
+<span class="c1">// request the metric called "counter1" in namespace called "namespace"</span>
+<span class="n">MetricQueryResults</span> <span class="n">metrics</span> <span class="o">=</span>
+    <span class="n">pipelineResult</span>
+        <span class="o">.</span><span class="na">metrics</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">queryMetrics</span><span class="o">(</span>
+            <span class="n">MetricsFilter</span><span class="o">.</span><span class="na">builder</span><span class="o">()</span>
+                <span class="o">.</span><span class="na">addNameFilter</span><span class="o">(</span><span class="n">MetricNameFilter</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"namespace"</span><span class="o">,</span> <span class="s">"counter1"</span><span class="o">))</span>
+                <span class="o">.</span><span class="na">build</span><span class="o">());</span>
+
+<span class="c1">// print the metric value - there should be only one line because there is only one metric </span>
+<span class="c1">// called "counter1" in the namespace called "namespace"</span>
+<span class="k">for</span> <span class="o">(</span><span class="n">MetricResult</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;</span> <span class="nl">counter:</span> <span class="n">metrics</span><span class="o">.</span><span class="na">getCounters</span><span class="o">())</span> <span class="o">{</span>
+  <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="n">counter</span><span class="o">.</span><span class="na">getName</span><span class="o">()</span> <span class="o">+</span> <span class="s">":"</span> <span class="o">+</span> <span class="n">counter</span><span class="o">.</span><span class="na">getAttempted</span><span class="o">());</span>
+<span class="o">}</span>
+
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">MyMetricsDoFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;</span> <span class="o">{</span>
+  <span class="kd">private</span> <span class="kd">final</span> <span class="n">Counter</span> <span class="n">counter</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="na">counter</span><span class="o">(</span> <span class="s">"namespace"</span><span class="o">,</span> <span class="s">"counter1"</span><span class="o">);</span>
+
+  <span class="nd">@ProcessElement</span>
+  <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">context</span><span class="o">)</span> <span class="o">{</span>
+    <span class="c1">// count the elements</span>
+    <span class="n">counter</span><span class="o">.</span><span class="na">inc</span><span class="o">();</span>
+    <span class="n">context</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">context</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
+  <span class="o">}</span>
+<span class="o">}</span>
 </code></pre>
 </div>
 
