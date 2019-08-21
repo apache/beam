@@ -206,7 +206,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
    * hostname has historically changed between versions, so this is subject to breakages and will
    * likely only support the latest version at any time.
    */
-  private static class DockerOnMac {
+  static class DockerOnMac {
     // TODO: This host name seems to change with every other Docker release. Do we attempt to keep
     // up
     // or attempt to document the supported Docker version(s)?
@@ -220,7 +220,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     private static final int MAC_PORT_END = 8200;
     private static final AtomicInteger MAC_PORT = new AtomicInteger(MAC_PORT_START);
 
-    private static ServerFactory getServerFactory() {
+    static ServerFactory getServerFactory() {
       ServerFactory.UrlFactory dockerUrlFactory =
           (host, port) -> HostAndPort.fromParts(DOCKER_FOR_MAC_HOST, port).toString();
       if (RUNNING_INSIDE_DOCKER_ON_MAC) {

@@ -44,6 +44,7 @@ from apache_beam.runners.portability import fn_api_runner_test
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability.local_job_service import LocalJobServicer
 from apache_beam.runners.portability.portable_runner import PortableRunner
+from apache_beam.runners.worker import worker_pool_main
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 
 
@@ -199,7 +200,7 @@ class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
   @classmethod
   def setUpClass(cls):
     cls._worker_address, cls._worker_server = (
-        portable_runner.BeamFnExternalWorkerPoolServicer.start())
+        worker_pool_main.BeamFnExternalWorkerPoolServicer.start())
 
   @classmethod
   def tearDownClass(cls):
