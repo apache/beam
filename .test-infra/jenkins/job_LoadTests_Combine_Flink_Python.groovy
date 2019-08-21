@@ -21,11 +21,11 @@ import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import Flink
+import Docker
 
-String pythonHarnessImageTag = Flink.getSDKHarnessImageTag(CommonTestProperties.SDK.PYTHON)
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def scenarios = { datasetName -> [
+def scenarios = { datasetName, sdkHarnessImageTag -> [
         [
                 title        : 'Combine Python Load test: 2GB 10 byte records',
                 itClass      : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
@@ -42,7 +42,7 @@ def scenarios = { datasetName -> [
                                 '"value_size": 9}\'',
                         parallelism         : 5,
                         job_endpoint        : 'localhost:8099',
-                        environment_config  : pythonHarnessImageTag,
+                        environment_config  : sdkHarnessImageTag,
                         environment_type    : 'DOCKER',
                         top_count           : 20,
                 ]
@@ -63,7 +63,7 @@ def scenarios = { datasetName -> [
                                 '"value_size": 90}\'',
                         parallelism         : 16,
                         job_endpoint        : 'localhost:8099',
-                        environment_config  : pythonHarnessImageTag,
+                        environment_config  : sdkHarnessImageTag,
                         environment_type    : 'DOCKER',
                         fanout              : 4,
                         top_count           : 20,
@@ -85,7 +85,7 @@ def scenarios = { datasetName -> [
                                 '"value_size": 90}\'',
                         parallelism         : 16,
                         job_endpoint        : 'localhost:8099',
-                        environment_config  : pythonHarnessImageTag,
+                        environment_config  : sdkHarnessImageTag,
                         environment_type    : 'DOCKER',
                         fanout              : 8,
                         top_count           : 20,
@@ -97,23 +97,27 @@ def batchLoadTestJob = { scope, triggeringContext ->
     scope.description('Runs Python Combine load tests on Flink runner in batch mode')
     commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
-    def numberOfWorkers = 16
+    Docker publisher = new Docker(scope, loadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
+    def sdk = CommonTestProperties.SDK.PYTHON
+    String sdkName = sdk.name().toLowerCase()
+    String pythonHarnessImageTag = publisher.getFullImageName(sdkName)
+
     def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
+    def numberOfWorkers = 16
+    List<Map> testScenarios = scenarios(datasetName, pythonHarnessImageTag)
 
-    List<Map> testScenarios = scenarios(datasetName)
-
+    publisher.publish(":sdks:${sdkName}:container:docker", sdkName)
+    publisher.publish(':runners:flink:1.7:job-server-container:docker', 'flink-job-server')
     def flink = new Flink(scope, 'beam_LoadTests_Python_Combine_Flink_Batch')
-    flink.prepareSDKHarness(CommonTestProperties.SDK.PYTHON)
-    flink.prepareJobServer()
-    flink.setUp(CommonTestProperties.SDK.PYTHON, numberOfWorkers)
+    flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('flink-job-server'))
 
     defineTestSteps(scope, testScenarios, [
             'Combine Python Load test: 2GB Fanout 4',
             'Combine Python Load test: 2GB Fanout 8'
     ])
 
-    def scaledNumberOfWorkers = 5
-    flink.scaleCluster(scaledNumberOfWorkers)
+    numberOfWorkers = 5
+    flink.scaleCluster(numberOfWorkers)
 
     defineTestSteps(scope, testScenarios, ['Combine Python Load test: 2GB 10 byte records'])
 }

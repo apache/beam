@@ -155,8 +155,4 @@ function delete() {
   gcloud dataproc clusters delete $CLUSTER_NAME --quiet
 }
 
-function scale() {
-  restart
-}
-
 "$@"
