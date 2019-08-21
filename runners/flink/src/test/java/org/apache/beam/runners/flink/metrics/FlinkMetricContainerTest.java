@@ -248,7 +248,7 @@ public class FlinkMetricContainerTest {
             argThat(
                 new ArgumentMatcher<FlinkDistributionGauge>() {
                   @Override
-                  public boolean matches(Object argument) {
+                  public boolean matches(FlinkDistributionGauge argument) {
                     DistributionResult actual = ((FlinkDistributionGauge) argument).getValue();
                     DistributionResult expected = DistributionResult.create(30, 10, 1, 5);
                     return actual.equals(expected);

@@ -72,6 +72,7 @@ dependencies {
   testCompile library.java.mockito_core
   testCompile library.java.junit
   testCompile library.java.powermock
+  testCompile library.java.powermock_mockito
   testRuntimeOnly library.java.slf4j_jdk14
 }
 

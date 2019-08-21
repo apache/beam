@@ -25,13 +25,12 @@ import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3OptionsWithSSECustomer
 import static org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions.builder;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.argThat;
 import static org.mockito.Matchers.notNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -180,8 +179,7 @@ public class S3FileSystemTest {
 
     s3FileSystem.copy(sourcePath, destinationPath);
 
-    verify(s3FileSystem.getAmazonS3Client(), times(1))
-        .copyObject(argThat(notNullValue(CopyObjectRequest.class)));
+    verify(s3FileSystem.getAmazonS3Client(), times(1)).copyObject(any(CopyObjectRequest.class));
 
     // we simulate a big object >= 5GB so it takes the multiPart path
     objectMetadata.setContentLength(5_368_709_120L);
@@ -194,8 +192,7 @@ public class S3FileSystemTest {
       // ignore failing unmocked path, this is covered by testMultipartCopy test
     }
 
-    verify(s3FileSystem.getAmazonS3Client(), never())
-        .copyObject(argThat(nullValue(CopyObjectRequest.class)));
+    verify(s3FileSystem.getAmazonS3Client(), never()).copyObject(null);
   }
 
   @Test
@@ -222,9 +219,7 @@ public class S3FileSystemTest {
             destinationPath.getKey());
     copyObjectRequest.setSourceSSECustomerKey(options.getSSECustomerKey());
     copyObjectRequest.setDestinationSSECustomerKey(options.getSSECustomerKey());
-    when(s3FileSystem
-            .getAmazonS3Client()
-            .copyObject(argThat(notNullValue(CopyObjectRequest.class))))
+    when(s3FileSystem.getAmazonS3Client().copyObject(any(CopyObjectRequest.class)))
         .thenReturn(copyObjectResult);
     assertEquals(
         getSSECustomerKeyMd5(options),
@@ -233,8 +228,7 @@ public class S3FileSystemTest {
     ObjectMetadata sourceS3ObjectMetadata = new ObjectMetadata();
     s3FileSystem.atomicCopy(sourcePath, destinationPath, sourceS3ObjectMetadata);
 
-    verify(s3FileSystem.getAmazonS3Client(), times(2))
-        .copyObject(argThat(notNullValue(CopyObjectRequest.class)));
+    verify(s3FileSystem.getAmazonS3Client(), times(2)).copyObject(any(CopyObjectRequest.class));
   }
 
   @Test
@@ -257,7 +251,7 @@ public class S3FileSystemTest {
     }
     when(s3FileSystem
             .getAmazonS3Client()
-            .initiateMultipartUpload(argThat(notNullValue(InitiateMultipartUploadRequest.class))))
+            .initiateMultipartUpload(any(InitiateMultipartUploadRequest.class)))
         .thenReturn(initiateMultipartUploadResult);
     assertEquals(
         getSSECustomerKeyMd5(options),
@@ -290,7 +284,7 @@ public class S3FileSystemTest {
     }
     CopyPartRequest copyPartRequest = new CopyPartRequest();
     copyPartRequest.setSourceSSECustomerKey(options.getSSECustomerKey());
-    when(s3FileSystem.getAmazonS3Client().copyPart(argThat(notNullValue(CopyPartRequest.class))))
+    when(s3FileSystem.getAmazonS3Client().copyPart(any(CopyPartRequest.class)))
         .thenReturn(copyPartResult1)
         .thenReturn(copyPartResult2);
     assertEquals(
@@ -300,7 +294,7 @@ public class S3FileSystemTest {
     s3FileSystem.multipartCopy(sourcePath, destinationPath, sourceObjectMetadata);
 
     verify(s3FileSystem.getAmazonS3Client(), times(1))
-        .completeMultipartUpload(argThat(notNullValue(CompleteMultipartUploadRequest.class)));
+        .completeMultipartUpload(any(CompleteMultipartUploadRequest.class));
   }
 
   @Test
@@ -323,7 +317,7 @@ public class S3FileSystemTest {
 
     // Should require 6 calls to delete 2500 objects in each of 2 buckets.
     verify(s3FileSystem.getAmazonS3Client(), times(6))
-        .deleteObjects(argThat(notNullValue(DeleteObjectsRequest.class)));
+        .deleteObjects(any(DeleteObjectsRequest.class));
   }
 
   @Test
@@ -460,7 +454,8 @@ public class S3FileSystemTest {
         MatchResultMatcher.create(MatchResult.Status.ERROR, new IOException(exception)));
   }
 
-  static class ListObjectsV2RequestArgumentMatches extends ArgumentMatcher<ListObjectsV2Request> {
+  static class ListObjectsV2RequestArgumentMatches
+      implements ArgumentMatcher<ListObjectsV2Request> {
     private final ListObjectsV2Request expected;
 
     ListObjectsV2RequestArgumentMatches(ListObjectsV2Request expected) {
@@ -468,7 +463,7 @@ public class S3FileSystemTest {
     }
 
     @Override
-    public boolean matches(Object argument) {
+    public boolean matches(ListObjectsV2Request argument) {
       if (argument instanceof ListObjectsV2Request) {
         ListObjectsV2Request actual = (ListObjectsV2Request) argument;
         return expected.getBucketName().equals(actual.getBucketName())
@@ -737,7 +732,7 @@ public class S3FileSystemTest {
 
   /** A mockito argument matcher to implement equality on GetObjectMetadataRequest. */
   private static class GetObjectMetadataRequestMatcher
-      extends ArgumentMatcher<GetObjectMetadataRequest> {
+      implements ArgumentMatcher<GetObjectMetadataRequest> {
     private final GetObjectMetadataRequest expected;
 
     GetObjectMetadataRequestMatcher(GetObjectMetadataRequest expected) {
@@ -745,7 +740,7 @@ public class S3FileSystemTest {
     }
 
     @Override
-    public boolean matches(Object obj) {
+    public boolean matches(GetObjectMetadataRequest obj) {
       if (!(obj instanceof GetObjectMetadataRequest)) {
         return false;
       }
