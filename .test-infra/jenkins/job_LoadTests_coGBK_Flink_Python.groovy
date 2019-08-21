@@ -21,11 +21,11 @@ import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import Flink
+import Docker
 
-String pythonHarnessImageTag = Flink.getSDKHarnessImageTag(CommonTestProperties.SDK.PYTHON)
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def loadTestConfigurations = { datasetName -> [
+def scenarios = { datasetName, sdkHarnessImageTag -> [
         [
                 title        : 'CoGroupByKey Python Load test: 2GB of 100B records with a single key',
                 itClass      : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
@@ -52,7 +52,7 @@ def loadTestConfigurations = { datasetName -> [
                         iterations           : 1,
                         parallelism          : 5,
                         job_endpoint         : 'localhost:8099',
-                        environment_config   : pythonHarnessImageTag,
+                        environment_config   : sdkHarnessImageTag,
                         environment_type     : 'DOCKER',
                 ]
         ],
@@ -82,7 +82,7 @@ def loadTestConfigurations = { datasetName -> [
                         iterations           : 1,
                         parallelism          : 5,
                         job_endpoint         : 'localhost:8099',
-                        environment_config   : pythonHarnessImageTag,
+                        environment_config   : sdkHarnessImageTag,
                         environment_type     : 'DOCKER',
                 ]
         ],
@@ -112,7 +112,7 @@ def loadTestConfigurations = { datasetName -> [
                         iterations           : 4,
                         parallelism          : 5,
                         job_endpoint         : 'localhost:8099',
-                        environment_config   : pythonHarnessImageTag,
+                        environment_config   : sdkHarnessImageTag,
                         environment_type     : 'DOCKER',
                 ]
         ],
@@ -142,22 +142,28 @@ def loadTestConfigurations = { datasetName -> [
                         iterations           : 4,
                         parallelism          : 5,
                         job_endpoint         : 'localhost:8099',
-                        environment_config   : pythonHarnessImageTag,
+                        environment_config   : sdkHarnessImageTag,
                         environment_type     : 'DOCKER',
                 ]
         ],
 ]}
 
 def loadTest = { scope, triggeringContext ->
-  def numberOfWorkers = 5
-  def flink = new Flink(scope, 'beam_LoadTests_Python_CoGBK_Flink_Batch')
-  flink.prepareSDKHarness(CommonTestProperties.SDK.PYTHON)
-  flink.prepareJobServer()
-  flink.setUp(CommonTestProperties.SDK.PYTHON, numberOfWorkers)
+  Docker publisher = new Docker(scope, loadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
+  def sdk = CommonTestProperties.SDK.PYTHON
+  String sdkName = sdk.name().toLowerCase()
+  String pythonHarnessImageTag = publisher.getFullImageName(sdkName)
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
-  def testConfigs = loadTestConfigurations(datasetName)
-  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON, testConfigs, 'CoGBK', 'batch')
+  def numberOfWorkers = 5
+  List<Map> testScenarios = scenarios(datasetName, pythonHarnessImageTag)
+
+  publisher.publish(":sdks:${sdkName}:container:docker", sdkName)
+  publisher.publish('runners:flink:1.7:job-server-container:docker', 'flink-job-server')
+  def flink = new Flink(scope, 'beam_LoadTests_Python_CoGBK_Flink_Batch')
+  flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('flink-job-server'))
+
+  loadTestsBuilder.loadTests(scope, sdk, testScenarios, 'CoGBK', 'batch')
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
