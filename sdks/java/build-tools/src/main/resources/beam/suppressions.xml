@@ -80,9 +80,13 @@
   <suppress id="ForbidNonVendoredGuava" files=".*kinesis.*KinesisIO\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*kinesis.*KinesisProducerMock\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*bigtable.*VendoredListenableFutureAdapter\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*bigtable.*VendoredListenableFutureAdapter\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*bigtable.*BigtableServiceImplTest\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*sql.*BeamValuesRel\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*sql.*BeamEnumerableConverterTest\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*TableScanConverter\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*ExpressionConverter\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*ZetaSQLPlannerImpl\.java" />
 
   <!-- Flink -->
   <!-- Checkstyle does not correctly detect package files across multiple source directories. -->

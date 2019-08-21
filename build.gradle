@@ -144,6 +144,10 @@ task javaPreCommit() {
   dependsOn ":runners:direct-java:needsRunnerTests"
 }
 
+task javaPreCommitBeamZetaSQL() {
+  dependsOn ":sdks:java:extensions:sql:runZetaSQLTest"
+}
+
 task javaPreCommitPortabilityApi() {
   dependsOn ":runners:google-cloud-dataflow-java:worker:build"
   dependsOn ":runners:google-cloud-dataflow-java:examples:verifyPortabilityApi"
