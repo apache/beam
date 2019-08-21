@@ -2321,17 +2321,34 @@ together.</p>
 </code></pre>
 </div>
 
-<h4 id="other-dofn-parameters" class="language-java">4.5.3. Accessing additional parameters in your DoFn</h4>
+<h4 id="other-dofn-parameters">4.5.3. Accessing additional parameters in your DoFn</h4>
 
 <p class="language-java">In addition to the element and the <code class="highlighter-rouge">OutputReceiver</code>, Beam will populate other parameters to your DoFn’s <code class="highlighter-rouge">@ProcessElement</code> method.
+Any combination of these parameters can be added to your process method in any order.</p>
+
+<p class="language-py">In addition to the element, Beam will populate other parameters to your DoFn’s <code class="highlighter-rouge">process</code> method.
 Any combination of these parameters can be added to your process method in any order.</p>
 
 <p class="language-java"><strong>Timestamp:</strong>
 To access the timestamp of an input element, add a parameter annotated with <code class="highlighter-rouge">@Timestamp</code> of type <code class="highlighter-rouge">Instant</code>. For example:</p>
 
+<p class="language-py"><strong>Timestamp:</strong>
+To access the timestamp of an input element, add a keyword parameter default to <code class="highlighter-rouge">DoFn.TimestampParam</code>. For example:</p>
+
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
      <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="nd">@Element</span> <span class="n">String</span> <span class="n">word</span><span class="o">,</span> <span class="nd">@Timestamp</span> <span class="n">Instant</span> <span class="n">timestamp</span><span class="o">)</span> <span class="o">{</span>
   <span class="o">}})</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="k">class</span> <span class="nc">ProcessRecord</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">timestamp</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">TimestampParam</span><span class="p">):</span>
+     <span class="c"># access timestamp of element.</span>
+     <span class="k">pass</span>  
+  
 </code></pre>
 </div>
 
@@ -2342,11 +2359,17 @@ will be raised. If an element falls in multiple windows (for example, this will 
 <code class="highlighter-rouge">@ProcessElement</code> method will be invoked multiple time for the element, once for each window. For example, when fixed windows
 are being used, the window is of type <code class="highlighter-rouge">IntervalWindow</code>.</p>
 
+<p class="language-py"><strong>Window:</strong>
+To access the window an input element falls into, add a keyword parameter default to <code class="highlighter-rouge">DoFn.WindowParam</code>.
+If an element falls in multiple windows (for example, this will happen when using <code class="highlighter-rouge">SlidingWindows</code>), then the
+<code class="highlighter-rouge">process</code> method will be invoked multiple time for the element, once for each window.</p>
+
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
      <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="nd">@Element</span> <span class="n">String</span> <span class="n">word</span><span class="o">,</span> <span class="n">IntervalWindow</span> <span class="n">window</span><span class="o">)</span> <span class="o">{</span>
   <span class="o">}})</span>
 </code></pre>
 </div>
+
 <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
 
 <span class="k">class</span> <span class="nc">ProcessRecord</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
@@ -2357,13 +2380,30 @@ are being used, the window is of type <code class="highlighter-rouge">IntervalWi
   
 </code></pre>
 </div>
-<p><strong>PaneInfo:</strong>
+
+<p class="language-java"><strong>PaneInfo:</strong>
 When triggers are used, Beam provides a <code class="highlighter-rouge">PaneInfo</code> object that contains information about the current firing. Using <code class="highlighter-rouge">PaneInfo</code>
 you can determine whether this is an early or a late firing, and how many times this window has already fired for this key.</p>
+
+<p class="language-py"><strong>PaneInfo:</strong>
+When triggers are used, Beam provides a <code class="highlighter-rouge">DoFn.PaneInfoParam</code> object that contains information about the current firing. Using <code class="highlighter-rouge">DoFn.PaneInfoParam</code>
+you can determine whether this is an early or a late firing, and how many times this window has already fired for this key. 
+This feature implementation in python sdk is not fully completed, see more at <a href="https://issues.apache.org/jira/browse/BEAM-3759">BEAM-3759</a>.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
      <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="nd">@Element</span> <span class="n">String</span> <span class="n">word</span><span class="o">,</span> <span class="n">PaneInfo</span> <span class="n">paneInfo</span><span class="o">)</span> <span class="o">{</span>
   <span class="o">}})</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="k">class</span> <span class="nc">ProcessRecord</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">pane_info</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">PaneInfoParam</span><span class="p">):</span>
+     <span class="c"># access pane info e.g pane_info.is_first, pane_info.is_last, pane_info.timing</span>
+     <span class="k">pass</span>  
+  
 </code></pre>
 </div>
 
@@ -2380,6 +2420,12 @@ The <code class="highlighter-rouge">PipelineOptions</code> for the current pipel
 a parameter of type <code class="highlighter-rouge">TimeDomain</code> which tells whether the timer is based on event time or processing time.
 Timers are explained in more detail in the
 <a href="/blog/2017/08/28/timely-processing.html">Timely (and Stateful) Processing with Apache Beam</a> blog post.</p>
+
+<p class="language-py"><strong>Timer and State:</strong>
+In addition to aforementioned parameters, user defined Timer and State parameters can be used in a Stateful DoFn.
+Timers and States are explained in more detail in the
+<a href="/blog/2017/08/28/timely-processing.html">Timely (and Stateful) Processing with Apache Beam</a> blog post.</p>
+
 <div class="language-py highlighter-rouge"><pre class="highlight"><code>
 <span class="k">class</span> <span class="nc">StatefulDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
   <span class="s">"""An example stateful DoFn with state and timer"""</span>
