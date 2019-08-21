@@ -41,7 +41,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
 import org.apache.beam.runners.core.construction.NativeTransforms;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -57,7 +56,6 @@ import org.apache.beam.runners.flink.translation.functions.FlinkReduceFunction;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.types.KvKeySelector;
 import org.apache.beam.runners.flink.translation.wrappers.ImpulseInputFormat;
-import org.apache.beam.runners.flink.translation.wrappers.SourceInputFormat;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -66,7 +64,6 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
@@ -81,11 +78,9 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
@@ -154,10 +149,6 @@ public class FlinkBatchPortablePipelineTranslator
     translatorMap.put(
         PTransformTranslation.RESHUFFLE_URN,
         FlinkBatchPortablePipelineTranslator::translateReshuffle);
-    // Remove once Reads can be wrapped in SDFs
-    translatorMap.put(
-        PTransformTranslation.READ_TRANSFORM_URN,
-        FlinkBatchPortablePipelineTranslator::translateRead);
 
     return new FlinkBatchPortablePipelineTranslator(translatorMap.build());
   }
@@ -245,12 +236,7 @@ public class FlinkBatchPortablePipelineTranslator
 
   @Override
   public Set<String> knownUrns() {
-    // Do not expose Read as a known URN because we only want to support Read
-    // through the Java ExpansionService. We can't translate Reads for other
-    // languages.
-    return Sets.difference(
-        urnToTransformTranslator.keySet(),
-        ImmutableSet.of(PTransformTranslation.READ_TRANSFORM_URN));
+    return urnToTransformTranslator.keySet();
   }
 
   /** Predicate to determine whether a URN is a Flink native transform. */
@@ -549,43 +535,6 @@ public class FlinkBatchPortablePipelineTranslator
 
     context.addDataSet(
         Iterables.getOnlyElement(transform.getTransform().getOutputsMap().values()), dataSource);
-  }
-
-  private static <T> void translateRead(
-      PTransformNode transform, RunnerApi.Pipeline pipeline, BatchTranslationContext context) {
-    String outputPCollectionId =
-        Iterables.getOnlyElement(transform.getTransform().getOutputsMap().values());
-    PCollectionNode collectionNode =
-        PipelineNode.pCollection(
-            outputPCollectionId,
-            pipeline.getComponents().getPcollectionsOrThrow(outputPCollectionId));
-
-    Coder<WindowedValue<T>> outputCoder;
-    try {
-      outputCoder = WireCoders.instantiateRunnerWireCoder(collectionNode, pipeline.getComponents());
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to instantiate output code for source", e);
-    }
-
-    BoundedSource boundedSource;
-    try {
-      boundedSource =
-          ReadTranslation.boundedSourceFromProto(
-              RunnerApi.ReadPayload.parseFrom(transform.getTransform().getSpec().getPayload()));
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to extract BoundedSource from ReadPayload.", e);
-    }
-
-    ExecutionEnvironment env = context.getExecutionEnvironment();
-    String name = transform.getTransform().getUniqueName();
-    DataSource<? extends WindowedValue<T>> dataSource =
-        new DataSource<>(
-            env,
-            new SourceInputFormat<>(name, boundedSource, context.getPipelineOptions()),
-            new CoderTypeInformation<>(outputCoder),
-            name);
-
-    context.addDataSet(outputPCollectionId, dataSource);
   }
 
   /**
