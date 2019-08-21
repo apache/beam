@@ -485,9 +485,7 @@ public class HadoopFormatIOReadTest {
 
     InputFormat mockInputFormat = Mockito.mock(EmployeeInputFormat.class);
     EmployeeRecordReader mockReader = Mockito.mock(EmployeeRecordReader.class);
-    Mockito.when(
-            mockInputFormat.createRecordReader(
-                Mockito.any(InputSplit.class), Mockito.any(TaskAttemptContext.class)))
+    Mockito.when(mockInputFormat.createRecordReader(Mockito.any(), Mockito.any()))
         .thenReturn(mockReader);
     Mockito.when(mockReader.nextKeyValue()).thenReturn(false);
     InputSplit mockInputSplit = Mockito.mock(NewObjectsEmployeeInputSplit.class);
@@ -568,9 +566,7 @@ public class HadoopFormatIOReadTest {
   public void testGetFractionConsumedForBadProgressValue() throws Exception {
     InputFormat<Text, Employee> mockInputFormat = Mockito.mock(EmployeeInputFormat.class);
     EmployeeRecordReader mockReader = Mockito.mock(EmployeeRecordReader.class);
-    Mockito.when(
-            mockInputFormat.createRecordReader(
-                Mockito.any(InputSplit.class), Mockito.any(TaskAttemptContext.class)))
+    Mockito.when(mockInputFormat.createRecordReader(Mockito.any(), Mockito.any()))
         .thenReturn(mockReader);
     Mockito.when(mockReader.nextKeyValue()).thenReturn(true);
     // Set to a bad value , not in range of 0 to 1

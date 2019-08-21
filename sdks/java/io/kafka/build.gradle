@@ -44,6 +44,7 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompile library.java.powermock
+  testCompile library.java.powermock_mockito
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(":runners:direct-java")
 }

@@ -125,7 +125,7 @@ public class ReadOperationTest {
       executor = mock(ScheduledExecutorService.class);
       when(executor.scheduleAtFixedRate(
               any(Runnable.class), anyLong(), anyLong(), any(TimeUnit.class)))
-          .then(invocation -> schedule(invocation.getArgumentAt(0, Runnable.class)));
+          .then(invocation -> schedule(invocation.getArgument(0, Runnable.class)));
     }
 
     public ScheduledExecutorService getExecutor() {
