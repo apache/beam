@@ -35,6 +35,8 @@ applyJavaNature(
       include(dependency("org.apache.calcite:.*"))
       include(dependency("org.apache.calcite.avatica:.*"))
       include(dependency("org.codehaus.janino:.*"))
+      include(dependency("com.google.api.grpc:.*"))
+      include(dependency("com.google.zetasql:.*"))
     }
     // guava uses the com.google.common and com.google.thirdparty package namespaces
     relocate("com.google.common", project.getJavaRelocatedPath("com.google.common")) {
@@ -44,9 +46,17 @@ applyJavaNature(
       exclude "com.google.common.testing.**"
       exclude "com.google.common.util.concurrent.testing.**"
     }
+    relocate "com.google.api", getJavaRelocatedPath("com.google.api")
+    relocate "com.google.cloud", getJavaRelocatedPath("com.google.cloud")
+    relocate "com.google.logging", getJavaRelocatedPath("com.google.logging")
+    relocate "com.google.longrunning", getJavaRelocatedPath("com.google.longrunning")
+    relocate "com.google.rpc", getJavaRelocatedPath("com.google.rpc")
+    relocate "com.google.type", getJavaRelocatedPath("com.google.type")
+
     relocate "com.google.thirdparty", project.getJavaRelocatedPath("com.google.thirdparty")
 
     relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
+    relocate "com.google.zetasql", getJavaRelocatedPath("com.google.zetasql")
     relocate "org.apache.calcite", getJavaRelocatedPath("org.apache.calcite")
 
   // Looking up the compiler factory in Calcite depends on having a properties
@@ -71,6 +81,7 @@ configurations {
 
 def calcite_version = "1.20.0"
 def avatica_version = "1.15.0"
+def zetasql_version = "2019.07.1"
 
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
@@ -82,6 +93,10 @@ dependencies {
   compile "org.apache.calcite:calcite-core:$calcite_version"
   compile "org.apache.calcite:calcite-linq4j:$calcite_version"
   compile "org.apache.calcite.avatica:avatica-core:$avatica_version"
+  compile "com.google.api.grpc:proto-google-common-protos:1.12.0" // Interfaces with ZetaSQL use this
+  compile "com.google.zetasql:zetasql-jni-channel:$zetasql_version"
+  compile "com.google.zetasql:zetasql-client:$zetasql_version"
+  compile "com.google.zetasql:zetasql-types:$zetasql_version"
   shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow project(":sdks:java:extensions:join-library")
   shadow library.java.slf4j_api
@@ -91,6 +106,8 @@ dependencies {
   shadow library.java.jackson_databind
   shadow library.java.jackson_dataformat_yaml
   shadow library.java.joda_time
+  shadow library.java.protobuf_java
+  shadow library.java.protobuf_java_util
   shadow "com.alibaba:fastjson:1.2.49"
   shadow "com.jayway.jsonpath:json-path:2.4.0"
   shadow project(path: ":runners:direct-java", configuration: "shadow")
@@ -109,6 +126,10 @@ dependencies {
   permitUnusedDeclared "com.jayway.jsonpath:json-path:2.4.0"
   permitUnusedDeclared "net.jcip:jcip-annotations:1.0"
   permitUnusedDeclared library.java.jackson_dataformat_yaml
+
+  permitUnusedDeclared "com.google.api.grpc:proto-google-common-protos:1.12.0"
+  permitUnusedDeclared "com.google.zetasql:zetasql-jni-channel:2019.07.1"
+  permitUnusedDeclared "com.google.protobuf:protobuf-java-util:3.6.0"
 
   // Dependencies that are bundled in when we bundle Calcite
   permitUsedUndeclared "org.codehaus.janino:janino:3.0.11"
@@ -185,6 +206,19 @@ task runPojoExample(type: JavaExec) {
   main = "org.apache.beam.sdk.extensions.sql.example.BeamSqlPojoExample"
   classpath = sourceSets.main.runtimeClasspath
   args = ["--runner=DirectRunner"]
+}
+
+task runZetaSQLTest(type: Test) {
+  // Disable Gradle cache (it should not be used because the IT's won't run).
+  outputs.upToDateWhen { false }
+
+  include '**/*TestZetaSQL.class'
+  classpath = project(":sdks:java:extensions:sql")
+          .sourceSets
+          .test
+          .runtimeClasspath
+  testClassesDirs = files(project(":sdks:java:extensions:sql").sourceSets.test.output.classesDirs)
+  useJUnit { }
 }
 
 task integrationTest(type: Test) {
