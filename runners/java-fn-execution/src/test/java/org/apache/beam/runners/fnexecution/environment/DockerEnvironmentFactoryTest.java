@@ -21,14 +21,19 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
@@ -36,15 +41,17 @@ import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionServi
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DockerEnvironmentFactory}. */
-@RunWith(JUnit4.class)
 public class DockerEnvironmentFactoryTest {
 
   private static final ApiServiceDescriptor SERVICE_DESCRIPTOR =
@@ -56,15 +63,14 @@ public class DockerEnvironmentFactoryTest {
 
   private static final IdGenerator ID_GENERATOR = IdGenerators.incrementingLongs();
 
-  @Mock private DockerCommand docker;
+  @Mock DockerCommand docker;
 
-  @Mock private GrpcFnServer<FnApiControlClientPoolService> controlServiceServer;
-  @Mock private GrpcFnServer<GrpcLoggingService> loggingServiceServer;
-  @Mock private GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
-  @Mock private GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
+  @Mock GrpcFnServer<FnApiControlClientPoolService> controlServiceServer;
+  @Mock GrpcFnServer<GrpcLoggingService> loggingServiceServer;
+  @Mock GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
+  @Mock GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
 
-  @Mock private InstructionRequestHandler client;
-  private DockerEnvironmentFactory factory;
+  @Mock InstructionRequestHandler client;
 
   @Before
   public void initMocks() {
@@ -74,49 +80,130 @@ public class DockerEnvironmentFactoryTest {
     when(loggingServiceServer.getApiServiceDescriptor()).thenReturn(SERVICE_DESCRIPTOR);
     when(retrievalServiceServer.getApiServiceDescriptor()).thenReturn(SERVICE_DESCRIPTOR);
     when(provisioningServiceServer.getApiServiceDescriptor()).thenReturn(SERVICE_DESCRIPTOR);
-    factory =
-        DockerEnvironmentFactory.forServicesWithDocker(
-            docker,
-            controlServiceServer,
-            loggingServiceServer,
-            retrievalServiceServer,
-            provisioningServiceServer,
-            (workerId, timeout) -> client,
-            ID_GENERATOR,
-            false);
   }
 
-  @Test
-  public void createsCorrectEnvironment() throws Exception {
-    when(docker.runImage(Mockito.eq(IMAGE_NAME), Mockito.any(), Mockito.any()))
-        .thenReturn(CONTAINER_ID);
-    when(docker.isContainerRunning(Mockito.eq(CONTAINER_ID))).thenReturn(true);
+  @RunWith(Parameterized.class)
+  public static class ParameterizedTest extends DockerEnvironmentFactoryTest {
+    @Parameter(0)
+    public boolean throwsException;
 
-    RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT);
-    assertThat(handle.getInstructionRequestHandler(), is(client));
-    assertThat(handle.getEnvironment(), equalTo(ENVIRONMENT));
+    @Parameter(1)
+    public boolean retainDockerContainer;
+
+    @Parameter(2)
+    public int removeContainerTimes;
+
+    @Rule public ExpectedException expectedException = ExpectedException.none();
+
+    private final ControlClientPool.Source normalClientSource = (workerId, timeout) -> client;
+    private final ControlClientPool.Source exceptionClientSource =
+        (workerId, timeout) -> {
+          throw new Exception();
+        };
+
+    @Parameterized.Parameters(
+        name =
+            "{index}: Test with throwsException={0}, retainDockerContainer={1} should remove container {2} time(s)")
+    public static Collection<Object[]> data() {
+      Object[][] data =
+          new Object[][] {{false, false, 1}, {false, true, 0}, {true, false, 1}, {true, true, 0}};
+      return Arrays.asList(data);
+    }
+
+    @Test
+    public void cleansUpContainerCorrectly() throws Exception {
+      when(docker.runImage(Mockito.eq(IMAGE_NAME), Mockito.any(), Mockito.any()))
+          .thenReturn(CONTAINER_ID);
+      when(docker.isContainerRunning(Mockito.eq(CONTAINER_ID))).thenReturn(true);
+      DockerEnvironmentFactory factory =
+          DockerEnvironmentFactory.forServicesWithDocker(
+              docker,
+              controlServiceServer,
+              loggingServiceServer,
+              retrievalServiceServer,
+              provisioningServiceServer,
+              throwsException ? exceptionClientSource : normalClientSource,
+              ID_GENERATOR,
+              retainDockerContainer);
+      if (throwsException) {
+        expectedException.expect(Exception.class);
+      }
+
+      RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT);
+      handle.close();
+
+      verify(docker).killContainer(CONTAINER_ID);
+      verify(docker, times(removeContainerTimes)).removeContainer(CONTAINER_ID);
+    }
   }
 
-  @Test
-  public void destroysCorrectContainer() throws Exception {
-    when(docker.runImage(Mockito.eq(IMAGE_NAME), Mockito.any(), Mockito.any()))
-        .thenReturn(CONTAINER_ID);
-    when(docker.isContainerRunning(Mockito.eq(CONTAINER_ID))).thenReturn(true);
+  public static class NonParameterizedTest extends DockerEnvironmentFactoryTest {
+    @Test
+    public void createsCorrectEnvironment() throws Exception {
+      when(docker.runImage(Mockito.eq(IMAGE_NAME), Mockito.any(), Mockito.any()))
+          .thenReturn(CONTAINER_ID);
+      when(docker.isContainerRunning(Mockito.eq(CONTAINER_ID))).thenReturn(true);
+      DockerEnvironmentFactory factory = getFactory((workerId, timeout) -> client);
 
-    RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT);
-    handle.close();
-    verify(docker).killContainer(CONTAINER_ID);
-  }
+      RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT);
 
-  @Test
-  public void createsMultipleEnvironments() throws Exception {
-    when(docker.isContainerRunning(anyString())).thenReturn(true);
-    Environment fooEnv = Environments.createDockerEnvironment("foo");
-    RemoteEnvironment fooHandle = factory.createEnvironment(fooEnv);
-    assertThat(fooHandle.getEnvironment(), is(equalTo(fooEnv)));
+      assertThat(handle.getInstructionRequestHandler(), is(client));
+      assertThat(handle.getEnvironment(), equalTo(ENVIRONMENT));
+    }
 
-    Environment barEnv = Environments.createDockerEnvironment("bar");
-    RemoteEnvironment barHandle = factory.createEnvironment(barEnv);
-    assertThat(barHandle.getEnvironment(), is(equalTo(barEnv)));
+    @Test(expected = RuntimeException.class)
+    public void logsDockerOutputOnTimeoutException() throws Exception {
+      when(docker.runImage(Mockito.eq(IMAGE_NAME), Mockito.any(), Mockito.any()))
+          .thenReturn(CONTAINER_ID);
+      when(docker.isContainerRunning(Mockito.eq(CONTAINER_ID))).thenReturn(true);
+      DockerEnvironmentFactory factory =
+          getFactory(
+              (workerId, timeout) -> {
+                throw new TimeoutException();
+              });
+
+      factory.createEnvironment(ENVIRONMENT);
+
+      verify(docker).getContainerLogs(CONTAINER_ID);
+    }
+
+    @Test
+    public void logsDockerOutputOnClose() throws Exception {
+      when(docker.runImage(Mockito.eq(IMAGE_NAME), Mockito.any(), Mockito.any()))
+          .thenReturn(CONTAINER_ID);
+      when(docker.isContainerRunning(Mockito.eq(CONTAINER_ID))).thenReturn(true);
+      DockerEnvironmentFactory factory = getFactory((workerId, timeout) -> client);
+
+      RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT);
+      handle.close();
+
+      verify(docker).getContainerLogs(CONTAINER_ID);
+    }
+
+    @Test
+    public void createsMultipleEnvironments() throws Exception {
+      when(docker.isContainerRunning(anyString())).thenReturn(true);
+      DockerEnvironmentFactory factory = getFactory((workerId, timeout) -> client);
+
+      Environment fooEnv = Environments.createDockerEnvironment("foo");
+      RemoteEnvironment fooHandle = factory.createEnvironment(fooEnv);
+      assertThat(fooHandle.getEnvironment(), is(equalTo(fooEnv)));
+
+      Environment barEnv = Environments.createDockerEnvironment("bar");
+      RemoteEnvironment barHandle = factory.createEnvironment(barEnv);
+      assertThat(barHandle.getEnvironment(), is(equalTo(barEnv)));
+    }
+
+    private DockerEnvironmentFactory getFactory(ControlClientPool.Source clientSource) {
+      return DockerEnvironmentFactory.forServicesWithDocker(
+          docker,
+          controlServiceServer,
+          loggingServiceServer,
+          retrievalServiceServer,
+          provisioningServiceServer,
+          clientSource,
+          ID_GENERATOR,
+          false);
+    }
   }
 }
