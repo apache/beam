@@ -17,17 +17,14 @@
 
 from __future__ import absolute_import
 
-import atexit
 import functools
 import itertools
 import json
 import logging
 import os
-import subprocess
 import sys
 import threading
 import time
-from concurrent import futures
 
 import grpc
 
@@ -37,8 +34,6 @@ from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import common_urns
-from apache_beam.portability.api import beam_fn_api_pb2
-from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import endpoints_pb2
@@ -47,8 +42,8 @@ from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.portability import fn_api_runner_transforms
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_stager
-from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import sdk_worker_main
+from apache_beam.runners.worker import worker_pool_main
 
 __all__ = ['PortableRunner']
 
@@ -191,7 +186,7 @@ class PortableRunner(runner.PipelineRunner):
           DebugOptions).lookup_experiment(
               'use_loopback_process_worker', False)
       portable_options.environment_config, server = (
-          BeamFnExternalWorkerPoolServicer.start(
+          worker_pool_main.BeamFnExternalWorkerPoolServicer.start(
               sdk_worker_main._get_worker_count(options),
               use_process=use_loopback_process_worker))
       cleanup_callbacks = [functools.partial(server.stop, 1)]
@@ -467,54 +462,3 @@ class PipelineResult(runner.PipelineResult):
     self._cleanup_callbacks = ()
     if has_exception:
       raise
-
-
-class BeamFnExternalWorkerPoolServicer(
-    beam_fn_api_pb2_grpc.BeamFnExternalWorkerPoolServicer):
-
-  def __init__(self, worker_threads, use_process=False):
-    self._worker_threads = worker_threads
-    self._use_process = use_process
-
-  @classmethod
-  def start(cls, worker_threads=1, use_process=False):
-    worker_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    worker_address = 'localhost:%s' % worker_server.add_insecure_port('[::]:0')
-    beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerPoolServicer_to_server(
-        cls(worker_threads, use_process=use_process), worker_server)
-    worker_server.start()
-    return worker_address, worker_server
-
-  def NotifyRunnerAvailable(self, start_worker_request, context):
-    try:
-      if self._use_process:
-        command = ['python', '-c',
-                   'from apache_beam.runners.worker.sdk_worker '
-                   'import SdkHarness; '
-                   'SdkHarness("%s",worker_count=%d,worker_id="%s").run()' % (
-                       start_worker_request.control_endpoint.url,
-                       self._worker_threads,
-                       start_worker_request.worker_id)]
-        logging.warn("Starting worker with command %s" % (command))
-        worker_process = subprocess.Popen(
-            command,
-            stdout=subprocess.PIPE,
-            close_fds=True)
-
-        # Register to kill the subprocess on exit.
-        atexit.register(worker_process.kill)
-      else:
-        worker = sdk_worker.SdkHarness(
-            start_worker_request.control_endpoint.url,
-            worker_count=self._worker_threads,
-            worker_id=start_worker_request.worker_id)
-        worker_thread = threading.Thread(
-            name='run_worker_%s' % start_worker_request.worker_id,
-            target=worker.run)
-        worker_thread.daemon = True
-        worker_thread.start()
-
-      return beam_fn_api_pb2.NotifyRunnerAvailableResponse()
-    except Exception as exn:
-      return beam_fn_api_pb2.NotifyRunnerAvailableResponse(
-          error=str(exn))
