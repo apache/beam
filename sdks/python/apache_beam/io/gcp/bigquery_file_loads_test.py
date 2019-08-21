@@ -447,22 +447,22 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     with TestPipeline('DirectRunner') as p:
       outputs = (p
                  | beam.Create(_ELEMENTS)
-                 | bqfl.BigQueryBatchFileLoads(destination,
-                                               custom_gcs_temp_location=self\
-                                                ._new_tempdir(),
-                                               test_client=bq_client,
-                                               validate=False,
-                                               coder=CustomRowCoder(),
-                                               max_file_size=45,
-                                               max_partition_size=80,
-                                               max_files_per_partition=2))
+                 | bqfl.BigQueryBatchFileLoads(
+                     destination,
+                     custom_gcs_temp_location=self._new_tempdir(),
+                     test_client=bq_client,
+                     validate=False,
+                     coder=CustomRowCoder(),
+                     max_file_size=45,
+                     max_partition_size=80,
+                     max_files_per_partition=2))
 
-      dest_files = outputs[bqfl.BigQueryBatchFileLoads\
-          .DESTINATION_FILE_PAIRS]
-      dest_load_jobs = outputs[bqfl.BigQueryBatchFileLoads\
-          .DESTINATION_JOBID_PAIRS]
-      dest_copy_jobs = outputs[bqfl.BigQueryBatchFileLoads\
-          .DESTINATION_COPY_JOBID_PAIRS]
+      dest_files = outputs[
+          bqfl.BigQueryBatchFileLoads.DESTINATION_FILE_PAIRS]
+      dest_load_jobs = outputs[
+          bqfl.BigQueryBatchFileLoads.DESTINATION_JOBID_PAIRS]
+      dest_copy_jobs = outputs[
+          bqfl.BigQueryBatchFileLoads.DESTINATION_COPY_JOBID_PAIRS]
 
       load_jobs = dest_load_jobs | "GetLoadJobs" >> beam.Map(lambda x: x[1])
       copy_jobs = dest_copy_jobs | "GetCopyJobs" >> beam.Map(lambda x: x[1])

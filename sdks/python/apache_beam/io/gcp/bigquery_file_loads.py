@@ -465,8 +465,9 @@ class PartitionFiles(beam.DoFn):
         latest_partition.add(file_path, file_size)
       else:
         partitions.append(latest_partition.files)
-        latest_partition = PartitionFiles.\
-          Partition(self.max_partition_size, self.max_files_per_partition)
+        latest_partition = PartitionFiles.Partition(
+            self.max_partition_size,
+            self.max_files_per_partition)
         latest_partition.add(file_path, file_size)
     partitions.append(latest_partition.files)
 
@@ -820,10 +821,10 @@ class BigQueryBatchFileLoads(beam.PTransform):
                   .with_outputs(PartitionFiles.MULTIPLE_PARTITIONS_TAG,
                                 PartitionFiles.SINGLE_PARTITION_TAG))
 
-    multiple_partitions_per_destination_pc = partitions[PartitionFiles\
-      .MULTIPLE_PARTITIONS_TAG]
-    single_partition_per_destination_pc = partitions[PartitionFiles\
-      .SINGLE_PARTITION_TAG]
+    multiple_partitions_per_destination_pc = partitions[
+        PartitionFiles.MULTIPLE_PARTITIONS_TAG]
+    single_partition_per_destination_pc = partitions[
+        PartitionFiles.SINGLE_PARTITION_TAG]
 
     # When using dynamic destinations, elements with both single as well as
     # multiple partitions are loaded into BigQuery using temporary tables to
