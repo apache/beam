@@ -700,14 +700,14 @@ class BigQueryBatchFileLoads(beam.PTransform):
     """Load data to BigQuery
 
     Data is loaded into BigQuery in the following two ways:
-      1. Single partition per destination:
+      1. Single partition:
          When there is a single partition of files destined to a single
-         destination, a single load job is triggered for each partition.
-      2. Multiple partitions per destination:
+         destination, a single load job is triggered.
+      2. Multiple partitions and/or Dynamic Destinations:
          When there are multiple partitions of files destined for a single
-         destination, due to load job size constraints, multiple load jobs
-         need to be triggered for each partition. Load Jobs are triggered
-         to temporary tables, and those are later copied to the actual
+         destination or when Dynamic Destinations are used, multiple load jobs
+         need to be triggered for each partition/destination. Load Jobs are
+         triggered to temporary tables, and those are later copied to the actual
          appropriate destination table. This ensures atomicity when only some
          of the load jobs would fail but not other. If any of them fails, then
          copy jobs are not triggered.
