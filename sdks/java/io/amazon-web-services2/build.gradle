@@ -32,6 +32,7 @@ dependencies {
   compile library.java.aws_java_sdk2_cloudwatch
   compile library.java.aws_java_sdk2_dynamodb
   compile library.java.aws_java_sdk2_sdk_core
+  compile library.java.aws_java_sdk2_sns
   compile library.java.jackson_core
   compile library.java.jackson_annotations
   compile library.java.jackson_databind
