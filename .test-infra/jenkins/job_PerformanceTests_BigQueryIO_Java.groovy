@@ -29,9 +29,10 @@ def bqioStreamTest = [
         jobProperties: [
                 jobName               : 'performance-tests-bqio-java-stream-10gb' + now,
                 project               : 'apache-beam-testing',
-                temp_location         : 'gs://temp-storage-for-perf-tests/loadtests',
+                tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
+                tempRoot              : 'gs://temp-storage-for-perf-tests/loadtests',
                 writeMethod           : 'STREAMING_INSERTS',
-                publish_to_big_query  : true,
+                publishToBigQuery     : true,
                 testBigQueryDataset   : 'beam_performance',
                 testBigQueryTable     : 'bqio_write_10GB_java',
                 metricsBigQueryDataset: 'beam_performance',
@@ -40,9 +41,9 @@ def bqioStreamTest = [
                         '"num_records": 10485760,' +
                         '"key_size": 1,' +
                         '"value_size": 1024}\'',
-                max_num_workers       : 5,
-                num_workers           : 5,
-                autoscaling_algorithm : 'NONE',  // Disable autoscale the worker pool.
+                maxNumWorkers         : 5,
+                numWorkers            : 5,
+                autoscalingAlgorithm  : 'NONE',  // Disable autoscale the worker pool.
         ]
 ]
 
@@ -53,9 +54,10 @@ def bqioBatchTest = [
         jobProperties: [
                 jobName               : 'performance-tests-bqio-java-stream-10gb' + now,
                 project               : 'apache-beam-testing',
-                temp_location         : 'gs://temp-storage-for-perf-tests/loadtests',
+                tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
+                tempRoot              : 'gs://temp-storage-for-perf-tests/loadtests',
                 writeMethod           : 'FILE_LOADS',
-                publish_to_big_query  : true,
+                publishToBigQuery     : true,
                 testBigQueryDataset   : 'beam_performance',
                 testBigQueryTable     : 'bqio_write_10GB_java',
                 metricsBigQueryDataset: 'beam_performance',
@@ -64,16 +66,28 @@ def bqioBatchTest = [
                         '"num_records": 10485760,' +
                         '"key_size": 1,' +
                         '"value_size": 1024}\'',
-                max_num_workers       : 5,
-                num_workers           : 5,
-                autoscaling_algorithm : 'NONE',  // Disable autoscale the worker pool.
+                maxNumWorkers         : 5,
+                numWorkers            : 5,
+                autoscalingAlgorithm  : 'NONE',  // Disable autoscale the worker pool.
         ]
 ]
 
 def executeJob = { scope, testConfig ->
-    commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
+    job(testConfig.title) {
+        commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
+        def testTask = ':sdks:java:io:bigquery-io-perf-tests:integrationTest'
+        steps {
+            gradle {
+                rootBuildScriptDir(commonJobProperties.checkoutDir)
+                commonJobProperties.setGradleSwitches(delegate)
+                switches("--info")
+                switches("-DintegrationTestPipelineOptions=\'${commonJobProperties.joinPipelineOptions(testConfig.jobProperties)}\'")
+                switches("-DintegrationTestRunner=\'${testConfig.runner}\'")
+                tasks("${testTask} --tests ${testConfig.itClass}")
+            }
+        }
 
-    loadTestsBuilder.loadTest(scope, testConfig.title, testConfig.runner, CommonTestProperties.SDK.JAVA, testConfig.jobProperties, testConfig.itClass)
+    }
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
