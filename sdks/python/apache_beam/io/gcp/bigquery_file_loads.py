@@ -267,6 +267,7 @@ class WriteGroupedRecordsToFile(beam.DoFn):
         yield (destination, (file_path, file_size))
         file_path, writer = None, None
     if writer is not None:
+      writer.close()
       yield (destination, (file_path, file_size))
 
 
