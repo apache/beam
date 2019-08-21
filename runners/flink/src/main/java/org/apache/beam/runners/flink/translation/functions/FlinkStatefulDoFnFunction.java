@@ -69,7 +69,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
   private final Coder<KV<K, V>> inputCoder;
   private final Map<TupleTag<?>, Coder<?>> outputCoderMap;
   private final DoFnSchemaInformation doFnSchemaInformation;
-  private final Map<String, String> sideInputMapping;
+  private final Map<String, PCollectionView<?>> sideInputMapping;
   private transient DoFnInvoker doFnInvoker;
 
   public FlinkStatefulDoFnFunction(
@@ -83,7 +83,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
       Coder<KV<K, V>> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoderMap,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, String> sideInputMapping) {
+      Map<String, PCollectionView<?>> sideInputMapping) {
 
     this.dofn = dofn;
     this.stepName = stepName;

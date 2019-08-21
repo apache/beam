@@ -62,7 +62,7 @@ public class DoFnRunners {
       Map<TupleTag<?>, Coder<?>> outputCoders,
       WindowingStrategy<?, ?> windowingStrategy,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, String> sideInputMapping) {
+      Map<String, PCollectionView<?>> sideInputMapping) {
     return new SimpleDoFnRunner<>(
         options,
         fn,
@@ -121,7 +121,7 @@ public class DoFnRunners {
           Map<TupleTag<?>, Coder<?>> outputCoders,
           WindowingStrategy<?, ?> windowingStrategy,
           DoFnSchemaInformation doFnSchemaInformation,
-          Map<String, String> sideInputMapping) {
+          Map<String, PCollectionView<?>> sideInputMapping) {
     return new ProcessFnRunner<>(
         simpleRunner(
             options,

@@ -109,7 +109,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, String> sideInputMapping)
+      Map<String, PCollectionView<?>> sideInputMapping)
       throws Exception {
     String stepName = evaluationContext.getStepName(application);
     DirectStepContext stepContext =
@@ -143,7 +143,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
       DirectStepContext stepContext,
       DoFn<InputT, OutputT> fn,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, String> sideInputMapping,
+      Map<String, PCollectionView<?>> sideInputMapping,
       DoFnLifecycleManager fnManager)
       throws Exception {
     try {

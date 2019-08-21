@@ -79,6 +79,7 @@ import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -408,7 +409,7 @@ public final class StreamingTransformTranslator {
         final DoFnSchemaInformation doFnSchemaInformation =
             ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
 
-        final Map<String, String> sideInputMapping =
+        final Map<String, PCollectionView<?>> sideInputMapping =
             ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
 
         final String stepName = context.getCurrentTransform().getFullName();

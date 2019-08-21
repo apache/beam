@@ -632,10 +632,5 @@ public class SimpleParDoFnTest {
     public <T> T get(PCollectionView<T> view, final BoundedWindow window) {
       throw new IllegalArgumentException("calling getSideInput() with unknown view");
     }
-
-    @Override
-    public PCollectionView get(String tagId) {
-      throw new UnsupportedOperationException("Cannot call get(tagId) with EmptySideInputReader");
-    }
   }
 }

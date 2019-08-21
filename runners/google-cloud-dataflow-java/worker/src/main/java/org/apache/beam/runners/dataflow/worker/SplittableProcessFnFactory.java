@@ -123,7 +123,7 @@ class SplittableProcessFnFactory {
         DataflowExecutionContext.DataflowStepContext userStepContext,
         OutputManager outputManager,
         DoFnSchemaInformation doFnSchemaInformation,
-        Map<String, String> sideInputMapping) {
+        Map<String, PCollectionView<?>> sideInputMapping) {
       ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
           (ProcessFn<InputT, OutputT, RestrictionT, TrackerT>) fn;
       processFn.setStateInternalsFactory(key -> (StateInternals) stepContext.stateInternals());

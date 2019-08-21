@@ -80,9 +80,6 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
   /** State tag for the actual contents of each side input per window. */
   private final Map<PCollectionView<?>, StateTag<ValueState<Iterable<?>>>> sideInputContentsTags;
 
-  /** Holds the side input tag id with PCollectionView. */
-  private final Map<String, PCollectionView<?>> sideInputsMap;
-
   /**
    * Creates a new {@code SideInputHandler} for the given side inputs that uses the given {@code
    * StateInternals} to store side input data and side-input meta data.
@@ -93,7 +90,6 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
     this.stateInternals = stateInternals;
     this.availableWindowsTags = new HashMap<>();
     this.sideInputContentsTags = new HashMap<>();
-    this.sideInputsMap = new HashMap<>();
 
     for (PCollectionView<?> sideInput : sideInputs) {
       checkArgument(
@@ -123,7 +119,6 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
               "side-input-data-" + sideInput.getTagInternal().getId(),
               (Coder) IterableCoder.of(sideInput.getCoderInternal()));
       sideInputContentsTags.put(sideInput, stateTag);
-      sideInputsMap.put(sideInput.getTagInternal().getId(), sideInput);
     }
   }
 
@@ -203,11 +198,6 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
   @Override
   public boolean isEmpty() {
     return sideInputs.isEmpty();
-  }
-
-  @Override
-  public PCollectionView get(String tagId) {
-    return sideInputsMap.get(tagId);
   }
 
   /** For keeping track of the windows for which we have available side input. */

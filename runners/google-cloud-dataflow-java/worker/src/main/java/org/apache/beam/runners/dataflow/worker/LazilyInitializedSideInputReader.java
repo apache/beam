@@ -60,9 +60,4 @@ public class LazilyInitializedSideInputReader implements SideInputReader {
   public boolean isEmpty() {
     return tupleTags.isEmpty();
   }
-
-  @Override
-  public PCollectionView get(String tagId) {
-    return lazyInitSideInputReader.get().get(tagId);
-  }
 }

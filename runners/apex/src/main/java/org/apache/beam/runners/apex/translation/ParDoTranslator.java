@@ -83,7 +83,7 @@ class ParDoTranslator<InputT, OutputT>
     DoFnSchemaInformation doFnSchemaInformation;
     doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
 
-    Map<String, String> sideInputMapping =
+    Map<String, PCollectionView<?>> sideInputMapping =
         ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
 
     Map<TupleTag<?>, Coder<?>> outputCoders =

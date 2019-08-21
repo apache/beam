@@ -289,11 +289,6 @@ public class IsmSideInputReader implements SideInputReader {
   }
 
   @Override
-  public PCollectionView get(String sideInputTag) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
   public <ViewT> ViewT get(final PCollectionView<ViewT> view, final BoundedWindow window) {
     @SuppressWarnings("rawtypes")
     final TupleTag tag = view.getTagInternal();

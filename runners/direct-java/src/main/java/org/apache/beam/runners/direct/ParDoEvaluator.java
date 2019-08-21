@@ -63,7 +63,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         Map<TupleTag<?>, Coder<?>> outputCoders,
         WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy,
         DoFnSchemaInformation doFnSchemaInformation,
-        Map<String, String> sideInputMapping);
+        Map<String, PCollectionView<?>> sideInputMapping);
   }
 
   public static <InputT, OutputT> DoFnRunnerFactory<InputT, OutputT> defaultRunnerFactory() {
@@ -112,7 +112,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
       List<TupleTag<?>> additionalOutputTags,
       Map<TupleTag<?>, PCollection<?>> outputs,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, String> sideInputMapping,
+      Map<String, PCollectionView<?>> sideInputMapping,
       DoFnRunnerFactory<InputT, OutputT> runnerFactory) {
 
     BundleOutputManager outputManager = createOutputManager(evaluationContext, key, outputs);

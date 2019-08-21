@@ -208,11 +208,9 @@ public class ParDoTranslation {
         new ParDoLike() {
           @Override
           public SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
-            Map<String, String> sideInputMapping =
+            Map<String, PCollectionView<?>> sideInputMapping =
                 parDo.getSideInputs().entrySet().stream()
-                    .collect(
-                        Collectors.toMap(
-                            e -> e.getKey(), e -> e.getValue().getTagInternal().getId()));
+                    .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
             return ParDoTranslation.translateDoFn(
                 parDo.getFn(),
                 parDo.getMainOutputTag(),
@@ -324,7 +322,8 @@ public class ParDoTranslation {
     return doFnWithExecutionInformationFromProto(payload.getDoFn()).getMainOutputTag();
   }
 
-  public static Map<String, String> getSideInputMapping(AppliedPTransform<?, ?, ?> application) {
+  public static Map<String, PCollectionView<?>> getSideInputMapping(
+      AppliedPTransform<?, ?, ?> application) {
     try {
       return getSideInputMapping(getParDoPayload(application));
     } catch (IOException e) {
@@ -332,7 +331,8 @@ public class ParDoTranslation {
     }
   }
 
-  public static Map<String, String> getSideInputMapping(RunnerApi.PTransform pTransform) {
+  public static Map<String, PCollectionView<?>> getSideInputMapping(
+      RunnerApi.PTransform pTransform) {
     try {
       return getSideInputMapping(getParDoPayload(pTransform));
     } catch (IOException e) {
@@ -340,7 +340,7 @@ public class ParDoTranslation {
     }
   }
 
-  public static Map<String, String> getSideInputMapping(ParDoPayload payload) {
+  public static Map<String, PCollectionView<?>> getSideInputMapping(ParDoPayload payload) {
     return doFnWithExecutionInformationFromProto(payload.getDoFn()).getSideInputMapping();
   }
 
@@ -581,7 +581,7 @@ public class ParDoTranslation {
   public static SdkFunctionSpec translateDoFn(
       DoFn<?, ?> fn,
       TupleTag<?> tag,
-      Map<String, String> sideInputMapping,
+      Map<String, PCollectionView<?>> sideInputMapping,
       DoFnSchemaInformation doFnSchemaInformation,
       SdkComponents components) {
     return SdkFunctionSpec.newBuilder()

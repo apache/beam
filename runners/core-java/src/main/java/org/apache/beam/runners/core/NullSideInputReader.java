@@ -57,9 +57,4 @@ public class NullSideInputReader implements SideInputReader {
   public <T> boolean contains(PCollectionView<T> view) {
     return views.contains(view);
   }
-
-  @Override
-  public PCollectionView get(String tagId) {
-    throw new IllegalArgumentException("cannot call NullSideInputReader.get(tagId)");
-  }
 }

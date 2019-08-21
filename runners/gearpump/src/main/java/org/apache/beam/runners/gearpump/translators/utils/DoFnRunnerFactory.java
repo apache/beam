@@ -50,7 +50,7 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
   private final List<TupleTag<?>> sideOutputTags;
   private final StepContext stepContext;
   private final DoFnSchemaInformation doFnSchemaInformation;
-  private final Map<String, String> sideInputMapping;
+  private final Map<String, PCollectionView<?>> sideInputMapping;
   Map<TupleTag<?>, Coder<?>> outputCoders;
   private final WindowingStrategy<?, ?> windowingStrategy;
 
@@ -65,7 +65,7 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
       Map<TupleTag<?>, Coder<?>> outputCoders,
       WindowingStrategy<?, ?> windowingStrategy,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, String> sideInputMapping) {
+      Map<String, PCollectionView<?>> sideInputMapping) {
     this.fn = doFn;
     this.serializedOptions = new SerializablePipelineOptions(pipelineOptions);
     this.sideInputs = sideInputs;

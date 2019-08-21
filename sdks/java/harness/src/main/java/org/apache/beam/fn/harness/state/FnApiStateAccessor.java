@@ -195,11 +195,6 @@ public class FnApiStateAccessor implements SideInputReader, StateBinder {
   }
 
   @Override
-  public PCollectionView get(String tagId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
   public <T> ValueState<T> bindValue(String id, StateSpec<ValueState<T>> spec, Coder<T> coder) {
     return (ValueState<T>)
         stateKeyObjectCache.computeIfAbsent(

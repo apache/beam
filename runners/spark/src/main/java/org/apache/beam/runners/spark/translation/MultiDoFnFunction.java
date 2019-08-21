@@ -42,6 +42,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
@@ -75,7 +76,7 @@ public class MultiDoFnFunction<InputT, OutputT>
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final boolean stateful;
   private final DoFnSchemaInformation doFnSchemaInformation;
-  private final Map<String, String> sideInputMapping;
+  private final Map<String, PCollectionView<?>> sideInputMapping;
 
   /**
    * @param metricsAccum The Spark {@link AccumulatorV2} that backs the Beam metrics.
@@ -102,7 +103,7 @@ public class MultiDoFnFunction<InputT, OutputT>
       WindowingStrategy<?, ?> windowingStrategy,
       boolean stateful,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, String> sideInputMapping) {
+      Map<String, PCollectionView<?>> sideInputMapping) {
     this.metricsAccum = metricsAccum;
     this.stepName = stepName;
     this.doFn = SerializableUtils.clone(doFn);

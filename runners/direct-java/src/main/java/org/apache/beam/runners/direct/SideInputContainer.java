@@ -220,15 +220,10 @@ class SideInputContainer {
     private final LoadingCache<
             PCollectionViewWindow<?>, Optional<? extends Iterable<? extends WindowedValue<?>>>>
         viewContents;
-    private final Map<String, PCollectionView<?>> sideInputsMap;
 
     private SideInputContainerSideInputReader(Collection<PCollectionView<?>> readerViews) {
       this.readerViews = ImmutableSet.copyOf(readerViews);
       this.viewContents = CacheBuilder.newBuilder().build(new CurrentViewContentsLoader());
-      this.sideInputsMap = new HashMap<>();
-      for (PCollectionView pCollectionView : readerViews) {
-        sideInputsMap.put(pCollectionView.getTagInternal().getId(), pCollectionView);
-      }
     }
 
     @Override
@@ -274,11 +269,6 @@ class SideInputContainer {
     @Override
     public boolean isEmpty() {
       return readerViews.isEmpty();
-    }
-
-    @Override
-    public PCollectionView get(String tagId) {
-      return sideInputsMap.get(tagId);
     }
   }
 

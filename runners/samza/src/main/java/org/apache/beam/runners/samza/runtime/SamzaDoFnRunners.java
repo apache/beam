@@ -45,6 +45,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -72,7 +73,7 @@ public class SamzaDoFnRunners {
       List<TupleTag<?>> sideOutputTags,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, String> sideInputMapping) {
+      Map<String, PCollectionView<?>> sideInputMapping) {
     final KeyedInternals keyedInternals;
     final TimerInternals timerInternals;
     final StateInternals stateInternals;

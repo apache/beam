@@ -179,7 +179,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   private final DoFnSchemaInformation doFnSchemaInformation;
 
-  private final Map<String, String> sideInputMapping;
+  private final Map<String, PCollectionView<?>> sideInputMapping;
 
   /** If true, we must process elements only after a checkpoint is finished. */
   private final boolean requiresStableInput;
@@ -220,7 +220,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       Coder<?> keyCoder,
       KeySelector<WindowedValue<InputT>, ?> keySelector,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, String> sideInputMapping) {
+      Map<String, PCollectionView<?>> sideInputMapping) {
     this.doFn = doFn;
     this.stepName = stepName;
     this.windowedInputCoder = inputWindowedCoder;

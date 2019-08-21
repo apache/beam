@@ -92,9 +92,4 @@ public class SparkSideInputReader implements SideInputReader {
   public boolean isEmpty() {
     return sideInputs != null && sideInputs.isEmpty();
   }
-
-  @Override
-  public PCollectionView get(String tagId) {
-    throw new UnsupportedOperationException();
-  }
 }

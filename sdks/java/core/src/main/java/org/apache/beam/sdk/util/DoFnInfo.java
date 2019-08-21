@@ -41,7 +41,7 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
   Map<TupleTag<?>, Coder<?>> outputCoders;
   private final TupleTag<OutputT> mainOutput;
   private final DoFnSchemaInformation doFnSchemaInformation;
-  private final Map<String, String> sideInputMapping;
+  private final Map<String, PCollectionView<?>> sideInputMapping;
 
   /**
    * Creates a {@link DoFnInfo} for the given {@link DoFn}.
@@ -56,7 +56,7 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
       Coder<InputT> inputCoder,
       TupleTag<OutputT> mainOutput,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, String> sideInputMapping) {
+      Map<String, PCollectionView<?>> sideInputMapping) {
     return new DoFnInfo<>(
         doFn,
         windowingStrategy,
@@ -77,7 +77,7 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
       Map<TupleTag<?>, Coder<?>> outputCoders,
       TupleTag<OutputT> mainOutput,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, String> sideInputMapping) {
+      Map<String, PCollectionView<?>> sideInputMapping) {
     return new DoFnInfo<>(
         doFn,
         windowingStrategy,
@@ -109,7 +109,7 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
       Map<TupleTag<?>, Coder<?>> outputCoders,
       TupleTag<OutputT> mainOutput,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, String> sideInputMapping) {
+      Map<String, PCollectionView<?>> sideInputMapping) {
     this.doFn = doFn;
     this.windowingStrategy = windowingStrategy;
     this.sideInputViews = sideInputViews;
@@ -149,7 +149,7 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
     return doFnSchemaInformation;
   }
 
-  public Map<String, String> getSideInputMapping() {
+  public Map<String, PCollectionView<?>> getSideInputMapping() {
     return sideInputMapping;
   }
 }

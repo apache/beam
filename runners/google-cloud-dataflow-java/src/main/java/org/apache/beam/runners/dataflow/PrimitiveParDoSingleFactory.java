@@ -194,7 +194,7 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
               return ParDoTranslation.translateDoFn(
                   parDo.getFn(),
                   parDo.getMainOutputTag(),
-                  ParDoTranslation.getSideInputMapping(transform),
+                  parDo.getSideInputs(),
                   doFnSchemaInformation,
                   newComponents);
             }

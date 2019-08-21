@@ -75,7 +75,7 @@ public class DoFnFunction<InputT, OutputT>
       Map<TupleTag<?>, Coder<?>> outputCoders,
       List<TupleTag<?>> sideOutputs,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, String> sideInputMapping) {
+      Map<String, PCollectionView<?>> sideInputMapping) {
     this.doFn = doFn;
     this.outputManager = new DoFnOutputManager();
     this.doFnRunnerFactory =

@@ -166,11 +166,6 @@ public class SplittableParDoProcessFnTest {
                 public boolean isEmpty() {
                   return true;
                 }
-
-                @Override
-                public PCollectionView get(String tagId) {
-                  throw new NoSuchElementException();
-                }
               },
               Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory()),
               maxOutputsPerBundle,

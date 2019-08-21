@@ -129,7 +129,7 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
     private final TupleTag<OutputT> mainOutputTag;
     private final List<PCollectionView<?>> sideInputs;
     private final DoFnSchemaInformation doFnSchemaInformation;
-    private final Map<String, String> sideInputMapping;
+    private final Map<String, PCollectionView<?>> sideInputMapping;
 
     public GbkThenStatefulParDo(
         DoFn<KV<K, InputT>, OutputT> doFn,
@@ -137,7 +137,7 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
         TupleTagList additionalOutputTags,
         List<PCollectionView<?>> sideInputs,
         DoFnSchemaInformation doFnSchemaInformation,
-        Map<String, String> sideInputMapping) {
+        Map<String, PCollectionView<?>> sideInputMapping) {
       this.doFn = doFn;
       this.additionalOutputTags = additionalOutputTags;
       this.mainOutputTag = mainOutputTag;
@@ -224,7 +224,7 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
     private final TupleTag<OutputT> mainOutputTag;
     private final List<PCollectionView<?>> sideInputs;
     private final DoFnSchemaInformation doFnSchemaInformation;
-    private final Map<String, String> sideInputMapping;
+    private final Map<String, PCollectionView<?>> sideInputMapping;
 
     public StatefulParDo(
         DoFn<KV<K, InputT>, OutputT> doFn,
@@ -232,7 +232,7 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
         TupleTagList additionalOutputTags,
         List<PCollectionView<?>> sideInputs,
         DoFnSchemaInformation doFnSchemaInformation,
-        Map<String, String> sideInputMapping) {
+        Map<String, PCollectionView<?>> sideInputMapping) {
       this.doFn = doFn;
       this.mainOutputTag = mainOutputTag;
       this.additionalOutputTags = additionalOutputTags;
@@ -261,7 +261,7 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
       return doFnSchemaInformation;
     }
 
-    public Map<String, String> getSideInputMapping() {
+    public Map<String, PCollectionView<?>> getSideInputMapping() {
       return sideInputMapping;
     }
 

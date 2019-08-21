@@ -104,7 +104,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private transient List<WindowedValue<InT>> pushbackValues;
   private transient StageBundleFactory stageBundleFactory;
   private DoFnSchemaInformation doFnSchemaInformation;
-  private Map<String, String> sideInputMapping;
+  private Map<String, PCollectionView<?>> sideInputMapping;
 
   public DoFnOp(
       TupleTag<FnOutT> mainOutputTag,
@@ -124,7 +124,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       RunnerApi.ExecutableStagePayload stagePayload,
       Map<String, TupleTag<?>> idToTupleTagMap,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, String> sideInputMapping) {
+      Map<String, PCollectionView<?>> sideInputMapping) {
     this.mainOutputTag = mainOutputTag;
     this.doFn = doFn;
     this.sideInputs = sideInputs;

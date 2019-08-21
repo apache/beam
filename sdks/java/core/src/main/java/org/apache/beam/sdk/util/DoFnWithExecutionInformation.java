@@ -22,6 +22,7 @@ import java.io.Serializable;
 import java.util.Map;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
 /** The data that the Java SDK harness needs to execute a DoFn. */
@@ -30,7 +31,7 @@ public abstract class DoFnWithExecutionInformation implements Serializable {
   public static DoFnWithExecutionInformation of(
       DoFn<?, ?> fn,
       TupleTag<?> tag,
-      Map<String, String> sideInputMapping,
+      Map<String, PCollectionView<?>> sideInputMapping,
       DoFnSchemaInformation doFnSchemaInformation) {
     return new AutoValue_DoFnWithExecutionInformation(
         fn, tag, sideInputMapping, doFnSchemaInformation);
@@ -40,7 +41,7 @@ public abstract class DoFnWithExecutionInformation implements Serializable {
 
   public abstract TupleTag<?> getMainOutputTag();
 
-  public abstract Map<String, String> getSideInputMapping();
+  public abstract Map<String, PCollectionView<?>> getSideInputMapping();
 
   public abstract DoFnSchemaInformation getSchemaInformation();
 }

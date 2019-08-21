@@ -367,7 +367,7 @@ public final class TransformTranslator {
         doFnSchemaInformation =
             ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
 
-        Map<String, String> sideInputMapping =
+        Map<String, PCollectionView<?>> sideInputMapping =
             ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
 
         MultiDoFnFunction<InputT, OutputT> multiDoFnFunction =

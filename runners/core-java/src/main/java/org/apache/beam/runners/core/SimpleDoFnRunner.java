@@ -106,7 +106,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   @Nullable private final DoFnSchemaInformation doFnSchemaInformation;
 
-  private final Map<String, String> sideInputMapping;
+  private final Map<String, PCollectionView<?>> sideInputMapping;
 
   /** Constructor. */
   public SimpleDoFnRunner(
@@ -121,7 +121,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       Map<TupleTag<?>, Coder<?>> outputCoders,
       WindowingStrategy<?, ?> windowingStrategy,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, String> sideInputMapping) {
+      Map<String, PCollectionView<?>> sideInputMapping) {
     this.options = options;
     this.fn = fn;
     this.signature = DoFnSignatures.getSignature(fn.getClass());
@@ -649,8 +649,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public Object sideInput(String tagId) {
-      String mappedTag = sideInputMapping.get(tagId);
-      return sideInput(SimpleDoFnRunner.this.sideInputReader.get(mappedTag));
+      return sideInput(sideInputMapping.get(tagId));
     }
 
     @Override

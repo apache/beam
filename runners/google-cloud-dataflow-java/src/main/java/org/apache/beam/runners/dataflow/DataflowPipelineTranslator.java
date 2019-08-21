@@ -917,7 +917,7 @@ public class DataflowPipelineTranslator {
             DoFnSchemaInformation doFnSchemaInformation;
             doFnSchemaInformation =
                 ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
-            Map<String, String> sideInputMapping =
+            Map<String, PCollectionView<?>> sideInputMapping =
                 ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
             Map<TupleTag<?>, Coder<?>> outputCoders =
                 context.getOutputs(transform).entrySet().stream()
@@ -975,7 +975,7 @@ public class DataflowPipelineTranslator {
             DoFnSchemaInformation doFnSchemaInformation;
             doFnSchemaInformation =
                 ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
-            Map<String, String> sideInputMapping =
+            Map<String, PCollectionView<?>> sideInputMapping =
                 ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
             StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
             Map<TupleTag<?>, Coder<?>> outputCoders =
@@ -1066,7 +1066,7 @@ public class DataflowPipelineTranslator {
             DoFnSchemaInformation doFnSchemaInformation;
             doFnSchemaInformation =
                 ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
-            Map<String, String> sideInputMapping =
+            Map<String, PCollectionView<?>> sideInputMapping =
                 ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
             StepTranslationContext stepContext =
                 context.addStep(transform, "SplittableProcessKeyed");
@@ -1136,7 +1136,7 @@ public class DataflowPipelineTranslator {
       TupleTag<?> mainOutput,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, String> sideInputMapping) {
+      Map<String, PCollectionView<?>> sideInputMapping) {
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
 
     if (signature.usesState() || signature.usesTimers()) {

@@ -77,7 +77,7 @@ public class ParDoMultiOutputTranslator<InputT, OutputT>
     DoFnSchemaInformation doFnSchemaInformation;
     doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
 
-    Map<String, String> sideInputMapping =
+    Map<String, PCollectionView<?>> sideInputMapping =
         ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
 
     JavaStream<TranslatorUtils.RawUnionValue> outputStream =

@@ -88,9 +88,4 @@ public class CachedSideInputReader implements SideInputReader {
   public boolean isEmpty() {
     return delegate.isEmpty();
   }
-
-  @Override
-  public PCollectionView get(String tagId) {
-    return delegate.get(tagId);
-  }
 }

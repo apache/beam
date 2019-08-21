@@ -502,7 +502,7 @@ class FlinkBatchTransformTranslators {
 
       TupleTag<?> mainOutputTag;
       DoFnSchemaInformation doFnSchemaInformation;
-      Map<String, String> sideInputMapping;
+      Map<String, PCollectionView<?>> sideInputMapping;
       try {
         mainOutputTag = ParDoTranslation.getMainOutputTag(context.getCurrentTransform());
       } catch (IOException e) {

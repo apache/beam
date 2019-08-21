@@ -131,7 +131,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
   private final DoFnSchemaInformation doFnSchemaInformation;
 
   @Bind(JavaSerializer.class)
-  private final Map<String, String> sideInputMapping;
+  private final Map<String, PCollectionView<?>> sideInputMapping;
 
   private StateInternalsProxy<?> currentKeyStateInternals;
   private final ApexTimerInternals<Object> currentKeyTimerInternals;
@@ -160,7 +160,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
       Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, String> sideInputMapping,
+      Map<String, PCollectionView<?>> sideInputMapping,
       ApexStateBackend stateBackend) {
     this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
     this.doFn = doFn;

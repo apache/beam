@@ -45,5 +45,5 @@ interface DoFnRunnerFactory<InputT, OutputT> {
       DataflowExecutionContext.DataflowStepContext userStepContext,
       OutputManager outputManager,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, String> sideInputMapping);
+      Map<String, PCollectionView<?>> sideInputMapping);
 }

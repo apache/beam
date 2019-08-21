@@ -426,7 +426,7 @@ class FlinkStreamingTransformTranslators {
           KeySelector<WindowedValue<InputT>, ?> keySelector,
           Map<Integer, PCollectionView<?>> transformedSideInputs,
           DoFnSchemaInformation doFnSchemaInformation,
-          Map<String, String> sideInputsMapping);
+          Map<String, PCollectionView<?>> sideInputMapping);
     }
 
     static <InputT, OutputT> void translateParDo(
@@ -438,7 +438,7 @@ class FlinkStreamingTransformTranslators {
         TupleTag<OutputT> mainOutputTag,
         List<TupleTag<?>> additionalOutputTags,
         DoFnSchemaInformation doFnSchemaInformation,
-        Map<String, String> sideInputsMapping,
+        Map<String, PCollectionView<?>> sideInputMapping,
         FlinkStreamingTranslationContext context,
         DoFnOperatorFactory<InputT, OutputT> doFnOperatorFactory) {
 
@@ -519,7 +519,7 @@ class FlinkStreamingTransformTranslators {
                 keySelector,
                 new HashMap<>() /* side-input mapping */,
                 doFnSchemaInformation,
-                sideInputsMapping);
+                sideInputMapping);
 
         outputStream =
             inputDataStream.transform(transformName, outputTypeInformation, doFnOperator);
@@ -547,7 +547,7 @@ class FlinkStreamingTransformTranslators {
                 keySelector,
                 transformedSideInputs.f0,
                 doFnSchemaInformation,
-                sideInputsMapping);
+                sideInputMapping);
 
         if (stateful) {
           // we have to manually construct the two-input transform because we're not
@@ -625,7 +625,7 @@ class FlinkStreamingTransformTranslators {
         throw new RuntimeException(e);
       }
 
-      Map<String, String> sideInputsMapping =
+      Map<String, PCollectionView<?>> sideInputMapping =
           ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
 
       TupleTagList additionalOutputTags;
@@ -648,7 +648,7 @@ class FlinkStreamingTransformTranslators {
           mainOutputTag,
           additionalOutputTags.getAll(),
           doFnSchemaInformation,
-          sideInputsMapping,
+          sideInputMapping,
           context,
           (doFn1,
               stepName,
@@ -667,7 +667,7 @@ class FlinkStreamingTransformTranslators {
               keySelector,
               transformedSideInputs,
               doFnSchemaInformation1,
-              sideInputsMapping1) ->
+              sideInputMapping1) ->
               new DoFnOperator<>(
                   doFn1,
                   stepName,
@@ -685,7 +685,7 @@ class FlinkStreamingTransformTranslators {
                   keyCoder,
                   keySelector,
                   doFnSchemaInformation1,
-                  sideInputsMapping1));
+                  sideInputMapping1));
     }
   }
 
@@ -729,7 +729,7 @@ class FlinkStreamingTransformTranslators {
               keySelector,
               transformedSideInputs,
               doFnSchemaInformation,
-              sideInputsMapping) ->
+              sideInputMapping) ->
               new SplittableDoFnOperator<>(
                   doFn,
                   stepName,

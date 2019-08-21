@@ -50,7 +50,7 @@ class SimpleDoFnRunnerFactory<InputT, OutputT> implements DoFnRunnerFactory<Inpu
       DataflowExecutionContext.DataflowStepContext userStepContext,
       OutputManager outputManager,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, String> sideInputMapping) {
+      Map<String, PCollectionView<?>> sideInputMapping) {
     DoFnRunner<InputT, OutputT> fnRunner =
         DoFnRunners.simpleRunner(
             options,

@@ -135,7 +135,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
     DoFnSchemaInformation doFnSchemaInformation;
     doFnSchemaInformation = ParDoTranslation.getSchemaInformation(ctx.getCurrentTransform());
 
-    Map<String, String> sideInputMapping =
+    Map<String, PCollectionView<?>> sideInputMapping =
         ParDoTranslation.getSideInputMapping(ctx.getCurrentTransform());
 
     final DoFnOp<InT, OutT, RawUnionValue> op =
@@ -244,7 +244,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
     final DoFnSchemaInformation doFnSchemaInformation;
     doFnSchemaInformation = ParDoTranslation.getSchemaInformation(transform.getTransform());
 
-    Map<String, String> sideInputMapping =
+    Map<String, PCollectionView<?>> sideInputMapping =
         ParDoTranslation.getSideInputMapping(transform.getTransform());
 
     final RunnerApi.PCollection input = pipeline.getComponents().getPcollectionsOrThrow(inputId);
