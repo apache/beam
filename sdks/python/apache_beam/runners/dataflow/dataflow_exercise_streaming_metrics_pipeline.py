@@ -33,7 +33,7 @@ SLEEP_TIME_SECS = 1
 
 
 class StreamingUserMetricsDoFn(beam.DoFn):
-  """Generates several user metric counters."""
+  """Generates user metrics and outputs same element."""
 
   def __init__(self):
     self.double_message_counter = Metrics.counter(self.__class__,

@@ -115,6 +115,10 @@ class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):
 
   @attr('IT', 'ValidatesRunner')
   def test_streaming_pipeline_returns_expected_user_metrics_fnapi_it(self):
+    """
+    Runs streaming Dataflow job and verifies that user metrics are reported
+    correctly.
+    """
     self._inject_words(self.input_topic, MESSAGES_TO_PUBLISH)
     result = self.run_pipeline()
 
