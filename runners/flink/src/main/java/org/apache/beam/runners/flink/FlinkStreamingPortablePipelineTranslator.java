@@ -224,9 +224,11 @@ public class FlinkStreamingPortablePipelineTranslator
 
   @Override
   public Set<String> knownUrns() {
-    // Do not expose Read as a known URN because we only want to support Read
-    // through the Java ExpansionService. We can't translate Reads for other
-    // languages.
+    // Do not expose Read as a known URN because PipelineTrimmer otherwise removes
+    // the subtransforms which are added in case of bounded reads. We only have a
+    // translator here for unbounded Reads which are native transforms which do not
+    // have subtransforms. Unbounded Reads are used by cross-language transforms, e.g.
+    // KafkaIO.
     return Sets.difference(
         urnToTransformTranslator.keySet(),
         ImmutableSet.of(PTransformTranslation.READ_TRANSFORM_URN));
