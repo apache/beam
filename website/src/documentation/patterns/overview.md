@@ -23,17 +23,20 @@ limitations under the License.
 Pipeline patterns demonstrate common Beam use cases. Pipeline patterns are based on real-world Beam deployments. Each pattern has a description, examples, and a solution or psuedocode.
 
 **File processing patterns** - Patterns for reading from and writing to files
-* [Processing files as they arrive]({{ site.baseurl }}/documentation/patterns/file-processing-patterns/#processing-files-as-they-arrive)
-* [Accessing filenames]({{ site.baseurl }}/documentation/patterns/file-processing-patterns/#accessing-filenames)
+* [Processing files as they arrive]({{ site.baseurl }}/documentation/patterns/file-processing/#processing-files-as-they-arrive)
+* [Accessing filenames]({{ site.baseurl }}/documentation/patterns/file-processing/#accessing-filenames)
 
 **Side input patterns** - Patterns for processing supplementary data
-* [Slowly updating global window side inputs]({{ site.baseurl }}/documentation/patterns/side-input-patterns/#slowly-updating-global-window-side-inputs)
+* [Slowly updating global window side inputs]({{ site.baseurl }}/documentation/patterns/side-inputs/#slowly-updating-global-window-side-inputs)
 
 **Pipeline option patterns** - Patterns for configuring pipelines
-* [Retroactively logging runtime parameters]({{ site.baseurl }}/documentation/patterns/pipeline-option-patterns/#retroactively-logging-runtime-parameters)
+* [Retroactively logging runtime parameters]({{ site.baseurl }}/documentation/patterns/pipeline-options/#retroactively-logging-runtime-parameters)
 
-**Custom I/O patterns**
-* [Choosing between built-in and custom connectors]({{ site.baseurl }}/documentation/patterns/custom-io-patterns/#choosing-between-built-in-and-custom-connectors)
+**Custom I/O patterns** - Patterns for pipeline I/O
+* [Choosing between built-in and custom connectors]({{ site.baseurl }}/documentation/patterns/custom-io/#choosing-between-built-in-and-custom-connectors)
+
+**Custom window patterns** - Patterns for windowing functions
+* [Using data to dynamically set session window gaps]({{ site.baseurl }}/documentation/patterns/custom-windows/#using-data-to-dynamically-set-session-window-gaps)
 
 ## Contributing a pattern
 
