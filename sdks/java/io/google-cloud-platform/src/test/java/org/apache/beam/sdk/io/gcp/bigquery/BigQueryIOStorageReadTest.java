@@ -1467,6 +1467,8 @@ public class BigQueryIOStorageReadTest {
             .setParent("projects/project-id")
             .setTableReference(BigQueryHelpers.toTableRefProto(tableRef))
             .setRequestedStreams(10)
+            .setReadOptions(
+                TableReadOptions.newBuilder().addSelectedFields("name").addSelectedFields("number"))
             // TODO(aryann): Once we rebuild the generated client code, we should change this to
             // use setShardingStrategy().
             .setUnknownFields(
@@ -1511,6 +1513,7 @@ public class BigQueryIOStorageReadTest {
             BigQueryIO.read(new ParseKeyValue())
                 .from("foo.com:project:dataset.table")
                 .withMethod(Method.DIRECT_READ)
+                .withSelectedFields(p.newProvider(Lists.newArrayList("name", "number")))
                 .withTestServices(
                     new FakeBigQueryServices()
                         .withDatasetService(fakeDatasetService)
