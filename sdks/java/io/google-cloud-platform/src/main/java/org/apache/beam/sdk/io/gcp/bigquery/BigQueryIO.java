@@ -664,8 +664,19 @@ public class BigQueryIO {
       @Experimental(Experimental.Kind.SOURCE_SINK)
       abstract Builder<T> setMethod(Method method);
 
+      /**
+       * @deprecated Use {@link #setSelectedFields(ValueProvider)} and {@link
+       *     #setRowRestriction(ValueProvider)} instead.
+       */
+      @Deprecated
       @Experimental(Experimental.Kind.SOURCE_SINK)
       abstract Builder<T> setReadOptions(TableReadOptions readOptions);
+
+      @Experimental(Experimental.Kind.SOURCE_SINK)
+      abstract Builder<T> setSelectedFields(ValueProvider<List<String>> selectedFields);
+
+      @Experimental(Experimental.Kind.SOURCE_SINK)
+      abstract Builder<T> setRowRestriction(ValueProvider<String> rowRestriction);
 
       abstract TypedRead<T> build();
 
@@ -711,9 +722,19 @@ public class BigQueryIO {
     @Experimental(Experimental.Kind.SOURCE_SINK)
     abstract Method getMethod();
 
+    /** @deprecated Use {@link #getSelectedFields()} and {@link #getRowRestriction()} instead. */
+    @Deprecated
     @Experimental(Experimental.Kind.SOURCE_SINK)
     @Nullable
     abstract TableReadOptions getReadOptions();
+
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Nullable
+    abstract ValueProvider<List<String>> getSelectedFields();
+
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Nullable
+    abstract ValueProvider<String> getRowRestriction();
 
     @Nullable
     abstract Coder<T> getCoder();
@@ -913,6 +934,16 @@ public class BigQueryIO {
           "Invalid BigQueryIO.Read: Specifies table read options, "
               + "which only applies when using Method.DIRECT_READ");
 
+      checkArgument(
+          getSelectedFields() == null,
+          "Invalid BigQueryIO.Read: Specifies selected fields, "
+              + "which only applies when using Method.DIRECT_READ");
+
+      checkArgument(
+          getRowRestriction() == null,
+          "Invalid BigQueryIO.Read: Specifies row restriction, "
+              + "which only applies when using Method.DIRECT_READ");
+
       final BigQuerySourceDef sourceDef = createSourceDef();
       final PCollectionView<String> jobIdTokenView;
       PCollection<String> jobIdTokenCollection;
@@ -1057,6 +1088,8 @@ public class BigQueryIO {
                 BigQueryStorageTableSource.create(
                     tableProvider,
                     getReadOptions(),
+                    getSelectedFields(),
+                    getRowRestriction(),
                     getParseFn(),
                     outputCoder,
                     getBigQueryServices())));
@@ -1065,6 +1098,16 @@ public class BigQueryIO {
       checkArgument(
           getReadOptions() == null,
           "Invalid BigQueryIO.Read: Specifies table read options, "
+              + "which only applies when reading from a table");
+
+      checkArgument(
+          getSelectedFields() == null,
+          "Invalid BigQueryIO.Read: Specifies selected fields, "
+              + "which only applies when reading from a table");
+
+      checkArgument(
+          getRowRestriction() == null,
+          "Invalid BigQueryIO.Read: Specifies row restriction, "
               + "which only applies when reading from a table");
 
       //
@@ -1251,6 +1294,16 @@ public class BigQueryIO {
           getJsonTableRef() == null && getQuery() == null, "from() or fromQuery() already called");
     }
 
+    private void ensureReadOptionsNotSet() {
+      checkState(getReadOptions() == null, "withReadOptions() already called");
+    }
+
+    private void ensureSelectedFieldsAndRowRestrictionNotSet() {
+      checkState(
+          getSelectedFields() == null && getRowRestriction() == null,
+          "setSelectedFields() or setRowRestriction already called");
+    }
+
     /** See {@link Read#getTableProvider()}. */
     @Nullable
     public ValueProvider<TableReference> getTableProvider() {
@@ -1360,10 +1413,37 @@ public class BigQueryIO {
       return toBuilder().setMethod(method).build();
     }
 
-    /** Read options, including a list of selected columns and push-down SQL filter text. */
+    /**
+     * @deprecated Use {@link #withSelectedFields(List)} and {@link #withRowRestriction(String)}
+     *     instead.
+     */
+    @Deprecated
     @Experimental(Experimental.Kind.SOURCE_SINK)
     public TypedRead<T> withReadOptions(TableReadOptions readOptions) {
+      ensureSelectedFieldsAndRowRestrictionNotSet();
       return toBuilder().setReadOptions(readOptions).build();
+    }
+
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    public TypedRead<T> withSelectedFields(List<String> selectedFields) {
+      return withSelectedFields(StaticValueProvider.of(selectedFields));
+    }
+
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    public TypedRead<T> withSelectedFields(ValueProvider<List<String>> selectedFields) {
+      ensureReadOptionsNotSet();
+      return toBuilder().setSelectedFields(selectedFields).build();
+    }
+
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    public TypedRead<T> withRowRestriction(String rowRestriction) {
+      return withRowRestriction(StaticValueProvider.of(rowRestriction));
+    }
+
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    public TypedRead<T> withRowRestriction(ValueProvider<String> rowRestriction) {
+      ensureReadOptionsNotSet();
+      return toBuilder().setRowRestriction(rowRestriction).build();
     }
 
     @Experimental(Experimental.Kind.SOURCE_SINK)
