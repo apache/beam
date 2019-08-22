@@ -156,7 +156,8 @@ class Pipeline(object):
 
     # set default experiments for portable runner
     # (needs to occur prior to pipeline construction)
-    if self._options.view_as(StandardOptions).runner == 'PortableRunner':
+    portable_runners = ['PortableRunner', 'FlinkRunner']
+    if self._options.view_as(StandardOptions).runner in portable_runners:
       experiments = (self._options.view_as(DebugOptions).experiments or [])
       if not 'beam_fn_api' in experiments:
         experiments.append('beam_fn_api')
