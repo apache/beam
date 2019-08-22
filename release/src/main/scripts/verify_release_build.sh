@@ -16,110 +16,154 @@
 #    limitations under the License.
 #
 
-# This script will run pre-installations and run release build.
+# This script helps to verify full life cycle of Gradle build and all
+# PostCommit tests against release branch on Jenkins.
+#
+# It reads configurations from script.config, setup environment and finally
+# create a test PR to run Jenkins jobs.
+#
+# NOTE:
+#   1. Please create a personal access token from your Github account first.
+#      Instructions: https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line
+#   2. Please set RELEASE_BUILD_CONFIGS in script.config before running this
+#      script.
+#   3. Please manually comment trigger phrases to created PR to start Gradle
+#      release build and all PostCommit jobs. Phrases are listed in
+#      JOB_TRIGGER_PHRASES below.
+
+
+. script.config
 
 set -e
 
-GIT_REPO_URL=https://github.com/apache/beam.git
-LOCAL_CLONE_DIR=release_build
-BEAM_ROOT_DIR=beam
+BEAM_REPO_URL=https://github.com/apache/beam.git
+RELEASE_BRANCH=release-${RELEASE_VER}
+WORKING_BRANCH=postcommit_validation_pr
 
-echo "Which branch you want to verify release build: "
-read branch
+JOB_TRIGGER_PHRASES=(
+  # To verify Gradle release build
+  "**Run Release Gradle Build**"
+  # To run all PostCommit jobs
+  "Run Go PostCommit"
+  "Run Java PostCommit"
+  "Run Java PostCommit"
+  "Run Java PortabilityApi PostCommit"
+  "Run Java Flink PortableValidatesRunner Batch"
+  "Run Java Flink PortableValidatesRunner Streaming"
+  "Run Apex ValidatesRunner"
+  "Run Dataflow ValidatesRunner"
+  "Run Flink ValidatesRunner"
+  "Run Gearpump ValidatesRunner"
+  "Run Dataflow PortabilityApi ValidatesRunner"
+  "Run Samza ValidatesRunner"
+  "Run Spark ValidatesRunner"
+  "Run Python Dataflow ValidatesContainer"
+  "Run Python Dataflow ValidatesRunner"
+  "Run Python Flink ValidatesRunner"
+  "Run Python PostCommit"
+  "Run SQL PostCommit"
+  "Run Go PreCommit"
+  "Run Java PreCommit"
+  "Run Java_Examples_Dataflow PreCommit"
+  "Run JavaPortabilityApi PreCommit"
+  "Run Portable_Python PreCommit"
+  "Run Python PreCommit"
+)
 
-echo "=====================Environment Variables====================="
-echo "working branch: ${branch}"
-echo "local repo dir: ~/${LOCAL_CLONE_DIR}/${BEAM_ROOT_DIR}"
 
-echo "====================Checking Requirement======================="
+function clean_up(){
+  echo ""
+  echo "==================== Final Cleanup ===================="
+  rm -rf ${LOCAL_BEAM_DIR}
+  echo "* Deleted workspace ${LOCAL_BEAM_DIR}"
+}
+trap clean_up EXIT
 
-echo "=================Checking hub========================"
+
+echo ""
+echo "==================== 1 Checking Environment Variables ================="
+echo "* PLEASE update RELEASE_BUILD_CONFIGS in file script.config first *"
+echo ""
+echo "Verify release build against branch: ${RELEASE_BRANCH}."
+echo "Use workspace: ${LOCAL_BEAM_DIR}"
+echo ""
+echo "All environment and workflow configurations from RELEASE_BUILD_CONFIGS:"
+for i in "${RELEASE_BUILD_CONFIGS[@]}"; do
+  echo "$i = ${!i}"
+done
+echo "[Confirmation Required] Are they all provided and correctly set? [y|N]"
+read confirmation
+if [[ $confirmation != "y" ]]; then
+  echo "Please rerun this script and make sure you have the right configurations."
+  exit
+fi
+
+
+echo ""
+echo "==================== 2 Checking Requirements ======================="
+
+echo "====================== 2.1 Checking git ========================"
+if [[ -z ${GITHUB_TOKEN} ]]; then
+  echo "Error: A Github personal access token is required to perform git push "
+  echo "under a newly cloned directory. Please manually create one from Github "
+  echo "website with guide:"
+  echo "https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line"
+  echo "Note: This token can be reused in other release scripts."
+  exit
+else
+  echo "====================== Cloning repo ======================"
+  git clone ${BEAM_REPO_URL} ${LOCAL_BEAM_DIR}
+  cd ${LOCAL_BEAM_DIR}
+  # Set upstream repo url with access token included.
+  USER_REPO_URL=https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/${GITHUB_USERNAME}/beam.git
+  git remote add ${GITHUB_USERNAME} ${USER_REPO_URL}
+  # For hub access Github API.
+  export GITHUB_TOKEN=${GITHUB_TOKEN}
+  # For local git repo only. Required if global configs are not set.
+  git config user.name "${GITHUB_USERNAME}"
+  git config user.email "${GITHUB_USERNAME}@gmail.com"
+fi
+
+echo "====================== 2.2 Checking hub ========================"
 HUB_VERSION=2.5.0
 HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
 if [[ -z `which hub` ]]; then
   echo "There is no hub installed on your machine."
-  echo "Would you like to install hub with root permission? [y|N]"
-  read confirmation
-  if [[ $confirmation != "y"  ]]; then
-    echo "Refused to install hub. Cannot proceed into next setp."
-    exit
+  if [[ "${INSTALL_HUB}" = true  ]]; then
+    echo "====================== Installing hub ======================="
+    wget https://github.com/github/hub/releases/download/v${HUB_VERSION}/${HUB_ARTIFACTS_NAME}.tgz
+    tar zvxvf ${HUB_ARTIFACTS_NAME}.tgz
+    sudo ./${HUB_ARTIFACTS_NAME}/install
+    echo "eval "$(hub alias -s)"" >> ~/.bashrc
+    rm -rf ${HUB_ARTIFACTS_NAME}*
+  else
+    echo "Refused to install hub. Cannot proceed into next setp."; exit
   fi
-  echo "=================Installing hub======================="
-  wget https://github.com/github/hub/releases/download/v${HUB_VERSION}/${HUB_ARTIFACTS_NAME}.tgz
-  tar zvxvf ${HUB_ARTIFACTS_NAME}.tgz
-  sudo ./${HUB_ARTIFACTS_NAME}/install
-  echo "eval "$(hub alias -s)"" >> ~/.bashrc
-  rm -rf ${HUB_ARTIFACTS_NAME}*
 fi
 hub version
 
-cd ~
-echo "======================Starting Clone Repo======================"
-if [[ -d ${LOCAL_CLONE_DIR} ]]; then
-  rm -rf ${LOCAL_CLONE_DIR}
-fi
-mkdir ${LOCAL_CLONE_DIR}
-cd  ${LOCAL_CLONE_DIR}
-git clone ${GIT_REPO_URL}
-cd ${BEAM_ROOT_DIR}
-git checkout ${branch}
-echo "==============================================================="
 
-echo "[Current Task] Run All PostCommit Tests against Release Branch"
+echo ""
+echo "==================== 3 Run Gradle Release Build & PostCommit Tests on Jenkins ==================="
+echo "[Current Task] Run Gradle release build and all PostCommit Tests against Release Branch on Jenkins."
 echo "This task will create a PR against apache/beam."
 echo "After PR created, you need to comment phrases listed in description in the created PR:"
 
-echo "[Confirmation Required] Do you want to proceed? [y|N]"
-read confirmation
-if [[ $confirmation = "y" ]]; then
-  echo "[Input Required] Please enter your github repo URL forked from apache/beam:"
-  read USER_REMOTE_URL
-  echo "[Input Required] Please enter your github username:"
-  read GITHUB_USERNAME
-  echo "[Input Required] Please enter your github token:"
-  read GITHUB_TOKEN
-  export GITHUB_TOKEN=${GITHUB_TOKEN}
-  WORKING_BRANCH=postcommit_validation_pr
-  git checkout -b ${WORKING_BRANCH}
+if [[ ! -z `which hub` ]]; then
+  git checkout -b ${WORKING_BRANCH} origin/${RELEASE_BRANCH} --quiet
   touch empty_file.txt
-  git add empty_file.txt
-  git commit -m "Add empty file in order to create PR"
-  git push -f ${USER_REMOTE_URL}
-  hub pull-request -o -b apache:${branch} -h ${GITHUB_USERNAME}:${WORKING_BRANCH} -F- <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch
+  git add .
+  git commit -m "Add empty file in order to create a test PR" --quiet
+  git push -f ${GITHUB_USERNAME} --quiet
 
-  Please comment as instructions below, one phrase per comment please:
-  Run Go PostCommit
-  Run Java PostCommit
-  Run Java PortabilityApi PostCommit
-  Run Java Flink PortableValidatesRunner Batch
-  Run Java Flink PortableValidatesRunner Streaming'
-  Run Apex ValidatesRunner
-  Run Dataflow ValidatesRunner
-  Run Flink ValidatesRunner
-  Run Gearpump ValidatesRunner
-  Run Dataflow PortabilityApi ValidatesRunner
-  Run Samza ValidatesRunner
-  Run Spark ValidatesRunner
-  Run Python Dataflow ValidatesContainer
-  Run Python Dataflow ValidatesRunner
-  Run Python Flink ValidatesRunner
-  Run Python PostCommit
-  Run SQL PostCommit
-  Run Go PreCommit
-  Run Java PreCommit
-  Run Java_Examples_Dataflow PreCommit
-  Run JavaPortabilityApi PreCommit
-  Run Portable_Python PreCommit
-  Run Python PreCommit"
+  trigger_phrases=$(IFS=$'\n'; echo "${JOB_TRIGGER_PHRASES[*]}")
+  hub pull-request -b markflyhigh:${RELEASE_BRANCH} -h ${GITHUB_USERNAME}:${WORKING_BRANCH} -F- <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch
 
+  Please comment as instructions below, one phrase per comment:
+
+  ${trigger_phrases}"
+
+  echo ""
   echo "[NOTE]: Please make sure all test targets have been invoked."
   echo "Please check the test results. If there is any failure, follow the policy in release guide."
-fi
-
-echo "Do you want to clean local clone repo? [y|N]"
-read confirmation
-if [[ $confirmation = "y" ]]; then
-  cd ~
-  rm -rf ${LOCAL_CLONE_DIR}
-  echo "Clean up local repo."
 fi
