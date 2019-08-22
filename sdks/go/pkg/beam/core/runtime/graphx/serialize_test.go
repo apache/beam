@@ -36,7 +36,7 @@ func TestEncodeType(t *testing.T) {
 			t.Fatalf("got error = %v, want nil", err)
 		}
 		if got, want := pbT.Kind, v1.Type_STRUCT; got != want {
-			t.Fatalf("got pbT.Kin == %v, want %v", got, want)
+			t.Fatalf("got pbT.Kind == %v, want %v", got, want)
 		}
 	})
 	t.Run("UnregisteredWithUnexportedField", func(t *testing.T) {
@@ -63,7 +63,7 @@ func TestEncodeType(t *testing.T) {
 			t.Fatalf("got error = %v, want nil", err)
 		}
 		if got, want := pbT.Kind, v1.Type_EXTERNAL; got != want {
-			t.Fatalf("got pbT.Kin == %v, want %v", got, want)
+			t.Fatalf("got pbT.Kind == %v, want %v", got, want)
 		}
 	})
 }
