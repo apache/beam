@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import logging
+import socket
 import threading
 
 from oauth2client.client import GoogleCredentials
@@ -32,6 +33,10 @@ try:
 except ImportError:
   GceAssertionCredentials = None
 
+# apitools use urllib with the global timeout. Set it to 60 seconds
+# to prevent network related stuckness issues.
+socket.setdefaulttimeout(60)
+  
 # When we are running in GCE, we can authenticate with VM credentials.
 is_running_in_gce = False
 
