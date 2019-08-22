@@ -2,7 +2,7 @@
 layout: section
 title: "File processing patterns"
 section_menu: section-menu/documentation.html
-permalink: /documentation/patterns/file-processing-patterns/
+permalink: /documentation/patterns/file-processing/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

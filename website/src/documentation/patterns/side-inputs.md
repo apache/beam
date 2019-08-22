@@ -2,7 +2,7 @@
 layout: section
 title: "Side input patterns"
 section_menu: section-menu/documentation.html
-permalink: /documentation/patterns/side-input-patterns/
+permalink: /documentation/patterns/side-inputs/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

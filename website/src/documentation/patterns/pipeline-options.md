@@ -2,7 +2,7 @@
 layout: section
 title: "Pipeline option patterns"
 section_menu: section-menu/documentation.html
-permalink: /documentation/patterns/pipeline-option-patterns/
+permalink: /documentation/patterns/pipeline-options/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
