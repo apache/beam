@@ -36,8 +36,8 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
-/** Unbounded + Unbounded Test for {@code BeamJoinRel}. */
-public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
+/** Unbounded + Unbounded Test for {@code BeamStandardJoinRel}. */
+public class BeamCoGBKJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
   private static final DateTime FIRST_DATE = new DateTime(1);
   private static final DateTime SECOND_DATE = new DateTime(1 + 3600 * 1000);
@@ -121,17 +121,17 @@ public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
 
     RelNode root = env.parseQuery(sql);
 
-    while (!(root instanceof BeamJoinRel)) {
+    while (!(root instanceof BeamCoGBKJoinRel)) {
       root = root.getInput(0);
     }
 
     NodeStats estimate = BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
     NodeStats leftEstimate =
         BeamSqlRelUtils.getNodeStats(
-            ((BeamJoinRel) root).getLeft(), root.getCluster().getMetadataQuery());
+            ((BeamCoGBKJoinRel) root).getLeft(), root.getCluster().getMetadataQuery());
     NodeStats rightEstimate =
         BeamSqlRelUtils.getNodeStats(
-            ((BeamJoinRel) root).getRight(), root.getCluster().getMetadataQuery());
+            ((BeamCoGBKJoinRel) root).getRight(), root.getCluster().getMetadataQuery());
 
     Assert.assertFalse(estimate.isUnknown());
     Assert.assertEquals(0d, estimate.getRowCount(), 0.01);
