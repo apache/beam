@@ -1176,7 +1176,18 @@ class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
         runner=fn_api_runner.FnApiRunner(
             default_environment=beam_runner_api_pb2.Environment(
                 urn=python_urns.EMBEDDED_PYTHON_GRPC,
-                payload=b'2')))
+                payload=b'2,%d' % fn_api_runner.STATE_CACHE_SIZE)))
+
+
+class FnApiRunnerTestWithDisabledCaching(FnApiRunnerTest):
+
+  def create_pipeline(self):
+    return beam.Pipeline(
+        runner=fn_api_runner.FnApiRunner(
+            default_environment=beam_runner_api_pb2.Environment(
+                urn=python_urns.EMBEDDED_PYTHON_GRPC,
+                # number of workers, state cache size
+                payload=b'2,0')))
 
 
 class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
