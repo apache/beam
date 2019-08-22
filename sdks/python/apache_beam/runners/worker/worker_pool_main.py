@@ -60,16 +60,16 @@ class BeamFnExternalWorkerPoolServicer(
     worker_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     worker_address = 'localhost:%s' % worker_server.add_insecure_port(
         '[::]:%s' % port)
+    worker_pool = cls(worker_threads, use_process=use_process,
+                      container_executable=container_executable)
     beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerPoolServicer_to_server(
-        cls(worker_threads,
-            use_process=use_process,
-            container_executable=container_executable),
+        worker_pool,
         worker_server)
     worker_server.start()
 
     # Register to kill the subprocesses on exit.
     def kill_worker_processes():
-      for worker_process in cls._worker_processes.values():
+      for worker_process in worker_pool._worker_processes.values():
         worker_process.kill()
     atexit.register(kill_worker_processes)
 
