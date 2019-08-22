@@ -35,7 +35,6 @@ applyJavaNature(
       include(dependency("org.apache.calcite:.*"))
       include(dependency("org.apache.calcite.avatica:.*"))
       include(dependency("org.codehaus.janino:.*"))
-      include(dependency("com.google.api.grpc:.*"))
       include(dependency("com.google.zetasql:.*"))
     }
     // guava uses the com.google.common and com.google.thirdparty package namespaces
@@ -46,7 +45,6 @@ applyJavaNature(
       exclude "com.google.common.testing.**"
       exclude "com.google.common.util.concurrent.testing.**"
     }
-    relocate "com.google.api", getJavaRelocatedPath("com.google.api")
     relocate "com.google.cloud", getJavaRelocatedPath("com.google.cloud")
     relocate "com.google.logging", getJavaRelocatedPath("com.google.logging")
     relocate "com.google.longrunning", getJavaRelocatedPath("com.google.longrunning")
