@@ -19,25 +19,43 @@ package org.apache.beam.sdk.extensions.sql.impl.rule;
 
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSideInputLookupJoinRel;
 import org.apache.calcite.plan.Convention;
+import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.logical.LogicalJoin;
 
-/** {@code ConverterRule} to replace {@code Join} with {@code BeamJoinRel}. */
-public class BeamJoinRule extends ConverterRule {
-  public static final BeamJoinRule INSTANCE = new BeamJoinRule();
+/**
+ * Rule to convert {@code LogicalJoin} node to {@code BeamSideInputLookupJoinRel} node.
+ *
+ * <p>This rule is matched when any of the inputs to {@code LogicalJoin} node are Seekable
+ */
+public class BeamSideInputLookupJoinRule extends ConverterRule {
+  public static final BeamSideInputLookupJoinRule INSTANCE = new BeamSideInputLookupJoinRule();
 
-  private BeamJoinRule() {
-    super(LogicalJoin.class, Convention.NONE, BeamLogicalConvention.INSTANCE, "BeamJoinRule");
+  public BeamSideInputLookupJoinRule() {
+    super(
+        LogicalJoin.class,
+        Convention.NONE,
+        BeamLogicalConvention.INSTANCE,
+        "BeamSideInputLookupJoinRule");
+  }
+
+  // The Rule is Matched when any of the inputs are Seekable
+  @Override
+  public boolean matches(RelOptRuleCall call) {
+    RelNode joinRel = call.rel(0);
+    boolean matches = BeamJoinRel.containsSeekableInput(joinRel);
+    return (matches);
   }
 
   @Override
   public RelNode convert(RelNode rel) {
     Join join = (Join) rel;
 
-    return new BeamJoinRel(
+    return (new BeamSideInputLookupJoinRel(
         join.getCluster(),
         join.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
         convert(
@@ -46,6 +64,6 @@ public class BeamJoinRule extends ConverterRule {
             join.getRight(), join.getRight().getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
         join.getCondition(),
         join.getVariablesSet(),
-        join.getJoinType());
+        join.getJoinType()));
   }
 }

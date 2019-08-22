@@ -45,8 +45,8 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
-/** Unbounded + Unbounded Test for {@code BeamJoinRel}. */
-public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
+/** Unbounded + Unbounded Test for {@code BeamSideInputJoinRel}. */
+public class BeamSideInputJoinRelUnboundedVsBoundedTest extends BaseRelTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
   public static final DateTime FIRST_DATE = new DateTime(1);
   public static final DateTime SECOND_DATE = new DateTime(1 + 3600 * 1000);
@@ -200,17 +200,17 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
 
     RelNode root = env.parseQuery(sql);
 
-    while (!(root instanceof BeamJoinRel)) {
+    while (!(root instanceof BeamSideInputJoinRel)) {
       root = root.getInput(0);
     }
 
     NodeStats estimate = BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
     NodeStats leftEstimate =
         BeamSqlRelUtils.getNodeStats(
-            ((BeamJoinRel) root).getLeft(), root.getCluster().getMetadataQuery());
+            ((BeamSideInputJoinRel) root).getLeft(), root.getCluster().getMetadataQuery());
     NodeStats rightEstimate =
         BeamSqlRelUtils.getNodeStats(
-            ((BeamJoinRel) root).getRight(), root.getCluster().getMetadataQuery());
+            ((BeamSideInputJoinRel) root).getRight(), root.getCluster().getMetadataQuery());
 
     Assert.assertFalse(estimate.isUnknown());
     Assert.assertEquals(0d, estimate.getRowCount(), 0.01);
@@ -324,7 +324,7 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
   }
 
   @Test
-  public void testJoinAsLookup() throws Exception {
+  public void testUnboundedVsLookupTableJoin() throws Exception {
     String sql =
         "SELECT o1.order_id, o2.site_name FROM "
             + " ORDER_DETAILS o1 "
@@ -344,7 +344,7 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
   }
 
   @Test
-  public void testJoinAsLookupSwapped() throws Exception {
+  public void testLookupTableVsUnboundedJoin() throws Exception {
     String sql =
         "SELECT o1.order_id, o2.site_name FROM "
             + " SITE_LKP o2 "
