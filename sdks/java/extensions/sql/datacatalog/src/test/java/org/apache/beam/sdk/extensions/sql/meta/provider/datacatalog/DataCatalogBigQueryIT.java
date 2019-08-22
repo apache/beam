@@ -36,6 +36,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -43,6 +44,7 @@ import org.junit.runners.JUnit4;
 
 /** Integration tests for DataCatalog+BigQuery. */
 @RunWith(JUnit4.class)
+@Ignore
 public class DataCatalogBigQueryIT {
 
   private static final Schema ID_NAME_SCHEMA =
