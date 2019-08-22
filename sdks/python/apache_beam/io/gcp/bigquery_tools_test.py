@@ -179,6 +179,21 @@ class TestBigQueryWrapper(unittest.TestCase):
                                       mode='REQUIRED')]), False, False)
     self.assertEqual(new_table, 'table_id')
 
+  def test_get_or_create_table_intermittent_exception(self):
+    client = mock.Mock()
+    client.tables.Insert.side_effect = [
+        HttpError(response={'status': '408'}, url='', content=''), 'table_id'
+    ]
+    client.tables.Get.side_effect = [None, 'table_id']
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    new_table = wrapper.get_or_create_table(
+        'project_id', 'dataset_id', 'table_id',
+        bigquery.TableSchema(fields=[
+            bigquery.TableFieldSchema(
+                name='b', type='BOOLEAN', mode='REQUIRED')
+        ]), False, False)
+    self.assertEqual(new_table, 'table_id')
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryReader(unittest.TestCase):
