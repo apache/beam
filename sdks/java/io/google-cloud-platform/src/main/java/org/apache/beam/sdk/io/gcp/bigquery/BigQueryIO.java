@@ -1298,7 +1298,7 @@ public class BigQueryIO {
       checkState(getReadOptions() == null, "withReadOptions() already called");
     }
 
-    private void ensureSelectedFieldsAndRowRestrictionNotSet() {
+    private void ensureReadOptionsFieldsNotSet() {
       checkState(
           getSelectedFields() == null && getRowRestriction() == null,
           "setSelectedFields() or setRowRestriction already called");
@@ -1420,26 +1420,41 @@ public class BigQueryIO {
     @Deprecated
     @Experimental(Experimental.Kind.SOURCE_SINK)
     public TypedRead<T> withReadOptions(TableReadOptions readOptions) {
-      ensureSelectedFieldsAndRowRestrictionNotSet();
+      ensureReadOptionsFieldsNotSet();
       return toBuilder().setReadOptions(readOptions).build();
     }
 
+    /** See {@link #withSelectedFields(ValueProvider)}. */
     @Experimental(Experimental.Kind.SOURCE_SINK)
     public TypedRead<T> withSelectedFields(List<String> selectedFields) {
       return withSelectedFields(StaticValueProvider.of(selectedFields));
     }
 
+    /**
+     * Read only the specified fields (columns) from a BigQuery table. Fields may not be returned in
+     * the order specified. If no value is specified, then all fields are returned.
+     *
+     * <p>Requires {@link Method#DIRECT_READ}. Not compatible with {@link #fromQuery(String)}.
+     */
     @Experimental(Experimental.Kind.SOURCE_SINK)
     public TypedRead<T> withSelectedFields(ValueProvider<List<String>> selectedFields) {
       ensureReadOptionsNotSet();
       return toBuilder().setSelectedFields(selectedFields).build();
     }
 
+    /** See {@link #withRowRestriction(ValueProvider)}. */
     @Experimental(Experimental.Kind.SOURCE_SINK)
     public TypedRead<T> withRowRestriction(String rowRestriction) {
       return withRowRestriction(StaticValueProvider.of(rowRestriction));
     }
 
+    /**
+     * Read only rows which match the specified filter, which must be a SQL expression compatible
+     * with <a href="https://cloud.google.com/bigquery/docs/reference/standard-sql/">Google standard
+     * SQL</a>. If no value is specified, then all rows are returned.
+     *
+     * <p>Requires {@link Method#DIRECT_READ}. Not compatible with {@link #fromQuery(String)}.
+     */
     @Experimental(Experimental.Kind.SOURCE_SINK)
     public TypedRead<T> withRowRestriction(ValueProvider<String> rowRestriction) {
       ensureReadOptionsNotSet();
