@@ -20,39 +20,40 @@ limitations under the License.
 
 # Verify the release branch
 
-*****
-
 After the release branch is cut you need to make sure it builds and has no significant issues that would block the
 creation of the release candidate.
+
+
+*****
 
 
 ## Run `verify_release_build.sh`
 * Script: [verify_release_build.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh)
 
 * Usage
-
-  ```
-  ./beam/release/src/main/scripts/verify_release_build.sh
-  ```
+  1. Create a personal access token from your Github account. See instruction [here](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line).
+     It'll be used by the script for accessing Github API.
+  1. Update required configurations listed in `RELEASE_BUILD_CONFIGS` in [script.config](https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config)
+  1. Then run
+     ```
+     cd release/src/main/scripts && ./verify_release_build.sh
+     ```
+  1. Trigger Jenkins `beam_Release_Gradle_Build` and all PostCommit jobs from PR that's created from previous step.
+     To do so, only add one trigger phrase per comment. See `JOB_TRIGGER_PHRASES` in [verify_release_build.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh#L43)
+     for full list of phrases.
 
 * The script does the following:
-  1. Installs ```pip```, ```virtualenv```, ```cython``` and ```/usr/bin/time``` with your agreements;
-  2. Runs ```gradle release build``` against release branch;
+  1. Installs ```hub``` with your agreement and setup local git repo;
+  1. Create a test PR against release branch;
 
-Basically it does `./gradlew build -PisRelease` from the root of Beam repository.
+Jenkins job `beam_Release_Gradle_Build` basically run `./gradlew build -PisRelease`.
 This only verifies that everything builds with unit tests passing.
 
-To speed things up locally you might want to omit `--no-parallel`.
-You might want to omit `--continue` if you want the script to fail after the first error instead of continuing,
-it may be easier and faster to find environment issues this way without having to wait until the full build completes.
-
-There are some projects that don't produce the artifacts, e.g. `beam-test-tools``, you may be able to
+There are some projects that don't produce the artifacts, e.g. `beam-test-tools`, you may be able to
 ignore failures there.
 
 To triage the failures and narrow things down you may want to look at `settings.gradle` and run the build only for the
 projects you're interested at the moment, e.g. `./gradlew :runners:java-fn-execution`. 
-
-
 
 ### Verify the build succeeds
 
@@ -60,15 +61,25 @@ Tasks you need to do manually:
   1. Check the build result;
   2. If build failed, scan log will contain all failures;
   3. You should stabilize the release branch until release build succeeded;
-  4. The script will output a set of Jenkins phrases to enter in the created PR;
+
 
 *****
 
-## (Alternative) Run all commands manually
 
-Follow the scripts and run all the steps manually, overall you need to do:
+## (Alternative) Run release build locally
 
-* Install python dependencies, e.g. `pip`, `virtualenv`, `cython`;
+Overall you need to do:
+
+* Install python dependencies:
+  * `pip`
+  * `virtualenv`
+  * `cython`
+  * `gcc`
+  * `python-dev`
+  * `python3-dev`
+  * `python3.5-dev`
+  * `python3.6-dev`
+  * `python3.7-dev`
 
 * Run gradle release build, along these lines (check the script):
 
@@ -81,8 +92,12 @@ Follow the scripts and run all the steps manually, overall you need to do:
   1. Run build command, e.g.:
 
      ```
-     ./gradlew build -PisRelease
+     ./gradlew build -PisRelease --no-parallel --continue
      ```
+
+To speed things up locally you might want to omit `--no-parallel`.
+You might want to omit `--continue` if you want build fails after the first error instead of continuing,
+it may be easier and faster to find environment issues this way without having to wait until the full build completes.
 
 
 *****
@@ -106,6 +121,7 @@ The `verify_release_build.sh` script may include failing or flaky tests. For eac
 
 
 *****
+
 
 ## Checklist to proceed to the next step
 
