@@ -40,7 +40,7 @@ def scenarios = { datasetName -> [
                 jobProperties: [
                         job_name            : 'load-tests-python-flink-batch-combine-1-' + now,
                         project             : 'apache-beam-testing',
-                        publish_to_big_query: true,
+                        publish_to_big_query: false,
                         metrics_dataset     : datasetName,
                         metrics_table       : 'python_flink_batch_combine_1',
                         input_options       : '\'{' +
@@ -61,7 +61,7 @@ def scenarios = { datasetName -> [
                 jobProperties: [
                         job_name            : 'load-tests-python-flink-batch-combine-4-' + now,
                         project             : 'apache-beam-testing',
-                        publish_to_big_query: true,
+                        publish_to_big_query: false,
                         metrics_dataset     : datasetName,
                         metrics_table       : 'python_flink_batch_combine_4',
                         input_options       : '\'{' +
@@ -83,7 +83,7 @@ def scenarios = { datasetName -> [
                 jobProperties: [
                         job_name            : 'load-tests-python-flink-batch-combine-5-' + now,
                         project             : 'apache-beam-testing',
-                        publish_to_big_query: true,
+                        publish_to_big_query: false,
                         metrics_dataset     : datasetName,
                         metrics_table       : 'python_flink_batch_combine_5',
                         input_options       : '\'{' +
