@@ -35,7 +35,9 @@ except ImportError:
 
 # apitools use urllib with the global timeout. Set it to 60 seconds
 # to prevent network related stuckness issues.
-socket.setdefaulttimeout(60)
+if not socket.getdefaulttimeout():
+  logging.info("Setting socket default timeout to 60 seconds.")
+  socket.setdefaulttimeout(60)
   
 # When we are running in GCE, we can authenticate with VM credentials.
 is_running_in_gce = False
