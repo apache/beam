@@ -423,10 +423,10 @@ public abstract class DoFnSignature {
     }
 
     public static SideInputParameter sideInputParameter(
-        TypeDescriptor<?> elementT, @Nullable String fieldAccessString) {
+        TypeDescriptor<?> elementT, String sideInputId) {
       return new AutoValue_DoFnSignature_Parameter_SideInputParameter.Builder()
           .setElementT(elementT)
-          .setFieldAccessString(fieldAccessString)
+          .setSideInputId(sideInputId)
           .build();
     }
 
@@ -580,16 +580,14 @@ public abstract class DoFnSignature {
 
       public abstract TypeDescriptor<?> elementT();
 
-      @Nullable
-      public abstract String fieldAccessString();
+      public abstract String sideInputId();
 
       /** Builder class. */
       @AutoValue.Builder
       public abstract static class Builder {
         public abstract SideInputParameter.Builder setElementT(TypeDescriptor<?> elementT);
 
-        public abstract SideInputParameter.Builder setFieldAccessString(
-            @Nullable String fieldAccess);
+        public abstract SideInputParameter.Builder setSideInputId(String sideInput);
 
         public abstract SideInputParameter build();
       }

@@ -177,7 +177,10 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
       // TODO: Is there a better way to do this?
       Set<String> allInputs =
           transform.getInputs().keySet().stream().map(TupleTag::getId).collect(Collectors.toSet());
-      Set<String> sideInputs = parDo.getSideInputs().keySet();
+      Set<String> sideInputs =
+          parDo.getSideInputs().values().stream()
+              .map(s -> s.getTagInternal().getId())
+              .collect(Collectors.toSet());
       Set<String> timerInputs = signature.timerDeclarations().keySet();
       String mainInputName =
           Iterables.getOnlyElement(Sets.difference(allInputs, Sets.union(sideInputs, timerInputs)));

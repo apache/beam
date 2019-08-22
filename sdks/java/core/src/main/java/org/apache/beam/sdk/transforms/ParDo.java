@@ -683,6 +683,15 @@ public class ParDo {
     }
 
     /**
+     * Returns a new {@link ParDo} {@link PTransform} that's like this {@link PTransform} but with
+     * the specified additional side inputs. Does not modify this {@link PTransform}.
+     */
+    public SingleOutput<InputT, OutputT> withSideInputs(
+        String tagId, PCollectionView<?> pCollectionView) {
+      return withSideInputs(Collections.singletonMap(tagId, pCollectionView));
+    }
+
+    /**
      * Returns a new multi-output {@link ParDo} {@link PTransform} that's like this {@link
      * PTransform} but with the specified output tags. Does not modify this {@link PTransform}.
      *
@@ -830,6 +839,16 @@ public class ParDo {
           mainOutputTag,
           additionalOutputTags,
           fnDisplayData);
+    }
+
+    /**
+     * Returns a new multi-output {@link ParDo} {@link PTransform} that's like this {@link
+     * PTransform} but with the specified additional side inputs. Does not modify this {@link
+     * PTransform}.
+     */
+    public MultiOutput<InputT, OutputT> withSideInputs(
+        String tagId, PCollectionView<?> pCollectionView) {
+      return withSideInputs(Collections.singletonMap(tagId, pCollectionView));
     }
 
     @Override

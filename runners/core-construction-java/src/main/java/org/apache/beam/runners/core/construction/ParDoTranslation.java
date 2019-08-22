@@ -208,13 +208,10 @@ public class ParDoTranslation {
         new ParDoLike() {
           @Override
           public SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
-            Map<String, PCollectionView<?>> sideInputMapping =
-                parDo.getSideInputs().entrySet().stream()
-                    .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
             return ParDoTranslation.translateDoFn(
                 parDo.getFn(),
                 parDo.getMainOutputTag(),
-                sideInputMapping,
+                parDo.getSideInputs(),
                 doFnSchemaInformation,
                 newComponents);
           }

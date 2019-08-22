@@ -49,6 +49,7 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.SideInput;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
@@ -898,8 +899,10 @@ public class DoFnSignatures {
     } else if (rawType.equals(TimeDomain.class)) {
       return Parameter.timeDomainParameter();
     } else if (hasSideInputAnnotation(param.getAnnotations())) {
-      String sideInputAccessString = getSideInputId(param.getAnnotations());
-      return Parameter.sideInputParameter(paramT, sideInputAccessString);
+      String sideInputId = getSideInputId(param.getAnnotations());
+      paramErrors.checkArgument(
+          sideInputId != null, "%s missing %s annotation", SideInput.class.getSimpleName());
+      return Parameter.sideInputParameter(paramT, sideInputId);
     } else if (rawType.equals(PaneInfo.class)) {
       return Parameter.paneInfoParameter();
     } else if (rawType.equals(DoFn.ProcessContext.class)) {

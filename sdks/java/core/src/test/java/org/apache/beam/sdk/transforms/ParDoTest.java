@@ -762,9 +762,7 @@ public class ParDoTest implements Serializable {
           new DoFn<Integer, List<Integer>>() {
             @ProcessElement
             public void processElement(
-                @Element Integer element,
-                OutputReceiver<List<Integer>> r,
-                @SideInput(sideInputTag1) List<Integer> tag1) {
+                OutputReceiver<List<Integer>> r, @SideInput(sideInputTag1) List<Integer> tag1) {
 
               List<Integer> sideSorted = Lists.newArrayList(tag1);
               Collections.sort(sideSorted);
@@ -775,7 +773,7 @@ public class ParDoTest implements Serializable {
       PCollection<List<Integer>> output =
           pipeline
               .apply("Create main input", Create.of(2))
-              .apply(ParDo.of(fn).withSideInputs(sideInputs));
+              .apply(ParDo.of(fn).withSideInputs(sideInputTag1, sideInput1));
 
       PAssert.that(output).containsInAnyOrder(Lists.newArrayList(0, 1, 2));
       pipeline.run();
