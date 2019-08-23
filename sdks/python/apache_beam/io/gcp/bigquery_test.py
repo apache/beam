@@ -25,6 +25,7 @@ import random
 import re
 import time
 import unittest
+import uuid
 
 import hamcrest as hc
 import mock
@@ -34,9 +35,12 @@ import apache_beam as beam
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
+from apache_beam.io.gcp.bigquery import WriteToBigQuery
 from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.gcp.pubsub import ReadFromPubSub
+from apache_beam.io.gcp.tests import utils
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigQueryTableMatcher
@@ -44,6 +48,7 @@ from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
 from apache_beam.runners.runner import PipelineState
+from apache_beam.testing import test_utils
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
@@ -289,7 +294,7 @@ class TestBigQuerySink(unittest.TestCase):
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
-class WriteToBigQuery(unittest.TestCase):
+class TestWriteToBigQuery(unittest.TestCase):
 
   def test_noop_schema_parsing(self):
     expected_table_schema = None
@@ -671,6 +676,93 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
     except HttpError:
       logging.debug('Failed to clean up dataset %s in project %s',
                     self.dataset_id, self.project)
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class PubSubBigQueryIT(unittest.TestCase):
+
+  INPUT_TOPIC = 'psit_topic_output'
+  INPUT_SUB = 'psit_subscription_input'
+
+  BIG_QUERY_DATASET_ID = 'python_pubsub_bq_'
+  SCHEMA = {'fields': [
+      {'name': 'number', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
+
+  _SIZE = 4
+
+  WAIT_UNTIL_FINISH_DURATION = 15 * 60 * 1000
+
+  def setUp(self):
+    # Set up PubSub
+    self.test_pipeline = TestPipeline(is_integration_test=True)
+    self.runner_name = type(self.test_pipeline.runner).__name__
+    self.project = self.test_pipeline.get_option('project')
+    self.uuid = str(uuid.uuid4())
+    from google.cloud import pubsub
+    self.pub_client = pubsub.PublisherClient()
+    self.input_topic = self.pub_client.create_topic(
+        self.pub_client.topic_path(self.project, self.INPUT_TOPIC + self.uuid))
+    self.sub_client = pubsub.SubscriberClient()
+    self.input_sub = self.sub_client.create_subscription(
+        self.sub_client.subscription_path(self.project,
+                                          self.INPUT_SUB + self.uuid),
+        self.input_topic.name)
+
+    # Set up BQ
+    self.dataset_ref = utils.create_bq_dataset(self.project,
+                                               self.BIG_QUERY_DATASET_ID)
+    self.output_table = "%s.output_table" % (self.dataset_ref.dataset_id)
+
+  def tearDown(self):
+    # Tear down PubSub
+    test_utils.cleanup_topics(self.pub_client,
+                              [self.input_topic])
+    test_utils.cleanup_subscriptions(self.sub_client,
+                                     [self.input_sub])
+    # Tear down BigQuery
+    utils.delete_bq_dataset(self.project, self.dataset_ref)
+
+  def _run_pubsub_bq_pipeline(self, method, triggering_frequency=None):
+    l = [i for i in range(self._SIZE)]
+
+    matchers = [
+        PipelineStateMatcher(PipelineState.RUNNING),
+        BigqueryFullResultStreamingMatcher(
+            project=self.project,
+            query="SELECT number FROM %s" % self.output_table,
+            data=[(i,) for i in l])]
+
+    args = self.test_pipeline.get_full_options_as_args(
+        on_success_matcher=hc.all_of(*matchers),
+        wait_until_finish_duration=self.WAIT_UNTIL_FINISH_DURATION,
+        experiments='use_beam_bq_sink',
+        streaming=True)
+
+    def add_schema_info(element):
+      yield {'number': element}
+
+    messages = [str(i).encode('utf-8') for i in l]
+    for message in messages:
+      self.pub_client.publish(self.input_topic.name, message)
+
+    with beam.Pipeline(argv=args) as p:
+      mesages = (p
+                 | ReadFromPubSub(subscription=self.input_sub.name)
+                 | beam.ParDo(add_schema_info))
+      _ = mesages | WriteToBigQuery(
+          self.output_table,
+          schema=self.SCHEMA,
+          method=method,
+          triggering_frequency=triggering_frequency)
+
+  @attr('IT')
+  def test_streaming_inserts(self):
+    self._run_pubsub_bq_pipeline(WriteToBigQuery.Method.STREAMING_INSERTS)
+
+  @attr('IT')
+  def test_file_loads(self):
+    self._run_pubsub_bq_pipeline(WriteToBigQuery.Method.FILE_LOADS,
+                                 triggering_frequency=20)
 
 
 if __name__ == '__main__':
