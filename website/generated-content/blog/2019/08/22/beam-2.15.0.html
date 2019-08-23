@@ -28,9 +28,8 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Apache Beam</title>
-  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
-">
+  <title>Apache Beam 2.15.0</title>
+  <meta name="description" content="We are happy to present the new 2.15.0 release of Beam. This release includes both improvements and new functionality.See the download page for this release.">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
   <link rel="stylesheet" href="/css/site.css">
   <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
@@ -39,7 +38,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/blog/2019/08/22/beam-2.15.0.html" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -53,7 +52,7 @@
   </script>
 </head>
 
-  <body class="body body--index">
+  <body class="body ">
     <!--
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -141,7 +140,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/index.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/_posts/2019-08-22-beam-2.15.0.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -151,6 +150,31 @@
 
     <div class="body__contained">
       <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+
+
+<article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Apache Beam 2.15.0</h1>
+    <p class="post-meta"><time datetime="2019-08-22T01:00:01-07:00" itemprop="datePublished">Aug 22, 2019</time> •
+        
+      
+    </p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -163,207 +187,69 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<div class="hero-bg">
-  <div class="hero section">
-    <div class="hero__cols">
-      <div class="hero__cols__col">
-        <div class="hero__cols__col__content">
-          <div class="hero__title">
-            Apache Beam: An advanced unified programming model
-          </div>
-          <div class="hero__subtitle">
-            Implement batch and streaming data processing jobs that run on any execution engine.
-          </div>
-          <div class="hero__ctas hero__ctas--first">
-            <a class="button button--primary" href="/get-started/beam-overview/">Learn more</a>
-            <a class="button button--primary" href="/get-started/try-apache-beam/">Try Beam</a>
-            <a class="button button--primary" href="/get-started/downloads/">Download Beam SDK 2.15.0</a>
-          </div>
-          <div class="hero__ctas">
-            <a class="button" href="/get-started/quickstart-java/">Java Quickstart</a>
-            <a class="button" href="/get-started/quickstart-py/">Python Quickstart</a>
-            <a class="button" href="/get-started/quickstart-go/">Go Quickstart</a>
-          </div>
-        </div>
-      </div>
-      <div class="hero__cols__col">
-        <div class="hero__blog">
-          <div class="hero__blog__title">
-            The latest from the blog
-          </div>
-          <div class="hero__blog__cards">
-            
-            <a class="hero__blog__cards__card" href="/blog/2019/08/22/beam-2.15.0.html">
-              <div class="hero__blog__cards__card__title">Apache Beam 2.15.0</div>
-              <div class="hero__blog__cards__card__date">Aug 22, 2019</div>
-            </a>
-            
-            <a class="hero__blog__cards__card" href="/blog/2019/07/31/beam-2.14.0.html">
-              <div class="hero__blog__cards__card__title">Apache Beam 2.14.0</div>
-              <div class="hero__blog__cards__card__date">Jul 31, 2019</div>
-            </a>
-            
-            <a class="hero__blog__cards__card" href="/blog/2019/06/11/looping-timers.html">
-              <div class="hero__blog__cards__card__title">Looping timers in Apache Beam</div>
-              <div class="hero__blog__cards__card__date">Jun 11, 2019</div>
-            </a>
-            
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
 
-<div class="pillars section">
-  <div class="pillars__title">
-    All about Apache Beam
-  </div>
-  <div class="pillars__cols">
-    
-    <div class="pillars__cols__col">
-      <div class="pillars__cols__col__title">
-        Unified
-      </div>
-      <div class="pillars__cols__col__body">
-        Use a single programming model for both batch and streaming use cases.
-      </div>
-    </div>
-    
-    <div class="pillars__cols__col">
-      <div class="pillars__cols__col__title">
-        Portable
-      </div>
-      <div class="pillars__cols__col__body">
-        Execute pipelines on multiple execution environments.
-      </div>
-    </div>
-    
-    <div class="pillars__cols__col">
-      <div class="pillars__cols__col__title">
-        Extensible
-      </div>
-      <div class="pillars__cols__col__body">
-        Write and share new SDKs, IO connectors, and transformation libraries.
-      </div>
-    </div>
-    
-  </div>
-</div>
+<p>We are happy to present the new 2.15.0 release of Beam. This release includes both improvements and new functionality.
+See the <a href="/get-started/downloads/#2150-2019-08-22">download page</a> for this release.<!--more-->
+For more information on changes in 2.15.0, check out the
+<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;version=12345489">detailed release notes</a>.</p>
 
-<div class="graphic section">
-<div class="graphic__image">
-<img src="/images/beam_architecture.png" alt="Beam architecture" />
-</div>
-</div>
+<h2 id="highlights">Highlights</h2>
 
-<div class="logos section">
-  <div class="logos__title">
-    Works with
-  </div>
-  <div class="logos__logos">
-    
-    <div class="logos__logos__logo">
-      <a href="http://apex.apache.org"><img src="/images/logo_apex.png" alt="APEX" /></a>
-    </div>
-    
-    <div class="logos__logos__logo">
-      <a href="http://flink.apache.org"><img src="/images/logo_flink.png" alt="Flink" /></a>
-    </div>
-    
-    <div class="logos__logos__logo">
-      <a href="http://spark.apache.org/"><img src="/images/logo_spark.png" alt="Spark" /></a>
-    </div>
-    
-    <div class="logos__logos__logo">
-      <a href="https://cloud.google.com/dataflow/"><img src="/images/logo_google_cloud.png" alt="Google Cloud Dataflow" /></a>
-    </div>
-    
-    <div class="logos__logos__logo">
-      <a href="http://gearpump.apache.org/"><img src="/images/logo_gearpump.png" alt="Gearpump" /></a>
-    </div>
-    
-    <div class="logos__logos__logo">
-      <a href="http://samza.apache.org/"><img src="/images/logo_samza.png" alt="Samza" /></a>
-    </div>
-    
-  </div>
-</div>
+<ul>
+  <li>Vendored Guava was upgraded to version 26.0.</li>
+</ul>
 
-<div class="cards section section--wide">
-  <div class="section__contained">
-    <div class="cards__title">
-      Testimonials
-    </div>
-    <div class="cards__cards">
-      
-      <div class="cards__cards__card">
-        <div class="cards__cards__card__body">
-          A framework that delivers the flexibility and advanced functionality our customers need.
-        </div>
-        <div class="cards__cards__card__user">
-          <!-- TODO: Implement icons.
-          <div class="cards__cards__card__user__icon">
-          </div>
-          -->
-          <div class="cards__cards__card__user__name">
-            –Talend
-          </div>
-        </div>
-      </div>
-      
-      <div class="cards__cards__card">
-        <div class="cards__cards__card__body">
-          Apache Beam has powerful semantics that solve real-world challenges of stream processing.
-        </div>
-        <div class="cards__cards__card__user">
-          <!-- TODO: Implement icons.
-          <div class="cards__cards__card__user__icon">
-          </div>
-          -->
-          <div class="cards__cards__card__user__name">
-            –PayPal
-          </div>
-        </div>
-      </div>
-      
-      <div class="cards__cards__card">
-        <div class="cards__cards__card__body">
-          Apache Beam represents a principled approach for analyzing data streams.
-        </div>
-        <div class="cards__cards__card__user">
-          <!-- TODO: Implement icons.
-          <div class="cards__cards__card__user__icon">
-          </div>
-          -->
-          <div class="cards__cards__card__user__name">
-            –data Artisans
-          </div>
-        </div>
-      </div>
-      
-    </div>
-    <div class="cards__body">
-      Beam is an open source community and contributions are greatly appreciated!
-      If you’d like to contribute, please see the <a href="/contribute/">Contribute</a> section.
-    </div>
-  </div>
-</div>
+<h3 id="ios">I/Os</h3>
 
-<div class="ctas section">
-  <div class="ctas__title">
-    Get started
+<ul>
+  <li>Add AvroIO.sink for IndexedRecord (FileIO compatible).</li>
+</ul>
+
+<h3 id="new-features--improvements">New Features / Improvements</h3>
+
+<ul>
+  <li>Support ParquetTable in SQL.</li>
+  <li>Add hot key detection to Dataflow Runner.</li>
+  <li>Enable throughput collection in BigQuery performance tests.</li>
+  <li>Support schemas in the JDBC sink.</li>
+</ul>
+
+<h3 id="bugfixes">Bugfixes</h3>
+
+<ul>
+  <li>Various bug fixes and performance improvements.</li>
+</ul>
+
+<h3 id="known-issues">Known Issues</h3>
+
+<ul>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-7616">BEAM-7616</a> urlopen calls may get stuck.</li>
+</ul>
+
+<h2 id="list-of-contributors">List of Contributors</h2>
+
+<p>According to git shortlog, the following people contributed to the 2.15.0 release. Thank you to all contributors!</p>
+
+<p>Ahmet Altay, Alexey Romanenko, Alex Goos, Alireza Samadian, Andrew Pilloud, Ankur Goenka,
+Anton Kedin, Aryan Naraghi, Bartok Jozsef, bmv126, B M VISHWAS, Boyuan Zhang,
+Brian Hulette, brucearctor, Cade Markegard, Cam Mach, Chad Dombrova,
+Chaim Turkel, Chamikara Jayalath, Charith Ellawala, Claire McGinty, Craig Chambers,
+Daniel Oliveira, David Cavazos, David Moravek, Dominic Mitchell, Dustin Rhodes,
+Etienne Chauchot, Filipe Regadas, Gleb Kanterov, Gunnar Schulze, Hannah Jiang,
+Heejong Lee, Henry Suryawirawan, Ismaël Mejía, Ivo Galic, Jan Lukavský,
+Jawad, Juta, Juta Staes, Kai Jiang, Kamil Wasilewski, Kasia Kucharczyk,
+Kenneth Jung, Kenneth Knowles, Kyle Weaver, Lily Li, Logan HAUSPIE, lostluck,
+Łukasz Gajowy, Luke Cwik, Mark Liu, Matt Helm, Maximilian Michels,
+Michael Luckey, Mikhail Gryzykhin, Neville Li, Nicholas Rucci, pabloem,
+Pablo Estrada, Paul King, Paul Suganthan, Raheel Khan, Rakesh Kumar,
+Reza Rokni, Robert Bradshaw, Robert Burke, rosetn, Rui Wang, Ryan Skraba, RyanSkraba,
+Sahith Nallapareddy, Sam Rohde, Sam Whittle, Steve Niemitz, Tanay Tummalapalli, Thomas Weise,
+Tianyang Hu, ttanay, tvalentyn, Udi Meiri, Valentyn Tymofieiev, Wout Scheepers,
+yanzhi, Yekut, Yichi Zhang, Yifan Zou, yoshiki.obata, Yueyang Qiu, Yunqing Zhou</p>
+
   </div>
-  <div class="ctas__ctas ctas__ctas--top">
-  <a class="button button--primary" href="/get-started/beam-overview/">Learn more</a>
-  <a class="button button--primary" href="/get-started/downloads/">Download Beam SDK 2.15.0</a>
-  </div>
-  <div class="ctas__ctas">
-  <a class="button" href="/get-started/quickstart-java/">Java Quickstart</a>
-  <a class="button" href="/get-started/quickstart-py/">Python Quickstart</a>
-  <a class="button" href="/get-started/quickstart-go/">Go Quickstart</a>
-  </div>
-</div>
+
+</article>
 
     </div>
     <!--

@@ -20,26 +20,15 @@
     <generator>Jekyll v3.2.0</generator>
     
       <item>
-        <title>Beam 2.15.0</title>
-        <description>&lt;hr /&gt;
-
-&lt;p&gt;layout: post
-title:  “Apache Beam 2.15.0”
-date:   2019-08-22 00:00:01 -0800&lt;/p&gt;
-&lt;h1 id=&quot;date-above-corrected-but-keep-the-old-url&quot;&gt;Date above corrected but keep the old URL:&lt;/h1&gt;
-&lt;p&gt;permalink: /blog/2019/08/22/beam-2.15.0.html
-excerpt_separator: &lt;!--more--&gt;
-categories: blog
-authors:
-        - yifanzou&lt;/p&gt;
-
-&lt;hr /&gt;
-&lt;!--
+        <title>Apache Beam 2.15.0</title>
+        <description>&lt;!--
 Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
- http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
@@ -47,7 +36,7 @@ limitations under the License.
 --&gt;
 
 &lt;p&gt;We are happy to present the new 2.15.0 release of Beam. This release includes both improvements and new functionality.
-See the &lt;a href=&quot;/get-started/downloads/#2130-2019-08-22&quot;&gt;download page&lt;/a&gt; for this release.&lt;!--more--&gt;
+See the &lt;a href=&quot;/get-started/downloads/#2150-2019-08-22&quot;&gt;download page&lt;/a&gt; for this release.&lt;!--more--&gt;
 For more information on changes in 2.15.0, check out the
 &lt;a href=&quot;https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12345489&quot;&gt;detailed release notes&lt;/a&gt;.&lt;/p&gt;
 
@@ -105,10 +94,12 @@ Sahith Nallapareddy, Sam Rohde, Sam Whittle, Steve Niemitz, Tanay Tummalapalli, 
 Tianyang Hu, ttanay, tvalentyn, Udi Meiri, Valentyn Tymofieiev, Wout Scheepers,
 yanzhi, Yekut, Yichi Zhang, Yifan Zou, yoshiki.obata, Yueyang Qiu, Yunqing Zhou&lt;/p&gt;
 </description>
-        <pubDate>Thu, 22 Aug 2019 00:00:00 -0700</pubDate>
-        <link>https://beam.apache.org/2019/08/22/beam-2.15.0.html</link>
-        <guid isPermaLink="true">https://beam.apache.org/2019/08/22/beam-2.15.0.html</guid>
+        <pubDate>Thu, 22 Aug 2019 01:00:01 -0700</pubDate>
+        <link>https://beam.apache.org/blog/2019/08/22/beam-2.15.0.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2019/08/22/beam-2.15.0.html</guid>
         
+        
+        <category>blog</category>
         
       </item>
     
