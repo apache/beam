@@ -145,8 +145,8 @@ class Pipeline(object):
     if isinstance(runner, str):
       runner = create_runner(runner)
     elif not isinstance(runner, PipelineRunner):
-      raise TypeError('Runner must be a PipelineRunner object or the '
-                      'name of a registered runner.')
+      raise TypeError('Runner %s is not a PipelineRunner object or the '
+                      'name of a registered runner.' % runner)
 
     # Validate pipeline options
     errors = PipelineOptionsValidator(self._options, runner).validate()
