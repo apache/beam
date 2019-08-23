@@ -136,6 +136,7 @@ def _reject_generators(unused_pickler, unused_obj):
 
 dill.dill.Pickler.dispatch[types.GeneratorType] = _reject_generators
 
+# TODO: Remove this once uqfoundation/dill#313 is fixed
 if sys.version_info[0] > 2:
   # Monkey patch for dill._dill.Pickler to pickle functions
   # with keyword-only args
@@ -145,7 +146,6 @@ if sys.version_info[0] > 2:
                                       fdefaults=None, fclosure=None, fdict=None,
                                       fkwdefaults=None):
     func = _create_function(fcode, fglobals, fname, fdefaults, fclosure, fdict)
-    # fkwdefaults is not None when called from new_save_reduce, skip None check
     func.__kwdefaults__ = fkwdefaults
     return func
 
