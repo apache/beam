@@ -30,14 +30,10 @@ class ExtraAssertionsMixinTest(ExtraAssertionsMixin, unittest.TestCase):
   def test_assert_array_count_equal_strings(self):
     data1 = [u"±♠Ωℑ", u"hello", "world"]
     data2 = ["hello", u"±♠Ωℑ", u"world"]
-    self.assertArrayCountEqual(data1, data2)
+    self.assertUnhashableCountEqual(data1, data2)
 
   def test_assert_array_count_equal_mixed(self):
-    # TODO(ostrokach): Add a timeout, since if assertArrayCountEqual is not
-    # implemented efficiently, this test has the potential to run for a very
-    # long time.
     data1 = [
-        #
         {'a': 1, 123: 1.234},
         ['d', 1],
         u"±♠Ωℑ",
@@ -47,11 +43,10 @@ class ExtraAssertionsMixinTest(ExtraAssertionsMixin, unittest.TestCase):
         100,
         'abc',
         ('a', 'b', 'c'),
-        None
+        None,
     ]
     data2 = [
-        #
-        {'a': 1, 123: 1.234},
+        {123: 1.234, 'a': 1},
         ('a', 'b', 'c'),
         ['d', 1],
         None,
@@ -60,10 +55,16 @@ class ExtraAssertionsMixinTest(ExtraAssertionsMixin, unittest.TestCase):
         u"±♠Ωℑ",
         100,
         (1, 2, 3, 'b'),
-        np.zeros((3, 6))
+        np.zeros((3, 6)),
     ]
-    self.assertArrayCountEqual(data1, data2)
-    self.assertArrayCountEqual(data1 * 2, data2 * 2)
+    self.assertUnhashableCountEqual(data1, data2)
+    self.assertUnhashableCountEqual(data1 * 2, data2 * 2)
+
+  def test_assert_not_equal(self):
+    data1 = [{'a': 123, 'b': 321}, [1, 2, 3]]
+    data2 = [{'a': 123, 'c': 321}, [1, 2, 3]]
+    with self.assertRaises(AssertionError):
+      self.assertUnhashableCountEqual(data1, data2)
 
 
 if __name__ == '__main__':
