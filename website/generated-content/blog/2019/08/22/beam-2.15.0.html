@@ -197,21 +197,25 @@ For more information on changes in 2.15.0, check out the
 
 <ul>
   <li>Vendored Guava was upgraded to version 26.0.</li>
+  <li>Support multi-process execution on the FnApiRunner for Python. (<a href="https://issues.apache.org/jira/browse/BEAM-3645">BEAM-3645</a>)</li>
 </ul>
 
 <h3 id="ios">I/Os</h3>
 
 <ul>
-  <li>Add AvroIO.sink for IndexedRecord (FileIO compatible).</li>
+  <li>Add AvroIO.sink for IndexedRecord (FileIO compatible). (<a href="https://issues.apache.org/jira/browse/BEAM-6480">BEAM-6480</a>)</li>
+  <li>Add support for writing to BigQuery clustered tables. (<a href="https://issues.apache.org/jira/browse/BEAM-5191">BEAM-5191</a>)</li>
 </ul>
 
 <h3 id="new-features--improvements">New Features / Improvements</h3>
 
 <ul>
-  <li>Support ParquetTable in SQL.</li>
-  <li>Add hot key detection to Dataflow Runner.</li>
-  <li>Enable throughput collection in BigQuery performance tests.</li>
-  <li>Support schemas in the JDBC sink.</li>
+  <li>Support ParquetTable in SQL. (<a href="https://issues.apache.org/jira/browse/BEAM-7728">BEAM-7728</a>)</li>
+  <li>Add hot key detection to Dataflow Runner. (<a href="https://issues.apache.org/jira/browse/BEAM-7820">BEAM-7820</a>)</li>
+  <li>Support schemas in the JDBC sink. (<a href="https://issues.apache.org/jira/browse/BEAM-6675">BEAM-6675</a>)</li>
+  <li>Report GCS throttling time to Dataflow autoscaler for better autoscaling. (<a href="https://issues.apache.org/jira/browse/BEAM-7667">BEAM-7667</a>)</li>
+  <li>Support transform_name_mapping option in Python SDK for <code class="highlighter-rouge">--update</code> use. (<a href="https://issues.apache.org/jira/browse/BEAM-7761">BEAM-7761</a>)</li>
+  <li>Dependency: Upgrade Jackson databind to version 2.9.9.3 (<a href="https://issues.apache.org/jira/browse/BEAM-7880">BEAM-7880</a>)</li>
 </ul>
 
 <h3 id="bugfixes">Bugfixes</h3>
@@ -223,7 +227,12 @@ For more information on changes in 2.15.0, check out the
 <h3 id="known-issues">Known Issues</h3>
 
 <ul>
-  <li><a href="https://issues.apache.org/jira/browse/BEAM-7616">BEAM-7616</a> urlopen calls may get stuck.</li>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-7616">BEAM-7616</a> urlopen calls may get stuck. (Regression from 2.14.0)</li>
+</ul>
+
+<h3 id="breaking-changes">Breaking Changes</h3>
+<ul>
+  <li><code class="highlighter-rouge">--region</code> flag will be a required flag in the future for Dataflow. A warning is added to warn for this future change. (<a href="https://issues.apache.org/jira/browse/BEAM-7833">BEAM-7833</a>)</li>
 </ul>
 
 <h2 id="list-of-contributors">List of Contributors</h2>

@@ -44,21 +44,25 @@ For more information on changes in 2.15.0, check out the
 
 &lt;ul&gt;
   &lt;li&gt;Vendored Guava was upgraded to version 26.0.&lt;/li&gt;
+  &lt;li&gt;Support multi-process execution on the FnApiRunner for Python. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-3645&quot;&gt;BEAM-3645&lt;/a&gt;)&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;h3 id=&quot;ios&quot;&gt;I/Os&lt;/h3&gt;
 
 &lt;ul&gt;
-  &lt;li&gt;Add AvroIO.sink for IndexedRecord (FileIO compatible).&lt;/li&gt;
+  &lt;li&gt;Add AvroIO.sink for IndexedRecord (FileIO compatible). (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-6480&quot;&gt;BEAM-6480&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Add support for writing to BigQuery clustered tables. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-5191&quot;&gt;BEAM-5191&lt;/a&gt;)&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;h3 id=&quot;new-features--improvements&quot;&gt;New Features / Improvements&lt;/h3&gt;
 
 &lt;ul&gt;
-  &lt;li&gt;Support ParquetTable in SQL.&lt;/li&gt;
-  &lt;li&gt;Add hot key detection to Dataflow Runner.&lt;/li&gt;
-  &lt;li&gt;Enable throughput collection in BigQuery performance tests.&lt;/li&gt;
-  &lt;li&gt;Support schemas in the JDBC sink.&lt;/li&gt;
+  &lt;li&gt;Support ParquetTable in SQL. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7728&quot;&gt;BEAM-7728&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Add hot key detection to Dataflow Runner. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7820&quot;&gt;BEAM-7820&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Support schemas in the JDBC sink. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-6675&quot;&gt;BEAM-6675&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Report GCS throttling time to Dataflow autoscaler for better autoscaling. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7667&quot;&gt;BEAM-7667&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Support transform_name_mapping option in Python SDK for &lt;code class=&quot;highlighter-rouge&quot;&gt;--update&lt;/code&gt; use. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7761&quot;&gt;BEAM-7761&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Dependency: Upgrade Jackson databind to version 2.9.9.3 (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7880&quot;&gt;BEAM-7880&lt;/a&gt;)&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;h3 id=&quot;bugfixes&quot;&gt;Bugfixes&lt;/h3&gt;
@@ -70,7 +74,12 @@ For more information on changes in 2.15.0, check out the
 &lt;h3 id=&quot;known-issues&quot;&gt;Known Issues&lt;/h3&gt;
 
 &lt;ul&gt;
-  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7616&quot;&gt;BEAM-7616&lt;/a&gt; urlopen calls may get stuck.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7616&quot;&gt;BEAM-7616&lt;/a&gt; urlopen calls may get stuck. (Regression from 2.14.0)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;breaking-changes&quot;&gt;Breaking Changes&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;--region&lt;/code&gt; flag will be a required flag in the future for Dataflow. A warning is added to warn for this future change. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7833&quot;&gt;BEAM-7833&lt;/a&gt;)&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;h2 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h2&gt;
