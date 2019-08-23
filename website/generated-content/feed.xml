@@ -20,6 +20,99 @@
     <generator>Jekyll v3.2.0</generator>
     
       <item>
+        <title>Beam 2.15.0</title>
+        <description>&lt;hr /&gt;
+
+&lt;p&gt;layout: post
+title:  “Apache Beam 2.15.0”
+date:   2019-08-22 00:00:01 -0800&lt;/p&gt;
+&lt;h1 id=&quot;date-above-corrected-but-keep-the-old-url&quot;&gt;Date above corrected but keep the old URL:&lt;/h1&gt;
+&lt;p&gt;permalink: /blog/2019/08/22/beam-2.15.0.html
+excerpt_separator: &lt;!--more--&gt;
+categories: blog
+authors:
+        - yifanzou&lt;/p&gt;
+
+&lt;hr /&gt;
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+ http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+
+&lt;p&gt;We are happy to present the new 2.15.0 release of Beam. This release includes both improvements and new functionality.
+See the &lt;a href=&quot;/get-started/downloads/#2130-2019-08-22&quot;&gt;download page&lt;/a&gt; for this release.&lt;!--more--&gt;
+For more information on changes in 2.15.0, check out the
+&lt;a href=&quot;https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12345489&quot;&gt;detailed release notes&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;highlights&quot;&gt;Highlights&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Vendored Guava was upgraded to version 26.0.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;ios&quot;&gt;I/Os&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Add AvroIO.sink for IndexedRecord (FileIO compatible).&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;new-features--improvements&quot;&gt;New Features / Improvements&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Support ParquetTable in SQL.&lt;/li&gt;
+  &lt;li&gt;Add hot key detection to Dataflow Runner.&lt;/li&gt;
+  &lt;li&gt;Enable throughput collection in BigQuery performance tests.&lt;/li&gt;
+  &lt;li&gt;Support schemas in the JDBC sink.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;bugfixes&quot;&gt;Bugfixes&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Various bug fixes and performance improvements.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;known-issues&quot;&gt;Known Issues&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7616&quot;&gt;BEAM-7616&lt;/a&gt; urlopen calls may get stuck.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h2&gt;
+
+&lt;p&gt;According to git shortlog, the following people contributed to the 2.15.0 release. Thank you to all contributors!&lt;/p&gt;
+
+&lt;p&gt;Ahmet Altay, Alexey Romanenko, Alex Goos, Alireza Samadian, Andrew Pilloud, Ankur Goenka,
+Anton Kedin, Aryan Naraghi, Bartok Jozsef, bmv126, B M VISHWAS, Boyuan Zhang,
+Brian Hulette, brucearctor, Cade Markegard, Cam Mach, Chad Dombrova,
+Chaim Turkel, Chamikara Jayalath, Charith Ellawala, Claire McGinty, Craig Chambers,
+Daniel Oliveira, David Cavazos, David Moravek, Dominic Mitchell, Dustin Rhodes,
+Etienne Chauchot, Filipe Regadas, Gleb Kanterov, Gunnar Schulze, Hannah Jiang,
+Heejong Lee, Henry Suryawirawan, Ismaël Mejía, Ivo Galic, Jan Lukavský,
+Jawad, Juta, Juta Staes, Kai Jiang, Kamil Wasilewski, Kasia Kucharczyk,
+Kenneth Jung, Kenneth Knowles, Kyle Weaver, Lily Li, Logan HAUSPIE, lostluck,
+Łukasz Gajowy, Luke Cwik, Mark Liu, Matt Helm, Maximilian Michels,
+Michael Luckey, Mikhail Gryzykhin, Neville Li, Nicholas Rucci, pabloem,
+Pablo Estrada, Paul King, Paul Suganthan, Raheel Khan, Rakesh Kumar,
+Reza Rokni, Robert Bradshaw, Robert Burke, rosetn, Rui Wang, Ryan Skraba, RyanSkraba,
+Sahith Nallapareddy, Sam Rohde, Sam Whittle, Steve Niemitz, Tanay Tummalapalli, Thomas Weise,
+Tianyang Hu, ttanay, tvalentyn, Udi Meiri, Valentyn Tymofieiev, Wout Scheepers,
+yanzhi, Yekut, Yichi Zhang, Yifan Zou, yoshiki.obata, Yueyang Qiu, Yunqing Zhou&lt;/p&gt;
+</description>
+        <pubDate>Thu, 22 Aug 2019 00:00:00 -0700</pubDate>
+        <link>https://beam.apache.org/2019/08/22/beam-2.15.0.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/2019/08/22/beam-2.15.0.html</guid>
+        
+        
+      </item>
+    
+      <item>
         <title>Apache Beam 2.14.0</title>
         <description>&lt;!--
 Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -1179,46 +1272,6 @@ This project involves a number of &lt;a href=&quot;https://issues.apache.org/jir
         <pubDate>Fri, 19 Apr 2019 01:00:01 -0700</pubDate>
         <link>https://beam.apache.org/blog/2019/04/19/season-of-docs.html</link>
         <guid isPermaLink="true">https://beam.apache.org/blog/2019/04/19/season-of-docs.html</guid>
-        
-        
-        <category>blog</category>
-        
-      </item>
-    
-      <item>
-        <title>Announcing Beam Summit Site</title>
-        <description>&lt;!--
-Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---&gt;
-
-&lt;p&gt;We are thrilled to announce the launch of our new website dedicated to Beam Summits!&lt;/p&gt;
-
-&lt;p&gt;The &lt;a href=&quot;https://beamsummit.org&quot;&gt;beamsummit.org&lt;/a&gt; site provides all the information you need towards the upcoming Beam Summits in Europe, Asia and North America in 2019. You will find information about the conference theme, the speakers and sessions, the abstract submission timeline and the registration process, the conference venues and hosting cities - and much more that you will find useful until and during the Beam Summits 2019.&lt;/p&gt;
-
-&lt;p&gt;We are working to make the website easy to use, so that anyone who is organizing a Beam event can rely on it. You can find the &lt;a href=&quot;https://github.com/matthiasa4/hoverboard&quot;&gt;code for it in Github&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;The pages will be updated on a regular basis, but we also love hearing thoughts from our community! Let us know if you have any questions, comments or suggestions, and help us improve! Also, if you are thinking of organizing a Beam event, please feel free to reach out for support, and to use the code in GitHub as well.&lt;/p&gt;
-
-&lt;p&gt;We sincerely hope that you like the new Beam Summit website and will find it useful for accessing information. Enjoy browsing around!&lt;/p&gt;
-
-&lt;p&gt;See you in Berlin!&lt;/p&gt;
-
-&lt;p&gt;#beamsummit2019.&lt;/p&gt;
-
-</description>
-        <pubDate>Mon, 18 Mar 2019 01:00:01 -0700</pubDate>
-        <link>https://beam.apache.org/blog/2019/03/18/beam-summit-site.html</link>
-        <guid isPermaLink="true">https://beam.apache.org/blog/2019/03/18/beam-summit-site.html</guid>
         
         
         <category>blog</category>
