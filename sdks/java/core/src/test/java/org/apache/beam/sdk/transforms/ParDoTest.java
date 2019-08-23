@@ -772,6 +772,60 @@ public class ParDoTest implements Serializable {
 
     @Test
     @Category({ValidatesRunner.class, UsesSideInputs.class})
+    public void testSideInputAnnotationWithMultipleSideInputs() {
+
+      final PCollectionView<List<Integer>> sideInput1 =
+          pipeline
+              .apply("CreateSideInput1", Create.of(2, 0))
+              .apply("ViewSideInput1", View.asList());
+
+      final PCollectionView<List<Integer>> sideInput2 =
+          pipeline
+              .apply("CreateSideInput2", Create.of(5, 6))
+              .apply("ViewSideInput2", View.asList());
+
+      final PCollectionView<List<Integer>> sideInput3 =
+          pipeline
+              .apply("CreateSideInput3", Create.of(1, 3))
+              .apply("ViewSideInput3", View.asList());
+
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+      final String sideInputTag2 = "tag2";
+      final String sideInputTag3 = "tag3";
+
+      DoFn<Integer, List<Integer>> fn =
+          new DoFn<Integer, List<Integer>>() {
+            @ProcessElement
+            public void processElement(
+                OutputReceiver<List<Integer>> r,
+                @SideInput(sideInputTag1) List<Integer> tag1,
+                @SideInput(sideInputTag2) List<Integer> tag2,
+                @SideInput(sideInputTag3) List<Integer> tag3) {
+
+              List<Integer> sideSorted = Lists.newArrayList(tag1);
+              sideSorted.addAll(tag2);
+              sideSorted.addAll(tag3);
+              Collections.sort(sideSorted);
+              r.output(sideSorted);
+            }
+          };
+
+      PCollection<List<Integer>> output =
+          pipeline
+              .apply("Create main input", Create.of(2))
+              .apply(
+                  ParDo.of(fn)
+                      .withSideInput(sideInputTag1, sideInput1)
+                      .withSideInput(sideInputTag2, sideInput2)
+                      .withSideInput(sideInputTag3, sideInput3));
+
+      PAssert.that(output).containsInAnyOrder(Lists.newArrayList(0, 1, 2, 3, 5, 6));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testParDoWithSideInputsIsCumulative() {
 
       List<Integer> inputs = Arrays.asList(3, -42, 666);
