@@ -3442,7 +3442,6 @@ public class ZetaSQLDialectSpecTestZetaSQL {
   }
 
   @Test
-  @Ignore("Need to improve codegen's bytes support")
   public void testSelectBytes() {
     String sql = "SELECT b\"ByTes\"";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
