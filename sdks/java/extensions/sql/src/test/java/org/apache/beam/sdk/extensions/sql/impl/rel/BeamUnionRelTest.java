@@ -70,18 +70,20 @@ public class BeamUnionRelTest extends BaseRelTest {
   public void testThreewayUnion() throws Exception {
     String sql =
             "SELECT "
-                    + " 1 FROM ORDER_DETAILS "
+                    + " order_id, site_id, price FROM ORDER_DETAILS "
                     + " UNION SELECT "
-                    + " 2 FROM ORDER_DETAILS "
+                    + " order_id, site_id, price FROM ORDER_DETAILS "
                     + " UNION SELECT "
-                    + " 3 FROM ORDER_DETAILS ";
+                    + " order_id, site_id, price FROM ORDER_DETAILS ";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);
     PAssert.that(rows)
             .containsInAnyOrder(
                     TestUtils.RowsBuilder.of(
-                            Schema.FieldType.INT32, "site_id")
-                            .addRows( 1,2,3 )
+                            Schema.FieldType.INT64, "order_id",
+                            Schema.FieldType.INT32, "site_id",
+                            Schema.FieldType.DECIMAL, "price")
+                            .addRows(1L, 1, new BigDecimal(1.0), 2L, 2, new BigDecimal(2.0))
                             .getRows());
     pipeline.run();
   }

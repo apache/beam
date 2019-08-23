@@ -20,6 +20,9 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSetOperatorsTransforms;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -59,53 +62,68 @@ public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCo
   @Override
   public PCollection<Row> expand(PCollectionList<Row> inputs) {
     checkArgument(
-        inputs.size() == 3,
+        inputs.size() >= 2,
         "Wrong number of arguments to %s: %s",
         beamRelNode.getClass().getSimpleName(),
         inputs);
-    PCollection<Row> leftRows = inputs.get(0);
-    PCollection<Row> middleRows = inputs.get(1);
-    PCollection<Row> rightRows = inputs.get(2);
 
-    WindowFn leftWindow = leftRows.getWindowingStrategy().getWindowFn();
-    WindowFn middleWindow = middleRows.getWindowingStrategy().getWindowFn();
-    WindowFn rightWindow = rightRows.getWindowingStrategy().getWindowFn();
-    if (!leftWindow.isCompatible(rightWindow) || !middleWindow.isCompatible(rightWindow)
-            || !rightWindow.isCompatible(leftWindow)){
+    if(!areWinCompatible(inputs)){
       throw new IllegalArgumentException(
-          "inputs of "
-              + opType
-              + " have different window strategy: "
-              + leftWindow
-              + " VS "
-              + rightWindow);
+              "inputs of "
+                      + opType
+                      + " have different window strategy: " );
     }
 
-    final TupleTag<Row> leftTag = new TupleTag<>();
-    final TupleTag<Row> middleTag = new TupleTag<>();
-    final TupleTag<Row> rightTag = new TupleTag<>();
+      // co-group
+    List<TupleTag<Row>> tagList = new ArrayList<>();
+    tagList.add(new TupleTag());
 
-    // co-group
+    KeyedPCollectionTuple kPCollection = KeyedPCollectionTuple.of( tagList.get(0),
+            inputs.get(0).apply(
+                    "CreateIndexNo_"+0,
+                    MapElements.via(new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())));
+
+    for(int i=1;i< inputs.size();i++){
+      tagList.add(new TupleTag());
+      kPCollection = kPCollection.and(
+              tagList.get(i),
+              inputs.get(i).apply(
+                      "CreateIndexNo_"+i,
+                      MapElements.via(new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())));
+    }
+
     PCollection<KV<Row, CoGbkResult>> coGbkResultCollection =
-        KeyedPCollectionTuple.of(
-                leftTag,
-                leftRows.apply(
-                    "CreateLeftIndex",
-                    MapElements.via(new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())))
-                .and(
-                        middleTag,
-                        middleRows.apply(
-                                "CreateLastIndex",
-                                MapElements.via(new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())))
-                .and(
-                        rightTag,
-                        rightRows.apply(
-                                "CreateRightIndex",
-                                MapElements.via(new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())))
-                .apply(CoGroupByKey.create());
+            (PCollection<KV<Row, CoGbkResult>> )kPCollection.apply(CoGroupByKey.create());
+
     return coGbkResultCollection.apply(
-        ParDo.of(
-            new BeamSetOperatorsTransforms.SetOperatorFilteringDoFn(
-                leftTag, middleTag, rightTag, opType, all)));
+            ParDo.of(
+                    new BeamSetOperatorsTransforms.SetOperatorFilteringDoFn(
+                            tagList, opType, all)));
+  }
+
+  private boolean areWinCompatible(PCollectionList<Row> inputs){
+
+    for(int i= 0;  i < inputs.size();i++){
+
+      if(i == inputs.size()-1) {
+        WindowFn leftWindow = inputs.get(i).getWindowingStrategy().getWindowFn();
+        WindowFn rightWindow = inputs.get(0).getWindowingStrategy().getWindowFn();
+
+        if (!leftWindow.isCompatible(rightWindow) || !rightWindow.isCompatible(leftWindow))
+          return false;
+      }
+      else
+      {
+        WindowFn leftWindow = inputs.get(i).getWindowingStrategy().getWindowFn();
+        WindowFn rightWindow = inputs.get(i+1).getWindowingStrategy().getWindowFn();
+
+        if (!leftWindow.isCompatible(rightWindow) || !rightWindow.isCompatible(leftWindow))
+          return false;
+      }
+
+
+    }
+
+    return true;
   }
 }
