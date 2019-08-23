@@ -152,8 +152,8 @@ if sys.version_info[0] > 2:
   def new_save_reduce(self, func, args, state=None, listitems=None,
                       dictitems=None, obj=None):
     pickler = super(dill.dill.Pickler, self)
-    if func is _create_function and \
-            getattr(obj, '__kwdefaults__', None) is not None:
+    if (func is _create_function
+        and getattr(obj, '__kwdefaults__', None) is not None):
       pickler.save_reduce(func=_create_function_has_kwdefaults,
                           args=args + (getattr(obj, '__kwdefaults__', None),),
                           state=state, listitems=listitems, dictitems=dictitems,
