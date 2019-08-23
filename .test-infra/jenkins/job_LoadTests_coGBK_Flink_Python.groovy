@@ -41,7 +41,7 @@ def loadTestConfigurations = { datasetName -> [
                         project              : 'apache-beam-testing',
                         job_name             : 'load-tests-python-flink-batch-cogbk-1-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
-                        publish_to_big_query : true,
+                        publish_to_big_query : false,
                         metrics_dataset      : datasetName,
                         metrics_table        : "python_flink_batch_cogbk_1",
                         input_options        : '\'{' +
@@ -71,7 +71,7 @@ def loadTestConfigurations = { datasetName -> [
                         project              : 'apache-beam-testing',
                         job_name             : 'load-tests-python-flink-batch-cogbk-2-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
-                        publish_to_big_query : true,
+                        publish_to_big_query : false,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_flink_batch_cogbk_2',
                         input_options        : '\'{' +
@@ -101,7 +101,7 @@ def loadTestConfigurations = { datasetName -> [
                         project              : 'apache-beam-testing',
                         job_name             : 'load-tests-python-flink-batch-cogbk-3-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
-                        publish_to_big_query : true,
+                        publish_to_big_query : false,
                         metrics_dataset      : datasetName,
                         metrics_table        : "python_flink_batch_cogbk_3",
                         input_options        : '\'{' +
@@ -131,7 +131,7 @@ def loadTestConfigurations = { datasetName -> [
                         project              : 'apache-beam-testing',
                         job_name             : 'load-tests-python-flink-batch-cogbk-4-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
-                        publish_to_big_query : true,
+                        publish_to_big_query : false,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_flink_batch_cogbk_4',
                         input_options        : '\'{' +
