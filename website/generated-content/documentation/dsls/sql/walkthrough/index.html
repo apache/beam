@@ -172,7 +172,7 @@
   <span class="section-nav-list-title">Java</span>
   <ul class="section-nav-list">
     <li><a href="/documentation/sdks/java/">Java SDK overview</a></li>
-    <li><a href="https://beam.apache.org/releases/javadoc/2.14.0/" target="_blank">Java SDK API reference <img src="/images/external-link-icon.png"
+    <li><a href="https://beam.apache.org/releases/javadoc/2.15.0/" target="_blank">Java SDK API reference <img src="/images/external-link-icon.png"
                                                                                                                                    width="14" height="14"
                                                                                                                                    alt="External link."></a>
     </li>
@@ -187,7 +187,7 @@
   <span class="section-nav-list-title">Python</span>
   <ul class="section-nav-list">
     <li><a href="/documentation/sdks/python/">Python SDK overview</a></li>
-    <li><a href="https://beam.apache.org/releases/pydoc/2.14.0/" target="_blank">Python SDK API reference <img src="/images/external-link-icon.png"
+    <li><a href="https://beam.apache.org/releases/pydoc/2.15.0/" target="_blank">Python SDK API reference <img src="/images/external-link-icon.png"
                                                                                                                                    width="14" height="14"
                                                                                                                                    alt="External link."></a>
     </li>
@@ -292,8 +292,8 @@ limitations under the License.
 <p>Before applying a SQL query to a <code class="highlighter-rouge">PCollection</code>, the data in the collection must
 be in <code class="highlighter-rouge">Row</code> format. A <code class="highlighter-rouge">Row</code> represents a single, immutable record in a Beam SQL
 <code class="highlighter-rouge">PCollection</code>. The names and types of the fields/columns in the row are defined
-by its associated <a href="https://beam.apache.org/releases/javadoc/2.14.0/index.html?org/apache/beam/sdk/schemas/Schema.html">Schema</a>.
-You can use the <a href="https://beam.apache.org/releases/javadoc/2.14.0/index.html?org/apache/beam/sdk/schemas/Schema.html">Schema.builder()</a> to create
+by its associated <a href="https://beam.apache.org/releases/javadoc/2.15.0/index.html?org/apache/beam/sdk/schemas/Schema.html">Schema</a>.
+You can use the <a href="https://beam.apache.org/releases/javadoc/2.15.0/index.html?org/apache/beam/sdk/schemas/Schema.html">Schema.builder()</a> to create
 <code class="highlighter-rouge">Schemas</code>. See <a href="/documentation/dsls/sql/data-types">Data
 Types</a> for more details on supported primitive data types.</p>
 
@@ -376,7 +376,7 @@ Types</a> for more details on supported primitive data types.</p>
 
 <h2 id="sqltransform">SqlTransform</h2>
 
-<p><a href="https://beam.apache.org/releases/javadoc/2.14.0/index.html?org/apache/beam/sdk/extensions/sql/SqlTransform.html"><code class="highlighter-rouge">SqlTransform.query(queryString)</code></a> method is the only API to create a <code class="highlighter-rouge">PTransform</code>
+<p><a href="https://beam.apache.org/releases/javadoc/2.15.0/index.html?org/apache/beam/sdk/extensions/sql/SqlTransform.html"><code class="highlighter-rouge">SqlTransform.query(queryString)</code></a> method is the only API to create a <code class="highlighter-rouge">PTransform</code>
 from a string representation of the SQL query. You can apply this <code class="highlighter-rouge">PTransform</code>
 to either a single <code class="highlighter-rouge">PCollection</code> or a <code class="highlighter-rouge">PCollectionTuple</code> which holds multiple
 <code class="highlighter-rouge">PCollections</code>:</p>
