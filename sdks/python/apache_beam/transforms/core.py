@@ -1125,7 +1125,7 @@ class ParDo(PTransformWithSideInputs):
             'key types. Consider adding an input type hint for this transform.',
             key_coder, self)
 
-    return pvalue.PCollection(pcoll.pipeline)
+    return pvalue.PCollection.from_(pcoll)
 
   def with_outputs(self, *tags, **main_kw):
     """Returns a tagged tuple allowing access to the outputs of a
@@ -2041,7 +2041,7 @@ class _GroupByKeyOnly(PTransform):
 
   def expand(self, pcoll):
     self._check_pcollection(pcoll)
-    return pvalue.PCollection(pcoll.pipeline)
+    return pvalue.PCollection.from_(pcoll)
 
 
 @typehints.with_input_types(typing.Tuple[K, typing.Iterable[V]])
@@ -2055,7 +2055,7 @@ class _GroupAlsoByWindow(ParDo):
 
   def expand(self, pcoll):
     self._check_pcollection(pcoll)
-    return pvalue.PCollection(pcoll.pipeline)
+    return pvalue.PCollection.from_(pcoll)
 
 
 class _GroupAlsoByWindowDoFn(DoFn):
@@ -2338,7 +2338,8 @@ class Flatten(PTransform):
   def expand(self, pcolls):
     for pcoll in pcolls:
       self._check_pcollection(pcoll)
-    result = pvalue.PCollection(self.pipeline)
+    is_bounded = all(pcoll.is_bounded for pcoll in pcolls)
+    result = pvalue.PCollection(self.pipeline, is_bounded=is_bounded)
     result.element_type = typehints.Union[
         tuple(pcoll.element_type for pcoll in pcolls)]
     return result
