@@ -501,7 +501,13 @@ public class JdbcIO {
                   .withRowMapper(SchemaUtil.BeamRowMapper.of(schema))
                   .withFetchSize(getFetchSize())
                   .withOutputParallelization(getOutputParallelization())
-                  .withStatementPreparator(getStatementPreparator()));
+                  .withStatementPreparator(
+                      ps -> {
+                        StatementPreparator preparator = getStatementPreparator();
+                        if (preparator != null) {
+                          preparator.setParameters(ps);
+                        }
+                      }));
       rows.setRowSchema(schema);
       return rows;
     }
