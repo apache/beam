@@ -260,8 +260,11 @@ def get_synthetic_sdf_step(per_element_delay_sec=0,
         if np.random.random() < self._output_filter_ratio:
           filter_element = True
 
-      cur = restriction_tracker.start_position()
-      while restriction_tracker.try_claim(cur):
+      current_restriction = restriction_tracker.current_restriction()
+      for cur in range(current_restriction.start, current_restriction.stop):
+        if not restriction_tracker.try_claim(cur):
+          return
+
         if self._per_element_delay_sec:
           time.sleep(self._per_element_delay_sec)
 
