@@ -167,4 +167,4 @@ class ProcessKeyedElements(PTransform):
     self.ptransform_side_inputs = ptransform_side_inputs
 
   def expand(self, pcoll):
-    return pvalue.PCollection(pcoll.pipeline)
+    return pvalue.PCollection.from_(pcoll)
