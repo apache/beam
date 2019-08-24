@@ -49,6 +49,7 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.SideInput;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
@@ -96,7 +97,8 @@ public class DoFnSignatures {
               Parameter.PaneInfoParameter.class,
               Parameter.PipelineOptionsParameter.class,
               Parameter.TimerParameter.class,
-              Parameter.StateParameter.class);
+              Parameter.StateParameter.class,
+              Parameter.SideInputParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
@@ -107,7 +109,8 @@ public class DoFnSignatures {
               Parameter.OutputReceiverParameter.class,
               Parameter.TaggedOutputReceiverParameter.class,
               Parameter.ProcessContextParameter.class,
-              Parameter.RestrictionTrackerParameter.class);
+              Parameter.RestrictionTrackerParameter.class,
+              Parameter.SideInputParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>> ALLOWED_ON_TIMER_PARAMETERS =
       ImmutableList.of(
@@ -255,7 +258,6 @@ public class DoFnSignatures {
     public Map<String, TimerParameter> getTimerParameters() {
       return Collections.unmodifiableMap(timerParameters);
     }
-
     /** Extra parameters in their entirety. Unmodifiable. */
     public List<Parameter> getExtraParameters() {
       return Collections.unmodifiableList(extraParameters);
@@ -904,6 +906,11 @@ public class DoFnSignatures {
       return Parameter.timestampParameter();
     } else if (rawType.equals(TimeDomain.class)) {
       return Parameter.timeDomainParameter();
+    } else if (hasSideInputAnnotation(param.getAnnotations())) {
+      String sideInputId = getSideInputId(param.getAnnotations());
+      paramErrors.checkArgument(
+          sideInputId != null, "%s missing %s annotation", SideInput.class.getSimpleName());
+      return Parameter.sideInputParameter(paramT, sideInputId);
     } else if (rawType.equals(PaneInfo.class)) {
       return Parameter.paneInfoParameter();
     } else if (rawType.equals(DoFn.ProcessContext.class)) {
@@ -1056,6 +1063,12 @@ public class DoFnSignatures {
   }
 
   @Nullable
+  private static String getSideInputId(List<Annotation> annotations) {
+    DoFn.SideInput sideInputId = findFirstOfType(annotations, DoFn.SideInput.class);
+    return sideInputId != null ? sideInputId.value() : null;
+  }
+
+  @Nullable
   static <T> T findFirstOfType(List<Annotation> annotations, Class<T> clazz) {
     Optional<Annotation> annotation =
         annotations.stream().filter(a -> a.annotationType().equals(clazz)).findFirst();
@@ -1068,6 +1081,10 @@ public class DoFnSignatures {
 
   private static boolean hasTimestampAnnotation(List<Annotation> annotations) {
     return annotations.stream().anyMatch(a -> a.annotationType().equals(DoFn.Timestamp.class));
+  }
+
+  private static boolean hasSideInputAnnotation(List<Annotation> annotations) {
+    return annotations.stream().anyMatch(a -> a.annotationType().equals(DoFn.SideInput.class));
   }
 
   @Nullable

@@ -112,7 +112,8 @@ public class FlinkPipelineOptionsTest {
         null,
         null, /* key coder */
         null /* key selector */,
-        DoFnSchemaInformation.create());
+        DoFnSchemaInformation.create(),
+        Collections.emptyMap());
   }
 
   /** Tests that PipelineOptions are present after serialization. */
@@ -138,7 +139,8 @@ public class FlinkPipelineOptionsTest {
             options,
             null, /* key coder */
             null /* key selector */,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     final byte[] serialized = SerializationUtils.serialize(doFnOperator);
 

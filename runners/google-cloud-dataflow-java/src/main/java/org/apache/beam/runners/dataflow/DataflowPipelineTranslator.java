@@ -919,14 +919,18 @@ public class DataflowPipelineTranslator {
             DoFnSchemaInformation doFnSchemaInformation;
             doFnSchemaInformation =
                 ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
-
+            Map<String, PCollectionView<?>> sideInputMapping =
+                ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
             Map<TupleTag<?>, Coder<?>> outputCoders =
                 context.getOutputs(transform).entrySet().stream()
                     .collect(
                         Collectors.toMap(
                             Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
             translateInputs(
-                stepContext, context.getInput(transform), transform.getSideInputs(), context);
+                stepContext,
+                context.getInput(transform),
+                transform.getSideInputs().values(),
+                context);
             translateOutputs(context.getOutputs(transform), stepContext);
             String ptransformId =
                 context.getSdkComponents().getPTransformIdOrThrow(context.getCurrentTransform());
@@ -935,12 +939,13 @@ public class DataflowPipelineTranslator {
                 ptransformId,
                 transform.getFn(),
                 context.getInput(transform).getWindowingStrategy(),
-                transform.getSideInputs(),
+                transform.getSideInputs().values(),
                 context.getInput(transform).getCoder(),
                 context,
                 transform.getMainOutputTag(),
                 outputCoders,
-                doFnSchemaInformation);
+                doFnSchemaInformation,
+                sideInputMapping);
 
             // TODO: Move this logic into translateFn once the legacy ProcessKeyedElements is
             // removed.
@@ -972,7 +977,8 @@ public class DataflowPipelineTranslator {
             DoFnSchemaInformation doFnSchemaInformation;
             doFnSchemaInformation =
                 ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
-
+            Map<String, PCollectionView<?>> sideInputMapping =
+                ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
             StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
             Map<TupleTag<?>, Coder<?>> outputCoders =
                 context.getOutputs(transform).entrySet().stream()
@@ -981,7 +987,10 @@ public class DataflowPipelineTranslator {
                             Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
 
             translateInputs(
-                stepContext, context.getInput(transform), transform.getSideInputs(), context);
+                stepContext,
+                context.getInput(transform),
+                transform.getSideInputs().values(),
+                context);
             stepContext.addOutput(
                 transform.getMainOutputTag().getId(), context.getOutput(transform));
             String ptransformId =
@@ -991,12 +1000,13 @@ public class DataflowPipelineTranslator {
                 ptransformId,
                 transform.getFn(),
                 context.getInput(transform).getWindowingStrategy(),
-                transform.getSideInputs(),
+                transform.getSideInputs().values(),
                 context.getInput(transform).getCoder(),
                 context,
                 transform.getMainOutputTag(),
                 outputCoders,
-                doFnSchemaInformation);
+                doFnSchemaInformation,
+                sideInputMapping);
 
             // TODO: Move this logic into translateFn once the legacy ProcessKeyedElements is
             // removed.
@@ -1058,7 +1068,8 @@ public class DataflowPipelineTranslator {
             DoFnSchemaInformation doFnSchemaInformation;
             doFnSchemaInformation =
                 ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
-
+            Map<String, PCollectionView<?>> sideInputMapping =
+                ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
             StepTranslationContext stepContext =
                 context.addStep(transform, "SplittableProcessKeyed");
             Map<TupleTag<?>, Coder<?>> outputCoders =
@@ -1081,7 +1092,8 @@ public class DataflowPipelineTranslator {
                 context,
                 transform.getMainOutputTag(),
                 outputCoders,
-                doFnSchemaInformation);
+                doFnSchemaInformation,
+                sideInputMapping);
 
             stepContext.addInput(
                 PropertyNames.RESTRICTION_CODER,
@@ -1093,7 +1105,7 @@ public class DataflowPipelineTranslator {
   private static void translateInputs(
       StepTranslationContext stepContext,
       PCollection<?> input,
-      List<PCollectionView<?>> sideInputs,
+      Iterable<PCollectionView<?>> sideInputs,
       TranslationContext context) {
     stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
     translateSideInputs(stepContext, sideInputs, context);
@@ -1102,7 +1114,7 @@ public class DataflowPipelineTranslator {
   // Used for ParDo
   private static void translateSideInputs(
       StepTranslationContext stepContext,
-      List<PCollectionView<?>> sideInputs,
+      Iterable<PCollectionView<?>> sideInputs,
       TranslationContext context) {
     Map<String, Object> nonParInputs = new HashMap<>();
 
@@ -1125,7 +1137,8 @@ public class DataflowPipelineTranslator {
       TranslationContext context,
       TupleTag<?> mainOutput,
       Map<TupleTag<?>, Coder<?>> outputCoders,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
 
     if (signature.usesState() || signature.usesTimers()) {
@@ -1151,7 +1164,8 @@ public class DataflowPipelineTranslator {
                       inputCoder,
                       outputCoders,
                       mainOutput,
-                      doFnSchemaInformation))));
+                      doFnSchemaInformation,
+                      sideInputMapping))));
     }
 
     // Setting USES_KEYED_STATE will cause an ungrouped shuffle, which works

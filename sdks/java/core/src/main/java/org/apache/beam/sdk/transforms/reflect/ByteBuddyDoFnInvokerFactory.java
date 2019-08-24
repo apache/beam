@@ -45,6 +45,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PaneInfoPa
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StartBundleContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TaggedOutputReceiverParameter;
@@ -112,6 +113,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String RESTRICTION_TRACKER_PARAMETER_METHOD = "restrictionTracker";
   public static final String STATE_PARAMETER_METHOD = "state";
   public static final String TIMER_PARAMETER_METHOD = "timer";
+  public static final String SIDE_INPUT_PARAMETER_METHOD = "sideInput";
 
   /**
    * Returns a {@link ByteBuddyDoFnInvokerFactory} shared with all other invocations, so that its
@@ -786,6 +788,16 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
           @Override
           public StackManipulation dispatch(DoFnSignature.Parameter.PipelineOptionsParameter p) {
             return simpleExtraContextParameter(PIPELINE_OPTIONS_PARAMETER_METHOD);
+          }
+
+          @Override
+          public StackManipulation dispatch(SideInputParameter p) {
+            return new StackManipulation.Compound(
+                new TextConstant(p.sideInputId()),
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        SIDE_INPUT_PARAMETER_METHOD, String.class)),
+                TypeCasting.to(new TypeDescription.ForLoadedType(p.elementT().getRawType())));
           }
         });
   }

@@ -625,6 +625,14 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Target(ElementType.PARAMETER)
   public @interface Timestamp {}
 
+  /** Parameter annotation for the SideInput for a {@link ProcessElement} method. */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.PARAMETER)
+  public @interface SideInput {
+    /** The SideInput tag ID. */
+    String value();
+  }
   /**
    * <b><i>Experimental - no backwards compatibility guarantees. The exact name or usage of this
    * feature may change.</i></b>

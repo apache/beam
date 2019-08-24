@@ -94,7 +94,8 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
         options,
         keyCoder,
         keySelector,
-        DoFnSchemaInformation.create());
+        DoFnSchemaInformation.create(),
+        Collections.emptyMap());
   }
 
   @Override

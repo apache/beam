@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -368,7 +369,11 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
                 public SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
                   // Schemas not yet supported on splittable DoFn.
                   return ParDoTranslation.translateDoFn(
-                      fn, pke.getMainOutputTag(), DoFnSchemaInformation.create(), newComponents);
+                      fn,
+                      pke.getMainOutputTag(),
+                      Collections.emptyMap(),
+                      DoFnSchemaInformation.create(),
+                      newComponents);
                 }
 
                 @Override

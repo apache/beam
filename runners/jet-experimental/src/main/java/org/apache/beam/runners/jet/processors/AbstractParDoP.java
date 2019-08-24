@@ -95,6 +95,7 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
   private SideInputReader sideInputReader;
   private Outbox outbox;
   private long lastMetricsFlushTime = System.currentTimeMillis();
+  private Map<String, PCollectionView<?>> sideInputMapping;
 
   AbstractParDoP(
       DoFn<InputT, OutputT> doFn,
@@ -165,7 +166,8 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
             inputValueCoder,
             outputValueCoders,
             windowingStrategy,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
   }
 
   protected abstract DoFnRunner<InputT, OutputT> getDoFnRunner(
@@ -178,7 +180,8 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
       Coder<InputT> inputValueCoder,
       Map<TupleTag<?>, Coder<?>> outputValueCoders,
       WindowingStrategy<?, ?> windowingStrategy,
-      DoFnSchemaInformation doFnSchemaInformation);
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping);
 
   @Override
   public boolean isCooperative() {

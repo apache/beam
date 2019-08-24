@@ -106,7 +106,8 @@ public class StatefulParDoP<OutputT>
       Coder<KV<?, ?>> inputValueCoder,
       Map<TupleTag<?>, Coder<?>> outputValueCoders,
       WindowingStrategy<?, ?> windowingStrategy,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     timerInternals = new InMemoryTimerInternals();
     keyedStepContext = new KeyedStepContext(timerInternals);
     return DoFnRunners.simpleRunner(
@@ -120,7 +121,8 @@ public class StatefulParDoP<OutputT>
         inputValueCoder,
         outputValueCoders,
         windowingStrategy,
-        doFnSchemaInformation);
+        doFnSchemaInformation,
+        sideInputMapping);
   }
 
   @Override

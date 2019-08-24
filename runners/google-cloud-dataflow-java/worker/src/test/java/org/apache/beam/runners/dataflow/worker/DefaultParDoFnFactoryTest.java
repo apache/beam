@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import java.util.Collections;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
@@ -91,7 +92,8 @@ public class DefaultParDoFnFactoryTest {
                     null /* side input views */,
                     null /* input coder */,
                     new TupleTag<>("output") /* main output */,
-                    DoFnSchemaInformation.create())));
+                    DoFnSchemaInformation.create(),
+                    Collections.emptyMap())));
     CloudObject cloudUserFn = CloudObject.forClassName("DoFn");
     addString(cloudUserFn, "serialized_fn", serializedFn);
 

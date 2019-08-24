@@ -408,7 +408,8 @@ public class StreamingSideInputDoFnRunnerTest {
             null,
             Collections.emptyMap(),
             WindowingStrategy.of(windowFn),
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
     return new StreamingSideInputDoFnRunner<>(simpleDoFnRunner, sideInputFetcher);
   }
 
