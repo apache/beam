@@ -135,6 +135,9 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a reference to the input element. */
     InputT element(DoFn<InputT, OutputT> doFn);
 
+    /** Provide a reference to the input sideInput with the specified tag. */
+    Object sideInput(String tagId);
+
     /**
      * Provide a reference to the selected schema field corresponding to the input argument
      * specified by index.
@@ -184,6 +187,14 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     @Override
     public InputT element(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
+    public InputT sideInput(String tagId) {
       throw new UnsupportedOperationException(
           String.format(
               "Should never call non-overridden methods of %s",

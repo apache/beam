@@ -214,6 +214,7 @@ public class ParDoTranslatorTest {
             VarIntCoder.of(),
             Collections.emptyMap(),
             DoFnSchemaInformation.create(),
+            Collections.emptyMap(),
             new ApexStateInternals.ApexStateBackend());
     operator.setup(null);
     operator.beginWindow(0);

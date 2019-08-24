@@ -61,7 +61,8 @@ public class DoFnRunners {
       @Nullable Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       WindowingStrategy<?, ?> windowingStrategy,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     return new SimpleDoFnRunner<>(
         options,
         fn,
@@ -73,7 +74,8 @@ public class DoFnRunners {
         inputCoder,
         outputCoders,
         windowingStrategy,
-        doFnSchemaInformation);
+        doFnSchemaInformation,
+        sideInputMapping);
   }
 
   /**
@@ -118,7 +120,8 @@ public class DoFnRunners {
           @Nullable Coder<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> inputCoder,
           Map<TupleTag<?>, Coder<?>> outputCoders,
           WindowingStrategy<?, ?> windowingStrategy,
-          DoFnSchemaInformation doFnSchemaInformation) {
+          DoFnSchemaInformation doFnSchemaInformation,
+          Map<String, PCollectionView<?>> sideInputMapping) {
     return new ProcessFnRunner<>(
         simpleRunner(
             options,
@@ -131,7 +134,8 @@ public class DoFnRunners {
             inputCoder,
             outputCoders,
             windowingStrategy,
-            doFnSchemaInformation),
+            doFnSchemaInformation,
+            sideInputMapping),
         views,
         sideInputReader);
   }

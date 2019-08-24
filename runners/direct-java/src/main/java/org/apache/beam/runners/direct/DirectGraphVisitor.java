@@ -117,7 +117,8 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
       }
     }
     if (node.getTransform() instanceof ParDo.MultiOutput) {
-      consumedViews.addAll(((ParDo.MultiOutput<?, ?>) node.getTransform()).getSideInputs());
+      consumedViews.addAll(
+          ((ParDo.MultiOutput<?, ?>) node.getTransform()).getSideInputs().values());
     } else if (node.getTransform() instanceof ViewOverrideFactory.WriteView) {
       viewWriters.put(
           ((WriteView) node.getTransform()).getView(), node.toAppliedPTransform(getPipeline()));

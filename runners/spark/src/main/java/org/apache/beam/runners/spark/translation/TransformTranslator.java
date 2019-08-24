@@ -367,6 +367,9 @@ public final class TransformTranslator {
         doFnSchemaInformation =
             ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
 
+        Map<String, PCollectionView<?>> sideInputMapping =
+            ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
+
         MultiDoFnFunction<InputT, OutputT> multiDoFnFunction =
             new MultiDoFnFunction<>(
                 metricsAccum,
@@ -377,10 +380,11 @@ public final class TransformTranslator {
                 transform.getAdditionalOutputTags().getAll(),
                 inputCoder,
                 outputCoders,
-                TranslationUtils.getSideInputs(transform.getSideInputs(), context),
+                TranslationUtils.getSideInputs(transform.getSideInputs().values(), context),
                 windowingStrategy,
                 stateful,
-                doFnSchemaInformation);
+                doFnSchemaInformation,
+                sideInputMapping);
 
         if (stateful) {
           // Based on the fact that the signature is stateful, DoFnSignatures ensures

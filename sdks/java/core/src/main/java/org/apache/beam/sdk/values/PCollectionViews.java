@@ -98,7 +98,6 @@ public class PCollectionViews {
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy);
   }
-
   /**
    * Returns a {@code PCollectionView<Map<K, V>>} capable of processing elements windowed using the
    * provided {@link WindowingStrategy}.

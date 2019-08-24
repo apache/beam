@@ -80,7 +80,8 @@ public class WindowDoFnOperator<K, InputT, OutputT>
         options,
         keyCoder,
         keySelector,
-        DoFnSchemaInformation.create());
+        DoFnSchemaInformation.create(),
+        Collections.emptyMap());
 
     this.systemReduceFn = systemReduceFn;
   }

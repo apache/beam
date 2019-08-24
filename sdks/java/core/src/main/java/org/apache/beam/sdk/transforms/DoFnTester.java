@@ -251,6 +251,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
+            public InputT sideInput(String sideInputTag) {
+              throw new UnsupportedOperationException("SideInputs are not supported by DoFnTester");
+            }
+
+            @Override
             public InputT schemaElement(int index) {
               throw new UnsupportedOperationException("Schemas are not supported by DoFnTester");
             }
