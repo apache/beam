@@ -779,10 +779,10 @@ public class ParDoTest implements Serializable {
               .apply("CreateSideInput1", Create.of(2, 0))
               .apply("ViewSideInput1", View.asList());
 
-      final PCollectionView<List<Integer>> sideInput2 =
+      final PCollectionView<Integer> sideInput2 =
           pipeline
-              .apply("CreateSideInput2", Create.of(5, 6))
-              .apply("ViewSideInput2", View.asList());
+              .apply("CreateSideInput2", Create.of(5))
+              .apply("ViewSideInput2", View.asSingleton());
 
       final PCollectionView<List<Integer>> sideInput3 =
           pipeline
@@ -800,11 +800,11 @@ public class ParDoTest implements Serializable {
             public void processElement(
                 OutputReceiver<List<Integer>> r,
                 @SideInput(sideInputTag1) List<Integer> tag1,
-                @SideInput(sideInputTag2) List<Integer> tag2,
+                @SideInput(sideInputTag2) Integer tag2,
                 @SideInput(sideInputTag3) List<Integer> tag3) {
 
               List<Integer> sideSorted = Lists.newArrayList(tag1);
-              sideSorted.addAll(tag2);
+              sideSorted.add(tag2);
               sideSorted.addAll(tag3);
               Collections.sort(sideSorted);
               r.output(sideSorted);
@@ -820,7 +820,7 @@ public class ParDoTest implements Serializable {
                       .withSideInput(sideInputTag2, sideInput2)
                       .withSideInput(sideInputTag3, sideInput3));
 
-      PAssert.that(output).containsInAnyOrder(Lists.newArrayList(0, 1, 2, 3, 5, 6));
+      PAssert.that(output).containsInAnyOrder(Lists.newArrayList(0, 1, 2, 3, 5));
       pipeline.run();
     }
 
