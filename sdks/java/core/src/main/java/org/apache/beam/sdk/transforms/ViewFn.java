@@ -21,6 +21,7 @@ import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
@@ -45,4 +46,6 @@ public abstract class ViewFn<PrimitiveViewT, ViewT> implements Serializable {
 
   /** A function to adapt a primitive view type to a desired view type. */
   public abstract ViewT apply(PrimitiveViewT primitiveViewT);
+
+  public abstract TypeDescriptor<ViewT> getTypeDescriptor();
 }

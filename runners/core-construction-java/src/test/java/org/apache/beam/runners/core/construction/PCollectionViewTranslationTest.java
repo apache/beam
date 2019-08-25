@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import org.apache.beam.sdk.transforms.Materialization;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -60,6 +61,11 @@ public class PCollectionViewTranslationTest {
     @Override
     public Object apply(Object o) {
       throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public TypeDescriptor<Object> getTypeDescriptor() {
+      return new TypeDescriptor<Object>() {};
     }
 
     @Override

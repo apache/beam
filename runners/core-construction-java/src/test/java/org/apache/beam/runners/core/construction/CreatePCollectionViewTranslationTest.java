@@ -30,6 +30,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
 import org.junit.Test;
@@ -50,12 +51,16 @@ public class CreatePCollectionViewTranslationTest {
         CreatePCollectionView.of(
             PCollectionViews.singletonView(
                 testPCollection,
+                () -> TypeDescriptors.strings(),
                 testPCollection.getWindowingStrategy(),
                 false,
                 null,
                 StringUtf8Coder.of())),
         CreatePCollectionView.of(
-            PCollectionViews.listView(testPCollection, testPCollection.getWindowingStrategy())));
+            PCollectionViews.listView(
+                testPCollection,
+                () -> TypeDescriptors.strings(),
+                testPCollection.getWindowingStrategy())));
   }
 
   @Parameter(0)
