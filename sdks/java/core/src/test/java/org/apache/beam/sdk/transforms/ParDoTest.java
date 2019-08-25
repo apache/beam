@@ -738,6 +738,76 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
+    @Category({NeedsRunner.class, UsesSideInputs.class})
+    public void testSideInputAnnotationFailedValidationMissing() {
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+
+      DoFn<Integer, List<Integer>> fn =
+          new DoFn<Integer, List<Integer>>() {
+            @ProcessElement
+            public void processElement(@SideInput(sideInputTag1) String tag1) {}
+          };
+
+      thrown.expect(IllegalArgumentException.class);
+      PCollection<List<Integer>> output =
+          pipeline.apply("Create main input", Create.of(2)).apply(ParDo.of(fn));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({NeedsRunner.class, UsesSideInputs.class})
+    public void testSideInputAnnotationFailedValidationSingletonType() {
+
+      final PCollectionView<Integer> sideInput1 =
+          pipeline
+              .apply("CreateSideInput1", Create.of(2))
+              .apply("ViewSideInput1", View.asSingleton());
+
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+
+      DoFn<Integer, List<Integer>> fn =
+          new DoFn<Integer, List<Integer>>() {
+            @ProcessElement
+            public void processElement(@SideInput(sideInputTag1) String tag1) {}
+          };
+
+      thrown.expect(IllegalArgumentException.class);
+      PCollection<List<Integer>> output =
+          pipeline
+              .apply("Create main input", Create.of(2))
+              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({NeedsRunner.class, UsesSideInputs.class})
+    public void testSideInputAnnotationFailedValidationListType() {
+
+      final PCollectionView<List<Integer>> sideInput1 =
+          pipeline
+              .apply("CreateSideInput1", Create.of(2, 1, 0))
+              .apply("ViewSideInput1", View.asList());
+
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+
+      DoFn<Integer, List<Integer>> fn =
+          new DoFn<Integer, List<Integer>>() {
+            @ProcessElement
+            public void processElement(@SideInput(sideInputTag1) List<String> tag1) {}
+          };
+
+      thrown.expect(IllegalArgumentException.class);
+      PCollection<List<Integer>> output =
+          pipeline
+              .apply("Create main input", Create.of(2))
+              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+      pipeline.run();
+    }
+
+    @Test
     @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testSideInputAnnotation() {
 

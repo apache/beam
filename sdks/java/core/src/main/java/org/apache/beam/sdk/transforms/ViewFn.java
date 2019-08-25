@@ -47,5 +47,6 @@ public abstract class ViewFn<PrimitiveViewT, ViewT> implements Serializable {
   /** A function to adapt a primitive view type to a desired view type. */
   public abstract ViewT apply(PrimitiveViewT primitiveViewT);
 
+  /** Return the {@link TypeDescriptor} describing the output of this fn. */
   public abstract TypeDescriptor<ViewT> getTypeDescriptor();
 }
