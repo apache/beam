@@ -16,6 +16,8 @@
 #
 """Pytest configuration and custom hooks."""
 
+from __future__ import absolute_import
+
 import sys
 
 from apache_beam.testing.test_pipeline import TestPipeline

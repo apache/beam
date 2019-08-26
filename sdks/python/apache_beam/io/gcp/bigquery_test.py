@@ -28,6 +28,7 @@ import unittest
 
 import hamcrest as hc
 import mock
+import pytest
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
@@ -507,6 +508,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
                  self.dataset_id, self.project)
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_value_provider_transform(self):
     output_table_1 = '%s%s' % (self.output_table, 1)
     output_table_2 = '%s%s' % (self.output_table, 2)
@@ -568,6 +570,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
                method='FILE_LOADS'))
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_multiple_destinations_transform(self):
     streaming = self.test_pipeline.options.view_as(StandardOptions).streaming
     if streaming and isinstance(self.test_pipeline.runner, TestDataflowRunner):

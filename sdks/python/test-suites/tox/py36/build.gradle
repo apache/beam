@@ -44,14 +44,17 @@ testPy36Cython.mustRunAfter testPython36, testPy36Gcp
 toxTask "testPy36GcpPytest", "py36-gcp-pytest"
 toxTask "testPython36Pytest", "py36-pytest"
 toxTask "testPy36CythonPytest", "py36-cython-pytest"
-task pytest() {
-  dependsOn "testPy36GcpPytest"
-  dependsOn "testPython36Pytest"
-  dependsOn "testPy36CythonPytest"
-}
+// Ensure that cython tests run exclusively to other tests.
+testPy36CythonPytest.mustRunAfter testPython36Pytest, testPy36GcpPytest
 
 task preCommitPy36() {
     dependsOn "testPython36"
     dependsOn "testPy36Gcp"
     dependsOn "testPy36Cython"
+}
+
+task preCommitPy36Pytest {
+  dependsOn "testPython36Pytest"
+  dependsOn "testPy36GcpPytest"
+  dependsOn "testPy36CythonPytest"
 }

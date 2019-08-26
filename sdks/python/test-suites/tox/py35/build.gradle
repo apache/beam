@@ -50,15 +50,19 @@ testPy35Cython.mustRunAfter testPython35, testPy35Gcp
 toxTask "testPy35GcpPytest", "py35-gcp-pytest"
 toxTask "testPython35Pytest", "py35-pytest"
 toxTask "testPy35CythonPytest", "py35-cython-pytest"
-task pytest() {
-  dependsOn "testPy35GcpPytest"
-  dependsOn "testPython35Pytest"
-  dependsOn "testPy35CythonPytest"
-}
+// Ensure that cython tests run exclusively to other tests.
+testPy35CythonPytest.mustRunAfter testPython35Pytest, testPy35GcpPytest
 
 task preCommitPy35() {
     dependsOn "testPython35"
     dependsOn "testPy35Gcp"
     dependsOn "testPy35Cython"
     dependsOn "lint"
+}
+
+task preCommitPy35Pytest {
+  dependsOn "testPython35Pytest"
+  dependsOn "testPy35GcpPytest"
+  dependsOn "testPy35CythonPytest"
+  dependsOn "lint"
 }

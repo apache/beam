@@ -26,6 +26,7 @@ from __future__ import absolute_import
 import logging
 import unittest
 
+import pytest
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
@@ -54,6 +55,7 @@ class BigqueryIOReadIT(unittest.TestCase):
         **extra_opts))
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_bigquery_read_1M_python(self):
     self.run_bigquery_io_read_pipeline('1M')
 

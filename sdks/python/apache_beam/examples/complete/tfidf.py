@@ -187,7 +187,6 @@ class TfIdf(beam.PTransform):
     return word_to_uri_and_tfidf
 
 
-# TODO: try to similarly fix all no_xdist tests
 def run(argv=None, save_main_session=True):
   """Main entry point; defines and runs the tfidf pipeline."""
   parser = argparse.ArgumentParser()

@@ -19,11 +19,12 @@
 from __future__ import absolute_import
 
 import logging
-import pytest
 import math
 import sys
 import unittest
 from builtins import range
+
+import pytest
 
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coders
@@ -48,8 +49,8 @@ class CustomCoder(coders.Coder):
     return int(encoded) - 1
 
 
-# These tests need to all be run in the same process due to the checks
-# tearDownClass.
+# These tests need to all be run in the same process due to the asserts
+# in tearDownClass.
 @pytest.mark.no_xdist
 class CodersTest(unittest.TestCase):
 

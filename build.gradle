@@ -208,6 +208,18 @@ task pythonPreCommit() {
   // have caught. Note that the same tests will still run in postcommit.
 }
 
+task pythonPreCommitPytest() {
+  dependsOn ":sdks:python:test-suites:tox:py2:preCommitPy2Pytest"
+  dependsOn ":sdks:python:test-suites:tox:py35:preCommitPy35Pytest"
+  dependsOn ":sdks:python:test-suites:tox:py36:preCommitPy36Pytest"
+  dependsOn ":sdks:python:test-suites:tox:py37:preCommitPy37Pytest"
+  dependsOn ":sdks:python:test-suites:dataflow:py2:preCommitITPytest"
+  dependsOn ":sdks:python:test-suites:dataflow:py37:preCommitITPytest"
+  // We don't include Py35, Py36 precommit ITs to reduce quota footprint.
+  // We can reconsider if we ever see an issue that these suites would
+  // have caught. Note that the same tests will still run in postcommit.
+}
+
 task python2PostCommit() {
   dependsOn ":sdks:python:test-suites:portable:py2:crossLanguageTests"
   dependsOn ":sdks:python:test-suites:dataflow:py2:postCommitIT"
@@ -216,9 +228,24 @@ task python2PostCommit() {
   dependsOn ":sdks:python:test-suites:direct:py2:mongodbioIT"
 }
 
+// TODO(BEAM-3713): Convert commented out tasks to pytest-based equivalents.
+task python2PostCommitPytest() {
+//   dependsOn ":sdks:python:test-suites:portable:py2:crossLanguageTests"
+  dependsOn ":sdks:python:test-suites:dataflow:py2:postCommitITPytest"
+//   dependsOn ":sdks:python:test-suites:direct:py2:directRunnerIT"
+//   dependsOn ":sdks:python:test-suites:direct:py2:hdfsIntegrationTest"
+//   dependsOn ":sdks:python:test-suites:direct:py2:mongodbioIT"
+}
+
 task python35PostCommit() {
   dependsOn ":sdks:python:test-suites:dataflow:py35:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py35:postCommitIT"
+}
+
+// TODO(BEAM-3713): Convert commented out tasks to pytest-based equivalents.
+task python35PostCommitPytest() {
+  dependsOn ":sdks:python:test-suites:dataflow:py35:postCommitITPytest"
+//   dependsOn ":sdks:python:test-suites:direct:py35:postCommitITPytest"
 }
 
 task python36PostCommit() {
@@ -226,10 +253,22 @@ task python36PostCommit() {
   dependsOn ":sdks:python:test-suites:direct:py36:postCommitIT"
 }
 
+// TODO(BEAM-3713): Convert commented out tasks to pytest-based equivalents.
+task python36PostCommitPytest() {
+  dependsOn ":sdks:python:test-suites:dataflow:py36:postCommitITPytest"
+//   dependsOn ":sdks:python:test-suites:direct:py36:postCommitITPytest"
+}
+
 task python37PostCommit() {
   dependsOn ":sdks:python:test-suites:dataflow:py37:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py37:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py37:hdfsIntegrationTest"
+}
+
+// TODO(BEAM-3713): Convert commented out tasks to pytest-based equivalents.
+task python37PostCommitPytest() {
+  dependsOn ":sdks:python:test-suites:dataflow:py37:postCommitITPytest"
+//   dependsOn ":sdks:python:test-suites:direct:py37:postCommitITPytest"
 }
 
 task portablePythonPreCommit() {

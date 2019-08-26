@@ -36,6 +36,7 @@ import logging
 import unittest
 import uuid
 
+import pytest
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
@@ -61,6 +62,7 @@ class UserScoreIT(unittest.TestCase):
                             'results'])
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_user_score_it(self):
 
     state_verifier = PipelineStateMatcher(PipelineState.DONE)

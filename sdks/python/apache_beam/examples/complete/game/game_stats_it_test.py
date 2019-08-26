@@ -37,6 +37,7 @@ import time
 import unittest
 import uuid
 
+import pytest
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
@@ -104,6 +105,7 @@ class GameStatsIT(unittest.TestCase):
     test_utils.cleanup_topics(self.pub_client, [self.input_topic])
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_game_stats_it(self):
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
 

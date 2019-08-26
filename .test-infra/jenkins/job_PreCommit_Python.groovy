@@ -35,3 +35,19 @@ builder.build {
     archiveJunit('**/nosetests*.xml')
   }
 }
+
+// Temporary job for testing pytest-based testing.
+// TODO(BEAM-3713): Remove this job once nose v1 tests are replaced.
+// TODO: add similar jobs for py35,36,37
+PrecommitJobBuilder builder = new PrecommitJobBuilder(
+    scope: this,
+    nameBase: 'Python_pytest',
+    gradleTask: ':pythonPreCommitPytest',
+    commitTriggering: false,
+)
+builder.build {
+  // Publish all test results to Jenkins.
+  publishers {
+    archiveJunit('**/pytest*.xml')
+  }
+}

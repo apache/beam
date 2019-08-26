@@ -34,6 +34,7 @@ import sys
 import unittest
 from datetime import datetime
 
+import pytest
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
@@ -71,6 +72,7 @@ class DatastoreWriteIT(unittest.TestCase):
         **extra_opts))
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   @unittest.skipIf(datastore_write_it_pipeline is None,
                    'GCP dependencies are not installed')
   def test_datastore_write_limit(self):

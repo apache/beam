@@ -42,3 +42,26 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python2', 'Run Python 2 Post
     }
   }
 }
+
+// TODO(BEAM-3713): Temporary pytest task that should eventually replace the
+//   equivalent nose-based task.
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python2_Pytest', 'Run Python 2 PostCommit Pytest',
+  'Python2_PC_Pytest("Run Python 2 PostCommit Pytest")', this) {
+  description('Runs Python postcommit tests using Python 2.7.')
+
+  // Set common parameters.
+  commonJobProperties.setTopLevelMainJobProperties(delegate)
+
+  publishers {
+    archiveJunit('**/pytest*.xml')
+  }
+
+  // Execute shell command to test Python SDK.
+  steps {
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':python2PostCommitPytest')
+      commonJobProperties.setGradleSwitches(delegate)
+    }
+  }
+}

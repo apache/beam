@@ -42,3 +42,26 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python36', 'Run Python 3.6 P
     }
   }
 }
+
+// TODO(BEAM-3713): Temporary pytest task that should eventually replace the
+//   equivalent nose-based task.
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python36_Pytest', 'Run Python 3.6 PostCommit Pytest',
+  'Python36_PC_Pytest("Run Python 3.6 PostCommit Pytest")', this) {
+  description('Runs Python postcommit tests using Python 3.6.')
+
+  // Set common parameters.
+  commonJobProperties.setTopLevelMainJobProperties(delegate)
+
+  publishers {
+    archiveJunit('**/pytest*.xml')
+  }
+
+  // Execute shell command to test Python SDK.
+  steps {
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':python36PostCommitPytest')
+      commonJobProperties.setGradleSwitches(delegate)
+    }
+  }
+}

@@ -52,6 +52,7 @@ import sys
 import unittest
 import uuid
 
+import pytest
 from fastavro import parse_schema
 from nose.plugins.attrib import attr
 
@@ -114,6 +115,7 @@ class FastavroIT(unittest.TestCase):
     ])
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_avro_it(self):
     num_records = self.test_pipeline.get_option('records')
     num_records = int(num_records) if num_records else 1000000

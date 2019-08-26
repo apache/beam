@@ -27,6 +27,7 @@ import random
 import time
 import unittest
 
+import pytest
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
@@ -129,6 +130,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         self.project, self.dataset_id, NEW_TYPES_INPUT_TABLE, table_data)
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_legacy_sql(self):
     verify_query = DIALECT_OUTPUT_VERIFY_QUERY % self.output_table
     expected_checksum = test_utils.compute_hash(DIALECT_OUTPUT_EXPECTED)
@@ -146,6 +148,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_standard_sql(self):
     verify_query = DIALECT_OUTPUT_VERIFY_QUERY % self.output_table
     expected_checksum = test_utils.compute_hash(DIALECT_OUTPUT_EXPECTED)
@@ -163,6 +166,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_standard_sql_kms_key_native(self):
     if isinstance(self.test_pipeline.runner, TestDirectRunner):
       self.skipTest("This test doesn't work on DirectRunner.")
@@ -193,6 +197,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     self.assertEqual(kms_key, table.encryptionConfiguration.kmsKeyName)
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_new_types(self):
     expected_checksum = test_utils.compute_hash(NEW_TYPES_OUTPUT_EXPECTED)
     verify_query = NEW_TYPES_OUTPUT_VERIFY_QUERY % self.output_table

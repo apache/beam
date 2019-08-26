@@ -42,6 +42,7 @@ import logging
 import unittest
 import uuid
 
+import pytest
 from nose.plugins.attrib import attr
 
 from apache_beam.io.filesystems import FileSystems
@@ -106,16 +107,19 @@ class GcsIOIntegrationTest(unittest.TestCase):
     self._verify_copy(src, dst, kms_key_name)
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_copy(self):
     self._test_copy("test_copy")
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_copy_kms(self):
     if self.kms_key_name is None:
       raise unittest.SkipTest('--kms_key_name not specified')
     self._test_copy("test_copy_kms", self.kms_key_name)
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_copy_rewrite_token(self):
     # Tests a multi-part copy (rewrite) operation. This is triggered by a
     # combination of 3 conditions:
@@ -154,16 +158,19 @@ class GcsIOIntegrationTest(unittest.TestCase):
       self._verify_copy(_src, _dst, kms_key_name)
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_copy_batch(self):
     self._test_copy_batch("test_copy_batch")
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_copy_batch_kms(self):
     if self.kms_key_name is None:
       raise unittest.SkipTest('--kms_key_name not specified')
     self._test_copy_batch("test_copy_batch_kms", self.kms_key_name)
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_copy_batch_rewrite_token(self):
     # Tests a multi-part copy (rewrite) operation. This is triggered by a
     # combination of 3 conditions:

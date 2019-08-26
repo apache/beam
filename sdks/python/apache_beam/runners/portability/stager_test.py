@@ -19,7 +19,6 @@
 from __future__ import absolute_import
 
 import logging
-import pytest
 import os
 import shutil
 import sys
@@ -27,6 +26,7 @@ import tempfile
 import unittest
 
 import mock
+import pytest
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import DebugOptions

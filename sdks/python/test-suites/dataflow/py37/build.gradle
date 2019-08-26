@@ -37,6 +37,12 @@ def basicTestOpts = [
     "--process-timeout=4500", // timeout of whole command execution
 ]
 
+def basicPytestOpts = [
+    "--numprocesses=8",  // run tests in parallel
+    "--color=yes",
+    "--log-cli-level=info",
+]
+
 task preCommitIT {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
@@ -70,6 +76,34 @@ task preCommitIT {
   }
 }
 
+// TODO(BEAM-3713): Temporary pytest task that should eventually replace the
+//   equivalent nose-based task.
+task preCommitITPytest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+
+  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+
+  doLast {
+    def testOpts = basicPytestOpts + [
+        "-m 'it_precommit and not no_dataflow'",
+    ]
+    def cmdArgs = mapToArgString([
+        "pytest": true,
+        "pytest_opts": testOpts,
+        "sdk_location": files(configurations.distTarBall.files).singleFile,
+        "worker_jar": dataflowWorkerJar,
+        "suite": "preCommitIT-df-py37"
+    ])
+
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
 task postCommitIT {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
@@ -86,6 +120,29 @@ task postCommitIT {
         "worker_jar": dataflowWorkerJar,
         "suite": "postCommitIT-df-py37"
     ])
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
+// TODO(BEAM-3713): Temporary pytest task that should eventually replace the
+//   equivalent nose-based task.
+task postCommitITPytest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+
+  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+
+  doLast {
+    def pytestOpts = basicPytestOpts + ["-m 'it_postcommit and not no_dataflow'"]
+    def cmdArgs = project.mapToArgString([
+        "pytest_opts": pytestOpts,
+        "pytest": true,
+        "suite": "postCommitIT-df-py37",
+        ])
     exec {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"

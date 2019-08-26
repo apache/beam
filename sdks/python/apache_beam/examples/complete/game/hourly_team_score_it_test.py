@@ -35,6 +35,7 @@ from __future__ import absolute_import
 import logging
 import unittest
 
+import pytest
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
@@ -63,6 +64,7 @@ class HourlyTeamScoreIT(unittest.TestCase):
                                                self.OUTPUT_DATASET)
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_hourly_team_score_it(self):
     state_verifier = PipelineStateMatcher(PipelineState.DONE)
     query = ('SELECT COUNT(*) FROM `%s.%s.%s`' % (self.project,

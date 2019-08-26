@@ -50,11 +50,8 @@ testPy2Cython.mustRunAfter testPython2, testPy2Gcp
 toxTask "testPy2GcpPytest", "py27-gcp-pytest"
 toxTask "testPython2Pytest", "py27-pytest"
 toxTask "testPy2CythonPytest", "py27-cython-pytest"
-task pytest() {
-  dependsOn "testPy2GcpPytest"
-  dependsOn "testPython2Pytest"
-  dependsOn "testPy2CythonPytest"
-}
+// Ensure that cython tests run exclusively to other tests.
+testPy2CythonPytest.mustRunAfter testPython2Pytest, testPy2GcpPytest
 
 toxTask "docs", "docs"
 assemble.dependsOn docs
@@ -66,5 +63,13 @@ task preCommitPy2() {
   dependsOn "testPy2Cython"
   dependsOn "testPython2"
   dependsOn "testPy2Gcp"
+  dependsOn "lint"
+}
+
+task preCommitPy2Pytest {
+  dependsOn "docs"
+  dependsOn "testPy2CythonPytest"
+  dependsOn "testPython2Pytest"
+  dependsOn "testPy2GcpPytest"
   dependsOn "lint"
 }

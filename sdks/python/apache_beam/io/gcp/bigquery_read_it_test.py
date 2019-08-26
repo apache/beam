@@ -27,6 +27,7 @@ import time
 import unittest
 from decimal import Decimal
 
+import pytest
 from future.utils import iteritems
 from nose.plugins.attrib import attr
 
@@ -161,6 +162,7 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
         self.project, self.dataset_id, table_name, table_data)
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_read(self):
     table_name = 'python_write_table'
     self.create_table(table_name)
@@ -178,6 +180,7 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
                                     {'number': 4, 'str': u'привет'}]))
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_read_new_types(self):
     table_name = 'python_new_types'
     self.create_table_new_types(table_name)

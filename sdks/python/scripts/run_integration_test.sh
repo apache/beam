@@ -257,15 +257,11 @@ echo ">>> RUNNING integration tests with pipeline options: $PIPELINE_OPTS"
 if [[ "$PYTEST" = true ]]; then
     echo ">>>   pytest options: $PYTEST_OPTS"
     suite_name="it-$SUITE"
-    # TODO: remove
-    set -x
     python setup.py pytest --addopts=" \
         -o junit_suite_name=$suite_name \
         --junitxml=pytest-$suite_name.xml \
         $PYTEST_OPTS \
         --test-pipeline-options='$PIPELINE_OPTS'"
-    # TODO: remove
-    #python setup.py pytest --addopts="-o junit_suite_name={envname} --junitxml=pytest_{envname}.xml -m 'not no_xdist' -n 8 --pyargs {posargs}"
 else
     echo ">>>   test options: $TEST_OPTS"
     # TODO(BEAM-3713): Pass $SUITE once migrated to pytest. xunitmp doesn't

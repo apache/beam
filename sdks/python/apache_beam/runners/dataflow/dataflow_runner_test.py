@@ -20,7 +20,6 @@
 from __future__ import absolute_import
 
 import json
-import pytest
 import sys
 import unittest
 from builtins import object
@@ -28,6 +27,7 @@ from builtins import range
 from datetime import datetime
 
 import mock
+import pytest
 
 import apache_beam as beam
 import apache_beam.transforms as ptransform

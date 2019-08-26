@@ -28,6 +28,7 @@ import sys
 import unittest
 import uuid
 
+import pytest
 from hamcrest.library.text import stringmatches
 from nose.plugins.attrib import attr
 
@@ -222,6 +223,7 @@ class MatchIntegrationTest(unittest.TestCase):
     self.test_pipeline = TestPipeline(is_integration_test=True)
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_transform_on_gcs(self):
     args = self.test_pipeline.get_full_options_as_args()
 

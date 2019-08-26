@@ -20,11 +20,11 @@
 from __future__ import absolute_import
 
 import logging
-import pytest
 import unittest
 import uuid
 from builtins import range
 
+import pytest
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
@@ -82,6 +82,7 @@ class StreamingWordCountIT(unittest.TestCase):
 
   @attr('IT')
   @pytest.mark.it_precommit
+  @pytest.mark.it_postcommit
   def test_streaming_wordcount_it(self):
     # Build expected dataset.
     expected_msg = [('%d: 1' % num).encode('utf-8')

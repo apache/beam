@@ -25,6 +25,7 @@ import sys
 import time
 import unittest
 
+import pytest
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
@@ -44,6 +45,7 @@ class DatastoreWordCountIT(unittest.TestCase):
   EXPECTED_CHECKSUM = '826f69ed0275858c2e098f1e8407d4e3ba5a4b3f'
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_datastore_wordcount_it(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     dataset = test_pipeline.get_option("project")

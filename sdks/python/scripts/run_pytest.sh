@@ -15,7 +15,11 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 #
-# Utility script for tox.ini.
+# Utility script for tox.ini for running unit tests.
+#
+# Runs tests in parallel, except those not compatible with xdist. Combines
+# exit statuses of runs, special-casing 5, which says that no tests were
+# selected.
 #
 # $1 - suite base name
 # $2 - additional arguments to pass to pytest
@@ -31,7 +35,7 @@ python setup.py pytest --addopts="-o junit_suite_name=${envname}_no_xdist \
   --junitxml=pytest_${envname}_no_xdist.xml -m 'no_xdist' --pyargs ${posargs}"
 status2=$?
 
-# Exit with error if no tests were run (status code 5)
+# Exit with error if no tests were run (status code 5).
 if [[ $status1 == 5 && $status2 == 5 ]]; then
   exit $status1
 fi

@@ -24,6 +24,7 @@ import sys
 import unittest
 from collections import Counter
 
+import pytest
 from nose.plugins.attrib import attr
 
 from apache_beam import Create
@@ -64,6 +65,7 @@ class TestParquetIT(unittest.TestCase):
     pass
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_parquetio_it(self):
     file_prefix = "parquet_it_test"
     init_size = 10

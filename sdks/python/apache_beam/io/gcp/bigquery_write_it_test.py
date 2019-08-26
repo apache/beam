@@ -29,6 +29,7 @@ import unittest
 from decimal import Decimal
 
 import hamcrest as hc
+import pytest
 import pytz
 from future.utils import iteritems
 from nose.plugins.attrib import attr
@@ -101,6 +102,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     self.bigquery_client.client.tables.Insert(request)
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_write(self):
     table_name = 'python_write_table'
     table_id = '{}.{}'.format(self.dataset_id, table_name)
@@ -134,6 +136,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
            write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_write_schema_autodetect(self):
     if self.runner_name == 'TestDataflowRunner':
       self.skipTest('DataflowRunner does not support schema autodetection')
@@ -167,6 +170,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
            write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_write_new_types(self):
     table_name = 'python_new_types_table'
     table_id = '{}.{}'.format(self.dataset_id, table_name)
@@ -229,6 +233,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
            write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
   @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_write_without_schema(self):
     table_name = 'python_no_schema_table'
     self.create_table(table_name)
