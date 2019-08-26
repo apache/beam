@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Internal;
@@ -34,7 +32,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
-import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.PCollectionViews.TypeDescriptorSupplier;
 
 /**
  * Transforms for creating {@link PCollectionView PCollectionViews} from {@link PCollection
@@ -240,7 +238,7 @@ public class View {
       PCollectionView<List<T>> view =
           PCollectionViews.listView(
               materializationInput,
-              (Supplier<TypeDescriptor<T>> & Serializable) inputCoder::getEncodedTypeDescriptor,
+              (TypeDescriptorSupplier<T>) inputCoder::getEncodedTypeDescriptor,
               materializationInput.getWindowingStrategy());
       materializationInput.apply(CreatePCollectionView.of(view));
       return view;
@@ -273,7 +271,7 @@ public class View {
       PCollectionView<Iterable<T>> view =
           PCollectionViews.iterableView(
               materializationInput,
-              (Supplier<TypeDescriptor<T>> & Serializable) inputCoder::getEncodedTypeDescriptor,
+              (TypeDescriptorSupplier<T>) inputCoder::getEncodedTypeDescriptor,
               materializationInput.getWindowingStrategy());
       materializationInput.apply(CreatePCollectionView.of(view));
       return view;
@@ -419,8 +417,8 @@ public class View {
       PCollectionView<Map<K, Iterable<V>>> view =
           PCollectionViews.multimapView(
               materializationInput,
-              (Supplier<TypeDescriptor<K>> & Serializable) keyCoder::getEncodedTypeDescriptor,
-              (Supplier<TypeDescriptor<V>> & Serializable) valueCoder::getEncodedTypeDescriptor,
+              (TypeDescriptorSupplier<K>) keyCoder::getEncodedTypeDescriptor,
+              (TypeDescriptorSupplier<V>) valueCoder::getEncodedTypeDescriptor,
               materializationInput.getWindowingStrategy());
       materializationInput.apply(CreatePCollectionView.of(view));
       return view;
@@ -462,8 +460,8 @@ public class View {
       PCollectionView<Map<K, V>> view =
           PCollectionViews.mapView(
               materializationInput,
-              (Supplier<TypeDescriptor<K>> & Serializable) keyCoder::getEncodedTypeDescriptor,
-              (Supplier<TypeDescriptor<V>> & Serializable) valueCoder::getEncodedTypeDescriptor,
+              (TypeDescriptorSupplier<K>) keyCoder::getEncodedTypeDescriptor,
+              (TypeDescriptorSupplier<V>) valueCoder::getEncodedTypeDescriptor,
               materializationInput.getWindowingStrategy());
       materializationInput.apply(CreatePCollectionView.of(view));
       return view;

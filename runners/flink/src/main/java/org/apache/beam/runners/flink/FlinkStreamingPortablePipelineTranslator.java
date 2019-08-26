@@ -27,7 +27,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import java.io.IOException;
-import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,7 +37,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.function.Supplier;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.NativeTransforms;
@@ -811,9 +809,9 @@ public class FlinkStreamingPortablePipelineTranslator
     ViewFn<Iterable<WindowedValue<?>>, ?> viewFn =
         (ViewFn)
             new PCollectionViews.MultimapViewFn<>(
-                (Supplier<TypeDescriptor<Iterable<WindowedValue<Void>>>> & Serializable)
+                (PCollectionViews.TypeDescriptorSupplier<Iterable<WindowedValue<Void>>>)
                     () -> TypeDescriptors.iterables(new TypeDescriptor<WindowedValue<Void>>() {}),
-                (Supplier<TypeDescriptor<Void>> & Serializable) TypeDescriptors::voids);
+                (PCollectionViews.TypeDescriptorSupplier<Void>) TypeDescriptors::voids);
 
     for (RunnerApi.ExecutableStagePayload.SideInputId sideInputId :
         stagePayload.getSideInputsList()) {

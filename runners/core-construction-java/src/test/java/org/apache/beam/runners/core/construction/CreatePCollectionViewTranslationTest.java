@@ -19,8 +19,6 @@ package org.apache.beam.runners.core.construction;
 
 import static org.junit.Assert.assertThat;
 
-import java.io.Serializable;
-import java.util.function.Supplier;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -32,7 +30,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
-import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.PCollectionViews.TypeDescriptorSupplier;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
@@ -54,7 +52,7 @@ public class CreatePCollectionViewTranslationTest {
         CreatePCollectionView.of(
             PCollectionViews.singletonView(
                 testPCollection,
-                (Supplier<TypeDescriptor<String>> & Serializable) () -> TypeDescriptors.strings(),
+                (TypeDescriptorSupplier<String>) () -> TypeDescriptors.strings(),
                 testPCollection.getWindowingStrategy(),
                 false,
                 null,
@@ -62,7 +60,7 @@ public class CreatePCollectionViewTranslationTest {
         CreatePCollectionView.of(
             PCollectionViews.listView(
                 testPCollection,
-                (Supplier<TypeDescriptor<String>> & Serializable) () -> TypeDescriptors.strings(),
+                (TypeDescriptorSupplier<String>) () -> TypeDescriptors.strings(),
                 testPCollection.getWindowingStrategy())));
   }
 

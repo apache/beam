@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.values;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -53,6 +54,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap
  */
 @Internal
 public class PCollectionViews {
+  public interface TypeDescriptorSupplier<T> extends Supplier<TypeDescriptor<T>>, Serializable {}
 
   /**
    * Returns a {@code PCollectionView<T>} capable of processing elements windowed using the provided
@@ -63,7 +65,7 @@ public class PCollectionViews {
    */
   public static <T, W extends BoundedWindow> PCollectionView<T> singletonView(
       PCollection<KV<Void, T>> pCollection,
-      Supplier<TypeDescriptor<T>> typeDescriptorSupplier,
+      TypeDescriptorSupplier<T> typeDescriptorSupplier,
       WindowingStrategy<?, W> windowingStrategy,
       boolean hasDefault,
       @Nullable T defaultValue,
@@ -81,7 +83,7 @@ public class PCollectionViews {
    */
   public static <T, W extends BoundedWindow> PCollectionView<Iterable<T>> iterableView(
       PCollection<KV<Void, T>> pCollection,
-      Supplier<TypeDescriptor<T>> typeDescriptorSupplier,
+      TypeDescriptorSupplier<T> typeDescriptorSupplier,
       WindowingStrategy<?, W> windowingStrategy) {
     return new SimplePCollectionView<>(
         pCollection,
@@ -96,7 +98,7 @@ public class PCollectionViews {
    */
   public static <T, W extends BoundedWindow> PCollectionView<List<T>> listView(
       PCollection<KV<Void, T>> pCollection,
-      Supplier<TypeDescriptor<T>> typeDescriptorSupplier,
+      TypeDescriptorSupplier<T> typeDescriptorSupplier,
       WindowingStrategy<?, W> windowingStrategy) {
     return new SimplePCollectionView<>(
         pCollection,
@@ -110,8 +112,8 @@ public class PCollectionViews {
    */
   public static <K, V, W extends BoundedWindow> PCollectionView<Map<K, V>> mapView(
       PCollection<KV<Void, KV<K, V>>> pCollection,
-      Supplier<TypeDescriptor<K>> keyTypeDescriptorSupplier,
-      Supplier<TypeDescriptor<V>> valueTypeDescriptorSupplier,
+      TypeDescriptorSupplier<K> keyTypeDescriptorSupplier,
+      TypeDescriptorSupplier<V> valueTypeDescriptorSupplier,
       WindowingStrategy<?, W> windowingStrategy) {
     return new SimplePCollectionView<>(
         pCollection,
@@ -126,8 +128,8 @@ public class PCollectionViews {
    */
   public static <K, V, W extends BoundedWindow> PCollectionView<Map<K, Iterable<V>>> multimapView(
       PCollection<KV<Void, KV<K, V>>> pCollection,
-      Supplier<TypeDescriptor<K>> keyTypeDescriptorSupplier,
-      Supplier<TypeDescriptor<V>> valueTypeDescriptorSupplier,
+      TypeDescriptorSupplier<K> keyTypeDescriptorSupplier,
+      TypeDescriptorSupplier<V> valueTypeDescriptorSupplier,
       WindowingStrategy<?, W> windowingStrategy) {
     return new SimplePCollectionView<>(
         pCollection,
@@ -161,13 +163,13 @@ public class PCollectionViews {
     @Nullable private transient T defaultValue;
     @Nullable private Coder<T> valueCoder;
     private boolean hasDefault;
-    private Supplier<TypeDescriptor<T>> typeDescriptorSupplier;
+    private TypeDescriptorSupplier<T> typeDescriptorSupplier;
 
     private SingletonViewFn(
         boolean hasDefault,
         T defaultValue,
         Coder<T> valueCoder,
-        Supplier<TypeDescriptor<T>> typeDescriptorSupplier) {
+        TypeDescriptorSupplier<T> typeDescriptorSupplier) {
       this.hasDefault = hasDefault;
       this.defaultValue = defaultValue;
       this.valueCoder = valueCoder;
@@ -246,9 +248,9 @@ public class PCollectionViews {
    */
   @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class IterableViewFn<T> extends ViewFn<MultimapView<Void, T>, Iterable<T>> {
-    private Supplier<TypeDescriptor<T>> typeDescriptorSupplier;
+    private TypeDescriptorSupplier<T> typeDescriptorSupplier;
 
-    public IterableViewFn(Supplier<TypeDescriptor<T>> typeDescriptorSupplier) {
+    public IterableViewFn(TypeDescriptorSupplier<T> typeDescriptorSupplier) {
       this.typeDescriptorSupplier = typeDescriptorSupplier;
     }
 
@@ -277,9 +279,9 @@ public class PCollectionViews {
    */
   @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class ListViewFn<T> extends ViewFn<MultimapView<Void, T>, List<T>> {
-    private Supplier<TypeDescriptor<T>> typeDescriptorSupplier;
+    private TypeDescriptorSupplier<T> typeDescriptorSupplier;
 
-    public ListViewFn(Supplier<TypeDescriptor<T>> typeDescriptorSupplier) {
+    public ListViewFn(TypeDescriptorSupplier<T> typeDescriptorSupplier) {
       this.typeDescriptorSupplier = typeDescriptorSupplier;
     }
 
@@ -324,12 +326,12 @@ public class PCollectionViews {
   @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class MultimapViewFn<K, V>
       extends ViewFn<MultimapView<Void, KV<K, V>>, Map<K, Iterable<V>>> {
-    private Supplier<TypeDescriptor<K>> keyTypeDescriptorSupplier;
-    private Supplier<TypeDescriptor<V>> valueTypeDescriptorSupplier;
+    private TypeDescriptorSupplier<K> keyTypeDescriptorSupplier;
+    private TypeDescriptorSupplier<V> valueTypeDescriptorSupplier;
 
     public MultimapViewFn(
-        Supplier<TypeDescriptor<K>> keyTypeDescriptorSupplier,
-        Supplier<TypeDescriptor<V>> valueTypeDescriptorSupplier) {
+        TypeDescriptorSupplier<K> keyTypeDescriptorSupplier,
+        TypeDescriptorSupplier<V> valueTypeDescriptorSupplier) {
       this.keyTypeDescriptorSupplier = keyTypeDescriptorSupplier;
       this.valueTypeDescriptorSupplier = valueTypeDescriptorSupplier;
     }
@@ -370,12 +372,12 @@ public class PCollectionViews {
    */
   @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class MapViewFn<K, V> extends ViewFn<MultimapView<Void, KV<K, V>>, Map<K, V>> {
-    private Supplier<TypeDescriptor<K>> keyTypeDescriptorSupplier;
-    private Supplier<TypeDescriptor<V>> valueTypeDescriptorSupplier;
+    private TypeDescriptorSupplier<K> keyTypeDescriptorSupplier;
+    private TypeDescriptorSupplier<V> valueTypeDescriptorSupplier;
 
     public MapViewFn(
-        Supplier<TypeDescriptor<K>> keyTypeDescriptorSupplier,
-        Supplier<TypeDescriptor<V>> valueTypeDescriptorSupplier) {
+        TypeDescriptorSupplier<K> keyTypeDescriptorSupplier,
+        TypeDescriptorSupplier<V> valueTypeDescriptorSupplier) {
       this.keyTypeDescriptorSupplier = keyTypeDescriptorSupplier;
       this.valueTypeDescriptorSupplier = valueTypeDescriptorSupplier;
     }
