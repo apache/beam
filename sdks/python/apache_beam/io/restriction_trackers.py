@@ -164,8 +164,8 @@ class OffsetRestrictionTracker(RestrictionTracker):
         split_point = (
             cur + int(max(1, (self._range.stop - cur) * fraction_of_remainder)))
         if split_point < self._range.stop:
-          prev_stop, self._range.stop = self._range.stop, split_point
-          return self._range.split_at(split_point)
+          self._range, residual_range = self._range.split_at(split_point)
+          return self._range, residual_range
 
   # TODO(SDF): Replace all calls with try_claim(0).
   def checkpoint(self):

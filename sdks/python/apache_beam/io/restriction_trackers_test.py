@@ -62,6 +62,12 @@ class OffsetRangeTest(unittest.TestCase):
     self.assertIn(OffsetRange(35, 60), splits)
     self.assertIn(OffsetRange(60, 90), splits)
 
+  def test_split_at(self):
+    range = OffsetRange(0, 10)
+    cur, residual = range.split_at(5)
+    self.assertEqual(cur, OffsetRange(0, 5))
+    self.assertEqual(residual, OffsetRange(5, 10))
+
 
 class OffsetRestrictionTrackerTest(unittest.TestCase):
 
@@ -154,6 +160,14 @@ class OffsetRestrictionTrackerTest(unittest.TestCase):
 
     with self.assertRaises(ValueError):
       tracker.check_done()
+
+  def test_try_split(self):
+    tracker = OffsetRestrictionTracker(OffsetRange(100, 200))
+    tracker.try_claim(100)
+    cur, residual = tracker.try_split(0.5)
+    self.assertEqual(OffsetRange(100, 150), cur)
+    self.assertEqual(OffsetRange(150, 200), residual)
+    self.assertEqual(cur, tracker.current_restriction())
 
 
 if __name__ == '__main__':
