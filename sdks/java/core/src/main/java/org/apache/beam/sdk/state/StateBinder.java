@@ -11,7 +11,7 @@
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, eithzer express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
@@ -31,6 +31,8 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 @Internal
 public interface StateBinder {
   <T> ValueState<T> bindValue(String id, StateSpec<ValueState<T>> spec, Coder<T> coder);
+
+  <T> ReadModifyWriteState<T> bindReadModifyWrite(String id, StateSpec<ReadModifyWriteState<T>> spec, Coder<T> coder);
 
   <T> BagState<T> bindBag(String id, StateSpec<BagState<T>> spec, Coder<T> elemCoder);
 

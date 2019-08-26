@@ -210,7 +210,7 @@ public class ParDoTranslationTest {
     @Parameters(name = "{index}: {0}")
     public static Iterable<StateSpec<?>> stateSpecs() {
       return ImmutableList.of(
-          StateSpecs.value(VarIntCoder.of()),
+          StateSpecs.readModifyWrite(VarIntCoder.of()),
           StateSpecs.bag(VarIntCoder.of()),
           StateSpecs.set(VarIntCoder.of()),
           StateSpecs.map(StringUtf8Coder.of(), VarIntCoder.of()));

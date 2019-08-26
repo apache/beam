@@ -32,7 +32,7 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.SetCoder;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -60,19 +60,19 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
   private final Map<W, Set<W>> originalActiveWindowToStateAddressWindows;
 
   /** Handle representing our state in the backend. */
-  private final ValueState<Map<W, Set<W>>> valueState;
+  private final ReadModifyWriteState<Map<W, Set<W>>> readModifyWriteState;
 
   public MergingActiveWindowSet(WindowFn<Object, W> windowFn, StateInternals state) {
     this.windowFn = windowFn;
 
-    StateTag<ValueState<Map<W, Set<W>>>> tag =
+    StateTag<ReadModifyWriteState<Map<W, Set<W>>>> tag =
         StateTags.makeSystemTagInternal(
             StateTags.value(
                 "tree", MapCoder.of(windowFn.windowCoder(), SetCoder.of(windowFn.windowCoder()))));
-    valueState = state.state(StateNamespaces.global(), tag);
+    readModifyWriteState = state.state(StateNamespaces.global(), tag);
     // Little use trying to prefetch this state since the ReduceFnRunner
     // is stymied until it is available.
-    activeWindowToStateAddressWindows = emptyIfNull(valueState.read());
+    activeWindowToStateAddressWindows = emptyIfNull(readModifyWriteState.read());
     originalActiveWindowToStateAddressWindows = deepCopy(activeWindowToStateAddressWindows);
   }
 
@@ -88,14 +88,14 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
     checkInvariants();
     if (activeWindowToStateAddressWindows.isEmpty()) {
       // Force all persistent state to disappear.
-      valueState.clear();
+      readModifyWriteState.clear();
       return;
     }
     if (activeWindowToStateAddressWindows.equals(originalActiveWindowToStateAddressWindows)) {
       // No change.
       return;
     }
-    valueState.write(activeWindowToStateAddressWindows);
+    readModifyWriteState.write(activeWindowToStateAddressWindows);
     // No need to update originalActiveWindowToStateAddressWindows since this object is about to
     // become garbage.
   }

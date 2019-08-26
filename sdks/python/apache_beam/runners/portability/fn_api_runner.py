@@ -938,7 +938,9 @@ class FnApiRunner(runner.PipelineRunner):
 
     def blocking_clear(self, state_key):
       with self._lock:
-        del self._state[self._to_key(state_key)]
+        key = self._to_key(state_key)
+        if key in self._state:
+          del self._state[self._to_key(state_key)]
 
     @staticmethod
     def _to_key(state_key):

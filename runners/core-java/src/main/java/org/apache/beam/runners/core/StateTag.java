@@ -28,6 +28,7 @@ import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -76,6 +77,8 @@ public interface StateTag<StateT extends State> extends Serializable {
   @Deprecated
   public interface StateBinder {
     <T> ValueState<T> bindValue(StateTag<ValueState<T>> spec, Coder<T> coder);
+
+    <T> ReadModifyWriteState<T> bindReadModifyWrite(StateTag<ReadModifyWriteState<T>> spec, Coder<T> coder);
 
     <T> BagState<T> bindBag(StateTag<BagState<T>> spec, Coder<T> elemCoder);
 

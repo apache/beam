@@ -26,10 +26,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * @param <T> The type of value being stored.
  */
 @Experimental(Kind.STATE)
-public interface ValueState<T> extends ReadableState<T>, State {
-  /** Set the value. */
-  void write(T input);
-
-  @Override
-  ValueState<T> readLater();
+public interface ValueState<T> extends ReadModifyWriteState<T> {
+ // This is deprecated please use ReadModifyWriteState
 }

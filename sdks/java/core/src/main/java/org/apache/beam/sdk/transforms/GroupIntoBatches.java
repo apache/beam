@@ -29,7 +29,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -122,7 +122,7 @@ public class GroupIntoBatches<K, InputT>
     private final StateSpec<CombiningState<Long, long[], Long>> numElementsInBatchSpec;
 
     @StateId(KEY_ID)
-    private final StateSpec<ValueState<K>> keySpec;
+    private final StateSpec<ReadModifyWriteState<K>> keySpec;
 
     private final long prefetchFrequency;
 
@@ -149,7 +149,7 @@ public class GroupIntoBatches<K, InputT>
                 }
               });
 
-      this.keySpec = StateSpecs.value(inputKeyCoder);
+      this.keySpec = StateSpecs.readModifyWrite(inputKeyCoder);
       // prefetch every 20% of batchSize elements. Do not prefetch if batchSize is too little
       this.prefetchFrequency = ((batchSize / 5) <= 1) ? Long.MAX_VALUE : (batchSize / 5);
     }
@@ -159,7 +159,7 @@ public class GroupIntoBatches<K, InputT>
         @TimerId(END_OF_WINDOW_ID) Timer timer,
         @StateId(BATCH_ID) BagState<InputT> batch,
         @StateId(NUM_ELEMENTS_IN_BATCH_ID) CombiningState<Long, long[], Long> numElementsInBatch,
-        @StateId(KEY_ID) ValueState<K> key,
+        @StateId(KEY_ID) ReadModifyWriteState<K> key,
         @Element KV<K, InputT> element,
         BoundedWindow window,
         OutputReceiver<KV<K, Iterable<InputT>>> receiver) {
@@ -190,7 +190,7 @@ public class GroupIntoBatches<K, InputT>
     public void onTimerCallback(
         OutputReceiver<KV<K, Iterable<InputT>>> receiver,
         @Timestamp Instant timestamp,
-        @StateId(KEY_ID) ValueState<K> key,
+        @StateId(KEY_ID) ReadModifyWriteState<K> key,
         @StateId(BATCH_ID) BagState<InputT> batch,
         @StateId(NUM_ELEMENTS_IN_BATCH_ID) CombiningState<Long, long[], Long> numElementsInBatch,
         BoundedWindow window) {
@@ -203,7 +203,7 @@ public class GroupIntoBatches<K, InputT>
 
     private void flushBatch(
         OutputReceiver<KV<K, Iterable<InputT>>> receiver,
-        ValueState<K> key,
+        ReadModifyWriteState<K> key,
         BagState<InputT> batch,
         CombiningState<Long, long[], Long> numElementsInBatch) {
       Iterable<InputT> values = batch.read();

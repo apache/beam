@@ -45,7 +45,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Sum;
@@ -765,11 +765,11 @@ public class DoFnSignaturesTest {
         DoFnSignatures.getSignature(
             new DoFn<KV<String, Integer>, Long>() {
               @StateId("my-id")
-              private final StateSpec<ValueState<Integer>> myfield1 =
+              private final StateSpec<ReadModifyWriteState<Integer>> myfield1 =
                   StateSpecs.value(VarIntCoder.of());
 
               @StateId("my-id")
-              private final StateSpec<ValueState<Long>> myfield2 =
+              private final StateSpec<ReadModifyWriteState<Long>> myfield2 =
                   StateSpecs.value(VarLongCoder.of());
 
               @ProcessElement
@@ -787,7 +787,7 @@ public class DoFnSignaturesTest {
     DoFnSignatures.getSignature(
         new DoFn<KV<String, Integer>, Long>() {
           @StateId("my-id")
-          private StateSpec<ValueState<Integer>> myfield = StateSpecs.value(VarIntCoder.of());
+          private StateSpec<ReadModifyWriteState<Integer>> myfield = StateSpecs.value(VarIntCoder.of());
 
           @ProcessElement
           public void foo(ProcessContext context) {}
@@ -804,7 +804,7 @@ public class DoFnSignaturesTest {
     DoFnSignatures.getSignature(
         new DoFn<KV<String, Integer>, Long>() {
           @ProcessElement
-          public void myProcessElement(ProcessContext context, ValueState<Integer> noAnnotation) {}
+          public void myProcessElement(ProcessContext context, ReadModifyWriteState<Integer> noAnnotation) {}
         }.getClass());
   }
 
@@ -820,7 +820,7 @@ public class DoFnSignaturesTest {
         new DoFn<KV<String, Integer>, Long>() {
           @ProcessElement
           public void myProcessElement(
-              ProcessContext context, @StateId("my-id") ValueState<Integer> undeclared) {}
+              ProcessContext context, @StateId("my-id") ReadModifyWriteState<Integer> undeclared) {}
         }.getClass());
   }
 
@@ -835,13 +835,13 @@ public class DoFnSignaturesTest {
     DoFnSignatures.getSignature(
         new DoFn<KV<String, Integer>, Long>() {
           @StateId("my-id")
-          private final StateSpec<ValueState<Integer>> myfield = StateSpecs.value(VarIntCoder.of());
+          private final StateSpec<ReadModifyWriteState<Integer>> myfield = StateSpecs.value(VarIntCoder.of());
 
           @ProcessElement
           public void myProcessElement(
               ProcessContext context,
-              @StateId("my-id") ValueState<Integer> one,
-              @StateId("my-id") ValueState<Integer> two) {}
+              @StateId("my-id") ReadModifyWriteState<Integer> one,
+              @StateId("my-id") ReadModifyWriteState<Integer> two) {}
         }.getClass());
   }
 
@@ -851,7 +851,7 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("WatermarkHoldState");
     thrown.expectMessage("reference to");
     thrown.expectMessage("supertype");
-    thrown.expectMessage("ValueState");
+    thrown.expectMessage("ReadModifyWriteState");
     thrown.expectMessage("my-id");
     thrown.expectMessage("myProcessElement");
     thrown.expectMessage("index 1");
@@ -859,7 +859,7 @@ public class DoFnSignaturesTest {
     DoFnSignatures.getSignature(
         new DoFn<KV<String, Integer>, Long>() {
           @StateId("my-id")
-          private final StateSpec<ValueState<Integer>> myfield = StateSpecs.value(VarIntCoder.of());
+          private final StateSpec<ReadModifyWriteState<Integer>> myfield = StateSpecs.value(VarIntCoder.of());
 
           @ProcessElement
           public void myProcessElement(
@@ -870,10 +870,10 @@ public class DoFnSignaturesTest {
   @Test
   public void testStateParameterWrongGenericType() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("ValueState<String>");
+    thrown.expectMessage("ReadModifyWriteState<String>");
     thrown.expectMessage("reference to");
     thrown.expectMessage("supertype");
-    thrown.expectMessage("ValueState<Integer>");
+    thrown.expectMessage("ReadModifyWriteState<Integer>");
     thrown.expectMessage("my-id");
     thrown.expectMessage("myProcessElement");
     thrown.expectMessage("index 1");
@@ -881,11 +881,11 @@ public class DoFnSignaturesTest {
     DoFnSignatures.getSignature(
         new DoFn<KV<String, Integer>, Long>() {
           @StateId("my-id")
-          private final StateSpec<ValueState<Integer>> myfield = StateSpecs.value(VarIntCoder.of());
+          private final StateSpec<ReadModifyWriteState<Integer>> myfield = StateSpecs.value(VarIntCoder.of());
 
           @ProcessElement
           public void myProcessElement(
-              ProcessContext context, @StateId("my-id") ValueState<String> stringState) {}
+              ProcessContext context, @StateId("my-id") ReadModifyWriteState<String> stringState) {}
         }.getClass());
   }
 
@@ -910,7 +910,7 @@ public class DoFnSignaturesTest {
         DoFnSignatures.getSignature(
             new DoFn<KV<String, Integer>, Long>() {
               @StateId("foo")
-              private final StateSpec<ValueState<Integer>> bizzle =
+              private final StateSpec<ReadModifyWriteState<Integer>> bizzle =
                   StateSpecs.value(VarIntCoder.of());
 
               @ProcessElement
@@ -924,7 +924,7 @@ public class DoFnSignaturesTest {
     assertThat(decl.field().getName(), equalTo("bizzle"));
     assertThat(
         decl.stateType(),
-        Matchers.<TypeDescriptor<?>>equalTo(new TypeDescriptor<ValueState<Integer>>() {}));
+        Matchers.<TypeDescriptor<?>>equalTo(new TypeDescriptor<ReadModifyWriteState<Integer>>() {}));
   }
 
   @Test
@@ -934,7 +934,7 @@ public class DoFnSignaturesTest {
           @ProcessElement
           public void process(
               ProcessContext context,
-              @StateId(DoFnDeclaringState.STATE_ID) ValueState<Integer> state) {}
+              @StateId(DoFnDeclaringState.STATE_ID) ReadModifyWriteState<Integer> state) {}
         };
 
     thrown.expect(IllegalArgumentException.class);
@@ -954,7 +954,7 @@ public class DoFnSignaturesTest {
     DoFnSignatures.getSignature(
         new DoFnUsingState() {
           @StateId(DoFnUsingState.STATE_ID)
-          private final StateSpec<ValueState<Integer>> spec = StateSpecs.value(VarIntCoder.of());
+          private final StateSpec<ReadModifyWriteState<Integer>> spec = StateSpecs.value(VarIntCoder.of());
         }.getClass());
   }
 
@@ -963,7 +963,7 @@ public class DoFnSignaturesTest {
     class DoFnOverridingAbstractStateUse extends DoFnDeclaringStateAndAbstractUse {
 
       @Override
-      public void processWithState(ProcessContext c, ValueState<String> state) {}
+      public void processWithState(ProcessContext c, ReadModifyWriteState<String> state) {}
     }
 
     DoFnSignature sig =
@@ -995,11 +995,11 @@ public class DoFnSignaturesTest {
         DoFnSignatures.getSignature(
             new DoFn<KV<String, Integer>, Long>() {
               @StateId("foo")
-              private final StateSpec<ValueState<Integer>> bizzleDecl =
+              private final StateSpec<ReadModifyWriteState<Integer>> bizzleDecl =
                   StateSpecs.value(VarIntCoder.of());
 
               @ProcessElement
-              public void foo(ProcessContext context, @StateId("foo") ValueState<Integer> bizzle) {}
+              public void foo(ProcessContext context, @StateId("foo") ReadModifyWriteState<Integer> bizzle) {}
             }.getClass());
 
     assertThat(sig.processElement().extraParameters().size(), equalTo(2));
@@ -1028,7 +1028,7 @@ public class DoFnSignaturesTest {
   public void testSimpleStateIdNamedDoFn() throws Exception {
     class DoFnForTestSimpleStateIdNamedDoFn extends DoFn<KV<String, Integer>, Long> {
       @StateId("foo")
-      private final StateSpec<ValueState<Integer>> bizzle = StateSpecs.value(VarIntCoder.of());
+      private final StateSpec<ReadModifyWriteState<Integer>> bizzle = StateSpecs.value(VarIntCoder.of());
 
       @ProcessElement
       public void foo(ProcessContext context) {}
@@ -1045,7 +1045,7 @@ public class DoFnSignaturesTest {
         decl.field(), equalTo(DoFnForTestSimpleStateIdNamedDoFn.class.getDeclaredField("bizzle")));
     assertThat(
         decl.stateType(),
-        Matchers.<TypeDescriptor<?>>equalTo(new TypeDescriptor<ValueState<Integer>>() {}));
+        Matchers.<TypeDescriptor<?>>equalTo(new TypeDescriptor<ReadModifyWriteState<Integer>>() {}));
   }
 
   @Test
@@ -1054,7 +1054,7 @@ public class DoFnSignaturesTest {
       // Note that in order to have a coder for T it will require initialization in the constructor,
       // but that isn't important for this test
       @StateId("foo")
-      private final StateSpec<ValueState<T>> bizzle = null;
+      private final StateSpec<ReadModifyWriteState<T>> bizzle = null;
 
       @ProcessElement
       public void foo(ProcessContext context) {}
@@ -1073,7 +1073,7 @@ public class DoFnSignaturesTest {
         decl.field(), equalTo(DoFnForTestGenericStatefulDoFn.class.getDeclaredField("bizzle")));
     assertThat(
         decl.stateType(),
-        Matchers.<TypeDescriptor<?>>equalTo(new TypeDescriptor<ValueState<Integer>>() {}));
+        Matchers.<TypeDescriptor<?>>equalTo(new TypeDescriptor<ReadModifyWriteState<Integer>>() {}));
   }
 
   @Test
@@ -1158,7 +1158,7 @@ public class DoFnSignaturesTest {
         DoFnSignatures.getSignature(
             new DoFn<String, String>() {
               @StateId("foo")
-              private final StateSpec<ValueState<Integer>> bizzle =
+              private final StateSpec<ReadModifyWriteState<Integer>> bizzle =
                   StateSpecs.value(VarIntCoder.of());
 
               @ProcessElement
@@ -1167,7 +1167,7 @@ public class DoFnSignaturesTest {
               @OnWindowExpiration
               public void bar(
                   BoundedWindow b,
-                  @StateId("foo") ValueState<Integer> s,
+                  @StateId("foo") ReadModifyWriteState<Integer> s,
                   PipelineOptions p,
                   OutputReceiver<String> o,
                   MultiOutputReceiver m) {}
@@ -1195,14 +1195,14 @@ public class DoFnSignaturesTest {
     public static final String STATE_ID = "my-state-id";
 
     @StateId(STATE_ID)
-    private final StateSpec<ValueState<Integer>> bizzle = StateSpecs.value(VarIntCoder.of());
+    private final StateSpec<ReadModifyWriteState<Integer>> bizzle = StateSpecs.value(VarIntCoder.of());
   }
 
   private abstract static class DoFnUsingState extends DoFn<KV<String, Integer>, Long> {
     public static final String STATE_ID = "my-state-id";
 
     @ProcessElement
-    public void process(ProcessContext context, @StateId(STATE_ID) ValueState<Integer> state) {}
+    public void process(ProcessContext context, @StateId(STATE_ID) ReadModifyWriteState<Integer> state) {}
   }
 
   private abstract static class DoFnDeclaringStateAndAbstractUse
@@ -1210,12 +1210,12 @@ public class DoFnSignaturesTest {
     public static final String STATE_ID = "my-state-id";
 
     @StateId(STATE_ID)
-    private final StateSpec<ValueState<String>> myStateSpec =
+    private final StateSpec<ReadModifyWriteState<String>> myStateSpec =
         StateSpecs.value(StringUtf8Coder.of());
 
     @ProcessElement
     public abstract void processWithState(
-        ProcessContext context, @StateId(STATE_ID) ValueState<String> state);
+        ProcessContext context, @StateId(STATE_ID) ReadModifyWriteState<String> state);
   }
 
   private abstract static class DoFnDeclaringMyTimerId extends DoFn<KV<String, Integer>, Long> {

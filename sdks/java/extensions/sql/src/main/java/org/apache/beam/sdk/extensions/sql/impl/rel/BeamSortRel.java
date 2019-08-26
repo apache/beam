@@ -36,7 +36,7 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -259,17 +259,17 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     }
 
     @StateId("counter")
-    private final StateSpec<ValueState<Integer>> counterState = StateSpecs.value(VarIntCoder.of());
+    private final StateSpec<ReadModifyWriteState<Integer>> counterState = StateSpecs.value(VarIntCoder.of());
 
     @StateId("skipped_rows")
-    private final StateSpec<ValueState<Integer>> skippedRowsState =
+    private final StateSpec<ReadModifyWriteState<Integer>> skippedRowsState =
         StateSpecs.value(VarIntCoder.of());
 
     @ProcessElement
     public void processElement(
         ProcessContext context,
-        @StateId("counter") ValueState<Integer> counterState,
-        @StateId("skipped_rows") ValueState<Integer> skippedRowsState) {
+        @StateId("counter") ReadModifyWriteState<Integer> counterState,
+        @StateId("skipped_rows") ReadModifyWriteState<Integer> skippedRowsState) {
       Integer toSkipRows = firstNonNull(skippedRowsState.read(), startIndex);
       if (toSkipRows == 0) {
         int current = firstNonNull(counterState.read(), 0);

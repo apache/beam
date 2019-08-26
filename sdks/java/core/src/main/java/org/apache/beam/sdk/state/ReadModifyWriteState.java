@@ -21,14 +21,15 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
- * A state cell, supporting a {@link #clear()} operation.
+ * A {@link ReadableState} cell containing a single value.
  *
- * <p>Specific types of state add appropriate accessors for reading and writing values, see {@link
- * ReadModifyWritState}, {@link BagState}, and {@link GroupingState}.
+ * @param <T> The type of value being stored.
  */
 @Experimental(Kind.STATE)
-public interface State {
+public interface ReadModifyWriteState<T> extends ReadableState<T>, State {
+  /** Set the value. */
+  void write(T input);
 
-  /** Clear out the state location. */
-  void clear();
+  @Override
+  ReadModifyWriteState<T> readLater();
 }

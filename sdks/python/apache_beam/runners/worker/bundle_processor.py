@@ -451,12 +451,6 @@ class SynchronousReadModifyWriteRuntimeState(
     self._added_element = None
 
   def read(self):
-    # TODO: not sure whther return an iterable object or single value. If we
-    # are choosing to be consistent with other states (SetState, BagState)
-    # then we should choose an iteratable object but this state is suppose
-    # to return only one value. Currently, I am choosing to just return only
-    # one value.
-
     if self._cleared:
       return None
     elif self._added_element:

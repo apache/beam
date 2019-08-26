@@ -33,6 +33,7 @@ import org.apache.beam.sdk.state.StateBinder;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
@@ -67,6 +68,11 @@ public class StateTags {
       @Override
       public <T> ValueState<T> bindValue(String id, StateSpec<ValueState<T>> spec, Coder<T> coder) {
         return binder.bindValue(tagForSpec(id, spec), coder);
+      }
+      
+      @Override
+      public <T> ReadModifyWriteState<T> bindReadModifyWrite(String id, StateSpec<ReadModifyWriteState<T>> spec, Coder<T> coder) {
+        return binder.bindReadModifyWrite(tagForSpec(id, spec), coder);
       }
 
       @Override
@@ -139,8 +145,8 @@ public class StateTags {
   }
 
   /** Create a simple state tag for values of type {@code T}. */
-  public static <T> StateTag<ValueState<T>> value(String id, Coder<T> valueCoder) {
-    return new SimpleStateTag<>(new StructuredId(id), StateSpecs.value(valueCoder));
+  public static <T> StateTag<ReadModifyWriteState<T>> value(String id, Coder<T> valueCoder) {
+    return new SimpleStateTag<>(new StructuredId(id), StateSpecs.readModifyWrite(valueCoder));
   }
 
   /**

@@ -42,8 +42,8 @@ from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import CombiningValueStateSpec
-from apache_beam.transforms.userstate import SetStateSpec
 from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
+from apache_beam.transforms.userstate import SetStateSpec
 from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.userstate import get_dofn_specs
 from apache_beam.transforms.userstate import is_stateful_dofn
@@ -634,12 +634,12 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
       @on_timer(EXPIRY_TIMER)
       def expiry_callback(self,
                           buffer=DoFn.StateParam(READMODIFFYWRITE)):
-        buffer.clear()
+        yield buffer.clear()
 
       @on_timer(CLEAR_TIMER)
       def clear_callback(self,
                          buffer=DoFn.StateParam(READMODIFFYWRITE)):
-        yield buffer.read()
+        buffer.clear()
 
     with TestPipeline() as p:
       test_stream = (TestStream()
@@ -654,7 +654,75 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
        | beam.ParDo(SimpleReadModifyWriteStatefulCleanDoFn())
        | beam.ParDo(self.record_dofn()))
 
-    self.assertTrue(StatefulDoFnOnDirectRunnerTest.all_records)
+    self.assertTrue(not StatefulDoFnOnDirectRunnerTest.all_records)
+
+  def test_stateful_read_modify_write_state_portably(self):
+
+    class ReadModifyWriteStatefulDoFn(beam.DoFn):
+
+      BUFFER_STATE = ReadModifyWriteStateSpec('buffer', VarIntCoder())
+      EMIT_TIMER = TimerSpec('emit_timer', TimeDomain.WATERMARK)
+
+      def process(self,
+                  element,
+                  buffer_state=beam.DoFn.StateParam(BUFFER_STATE),
+                  emit_timer=beam.DoFn.TimerParam(EMIT_TIMER)):
+        _, value = element
+        buffer_state.add(value)
+        emit_timer.set(3)
+
+      @on_timer(EMIT_TIMER)
+      def emit_values(self, buffer_state=beam.DoFn.StateParam(BUFFER_STATE)):
+        yield buffer_state.read()
+
+    p = TestPipeline()
+    values = p | beam.Create([('key', 1),
+                              ('key', 2),
+                              ('key', 3)])
+    actual_values = (values
+                     | beam.Map(lambda t: window.TimestampedValue(t, t[1]))
+                     | beam.ParDo(ReadModifyWriteStatefulDoFn()))
+
+    assert_that(actual_values, equal_to([3]))
+
+    result = p.run()
+    result.wait_until_finish()
+
+  def test_stateful_read_modify_write_state_clean_portably(self):
+
+    class ReadModifyWriteStatefulDoFn(beam.DoFn):
+
+      BUFFER_STATE = ReadModifyWriteStateSpec('buffer', VarIntCoder())
+      EMIT_TIMER = TimerSpec('emit_timer', TimeDomain.WATERMARK)
+
+      def process(self,
+                  element,
+                  buffer_state=beam.DoFn.StateParam(BUFFER_STATE),
+                  emit_timer=beam.DoFn.TimerParam(EMIT_TIMER)):
+        _, value = element
+        buffer_state.add(value)
+
+        if value == 3:
+          buffer_state.clear()
+
+        emit_timer.set(3)
+
+      @on_timer(EMIT_TIMER)
+      def emit_value(self, buffer_state=beam.DoFn.StateParam(BUFFER_STATE)):
+        yield buffer_state.read()
+
+    p = TestPipeline()
+    values = p | beam.Create([('key', 1),
+                              ('key', 2),
+                              ('key', 3)])
+    actual_values = (values
+                     | beam.Map(lambda t: window.TimestampedValue(t, t[1]))
+                     | beam.ParDo(ReadModifyWriteStatefulDoFn()))
+
+    assert_that(actual_values, equal_to([None]))
+
+    result = p.run()
+    result.wait_until_finish()
 
   def test_stateful_dofn_nonkeyed_input(self):
     p = TestPipeline()

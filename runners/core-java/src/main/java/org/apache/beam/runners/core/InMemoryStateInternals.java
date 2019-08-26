@@ -41,6 +41,7 @@ import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
@@ -125,6 +126,11 @@ public class InMemoryStateInternals<K> implements StateInternals {
     }
 
     @Override
+    public <T> ReadModifyWriteState<T> bindReadModifyWrite(StateTag<ReadModifyWriteState<T>> address, Coder<T> coder) {
+      return new InMemoryReadModifyWrite<>(coder);
+    }
+
+    @Override
     public <T> BagState<T> bindBag(final StateTag<BagState<T>> address, Coder<T> elemCoder) {
       return new InMemoryBag<>(elemCoder);
     }
@@ -166,9 +172,62 @@ public class InMemoryStateInternals<K> implements StateInternals {
     }
   }
 
-  /** An {@link InMemoryState} implementation of {@link ValueState}. */
+
+  /** An {@link InMemoryState} implementation of {@link ReadModifyWriteState}. */
+  public static final class InMemoryReadModifyWrite<T>
+      implements ReadModifyWriteState<T>, InMemoryState<InMemoryReadModifyWrite<T>> {
+    private final Coder<T> coder;
+
+    private boolean isCleared = true;
+    private @Nullable T value = null;
+
+    public InMemoryReadModifyWrite(Coder<T> coder) {
+      this.coder = coder;
+    }
+
+    @Override
+    public void clear() {
+      // Even though we're clearing we can't remove this from the in-memory state map, since
+      // other users may already have a handle on this Value.
+      value = null;
+      isCleared = true;
+    }
+
+    @Override
+    public InMemoryReadModifyWrite<T> readLater() {
+      return this;
+    }
+
+    @Override
+    public T read() {
+      return value;
+    }
+
+    @Override
+    public void write(T input) {
+      isCleared = false;
+      this.value = input;
+    }
+
+    @Override
+    public InMemoryReadModifyWrite<T> copy() {
+      InMemoryReadModifyWrite<T> that = new InMemoryReadModifyWrite<>(coder);
+      if (!this.isCleared) {
+        that.isCleared = this.isCleared;
+        that.value = uncheckedClone(coder, this.value);
+      }
+      return that;
+    }
+
+    @Override
+    public boolean isCleared() {
+      return isCleared;
+    }
+  }
+
+  /** An {@link InMemoryState} implementation of {@link ReadModifyWriteState}. */
   public static final class InMemoryValue<T>
-      implements ValueState<T>, InMemoryState<InMemoryValue<T>> {
+          implements ValueState<T>, InMemoryState<InMemoryValue<T>> {
     private final Coder<T> coder;
 
     private boolean isCleared = true;

@@ -43,6 +43,7 @@ import org.apache.beam.sdk.state.StateBinder;
 import org.apache.beam.sdk.state.StateContext;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
@@ -153,8 +154,14 @@ public class FlinkStateInternals<K> implements StateInternals {
 
     @Override
     public <T2> ValueState<T2> bindValue(
-        String id, StateSpec<ValueState<T2>> spec, Coder<T2> coder) {
+            String id, StateSpec<ValueState<T2>> spec, Coder<T2> coder) {
       return new FlinkValueState<>(flinkStateBackend, id, namespace, coder);
+    }
+
+    @Override
+    public <T2> ReadModifyWriteState<T2> bindReadModifyWrite(
+        String id, StateSpec<ReadModifyWriteState<T2>> spec, Coder<T2> coder) {
+      return new FlinkReadModifyWriteState<>(flinkStateBackend, id, namespace, coder);
     }
 
     @Override
@@ -222,6 +229,89 @@ public class FlinkStateInternals<K> implements StateInternals {
     private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
 
     FlinkValueState(
+            KeyedStateBackend<ByteBuffer> flinkStateBackend,
+            String stateId,
+            StateNamespace namespace,
+            Coder<T> coder) {
+
+      this.namespace = namespace;
+      this.stateId = stateId;
+      this.flinkStateBackend = flinkStateBackend;
+
+      flinkStateDescriptor = new ValueStateDescriptor<>(stateId, new CoderTypeSerializer<>(coder));
+    }
+
+    @Override
+    public void write(T input) {
+      try {
+        flinkStateBackend
+                .getPartitionedState(
+                        namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
+                .update(input);
+      } catch (Exception e) {
+        throw new RuntimeException("Error updating state.", e);
+      }
+    }
+
+    @Override
+    public ValueState<T> readLater() {
+      return this;
+    }
+
+    @Override
+    public T read() {
+      try {
+        return flinkStateBackend
+                .getPartitionedState(
+                        namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
+                .value();
+      } catch (Exception e) {
+        throw new RuntimeException("Error reading state.", e);
+      }
+    }
+
+    @Override
+    public void clear() {
+      try {
+        flinkStateBackend
+                .getPartitionedState(
+                        namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
+                .clear();
+      } catch (Exception e) {
+        throw new RuntimeException("Error clearing state.", e);
+      }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      FlinkValueState<?> that = (FlinkValueState<?>) o;
+
+      return namespace.equals(that.namespace) && stateId.equals(that.stateId);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = namespace.hashCode();
+      result = 31 * result + stateId.hashCode();
+      return result;
+    }
+  }
+
+  private static class FlinkReadModifyWriteState<T> implements ReadModifyWriteState<T> {
+
+    private final StateNamespace namespace;
+    private final String stateId;
+    private final ValueStateDescriptor<T> flinkStateDescriptor;
+    private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
+
+    FlinkReadModifyWriteState(
         KeyedStateBackend<ByteBuffer> flinkStateBackend,
         String stateId,
         StateNamespace namespace,
@@ -247,7 +337,7 @@ public class FlinkStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public ValueState<T> readLater() {
+    public ReadModifyWriteState<T> readLater() {
       return this;
     }
 
@@ -284,7 +374,7 @@ public class FlinkStateInternals<K> implements StateInternals {
         return false;
       }
 
-      FlinkValueState<?> that = (FlinkValueState<?>) o;
+      FlinkReadModifyWriteState<?> that = (FlinkReadModifyWriteState<?>) o;
 
       return namespace.equals(that.namespace) && stateId.equals(that.stateId);
     }
@@ -1246,6 +1336,19 @@ public class FlinkStateInternals<K> implements StateInternals {
 
     @Override
     public <T> ValueState<T> bindValue(String id, StateSpec<ValueState<T>> spec, Coder<T> coder) {
+      try {
+        keyedStateBackend.getOrCreateKeyedState(
+                StringSerializer.INSTANCE,
+                new ValueStateDescriptor<>(id, new CoderTypeSerializer<>(coder)));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+
+      return null;
+    }
+
+    @Override
+    public <T> ReadModifyWriteState<T> bindReadModifyWrite(String id, StateSpec<ReadModifyWriteState<T>> spec, Coder<T> coder) {
       try {
         keyedStateBackend.getOrCreateKeyedState(
             StringSerializer.INSTANCE,

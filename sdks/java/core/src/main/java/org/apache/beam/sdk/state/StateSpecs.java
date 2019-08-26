@@ -44,10 +44,10 @@ public class StateSpecs {
    *
    * <p>This method attempts to infer the accumulator coder automatically.
    *
-   * @see #value(Coder)
+   * @see #readModifyWrite(Coder)
    */
-  public static <T> StateSpec<ValueState<T>> value() {
-    return new ValueStateSpec<>(null);
+  public static <T> StateSpec<ReadModifyWriteState<T>> readModifyWrite() {
+    return new ReadModifyWriteStateSpec<>(null);
   }
 
   /**
@@ -55,9 +55,9 @@ public class StateSpecs {
    *
    * <p>If automatic coder inference fails, use this method.
    */
-  public static <T> StateSpec<ValueState<T>> value(Coder<T> valueCoder) {
-    checkArgument(valueCoder != null, "valueCoder should not be null. Consider value() instead");
-    return new ValueStateSpec<>(valueCoder);
+  public static <T> StateSpec<ReadModifyWriteState<T>> readModifyWrite(Coder<T> valueCoder) {
+    checkArgument(valueCoder != null, "valueCoder should not be null. Consider readModifyWrite() instead");
+    return new ReadModifyWriteStateSpec<>(valueCoder);
   }
 
   /**
@@ -263,22 +263,22 @@ public class StateSpecs {
    *
    * <p>Includes the coder for {@code T}.
    */
-  private static class ValueStateSpec<T> implements StateSpec<ValueState<T>> {
+  private static class ReadModifyWriteStateSpec<T> implements StateSpec<ReadModifyWriteState<T>> {
 
     @Nullable private Coder<T> coder;
 
-    private ValueStateSpec(@Nullable Coder<T> coder) {
+    private ReadModifyWriteStateSpec(@Nullable Coder<T> coder) {
       this.coder = coder;
     }
 
     @Override
-    public ValueState<T> bind(String id, StateBinder visitor) {
-      return visitor.bindValue(id, this, coder);
+    public ReadModifyWriteState<T> bind(String id, StateBinder visitor) {
+      return visitor.bindReadModifyWrite(id, this, coder);
     }
 
     @Override
     public <ResultT> ResultT match(Cases<ResultT> cases) {
-      return cases.dispatchValue(coder);
+      return cases.dispatchReadModifyWrite(coder);
     }
 
     @SuppressWarnings("unchecked")
@@ -293,9 +293,9 @@ public class StateSpecs {
     public void finishSpecifying() {
       if (coder == null) {
         throw new IllegalStateException(
-            "Unable to infer a coder for ValueState and no Coder"
+            "Unable to infer a coder for ReadModifyWriteState and no Coder"
                 + " was specified. Please set a coder by either invoking"
-                + " StateSpecs.value(Coder<T> valueCoder) or by registering the coder in the"
+                + " StateSpecs.readModifyWrite(Coder<T> valueCoder) or by registering the coder in the"
                 + " Pipeline's CoderRegistry.");
       }
     }
@@ -306,11 +306,11 @@ public class StateSpecs {
         return true;
       }
 
-      if (!(obj instanceof ValueStateSpec)) {
+      if (!(obj instanceof ReadModifyWriteStateSpec)) {
         return false;
       }
 
-      ValueStateSpec<?> that = (ValueStateSpec<?>) obj;
+      ReadModifyWriteStateSpec<?> that = (ReadModifyWriteStateSpec<?>) obj;
       return Objects.equals(this.coder, that.coder);
     }
 

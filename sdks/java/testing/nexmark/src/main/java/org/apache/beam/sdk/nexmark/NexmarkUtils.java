@@ -61,7 +61,7 @@ import org.apache.beam.sdk.nexmark.sources.generator.Generator;
 import org.apache.beam.sdk.nexmark.sources.generator.GeneratorConfig;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -587,12 +587,12 @@ public class NexmarkUtils {
                 private static final String DISK_BUSY = "diskBusy";
 
                 @StateId(DISK_BUSY)
-                private final StateSpec<ValueState<byte[]>> spec =
+                private final StateSpec<ReadModifyWriteState<byte[]>> spec =
                     StateSpecs.value(ByteArrayCoder.of());
 
                 @ProcessElement
                 public void processElement(
-                    ProcessContext c, @StateId(DISK_BUSY) ValueState<byte[]> state) {
+                    ProcessContext c, @StateId(DISK_BUSY) ReadModifyWriteState<byte[]> state) {
                   long remain = bytes;
                   long now = System.currentTimeMillis();
                   while (remain > 0) {

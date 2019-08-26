@@ -44,7 +44,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -199,13 +199,13 @@ public class KafkaCSVTableIT {
     private final StateSpec<BagState<Row>> seenRows = StateSpecs.bag();
 
     @StateId("count")
-    private final StateSpec<ValueState<Integer>> countState = StateSpecs.value();
+    private final StateSpec<ReadModifyWriteState<Integer>> countState = StateSpecs.value();
 
     @ProcessElement
     public void process(
         ProcessContext context,
         @StateId("seenValues") BagState<Row> seenValues,
-        @StateId("count") ValueState<Integer> countState) {
+        @StateId("count") ReadModifyWriteState<Integer> countState) {
       // I don't think doing this will be safe in parallel
       int count = MoreObjects.firstNonNull(countState.read(), 0);
       count = count + 1;

@@ -74,7 +74,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -1399,19 +1399,19 @@ public class ParDoTest implements Serializable {
   public static class StateTests extends SharedTestBase implements Serializable {
     @Test
     @Category({ValidatesRunner.class, UsesStatefulParDo.class})
-    public void testValueStateSimple() {
+    public void testReadModifyWriteStateSimple() {
       final String stateId = "foo";
 
       DoFn<KV<String, Integer>, Integer> fn =
           new DoFn<KV<String, Integer>, Integer>() {
 
             @StateId(stateId)
-            private final StateSpec<ValueState<Integer>> intState =
+            private final StateSpec<ReadModifyWriteState<Integer>> intState =
                 StateSpecs.value(VarIntCoder.of());
 
             @ProcessElement
             public void processElement(
-                @StateId(stateId) ValueState<Integer> state, OutputReceiver<Integer> r) {
+                @StateId(stateId) ReadModifyWriteState<Integer> state, OutputReceiver<Integer> r) {
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
               r.output(currentValue);
               state.write(currentValue + 1);
@@ -1429,20 +1429,20 @@ public class ParDoTest implements Serializable {
 
     @Test
     @Category({ValidatesRunner.class, UsesStatefulParDo.class})
-    public void testValueStateDedup() {
+    public void testReadModifyWriteStateDedup() {
       final String stateId = "foo";
 
       DoFn<KV<Integer, Integer>, Integer> onePerKey =
           new DoFn<KV<Integer, Integer>, Integer>() {
 
             @StateId(stateId)
-            private final StateSpec<ValueState<Integer>> seenSpec =
+            private final StateSpec<ReadModifyWriteState<Integer>> seenSpec =
                 StateSpecs.value(VarIntCoder.of());
 
             @ProcessElement
             public void processElement(
                 @Element KV<Integer, Integer> element,
-                @StateId(stateId) ValueState<Integer> seenState,
+                @StateId(stateId) ReadModifyWriteState<Integer> seenState,
                 OutputReceiver<Integer> r) {
               Integer seen = MoreObjects.firstNonNull(seenState.read(), 0);
 
@@ -1485,11 +1485,11 @@ public class ParDoTest implements Serializable {
           new DoFn<String, Integer>() {
 
             @StateId(stateId)
-            private final StateSpec<ValueState<Integer>> intState = StateSpecs.value();
+            private final StateSpec<ReadModifyWriteState<Integer>> intState = StateSpecs.value();
 
             @ProcessElement
             public void processElement(
-                ProcessContext c, @StateId(stateId) ValueState<Integer> state) {}
+                ProcessContext c, @StateId(stateId) ReadModifyWriteState<Integer> state) {}
           };
 
       thrown.expect(IllegalArgumentException.class);
@@ -1508,11 +1508,11 @@ public class ParDoTest implements Serializable {
           new DoFn<KV<Double, String>, Integer>() {
 
             @StateId(stateId)
-            private final StateSpec<ValueState<Integer>> intState = StateSpecs.value();
+            private final StateSpec<ReadModifyWriteState<Integer>> intState = StateSpecs.value();
 
             @ProcessElement
             public void processElement(
-                ProcessContext c, @StateId(stateId) ValueState<Integer> state) {}
+                ProcessContext c, @StateId(stateId) ReadModifyWriteState<Integer> state) {}
           };
 
       thrown.expect(IllegalArgumentException.class);
@@ -1539,12 +1539,12 @@ public class ParDoTest implements Serializable {
           new DoFn<KV<String, Integer>, List<MyInteger>>() {
 
             @StateId(stateId)
-            private final StateSpec<ValueState<List<MyInteger>>> intState = StateSpecs.value();
+            private final StateSpec<ReadModifyWriteState<List<MyInteger>>> intState = StateSpecs.value();
 
             @ProcessElement
             public void processElement(
                 @Element KV<String, Integer> element,
-                @StateId(stateId) ValueState<List<MyInteger>> state,
+                @StateId(stateId) ReadModifyWriteState<List<MyInteger>> state,
                 OutputReceiver<List<MyInteger>> r) {
               MyInteger myInteger = new MyInteger(element.getValue());
               List<MyInteger> currentValue = state.read();
@@ -1574,19 +1574,19 @@ public class ParDoTest implements Serializable {
       UsesStatefulParDo.class,
       DataflowPortabilityApiUnsupported.class
     })
-    public void testValueStateFixedWindows() {
+    public void testReadModifyWriteStateFixedWindows() {
       final String stateId = "foo";
 
       DoFn<KV<String, Integer>, Integer> fn =
           new DoFn<KV<String, Integer>, Integer>() {
 
             @StateId(stateId)
-            private final StateSpec<ValueState<Integer>> intState =
+            private final StateSpec<ReadModifyWriteState<Integer>> intState =
                 StateSpecs.value(VarIntCoder.of());
 
             @ProcessElement
             public void processElement(
-                @StateId(stateId) ValueState<Integer> state, OutputReceiver<Integer> r) {
+                @StateId(stateId) ReadModifyWriteState<Integer> state, OutputReceiver<Integer> r) {
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
               r.output(currentValue);
               state.write(currentValue + 1);
@@ -1622,19 +1622,19 @@ public class ParDoTest implements Serializable {
      */
     @Test
     @Category({ValidatesRunner.class, UsesStatefulParDo.class})
-    public void testValueStateSameId() {
+    public void testReadModifyWriteStateSameId() {
       final String stateId = "foo";
 
       DoFn<KV<String, Integer>, KV<String, Integer>> fn =
           new DoFn<KV<String, Integer>, KV<String, Integer>>() {
 
             @StateId(stateId)
-            private final StateSpec<ValueState<Integer>> intState =
+            private final StateSpec<ReadModifyWriteState<Integer>> intState =
                 StateSpecs.value(VarIntCoder.of());
 
             @ProcessElement
             public void processElement(
-                @StateId(stateId) ValueState<Integer> state,
+                @StateId(stateId) ReadModifyWriteState<Integer> state,
                 OutputReceiver<KV<String, Integer>> r) {
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
               r.output(KV.of("sizzle", currentValue));
@@ -1646,12 +1646,12 @@ public class ParDoTest implements Serializable {
           new DoFn<KV<String, Integer>, Integer>() {
 
             @StateId(stateId)
-            private final StateSpec<ValueState<Integer>> intState =
+            private final StateSpec<ReadModifyWriteState<Integer>> intState =
                 StateSpecs.value(VarIntCoder.of());
 
             @ProcessElement
             public void processElement(
-                @StateId(stateId) ValueState<Integer> state, OutputReceiver<Integer> r) {
+                @StateId(stateId) ReadModifyWriteState<Integer> state, OutputReceiver<Integer> r) {
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 13);
               r.output(currentValue);
               state.write(currentValue + 13);
@@ -1677,7 +1677,7 @@ public class ParDoTest implements Serializable {
       UsesStatefulParDo.class,
       DataflowPortabilityApiUnsupported.class
     })
-    public void testValueStateTaggedOutput() {
+    public void testReadModifyWriteStateTaggedOutput() {
       final String stateId = "foo";
 
       final TupleTag<Integer> evenTag = new TupleTag<Integer>() {};
@@ -1687,12 +1687,12 @@ public class ParDoTest implements Serializable {
           new DoFn<KV<String, Integer>, Integer>() {
 
             @StateId(stateId)
-            private final StateSpec<ValueState<Integer>> intState =
+            private final StateSpec<ReadModifyWriteState<Integer>> intState =
                 StateSpecs.value(VarIntCoder.of());
 
             @ProcessElement
             public void processElement(
-                @StateId(stateId) ValueState<Integer> state, MultiOutputReceiver r) {
+                @StateId(stateId) ReadModifyWriteState<Integer> state, MultiOutputReceiver r) {
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
               if (currentValue % 2 == 0) {
                 r.get(evenTag).output(currentValue);
@@ -2725,18 +2725,18 @@ public class ParDoTest implements Serializable {
             private final TimerSpec loopSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
             @StateId(stateId)
-            private final StateSpec<ValueState<Integer>> countSpec = StateSpecs.value();
+            private final StateSpec<ReadModifyWriteState<Integer>> countSpec = StateSpecs.value();
 
             @ProcessElement
             public void processElement(
-                @StateId(stateId) ValueState<Integer> countState,
+                @StateId(stateId) ReadModifyWriteState<Integer> countState,
                 @TimerId(timerId) Timer loopTimer) {
               loopTimer.offset(Duration.millis(1)).setRelative();
             }
 
             @OnTimer(timerId)
             public void onLoopTimer(
-                @StateId(stateId) ValueState<Integer> countState,
+                @StateId(stateId) ReadModifyWriteState<Integer> countState,
                 @TimerId(timerId) Timer loopTimer,
                 OutputReceiver<Integer> r) {
               int count = MoreObjects.firstNonNull(countState.read(), 0);
@@ -2779,14 +2779,14 @@ public class ParDoTest implements Serializable {
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
             @StateId(stateId)
-            private final StateSpec<ValueState<String>> stateSpec =
+            private final StateSpec<ReadModifyWriteState<String>> stateSpec =
                 StateSpecs.value(StringUtf8Coder.of());
 
             @ProcessElement
             public void processElement(
                 ProcessContext context,
                 @TimerId(timerId) Timer timer,
-                @StateId(stateId) ValueState<String> state,
+                @StateId(stateId) ReadModifyWriteState<String> state,
                 BoundedWindow window) {
               timer.set(window.maxTimestamp());
               state.write(context.element().getKey());
@@ -2796,7 +2796,7 @@ public class ParDoTest implements Serializable {
 
             @OnTimer(timerId)
             public void onTimer(
-                @StateId(stateId) ValueState<String> state, OutputReceiver<KV<String, Integer>> r) {
+                @StateId(stateId) ReadModifyWriteState<String> state, OutputReceiver<KV<String, Integer>> r) {
               r.output(KV.of(state.read(), timerOutput));
             }
           };
@@ -3208,7 +3208,7 @@ public class ParDoTest implements Serializable {
       UsesStatefulParDo.class,
       DataflowPortabilityApiUnsupported.class
     })
-    public void testValueStateCoderInference() {
+    public void testReadModifyWriteStateCoderInference() {
       final String stateId = "foo";
       MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
       pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, myIntegerCoder);
@@ -3217,12 +3217,12 @@ public class ParDoTest implements Serializable {
           new DoFn<KV<String, Integer>, MyInteger>() {
 
             @StateId(stateId)
-            private final StateSpec<ValueState<MyInteger>> intState = StateSpecs.value();
+            private final StateSpec<ReadModifyWriteState<MyInteger>> intState = StateSpecs.value();
 
             @ProcessElement
             public void processElement(
                 ProcessContext c,
-                @StateId(stateId) ValueState<MyInteger> state,
+                @StateId(stateId) ReadModifyWriteState<MyInteger> state,
                 OutputReceiver<MyInteger> r) {
               MyInteger currentValue = MoreObjects.firstNonNull(state.read(), new MyInteger(0));
               r.output(currentValue);
@@ -3242,7 +3242,7 @@ public class ParDoTest implements Serializable {
 
     @Test
     @Category({ValidatesRunner.class, UsesStatefulParDo.class})
-    public void testValueStateCoderInferenceFailure() throws Exception {
+    public void testReadModifyWriteStateCoderInferenceFailure() throws Exception {
       final String stateId = "foo";
       MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
 
@@ -3250,11 +3250,11 @@ public class ParDoTest implements Serializable {
           new DoFn<KV<String, Integer>, MyInteger>() {
 
             @StateId(stateId)
-            private final StateSpec<ValueState<MyInteger>> intState = StateSpecs.value();
+            private final StateSpec<ReadModifyWriteState<MyInteger>> intState = StateSpecs.value();
 
             @ProcessElement
             public void processElement(
-                @StateId(stateId) ValueState<MyInteger> state, OutputReceiver<MyInteger> r) {
+                @StateId(stateId) ReadModifyWriteState<MyInteger> state, OutputReceiver<MyInteger> r) {
               MyInteger currentValue = MoreObjects.firstNonNull(state.read(), new MyInteger(0));
               r.output(currentValue);
               state.write(new MyInteger(currentValue.getValue() + 1));
@@ -3262,7 +3262,7 @@ public class ParDoTest implements Serializable {
           };
 
       thrown.expect(RuntimeException.class);
-      thrown.expectMessage("Unable to infer a coder for ValueState and no Coder was specified.");
+      thrown.expectMessage("Unable to infer a coder for ReadModifyWriteState and no Coder was specified.");
 
       pipeline
           .apply(Create.of(KV.of("hello", 42), KV.of("hello", 97), KV.of("hello", 84)))
@@ -3278,7 +3278,7 @@ public class ParDoTest implements Serializable {
       UsesStatefulParDo.class,
       DataflowPortabilityApiUnsupported.class
     })
-    public void testValueStateCoderInferenceFromInputCoder() {
+    public void testReadModifyWriteStateCoderInferenceFromInputCoder() {
       final String stateId = "foo";
       MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
 
@@ -3286,11 +3286,11 @@ public class ParDoTest implements Serializable {
           new DoFn<KV<String, MyInteger>, MyInteger>() {
 
             @StateId(stateId)
-            private final StateSpec<ValueState<MyInteger>> intState = StateSpecs.value();
+            private final StateSpec<ReadModifyWriteState<MyInteger>> intState = StateSpecs.value();
 
             @ProcessElement
             public void processElement(
-                @StateId(stateId) ValueState<MyInteger> state, OutputReceiver<MyInteger> r) {
+                @StateId(stateId) ReadModifyWriteState<MyInteger> state, OutputReceiver<MyInteger> r) {
               MyInteger currentValue = MoreObjects.firstNonNull(state.read(), new MyInteger(0));
               r.output(currentValue);
               state.write(new MyInteger(currentValue.getValue() + 1));

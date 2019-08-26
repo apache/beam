@@ -72,7 +72,7 @@ public interface StateSpec<StateT extends State> extends Serializable {
 
   /** Cases for doing a "switch" on the type of {@link StateSpec}. */
   interface Cases<ResultT> {
-    ResultT dispatchValue(Coder<?> valueCoder);
+    ResultT dispatchReadModifyWrite(Coder<?> valueCoder);
 
     ResultT dispatchBag(Coder<?> elementCoder);
 
@@ -88,7 +88,7 @@ public interface StateSpec<StateT extends State> extends Serializable {
       protected abstract ResultT dispatchDefault();
 
       @Override
-      public ResultT dispatchValue(Coder<?> valueCoder) {
+      public ResultT dispatchReadModifyWrite(Coder<?> valueCoder) {
         return dispatchDefault();
       }
 

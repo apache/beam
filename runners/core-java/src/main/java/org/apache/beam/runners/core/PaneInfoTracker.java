@@ -20,7 +20,7 @@ package org.apache.beam.runners.core;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import org.apache.beam.sdk.state.ReadableState;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
@@ -43,7 +43,7 @@ public class PaneInfoTracker {
   }
 
   @VisibleForTesting
-  static final StateTag<ValueState<PaneInfo>> PANE_INFO_TAG =
+  static final StateTag<ReadModifyWriteState<PaneInfo>> PANE_INFO_TAG =
       StateTags.makeSystemTagInternal(StateTags.value("pane", PaneInfoCoder.INSTANCE));
 
   public void clear(StateAccessor<?> state) {

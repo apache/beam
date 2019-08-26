@@ -33,7 +33,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.state.TimeDomain;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -236,13 +236,13 @@ public class SplittableParDoViaKeyedWorkItems {
      * DoFn.ProcessElement} call and read during subsequent calls in response to timer firings, when
      * the original element is no longer available.
      */
-    private final StateTag<ValueState<WindowedValue<InputT>>> elementTag;
+    private final StateTag<ReadModifyWriteState<WindowedValue<InputT>>> elementTag;
 
     /**
      * The state cell containing a restriction representing the unprocessed part of work for this
      * element.
      */
-    private StateTag<ValueState<RestrictionT>> restrictionTag;
+    private StateTag<ReadModifyWriteState<RestrictionT>> restrictionTag;
 
     private final DoFn<InputT, OutputT> fn;
     private final Coder<InputT> elementCoder;
@@ -354,9 +354,9 @@ public class SplittableParDoViaKeyedWorkItems {
         stateNamespace = timer.getNamespace();
       }
 
-      ValueState<WindowedValue<InputT>> elementState =
+      ReadModifyWriteState<WindowedValue<InputT>> elementState =
           stateInternals.state(stateNamespace, elementTag);
-      ValueState<RestrictionT> restrictionState =
+      ReadModifyWriteState<RestrictionT> restrictionState =
           stateInternals.state(stateNamespace, restrictionTag);
       WatermarkHoldState holdState = stateInternals.state(stateNamespace, watermarkHoldTag);
 

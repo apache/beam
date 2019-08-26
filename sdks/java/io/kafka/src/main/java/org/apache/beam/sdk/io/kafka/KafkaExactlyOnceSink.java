@@ -44,7 +44,7 @@ import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -210,10 +210,10 @@ class KafkaExactlyOnceSink<K, V>
     private static final String NEXT_ID = "nextId";
 
     @StateId(NEXT_ID)
-    private final StateSpec<ValueState<Long>> nextIdSpec = StateSpecs.value();
+    private final StateSpec<ReadModifyWriteState<Long>> nextIdSpec = StateSpecs.readModifyWrite();
 
     @ProcessElement
-    public void processElement(@StateId(NEXT_ID) ValueState<Long> nextIdState, ProcessContext ctx) {
+    public void processElement(@StateId(NEXT_ID) ReadModifyWriteState<Long> nextIdState, ProcessContext ctx) {
       long nextId = MoreObjects.firstNonNull(nextIdState.read(), 0L);
       int shard = ctx.element().getKey();
       for (TimestampedValue<ProducerRecord<K, V>> value : ctx.element().getValue()) {
@@ -237,10 +237,10 @@ class KafkaExactlyOnceSink<K, V>
     private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
 
     @StateId(NEXT_ID)
-    private final StateSpec<ValueState<Long>> sequenceIdSpec = StateSpecs.value();
+    private final StateSpec<ReadModifyWriteState<Long>> sequenceIdSpec = StateSpecs.readModifyWrite();
 
     @StateId(MIN_BUFFERED_ID)
-    private final StateSpec<ValueState<Long>> minBufferedIdSpec = StateSpecs.value();
+    private final StateSpec<ReadModifyWriteState<Long>> minBufferedIdSpec = StateSpecs.readModifyWrite();
 
     @StateId(OUT_OF_ORDER_BUFFER)
     private final StateSpec<BagState<KV<Long, TimestampedValue<ProducerRecord<K, V>>>>>
@@ -250,7 +250,7 @@ class KafkaExactlyOnceSink<K, V>
     // a job is restarted with same groupId, but the metadata from previous run was not cleared.
     // Better to be safe and error out with a clear message.
     @StateId(WRITER_ID)
-    private final StateSpec<ValueState<String>> writerIdSpec = StateSpecs.value();
+    private final StateSpec<ReadModifyWriteState<String>> writerIdSpec = StateSpecs.readModifyWrite();
 
     private final WriteRecords<K, V> spec;
 
@@ -277,11 +277,11 @@ class KafkaExactlyOnceSink<K, V>
     @RequiresStableInput
     @ProcessElement
     public void processElement(
-        @StateId(NEXT_ID) ValueState<Long> nextIdState,
-        @StateId(MIN_BUFFERED_ID) ValueState<Long> minBufferedIdState,
+        @StateId(NEXT_ID) ReadModifyWriteState<Long> nextIdState,
+        @StateId(MIN_BUFFERED_ID) ReadModifyWriteState<Long> minBufferedIdState,
         @StateId(OUT_OF_ORDER_BUFFER)
             BagState<KV<Long, TimestampedValue<ProducerRecord<K, V>>>> oooBufferState,
-        @StateId(WRITER_ID) ValueState<String> writerIdState,
+        @StateId(WRITER_ID) ReadModifyWriteState<String> writerIdState,
         ProcessContext ctx)
         throws IOException {
 
@@ -521,7 +521,7 @@ class KafkaExactlyOnceSink<K, V>
     }
 
     private ShardWriter<K, V> initShardWriter(
-        int shard, ValueState<String> writerIdState, long nextId) throws IOException {
+        int shard, ReadModifyWriteState<String> writerIdState, long nextId) throws IOException {
 
       String producerName = String.format("producer_%d_for_%s", shard, spec.getSinkGroupId());
       Producer<K, V> producer = initializeExactlyOnceProducer(spec, producerName);

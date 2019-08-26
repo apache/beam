@@ -38,7 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesParDoLifecycle;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
@@ -160,7 +160,7 @@ public class ParDoLifecycleTest implements Serializable {
     private static final String STATE_ID = "foo";
 
     @StateId(STATE_ID)
-    private final StateSpec<ValueState<String>> valueSpec = StateSpecs.value();
+    private final StateSpec<ReadModifyWriteState<String>> valueSpec = StateSpecs.value();
   }
 
   @Test
@@ -429,7 +429,7 @@ public class ParDoLifecycleTest implements Serializable {
     private static final String STATE_ID = "foo";
 
     @StateId(STATE_ID)
-    private final StateSpec<ValueState<String>> valueSpec = StateSpecs.value();
+    private final StateSpec<ReadModifyWriteState<String>> valueSpec = StateSpecs.value();
 
     private ExceptionThrowingStatefulFn(MethodForException toThrow) {
       super(toThrow);

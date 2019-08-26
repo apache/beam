@@ -880,14 +880,8 @@ class MergeableStateAdapter(SimpleState):
               for window_id in self._get_ids(window)]
 
     if isinstance(tag, _ReadModifyWriteStateTag):
-      # TODO: Need better logic here. I think we should just get the latest one
-      # based on the window.
-      for vs in values:
-        for v in vs:
-          if v:
-            return v
-      return None
-
+      raise ValueError("ReadModifyWriteStateTag is not allowed for"
+                       " merging windows")
     elif isinstance(tag, _CombiningValueStateTag):
       return original_tag.combine_fn.extract_output(
           original_tag.combine_fn.merge_accumulators(values))
@@ -1250,7 +1244,6 @@ class InMemoryUnmergedState(UnmergedState):
     if self.defensive_copy:
       value = copy.deepcopy(value)
     if isinstance(tag, _ReadModifyWriteStateTag):
-      # TODO: need to add some thing here.
       self.state[window][tag.tag] = value
     elif isinstance(tag, _CombiningValueStateTag):
       # TODO(robertwb): Store merged accumulators.

@@ -22,8 +22,8 @@ import itertools
 
 from apache_beam.transforms import userstate
 from apache_beam.transforms.trigger import _ListStateTag
-from apache_beam.transforms.trigger import _SetStateTag
 from apache_beam.transforms.trigger import _ReadModifyWriteStateTag
+from apache_beam.transforms.trigger import _SetStateTag
 
 
 class DirectRuntimeState(userstate.RuntimeState):

@@ -422,10 +422,10 @@ public class ParDoTranslation {
     return stateSpec.match(
         new StateSpec.Cases<RunnerApi.StateSpec>() {
           @Override
-          public RunnerApi.StateSpec dispatchValue(Coder<?> valueCoder) {
+          public RunnerApi.StateSpec dispatchReadModifyWrite(Coder<?> valueCoder) {
             return builder
-                .setValueSpec(
-                    RunnerApi.ValueStateSpec.newBuilder()
+                .setReadModifyWriteSpec(
+                    RunnerApi.ReadModifyWriteStateSpec.newBuilder()
                         .setCoderId(registerCoderOrThrow(components, valueCoder)))
                 .build();
           }
@@ -475,8 +475,8 @@ public class ParDoTranslation {
   static StateSpec<?> fromProto(RunnerApi.StateSpec stateSpec, RehydratedComponents components)
       throws IOException {
     switch (stateSpec.getSpecCase()) {
-      case VALUE_SPEC:
-        return StateSpecs.value(components.getCoder(stateSpec.getValueSpec().getCoderId()));
+      case READ_MODIFY_WRITE_SPEC:
+        return StateSpecs.readModifyWrite(components.getCoder(stateSpec.getReadModifyWriteSpec().getCoderId()));
       case BAG_SPEC:
         return StateSpecs.bag(components.getCoder(stateSpec.getBagSpec().getElementCoderId()));
       case COMBINING_SPEC:

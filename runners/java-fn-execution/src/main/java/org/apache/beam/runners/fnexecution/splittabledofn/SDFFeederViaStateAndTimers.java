@@ -35,7 +35,7 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.state.TimeDomain;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -64,11 +64,11 @@ public class SDFFeederViaStateAndTimers<InputT, RestrictionT> {
 
   private StateNamespace stateNamespace;
 
-  private final StateTag<ValueState<WindowedValue<KV<InputT, RestrictionT>>>> seedTag;
-  private ValueState<WindowedValue<KV<InputT, RestrictionT>>> seedState;
+  private final StateTag<ReadModifyWriteState<WindowedValue<KV<InputT, RestrictionT>>>> seedTag;
+  private ReadModifyWriteState<WindowedValue<KV<InputT, RestrictionT>>> seedState;
 
-  private final StateTag<ValueState<RestrictionT>> restrictionTag;
-  private ValueState<RestrictionT> restrictionState;
+  private final StateTag<ReadModifyWriteState<RestrictionT>> restrictionTag;
+  private ReadModifyWriteState<RestrictionT> restrictionState;
 
   private StateTag<WatermarkHoldState> watermarkHoldTag =
       StateTags.makeSystemTagInternal(

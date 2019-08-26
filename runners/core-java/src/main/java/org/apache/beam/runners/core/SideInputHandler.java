@@ -31,7 +31,7 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.state.CombiningState;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
@@ -78,7 +78,7 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
       availableWindowsTags;
 
   /** State tag for the actual contents of each side input per window. */
-  private final Map<PCollectionView<?>, StateTag<ValueState<Iterable<?>>>> sideInputContentsTags;
+  private final Map<PCollectionView<?>, StateTag<ReadModifyWriteState<Iterable<?>>>> sideInputContentsTags;
 
   /**
    * Creates a new {@code SideInputHandler} for the given side inputs that uses the given {@code
@@ -114,7 +114,7 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
 
       availableWindowsTags.put(sideInput, availableTag);
 
-      StateTag<ValueState<Iterable<?>>> stateTag =
+      StateTag<ReadModifyWriteState<Iterable<?>>> stateTag =
           StateTags.value(
               "side-input-data-" + sideInput.getTagInternal().getId(),
               (Coder) IterableCoder.of(sideInput.getCoderInternal()));
@@ -131,7 +131,7 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
     Coder<BoundedWindow> windowCoder =
         (Coder<BoundedWindow>) sideInput.getWindowingStrategyInternal().getWindowFn().windowCoder();
 
-    StateTag<ValueState<Iterable<?>>> stateTag = sideInputContentsTags.get(sideInput);
+    StateTag<ReadModifyWriteState<Iterable<?>>> stateTag = sideInputContentsTags.get(sideInput);
 
     for (BoundedWindow window : value.getWindows()) {
       stateInternals
@@ -172,9 +172,9 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
     Coder<BoundedWindow> windowCoder =
         (Coder<BoundedWindow>) view.getWindowingStrategyInternal().getWindowFn().windowCoder();
 
-    StateTag<ValueState<Iterable<?>>> stateTag = sideInputContentsTags.get(view);
+    StateTag<ReadModifyWriteState<Iterable<?>>> stateTag = sideInputContentsTags.get(view);
 
-    ValueState<Iterable<?>> state =
+    ReadModifyWriteState<Iterable<?>> state =
         stateInternals.state(StateNamespaces.window(windowCoder, window), stateTag);
 
     Iterable<?> elements = state.read();

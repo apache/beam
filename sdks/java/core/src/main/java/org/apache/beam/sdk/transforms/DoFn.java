@@ -362,13 +362,13 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <pre><code>{@literal new DoFn<KV<Key, Foo>, Baz>()} {
    *
    *  {@literal @StateId("my-state-id")}
-   *  {@literal private final StateSpec<ValueState<MyState>>} myStateSpec =
+   *  {@literal private final StateSpec<ReadModifyWriteState<MyState>>} myStateSpec =
    *       StateSpecs.value(new MyStateCoder());
    *
    *  {@literal @ProcessElement}
    *   public void processElement(
    *       {@literal @Element InputT element},
-   *      {@literal @StateId("my-state-id") ValueState<MyState> myState}) {
+   *      {@literal @StateId("my-state-id") ReadModifyWriteState<MyState> myState}) {
    *     myState.read();
    *     myState.write(...);
    *   }

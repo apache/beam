@@ -44,6 +44,7 @@ import org.apache.beam.sdk.state.StateBinder;
 import org.apache.beam.sdk.state.StateContext;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
@@ -197,12 +198,54 @@ public class FnApiStateAccessor implements SideInputReader, StateBinder {
   @Override
   public <T> ValueState<T> bindValue(String id, StateSpec<ValueState<T>> spec, Coder<T> coder) {
     return (ValueState<T>)
+            stateKeyObjectCache.computeIfAbsent(
+                    createBagUserStateKey(id),
+                    new Function<StateKey, Object>() {
+                      @Override
+                      public Object apply(StateKey key) {
+                        return new ValueState<T>() {
+                          private final BagUserState<T> impl = createBagUserState(id, coder);
+
+                          @Override
+                          public void clear() {
+                            impl.clear();
+                          }
+
+                          @Override
+                          public void write(T input) {
+                            impl.clear();
+                            impl.append(input);
+                          }
+
+                          @Override
+                          public T read() {
+                            Iterator<T> value = impl.get().iterator();
+                            if (value.hasNext()) {
+                              return value.next();
+                            } else {
+                              return null;
+                            }
+                          }
+
+                          @Override
+                          public ValueState<T> readLater() {
+                            // TODO: Support prefetching.
+                            return this;
+                          }
+                        };
+                      }
+                    });
+  }
+
+  @Override
+  public <T> ReadModifyWriteState<T> bindReadModifyWrite(String id, StateSpec<ReadModifyWriteState<T>> spec, Coder<T> coder) {
+    return (ReadModifyWriteState<T>)
         stateKeyObjectCache.computeIfAbsent(
             createBagUserStateKey(id),
             new Function<StateKey, Object>() {
               @Override
               public Object apply(StateKey key) {
-                return new ValueState<T>() {
+                return new ReadModifyWriteState<T>() {
                   private final BagUserState<T> impl = createBagUserState(id, coder);
 
                   @Override
@@ -227,7 +270,7 @@ public class FnApiStateAccessor implements SideInputReader, StateBinder {
                   }
 
                   @Override
-                  public ValueState<T> readLater() {
+                  public ReadModifyWriteState<T> readLater() {
                     // TODO: Support prefetching.
                     return this;
                   }

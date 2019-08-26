@@ -33,7 +33,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -159,12 +159,12 @@ public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
     private static final String PERSON = "person";
 
     @StateId(PERSON)
-    private static final StateSpec<ValueState<Person>> personSpec = StateSpecs.value(Person.CODER);
+    private static final StateSpec<ReadModifyWriteState<Person>> personSpec = StateSpecs.value(Person.CODER);
 
     private static final String PERSON_STATE_EXPIRING = "personStateExpiring";
 
     @StateId(AUCTIONS)
-    private final StateSpec<ValueState<List<Auction>>> auctionsSpec =
+    private final StateSpec<ReadModifyWriteState<List<Auction>>> auctionsSpec =
         StateSpecs.value(ListCoder.of(Auction.CODER));
 
     @TimerId(PERSON_STATE_EXPIRING)
@@ -195,8 +195,8 @@ public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
     public void processElement(
         ProcessContext c,
         @TimerId(PERSON_STATE_EXPIRING) Timer timer,
-        @StateId(PERSON) ValueState<Person> personState,
-        @StateId(AUCTIONS) ValueState<List<Auction>> auctionsState) {
+        @StateId(PERSON) ReadModifyWriteState<Person> personState,
+        @StateId(AUCTIONS) ReadModifyWriteState<List<Auction>> auctionsState) {
       // We would *almost* implement this by  rewindowing into the global window and
       // running a combiner over the result. The combiner's accumulator would be the
       // state we use below. However, combiners cannot emit intermediate results, thus
@@ -271,7 +271,7 @@ public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
 
     @OnTimer(PERSON_STATE_EXPIRING)
     public void onTimerCallback(
-        OnTimerContext context, @StateId(PERSON) ValueState<Person> personState) {
+        OnTimerContext context, @StateId(PERSON) ReadModifyWriteState<Person> personState) {
       personState.clear();
     }
   }

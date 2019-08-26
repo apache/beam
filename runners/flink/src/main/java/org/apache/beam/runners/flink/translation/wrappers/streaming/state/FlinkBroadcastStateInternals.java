@@ -41,6 +41,7 @@ import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
@@ -91,6 +92,12 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
           public <T2> ValueState<T2> bindValue(StateTag<ValueState<T2>> address, Coder<T2> coder) {
 
             return new FlinkBroadcastValueState<>(stateBackend, address, namespace, coder);
+          }
+
+          @Override
+          public <T2> ReadModifyWriteState<T2> bindReadModifyWrite(StateTag<ReadModifyWriteState<T2>> address, Coder<T2> coder) {
+
+            return new FlinkBroadcastReadModifyWriteState<>(stateBackend, address, namespace, coder);
           }
 
           @Override
@@ -273,16 +280,16 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
   }
 
   private class FlinkBroadcastValueState<T> extends AbstractBroadcastState<T>
-      implements ValueState<T> {
+          implements ValueState<T> {
 
     private final StateNamespace namespace;
     private final StateTag<ValueState<T>> address;
 
     FlinkBroadcastValueState(
-        OperatorStateBackend flinkStateBackend,
-        StateTag<ValueState<T>> address,
-        StateNamespace namespace,
-        Coder<T> coder) {
+            OperatorStateBackend flinkStateBackend,
+            StateTag<ValueState<T>> address,
+            StateNamespace namespace,
+            Coder<T> coder) {
       super(flinkStateBackend, address.getId(), namespace, coder);
 
       this.namespace = namespace;
@@ -314,6 +321,65 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
       }
 
       FlinkBroadcastValueState<?> that = (FlinkBroadcastValueState<?>) o;
+
+      return namespace.equals(that.namespace) && address.equals(that.address);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = namespace.hashCode();
+      result = 31 * result + address.hashCode();
+      return result;
+    }
+
+    @Override
+    public void clear() {
+      clearInternal();
+    }
+  }
+
+  private class FlinkBroadcastReadModifyWriteState<T> extends AbstractBroadcastState<T>
+      implements ReadModifyWriteState<T> {
+
+    private final StateNamespace namespace;
+    private final StateTag<ReadModifyWriteState<T>> address;
+
+    FlinkBroadcastReadModifyWriteState(
+        OperatorStateBackend flinkStateBackend,
+        StateTag<ReadModifyWriteState<T>> address,
+        StateNamespace namespace,
+        Coder<T> coder) {
+      super(flinkStateBackend, address.getId(), namespace, coder);
+
+      this.namespace = namespace;
+      this.address = address;
+    }
+
+    @Override
+    public void write(T input) {
+      writeInternal(input);
+    }
+
+    @Override
+    public ReadModifyWriteState<T> readLater() {
+      return this;
+    }
+
+    @Override
+    public T read() {
+      return readInternal();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      FlinkBroadcastReadModifyWriteState<?> that = (FlinkBroadcastReadModifyWriteState<?>) o;
 
       return namespace.equals(that.namespace) && address.equals(that.address);
     }

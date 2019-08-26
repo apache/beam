@@ -47,7 +47,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -235,16 +235,16 @@ public class DoFnInvokersTest {
   /** Tests that the generated {@link DoFnInvoker} passes the state parameter that it should. */
   @Test
   public void testDoFnWithState() throws Exception {
-    ValueState<Integer> mockState = mock(ValueState.class);
+    ReadModifyWriteState<Integer> mockState = mock(ReadModifyWriteState.class);
     final String stateId = "my-state-id-here";
     when(mockArgumentProvider.state(stateId)).thenReturn(mockState);
 
     class MockFn extends DoFn<String, String> {
       @StateId(stateId)
-      private final StateSpec<ValueState<Integer>> spec = StateSpecs.value(VarIntCoder.of());
+      private final StateSpec<ReadModifyWriteState<Integer>> spec = StateSpecs.value(VarIntCoder.of());
 
       @ProcessElement
-      public void processElement(ProcessContext c, @StateId(stateId) ValueState<Integer> valueState)
+      public void processElement(ProcessContext c, @StateId(stateId) ReadModifyWriteState<Integer> valueState)
           throws Exception {}
     }
 

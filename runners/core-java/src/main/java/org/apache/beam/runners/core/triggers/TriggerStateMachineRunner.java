@@ -29,7 +29,7 @@ import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.sdk.coders.BitSetCoder;
 import org.apache.beam.sdk.state.Timers;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -58,7 +58,7 @@ import org.joda.time.Instant;
  */
 public class TriggerStateMachineRunner<W extends BoundedWindow> {
   @VisibleForTesting
-  public static final StateTag<ValueState<BitSet>> FINISHED_BITS_TAG =
+  public static final StateTag<ReadModifyWriteState<BitSet>> FINISHED_BITS_TAG =
       StateTags.makeSystemTagInternal(StateTags.value("closed", BitSetCoder.of()));
 
   private final ExecutableTriggerStateMachine rootTrigger;
@@ -72,7 +72,7 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
     this.contextFactory = contextFactory;
   }
 
-  private FinishedTriggersBitSet readFinishedBits(ValueState<BitSet> state) {
+  private FinishedTriggersBitSet readFinishedBits(ReadModifyWriteState<BitSet> state) {
     if (!isFinishedSetNeeded()) {
       // If no trigger in the tree will ever have finished bits, then we don't need to read them.
       // So that the code can be agnostic to that fact, we create a BitSet that is all 0 (not
@@ -86,7 +86,7 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
         : FinishedTriggersBitSet.fromBitSet(bitSet);
   }
 
-  private void clearFinishedBits(ValueState<BitSet> state) {
+  private void clearFinishedBits(ReadModifyWriteState<BitSet> state) {
     if (!isFinishedSetNeeded()) {
       // Nothing to clear.
       return;
@@ -138,7 +138,7 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
   public void prefetchForMerge(
       W window, Collection<W> mergingWindows, MergingStateAccessor<?, W> state) {
     if (isFinishedSetNeeded()) {
-      for (ValueState<?> value : state.accessInEachMergingWindow(FINISHED_BITS_TAG).values()) {
+      for (ReadModifyWriteState<?> value : state.accessInEachMergingWindow(FINISHED_BITS_TAG).values()) {
         value.readLater();
       }
     }
@@ -155,7 +155,7 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
 
     // And read the finished bits in each merging window.
     ImmutableMap.Builder<W, FinishedTriggers> builder = ImmutableMap.builder();
-    for (Map.Entry<W, ValueState<BitSet>> entry :
+    for (Map.Entry<W, ReadModifyWriteState<BitSet>> entry :
         state.accessInEachMergingWindow(FINISHED_BITS_TAG).entrySet()) {
       // Don't need to clone these, since the trigger context doesn't allow modification
       builder.put(entry.getKey(), readFinishedBits(entry.getValue()));
@@ -197,7 +197,7 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
       return;
     }
 
-    ValueState<BitSet> finishedSetState = state.access(FINISHED_BITS_TAG);
+    ReadModifyWriteState<BitSet> finishedSetState = state.access(FINISHED_BITS_TAG);
     if (!readFinishedBits(finishedSetState).equals(modifiedFinishedSet)) {
       if (modifiedFinishedSet.getBitSet().isEmpty()) {
         finishedSetState.clear();

@@ -68,7 +68,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.testing.ResetDateTimeProvider;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Create;
@@ -144,7 +144,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     private static final TupleTag<String> additionalOutput = new TupleTag<>("output");
 
     @StateId("value")
-    private final StateSpec<ValueState<String>> valueStateSpec =
+    private final StateSpec<ReadModifyWriteState<String>> valueStateSpec =
         StateSpecs.value(StringUtf8Coder.of());
 
     @StateId("bag")
@@ -157,7 +157,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     @ProcessElement
     public void processElement(
         ProcessContext context,
-        @StateId("value") ValueState<String> valueState,
+        @StateId("value") ReadModifyWriteState<String> valueState,
         @StateId("bag") BagState<String> bagState,
         @StateId("combine") CombiningState<String, String, String> combiningState) {
       context.output("value:" + valueState.read());
