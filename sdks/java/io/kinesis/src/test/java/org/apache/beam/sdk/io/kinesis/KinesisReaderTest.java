@@ -27,6 +27,8 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
+import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -162,5 +164,20 @@ public class KinesisReaderTest {
 
     assertThat(backlogCachingReader.getTotalBacklogBytes()).isEqualTo(10);
     assertThat(backlogCachingReader.getTotalBacklogBytes()).isEqualTo(10);
+  }
+
+  @Test
+  public void getTotalBacklogBytesShouldReturnBacklogUnknown()
+      throws IOException, TransientKinesisException {
+    reader.start();
+    when(kinesisSource.getStreamName()).thenReturn("stream1");
+    when(reader.getWatermark())
+        .thenReturn(BoundedWindow.TIMESTAMP_MIN_VALUE)
+        .thenReturn(Instant.now().minus(Duration.standardMinutes(1)));
+    when(kinesis.getBacklogBytes(eq("stream1"), any(Instant.class))).thenReturn(10L);
+
+    assertThat(reader.getTotalBacklogBytes())
+        .isEqualTo(UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN);
+    assertThat(reader.getTotalBacklogBytes()).isEqualTo(10);
   }
 }
