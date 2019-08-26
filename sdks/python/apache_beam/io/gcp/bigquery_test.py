@@ -761,6 +761,8 @@ class PubSubBigQueryIT(unittest.TestCase):
 
   @attr('IT')
   def test_file_loads(self):
+    if isinstance(self.test_pipeline.runner, TestDataflowRunner):
+      self.skipTest('https://issuetracker.google.com/issues/118375066')
     self._run_pubsub_bq_pipeline(WriteToBigQuery.Method.FILE_LOADS,
                                  triggering_frequency=20)
 
