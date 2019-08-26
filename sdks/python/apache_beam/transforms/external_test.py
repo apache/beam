@@ -33,7 +33,6 @@ from past.builtins import unicode
 import apache_beam as beam
 from apache_beam import Pipeline
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.portability import expansion_service
 from apache_beam.runners.portability.expansion_service_test import FibTransform
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -195,11 +194,6 @@ class ExternalTransformTest(unittest.TestCase):
 
     # Run a simple count-filtered-letters pipeline.
     p = TestPipeline(options=pipeline_options)
-
-    # We use the save_main_session option because one or more DoFn's in this
-    # workflow rely on global context (e.g., a module imported at module
-    # level).
-    p.get_pipeline_options().view_as(SetupOptions).save_main_session = True
 
     address = 'localhost:%s' % str(expansion_service_port)
     res = (

@@ -51,7 +51,6 @@ public class GroupCombineFunctions {
     // can be transferred over the network for the shuffle.
     JavaPairRDD<ByteArray, byte[]> pairRDD =
         rdd.map(new ReifyTimestampsAndWindowsFunction<>())
-            .map(WindowedValue::getValue)
             .mapToPair(TranslationUtils.toPairFunction())
             .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder));
 
@@ -59,14 +58,9 @@ public class GroupCombineFunctions {
     JavaPairRDD<ByteArray, Iterable<byte[]>> groupedRDD =
         (partitioner != null) ? pairRDD.groupByKey(partitioner) : pairRDD.groupByKey();
 
-    // using mapPartitions allows to preserve the partitioner
-    // and avoid unnecessary shuffle downstream.
     return groupedRDD
-        .mapPartitionsToPair(
-            TranslationUtils.pairFunctionToPairFlatMapFunction(
-                CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder)),
-            true)
-        .mapPartitions(TranslationUtils.fromPairFlatMapFunction(), true);
+        .mapToPair(CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder))
+        .map(new TranslationUtils.FromPairFunction<>());
   }
 
   /**
@@ -81,7 +75,6 @@ public class GroupCombineFunctions {
     // can be transferred over the network for the shuffle.
     JavaPairRDD<ByteArray, byte[]> pairRDD =
         rdd.map(new ReifyTimestampsAndWindowsFunction<>())
-            .map(WindowedValue::getValue)
             .mapToPair(TranslationUtils.toPairFunction())
             .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder));
 
@@ -196,7 +189,6 @@ public class GroupCombineFunctions {
     // Use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
     return rdd.map(new ReifyTimestampsAndWindowsFunction<>())
-        .map(WindowedValue::getValue)
         .mapToPair(TranslationUtils.toPairFunction())
         .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder))
         .repartition(rdd.getNumPartitions())

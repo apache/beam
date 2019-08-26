@@ -20,13 +20,11 @@ plugins { id 'org.apache.beam.module' }
 applyJavaNature(shadowClosure: {
   dependencies {
     include(dependency(library.java.protobuf_java))
-    include(dependency(library.java.byte_buddy))
     include(dependency("org.apache.commons:.*"))
     include(dependency(library.java.antlr_runtime))
   }
   relocate "com.google.thirdparty", getJavaRelocatedPath("com.google.thirdparty")
   relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
-  relocate "net.bytebuddy", getJavaRelocatedPath("net.bytebuddy")
   relocate "org.apache.commons", getJavaRelocatedPath("org.apache.commons")
   relocate "org.antlr.v4", getJavaRelocatedPath("org.antlr.v4")
 })
@@ -62,10 +60,10 @@ dependencies {
   // Required to load constants from the model, e.g. max timestamp for global window
   shadow project(path: ":model:pipeline", configuration: "shadow")
   shadow project(path: ":model:job-management", configuration: "shadow")
+  shadow library.java.vendored_bytebuddy_1_9_3
   shadow library.java.vendored_guava_26_0_jre
   compile library.java.antlr_runtime
   compile library.java.protobuf_java
-  compile library.java.byte_buddy
   compile library.java.commons_compress
   compile library.java.commons_lang3
   shadow library.java.jackson_core

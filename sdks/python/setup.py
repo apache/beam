@@ -109,13 +109,12 @@ REQUIRED_PACKAGES = [
     'fastavro>=0.21.4,<0.22',
     'future>=0.16.0,<1.0.0',
     'futures>=3.2.0,<4.0.0; python_version < "3.0"',
-    'grpcio>=1.8,<2',
+    'grpcio>=1.12.1,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<=0.12.0',
     'mock>=1.0.1,<3.0.0',
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<4',
-    # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.
     'protobuf>=3.5.0.post1,<4',
     # [BEAM-6287] pyarrow is not supported on Windows for Python 2
     ('pyarrow>=0.11.1,<0.15.0; python_version >= "3.0" or '
@@ -133,7 +132,7 @@ REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
     'nose_xunitmp>=0.4.1',
     'numpy>=1.14.3,<2',
-    'pandas>=0.23.4,<0.24',
+    'pandas>=0.23.4,<0.25',
     'parameterized>=0.6.0,<0.7.0',
     'pyhamcrest>=1.9,<2.0',
     'tenacity>=5.0.2,<6.0',

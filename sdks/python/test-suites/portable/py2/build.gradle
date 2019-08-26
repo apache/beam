@@ -21,7 +21,7 @@ import org.apache.tools.ant.taskdefs.condition.Os
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 
-def pythonRootDir = "${project.rootDir}/sdks/python"
+def pythonRootDir = "${rootDir}/sdks/python"
 
 /*************************************************************************************************/
 
@@ -66,7 +66,7 @@ task portableWordCount {
 
 /*************************************************************************************************/
 
-project.task('crossLanguagePythonJavaFlink') {
+task crossLanguagePythonJavaFlink {
   dependsOn 'setupVirtualenv'
   dependsOn ':runners:flink:1.5:job-server-container:docker'
   dependsOn ':sdks:python:container:docker'
@@ -86,12 +86,12 @@ project.task('crossLanguagePythonJavaFlink') {
     ]
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.transforms.external_test ${options.join(' ')}"
+      args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.transforms.external_test ${options.join(' ')}"
     }
   }
 }
 
-project.task('crossLanguagePortableWordCount') {
+task crossLanguagePortableWordCount {
   dependsOn 'setupVirtualenv'
   dependsOn ':runners:flink:1.5:job-server-container:docker'
   dependsOn ':sdks:python:container:docker'
@@ -112,33 +112,33 @@ project.task('crossLanguagePortableWordCount') {
     ]
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.examples.wordcount_xlang ${options.join(' ')}"
+      args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.examples.wordcount_xlang ${options.join(' ')}"
       // TODO: Check that the output file is generated and runs.
     }
   }
 }
 
-project.task('crossLanguageTests') {
+task crossLanguageTests {
   dependsOn "crossLanguagePythonJavaFlink"
   dependsOn "crossLanguagePortableWordCount"
 }
 
 /*************************************************************************************************/
 
-project.task('createProcessWorker') {
+task createProcessWorker {
   dependsOn ':sdks:python:container:build'
   dependsOn 'setupVirtualenv'
-  def sdkWorkerFile = file("${project.buildDir}/sdk_worker.sh")
+  def sdkWorkerFile = file("${buildDir}/sdk_worker.sh")
   def osType = 'linux'
   if (Os.isFamily(Os.FAMILY_MAC))
     osType = 'darwin'
   def workerScript = "${project(":sdks:python:container:").buildDir.absolutePath}/target/launcher/${osType}_amd64/boot"
-  def sdkWorkerFileCode = "sh -c \"pip=`which pip` . ${project.ext.envdir}/bin/activate && ${workerScript} \$* \""
+  def sdkWorkerFileCode = "sh -c \"pip=`which pip` . ${envdir}/bin/activate && ${workerScript} \$* \""
   outputs.file sdkWorkerFile
   doLast {
     sdkWorkerFile.write sdkWorkerFileCode
     exec {
-      commandLine('sh', '-c', ". ${project.ext.envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test]")
+      commandLine('sh', '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test]")
     }
     exec {
       commandLine('chmod', '+x', sdkWorkerFile)
@@ -151,13 +151,13 @@ task sparkValidatesRunner() {
   dependsOn 'setupVirtualenv'
   dependsOn ':runners:spark:job-server:shadowJar'
   doLast {
-    def environment_config = "'{\"command\": \"${project.buildDir.absolutePath}/sdk_worker.sh\"}'"
+    def environment_config = "'{\"command\": \"${buildDir.absolutePath}/sdk_worker.sh\"}'"
     def argMap = [
         "environment_type"    : "PROCESS",
         "spark_job_server_jar": project(":runners:spark:job-server:").shadowJar.archivePath,
         "environment_config": environment_config,
     ]
-    def argString = project.mapToArgString(argMap)
+    def argString = mapToArgString(argMap)
 
     // Optionally specify test function names separated by space e.g.:
     // ./gradlew :sdks:python:test-suites:portable:py2:sparkValidatesRunner -Ptests="test_external_transforms test_read"
@@ -167,7 +167,7 @@ task sparkValidatesRunner() {
 
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.runners.portability.spark_runner_test $tests $argString"
+      args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.runners.portability.spark_runner_test $tests $argString"
     }
   }
 }
@@ -192,7 +192,7 @@ def flinkCompatibilityMatrix = {
   def config = it ? it as CompatibilityMatrixConfig : new CompatibilityMatrixConfig()
   def workerType = config.workerType.name()
   def streaming = config.streaming
-  def environment_config = config.workerType == CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS ? "--environment_config='{\"command\": \"${project.buildDir.absolutePath}/sdk_worker.sh\"}'" : ""
+  def environment_config = config.workerType == CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS ? "--environment_config='{\"command\": \"${buildDir.absolutePath}/sdk_worker.sh\"}'" : ""
   def name = "flinkCompatibilityMatrix${streaming ? 'Streaming' : 'Batch'}${config.preOptimize ? 'PreOptimize' : ''}${workerType}"
   def extra_experiments = []
   if (config.preOptimize)
@@ -208,7 +208,7 @@ def flinkCompatibilityMatrix = {
     doLast {
       exec {
         executable 'sh'
-        args '-c', ". ${project.ext.envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.runners.portability.flink_runner_test --flink_job_server_jar=${project(":runners:flink:1.5:job-server:").shadowJar.archivePath} --environment_type=${workerType} ${environment_config} ${streaming ? '--streaming' : ''} ${extra_experiments ? '--extra_experiments=' + extra_experiments.join(',') : ''}"
+        args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.runners.portability.flink_runner_test --flink_job_server_jar=${project(":runners:flink:1.5:job-server:").shadowJar.archivePath} --environment_type=${workerType} ${environment_config} ${streaming ? '--streaming' : ''} ${extra_experiments ? '--extra_experiments=' + extra_experiments.join(',') : ''}"
       }
     }
   }

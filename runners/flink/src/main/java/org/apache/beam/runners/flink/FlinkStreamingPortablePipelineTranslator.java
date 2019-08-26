@@ -45,7 +45,6 @@ import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.RunnerPCollectionView;
 import org.apache.beam.runners.core.construction.TestStreamTranslation;
-import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
@@ -89,6 +88,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultiset;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -213,8 +213,8 @@ public class FlinkStreamingPortablePipelineTranslator
     // TODO Legacy transforms which need to be removed
     // Consider removing now that timers are supported
     translatorMap.put(STREAMING_IMPULSE_TRANSFORM_URN, this::translateStreamingImpulse);
-    // Remove once Reads can be wrapped in SDFs
-    translatorMap.put(PTransformTranslation.READ_TRANSFORM_URN, this::translateRead);
+    // Remove once unbounded Reads can be wrapped in SDFs
+    translatorMap.put(PTransformTranslation.READ_TRANSFORM_URN, this::translateUnboundedRead);
 
     // For testing only
     translatorMap.put(PTransformTranslation.TEST_STREAM_TRANSFORM_URN, this::translateTestStream);
@@ -224,9 +224,11 @@ public class FlinkStreamingPortablePipelineTranslator
 
   @Override
   public Set<String> knownUrns() {
-    // Do not expose Read as a known URN because we only want to support Read
-    // through the Java ExpansionService. We can't translate Reads for other
-    // languages.
+    // Do not expose Read as a known URN because PipelineTrimmer otherwise removes
+    // the subtransforms which are added in case of bounded reads. We only have a
+    // translator here for unbounded Reads which are native transforms which do not
+    // have subtransforms. Unbounded Reads are used by cross-language transforms, e.g.
+    // KafkaIO.
     return Sets.difference(
         urnToTransformTranslator.keySet(),
         ImmutableSet.of(PTransformTranslation.READ_TRANSFORM_URN));
@@ -444,7 +446,7 @@ public class FlinkStreamingPortablePipelineTranslator
   }
 
   @SuppressWarnings("unchecked")
-  private <T> void translateRead(
+  private <T> void translateUnboundedRead(
       String id, RunnerApi.Pipeline pipeline, StreamingTranslationContext context) {
     RunnerApi.PTransform transform = pipeline.getComponents().getTransformsOrThrow(id);
     String outputCollectionId = Iterables.getOnlyElement(transform.getOutputsMap().values());
@@ -456,15 +458,12 @@ public class FlinkStreamingPortablePipelineTranslator
       throw new RuntimeException("Failed to parse ReadPayload from transform", e);
     }
 
-    final ReadSourceTranslator<T> readTranslator;
-    if (payload.getIsBounded() == RunnerApi.IsBounded.Enum.BOUNDED) {
-      readTranslator = new ReadBoundedTranslator<>();
-    } else {
-      readTranslator = new ReadUnboundedTranslator<>();
-    }
+    Preconditions.checkState(
+        payload.getIsBounded() != RunnerApi.IsBounded.Enum.BOUNDED,
+        "Bounded reads should run inside an environment instead of being translated by the Runner.");
 
     DataStream<WindowedValue<T>> source =
-        readTranslator.translateRead(
+        translateUnboundedSource(
             transform.getUniqueName(),
             outputCollectionId,
             payload,
@@ -475,123 +474,61 @@ public class FlinkStreamingPortablePipelineTranslator
     context.addDataStream(outputCollectionId, source);
   }
 
-  interface ReadSourceTranslator<T> {
-    DataStream<WindowedValue<T>> translateRead(
-        String transformName,
-        String outputCollectionId,
-        RunnerApi.ReadPayload payload,
-        RunnerApi.Pipeline pipeline,
-        PipelineOptions pipelineOptions,
-        StreamExecutionEnvironment env);
-  }
+  private static <T> DataStream<WindowedValue<T>> translateUnboundedSource(
+      String transformName,
+      String outputCollectionId,
+      RunnerApi.ReadPayload payload,
+      RunnerApi.Pipeline pipeline,
+      PipelineOptions pipelineOptions,
+      StreamExecutionEnvironment env) {
 
-  private static class ReadBoundedTranslator<T> implements ReadSourceTranslator<T> {
+    final DataStream<WindowedValue<T>> source;
+    final DataStream<WindowedValue<ValueWithRecordId<T>>> nonDedupSource;
+    Coder<WindowedValue<T>> windowCoder =
+        instantiateCoder(outputCollectionId, pipeline.getComponents());
 
-    @Override
-    @SuppressWarnings("unchecked")
-    public DataStream<WindowedValue<T>> translateRead(
-        String transformName,
-        String outputCollectionId,
-        RunnerApi.ReadPayload payload,
-        RunnerApi.Pipeline pipeline,
-        PipelineOptions pipelineOptions,
-        StreamExecutionEnvironment env) {
-      Coder<WindowedValue<T>> windowCoder =
-          instantiateCoder(outputCollectionId, pipeline.getComponents());
-      TypeInformation<WindowedValue<T>> outputTypeInfo = new CoderTypeInformation<>(windowCoder);
+    TypeInformation<WindowedValue<T>> outputTypeInfo = new CoderTypeInformation<>(windowCoder);
 
-      UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter<?> convertedSource;
-      try {
-        convertedSource =
-            new UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter<>(
-                ReadTranslation.boundedSourceFromProto(payload));
-      } catch (IOException e) {
-        throw new RuntimeException("Failed to extract UnboundedSource from payload", e);
+    WindowingStrategy windowStrategy =
+        getWindowingStrategy(outputCollectionId, pipeline.getComponents());
+    TypeInformation<WindowedValue<ValueWithRecordId<T>>> withIdTypeInfo =
+        new CoderTypeInformation<>(
+            WindowedValue.getFullCoder(
+                ValueWithRecordId.ValueWithRecordIdCoder.of(
+                    ((WindowedValueCoder) windowCoder).getValueCoder()),
+                windowStrategy.getWindowFn().windowCoder()));
+
+    UnboundedSource unboundedSource = ReadTranslation.unboundedSourceFromProto(payload);
+
+    try {
+      int parallelism =
+          env.getMaxParallelism() > 0 ? env.getMaxParallelism() : env.getParallelism();
+      UnboundedSourceWrapper sourceWrapper =
+          new UnboundedSourceWrapper<>(
+              transformName, pipelineOptions, unboundedSource, parallelism);
+      nonDedupSource =
+          env.addSource(sourceWrapper)
+              .name(transformName)
+              .uid(transformName)
+              .returns(withIdTypeInfo);
+
+      if (unboundedSource.requiresDeduping()) {
+        source =
+            nonDedupSource
+                .keyBy(new FlinkStreamingTransformTranslators.ValueWithRecordIdKeySelector<>())
+                .transform("deduping", outputTypeInfo, new DedupingOperator<>())
+                .uid(format("%s/__deduplicated__", transformName));
+      } else {
+        source =
+            nonDedupSource
+                .flatMap(new FlinkStreamingTransformTranslators.StripIdsMap<>())
+                .returns(outputTypeInfo);
       }
-
-      try {
-        int parallelism =
-            env.getMaxParallelism() > 0 ? env.getMaxParallelism() : env.getParallelism();
-        FlinkStreamingTransformTranslators.UnboundedSourceWrapperNoValueWithRecordId sourceWrapper =
-            new FlinkStreamingTransformTranslators.UnboundedSourceWrapperNoValueWithRecordId<>(
-                new UnboundedSourceWrapper<>(
-                    transformName, pipelineOptions, convertedSource, parallelism));
-        return env.addSource(sourceWrapper)
-            .name(transformName)
-            .uid(transformName)
-            .returns(outputTypeInfo);
-      } catch (Exception e) {
-        throw new RuntimeException("Error while translating BoundedSource: " + convertedSource, e);
-      }
+    } catch (Exception e) {
+      throw new RuntimeException("Error while translating UnboundedSource: " + unboundedSource, e);
     }
-  }
 
-  private static class ReadUnboundedTranslator<T> implements ReadSourceTranslator<T> {
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public DataStream<WindowedValue<T>> translateRead(
-        String transformName,
-        String outputCollectionId,
-        RunnerApi.ReadPayload payload,
-        RunnerApi.Pipeline pipeline,
-        PipelineOptions pipelineOptions,
-        StreamExecutionEnvironment env) {
-
-      final DataStream<WindowedValue<T>> source;
-      final DataStream<WindowedValue<ValueWithRecordId<T>>> nonDedupSource;
-      Coder<WindowedValue<T>> windowCoder =
-          instantiateCoder(outputCollectionId, pipeline.getComponents());
-
-      TypeInformation<WindowedValue<T>> outputTypeInfo = new CoderTypeInformation<>(windowCoder);
-
-      WindowingStrategy windowStrategy =
-          getWindowingStrategy(outputCollectionId, pipeline.getComponents());
-      TypeInformation<WindowedValue<ValueWithRecordId<T>>> withIdTypeInfo =
-          new CoderTypeInformation<>(
-              WindowedValue.getFullCoder(
-                  ValueWithRecordId.ValueWithRecordIdCoder.of(
-                      ((WindowedValueCoder) windowCoder).getValueCoder()),
-                  windowStrategy.getWindowFn().windowCoder()));
-
-      UnboundedSource unboundedSource;
-      try {
-        unboundedSource = ReadTranslation.unboundedSourceFromProto(payload);
-      } catch (IOException e) {
-        throw new RuntimeException("Failed to extract UnboundedSource from payload", e);
-      }
-
-      try {
-        int parallelism =
-            env.getMaxParallelism() > 0 ? env.getMaxParallelism() : env.getParallelism();
-        UnboundedSourceWrapper sourceWrapper =
-            new UnboundedSourceWrapper<>(
-                transformName, pipelineOptions, unboundedSource, parallelism);
-        nonDedupSource =
-            env.addSource(sourceWrapper)
-                .name(transformName)
-                .uid(transformName)
-                .returns(withIdTypeInfo);
-
-        if (unboundedSource.requiresDeduping()) {
-          source =
-              nonDedupSource
-                  .keyBy(new FlinkStreamingTransformTranslators.ValueWithRecordIdKeySelector<>())
-                  .transform("deduping", outputTypeInfo, new DedupingOperator<>())
-                  .uid(format("%s/__deduplicated__", transformName));
-        } else {
-          source =
-              nonDedupSource
-                  .flatMap(new FlinkStreamingTransformTranslators.StripIdsMap<>())
-                  .returns(outputTypeInfo);
-        }
-      } catch (Exception e) {
-        throw new RuntimeException(
-            "Error while translating UnboundedSource: " + unboundedSource, e);
-      }
-
-      return source;
-    }
+    return source;
   }
 
   private void translateImpulse(

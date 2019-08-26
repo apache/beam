@@ -50,6 +50,7 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
@@ -165,8 +166,13 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     private GenericRecord record;
     private T current;
     private long currentOffset;
+
+    // Values used for progress reporting.
     private double fractionConsumed;
-    private double fractionConsumedFromLastResponse;
+    private double fractionConsumedFromPreviousResponse;
+    private double fractionConsumedFromCurrentResponse;
+    private long rowsReadFromCurrentResponse;
+    private long totalRowCountFromCurrentResponse;
 
     private BigQueryStorageStreamReader(
         BigQueryStorageStreamSource<T> source, BigQueryOptions options) throws IOException {
@@ -178,7 +184,10 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       this.storageClient = source.bqServices.getStorageClient(options);
       this.tableSchema = fromJsonString(source.jsonTableSchema, TableSchema.class);
       this.fractionConsumed = 0d;
-      this.fractionConsumedFromLastResponse = 0d;
+      this.fractionConsumedFromPreviousResponse = 0d;
+      this.fractionConsumedFromCurrentResponse = 0d;
+      this.rowsReadFromCurrentResponse = 0L;
+      this.totalRowCountFromCurrentResponse = 0L;
     }
 
     @Override
@@ -210,20 +219,50 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
           return false;
         }
 
-        // N.B.: For simplicity, we update fractionConsumed once a new response is fetched, not
-        // when we reach the end of the current response. In practice, this choice is not
-        // consequential.
-        fractionConsumed = fractionConsumedFromLastResponse;
-        ReadRowsResponse nextResponse = responseIterator.next();
+        fractionConsumedFromPreviousResponse = fractionConsumedFromCurrentResponse;
+        ReadRowsResponse currentResponse = responseIterator.next();
         decoder =
             DecoderFactory.get()
                 .binaryDecoder(
-                    nextResponse.getAvroRows().getSerializedBinaryRows().toByteArray(), decoder);
-        fractionConsumedFromLastResponse = getFractionConsumed(nextResponse);
+                    currentResponse.getAvroRows().getSerializedBinaryRows().toByteArray(), decoder);
+
+        // Since we now have a new response, reset the row counter for the current response.
+        rowsReadFromCurrentResponse = 0L;
+
+        totalRowCountFromCurrentResponse = currentResponse.getAvroRows().getRowCount();
+        fractionConsumedFromCurrentResponse = getFractionConsumed(currentResponse);
+
+        Preconditions.checkArgument(
+            totalRowCountFromCurrentResponse > 0L,
+            "Row count from current response (%s) must be greater than one.",
+            totalRowCountFromCurrentResponse);
+        Preconditions.checkArgument(
+            0f <= fractionConsumedFromCurrentResponse && fractionConsumedFromCurrentResponse <= 1f,
+            "Fraction consumed from current response (%s) is not in the range [0.0, 1.0].",
+            fractionConsumedFromCurrentResponse);
+        Preconditions.checkArgument(
+            fractionConsumedFromPreviousResponse < fractionConsumedFromCurrentResponse,
+            "Fraction consumed from previous response (%s) is not less than fraction consumed "
+                + "from current response (%s).",
+            fractionConsumedFromPreviousResponse,
+            fractionConsumedFromCurrentResponse);
       }
 
       record = datumReader.read(record, decoder);
       current = parseFn.apply(new SchemaAndRecord(record, tableSchema));
+
+      // Updates the fraction consumed value. This value is calculated by interpolating between
+      // the fraction consumed value from the previous server response (or zero if we're consuming
+      // the first response) and the fractional value in the current response based on how many of
+      // the rows in the current response have been consumed.
+      rowsReadFromCurrentResponse++;
+      fractionConsumed =
+          fractionConsumedFromPreviousResponse
+              + (fractionConsumedFromCurrentResponse - fractionConsumedFromPreviousResponse)
+                  * rowsReadFromCurrentResponse
+                  * 1.0
+                  / totalRowCountFromCurrentResponse;
+
       return true;
     }
 
@@ -323,13 +362,25 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         source = source.fromExisting(splitResponse.getPrimaryStream());
         responseStream = newResponseStream;
         responseIterator = newResponseIterator;
+
+        // N.B.: Once #readNextRecord is called, this line has the effect of using the fraction
+        // consumed value at split time as the fraction consumed value of the previous response,
+        // leading to a better interpolation window start. Unfortunately, this is not the best value
+        // as it will lead to a significant speed up in the fraction consumed values while the first
+        // post-split response is being processed. In the future, if the server returns the start
+        // and end fraction consumed values in each response, then these interpolations will be
+        // easier to perform as state from the previous response will not need to be maintained.
+        fractionConsumedFromCurrentResponse = fractionConsumed;
+
         decoder = null;
       }
 
       Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls-successful")
           .inc();
       LOGGER.info(
-          "Successfully split BigQuery Storage API stream. Split response: {}", splitResponse);
+          "Successfully split BigQuery Storage API stream at {}. Split response: {}",
+          fraction,
+          splitResponse);
       return source.fromExisting(splitResponse.getRemainderStream());
     }
 

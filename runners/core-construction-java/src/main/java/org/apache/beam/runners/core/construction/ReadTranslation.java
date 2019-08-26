@@ -120,7 +120,8 @@ public class ReadTranslation {
 
   private static SdkFunctionSpec toProto(UnboundedSource<?, ?> source, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
-        .setEnvironmentId(components.getOnlyEnvironmentId())
+        // Do not assign an environment. Unbounded reads are a Runner translated transform,
+        // unless, in the future, we have an adapter available for splittable DoFn.
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(JAVA_SERIALIZED_UNBOUNDED_SOURCE)
@@ -129,8 +130,7 @@ public class ReadTranslation {
         .build();
   }
 
-  public static UnboundedSource<?, ?> unboundedSourceFromProto(ReadPayload payload)
-      throws InvalidProtocolBufferException {
+  public static UnboundedSource<?, ?> unboundedSourceFromProto(ReadPayload payload) {
     checkArgument(payload.getIsBounded().equals(IsBounded.Enum.UNBOUNDED));
     return (UnboundedSource<?, ?>)
         SerializableUtils.deserializeFromByteArray(

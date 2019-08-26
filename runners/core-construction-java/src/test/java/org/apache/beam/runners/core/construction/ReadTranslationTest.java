@@ -84,7 +84,7 @@ public class ReadTranslationTest {
     UnboundedSource<?, ?> unboundedSource = (UnboundedSource<?, ?>) this.source;
     Read.Unbounded<?> unboundedRead = Read.from(unboundedSource);
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environments.createDockerEnvironment("java"));
+    // No environment set for unbounded sources
     ReadPayload payload = ReadTranslation.toProto(unboundedRead, components);
     assertThat(payload.getIsBounded(), equalTo(RunnerApi.IsBounded.Enum.UNBOUNDED));
     UnboundedSource<?, ?> deserializedSource = ReadTranslation.unboundedSourceFromProto(payload);

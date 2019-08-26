@@ -400,9 +400,13 @@ public class StreamingDataflowWorker {
   private final StreamingDataflowWorkerOptions options;
   private final boolean windmillServiceEnabled;
   private final long clientId;
+
   private final MetricTrackingWindmillServerStub metricTrackingWindmillServer;
   private final CounterSet pendingDeltaCounters = new CounterSet();
   private final CounterSet pendingCumulativeCounters = new CounterSet();
+  private final java.util.concurrent.ConcurrentLinkedQueue<CounterUpdate> pendingMonitoringInfos =
+      new ConcurrentLinkedQueue<>();
+
   // Map from stage name to StageInfo containing metrics container registry and per stage counters.
   private final ConcurrentMap<String, StageInfo> stageInfoMap = new ConcurrentHashMap();
 
@@ -459,6 +463,8 @@ public class StreamingDataflowWorker {
 
   private final ReaderRegistry readerRegistry = ReaderRegistry.defaultRegistry();
   private final SinkRegistry sinkRegistry = SinkRegistry.defaultRegistry();
+
+  private HotKeyLogger hotKeyLogger;
 
   /** Contains a few of the stage specific fields. E.g. metrics container registry, counters etc. */
   private static class StageInfo {
@@ -533,7 +539,8 @@ public class StreamingDataflowWorker {
         options.as(StreamingDataflowWorkerOptions.class),
         pipeline,
         sdkHarnessRegistry,
-        true);
+        true,
+        new HotKeyLogger());
   }
 
   public static StreamingDataflowWorker fromDataflowWorkerHarnessOptions(
@@ -547,7 +554,8 @@ public class StreamingDataflowWorker {
         options.as(StreamingDataflowWorkerOptions.class),
         null,
         sdkHarnessRegistry,
-        true);
+        true,
+        new HotKeyLogger());
   }
 
   @VisibleForTesting
@@ -558,12 +566,14 @@ public class StreamingDataflowWorker {
       StreamingDataflowWorkerOptions options,
       @Nullable RunnerApi.Pipeline pipeline,
       SdkHarnessRegistry sdkHarnessRegistry,
-      boolean publishCounters)
+      boolean publishCounters,
+      HotKeyLogger hotKeyLogger)
       throws IOException {
     this.mapTaskExecutorFactory = mapTaskExecutorFactory;
     this.workUnitClient = workUnitClient;
     this.options = options;
     this.sdkHarnessRegistry = sdkHarnessRegistry;
+    this.hotKeyLogger = hotKeyLogger;
     this.windmillServiceEnabled = options.isEnableStreamingEngine();
     this.memoryMonitor = MemoryMonitor.fromOptions(options);
     this.statusPages =
@@ -1020,6 +1030,17 @@ public class StreamingDataflowWorker {
     Preconditions.checkState(
         outputDataWatermark == null || !outputDataWatermark.isAfter(inputDataWatermark));
     SdkWorkerHarness worker = sdkHarnessRegistry.getAvailableWorkerAndAssignWork();
+
+    if (workItem.hasHotKeyInfo()) {
+      Windmill.HotKeyInfo hotKeyInfo = workItem.getHotKeyInfo();
+      Duration hotKeyAge = Duration.millis(hotKeyInfo.getHotKeyAgeUsec() / 1000);
+
+      // The MapTask instruction is ordered by dependencies, such that the first element is
+      // always going to be the shuffle task.
+      String stepName = computationState.getMapTask().getInstructions().get(0).getName();
+      hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge);
+    }
+
     Work work =
         new Work(workItem) {
           @Override
@@ -1293,6 +1314,9 @@ public class StreamingDataflowWorker {
 
       // Blocks while executing work.
       executionState.getWorkExecutor().execute();
+
+      Iterables.addAll(
+          this.pendingMonitoringInfos, executionState.getWorkExecutor().extractMetricUpdates());
 
       commitCallbacks.putAll(executionState.getContext().flushState());
 
@@ -1852,7 +1876,6 @@ public class StreamingDataflowWorker {
   /** Sends counter updates to Dataflow backend. */
   private void sendWorkerUpdatesToDataflowService(
       CounterSet deltaCounters, CounterSet cumulativeCounters) throws IOException {
-
     // Throttle time is tracked by the windmillServer but is reported to DFE here.
     windmillQuotaThrottling.addValue(windmillServer.getAndResetThrottleTime());
     if (memoryMonitor.isThrashing()) {
@@ -1867,6 +1890,28 @@ public class StreamingDataflowWorker {
           cumulativeCounters.extractUpdates(false, DataflowCounterUpdateExtractor.INSTANCE));
       counterUpdates.addAll(
           deltaCounters.extractModifiedDeltaUpdates(DataflowCounterUpdateExtractor.INSTANCE));
+      if (hasExperiment(options, "beam_fn_api")) {
+        while (!this.pendingMonitoringInfos.isEmpty()) {
+          final CounterUpdate item = this.pendingMonitoringInfos.poll();
+
+          // This change will treat counter as delta.
+          // This is required because we receive cumulative results from FnAPI harness,
+          // while streaming job is expected to receive delta updates to counters on same
+          // WorkItem.
+          if (item.getCumulative()) {
+            item.setCumulative(false);
+          } else {
+            // In current world all counters coming from FnAPI are cumulative.
+            // This is a safety check in case new counter type appears in FnAPI.
+            throw new UnsupportedOperationException(
+                "FnApi counters are expected to provide cumulative values."
+                    + " Please, update convertion to delta logic"
+                    + " if non-cumulative counter type is required.");
+          }
+
+          counterUpdates.add(item);
+        }
+      }
     }
 
     // Handle duplicate counters from different stages. Store all the counters in a multi-map and
@@ -1926,6 +1971,7 @@ public class StreamingDataflowWorker {
             .setWorkItemId(WINDMILL_COUNTER_UPDATE_WORK_ID)
             .setErrors(errors)
             .setCounterUpdates(counterUpdates);
+
     workUnitClient.reportWorkItemStatus(workItemStatus);
 
     // Send any counters appearing more than once in subsequent RPCs:

@@ -531,11 +531,6 @@ public class JdbcIO {
   /** Implementation of {@link #read}. */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
-    /** @deprecated It is not needed anymore. It will be removed in a future version of Beam. */
-    @Deprecated
-    @Nullable
-    abstract DataSourceConfiguration getDataSourceConfiguration();
-
     @Nullable
     abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
@@ -559,10 +554,6 @@ public class JdbcIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      /** @deprecated It is not needed anymore. It will be removed in a future version of Beam. */
-      @Deprecated
-      abstract Builder<T> setDataSourceConfiguration(DataSourceConfiguration config);
-
       abstract Builder<T> setDataSourceProviderFn(
           SerializableFunction<Void, DataSource> dataSourceProviderFn);
 
@@ -582,7 +573,6 @@ public class JdbcIO {
     }
 
     public Read<T> withDataSourceConfiguration(final DataSourceConfiguration config) {
-      toBuilder().setDataSourceConfiguration(config);
       return withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config));
     }
 
@@ -647,7 +637,6 @@ public class JdbcIO {
           .apply(Create.of((Void) null))
           .apply(
               JdbcIO.<Void, T>readAll()
-                  .withDataSourceConfiguration(getDataSourceConfiguration())
                   .withDataSourceProviderFn(getDataSourceProviderFn())
                   .withQuery(getQuery())
                   .withCoder(getCoder())
@@ -678,11 +667,6 @@ public class JdbcIO {
   @AutoValue
   public abstract static class ReadAll<ParameterT, OutputT>
       extends PTransform<PCollection<ParameterT>, PCollection<OutputT>> {
-    /** @deprecated It is not needed anymore. It will be removed in a future version of Beam. */
-    @Deprecated
-    @Nullable
-    abstract DataSourceConfiguration getDataSourceConfiguration();
-
     @Nullable
     abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
@@ -706,11 +690,6 @@ public class JdbcIO {
 
     @AutoValue.Builder
     abstract static class Builder<ParameterT, OutputT> {
-      /** @deprecated It is not needed anymore. It will be removed in a future version of Beam. */
-      @Deprecated
-      abstract Builder<ParameterT, OutputT> setDataSourceConfiguration(
-          DataSourceConfiguration config);
-
       abstract Builder<ParameterT, OutputT> setDataSourceProviderFn(
           SerializableFunction<Void, DataSource> dataSourceProviderFn);
 
@@ -732,7 +711,6 @@ public class JdbcIO {
 
     public ReadAll<ParameterT, OutputT> withDataSourceConfiguration(
         DataSourceConfiguration config) {
-      toBuilder().setDataSourceConfiguration(config);
       return withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config));
     }
 
@@ -1123,11 +1101,6 @@ public class JdbcIO {
   /** A {@link PTransform} to write to a JDBC datasource. */
   @AutoValue
   public abstract static class WriteVoid<T> extends PTransform<PCollection<T>, PCollection<Void>> {
-    /** @deprecated It is not needed anymore. It will be removed in a future version of Beam. */
-    @Deprecated
-    @Nullable
-    abstract DataSourceConfiguration getDataSourceConfiguration();
-
     @Nullable
     abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
@@ -1149,10 +1122,6 @@ public class JdbcIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      /** @deprecated It is not needed anymore. It will be removed in a future version of Beam. */
-      @Deprecated
-      abstract Builder<T> setDataSourceConfiguration(DataSourceConfiguration config);
-
       abstract Builder<T> setDataSourceProviderFn(
           SerializableFunction<Void, DataSource> dataSourceProviderFn);
 
@@ -1170,7 +1139,6 @@ public class JdbcIO {
     }
 
     public WriteVoid<T> withDataSourceConfiguration(DataSourceConfiguration config) {
-      toBuilder().setDataSourceConfiguration(config);
       return withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config));
     }
 

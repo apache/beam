@@ -79,12 +79,12 @@ import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.spark.HashPartitioner;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.JavaSparkContext$;
@@ -302,20 +302,9 @@ public final class StreamingTransformTranslator {
         final WindowedValue.WindowedValueCoder<V> wvCoder =
             WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
 
-        // --- group by key only.
-        JavaDStream<KV<K, Iterable<WindowedValue<V>>>> groupedByKeyStream =
-            dStream.transform(
-                rdd ->
-                    GroupCombineFunctions.groupByKeyOnly(
-                        rdd,
-                        coder.getKeyCoder(),
-                        wvCoder,
-                        new HashPartitioner(rdd.rdd().sparkContext().defaultParallelism())));
-
-        // --- now group also by window.
         JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outStream =
-            SparkGroupAlsoByWindowViaWindowSet.groupAlsoByWindow(
-                groupedByKeyStream,
+            SparkGroupAlsoByWindowViaWindowSet.groupByKeyAndWindow(
+                dStream,
                 coder.getKeyCoder(),
                 wvCoder,
                 windowingStrategy,
@@ -408,6 +397,9 @@ public final class StreamingTransformTranslator {
         final DoFnSchemaInformation doFnSchemaInformation =
             ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
 
+        final Map<String, PCollectionView<?>> sideInputMapping =
+            ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
+
         final String stepName = context.getCurrentTransform().getFullName();
         JavaPairDStream<TupleTag<?>, WindowedValue<?>> all =
             dStream.transformToPair(
@@ -417,7 +409,7 @@ public final class StreamingTransformTranslator {
                   final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>>
                       sideInputs =
                           TranslationUtils.getSideInputs(
-                              transform.getSideInputs(),
+                              transform.getSideInputs().values(),
                               JavaSparkContext.fromSparkContext(rdd.context()),
                               pviews);
 
@@ -434,7 +426,8 @@ public final class StreamingTransformTranslator {
                           sideInputs,
                           windowingStrategy,
                           false,
-                          doFnSchemaInformation));
+                          doFnSchemaInformation,
+                          sideInputMapping));
                 });
 
         Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);

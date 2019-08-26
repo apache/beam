@@ -311,7 +311,8 @@ public class UserParDoFnFactoryTest {
             null /* side input views */,
             null /* input coder */,
             new TupleTag<>(PropertyNames.OUTPUT) /* main output id */,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
     object.set(
         PropertyNames.SERIALIZED_FN,
         StringUtils.byteArrayToJsonString(SerializableUtils.serializeToByteArray(info)));

@@ -375,7 +375,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // non-declared dependency, since these can break users (as in BEAM-6558)
     //
     // Though this is Java-specific, it is required to be applied to the root
-    // project due to implemeentation-details of the plugin. It can be enabled/disabled
+    // project due to implementation-details of the plugin. It can be enabled/disabled
     // via JavaNatureConfiguration per project. It is disabled by default until we can
     // make all of our deps good.
     project.apply plugin: "ca.cutterslade.analyze"
@@ -421,6 +421,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def nemo_version = "0.1"
     def netty_version = "4.1.30.Final"
     def postgres_version = "42.2.2"
+    def powermock_version = "2.0.2"
     def proto_google_common_protos_version = "1.12.0"
     def protobuf_version = "3.6.0"
     def quickcheck_version = "0.8"
@@ -462,7 +463,6 @@ class BeamModulePlugin implements Plugin<Project> {
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         bigtable_client_core                        : "com.google.cloud.bigtable:bigtable-client-core:1.8.0",
         bigtable_protos                             : "com.google.api.grpc:grpc-google-cloud-bigtable-v2:$generated_grpc_beta_version",
-        byte_buddy                                  : "net.bytebuddy:byte-buddy:1.9.3",
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
         commons_codec                               : "commons-codec:commons-codec:1.10",
@@ -534,13 +534,14 @@ class BeamModulePlugin implements Plugin<Project> {
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
         malhar_library                              : "org.apache.apex:malhar-library:$apex_malhar_version",
-        mockito_core                                : "org.mockito:mockito-core:1.10.19",
+        mockito_core                                : "org.mockito:mockito-core:3.0.0",
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
         netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.17.Final",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
-        powermock                                   : "org.powermock:powermock-mockito-release-full:1.6.4",
+        powermock                                   : "org.powermock:powermock-module-junit4:$powermock_version",
+        powermock_mockito                           : "org.powermock:powermock-api-mockito2:$powermock_version",
         protobuf_java                               : "com.google.protobuf:protobuf-java:$protobuf_version",
         protobuf_java_util                          : "com.google.protobuf:protobuf-java-util:$protobuf_version",
         proto_google_cloud_datacatalog_v1beta1      : "com.google.api.grpc:proto-google-cloud-datacatalog-v1beta1:$generated_grpc_dc_beta_version",
@@ -556,6 +557,7 @@ class BeamModulePlugin implements Plugin<Project> {
         spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:3.1.4",
+        vendored_bytebuddy_1_9_3                    : "org.apache.beam:beam-vendor-bytebuddy-1_9_3:0.1",
         vendored_grpc_1_21_0                        : "org.apache.beam:beam-vendor-grpc-1_21_0:0.1",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
@@ -771,7 +773,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // spotbugs-annotations artifact is licensed under LGPL and cannot be included in the
         // Apache Beam distribution, but may be relied on during build.
         // See: https://www.apache.org/legal/resolved.html#prohibited
-        "com.github.spotbugs:spotbugs-annotations:3.1.11",
+        "com.github.spotbugs:spotbugs-annotations:3.1.12",
         "net.jcip:jcip-annotations:1.0",
       ]
 
@@ -814,7 +816,7 @@ class BeamModulePlugin implements Plugin<Project> {
         showViolations = true
         maxErrors = 0
       }
-      project.checkstyle { toolVersion = "8.7" }
+      project.checkstyle { toolVersion = "8.23" }
 
       // Configures javadoc plugin and ensure check runs javadoc.
       project.tasks.withType(Javadoc) {
@@ -831,7 +833,6 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: "net.ltgt.apt-eclipse"
 
       // Enables a plugin which can apply code formatting to source.
-      // TODO(https://issues.apache.org/jira/browse/BEAM-4394): Should this plugin be enabled for all projects?
       project.apply plugin: "com.diffplug.gradle.spotless"
       // scan CVE
       project.apply plugin: "net.ossindex.audit"
@@ -854,7 +855,7 @@ class BeamModulePlugin implements Plugin<Project> {
       if (configuration.enableSpotbugs) {
         project.apply plugin: 'com.github.spotbugs'
         project.dependencies {
-          spotbugs "com.github.spotbugs:spotbugs:3.1.10"
+          spotbugs "com.github.spotbugs:spotbugs:3.1.12"
           spotbugs "com.google.auto.value:auto-value:1.6.3"
           compileOnlyAnnotationDeps.each { dep -> spotbugs dep }
         }
@@ -1257,7 +1258,6 @@ class BeamModulePlugin implements Plugin<Project> {
         // test libraries classes causing version conflicts. Users should rely
         // on using the yyy-core package instead of the yyy-all package.
         exclude group: "org.hamcrest", module: "hamcrest-all"
-        exclude group: "org.mockito", module: "mockito-all"
       }
 
       // Force usage of the libraries defined within our common set found in the root
@@ -1509,7 +1509,8 @@ class BeamModulePlugin implements Plugin<Project> {
     project.ext.applyGrpcNature = {
       project.apply plugin: "com.google.protobuf"
       project.protobuf {
-        protoc { // The artifact spec for the Protobuf Compiler
+        protoc {
+          // The artifact spec for the Protobuf Compiler
           artifact = "com.google.protobuf:protoc:3.6.0" }
 
         // Configure the codegen plugins
@@ -1584,7 +1585,8 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.apply plugin: "com.google.protobuf"
       project.protobuf {
-        protoc { // The artifact spec for the Protobuf Compiler
+        protoc {
+          // The artifact spec for the Protobuf Compiler
           artifact = "com.google.protobuf:protoc:3.7.1" }
 
         // Configure the codegen plugins
@@ -1858,7 +1860,7 @@ class BeamModulePlugin implements Plugin<Project> {
         outputs.dirs(project.ext.envdir)
       }
 
-      def pythonSdkDeps = project.files(
+      project.ext.pythonSdkDeps = project.files(
               project.fileTree(
               dir: "${project.rootDir}",
               include: ['model/**', 'sdks/python/**'],
@@ -1871,35 +1873,10 @@ class BeamModulePlugin implements Plugin<Project> {
               ])
               )
       def copiedSrcRoot = "${project.buildDir}/srcs"
-      def tarball = "apache-beam.tar.gz"
 
-      project.configurations { distConfig }
-
-      project.task('sdist', dependsOn: 'setupVirtualenv') {
-        doLast {
-          // Copy sdk sources to an isolated directory
-          project.copy {
-            from pythonSdkDeps
-            into copiedSrcRoot
-          }
-
-          // Build artifact
-          project.exec {
-            executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedSrcRoot}/sdks/python && python setup.py -q sdist --formats zip,gztar --dist-dir ${project.buildDir}"
-          }
-          def collection = project.fileTree("${project.buildDir}"){ include '**/*.tar.gz' exclude '**/apache-beam.tar.gz', 'srcs/**'}
-
-          // we need a fixed name for the artifact
-          project.copy { from collection.singleFile; into "${project.buildDir}"; rename { tarball } }
-        }
-        inputs.files pythonSdkDeps
-        outputs.file "${project.buildDir}/${tarball}"
-      }
-
-      project.artifacts {
-        distConfig file: project.file("${project.buildDir}/${tarball}"), builtBy: project.sdist
-      }
+      // Create new configuration distTarBall which represents Python source
+      // distribution tarball generated by :sdks:python:sdist.
+      project.configurations { distTarBall }
 
       project.task('installGcpTest', dependsOn: 'setupVirtualenv') {
         doLast {
@@ -1909,7 +1886,7 @@ class BeamModulePlugin implements Plugin<Project> {
           }
         }
       }
-      project.installGcpTest.mustRunAfter project.sdist
+      project.installGcpTest.mustRunAfter project.configurations.distTarBall
 
       project.task('cleanPython') {
         doLast {
@@ -1947,15 +1924,23 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.ext.toxTask = { name, tox_env ->
         project.tasks.create(name) {
-          dependsOn = ['sdist']
+          dependsOn 'setupVirtualenv'
+          dependsOn ':sdks:python:sdist'
+
           doLast {
+            // Python source directory is also tox execution workspace, We want
+            // to isolate them per tox suite to avoid conflict when running
+            // multiple tox suites in parallel.
+            project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
+
             def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
+            def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
             project.exec {
               executable 'sh'
-              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env ${project.buildDir}/apache-beam.tar.gz"
+              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env $distTarBall"
             }
           }
-          inputs.files pythonSdkDeps
+          inputs.files project.pythonSdkDeps
           outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
         }
       }
@@ -1969,7 +1954,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
         project.task('integrationTest') {
           dependsOn 'installGcpTest'
-          dependsOn 'sdist'
+          dependsOn ':sdks:python:sdist'
 
           doLast {
             def argMap = [:]

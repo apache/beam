@@ -31,7 +31,6 @@
 
     <bigquery.version>@bigquery.version@</bigquery.version>
     <google-clients.version>@google-clients.version@</google-clients.version>
-    <guava.version>@guava.version@</guava.version>
     <hamcrest.version>@hamcrest.version@</hamcrest.version>
     <jackson.version>@jackson.version@</jackson.version>
     <joda.version>@joda.version@</joda.version>
@@ -454,12 +453,6 @@
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
       <version>${joda.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>${guava.version}</version>
     </dependency>
 
     <!-- Add slf4j API frontend binding with JUL backend -->

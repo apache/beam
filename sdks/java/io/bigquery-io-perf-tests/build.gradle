@@ -33,7 +33,6 @@ dependencies {
     testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
     testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
     testCompile project(":sdks:java:io:synthetic")
-    testCompile library.java.guava
     testCompile library.java.junit
     testCompile library.java.hamcrest_core
     testCompile library.java.jaxb_api

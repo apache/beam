@@ -41,6 +41,7 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
   Map<TupleTag<?>, Coder<?>> outputCoders;
   private final TupleTag<OutputT> mainOutput;
   private final DoFnSchemaInformation doFnSchemaInformation;
+  private final Map<String, PCollectionView<?>> sideInputMapping;
 
   /**
    * Creates a {@link DoFnInfo} for the given {@link DoFn}.
@@ -54,7 +55,8 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
       Iterable<PCollectionView<?>> sideInputViews,
       Coder<InputT> inputCoder,
       TupleTag<OutputT> mainOutput,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     return new DoFnInfo<>(
         doFn,
         windowingStrategy,
@@ -62,7 +64,8 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
         inputCoder,
         Collections.emptyMap(),
         mainOutput,
-        doFnSchemaInformation);
+        doFnSchemaInformation,
+        sideInputMapping);
   }
 
   /** Creates a {@link DoFnInfo} for the given {@link DoFn}. */
@@ -73,7 +76,8 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
       Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       TupleTag<OutputT> mainOutput,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     return new DoFnInfo<>(
         doFn,
         windowingStrategy,
@@ -81,7 +85,8 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
         inputCoder,
         outputCoders,
         mainOutput,
-        doFnSchemaInformation);
+        doFnSchemaInformation,
+        sideInputMapping);
   }
 
   public DoFnInfo<InputT, OutputT> withFn(DoFn<InputT, OutputT> newFn) {
@@ -92,7 +97,8 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
         inputCoder,
         outputCoders,
         mainOutput,
-        doFnSchemaInformation);
+        doFnSchemaInformation,
+        sideInputMapping);
   }
 
   private DoFnInfo(
@@ -102,7 +108,8 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
       Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       TupleTag<OutputT> mainOutput,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     this.doFn = doFn;
     this.windowingStrategy = windowingStrategy;
     this.sideInputViews = sideInputViews;
@@ -110,6 +117,7 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
     this.outputCoders = outputCoders;
     this.mainOutput = mainOutput;
     this.doFnSchemaInformation = doFnSchemaInformation;
+    this.sideInputMapping = sideInputMapping;
   }
 
   /** Returns the embedded function. */
@@ -139,5 +147,9 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
 
   public DoFnSchemaInformation getDoFnSchemaInformation() {
     return doFnSchemaInformation;
+  }
+
+  public Map<String, PCollectionView<?>> getSideInputMapping() {
+    return sideInputMapping;
   }
 }

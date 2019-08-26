@@ -659,12 +659,21 @@ class BigQueryWrapper(object):
     if found_table and write_disposition != BigQueryDisposition.WRITE_TRUNCATE:
       return found_table
     else:
-      created_table = self._create_table(
-          project_id=project_id,
-          dataset_id=dataset_id,
-          table_id=table_id,
-          schema=schema or found_table.schema,
-          additional_parameters=additional_create_parameters)
+      created_table = None
+      try:
+        created_table = self._create_table(
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+            schema=schema or found_table.schema,
+            additional_parameters=additional_create_parameters)
+      except HttpError as exn:
+        if exn.status_code == 409:
+          logging.debug('Skipping Creation. Table %s:%s.%s already exists.'
+                        % (project_id, dataset_id, table_id))
+          created_table = self.get_table(project_id, dataset_id, table_id)
+        else:
+          raise
       logging.info('Created table %s.%s.%s with schema %s. '
                    'Result: %s.',
                    project_id, dataset_id, table_id,

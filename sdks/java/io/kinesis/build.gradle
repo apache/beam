@@ -31,7 +31,6 @@ test {
 
 dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.guava
   compile library.java.slf4j_api
   compile library.java.joda_time
   compile library.java.jackson_dataformat_cbor
@@ -48,6 +47,7 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.powermock
+  testCompile library.java.powermock_mockito
   testCompile "org.assertj:assertj-core:3.11.1"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(":runners:direct-java")

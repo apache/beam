@@ -288,6 +288,16 @@ class TestGCSIO(unittest.TestCase):
     self.client = FakeGcsClient()
     self.gcs = gcsio.GcsIO(self.client)
 
+  def test_num_retries(self):
+    # BEAM-7424: update num_retries accordingly if storage_client is
+    # regenerated.
+    self.assertEqual(gcsio.GcsIO().client.num_retries, 20)
+
+  def test_retry_func(self):
+    # BEAM-7667: update retry_func accordingly if storage_client is
+    # regenerated.
+    self.assertIsNotNone(gcsio.GcsIO().client.retry_func)
+
   def test_exists(self):
     file_name = 'gs://gcsio-test/dummy_file'
     file_size = 1234

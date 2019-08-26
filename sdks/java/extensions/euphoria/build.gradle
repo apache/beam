@@ -23,7 +23,6 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: Euphoria Java 8 DSL"
 
 dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.guava
   testCompile library.java.mockito_core
   testCompile project(":sdks:java:extensions:kryo")
   testCompile library.java.slf4j_api

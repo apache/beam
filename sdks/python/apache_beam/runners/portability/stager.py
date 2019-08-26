@@ -606,7 +606,7 @@ class Stager(object):
     ]
 
     if fetch_binary:
-      logging.info('Downloading binary distribtution of the SDK from PyPi')
+      logging.info('Downloading binary distribution of the SDK from PyPi')
       # Get a wheel distribution for the SDK from PyPI.
       cmd_args.extend([
           '--only-binary', ':all:', '--python-version', language_version_tag,
@@ -622,7 +622,7 @@ class Stager(object):
                                                   platform_tag))
       ]
     else:
-      logging.info('Downloading source distribtution of the SDK from PyPi')
+      logging.info('Downloading source distribution of the SDK from PyPi')
       cmd_args.extend(['--no-binary', ':all:'])
       expected_files = [
           os.path.join(temp_dir, '%s-%s.zip' % (package_name, version)),

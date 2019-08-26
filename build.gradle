@@ -19,12 +19,12 @@
 plugins {
   id 'base'
   // Enable publishing build scans
-  id 'com.gradle.build-scan' version '2.1' apply false
+  id 'com.gradle.build-scan' version '2.4' apply false
   // This plugin provides a task to determine which dependencies have updates.
   // Additionally, the plugin checks for updates to Gradle itself.
   //
   // See https://github.com/ben-manes/gradle-versions-plugin for further details.
-  id 'com.github.ben-manes.versions' version '0.17.0'
+  id 'com.github.ben-manes.versions' version '0.20.0'
   // Apply one top level rat plugin to perform any required license enforcement analysis
   id 'org.nosphere.apache.rat' version '0.4.0'
   // Enable gradle-based release management
@@ -144,6 +144,10 @@ task javaPreCommit() {
   dependsOn ":runners:direct-java:needsRunnerTests"
 }
 
+task javaPreCommitBeamZetaSQL() {
+  dependsOn ":sdks:java:extensions:sql:runZetaSQLTest"
+}
+
 task javaPreCommitPortabilityApi() {
   dependsOn ":runners:google-cloud-dataflow-java:worker:build"
   dependsOn ":runners:google-cloud-dataflow-java:examples:verifyPortabilityApi"
@@ -158,6 +162,7 @@ task javaPostCommit() {
 task sqlPostCommit() {
   dependsOn ":sdks:java:extensions:sql:postCommit"
   dependsOn ":sdks:java:extensions:sql:jdbc:postCommit"
+  dependsOn ":sdks:java:extensions:sql:datacatalog:postCommit"
 }
 
 task javaPostCommitPortabilityApi () {

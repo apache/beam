@@ -144,6 +144,29 @@ of installing default plugins:
     1.  Go to Jenkins -> New Item -> Freestyle project
     1.  Build step: Process Job DSLs
 
+## Additional Jenkins hints
+
+### Importing DSL jobs from a local git repository
+
+By default, Seed job imports DSL job definitions from the Apache Beam Github
+repository. But there is also a possibility to import these definitions from 
+your local git repository, which makes testing much easier because you don't 
+have to git push every time changes were made. 
+
+1. Build Jenkins image using provided scripts.
+1. Provide an environment variable *BEAM_HOME* pointing to the beam root
+   directory, for example: `export BEAM_HOME=~/my/beam/directory`.
+1. Run image using the following command: `docker run -d -p 127.0.0.1:8080:8080
+   -v $BEAM_HOME:/var/jenkins_real_home/beam:ro beamjenkins`. The only difference is
+   the *-v* option which sets up a bind mount. 
+1. Sign in to Jenkins.
+    1. Go to the *sample_seed_job* and open its configuration. Scroll down to
+       the **Source Code Management** section.
+    1. Fill the **Repository URL** field with *file:///var/jenkins_real_home/beam*.
+
+You can choose any branch from your local repo. Just remember that all changes
+must be committed. You don’t have to checkout the branch you chose.
+
 ## Additional docker hints
 
 ### Running image vs starting container

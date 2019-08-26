@@ -1,5 +1,3 @@
-import groovy.json.JsonOutput
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -17,6 +15,8 @@ import groovy.json.JsonOutput
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 
@@ -58,4 +58,36 @@ task runDataCatalogExample(type: JavaExec) {
     "--project=${gcpProject}",
     "--tempLocation=${gcsTempRoot}",
   ]
+}
+
+
+task integrationTest(type: Test) {
+  group = "Verification"
+  def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+  def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
+
+  // Disable Gradle cache (it should not be used because the IT's won't run).
+  outputs.upToDateWhen { false }
+
+  def pipelineOptions = [
+          "--project=${gcpProject}",
+          "--tempLocation=${gcsTempRoot}",
+          "--blockOnRun=false"]
+
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
+
+  include '**/*IT.class'
+  maxParallelForks 4
+  classpath = project(":sdks:java:extensions:sql:datacatalog")
+          .sourceSets
+          .test
+          .runtimeClasspath
+  testClassesDirs = files(project(":sdks:java:extensions:sql:datacatalog").sourceSets.test.output.classesDirs)
+  useJUnit {}
+}
+
+task postCommit {
+  group = "Verification"
+  description = "Various integration tests"
+  dependsOn integrationTest
 }

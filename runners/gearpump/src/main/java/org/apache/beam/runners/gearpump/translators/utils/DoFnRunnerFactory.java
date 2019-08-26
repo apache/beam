@@ -50,6 +50,7 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
   private final List<TupleTag<?>> sideOutputTags;
   private final StepContext stepContext;
   private final DoFnSchemaInformation doFnSchemaInformation;
+  private final Map<String, PCollectionView<?>> sideInputMapping;
   Map<TupleTag<?>, Coder<?>> outputCoders;
   private final WindowingStrategy<?, ?> windowingStrategy;
 
@@ -63,7 +64,8 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
       StepContext stepContext,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       WindowingStrategy<?, ?> windowingStrategy,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     this.fn = doFn;
     this.serializedOptions = new SerializablePipelineOptions(pipelineOptions);
     this.sideInputs = sideInputs;
@@ -74,6 +76,7 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
     this.outputCoders = outputCoders;
     this.windowingStrategy = windowingStrategy;
     this.doFnSchemaInformation = doFnSchemaInformation;
+    this.sideInputMapping = sideInputMapping;
   }
 
   public PushbackSideInputDoFnRunner<InputT, OutputT> createRunner(
@@ -91,7 +94,8 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
             null,
             outputCoders,
             windowingStrategy,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
     return SimplePushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
   }
 }
