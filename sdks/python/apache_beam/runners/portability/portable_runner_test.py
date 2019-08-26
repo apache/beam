@@ -258,6 +258,20 @@ class PortableRunnerInternalTest(unittest.TestCase):
                 container_image=docker_image
             ).SerializeToString()))
 
+  def test__create_docker_environment_with_run_options(self):
+    docker_image = 'py-docker'
+    docker_options = '-v /tmp:/tmp'
+    self.assertEqual(
+        PortableRunner._create_environment(PipelineOptions.from_dictionary({
+            'environment_type': 'DOCKER',
+            'environment_config': '{} {}'.format(docker_options, docker_image),
+        })), beam_runner_api_pb2.Environment(
+            urn=common_urns.environments.DOCKER.urn,
+            payload=beam_runner_api_pb2.DockerPayload(
+                container_image=docker_image,
+                options=docker_options
+            ).SerializeToString()))
+
   def test__create_process_environment(self):
     self.assertEqual(
         PortableRunner._create_environment(PipelineOptions.from_dictionary({

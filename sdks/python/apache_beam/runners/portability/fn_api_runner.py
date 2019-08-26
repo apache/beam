@@ -32,6 +32,7 @@ import sys
 import threading
 import time
 import uuid
+import shlex
 from builtins import object
 from concurrent import futures
 
@@ -1329,6 +1330,7 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
     super(DockerSdkWorkerHandler, self).__init__(state, provision_info,
                                                  grpc_server)
     self._container_image = payload.container_image
+    self._options = payload.options
     self._container_id = None
 
   def start_worker(self):
@@ -1337,22 +1339,36 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
         subprocess.check_call(['docker', 'pull', self._container_image])
       except Exception:
         logging.info('Unable to pull image %s' % self._container_image)
-      self._container_id = subprocess.check_output(
-          ['docker',
-           'run',
-           '-d',
-           # TODO:  credentials
-           '--network=host',
-           self._container_image,
-           '--id=%s' % self.worker_id,
-           '--logging_endpoint=%s' % self.logging_api_service_descriptor().url,
-           '--control_endpoint=%s' % self.control_address,
-           '--artifact_endpoint=%s' % self.control_address,
-           '--provision_endpoint=%s' % self.control_address,
-          ]).strip()
-      while True:
-        logging.info('Waiting for docker to start up...')
-        status = subprocess.check_output([
+      cmd = [
+          'docker',
+          'run',
+          '-d',
+          # TODO:  credentials
+          '--network=host',
+      ]
+      if self._options:
+        cmd.extend(shlex.split(self._options))
+      cmd.extend([
+          self._container_image,
+          '--id=%s' % self.worker_id,
+          '--logging_endpoint=%s' % self.logging_api_service_descriptor().url,
+          '--control_endpoint=%s' % self.control_address,
+          '--artifact_endpoint=%s' % self.control_address,
+          '--provision_endpoint=%s' % self.control_address,
+      ])
+      self._container_id = subprocess.check_output(cmd).strip()
+    while True:
+      logging.info('Waiting for docker to start up...')
+      status = subprocess.check_output([
+          'docker',
+          'inspect',
+          '-f',
+          '{{.State.Status}}',
+          self._container_id]).strip()
+      if status == 'running':
+        break
+      elif status in ('dead', 'exited'):
+        subprocess.call([
             'docker',
             'inspect',
             '-f',

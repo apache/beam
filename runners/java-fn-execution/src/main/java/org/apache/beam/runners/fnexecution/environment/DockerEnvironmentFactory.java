@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.More
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -116,6 +117,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
 
     // Prepare docker invocation.
     String containerImage = dockerPayload.getContainerImage();
+    String dockerOptions = dockerPayload.getOptions();
     // TODO: https://issues.apache.org/jira/browse/BEAM-4148 The default service address will not
     // work for Docker for Mac.
     String loggingEndpoint = loggingServiceServer.getApiServiceDescriptor().getUrl();
@@ -134,6 +136,10 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
 
     if (!retainDockerContainer) {
       dockerArgsBuilder.add("--rm");
+    }
+
+    if (!dockerOptions.isEmpty()) {
+      dockerArgsBuilder.addAll(Arrays.asList(dockerOptions.split("\\s+")));
     }
 
     List<String> args =

@@ -995,6 +995,8 @@ message StandardEnvironments {
 // The payload of a Docker image
 message DockerPayload {
   string container_image = 1;  // implicitly linux_amd64.
+  // (Optional) Provided to options in `docker run [OPTIONS] [IMAGE]`
+  string options = 2;
 }
 
 message ProcessPayload {

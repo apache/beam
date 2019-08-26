@@ -121,13 +121,17 @@ class PortableRunner(runner.PipelineRunner):
             'Unknown environment type: %s' % portable_options.environment_type)
 
     if environment_urn == common_urns.environments.DOCKER.urn:
-      docker_image = (
-          portable_options.environment_config
-          or PortableRunner.default_docker_image())
+      if not portable_options.environment_config:
+        docker_image = PortableRunner.default_docker_image()
+        docker_options = ''
+      else:
+        docker_options, _, docker_image = portable_options.environment_config \
+          .strip().rpartition(' ')
       return beam_runner_api_pb2.Environment(
           urn=common_urns.environments.DOCKER.urn,
           payload=beam_runner_api_pb2.DockerPayload(
-              container_image=docker_image
+              container_image=docker_image,
+              options=docker_options
           ).SerializeToString())
     elif environment_urn == common_urns.environments.PROCESS.urn:
       config = json.loads(portable_options.environment_config)
