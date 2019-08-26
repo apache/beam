@@ -49,7 +49,6 @@ applyJavaNature(
     relocate "com.google.logging", getJavaRelocatedPath("com.google.logging")
     relocate "com.google.longrunning", getJavaRelocatedPath("com.google.longrunning")
     relocate "com.google.rpc", getJavaRelocatedPath("com.google.rpc")
-    relocate "com.google.type", getJavaRelocatedPath("com.google.type")
 
     relocate "com.google.thirdparty", project.getJavaRelocatedPath("com.google.thirdparty")
 
