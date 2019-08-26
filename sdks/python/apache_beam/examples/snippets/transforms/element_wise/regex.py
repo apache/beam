@@ -20,142 +20,217 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 
-def regex_match(test=None):
-  # [START regex_match]
+def regex_matches(test=None):
+  # [START regex_matches]
   import apache_beam as beam
-  import re
 
-  def parse_plant(text):
-    m = re.match(r'^([^\s-]+)\s*-\s*(\w+)\s*-\s*(?P<duration>\w+)$', text)
-    if m:
-      yield {
-          'match': m.group(0),              # contains the entire matched text
-          'icon': m.group(1),               # ([^\s-]+) - group
-          'name': m.group(2),               # (\w+) - group
-          'duration': m.group('duration'),  # (?P<duration>\w+) - named group
-      }
-
+  # Matches a named group 'icon', and then two comma-separated groups.
+  regex = r'(?P<icon>[^ ,]+), *(\w+), *(\w+)'
   with beam.Pipeline() as pipeline:
-    plant_matches = (
+    plants_matches = (
         pipeline
         | 'Garden plants' >> beam.Create([
-            '🍓   -   Strawberry   -   perennial',
-            '🥕 - Carrot - biennial',
-            '# 🍌 - invalid - format',
-            '🍆\t-\tEggplant\t-\tperennial',
-            '🍅 - Tomato - annual',
-            '🍉 - invalid - format with trailing words',
-            '🥔-Potato-perennial',
+            '🍓,   Strawberry,   perennial',
+            '🥕, Carrot, biennial ignoring trailing words',
+            '🍆, Eggplant, perennial',
+            '🍅, Tomato, annual',
+            '🥔,Potato,perennial',
+            '# 🍌, invalid, format',
+            'invalid, 🍉, format',
         ])
-        | 'Parse plants' >> beam.FlatMap(parse_plant)
+        | 'Parse plants' >> beam.Regex.matches(regex)
         | beam.Map(print)
     )
-    # [END regex_match]
+    # [END regex_matches]
     if test:
-      test(plant_matches)
+      test(plants_matches)
 
 
-def regex_search(test=None):
-  # [START regex_search]
+def regex_all_matches(test=None):
+  # [START regex_all_matches]
   import apache_beam as beam
-  import re
 
-  def parse_plant_duration(text):
-    m = re.search(r'([^\s-]+)\s*-\s*(\w*)\s*-\s*(?P<duration>\w+)', text)
-    if m:
-      yield {
-          'match': m.group(0),              # contains the entire matched text
-          'icon': m.group(1),               # ([^\s-]+) - group
-          'name': m.group(2),               # (\w+) - group
-          'duration': m.group('duration'),  # (?P<duration>\w+) - named group
-      }
-
+  # Matches a named group 'icon', and then two comma-separated groups.
+  regex = r'(?P<icon>[^ ,]+), *(\w+), *(\w+)'
   with beam.Pipeline() as pipeline:
-    plant_matches = (
+    plants_all_matches = (
         pipeline
         | 'Garden plants' >> beam.Create([
-            '# 🍓   -   Strawberry   -   perennial',
-            '# 🥕 - Carrot - biennial',
-            '# 🍆\t-\tEggplant\t-\tperennial',
-            '# 🍅 - Tomato - annual',
-            '# 🥔-Potato-perennial',
+            '🍓,   Strawberry,   perennial',
+            '🥕, Carrot, biennial ignoring trailing words',
+            '🍆, Eggplant, perennial',
+            '🍅, Tomato, annual',
+            '🥔,Potato,perennial',
+            '# 🍌, invalid, format',
+            'invalid, 🍉, format',
         ])
-        | 'Parse plants' >> beam.FlatMap(parse_plant_duration)
+        | 'Parse plants' >> beam.Regex.all_matches(regex)
         | beam.Map(print)
     )
-    # [END regex_search]
+    # [END regex_all_matches]
     if test:
-      test(plant_matches)
+      test(plants_all_matches)
+
+
+def regex_matches_kv(test=None):
+  # [START regex_matches_kv]
+  import apache_beam as beam
+
+  # Matches a named group 'icon', and then two comma-separated groups.
+  regex = r'(?P<icon>[^ ,]+), *(\w+), *(\w+)'
+  with beam.Pipeline() as pipeline:
+    plants_matches_kv = (
+        pipeline
+        | 'Garden plants' >> beam.Create([
+            '🍓,   Strawberry,   perennial',
+            '🥕, Carrot, biennial ignoring trailing words',
+            '🍆, Eggplant, perennial',
+            '🍅, Tomato, annual',
+            '🥔,Potato,perennial',
+            '# 🍌, invalid, format',
+            'invalid, 🍉, format',
+        ])
+        | 'Parse plants' >> beam.Regex.matches_kv(regex, keyGroup='icon')
+        | beam.Map(print)
+    )
+    # [END regex_matches_kv]
+    if test:
+      test(plants_matches_kv)
+
+
+def regex_find(test=None):
+  # [START regex_find]
+  import apache_beam as beam
+
+  # Matches a named group 'icon', and then two comma-separated groups.
+  regex = r'(?P<icon>[^ ,]+), *(\w+), *(\w+)'
+  with beam.Pipeline() as pipeline:
+    plants_matches = (
+        pipeline
+        | 'Garden plants' >> beam.Create([
+            '# 🍓,   Strawberry,   perennial',
+            '# 🥕, Carrot, biennial ignoring trailing words',
+            '# 🍆, Eggplant, perennial - 🍌, Banana, perennial',
+            '# 🍅, Tomato, annual - 🍉, Watermelon, annual',
+            '# 🥔,Potato,perennial',
+        ])
+        | 'Parse plants' >> beam.Regex.find(regex)
+        | beam.Map(print)
+    )
+    # [END regex_find]
+    if test:
+      test(plants_matches)
 
 
 def regex_find_all(test=None):
   # [START regex_find_all]
   import apache_beam as beam
-  import re
 
-  def parse_words(text):
-    for m in re.finditer(r'[^\s-]+', text):
-      yield m.group()
-
+  # Matches a named group 'icon', and then two comma-separated groups.
+  regex = r'(?P<icon>[^ ,]+), *(\w+), *(\w+)'
   with beam.Pipeline() as pipeline:
-    words = (
+    plants_find_all = (
         pipeline
         | 'Garden plants' >> beam.Create([
-            '🍓   -   Strawberry   -   perennial',
-            '🥕 - Carrot - biennial',
-            '🍆\t-\tEggplant\t-\tperennial',
-            '🍅 - Tomato - annual',
-            '🥔-Potato-perennial',
+            '# 🍓,   Strawberry,   perennial',
+            '# 🥕, Carrot, biennial ignoring trailing words',
+            '# 🍆, Eggplant, perennial - 🍌, Banana, perennial',
+            '# 🍅, Tomato, annual - 🍉, Watermelon, annual',
+            '# 🥔,Potato,perennial',
         ])
-        | 'Parse words' >> beam.FlatMap(parse_words)
+        | 'Parse plants' >> beam.Regex.find_all(regex)
         | beam.Map(print)
     )
     # [END regex_find_all]
     if test:
-      test(words)
+      test(plants_find_all)
 
 
-def regex_replace(test=None):
-  # [START regex_replace]
+def regex_find_kv(test=None):
+  # [START regex_find_kv]
   import apache_beam as beam
-  import re
 
+  # Matches a named group 'icon', and then two comma-separated groups.
+  regex = r'(?P<icon>[^ ,]+), *(\w+), *(\w+)'
   with beam.Pipeline() as pipeline:
-    plants_csv = (
+    plants_matches_kv = (
         pipeline
         | 'Garden plants' >> beam.Create([
-            '🍓   -   Strawberry   -   perennial',
-            '🥕 - Carrot - biennial',
-            '🍆\t-\tEggplant\t-\tperennial',
-            '🍅 - Tomato - annual',
-            '🥔-Potato-perennial',
+            '# 🍓,   Strawberry,   perennial',
+            '# 🥕, Carrot, biennial ignoring trailing words',
+            '# 🍆, Eggplant, perennial - 🍌, Banana, perennial',
+            '# 🍅, Tomato, annual - 🍉, Watermelon, annual',
+            '# 🥔,Potato,perennial',
         ])
-        | 'To CSV' >> beam.Map(lambda text: re.sub(r'\s*-\s*', ',', text))
+        | 'Parse plants' >> beam.Regex.find_kv(regex, keyGroup='icon')
         | beam.Map(print)
     )
-    # [END regex_replace]
+    # [END regex_find_kv]
     if test:
-      test(plants_csv)
+      test(plants_matches_kv)
+
+
+def regex_replace_all(test=None):
+  # [START regex_replace_all]
+  import apache_beam as beam
+
+  with beam.Pipeline() as pipeline:
+    plants_replace_all = (
+        pipeline
+        | 'Garden plants' >> beam.Create([
+            '🍓  :   Strawberry   :   perennial',
+            '🥕 : Carrot : biennial',
+            '🍆\t\t:\t\tEggplant\t\t:\t\tperennial',
+            '🍅 : Tomato : annual',
+            '🥔:Potato:perennial',
+        ])
+        | 'To CSV' >> beam.Regex.replace_all(r'\s*:\s*', ',')
+        | beam.Map(print)
+    )
+    # [END regex_replace_all]
+    if test:
+      test(plants_replace_all)
+
+
+def regex_replace_first(test=None):
+  # [START regex_replace_first]
+  import apache_beam as beam
+
+  with beam.Pipeline() as pipeline:
+    plants_replace_first = (
+        pipeline
+        | 'Garden plants' >> beam.Create([
+            '🍓   ,   Strawberry, perennial',
+            '🥕, Carrot, biennial',
+            '🍆\t\t,\t\tEggplant, perennial',
+            '🍅, Tomato, annual',
+            '🥔,Potato, perennial',
+        ])
+        | 'As dictionary' >> beam.Regex.replace_first(r'\s*,\s*', ': ')
+        | beam.Map(print)
+    )
+    # [END regex_replace_first]
+    if test:
+      test(plants_replace_first)
 
 
 def regex_split(test=None):
   # [START regex_split]
   import apache_beam as beam
-  import re
 
   with beam.Pipeline() as pipeline:
-    plants_columns = (
+    plants_split = (
         pipeline
         | 'Garden plants' >> beam.Create([
-            '🍓   -   Strawberry   -   perennial',
-            '🥕 - Carrot - biennial',
-            '🍆\t-\tEggplant\t-\tperennial',
-            '🍅 - Tomato - annual',
-            '🥔-Potato-perennial',
+            '🍓  :   Strawberry   :   perennial',
+            '🥕 : Carrot : biennial',
+            '🍆\t\t:\t\tEggplant : perennial',
+            '🍅 : Tomato : annual',
+            '🥔:Potato:perennial',
         ])
-        | 'Split' >> beam.Map(lambda text: re.split(r'\s*-\s*', text))
+        | 'Parse plants' >> beam.Regex.split(r'\s*:\s*')
         | beam.Map(print)
     )
     # [END regex_split]
     if test:
-      test(plants_columns)
+      test(plants_split)
