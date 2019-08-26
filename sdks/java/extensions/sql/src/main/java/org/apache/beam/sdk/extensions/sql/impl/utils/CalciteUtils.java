@@ -21,6 +21,7 @@ import java.lang.reflect.Type;
 import java.util.Date;
 import java.util.Map;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.schemas.LogicalTypes;
 import org.apache.beam.sdk.schemas.LogicalTypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -180,6 +181,10 @@ public class CalciteUtils {
       case MAP:
         return SqlTypeName.MAP;
       default:
+        if (type.getTypeName().isLogicalType()
+            && type.getLogicalType().getIdentifier().equals(LogicalTypes.FixedBytes.IDENTIFIER)) {
+          return SqlTypeName.BINARY;
+        }
         SqlTypeName typeName = BEAM_TO_CALCITE_TYPE_MAPPING.get(type.withNullable(false));
         if (typeName != null) {
           return typeName;
