@@ -41,7 +41,7 @@ The artifacts will disappear from Nexus immediately but will not appear in Maven
 1. Download everything from https://dist.apache.org/repos/dist/dev/beam/2.14.0/python/ ;
 2. Keep only things that you see in https://pypi.org/project/apache-beam/#files , e.g. `.zip`, `.whl`,
    delete the `.asc`, `.sha512`;
-3. Upload the new release `twine upload .` from the directory with the `.zip` and `.whl` files;
+3. Upload the new release `twine upload *` from the directory with the `.zip` and `.whl` files;
 
 
 *****
@@ -53,7 +53,7 @@ Move last release artifacts from `dist.apache.org` to `archive.apache.org` using
 
 __NOTE__: Only PMC members have permissions to do it, ping [dev@](mailto:dev@beam.apache.org) for assitance;
 
-Make sure the download address for last release version is upldaed, [example PR](https://github.com/apache/beam-site/pull/478).
+Make sure the download address for last release version is updated, [example PR](https://github.com/apache/beam-site/pull/478).
 
 
 *****
