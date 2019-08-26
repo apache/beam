@@ -2756,6 +2756,69 @@ public class ParDoTest implements Serializable {
     }
 
     /**
+     * Create timer that is a milli behind GC Timer so they likely show up in the same bundle.
+     * Scenario this is expected to catch:
+     *
+     * <p>If a user timer and the GC timer show up in the same bundle, and the user timer resets
+     * itself, ensure it is called.
+     */
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesTimersInParDo.class})
+    public void testMultipleTimersInSameBundleWithSelfSetBehaviour() {
+      final String stateId = "count";
+      final String timerId = "timer";
+
+      DoFn<KV<String, Integer>, Integer> fn =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @TimerId(timerId)
+            private final TimerSpec selfSetTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @StateId(stateId)
+            private final StateSpec<ValueState<Boolean>> isSet = StateSpecs.value();
+
+            @ProcessElement
+            public void processElement(
+                @StateId(stateId) ValueState<Boolean> isSet,
+                @TimerId(timerId) Timer selfSetTimer,
+                IntervalWindow iw) {
+              isSet.write(true);
+              selfSetTimer.set(iw.maxTimestamp().minus(Duration.millis(2)));
+            }
+
+            @OnTimer(timerId)
+            public void onLoopTimer(
+                @StateId(stateId) ValueState<Boolean> isSet,
+                @TimerId(timerId) Timer selfSetTimer,
+                OnTimerContext otc,
+                OutputReceiver<Integer> r) {
+
+              if (isSet.read() == null) {
+                throw new IllegalStateException("The state should never be clear.");
+              }
+
+              r.output(1);
+
+              if (isSet.read() == true) {
+                selfSetTimer.set(otc.window().maxTimestamp().minus(Duration.millis(1)));
+                isSet.write(false);
+              }
+            }
+          };
+
+      Instant time = Instant.parse("1999-12-31T11:59:00Z");
+
+      PCollection<Integer> output =
+          pipeline
+              .apply(Create.timestamped(TimestampedValue.of(KV.of("hello", 42), time)))
+              .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))))
+              .apply(ParDo.of(fn));
+
+      PAssert.that(output).containsInAnyOrder(1, 1);
+      pipeline.run();
+    }
+
+    /**
      * Tests that event time timers for multiple keys both fire. This particularly exercises
      * implementations that may GC in ways not simply governed by the watermark.
      */
