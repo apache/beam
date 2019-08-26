@@ -38,6 +38,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
@@ -104,6 +105,11 @@ public class DataflowPortabilityPCollectionView<K, V, W extends BoundedWindow>
     @Override
     public MultimapView<K, V> apply(MultimapView<K, V> o) {
       return o;
+    }
+
+    @Override
+    public TypeDescriptor<MultimapView<K, V>> getTypeDescriptor() {
+      throw new UnsupportedOperationException();
     }
   };
 
