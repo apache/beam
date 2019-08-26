@@ -1591,7 +1591,6 @@ public class ZetaSQLDialectSpecTestZetaSQL {
   }
 
   @Test
-  @Ignore("Need further investigation on root cause. Seems a bug of direct runner.")
   public void testZetaSQLBasicAgg3() {
     String sql = "SELECT Key, Key2, COUNT(*) FROM aggregate_test_table GROUP BY Key2, Key";
 
@@ -1618,7 +1617,6 @@ public class ZetaSQLDialectSpecTestZetaSQL {
   }
 
   @Test
-  @Ignore("Need further investigation on root cause. Seems a bug of direct runner.")
   public void testZetaSQLBasicAgg4() {
     String sql =
         "SELECT Key, Key2, MAX(f_int_1), MIN(f_int_1), SUM(f_int_1), SUM(f_double_1) "
@@ -1650,7 +1648,6 @@ public class ZetaSQLDialectSpecTestZetaSQL {
   }
 
   @Test
-  @Ignore("Need further investigation on root cause. Seems a bug of direct runner.")
   public void testZetaSQLBasicAgg5() {
     String sql =
         "SELECT Key, Key2, AVG(CAST(f_int_1 AS FLOAT64)), AVG(f_double_1) "
@@ -1917,7 +1914,6 @@ public class ZetaSQLDialectSpecTestZetaSQL {
 
   // Test selection, filtering and aggregation combined query.
   @Test
-  @Ignore("Need further investigation on root cause. Seems a bug of direct runner.")
   public void testZetaSQLNestedQueryTwo() {
     String sql =
         "SELECT a.Key, a.Key2, COUNT(*) FROM "
