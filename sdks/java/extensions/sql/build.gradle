@@ -36,7 +36,6 @@ applyJavaNature(
       include(dependency("org.apache.calcite.avatica:.*"))
       include(dependency("org.codehaus.janino:.*"))
       include(dependency("com.google.zetasql:.*"))
-      include(dependency("com.google.api.grpc:proto-google-common-protos"))
     }
     // guava uses the com.google.common and com.google.thirdparty package namespaces
     relocate("com.google.common", project.getJavaRelocatedPath("com.google.common")) {
@@ -50,9 +49,6 @@ applyJavaNature(
     relocate "com.google.logging", getJavaRelocatedPath("com.google.logging")
     relocate "com.google.longrunning", getJavaRelocatedPath("com.google.longrunning")
     relocate "com.google.rpc", getJavaRelocatedPath("com.google.rpc")
-
-    // used in ZetaSQL, see BEAM-8080
-    relocate "com.google.type", getJavaRelocatedPath("com.google.type")
 
     relocate "com.google.thirdparty", project.getJavaRelocatedPath("com.google.thirdparty")
 
