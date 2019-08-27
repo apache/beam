@@ -56,6 +56,7 @@ var (
 	zone                 = flag.String("zone", "", "GCP zone (optional)")
 	region               = flag.String("region", "", "GCP Region (optional but encouraged)")
 	network              = flag.String("network", "", "GCP network (optional)")
+	subnetwork           = flag.String("subnetwork", "", "GCP subnetwork (optional)")
 	tempLocation         = flag.String("temp_location", "", "Temp location (optional)")
 	machineType          = flag.String("worker_machine_type", "", "GCE machine type (optional)")
 	minCPUPlatform       = flag.String("min_cpu_platform", "", "GCE minimum cpu platform (optional)")
@@ -140,6 +141,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		Region:              *region,
 		Zone:                *zone,
 		Network:             *network,
+		Subnetwork:          *subnetwork,
 		NumWorkers:          *numWorkers,
 		MaxNumWorkers:       *maxNumWorkers,
 		Algorithm:           *autoscalingAlgorithm,
