@@ -238,7 +238,7 @@
       <li><a href="#verify-the-build-succeeds">Verify the build succeeds</a></li>
     </ul>
   </li>
-  <li><a href="#alternative-run-all-commands-manually">(Alternative) Run all commands manually</a></li>
+  <li><a href="#alternative-run-release-build-locally">(Alternative) Run release build locally</a></li>
   <li><a href="#create-release-blocking-issues-in-jira">Create release-blocking issues in JIRA</a></li>
   <li><a href="#checklist-to-proceed-to-the-next-step">Checklist to proceed to the next step</a></li>
 </ul>
@@ -263,40 +263,43 @@ limitations under the License.
 
 <h1 id="verify-the-release-branch">Verify the release branch</h1>
 
-<hr />
-
 <p>After the release branch is cut you need to make sure it builds and has no significant issues that would block the
 creation of the release candidate.</p>
+
+<hr />
 
 <h2 id="run-verify_release_buildsh">Run <code class="highlighter-rouge">verify_release_build.sh</code></h2>
 <ul>
   <li>
     <p>Script: <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh">verify_release_build.sh</a></p>
   </li>
-  <li>
-    <p>Usage</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code>./beam/release/src/main/scripts/verify_release_build.sh
-</code></pre>
-    </div>
-  </li>
-  <li>
-    <p>The script does the following:</p>
+  <li>Usage
     <ol>
-      <li>Installs <code class="highlighter-rouge">pip</code>, <code class="highlighter-rouge">virtualenv</code>, <code class="highlighter-rouge">cython</code> and <code class="highlighter-rouge">/usr/bin/time</code> with your agreements;</li>
-      <li>Runs <code class="highlighter-rouge">gradle release build</code> against release branch;</li>
+      <li>Create a personal access token from your Github account. See instruction <a href="https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line">here</a>.
+It’ll be used by the script for accessing Github API.</li>
+      <li>Update required configurations listed in <code class="highlighter-rouge">RELEASE_BUILD_CONFIGS</code> in <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config">script.config</a></li>
+      <li>Then run
+        <div class="highlighter-rouge"><pre class="highlight"><code>cd release/src/main/scripts &amp;&amp; ./verify_release_build.sh
+</code></pre>
+        </div>
+      </li>
+      <li>Trigger Jenkins <code class="highlighter-rouge">beam_Release_Gradle_Build</code> and all PostCommit jobs from PR that’s created from previous step.
+To do so, only add one trigger phrase per comment. See <code class="highlighter-rouge">JOB_TRIGGER_PHRASES</code> in <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh#L43">verify_release_build.sh</a>
+for full list of phrases.</li>
+    </ol>
+  </li>
+  <li>The script does the following:
+    <ol>
+      <li>Installs <code class="highlighter-rouge">hub</code> with your agreement and setup local git repo;</li>
+      <li>Create a test PR against release branch;</li>
     </ol>
   </li>
 </ul>
 
-<p>Basically it does <code class="highlighter-rouge">./gradlew build -PisRelease</code> from the root of Beam repository.
+<p>Jenkins job <code class="highlighter-rouge">beam_Release_Gradle_Build</code> basically run <code class="highlighter-rouge">./gradlew build -PisRelease</code>.
 This only verifies that everything builds with unit tests passing.</p>
 
-<p>To speed things up locally you might want to omit <code class="highlighter-rouge">--no-parallel</code>.
-You might want to omit <code class="highlighter-rouge">--continue</code> if you want the script to fail after the first error instead of continuing,
-it may be easier and faster to find environment issues this way without having to wait until the full build completes.</p>
-
-<p>There are some projects that don’t produce the artifacts, e.g. <code class="highlighter-rouge">beam-test-tools</code>`, you may be able to
+<p>There are some projects that don’t produce the artifacts, e.g. <code class="highlighter-rouge">beam-test-tools</code>, you may be able to
 ignore failures there.</p>
 
 <p>To triage the failures and narrow things down you may want to look at <code class="highlighter-rouge">settings.gradle</code> and run the build only for the
@@ -309,18 +312,27 @@ projects you’re interested at the moment, e.g. <code class="highlighter-rouge"
   <li>Check the build result;</li>
   <li>If build failed, scan log will contain all failures;</li>
   <li>You should stabilize the release branch until release build succeeded;</li>
-  <li>The script will output a set of Jenkins phrases to enter in the created PR;</li>
 </ol>
 
 <hr />
 
-<h2 id="alternative-run-all-commands-manually">(Alternative) Run all commands manually</h2>
+<h2 id="alternative-run-release-build-locally">(Alternative) Run release build locally</h2>
 
-<p>Follow the scripts and run all the steps manually, overall you need to do:</p>
+<p>Overall you need to do:</p>
 
 <ul>
-  <li>
-    <p>Install python dependencies, e.g. <code class="highlighter-rouge">pip</code>, <code class="highlighter-rouge">virtualenv</code>, <code class="highlighter-rouge">cython</code>;</p>
+  <li>Install python dependencies:
+    <ul>
+      <li><code class="highlighter-rouge">pip</code></li>
+      <li><code class="highlighter-rouge">virtualenv</code></li>
+      <li><code class="highlighter-rouge">cython</code></li>
+      <li><code class="highlighter-rouge">gcc</code></li>
+      <li><code class="highlighter-rouge">python-dev</code></li>
+      <li><code class="highlighter-rouge">python3-dev</code></li>
+      <li><code class="highlighter-rouge">python3.5-dev</code></li>
+      <li><code class="highlighter-rouge">python3.6-dev</code></li>
+      <li><code class="highlighter-rouge">python3.7-dev</code></li>
+    </ul>
   </li>
   <li>
     <p>Run gradle release build, along these lines (check the script):</p>
@@ -336,13 +348,17 @@ projects you’re interested at the moment, e.g. <code class="highlighter-rouge"
       <li>
         <p>Run build command, e.g.:</p>
 
-        <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew build -PisRelease
+        <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew build -PisRelease --no-parallel --continue
 </code></pre>
         </div>
       </li>
     </ol>
   </li>
 </ul>
+
+<p>To speed things up locally you might want to omit <code class="highlighter-rouge">--no-parallel</code>.
+You might want to omit <code class="highlighter-rouge">--continue</code> if you want build fails after the first error instead of continuing,
+it may be easier and faster to find environment issues this way without having to wait until the full build completes.</p>
 
 <hr />
 
