@@ -45,6 +45,7 @@ type JobOptions struct {
 	Region              string
 	Zone                string
 	Network             string
+	Subnetwork          string
 	NumWorkers          int64
 	MachineType         string
 	Labels              map[string]string
@@ -137,6 +138,7 @@ func Translate(p *pb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL str
 				NumWorkers:                  1,
 				MachineType:                 opts.MachineType,
 				Network:                     opts.Network,
+				Subnetwork:                  opts.Subnetwork,
 				Zone:                        opts.Zone,
 			}},
 			TempStoragePrefix: opts.TempLocation,
@@ -243,6 +245,7 @@ func printOptions(opts *JobOptions, images []string) []*displayData {
 	addIfNonEmpty("region", opts.Region)
 	addIfNonEmpty("zone", opts.Zone)
 	addIfNonEmpty("network", opts.Network)
+	addIfNonEmpty("subnetwork", opts.Subnetwork)
 	addIfNonEmpty("machine_type", opts.MachineType)
 	addIfNonEmpty("container_images", strings.Join(images, ","))
 	addIfNonEmpty("temp_location", opts.TempLocation)
