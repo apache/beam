@@ -183,17 +183,12 @@ public class GroupCombineFunctions {
   }
 
   /** An implementation of {@link Reshuffle} for the Spark runner. */
-  public static <K, V> JavaRDD<WindowedValue<KV<K, V>>> reshuffle(
-      JavaRDD<WindowedValue<KV<K, V>>> rdd, Coder<K> keyCoder, WindowedValueCoder<V> wvCoder) {
-
+  public static <T> JavaRDD<WindowedValue<T>> reshuffle(
+      JavaRDD<WindowedValue<T>> rdd, WindowedValueCoder<T> wvCoder) {
     // Use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
-    return rdd.map(new ReifyTimestampsAndWindowsFunction<>())
-        .mapToPair(TranslationUtils.toPairFunction())
-        .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder))
+    return rdd.map(CoderHelpers.toByteFunction(wvCoder))
         .repartition(rdd.getNumPartitions())
-        .mapToPair(new CoderHelpers.FromByteFunction(keyCoder, wvCoder))
-        .map(new TranslationUtils.FromPairFunction())
-        .map(new TranslationUtils.ToKVByWindowInValueFunction<>());
+        .map(CoderHelpers.fromByteFunction(wvCoder));
   }
 }

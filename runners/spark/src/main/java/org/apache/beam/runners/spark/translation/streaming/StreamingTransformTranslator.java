@@ -480,12 +480,11 @@ public final class StreamingTransformTranslator {
         @SuppressWarnings("unchecked")
         final WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
 
-        final WindowedValue.WindowedValueCoder<V> wvCoder =
-            WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
+        final WindowedValue.WindowedValueCoder<KV<K, V>> wvCoder =
+            WindowedValue.FullWindowedValueCoder.of(coder, windowFn.windowCoder());
 
         JavaDStream<WindowedValue<KV<K, V>>> reshuffledStream =
-            dStream.transform(
-                rdd -> GroupCombineFunctions.reshuffle(rdd, coder.getKeyCoder(), wvCoder));
+            dStream.transform(rdd -> GroupCombineFunctions.reshuffle(rdd, wvCoder));
 
         context.putDataset(transform, new UnboundedDataset<>(reshuffledStream, streamSources));
       }
