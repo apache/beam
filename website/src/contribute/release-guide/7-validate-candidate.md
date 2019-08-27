@@ -107,10 +107,11 @@ In case of script failure, you can still run all of them manually.
 * Script: [run_rc_validation.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/run_rc_validation.sh)
 
 * Usage
-  1. First update [script.config](https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config) with correct config value (e.g. release version, rc number).
+  1. First update required configurations listed in `RC_VALIDATE_CONFIGS` in 
+     [script.config](https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config)
   1. Then run
      ```
-     ./beam/release/src/main/scripts/run_rc_validation.sh
+     cd release/src/main/scripts && ./run_rc_validation.sh
      ```
 
 The script runs quickstarts and mobile games examples on multiple SDKs and runners.
