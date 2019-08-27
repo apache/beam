@@ -778,9 +778,6 @@ class ToString(object):
     Transforms each element of the PCollection to a string.
     """
 
-    def __init__(self, delimiter=None):
-      self.delimiter = delimiter or ","
-
     def expand(self, pcoll):
       input_type = T
       output_type = str
