@@ -183,7 +183,7 @@ public class CalciteUtils {
       default:
         if (type.getTypeName().isLogicalType()
             && type.getLogicalType().getIdentifier().equals(LogicalTypes.FixedBytes.IDENTIFIER)) {
-          return SqlTypeName.BINARY;
+          return SqlTypeName.VARBINARY;
         }
         SqlTypeName typeName = BEAM_TO_CALCITE_TYPE_MAPPING.get(type.withNullable(false));
         if (typeName != null) {
