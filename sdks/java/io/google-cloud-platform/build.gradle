@@ -30,47 +30,48 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile project(":sdks:java:extensions:protobuf")
-  compile library.java.jackson_databind
-  compile library.java.grpc_core
-  compile library.java.google_api_services_bigquery
-  compile library.java.gax_grpc
-  compile library.java.google_cloud_core_grpc
-  compile library.java.google_api_services_pubsub
-  compile library.java.grpc_google_cloud_pubsub_v1
-  compile library.java.proto_google_cloud_pubsub_v1
+  compile library.java.avro
   compile library.java.bigdataoss_util
-  compile library.java.datastore_v1_proto_client
-  compile library.java.datastore_v1_protos
-  compile library.java.grpc_auth
-  compile library.java.grpc_netty
-  compile library.java.netty_handler
-  compile library.java.grpc_stub
-  compile library.java.joda_time
-  compile library.java.google_cloud_bigquery_storage
-  compile library.java.google_cloud_bigquery_storage_proto
-  compile library.java.google_cloud_core
-  compile library.java.google_cloud_spanner
-  compile library.java.bigtable_protos
-  compile library.java.bigtable_client_core
+  compile library.java.gax_grpc
   compile library.java.google_api_client
-  compile library.java.google_http_client
-  compile library.java.google_http_client_jackson2
+  compile library.java.google_api_services_bigquery
+  compile library.java.google_api_services_pubsub
   compile library.java.google_auth_library_credentials
   compile library.java.google_auth_library_oauth2_http
-  compile library.java.slf4j_api
-  compile library.java.protobuf_java
-  compile library.java.avro
+  compile library.java.google_cloud_bigquery_storage
+  compile library.java.google_cloud_bigtable_client_core
+  compile library.java.google_cloud_core
+  compile library.java.google_cloud_core_grpc
+  compile library.java.google_cloud_datastore_v1_proto_client
+  compile library.java.google_cloud_spanner
+  compile library.java.google_http_client
+  compile library.java.google_http_client_jackson2
+  compile library.java.grpc_all
+  compile library.java.grpc_auth
+  compile library.java.grpc_core
+  compile library.java.grpc_netty
+  compile library.java.grpc_stub
+  compile library.java.grpc_google_cloud_pubsub_v1
+  compile library.java.guava
+  compile library.java.jackson_databind
+  compile library.java.joda_time
+  compile library.java.netty_handler
+  compile library.java.netty_tcnative_boringssl_static
+  compile library.java.proto_google_cloud_bigquery_storage_v1beta1
+  compile library.java.proto_google_cloud_bigtable_v2
+  compile library.java.proto_google_cloud_datastore_v1
+  compile library.java.proto_google_cloud_pubsub_v1
   compile library.java.proto_google_cloud_spanner_admin_database_v1
   compile library.java.proto_google_common_protos
-  compile library.java.grpc_all
-  compile library.java.netty_tcnative_boringssl_static
+  compile library.java.protobuf_java
+  compile library.java.slf4j_api
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
   testCompile project(path: ":runners:direct-java", configuration: "shadow")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  testCompile library.java.mockito_core
   testCompile library.java.junit
+  testCompile library.java.mockito_core
   testCompile library.java.powermock
   testCompile library.java.powermock_mockito
   testRuntimeOnly library.java.slf4j_jdk14
