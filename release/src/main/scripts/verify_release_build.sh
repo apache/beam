@@ -33,79 +33,6 @@ echo "local repo dir: ~/${LOCAL_CLONE_DIR}/${BEAM_ROOT_DIR}"
 
 echo "====================Checking Requirement======================="
 
-echo "====================Checking pip==============================="
-if [[ -z `which pip` ]]; then
-  echo "There is no pip installed on your machine."
-  echo "Would you like to install pip with root permission? [y|N]"
-  read confirmation
-  if [[ $confirmation != "y" ]]; then
-    echo "Refused to install pip on your machine. Exit."
-    exit
-  else
-    echo "==================Installing pip========================="
-    curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-    sudo python get-pip.py
-    rm get-pip.py
-  fi
-else
-  pip --version
-fi
-
-echo "====================Checking virtualenv========================"
-if [[ -z `which virtualenv` ]]; then
-  echo "There is no virtualenv installed on your machine."
-  echo "Would you like to install virtualenv with root perrission? [y|N]"
-  read confirmation
-  if [[ $confirmation != "y" ]]; then
-    echo "Refused to install virtualenv on your machine. Exit."
-    exit
-  else
-    echo "==================Installing virtualenv==================="
-    sudo `which pip` install --upgrade virtualenv
-  fi
-else
-  virtualenv --version
-fi
-
-echo "=====================Checking cython==========================="
-if [[ -z `which cython` ]]; then
-  echo "There is no cython installed on your machine."
-  echo "Would you like to install cython with root permission? [y|N]"
-  read confirmation
-  if [[ $confirmation != "y" ]]; then
-    echo "Refused to install cython on your machine. Exit."
-    exit
-  else
-    echo "==================Installing cython======================="
-    sudo `which pip` install cython
-    sudo apt-get install gcc
-    sudo apt-get install python-dev
-    sudo apt-get install python3-dev
-    sudo apt-get install python3.5-dev
-    sudo apt-get install python3.6-dev
-    sudo apt-get install python3.7-dev
-  fi
-else
-  cython --version
-fi
-
-echo "==================Checking /usr/bin/time========================"
-if [[ `which time` != "/usr/bin/time" ]]; then
-  echo "There is no usr/bin/time installed on your machine."
-  echo "Would you like to install time on your machine with root permission? [y|N]"
-  read confirmation
-  if [[ $confirmation != "y" ]]; then
-    echo "Refused to install time on your machine. Exit."
-    exit
-  else
-    echo "==================Installing time========================="
-    sudo apt-get install time
-    alias time='/usr/bin/time'
-  fi
-else
-  which time
-fi
-
 echo "=================Checking hub========================"
 HUB_VERSION=2.5.0
 HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
@@ -136,13 +63,6 @@ cd  ${LOCAL_CLONE_DIR}
 git clone ${GIT_REPO_URL}
 cd ${BEAM_ROOT_DIR}
 git checkout ${branch}
-echo "==============================================================="
-
-echo "======================Starting Release Build==================="
-git clean -fdx
-./gradlew clean
-# If build fails, we want to catch as much errors as possible once.
-./gradlew build -PisRelease --scan --stacktrace --no-parallel --continue
 echo "==============================================================="
 
 echo "[Current Task] Run All PostCommit Tests against Release Branch"
