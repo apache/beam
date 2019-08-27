@@ -18,21 +18,14 @@
 
 import CommonJobProperties as commonJobProperties
 import CommonTestProperties
-import Infrastructure as infra
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
+import Flink
+import Docker
 
-String jenkinsJobName = 'beam_LoadTests_Python_Combine_Flink_Batch'
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
-String dockerRegistryRoot = 'gcr.io/apache-beam-testing/beam_portability'
-String dockerTag = 'latest'
-String jobServerImageTag = "${dockerRegistryRoot}/flink-job-server:${dockerTag}"
-String pythonHarnessImageTag = "${dockerRegistryRoot}/python:${dockerTag}"
 
-String flinkVersion = '1.7'
-String flinkDownloadUrl = 'https://archive.apache.org/dist/flink/flink-1.7.0/flink-1.7.0-bin-hadoop28-scala_2.11.tgz'
-
-def scenarios = { datasetName -> [
+def scenarios = { datasetName, sdkHarnessImageTag -> [
         [
                 title        : 'Combine Python Load test: 2GB 10 byte records',
                 itClass      : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
@@ -49,7 +42,7 @@ def scenarios = { datasetName -> [
                                 '"value_size": 9}\'',
                         parallelism         : 5,
                         job_endpoint        : 'localhost:8099',
-                        environment_config  : pythonHarnessImageTag,
+                        environment_config  : sdkHarnessImageTag,
                         environment_type    : 'DOCKER',
                         top_count           : 20,
                 ]
@@ -70,7 +63,7 @@ def scenarios = { datasetName -> [
                                 '"value_size": 90}\'',
                         parallelism         : 16,
                         job_endpoint        : 'localhost:8099',
-                        environment_config  : pythonHarnessImageTag,
+                        environment_config  : sdkHarnessImageTag,
                         environment_type    : 'DOCKER',
                         fanout              : 4,
                         top_count           : 20,
@@ -92,7 +85,7 @@ def scenarios = { datasetName -> [
                                 '"value_size": 90}\'',
                         parallelism         : 16,
                         job_endpoint        : 'localhost:8099',
-                        environment_config  : pythonHarnessImageTag,
+                        environment_config  : sdkHarnessImageTag,
                         environment_type    : 'DOCKER',
                         fanout              : 8,
                         top_count           : 20,
@@ -104,26 +97,29 @@ def batchLoadTestJob = { scope, triggeringContext ->
     scope.description('Runs Python Combine load tests on Flink runner in batch mode')
     commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
-    def numberOfWorkers = 16
+    Docker publisher = new Docker(scope, loadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
+    def sdk = CommonTestProperties.SDK.PYTHON
+    String sdkName = sdk.name().toLowerCase()
+    String pythonHarnessImageTag = publisher.getFullImageName(sdkName)
+
     def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
+    def numberOfWorkers = 16
+    List<Map> testScenarios = scenarios(datasetName, pythonHarnessImageTag)
 
-    List<Map> testScenarios = scenarios(datasetName)
-
-    infra.prepareSDKHarness(scope, CommonTestProperties.SDK.PYTHON, dockerRegistryRoot, dockerTag)
-    infra.prepareFlinkJobServer(scope, flinkVersion, dockerRegistryRoot, dockerTag)
-    infra.setupFlinkCluster(scope, jenkinsJobName, flinkDownloadUrl, pythonHarnessImageTag, jobServerImageTag, numberOfWorkers)
+    publisher.publish(":sdks:${sdkName}:container:docker", sdkName)
+    publisher.publish(':runners:flink:1.7:job-server-container:docker', 'flink-job-server')
+    def flink = new Flink(scope, 'beam_LoadTests_Python_Combine_Flink_Batch')
+    flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('flink-job-server'))
 
     defineTestSteps(scope, testScenarios, [
             'Combine Python Load test: 2GB Fanout 4',
             'Combine Python Load test: 2GB Fanout 8'
     ])
 
-    def scaledNumberOfWorkers = 5
-    infra.scaleCluster(scope, jenkinsJobName, scaledNumberOfWorkers)
+    numberOfWorkers = 5
+    flink.scaleCluster(numberOfWorkers)
 
     defineTestSteps(scope, testScenarios, ['Combine Python Load test: 2GB 10 byte records'])
-
-    infra.teardownDataproc(scope, jenkinsJobName)
 }
 
 private List<Map> defineTestSteps(scope, List<Map> testScenarios, List<String> titles) {

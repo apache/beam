@@ -14,9 +14,6 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 #
-#    Runs init actions for Docker, Portability framework (Beam) and Flink cluster
-#    and opens an SSH tunnel to connect with Flink easily and run Beam jobs.
-#
 #    Provide the following environment to run this script:
 #
 #    GCLOUD_ZONE: Google cloud zone. Optional. Default: "us-central1-a"
@@ -41,7 +38,7 @@
 #    FLINK_NUM_WORKERS=2 \
 #    FLINK_TASKMANAGER_SLOTS=1 \
 #    DETACHED_MODE=false \
-#    ./create_flink_cluster.sh
+#    ./flink_cluster.sh create
 #
 set -Eeuxo pipefail
 
@@ -137,7 +134,9 @@ function create_cluster() {
   gcloud dataproc clusters create $CLUSTER_NAME --num-workers=$num_dataproc_workers --initialization-actions $DOCKER_INIT,$BEAM_INIT,$FLINK_INIT --metadata "${metadata}", --image-version=$image_version --zone=$GCLOUD_ZONE --quiet
 }
 
-function main() {
+# Runs init actions for Docker, Portability framework (Beam) and Flink cluster
+# and opens an SSH tunnel to connect with Flink easily and run Beam jobs.
+function create() {
   upload_init_actions
   create_cluster
   get_leader
@@ -145,4 +144,15 @@ function main() {
   start_tunnel
 }
 
-main "$@"
+# Recreates a Flink cluster.
+function restart() {
+  delete
+  create
+}
+
+# Deletes a Flink cluster.
+function delete() {
+  gcloud dataproc clusters delete $CLUSTER_NAME --quiet
+}
+
+"$@"
