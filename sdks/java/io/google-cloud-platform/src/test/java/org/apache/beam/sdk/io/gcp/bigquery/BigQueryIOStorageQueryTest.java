@@ -242,6 +242,29 @@ public class BigQueryIOStorageQueryTest {
   }
 
   @Test
+  public void testBuildQueryBasedSourceWithSelectedFields() throws Exception {
+    TypedRead<TableRow> typedRead =
+        getDefaultTypedRead().withSelectedFields(Lists.newArrayList("a"));
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Invalid BigQueryIO.Read: Specifies selected fields, "
+            + "which only applies when reading from a table");
+    p.apply(typedRead);
+    p.run();
+  }
+
+  @Test
+  public void testBuildQueryBasedSourceWithRowRestriction() throws Exception {
+    TypedRead<TableRow> typedRead = getDefaultTypedRead().withRowRestriction("a > 5");
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Invalid BigQueryIO.Read: Specifies row restriction, "
+            + "which only applies when reading from a table");
+    p.apply(typedRead);
+    p.run();
+  }
+
+  @Test
   public void testDisplayData() throws Exception {
     TypedRead<TableRow> typedRead = getDefaultTypedRead();
     DisplayData displayData = DisplayData.from(typedRead);

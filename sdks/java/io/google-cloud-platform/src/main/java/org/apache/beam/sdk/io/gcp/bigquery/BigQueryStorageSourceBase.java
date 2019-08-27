@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.model.Table;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -62,16 +64,26 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
   private static final int MIN_SPLIT_COUNT = 10;
 
   protected final TableReadOptions tableReadOptions;
+  protected final ValueProvider<List<String>> selectedFieldsProvider;
+  protected final ValueProvider<String> rowRestrictionProvider;
   protected final SerializableFunction<SchemaAndRecord, T> parseFn;
   protected final Coder<T> outputCoder;
   protected final BigQueryServices bqServices;
 
   BigQueryStorageSourceBase(
       @Nullable TableReadOptions tableReadOptions,
+      @Nullable ValueProvider<List<String>> selectedFieldsProvider,
+      @Nullable ValueProvider<String> rowRestrictionProvider,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
+    checkArgument(
+        tableReadOptions == null
+            || (selectedFieldsProvider == null && rowRestrictionProvider == null),
+        "tableReadOptions is mutually exclusive with selectedFieldsProvider and rowRestrictionProvider");
     this.tableReadOptions = tableReadOptions;
+    this.selectedFieldsProvider = selectedFieldsProvider;
+    this.rowRestrictionProvider = rowRestrictionProvider;
     this.parseFn = checkNotNull(parseFn, "parseFn");
     this.outputCoder = checkNotNull(outputCoder, "outputCoder");
     this.bqServices = checkNotNull(bqServices, "bqServices");
@@ -113,7 +125,16 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
                     .addField(7, UnknownFieldSet.Field.newBuilder().addVarint(2).build())
                     .build());
 
-    if (tableReadOptions != null) {
+    if (selectedFieldsProvider != null || rowRestrictionProvider != null) {
+      TableReadOptions.Builder builder = TableReadOptions.newBuilder();
+      if (selectedFieldsProvider != null) {
+        builder.addAllSelectedFields(selectedFieldsProvider.get());
+      }
+      if (rowRestrictionProvider != null) {
+        builder.setRowRestriction(rowRestrictionProvider.get());
+      }
+      requestBuilder.setReadOptions(builder);
+    } else if (tableReadOptions != null) {
       requestBuilder.setReadOptions(tableReadOptions);
     }
 

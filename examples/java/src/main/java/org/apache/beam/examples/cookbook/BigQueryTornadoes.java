@@ -20,7 +20,6 @@ package org.apache.beam.examples.cookbook;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
@@ -168,18 +167,12 @@ public class BigQueryTornadoes {
 
     switch (options.getReadMethod()) {
       case DIRECT_READ:
-        // Build the read options proto for the read operation.
-        TableReadOptions tableReadOptions =
-            TableReadOptions.newBuilder()
-                .addAllSelectedFields(Lists.newArrayList("month", "tornado"))
-                .build();
-
         rowsFromBigQuery =
             p.apply(
                 BigQueryIO.readTableRows()
                     .from(options.getInput())
                     .withMethod(Method.DIRECT_READ)
-                    .withReadOptions(tableReadOptions));
+                    .withSelectedFields(Lists.newArrayList("month", "tornado")));
         break;
 
       default:
