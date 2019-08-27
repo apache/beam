@@ -886,7 +886,8 @@ class PGBKCVOperation(Operation):
     if windows is 0:
       self.output(_globally_windowed_value.with_value((key, value)))
     else:
-      self.output(WindowedValue((key, value), windows[0].max_timestamp(), windows))
+      self.output(
+        WindowedValue((key, value), windows[0].max_timestamp(), windows))
 
 
 class FlattenOperation(Operation):
