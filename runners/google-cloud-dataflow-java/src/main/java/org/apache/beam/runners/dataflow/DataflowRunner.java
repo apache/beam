@@ -103,6 +103,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -771,12 +772,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     dataflowOptions.setPipelineUrl(stagedPipeline.getLocation());
 
     if (!isNullOrEmpty(dataflowOptions.getDataflowWorkerJar())) {
-      List<String> experiments =
-          dataflowOptions.getExperiments() == null
-              ? new ArrayList<>()
-              : new ArrayList<>(dataflowOptions.getExperiments());
-      experiments.add("use_staged_dataflow_worker_jar");
-      dataflowOptions.setExperiments(experiments);
+      ExperimentalOptions.addExperiment(dataflowOptions, "use_staged_dataflow_worker_jar");
     }
 
     Job newJob = jobSpecification.getJob();
@@ -828,7 +824,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               .collect(Collectors.toList());
 
       if (minCpuFlags.isEmpty()) {
-        experiments.add("min_cpu_platform=" + dataflowOptions.getMinCpuPlatform());
+        ExperimentalOptions.addExperiment(
+            options, "min_cpu_platform=" + dataflowOptions.getMinCpuPlatform());
       } else {
         LOG.warn(
             "Flag min_cpu_platform is defined in both top level PipelineOption, "
@@ -836,8 +833,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             minCpuFlags.get(0));
       }
     }
-
-    newJob.getEnvironment().setExperiments(experiments);
 
     // Set the Docker container image that executes Dataflow worker harness, residing in Google
     // Container Registry. Translator is guaranteed to create a worker pool prior to this point.
