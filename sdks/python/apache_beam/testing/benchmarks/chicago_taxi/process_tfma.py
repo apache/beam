@@ -46,8 +46,7 @@ def process_tfma(schema_file,
       None.
   eval_model_dir: A directory where the eval model is located.
   max_eval_rows: Number of rows to query from BigQuery.
-  pipeline_args: additional DataflowRunner or DirectRunner args passed to
-  the beam pipeline.
+  pipeline_args: additional runner args passed to the beam pipeline.
   publish_to_bq:
   project:
   metrics_dataset:
@@ -77,7 +76,7 @@ def process_tfma(schema_file,
       ])
 
   metrics_monitor = None
-  if publish_to_bq:
+  if publish_to_bq == 'true':
     metrics_monitor = MetricsReader(
         project_name=project,
         bq_table=metrics_table,
@@ -156,7 +155,7 @@ def main():
       '--publish_to_big_query',
       help='Whether to publish to BQ',
       default=None,
-      type=bool)
+      type=str)
   parser.add_argument(
       '--metrics_dataset',
       help='BQ dataset',

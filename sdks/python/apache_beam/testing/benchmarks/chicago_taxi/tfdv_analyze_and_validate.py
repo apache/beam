@@ -88,13 +88,12 @@ def compute_stats(input_handle,
     stats_path: Directory in which stats are materialized.
     max_rows: Number of rows to query from BigQuery
     for_eval: Query for eval set rows from BigQuery
-    pipeline_args: additional DataflowRunner or DirectRunner args passed to the
-      beam pipeline.
+    pipeline_args: additional runner args passed to the beam pipeline.
   """
 
   pipeline = beam.Pipeline(argv=pipeline_args)
   metrics_monitor = None
-  if publish_to_bq:
+  if publish_to_bq == 'true':
     metrics_monitor = MetricsReader(
         project_name=project,
         bq_table=metrics_table,
@@ -177,7 +176,7 @@ def main():
       '--publish_to_big_query',
       help='Whether to publish to BQ',
       default=None,
-      type=bool)
+      type=str)
 
   parser.add_argument(
       '--metrics_dataset',

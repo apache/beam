@@ -27,31 +27,41 @@ pythonVersion = '2.7'
 
 description = "Apache Beam :: SDKs :: Python :: Chicago Taxi"
 
-task installChicagoTaxiDependencies() {
+task installChicagoTaxiDependencies(dependsOn: installGcpTest) {
   doLast {
     exec {
-      workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && pip install -r requirements.txt"
     }
   }
 }
 
-task runChicagoTaxi(dependsOn: [installGcpTest, installChicagoTaxiDependencies]) {
+task runChicagoTaxi(type: Exec, dependsOn: installChicagoTaxiDependencies) {
   def gcsRoot = findProperty('gcsRoot')
   def runner = findProperty('runner')
+  def sdkLocation = "${files(configurations.distTarBall.files).singleFile}"
+  def jobEndpoint = findProperty('jobEndpoint')
+  def environmentConfig = findProperty('environmentConfig')
+  def environmentType = findProperty('environmentType')
+  def publishToBigQuery = findProperty('publishToBigQuery') ?: "false"
+  def metricsTableSuffix = findProperty('metricsTableSuffix')
+  def parallelism = findProperty('parallelism')
 
   if (runner == 'DataflowRunner' || runner == 'TestDataflowRunner') {
     dependsOn ':sdks:python:sdist'
   }
 
-  def cliArgs = "${gcsRoot} ${runner} ${files(configurations.distTarBall.files).singleFile}"
+  environment([
+    'GCS_BUCKET'          : gcsRoot,
+    'RUNNER'              : runner,
+    'SDK_LOCATION'        : sdkLocation,
+    'JOB_ENDPOINT'        : jobEndpoint,
+    'ENVIRONMENT_CONFIG'  : environmentConfig,
+    'ENVIRONMENT_TYPE'    : environmentType,
+    'PARALLELISM'         : parallelism,
+    'PUBLISH_TO_BIG_QUERY': publishToBigQuery,
+    'METRICS_TABLE_SUFFIX': metricsTableSuffix,
+  ])
 
-  doLast {
-    exec {
-      workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./run_chicago.sh ${cliArgs}"
-    }
-  }
+  commandLine 'sh', '-c', ". ${envdir}/bin/activate && ./run_chicago.sh"
 }

@@ -36,6 +36,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Chicago_Taxi_Dataflow
             tasks(':sdks:python:apache_beam:testing:benchmarks:chicago_taxi:run')
             switches('-PgcsRoot=gs://temp-storage-for-perf-tests/chicago-taxi')
             switches('-Prunner=DataflowRunner')
+            switches('-PpublishToBigQuery=true')
         }
     }
 }
@@ -53,6 +54,7 @@ CronJobBuilder.cronJob('beam_PostCommit_Python_Chicago_Taxi_Dataflow', 'H 14 * *
             tasks(':sdks:python:apache_beam:testing:benchmarks:chicago_taxi:run')
             switches('-PgcsRoot=gs://temp-storage-for-perf-tests/chicago-taxi')
             switches('-Prunner=DataflowRunner')
+            switches('-PpublishToBigQuery=true')
         }
     }
 }
