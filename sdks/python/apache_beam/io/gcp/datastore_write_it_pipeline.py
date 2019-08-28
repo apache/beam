@@ -127,7 +127,8 @@ def run(argv=None):
 
   known_args, pipeline_args = parser.parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
-  pipeline_options.view_as(SetupOptions).save_main_session = True
+  # TODO: remove if unused
+  # pipeline_options.view_as(SetupOptions).save_main_session = True
   gcloud_options = pipeline_options.view_as(GoogleCloudOptions)
   job_name = gcloud_options.job_name
   kind = known_args.kind

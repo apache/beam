@@ -40,7 +40,6 @@ def basicTestOpts = [
 def basicPytestOpts = [
     "--numprocesses=8",  // run tests in parallel
     "--color=yes",
-    "--log-cli-level=info",
 ]
 
 task preCommitIT {
