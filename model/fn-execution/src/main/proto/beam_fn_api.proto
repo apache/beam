@@ -232,9 +232,32 @@ message ProcessBundleRequest {
   // instantiated and executed by the SDK harness.
   string process_bundle_descriptor_reference = 1;
 
+  // A cache token which can be used by an SDK to check for the validity
+  // of cached elements which have a cache token associated.
+  message CacheToken {
+
+    // A flag to indicate a cache token is valid for user state.
+    message UserState {}
+
+    // A flag to indicate a cache token is valid for a side input.
+    message SideInput {
+      // The id of a side input.
+      string side_input = 1;
+    }
+
+    // The scope of a cache token.
+    oneof type {
+      UserState user_state = 1;
+      SideInput side_input = 2;
+    }
+
+    // The cache token identifier which should be globally unique.
+    bytes token = 10;
+  }
+
   // (Optional) A list of cache tokens that can be used by an SDK to reuse
   // cached data returned by the State API across multiple bundles.
-  repeated bytes cache_tokens = 2;
+  repeated CacheToken cache_tokens = 2;
 }
 
 message ProcessBundleResponse {
@@ -594,10 +617,6 @@ message StateResponse {
   // A human readable string representing the reason as to why the request
   // failed.
   string error = 2;
-
-  // (Optional) If this is specified, then the result of this state request
-  // can be cached using the supplied token.
-  bytes cache_token = 3;
 
   // A corresponding response matching the request will be populated.
   oneof response {
