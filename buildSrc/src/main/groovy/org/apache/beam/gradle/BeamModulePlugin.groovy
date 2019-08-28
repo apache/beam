@@ -144,6 +144,9 @@ class BeamModulePlugin implements Plugin<Project> {
 
     /** Override the default "beam-" + `dash separated path` archivesBaseName. */
     String archivesBaseName = null;
+
+    /** Controls whether this project is published to Maven. */
+    boolean publish = true
   }
 
   // A class defining the set of configurable properties for createJavaExamplesArchetypeValidationTask
@@ -1566,6 +1569,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.applyJavaNature(
               exportJavadoc: false,
               enableSpotbugs: false,
+              publish: configuration.publish,
               archivesBaseName: configuration.archivesBaseName,
               shadowJarValidationExcludes: it.shadowJarValidationExcludes,
               shadowClosure: GrpcVendoring.shadowClosure() << {
