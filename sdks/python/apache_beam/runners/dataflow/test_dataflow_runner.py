@@ -54,7 +54,7 @@ class TestDataflowRunner(DataflowRunner):
     if self.result.has_job:
       # TODO(markflyhigh)(BEAM-1890): Use print since Nose dosen't show logs
       # in some cases.
-      print('Found: %s.' % self.build_console_url(options))
+      print('Worker logs: %s' % self.build_console_url(options))
 
     try:
       self.wait_until_in_state(PipelineState.RUNNING)
