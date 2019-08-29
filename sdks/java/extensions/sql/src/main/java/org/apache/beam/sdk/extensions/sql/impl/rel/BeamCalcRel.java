@@ -284,9 +284,9 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
       Type rawType = rawTypeMap.get(toType.getTypeName());
       if (rawType != null) {
         return Types.castIfNecessary(rawType, value);
-      } else if (toType.getTypeName() == TypeName.BYTES) {
-        return Expressions.call(value, getBytes);
       }
+    } else if (toType.getTypeName() == TypeName.BYTES) {
+      return Expressions.call(value, getBytes);
     }
     return value;
   }
