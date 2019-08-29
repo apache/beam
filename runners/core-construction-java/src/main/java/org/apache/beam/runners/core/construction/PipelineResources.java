@@ -27,9 +27,12 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.util.ZipFiles;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Funnels;
@@ -40,34 +43,28 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 public class PipelineResources {
 
   /**
-   * Attempts to detect all the resources the class loader has access to. This does not recurse to
-   * class loader parents stopping it from pulling in resources from the system class loader.
+   * Detects all URLs that are present in all class loaders in between context class loader of
+   * calling thread and class loader of class passed as parameter. It doesn't follow parents above
+   * this class loader stopping it from pulling in resources from the system class loader.
    *
-   * @param classLoader The URLClassLoader to use to detect resources to stage.
-   * @throws IllegalArgumentException If either the class loader is not a URLClassLoader or one of
-   *     the resources the class loader exposes is not a file resource.
+   * @param cls Class whose class loader stops recursion into parent loaders
+   * @throws IllegalArgumentException no classloader in context hierarchy is URLClassloader or if
+   *     one of the resources any class loader exposes is not a file resource.
    * @return A list of absolute paths to the resources the class loader uses.
    */
-  public static List<String> detectClassPathResourcesToStage(ClassLoader classLoader) {
-    if (!(classLoader instanceof URLClassLoader)) {
-      String message =
-          String.format(
-              "Unable to use ClassLoader to detect classpath elements. "
-                  + "Current ClassLoader is %s, only URLClassLoaders are supported.",
-              classLoader);
-      throw new IllegalArgumentException(message);
+  public static List<String> detectClassPathResourcesToStage(Class<?> cls) {
+    Set<String> files = new HashSet<>();
+    ClassLoader stoppingLoader = cls.getClassLoader();
+    ClassLoader currentLoader = ReflectHelpers.findClassLoader();
+    while (currentLoader != null && stoppingLoader != currentLoader) {
+      files.addAll(extractResourcesFromClassLoader(currentLoader));
+      currentLoader = currentLoader.getParent();
     }
-
-    List<String> files = new ArrayList<>();
-    for (URL url : ((URLClassLoader) classLoader).getURLs()) {
-      try {
-        files.add(new File(url.toURI()).getAbsolutePath());
-      } catch (IllegalArgumentException | URISyntaxException e) {
-        String message = String.format("Unable to convert url (%s) to file.", url);
-        throw new IllegalArgumentException(message, e);
-      }
+    files.addAll(extractResourcesFromClassLoader(currentLoader));
+    if (files.isEmpty()) {
+      throw new IllegalArgumentException("Unable to use ClassLoader to detect classpath elements.");
     }
-    return files;
+    return new ArrayList<>(files);
   }
 
   /**
@@ -92,6 +89,21 @@ public class PipelineResources {
                   : file.getAbsolutePath();
             })
         .collect(Collectors.toList());
+  }
+
+  private static List<String> extractResourcesFromClassLoader(ClassLoader loader) {
+    List<String> files = new ArrayList<>();
+    if (loader instanceof URLClassLoader) {
+      for (URL url : ((URLClassLoader) loader).getURLs()) {
+        try {
+          files.add(new File(url.toURI()).getAbsolutePath());
+        } catch (IllegalArgumentException | URISyntaxException e) {
+          String message = String.format("Unable to convert url (%s) to file.", url);
+          throw new IllegalArgumentException(message, e);
+        }
+      }
+    }
+    return files;
   }
 
   private static String packageDirectoriesToStage(File directoryToStage, String tmpJarLocation) {

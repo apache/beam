@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static junit.framework.TestCase.assertTrue;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,7 +28,9 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import java.util.Optional;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -44,16 +46,59 @@ public class PipelineResourcesTest {
   @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
+  ClassLoader currentContext = null;
+
+  @Before
+  public void setUp() {
+    currentContext = Thread.currentThread().getContextClassLoader();
+  }
+
+  @After
+  public void tearDown() {
+    Thread.currentThread().setContextClassLoader(currentContext);
+  }
+
   @Test
-  public void detectClassPathResourceWithFileResources() throws Exception {
+  public void detectClassPathResourceWithFileResources() throws IOException {
     File file = tmpFolder.newFile("file");
     File file2 = tmpFolder.newFile("file2");
     URLClassLoader classLoader =
-        new URLClassLoader(new URL[] {file.toURI().toURL(), file2.toURI().toURL()});
+        new URLClassLoader(
+            new URL[] {file.toURI().toURL(), file2.toURI().toURL()},
+            Thread.currentThread().getContextClassLoader());
 
-    assertEquals(
-        ImmutableList.of(file.getAbsolutePath(), file2.getAbsolutePath()),
-        PipelineResources.detectClassPathResourcesToStage(classLoader));
+    Thread.currentThread().setContextClassLoader(classLoader);
+
+    List<String> detected = PipelineResources.detectClassPathResourcesToStage(getClass());
+    assertTrue(detected.contains(file.getAbsolutePath()));
+    assertTrue(detected.contains(file2.getAbsolutePath()));
+
+    // locate java home and verify that we didn't pull any resource from JDK
+    String javaHome =
+        Optional.ofNullable(System.getProperty("java.home"))
+            .map(File::new)
+            .map(File::getAbsolutePath)
+            .orElse(null);
+    assertFalse(detected.stream().anyMatch(f -> f.startsWith(javaHome)));
+  }
+
+  @Test
+  public void detectClassPathResourcesFromHierarchy() throws IOException {
+    File file = tmpFolder.newFile("file");
+    File file2 = tmpFolder.newFile("file2");
+    URLClassLoader classLoader1 =
+        new URLClassLoader(
+            new URL[] {file.toURI().toURL()}, Thread.currentThread().getContextClassLoader());
+    ClassLoader classLoader2 = new ClassLoader(classLoader1) {};
+
+    URLClassLoader classLoader3 =
+        new URLClassLoader(new URL[] {file2.toURI().toURL()}, classLoader2);
+
+    Thread.currentThread().setContextClassLoader(classLoader3);
+
+    List<String> detected = PipelineResources.detectClassPathResourcesToStage(getClass());
+    assertTrue(detected.contains(file.getAbsolutePath()));
+    assertTrue(detected.contains(file2.getAbsolutePath()));
   }
 
   @Test
@@ -61,8 +106,8 @@ public class PipelineResourcesTest {
     ClassLoader mockClassLoader = Mockito.mock(ClassLoader.class);
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Unable to use ClassLoader to detect classpath elements.");
-
-    PipelineResources.detectClassPathResourcesToStage(mockClassLoader);
+    Thread.currentThread().setContextClassLoader(mockClassLoader);
+    PipelineResources.detectClassPathResourcesToStage(getClass());
   }
 
   @Test
@@ -71,8 +116,8 @@ public class PipelineResourcesTest {
     URLClassLoader classLoader = new URLClassLoader(new URL[] {new URL(url)});
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Unable to convert url (" + url + ") to file.");
-
-    PipelineResources.detectClassPathResourcesToStage(classLoader);
+    Thread.currentThread().setContextClassLoader(classLoader);
+    PipelineResources.detectClassPathResourcesToStage(getClass());
   }
 
   @Test

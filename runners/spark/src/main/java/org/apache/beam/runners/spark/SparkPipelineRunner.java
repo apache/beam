@@ -70,8 +70,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
             : GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
 
     if (pipelineOptions.getFilesToStage() == null) {
-      pipelineOptions.setFilesToStage(
-          detectClassPathResourcesToStage(SparkPipelineRunner.class.getClassLoader()));
+      pipelineOptions.setFilesToStage(detectClassPathResourcesToStage(SparkPipelineRunner.class));
       LOG.info(
           "PipelineOptions.filesToStage was not specified. Defaulting to files from the classpath");
     }
