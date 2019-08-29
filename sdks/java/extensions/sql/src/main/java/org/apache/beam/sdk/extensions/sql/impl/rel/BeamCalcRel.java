@@ -285,7 +285,8 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
       if (rawType != null) {
         return Types.castIfNecessary(rawType, value);
       }
-    } else if (toType.getTypeName() == TypeName.BYTES) {
+    } else if ((Class) value.getType() == ByteString.class
+        && toType.getTypeName() == TypeName.BYTES) {
       return Expressions.call(value, getBytes);
     }
     return value;
@@ -464,6 +465,8 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
       for (Object element : row.getValues()) {
         if (element instanceof byte[]) {
           values.add(new ByteString((byte[]) element));
+        } else if (element instanceof Row) {
+          values.add(WrappedList.of((Row) element));
         } else {
           values.add(element);
         }
