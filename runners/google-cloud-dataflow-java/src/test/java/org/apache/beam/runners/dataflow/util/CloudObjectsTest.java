@@ -156,6 +156,7 @@ public class CloudObjectsTest {
 
     @Test
     public void toAndFromCloudObject() throws Exception {
+      assertEquals(true, false);
       CloudObject cloudObject = CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null);
       Coder<?> fromCloudObject = CloudObjects.coderFromCloudObject(cloudObject);
 
@@ -165,6 +166,7 @@ public class CloudObjectsTest {
 
     @Test
     public void toAndFromCloudObjectWithSdkComponents() throws Exception {
+      assertEquals(true, false);
       SdkComponents sdkComponents = SdkComponents.create();
       CloudObject cloudObject = CloudObjects.asCloudObject(coder, sdkComponents);
       Coder<?> fromCloudObject = CloudObjects.coderFromCloudObject(cloudObject);
