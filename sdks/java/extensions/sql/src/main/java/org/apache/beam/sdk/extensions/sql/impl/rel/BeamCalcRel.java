@@ -27,6 +27,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.util.AbstractList;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -51,6 +52,7 @@ import org.apache.calcite.adapter.enumerable.PhysType;
 import org.apache.calcite.adapter.enumerable.PhysTypeImpl;
 import org.apache.calcite.adapter.enumerable.RexToLixTranslator;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.calcite.avatica.util.ByteString;
 import org.apache.calcite.linq4j.QueryProvider;
 import org.apache.calcite.linq4j.tree.BlockBuilder;
 import org.apache.calcite.linq4j.tree.Expression;
@@ -85,6 +87,7 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
       Expressions.parameter(Schema.class, "outputSchema");
   private static final ParameterExpression processContextParam =
       Expressions.parameter(DoFn.ProcessContext.class, "c");
+  private static final Method getBytes = Types.lookupMethod(ByteString.class, "getBytes");
 
   public BeamCalcRel(RelOptCluster cluster, RelTraitSet traits, RelNode input, RexProgram program) {
     super(cluster, traits, input, program);
@@ -281,6 +284,8 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
       Type rawType = rawTypeMap.get(toType.getTypeName());
       if (rawType != null) {
         return Types.castIfNecessary(rawType, value);
+      } else if (toType.getTypeName() == TypeName.BYTES) {
+        return Expressions.call(value, getBytes);
       }
     }
     return value;
@@ -455,7 +460,15 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
     }
 
     public static List<Object> of(Row row) {
-      return new WrappedList(row.getValues());
+      List<Object> values = new ArrayList();
+      for (Object element : row.getValues()) {
+        if (element instanceof byte[]) {
+          values.add(new ByteString((byte[]) element));
+        } else {
+          values.add(element);
+        }
+      }
+      return new WrappedList(values);
     }
 
     @Override
