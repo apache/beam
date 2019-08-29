@@ -61,6 +61,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.joda.time.Days;
@@ -161,8 +162,8 @@ public class AvroUtils {
     }
 
     /** Convert to an AVRO type. */
-    public org.apache.avro.Schema toAvroType() {
-      return org.apache.avro.Schema.createFixed(null, "", "", size);
+    public org.apache.avro.Schema toAvroType(String name, String namespace) {
+      return org.apache.avro.Schema.createFixed(name, null, namespace, size);
     }
   }
 
@@ -174,12 +175,11 @@ public class AvroUtils {
   }
 
   /** Get Avro Field from Beam Field. */
-  public static org.apache.avro.Schema.Field toAvroField(Schema.Field field) {
-    org.apache.avro.Schema fieldSchema = getFieldSchema(field.getType());
-    org.apache.avro.Schema.Field avroField =
-        new org.apache.avro.Schema.Field(
-            field.getName(), fieldSchema, field.getDescription(), (Object) null);
-    return avroField;
+  public static org.apache.avro.Schema.Field toAvroField(Schema.Field field, String namespace) {
+    org.apache.avro.Schema fieldSchema =
+        getFieldSchema(field.getType(), field.getName(), namespace);
+    return new org.apache.avro.Schema.Field(
+        field.getName(), fieldSchema, field.getDescription(), (Object) null);
   }
 
   private AvroUtils() {}
@@ -204,13 +204,22 @@ public class AvroUtils {
   }
 
   /** Converts a Beam Schema into an AVRO schema. */
-  public static org.apache.avro.Schema toAvroSchema(Schema beamSchema) {
+  private static org.apache.avro.Schema toAvroSchema(
+      Schema beamSchema, @Nullable String name, @Nullable String namespace) {
+    final String schemaName = Strings.isNullOrEmpty(name) ? "topLevelRecord" : name;
+    final String schemaNamespace = namespace == null ? "" : namespace;
+    String childNamespace =
+        !"".equals(schemaNamespace) ? schemaNamespace + "." + schemaName : schemaName;
     List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
     for (Schema.Field field : beamSchema.getFields()) {
-      org.apache.avro.Schema.Field recordField = toAvroField(field);
+      org.apache.avro.Schema.Field recordField = toAvroField(field, childNamespace);
       fields.add(recordField);
     }
-    return org.apache.avro.Schema.createRecord(fields);
+    return org.apache.avro.Schema.createRecord(schemaName, null, schemaNamespace, false, fields);
+  }
+
+  public static org.apache.avro.Schema toAvroSchema(Schema beamSchema) {
+    return toAvroSchema(beamSchema, null, null);
   }
 
   /**
@@ -537,7 +546,8 @@ public class AvroUtils {
     return fieldType;
   }
 
-  private static org.apache.avro.Schema getFieldSchema(Schema.FieldType fieldType) {
+  private static org.apache.avro.Schema getFieldSchema(
+      Schema.FieldType fieldType, String fieldName, String namespace) {
     org.apache.avro.Schema baseType;
     switch (fieldType.getTypeName()) {
       case BYTE:
@@ -586,7 +596,7 @@ public class AvroUtils {
       case LOGICAL_TYPE:
         FixedBytesField fixedBytesField = FixedBytesField.fromBeamFieldType(fieldType);
         if (fixedBytesField != null) {
-          baseType = fixedBytesField.toAvroType();
+          baseType = fixedBytesField.toAvroType("fixed", namespace + "." + fieldName);
         } else {
           throw new RuntimeException(
               "Unhandled logical type " + fieldType.getLogicalType().getIdentifier());
@@ -596,20 +606,22 @@ public class AvroUtils {
       case ARRAY:
         baseType =
             org.apache.avro.Schema.createArray(
-                getFieldSchema(fieldType.getCollectionElementType()));
+                getFieldSchema(fieldType.getCollectionElementType(), fieldName, namespace));
         break;
 
       case MAP:
         if (fieldType.getMapKeyType().getTypeName().isStringType()) {
           // Avro only supports string keys in maps.
-          baseType = org.apache.avro.Schema.createMap(getFieldSchema(fieldType.getMapValueType()));
+          baseType =
+              org.apache.avro.Schema.createMap(
+                  getFieldSchema(fieldType.getMapValueType(), fieldName, namespace));
         } else {
           throw new IllegalArgumentException("Avro only supports maps with string keys");
         }
         break;
 
       case ROW:
-        baseType = toAvroSchema(fieldType.getRowSchema());
+        baseType = toAvroSchema(fieldType.getRowSchema(), fieldName, namespace);
         break;
 
       default:
