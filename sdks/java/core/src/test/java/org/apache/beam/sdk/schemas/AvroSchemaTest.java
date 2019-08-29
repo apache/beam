@@ -32,9 +32,16 @@ import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.AvroSchema;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.schemas.LogicalTypes.FixedBytes;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -43,7 +50,9 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Days;
 import org.joda.time.LocalDate;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /** Tests for AVRO schema classes. */
 public class AvroSchemaTest {
@@ -405,5 +414,22 @@ public class AvroSchemaTest {
     SerializableFunction<Row, AvroPojo> fromRow =
         new AvroRecordSchema().fromRowFunction(TypeDescriptor.of(AvroPojo.class));
     assertEquals(AVRO_POJO, fromRow.apply(ROW_FOR_POJO));
+  }
+
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testAvroPipeline() {
+    PCollection<Row> input = pipeline.apply(Create.of(ROW_FOR_POJO)).setRowSchema(POJO_SCHEMA);
+
+    PCollection<Row> output = input.apply(Select.fieldNames("fixed"));
+    PAssert.that(output)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.of(Field.of("fixed", FieldType.logicalType(FixedBytes.of(4)))))
+                .addValue(BYTE_ARRAY)
+                .build());
+
+    pipeline.run();
   }
 }
