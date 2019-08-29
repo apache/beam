@@ -112,7 +112,7 @@ def jobs = [
         ],
         [
                 name               : 'beam_PerformanceTests_TextIOIT_HDFS',
-                description        : 'Runs PerfKit tests for TextIOIT on HDFS',
+                description        : 'Runs performance tests for TextIOIT on HDFS',
                 test               : 'org.apache.beam.sdk.io.text.TextIOIT',
                 githubTitle        : 'Java TextIO Performance Test on HDFS',
                 githubTriggerPhrase: 'Run Java TextIO Performance Test HDFS',
@@ -125,7 +125,7 @@ def jobs = [
         ],
         [
                 name               : 'beam_PerformanceTests_Compressed_TextIOIT_HDFS',
-                description        : 'Runs PerfKit tests for TextIOIT with GZIP compression on HDFS',
+                description        : 'Runs performance tests for TextIOIT with GZIP compression on HDFS',
                 test               : 'org.apache.beam.sdk.io.text.TextIOIT',
                 githubTitle        : 'Java CompressedTextIO Performance Test on HDFS',
                 githubTriggerPhrase: 'Run Java CompressedTextIO Performance Test HDFS',
@@ -138,7 +138,7 @@ def jobs = [
         ],
         [
                 name               : 'beam_PerformanceTests_ManyFiles_TextIOIT_HDFS',
-                description        : 'Runs PerfKit tests for TextIOIT with many output files on HDFS',
+                description        : 'Runs performance tests for TextIOIT with many output files on HDFS',
                 test               : 'org.apache.beam.sdk.io.text.TextIOIT',
                 githubTitle        : 'Java ManyFilesTextIO Performance Test on HDFS',
                 githubTriggerPhrase: 'Run Java ManyFilesTextIO Performance Test HDFS',
@@ -154,7 +154,7 @@ def jobs = [
         ],
         [
                 name               : 'beam_PerformanceTests_AvroIOIT_HDFS',
-                description        : 'Runs PerfKit tests for AvroIOIT on HDFS',
+                description        : 'Runs performance tests for AvroIOIT on HDFS',
                 test               : 'org.apache.beam.sdk.io.avro.AvroIOIT',
                 githubTitle        : 'Java AvroIO Performance Test on HDFS',
                 githubTriggerPhrase: 'Run Java AvroIO Performance Test HDFS',
@@ -166,7 +166,7 @@ def jobs = [
         ],
         [
                 name               : 'beam_PerformanceTests_TFRecordIOIT_HDFS',
-                description        : 'Runs PerfKit tests for beam_PerformanceTests_TFRecordIOIT on HDFS',
+                description        : 'Runs performance tests for beam_PerformanceTests_TFRecordIOIT on HDFS',
                 test               : 'org.apache.beam.sdk.io.tfrecord.TFRecordIOIT',
                 githubTitle        : 'Java TFRecordIO Performance Test on HDFS',
                 githubTriggerPhrase: 'Run Java TFRecordIO Performance Test HDFS',
@@ -176,7 +176,7 @@ def jobs = [
         ],
         [
                 name               : 'beam_PerformanceTests_XmlIOIT_HDFS',
-                description        : 'Runs PerfKit tests for beam_PerformanceTests_XmlIOIT on HDFS',
+                description        : 'Runs performance tests for beam_PerformanceTests_XmlIOIT on HDFS',
                 test               : 'org.apache.beam.sdk.io.xml.XmlIOIT',
                 githubTitle        : 'Java XmlIOPerformance Test on HDFS',
                 githubTriggerPhrase: 'Run Java XmlIO Performance Test HDFS',
@@ -189,7 +189,7 @@ def jobs = [
         ],
         [
                 name               : 'beam_PerformanceTests_ParquetIOIT_HDFS',
-                description        : 'Runs PerfKit tests for beam_PerformanceTests_ParquetIOIT on HDFS',
+                description        : 'Runs performance tests for beam_PerformanceTests_ParquetIOIT on HDFS',
                 test               : 'org.apache.beam.sdk.io.parquet.ParquetIOIT',
                 githubTitle        : 'Java ParquetIOPerformance Test on HDFS',
                 githubTriggerPhrase: 'Run Java ParquetIO Performance Test HDFS',
