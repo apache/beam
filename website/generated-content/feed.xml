@@ -75,6 +75,7 @@ For more information on changes in 2.15.0, check out the
 
 &lt;ul&gt;
   &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7616&quot;&gt;BEAM-7616&lt;/a&gt; urlopen calls may get stuck. (Regression from 2.14.0)&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8111&quot;&gt;BEAM-8111&lt;/a&gt; SchemaCoder fails on Dataflow, preventing the use of SqlTransform and schema-aware transforms. (Regression from 2.14.0)&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;h3 id=&quot;breaking-changes&quot;&gt;Breaking Changes&lt;/h3&gt;
