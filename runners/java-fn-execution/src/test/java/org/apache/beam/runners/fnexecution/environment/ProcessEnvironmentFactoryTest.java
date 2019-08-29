@@ -40,6 +40,8 @@ import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.RemoteEnvironmentOptions;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -88,7 +90,8 @@ public class ProcessEnvironmentFactoryTest {
             retrievalServiceServer,
             provisioningServiceServer,
             (workerId, timeout) -> client,
-            ID_GENERATOR);
+            ID_GENERATOR,
+            PipelineOptionsFactory.as(RemoteEnvironmentOptions.class));
   }
 
   @Test
