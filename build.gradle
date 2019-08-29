@@ -33,10 +33,6 @@ plugins {
   id "org.sonarqube" version "2.7"
 }
 
-// Add performanceTest task to this build.gradle file
-// so that running Performance tests using PerfKitBenchmarker is possible.
-createPerformanceTestHarness()
-
 /*************************************************************************************************/
 // Configure the root project
 
