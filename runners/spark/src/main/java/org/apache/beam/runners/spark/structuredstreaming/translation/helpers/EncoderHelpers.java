@@ -96,9 +96,10 @@ public class EncoderHelpers {
   */
 
   /** A way to construct encoders using generic serializers. */
-  public static <T> Encoder<T> fromBeamCoder(Coder<T> coder, Class<T> claz){
+  public static <T> Encoder<T> fromBeamCoder(Coder<T> coder/*, Class<T> claz*/){
 
     List<Expression> serialiserList = new ArrayList<>();
+    Class<T> claz = (Class<T>) Object.class;
     serialiserList.add(new EncodeUsingBeamCoder<>(claz, coder));
     ClassTag<T> classTag = ClassTag$.MODULE$.apply(claz);
     return new ExpressionEncoder<>(
