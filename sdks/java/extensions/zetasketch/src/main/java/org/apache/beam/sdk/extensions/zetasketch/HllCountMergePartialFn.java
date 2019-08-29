@@ -57,6 +57,7 @@ class HllCountMergePartialFn<HllT>
   @Override
   public HyperLogLogPlusPlus<HllT> addInput(
       @Nullable HyperLogLogPlusPlus<HllT> accumulator, byte[] input) {
+    if (input == null) return accumulator;
     if (accumulator == null) {
       @SuppressWarnings("unchecked")
       HyperLogLogPlusPlus<HllT> result =
@@ -94,9 +95,9 @@ class HllCountMergePartialFn<HllT>
   @Override
   public byte[] extractOutput(@Nullable HyperLogLogPlusPlus<HllT> accumulator) {
     if (accumulator == null) {
-      throw new IllegalStateException(
-          "HllCountMergePartialFn.extractOutput() should not be called on a null accumulator.");
+      return null;
+    } else {
+      return accumulator.serializeToByteArray();
     }
-    return accumulator.serializeToByteArray();
   }
 }

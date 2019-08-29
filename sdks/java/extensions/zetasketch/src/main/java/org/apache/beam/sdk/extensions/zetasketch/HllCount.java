@@ -346,7 +346,9 @@ public final class HllCount {
                   @ProcessElement
                   public void processElement(
                       @Element byte[] sketch, OutputReceiver<Long> receiver) {
-                    receiver.output(HyperLogLogPlusPlus.forProto(sketch).result());
+                    Long result =
+                        (sketch == null) ? 0L : HyperLogLogPlusPlus.forProto(sketch).result();
+                    receiver.output(result);
                   }
                 }));
       }
@@ -363,8 +365,10 @@ public final class HllCount {
                   @ProcessElement
                   public void processElement(
                       @Element KV<K, byte[]> kv, OutputReceiver<KV<K, Long>> receiver) {
-                    receiver.output(
-                        KV.of(kv.getKey(), HyperLogLogPlusPlus.forProto(kv.getValue()).result()));
+                    byte[] sketch = kv.getValue();
+                    Long result =
+                        (sketch == null) ? 0L : HyperLogLogPlusPlus.forProto(sketch).result();
+                    receiver.output(KV.of(kv.getKey(), result));
                   }
                 }));
       }
