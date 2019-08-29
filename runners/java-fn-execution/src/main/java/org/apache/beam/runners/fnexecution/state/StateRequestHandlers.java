@@ -21,13 +21,17 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetResponse;
@@ -137,6 +141,11 @@ public class StateRequestHandlers {
 
     /** Clears the bag user state for the given key and window. */
     void clear(K key, W window);
+
+    /** Returns the currently valid cache token. */
+    default Optional<ByteString> getCacheToken() {
+      return Optional.empty();
+    }
   }
 
   /**
@@ -155,20 +164,12 @@ public class StateRequestHandlers {
 
     /** Throws a {@link UnsupportedOperationException} on the first access. */
     static <K, V, W extends BoundedWindow> BagUserStateHandlerFactory<K, V, W> unsupported() {
-      return new BagUserStateHandlerFactory<K, V, W>() {
-        @Override
-        public BagUserStateHandler<K, V, W> forUserState(
-            String pTransformId,
-            String userStateId,
-            Coder<K> keyCoder,
-            Coder<V> valueCoder,
-            Coder<W> windowCoder) {
-          throw new UnsupportedOperationException(
-              String.format(
-                  "The %s does not support handling sides inputs for PTransform %s with user state "
-                      + "id %s.",
-                  BagUserStateHandler.class.getSimpleName(), pTransformId, userStateId));
-        }
+      return (pTransformId, userStateId, keyCoder, valueCoder, windowCoder) -> {
+        throw new UnsupportedOperationException(
+            String.format(
+                "The %s does not support handling sides inputs for PTransform %s with user state "
+                    + "id %s.",
+                BagUserStateHandler.class.getSimpleName(), pTransformId, userStateId));
       };
     }
   }
@@ -205,6 +206,19 @@ public class StateRequestHandlers {
           .handle(request);
     }
 
+    @Override
+    public Iterable<BeamFnApi.ProcessBundleRequest.CacheToken> getCacheTokens() {
+      // Use loops here due to the horrible performance of Java Streams:
+      // https://medium.com/@milan.mimica/slow-like-a-stream-fast-like-a-loop-524f70391182
+      Set<BeamFnApi.ProcessBundleRequest.CacheToken> cacheTokens = new HashSet<>();
+      for (StateRequestHandler handler : handlers.values()) {
+        for (BeamFnApi.ProcessBundleRequest.CacheToken cacheToken : handler.getCacheTokens()) {
+          cacheTokens.add(cacheToken);
+        }
+      }
+      return cacheTokens;
+    }
+
     private CompletionStage<StateResponse.Builder> handlerNotFound(StateRequest request) {
       CompletableFuture<StateResponse.Builder> rval = new CompletableFuture<>();
       rval.completeExceptionally(new IllegalStateException());
@@ -236,14 +250,14 @@ public class StateRequestHandlers {
 
     private final Map<String, Map<String, SideInputSpec>> sideInputSpecs;
     private final SideInputHandlerFactory sideInputHandlerFactory;
-    private final ConcurrentHashMap<SideInputSpec, SideInputHandler> cache;
+    private final ConcurrentHashMap<SideInputSpec, SideInputHandler> handlerCache;
 
     StateRequestHandlerToSideInputHandlerFactoryAdapter(
         Map<String, Map<String, SideInputSpec>> sideInputSpecs,
         SideInputHandlerFactory sideInputHandlerFactory) {
       this.sideInputSpecs = sideInputSpecs;
       this.sideInputHandlerFactory = sideInputHandlerFactory;
-      this.cache = new ConcurrentHashMap<>();
+      this.handlerCache = new ConcurrentHashMap<>();
     }
 
     @Override
@@ -259,7 +273,8 @@ public class StateRequestHandlers {
         StateKey.MultimapSideInput stateKey = request.getStateKey().getMultimapSideInput();
         SideInputSpec<?, ?, ?> referenceSpec =
             sideInputSpecs.get(stateKey.getPtransformId()).get(stateKey.getSideInputId());
-        SideInputHandler<?, ?> handler = cache.computeIfAbsent(referenceSpec, this::createHandler);
+        SideInputHandler<?, ?> handler =
+            handlerCache.computeIfAbsent(referenceSpec, this::createHandler);
 
         switch (request.getRequestCase()) {
           case GET:
@@ -347,14 +362,14 @@ public class StateRequestHandlers {
 
     private final ExecutableProcessBundleDescriptor processBundleDescriptor;
     private final BagUserStateHandlerFactory handlerFactory;
-    private final ConcurrentHashMap<BagUserStateSpec, BagUserStateHandler> cache;
+    private final ConcurrentHashMap<BagUserStateSpec, BagUserStateHandler> handlerCache;
 
     ByteStringStateRequestHandlerToBagUserStateHandlerFactoryAdapter(
         ExecutableProcessBundleDescriptor processBundleDescriptor,
         BagUserStateHandlerFactory handlerFactory) {
       this.processBundleDescriptor = processBundleDescriptor;
       this.handlerFactory = handlerFactory;
-      this.cache = new ConcurrentHashMap<>();
+      this.handlerCache = new ConcurrentHashMap<>();
     }
 
     @Override
@@ -390,7 +405,7 @@ public class StateRequestHandlers {
             ByteStringCoder.class.getSimpleName());
 
         BagUserStateHandler<ByteString, ByteString, BoundedWindow> handler =
-            cache.computeIfAbsent(referenceSpec, this::createHandler);
+            handlerCache.computeIfAbsent(referenceSpec, this::createHandler);
 
         ByteString key = stateKey.getKey();
         BoundedWindow window = referenceSpec.windowCoder().decode(stateKey.getWindow().newInput());
@@ -412,6 +427,24 @@ public class StateRequestHandlers {
         f.completeExceptionally(e);
         return f;
       }
+    }
+
+    @Override
+    public Iterable<BeamFnApi.ProcessBundleRequest.CacheToken> getCacheTokens() {
+      // Use a loop here due to the horrible performance of Java Streams:
+      // https://medium.com/@milan.mimica/slow-like-a-stream-fast-like-a-loop-524f70391182
+      Set<BeamFnApi.ProcessBundleRequest.CacheToken> cacheTokens = new HashSet<>();
+      for (BagUserStateHandler handler : handlerCache.values()) {
+        if (handler.getCacheToken().isPresent()) {
+          cacheTokens.add(
+              BeamFnApi.ProcessBundleRequest.CacheToken.newBuilder()
+                  .setUserState(
+                      BeamFnApi.ProcessBundleRequest.CacheToken.UserState.getDefaultInstance())
+                  .setToken((ByteString) handler.getCacheToken().get())
+                  .build());
+        }
+      }
+      return cacheTokens;
     }
 
     private static <W extends BoundedWindow>
