@@ -23,6 +23,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
@@ -262,6 +263,7 @@ public class DefaultJobBundleFactoryTest {
             serverInfo)) {
       OutputReceiverFactory orf = mock(OutputReceiverFactory.class);
       StateRequestHandler srh = mock(StateRequestHandler.class);
+      when(srh.getCacheTokens()).thenReturn(Collections.emptyList());
       StageBundleFactory sbf = bundleFactory.forStage(getExecutableStage(environmentA));
       Thread.sleep(10); // allow environment to expire
       sbf.getBundle(orf, srh, BundleProgressHandler.ignored()).close();

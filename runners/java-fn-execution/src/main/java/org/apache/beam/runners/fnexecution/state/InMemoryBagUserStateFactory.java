@@ -20,6 +20,8 @@ package org.apache.beam.runners.fnexecution.state;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
@@ -29,6 +31,8 @@ import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 
 /**
  * Holds user state in memory. Only one key is active at a time due to the GroupReduceFunction being
@@ -70,6 +74,7 @@ public class InMemoryBagUserStateFactory<K, V, W extends BoundedWindow>
 
     private final StateTag<BagState<V>> stateTag;
     private final Coder<W> windowCoder;
+    private final ByteString cacheToken;
 
     /* Lazily initialized state internals upon first access */
     private volatile StateInternals stateInternals;
@@ -77,6 +82,7 @@ public class InMemoryBagUserStateFactory<K, V, W extends BoundedWindow>
     InMemorySingleKeyBagState(String userStateId, Coder<V> valueCoder, Coder<W> windowCoder) {
       this.windowCoder = windowCoder;
       this.stateTag = StateTags.bag(userStateId, valueCoder);
+      this.cacheToken = ByteString.copyFrom(UUID.randomUUID().toString().getBytes(Charsets.UTF_8));
     }
 
     @Override
@@ -103,6 +109,11 @@ public class InMemoryBagUserStateFactory<K, V, W extends BoundedWindow>
       StateNamespace namespace = StateNamespaces.window(windowCoder, window);
       BagState<V> bagState = stateInternals.state(namespace, stateTag);
       bagState.clear();
+    }
+
+    @Override
+    public Optional<ByteString> getCacheToken() {
+      return Optional.of(cacheToken);
     }
 
     private void initStateInternals(K key) {
