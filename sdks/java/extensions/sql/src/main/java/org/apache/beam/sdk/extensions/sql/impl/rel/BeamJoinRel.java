@@ -62,33 +62,15 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.Pair;
 
 /**
- * {@code BeamRelNode} to replace a {@code Join} node.
+ * An abstract {@code BeamRelNode} to implement Join Rels.
  *
- * <p>Support for join can be categorized into 3 cases:
+ * <p>Support for join can be categorized into 4 cases:
  *
  * <ul>
  *   <li>BoundedTable JOIN BoundedTable
  *   <li>UnboundedTable JOIN UnboundedTable
  *   <li>BoundedTable JOIN UnboundedTable
- * </ul>
- *
- * <p>For the first two cases, a standard join is utilized as long as the windowFn of the both sides
- * match.
- *
- * <p>For the third case, {@code sideInput} is utilized to implement the join, so there are some
- * constraints:
- *
- * <ul>
- *   <li>{@code FULL OUTER JOIN} is not supported.
- *   <li>If it's a {@code LEFT OUTER JOIN}, the unbounded table should on the left side.
- *   <li>If it's a {@code RIGHT OUTER JOIN}, the unbounded table should on the right side.
- * </ul>
- *
- * <p>There are also some general constraints:
- *
- * <ul>
- *   <li>Only equi-join is supported.
- *   <li>CROSS JOIN is not supported.
+ *   <li>SeekableTable JOIN non SeekableTable
  * </ul>
  */
 public abstract class BeamJoinRel extends Join implements BeamRelNode {
@@ -374,11 +356,22 @@ public abstract class BeamJoinRel extends Join implements BeamRelNode {
     throw new UnsupportedOperationException("Cannot get column index from " + rexNode.getType());
   }
 
-  // The Volcano planner works in a top-down fashion. It starts by transforming
-  // the root and move towards the leafs of the plan. Due to this when
-  // transforming a logical join its inputs are still in the logical convention.
-  // So, Recursively visit the inputs of the RelNode till BeamIOSourceRel is encountered and
-  // propagate the boundedness upwards.
+  /**
+   * This method returns the Boundedness of a RelNode. It is used during planning and applying
+   * {@link org.apache.beam.sdk.extensions.sql.impl.rule.BeamCoGBKJoinRule} and {@link
+   * org.apache.beam.sdk.extensions.sql.impl.rule.BeamSideInputJoinRule}
+   *
+   * <p>The Volcano planner works in a top-down fashion. It starts by transforming the root and move
+   * towards the leafs of the plan. Due to this when transforming a logical join its inputs are
+   * still in the logical convention. So, Recursively visit the inputs of the RelNode till
+   * BeamIOSourceRel is encountered and propagate the boundedness upwards.
+   *
+   * <p>The Boundedness of each child of a RelNode is stored in a list. If any of the children are
+   * Unbounded, the RelNode is Unbounded. Else, the RelNode is Bounded.
+   *
+   * @param relNode the RelNode whose Boundedness has to be determined
+   * @return {@code PCollection.isBounded}
+   */
   public static PCollection.IsBounded getBoundednessOfRelNode(RelNode relNode) {
     if (relNode instanceof BeamRelNode) {
       return (((BeamRelNode) relNode).isBounded());
@@ -387,8 +380,7 @@ public abstract class BeamJoinRel extends Join implements BeamRelNode {
     for (RelNode inputRel : relNode.getInputs()) {
       if (inputRel instanceof RelSubset) {
         // Consider the RelNode with best cost in the RelSubset. If best cost RelNode cannot be
-        // determined, consider the first RelNode in the RelSubset(Is there a better way to do
-        // this?)
+        // determined, consider the first RelNode in the RelSubset
         RelNode rel = ((RelSubset) inputRel).getBest();
         if (rel == null) {
           rel = ((RelSubset) inputRel).getRelList().get(0);
@@ -404,6 +396,15 @@ public abstract class BeamJoinRel extends Join implements BeamRelNode {
         : PCollection.IsBounded.BOUNDED);
   }
 
+  /**
+   * This method returns whether any of the children of the relNode are Seekable. It is used during
+   * planning and applying {@link org.apache.beam.sdk.extensions.sql.impl.rule.BeamCoGBKJoinRule}
+   * and {@link org.apache.beam.sdk.extensions.sql.impl.rule.BeamSideInputJoinRule} and {@link
+   * org.apache.beam.sdk.extensions.sql.impl.rule.BeamSideInputLookupJoinRule}
+   *
+   * @param relNode the relNode whose children can be Seekable
+   * @return A boolean
+   */
   public static boolean containsSeekableInput(RelNode relNode) {
     for (RelNode relInput : relNode.getInputs()) {
       if (relInput instanceof RelSubset) {

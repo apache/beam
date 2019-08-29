@@ -45,6 +45,26 @@ import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rex.RexNode;
 
+/**
+ * A {@code BeamJoinRel} which does CoGBK Join
+ *
+ * <p>This Join Covers the cases:
+ *
+ * <ul>
+ *   <li>BoundedTable JOIN BoundedTable
+ *   <li>UnboundedTable JOIN UnboundedTable
+ * </ul>
+ *
+ * <p>A CoGBK join is utilized as long as the windowFn of the both sides match. For more info refer
+ * <a href="https://issues.apache.org/jira/browse/BEAM-3345">BEAM-3345</a>
+ *
+ * <p>General constraints:
+ *
+ * <ul>
+ *   <li>Only equi-join is supported.
+ *   <li>CROSS JOIN is not supported.
+ * </ul>
+ */
 public class BeamCoGBKJoinRel extends BeamJoinRel {
 
   public BeamCoGBKJoinRel(
