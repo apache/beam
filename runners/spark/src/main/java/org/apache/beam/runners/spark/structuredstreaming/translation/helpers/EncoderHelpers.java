@@ -175,16 +175,11 @@ public class EncoderHelpers {
     }
 
     @Override public Object productElement(int n) {
-      if (n == 0) {
-        return this;
-      } else {
-        throw new IndexOutOfBoundsException(String.valueOf(n));
-      }
+      return null;
     }
 
     @Override public int productArity() {
-      //TODO test with spark Encoders if the arity of 1 is ok
-      return 1;
+      return 0;
     }
 
     @Override public boolean canEqual(Object that) {
@@ -291,16 +286,11 @@ public class EncoderHelpers {
     }
 
     @Override public Object productElement(int n) {
-      if (n == 0) {
-        return this;
-      } else {
-        throw new IndexOutOfBoundsException(String.valueOf(n));
-      }
+      return null;
     }
 
     @Override public int productArity() {
-      //TODO test with spark Encoders if the arity of 1 is ok
-      return 1;
+      return 0;
     }
 
     @Override public boolean canEqual(Object that) {
