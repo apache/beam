@@ -2294,6 +2294,47 @@ public class ParDoTest implements Serializable {
           .containsInAnyOrder(Lists.newArrayList(12, 42, 84, 97), Lists.newArrayList(0, 1, 2));
       pipeline.run();
     }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesSideInputs.class})
+    public void testStateSideInput() {
+      final PCollectionView<Integer> sideInput =
+          pipeline
+              .apply("CreateSideInput1", Create.of(2))
+              .apply("ViewSideInput1", View.asSingleton());
+
+      TestSimpleStatefulDoFn fn = new TestSimpleStatefulDoFn(sideInput);
+      pipeline.apply(Create.of(KV.of(1, 2))).apply(ParDo.of(fn).withSideInputs(sideInput));
+
+      pipeline.run();
+    }
+
+    private static class TestSimpleStatefulDoFn extends DoFn<KV<Integer, Integer>, Integer> {
+
+      private final PCollectionView<Integer> view;
+
+      @StateId("foo")
+      private final StateSpec<ValueState<Integer>> spec = StateSpecs.value(VarIntCoder.of());
+
+      private TestSimpleStatefulDoFn(PCollectionView<Integer> view) {
+        this.view = view;
+      }
+
+      @ProcessElement
+      public void processElem(ProcessContext c) {
+        // noop
+      }
+
+      @Override
+      public boolean equals(Object other) {
+        return other instanceof TestSimpleStatefulDoFn;
+      }
+
+      @Override
+      public int hashCode() {
+        return getClass().hashCode();
+      }
+    }
   }
 
   /** Tests for state coder inference behaviors. */
