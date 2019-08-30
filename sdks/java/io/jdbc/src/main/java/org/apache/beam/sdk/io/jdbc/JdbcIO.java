@@ -205,6 +205,7 @@ public class JdbcIO {
     return new AutoValue_JdbcIO_ReadRows.Builder()
         .setFetchSize(DEFAULT_FETCH_SIZE)
         .setOutputParallelization(true)
+        .setStatementPreparator(ignored -> {})
         .build();
   }
 
@@ -501,13 +502,7 @@ public class JdbcIO {
                   .withRowMapper(SchemaUtil.BeamRowMapper.of(schema))
                   .withFetchSize(getFetchSize())
                   .withOutputParallelization(getOutputParallelization())
-                  .withStatementPreparator(
-                      ps -> {
-                        StatementPreparator preparator = getStatementPreparator();
-                        if (preparator != null) {
-                          preparator.setParameters(ps);
-                        }
-                      }));
+                  .withStatementPreparator(getStatementPreparator()));
       rows.setRowSchema(schema);
       return rows;
     }
