@@ -20,23 +20,67 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 
-def to_string(test=None):
-  # [START to_string]
+def to_string_kvs(test=None):
+  # [START to_string_kvs]
   import apache_beam as beam
 
   with beam.Pipeline() as pipeline:
     plants = (
         pipeline
         | 'Garden plants' >> beam.Create([
-            ('Strawberry', 'perennial'),
-            ('Carrot', 'biennial'),
-            ('Eggplant', 'perennial'),
-            ('Tomato', 'annual'),
-            ('Potato', 'perennial'),
+            ('🍓', 'Strawberry'),
+            ('🥕', 'Carrot'),
+            ('🍆', 'Eggplant'),
+            ('🍅', 'Tomato'),
+            ('🥔', 'Potato'),
         ])
-        | 'To string' >> beam.Map(lambda plant: str(plant))
+        | 'To string' >> beam.ToString.Kvs()
         | beam.Map(print)
     )
-    # [END to_string]
+    # [END to_string_kvs]
     if test:
       test(plants)
+
+
+def to_string_element(test=None):
+  # [START to_string_element]
+  import apache_beam as beam
+
+  with beam.Pipeline() as pipeline:
+    plant_lists = (
+        pipeline
+        | 'Garden plants' >> beam.Create([
+            ['🍓', 'Strawberry', 'perennial'],
+            ['🥕', 'Carrot', 'biennial'],
+            ['🍆', 'Eggplant', 'perennial'],
+            ['🍅', 'Tomato', 'annual'],
+            ['🥔', 'Potato', 'perennial'],
+        ])
+        | 'To string' >> beam.ToString.Element()
+        | beam.Map(print)
+    )
+    # [END to_string_element]
+    if test:
+      test(plant_lists)
+
+
+def to_string_iterables(test=None):
+  # [START to_string_iterables]
+  import apache_beam as beam
+
+  with beam.Pipeline() as pipeline:
+    plants_csv = (
+        pipeline
+        | 'Garden plants' >> beam.Create([
+            ['🍓', 'Strawberry', 'perennial'],
+            ['🥕', 'Carrot', 'biennial'],
+            ['🍆', 'Eggplant', 'perennial'],
+            ['🍅', 'Tomato', 'annual'],
+            ['🥔', 'Potato', 'perennial'],
+        ])
+        | 'To string' >> beam.ToString.Iterables()
+        | beam.Map(print)
+    )
+    # [END to_string_iterables]
+    if test:
+      test(plants_csv)
