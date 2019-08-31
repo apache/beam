@@ -97,7 +97,7 @@ service BeamFnControl {
 // matching instruction id.
 // Stable
 message InstructionRequest {
-  // (Required) An unique identifier provided by the runner which represents
+  // (Required) A unique identifier provided by the runner which represents
   // this requests execution. The InstructionResponse MUST have the matching id.
   string instruction_id = 1;
 
@@ -581,7 +581,7 @@ service BeamFnData {
  */
 
 message StateRequest {
-  // (Required) An unique identifier provided by the SDK which represents this
+  // (Required) A unique identifier provided by the SDK which represents this
   // requests execution. The StateResponse corresponding with this request
   // will have the matching id.
   string id = 1;
