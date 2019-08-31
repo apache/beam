@@ -17,17 +17,19 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -62,6 +64,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.Builder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
@@ -185,12 +188,18 @@ public class CloudObjectsTest {
         assertTrue(cloudObject.containsKey(PropertyNames.PIPELINE_PROTO_CODER_ID));
         assertEquals(
             sdkComponents.registerCoder(coder),
-            cloudObject.get(PropertyNames.PIPELINE_PROTO_CODER_ID));
+            ((CloudObject) cloudObject.get(PropertyNames.PIPELINE_PROTO_CODER_ID))
+                .get(PropertyNames.VALUE));
       }
       List<? extends Coder<?>> coderArguments = coder.getCoderArguments();
       Object cloudComponentsObject = cloudObject.get(PropertyNames.COMPONENT_ENCODINGS);
-      assertTrue(cloudComponentsObject instanceof List);
-      List<CloudObject> cloudComponents = (List<CloudObject>) cloudComponentsObject;
+      List<CloudObject> cloudComponents;
+      if (cloudComponentsObject == null) {
+        cloudComponents = Lists.newArrayList();
+      } else {
+        assertThat(cloudComponentsObject, instanceOf(List.class));
+        cloudComponents = (List<CloudObject>) cloudComponentsObject;
+      }
       assertEquals(coderArguments.size(), cloudComponents.size());
       for (int i = 0; i < coderArguments.size(); i++) {
         checkPipelineProtoCoderIds(coderArguments.get(i), cloudComponents.get(i), sdkComponents);
