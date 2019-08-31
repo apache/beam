@@ -238,7 +238,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
           // key by concatenating the nested encoding of sortKey and outer encoding of the
           // timestamp. An alternative implementation would be to use OrderedCode but it
           // is unnecessary here because the nested encoding of sortKey achieves the same effect,
-          // due to the nested encoding being a https://en.wikipedia.org/wiki/Prefix_code.
+          // due to the nested encoding being an https://en.wikipedia.org/wiki/Prefix_code.
           // Move forward enough bytes so we can prefix the size on after performing the write
           int initialChunkSize = chunk.size();
           chunk.resetTo(initialChunkSize + Ints.BYTES);

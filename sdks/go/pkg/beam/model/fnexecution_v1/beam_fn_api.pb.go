@@ -136,7 +136,7 @@ func (m *RemoteGrpcPort) GetCoderId() string {
 // matching instruction id.
 // Stable
 type InstructionRequest struct {
-	// (Required) An unique identifier provided by the runner which represents
+	// (Required) A unique identifier provided by the runner which represents
 	// this requests execution. The InstructionResponse MUST have the matching id.
 	InstructionId string `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
 	// (Required) A request that the SDK Harness needs to interpret.
@@ -2563,7 +2563,7 @@ func (m *Elements_Data) GetData() []byte {
 }
 
 type StateRequest struct {
-	// (Required) An unique identifier provided by the SDK which represents this
+	// (Required) A unique identifier provided by the SDK which represents this
 	// requests execution. The StateResponse corresponding with this request
 	// will have the matching id.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
