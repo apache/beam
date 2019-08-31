@@ -57,10 +57,10 @@ function clean_up(){
 trap clean_up EXIT
 
 RELEASE_BRANCH=release-${RELEASE_VER}
-WORKING_BRANCH=release-${RELEASE}-RC${RC_NUM}_validations
+WORKING_BRANCH=release-${RELEASE_VER}-RC${RC_NUM}_validations
 GIT_REPO_URL=https://github.com/apache/beam.git
 PYTHON_RC_DOWNLOAD_URL=https://dist.apache.org/repos/dist/dev/beam
-HUB_VERSION=2.5.0
+HUB_VERSION=2.12.0
 HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
 declare -a PYTHON_VERSIONS_TO_VALIDATE=("python2.7" "python3.5")
 
@@ -82,6 +82,35 @@ read confirmation
 if [[ $confirmation != "y" ]]; then
   echo "Please rerun this script and make sure you have the right configurations."
   exit
+fi
+
+echo "----------------- Checking git -----------------"
+if [[ -z ${GITHUB_TOKEN} ]]; then
+  echo "Error: A Github personal access token is required to perform git push "
+  echo "under a newly cloned directory. Please manually create one from Github "
+  echo "website with guide:"
+  echo "https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line"
+  echo "Note: This token can be reused in other release scripts."
+  exit
+else
+  if [[ -d ${LOCAL_BEAM_DIR} ]]; then
+    rm -rf ${LOCAL_BEAM_DIR}
+  fi
+  echo "* Creating local Beam workspace: ${LOCAL_BEAM_DIR}"
+  mkdir -p ${LOCAL_BEAM_DIR}
+  echo "* Cloning Beam repo"
+  git clone ${GIT_REPO_URL} ${LOCAL_BEAM_DIR}
+  cd ${LOCAL_BEAM_DIR}
+  git checkout -b ${WORKING_BRANCH} origin/${RELEASE_BRANCH} --quiet
+  echo "* Setting up git config"
+  # Set upstream repo url with access token included.
+  USER_REPO_URL=https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/${GITHUB_USERNAME}/beam.git
+  git remote add ${GITHUB_USERNAME} ${USER_REPO_URL}
+  # For hub access Github API.
+  export GITHUB_TOKEN=${GITHUB_TOKEN}
+  # For local git repo only. Required if global configs are not set.
+  git config user.name "${GITHUB_USERNAME}"
+  git config user.email "${GITHUB_USERNAME}@gmail.com"
 fi
 
 echo "-----------------Checking hub-----------------"
@@ -145,17 +174,6 @@ gnome-terminal --version
 
 
 echo ""
-echo ""
-echo "====================Cloning Beam Release Branch===================="
-if [[ -d ${LOCAL_BEAM_DIR} ]]; then
-  rm -rf ${LOCAL_BEAM_DIR}
-fi
-echo "* Creating local Beam workspace: ${LOCAL_BEAM_DIR}"
-mkdir -p ${LOCAL_BEAM_DIR}
-git clone ${GIT_REPO_URL} ${LOCAL_BEAM_DIR}
-cd ${LOCAL_BEAM_DIR}
-git checkout -b ${WORKING_BRANCH} origin/${RELEASE_BRANCH}
-
 echo ""
 echo "====================Starting Java Quickstart======================="
 echo "[Current task] Java quickstart with direct runner"
@@ -261,14 +279,18 @@ echo "2. Python MobileGame validations(UserScore, HourlyTeamScore)"
 if [[ "$python_quickstart_mobile_game" = true && ! -z `which hub` ]]; then
   touch empty_file.txt
   git add empty_file.txt
-  git commit -m "Add empty file in order to create PR"
-  git push -f ${USER_REMOTE_URL}
-  hub pull-request -b apache:${RELEASE_BRANCH} -h ${GITHUB_USERNAME}:${WORKING_BRANCH} -F- <<<"[DO NOT MERGE]Run Python RC Validation Tests
+  git commit -m "Add empty file in order to create PR" --quiet
+  git push -f ${GITHUB_USERNAME} --quiet
+  # Create a test PR
+  PR_URL=$(hub pull-request -b apache:${RELEASE_BRANCH} -h ${GITHUB_USERNAME}:${WORKING_BRANCH} -F- <<<"[DO NOT MERGE] Run Python RC Validation Tests
 
-
-  Run Python ReleaseCandidate"
-
-  echo "[NOTE] If there is no jenkins job started, please comment generated PR with: Run Python ReleaseCandidate"
+  Run Python ReleaseCandidate")
+  echo "Created $PR_URL"
+  # Comment on PR to trigger Python ReleaseCandidate Jenkins job.
+  PR_NUM=$(echo $PR_URL | sed 's/.*apache\/beam\/pull\/\([0-9]*\).*/\1/')
+  hub api repos/apache/beam/issues/$PR_NUM/comments --raw-field "body=Run Python ReleaseCandidate" > /dev/null
+  echo ""
+  echo "[NOTE] If there is no jenkins job started, please comment on $PR_URL with: Run Python ReleaseCandidate"
 else
   echo "* Skip Python Quickstart and MobileGame. Hub is required."
 fi
