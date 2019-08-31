@@ -1113,6 +1113,13 @@ class DecoratorHelpers(TypeHintTestCase):
     self.assertEqual(typehints.Tuple[int, typehints.Any],
                      _positional_arg_hints(['x', 'y'], {'x': int}))
 
+  @staticmethod
+  def relax_for_py2(tuple_hint):
+    if sys.version_info >= (3,):
+      return tuple_hint
+    else:
+      return Tuple[Any, ...]
+
   def test_getcallargs_forhints(self):
     def func(a, b_c, *d):
       b, c = b_c # pylint: disable=unused-variable
@@ -1120,14 +1127,10 @@ class DecoratorHelpers(TypeHintTestCase):
     self.assertEqual(
         {'a': Any, 'b_c': Any, 'd': Tuple[Any, ...]},
         getcallargs_forhints(False, func, *[Any, Any]))
-    if sys.version_info >= (3,):
-      self.assertEqual(
-          {'a': Any, 'b_c': Any, 'd': Tuple[Union[int, str], ...]},
-          getcallargs_forhints(False, func, *[Any, Any, str, int]))
-    else:
-      self.assertEqual(
-          {'a': Any, 'b_c': Any, 'd': Tuple[Any, ...]},
-          getcallargs_forhints(False, func, *[Any, Any, Any, int]))
+    self.assertEqual(
+        {'a': Any, 'b_c': Any,
+         'd': self.relax_for_py2(Tuple[Union[int, str], ...])},
+        getcallargs_forhints(False, func, *[Any, Any, str, int]))
     self.assertEqual(
         {'a': int, 'b_c': Tuple[str, Any], 'd': Tuple[Any, ...]},
         getcallargs_forhints(False, func, *[int, Tuple[str, Any]]))
@@ -1139,14 +1142,9 @@ class DecoratorHelpers(TypeHintTestCase):
     self.assertEqual(
         {'a': Any, 'b_c': Any, 'd': Tuple[Any, ...]},
         getcallargs_forhints(True, func, *[Any, Any]))
-    if sys.version_info >= (3,):
-      self.assertEqual(
-          {'a': Any, 'b_c': Any, 'd': Tuple[str, ...]},
-          getcallargs_forhints(True, func, *[Any, Any, Tuple[str, ...]]))
-    else:
-      self.assertEqual(
-          {'a': Any, 'b_c': Any, 'd': Tuple[Any, ...]},
-          getcallargs_forhints(True, func, *[Any, Any, Any, int]))
+    self.assertEqual(
+        {'a': Any, 'b_c': Any, 'd': self.relax_for_py2(Tuple[str, ...])},
+        getcallargs_forhints(True, func, *[Any, Any, Tuple[str, ...]]))
     self.assertEqual(
         {'a': int, 'b_c': Tuple[str, Any], 'd': Tuple[Any, ...]},
         getcallargs_forhints(True, func, *[int, Tuple[str, Any]]))

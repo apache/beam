@@ -823,8 +823,6 @@ class _PTransformFnPTransform(PTransform):
 
     # TODO(BEAM-5878) Support keyword-only arguments.
     try:
-      # TODO(udim): This looks like unused code. When is 'type_hints' used as an
-      #   argument name?
       if 'type_hints' in get_signature(self._fn).parameters:
         args = (self.get_type_hints(),) + args
     except TypeError:
@@ -853,7 +851,7 @@ def ptransform_fn(fn):
   This wrapper provides an alternative, simpler way to define a PTransform.
   The standard method is to subclass from PTransform and override the expand()
   method. An equivalent effect can be obtained by defining a function that
-  an input PCollection and additional optional arguments and returns a
+  accepts an input PCollection and additional optional arguments and returns a
   resulting PCollection. For example::
 
     @ptransform_fn

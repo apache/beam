@@ -193,6 +193,11 @@ def get_signature(func):
       params[0] = params[0].replace(annotation=func.__objclass__)
       signature = signature.replace(parameters=params)
 
+  # This is a specialization to hint the return value of type callables.
+  if (signature.return_annotation == signature.empty and
+      isinstance(func, type)):
+    signature = signature.replace(return_annotation=typehints.normalize(func))
+
   return signature
 
 
@@ -452,7 +457,7 @@ def getcallargs_forhints_impl_py2(func, typeargs, typekwargs):
         callargs[var] = typehints.Any
   # Patch up varargs and keywords
   if argspec.varargs:
-    # TODO(udim): This will always assign _ANY_VAR_POSITIONAL. Should be
+    # TODO(BEAM-8122): This will always assign _ANY_VAR_POSITIONAL. Should be
     #   "callargs.get(...) or _ANY_VAR_POSITIONAL".
     callargs[argspec.varargs] = typekwargs.get(
         argspec.varargs, _ANY_VAR_POSITIONAL)

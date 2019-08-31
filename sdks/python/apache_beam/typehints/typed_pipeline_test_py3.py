@@ -155,6 +155,14 @@ class AnnotationsTest(unittest.TestCase):
     self.assertEqual(th.input_types, ((int,), {}))
     self.assertEqual(th.output_types, ((str,), {}))
 
+  def test_pardo_dofn_not_iterable(self):
+    class MyDoFn(beam.DoFn):
+      def process(self, element: int) -> str:
+        return str(element)
+
+    with self.assertRaisesRegexp(ValueError, r'Return value not iterable'):
+      _ = beam.ParDo(MyDoFn()).get_type_hints()
+
   def test_pardo_wrapper(self):
     def do_fn(element: int) -> typehints.Iterable[str]:
       return [str(element)]
@@ -162,6 +170,13 @@ class AnnotationsTest(unittest.TestCase):
     th = beam.ParDo(do_fn).get_type_hints()
     self.assertEqual(th.input_types, ((int,), {}))
     self.assertEqual(th.output_types, ((str,), {}))
+
+  def test_pardo_wrapper_not_iterable(self):
+    def do_fn(element: int) -> str:
+      return str(element)
+
+    with self.assertRaisesRegexp(ValueError, r'Return value not iterable'):
+      _ = beam.ParDo(do_fn).get_type_hints()
 
   def test_flat_map_wrapper(self):
     def map_fn(element: int) -> typehints.Iterable[int]:

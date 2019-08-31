@@ -23,6 +23,7 @@ import sys
 import unittest
 
 from apache_beam.typehints import Any
+from apache_beam.typehints import List
 from apache_beam.typehints import WithTypeHints
 from apache_beam.typehints import decorators
 
@@ -45,6 +46,7 @@ class IOTypeHintsTest(unittest.TestCase):
     else:
       self.assertListEqual(list(s.parameters),
                            ['iterable'])
+    self.assertEqual(s.return_annotation, List[Any])
 
   def test_from_callable_without_annotations(self):
     # Python 2 doesn't support annotations. See decorators_test_py3.py for that.

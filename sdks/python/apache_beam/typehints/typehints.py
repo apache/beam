@@ -1151,7 +1151,7 @@ def get_yielded_type(type_hint):
   Note that "iterable" here means: can be iterated over in a for loop.
 
   Args:
-    type_hint: (TypeConstraint) The iterable in question.
+    type_hint: (TypeConstraint) The iterable in question. Must be normalize()-d.
 
   Returns:
     Yielded type of the iterable.

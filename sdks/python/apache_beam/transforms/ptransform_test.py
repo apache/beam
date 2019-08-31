@@ -2120,5 +2120,46 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
       result.foo
 
 
+class TestPTransformFn(TypeHintTestCase):
+
+  def test_type_checking_fail(self):
+    @beam.ptransform_fn
+    def MyTransform(pcoll):
+      return pcoll | beam.ParDo(lambda x: [x]).with_output_types(str)
+
+    p = TestPipeline()
+    with self.assertRaisesRegexp(beam.typehints.TypeCheckError,
+                                 r'expected.*int.*got.*str'):
+      _ = (p
+           | beam.Create([1, 2])
+           | MyTransform().with_output_types(int))
+
+  def test_type_checking_success(self):
+    @beam.ptransform_fn
+    def MyTransform(pcoll):
+      return pcoll | beam.ParDo(lambda x: [x]).with_output_types(int)
+
+    p = TestPipeline()
+    _ = (p
+         | beam.Create([1, 2])
+         | MyTransform().with_output_types(int))
+    p.run()
+
+  def test_type_hints_arg(self):
+    # Tests passing type hints via the magic 'type_hints' argument name.
+    @beam.ptransform_fn
+    def MyTransform(pcoll, type_hints, test_arg):
+      self.assertEqual(test_arg, 'test')
+      return (pcoll
+              | beam.ParDo(lambda x: [x]).with_output_types(
+                  type_hints.output_types[0][0]))
+
+    p = TestPipeline()
+    _ = (p
+         | beam.Create([1, 2])
+         | MyTransform('test').with_output_types(int))
+    p.run()
+
+
 if __name__ == '__main__':
   unittest.main()
