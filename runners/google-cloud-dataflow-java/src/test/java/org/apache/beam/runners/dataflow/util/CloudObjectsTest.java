@@ -63,6 +63,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.Builder;
 import org.junit.Test;
+import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
@@ -70,6 +71,7 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link CloudObjects}. */
+@RunWith(Enclosed.class)
 public class CloudObjectsTest {
   /** Tests that all of the Default Coders are tested. */
   @RunWith(JUnit4.class)
@@ -156,7 +158,6 @@ public class CloudObjectsTest {
 
     @Test
     public void toAndFromCloudObject() throws Exception {
-      assertEquals(true, false);
       CloudObject cloudObject = CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null);
       Coder<?> fromCloudObject = CloudObjects.coderFromCloudObject(cloudObject);
 
@@ -166,7 +167,6 @@ public class CloudObjectsTest {
 
     @Test
     public void toAndFromCloudObjectWithSdkComponents() throws Exception {
-      assertEquals(true, false);
       SdkComponents sdkComponents = SdkComponents.create();
       CloudObject cloudObject = CloudObjects.asCloudObject(coder, sdkComponents);
       Coder<?> fromCloudObject = CloudObjects.coderFromCloudObject(cloudObject);
