@@ -149,17 +149,16 @@ if sys.version_info[0] > 2:
     func.__kwdefaults__ = fkwdefaults
     return func
 
-  def new_save_reduce(self, func, args, state=None, listitems=None,
-                      dictitems=None, obj=None):
+  def new_save_reduce(self, func, args, *other_args, **kwargs):
     pickler = super(dill.dill.Pickler, self)
-    if (func is _create_function
+    obj = kwargs['obj'] if 'obj' in kwargs else None
+    if (func is _create_function and obj is not None
         and getattr(obj, '__kwdefaults__', None) is not None):
-      pickler.save_reduce(func=_create_function_has_kwdefaults,
-                          args=args + (getattr(obj, '__kwdefaults__', None),),
-                          state=state, listitems=listitems, dictitems=dictitems,
-                          obj=obj)
+      pickler.save_reduce(_create_function_has_kwdefaults,
+                          args + (getattr(obj, '__kwdefaults__', None),),
+                          *other_args, **kwargs)
     else:
-      pickler.save_reduce(func, args, state, listitems, dictitems, obj)
+      pickler.save_reduce(func, args, *other_args, **kwargs)
 
   dill._dill.Pickler.save_reduce = new_save_reduce
 
