@@ -115,6 +115,8 @@ public class FnApiDoFnRunner<InputT, OutputT>
 
   private DoFnSchemaInformation doFnSchemaInformation;
 
+  private Map<String, PCollectionView<?>> sideInputMapping;
+
   FnApiDoFnRunner(Context<InputT, OutputT> context) {
     this.context = context;
 
@@ -122,6 +124,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
         (Collection<FnDataReceiver<WindowedValue<OutputT>>>)
             (Collection) context.localNameToConsumer.get(context.mainOutputTag.getId());
     this.doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.parDoPayload);
+    this.sideInputMapping = ParDoTranslation.getSideInputMapping(context.parDoPayload);
     this.doFnInvoker = DoFnInvokers.invokerFor(context.doFn);
     this.doFnInvoker.invokeSetup();
 
@@ -398,7 +401,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
 
     @Override
     public Object sideInput(String tagId) {
-      throw new UnsupportedOperationException("hello world");
+      return sideInput(sideInputMapping.get(tagId));
     }
 
     @Override
