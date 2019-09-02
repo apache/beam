@@ -66,7 +66,7 @@ def process_tfma(schema_file,
       tfma.slicer.SingleSliceSpec(),
       tfma.slicer.SingleSliceSpec(columns=['trip_start_hour'])
   ]
-  metrics_namespace = big_query_table
+  metrics_namespace = metrics_table
 
   schema = taxi.read_schema(schema_file)
 
