@@ -42,15 +42,13 @@ import org.apache.spark.sql.catalyst.expressions.codegen.Block;
 import org.apache.spark.sql.catalyst.expressions.codegen.CodeGenerator;
 import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext;
 import org.apache.spark.sql.catalyst.expressions.codegen.ExprCode;
-import org.apache.spark.sql.catalyst.expressions.codegen.ExprValue;
-import org.apache.spark.sql.catalyst.expressions.codegen.SimpleExprValue;
 import org.apache.spark.sql.catalyst.expressions.codegen.VariableValue;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.ObjectType;
+import scala.Function1;
 import scala.StringContext;
 import scala.Tuple2;
 import scala.collection.JavaConversions;
-import scala.collection.Seq;
 import scala.reflect.ClassTag;
 import scala.reflect.ClassTag$;
 
@@ -143,29 +141,33 @@ public class EncoderHelpers {
     @Override public ExprCode doGenCode(CodegenContext ctx, ExprCode ev) {
       // Code to serialize.
       ExprCode input = child.genCode(ctx);
-      String javaType = CodeGenerator.javaType(dataType());
-      String outputStream = "ByteArrayOutputStream baos = new ByteArrayOutputStream();";
 
-      String serialize = outputStream + "$beamCoder.encode(${input.value}, baos); baos.toByteArray();";
+      /*
+        CODE GENERATED
+       ByteArrayOutputStream baos = new ByteArrayOutputStream();
+       final bytes[] output;
+       if ({input.isNull})
+          output = null;
+       else
+          output = $beamCoder.encode(${input.value}, baos); baos.toByteArray();
+      */
+      List<String> parts = new ArrayList<>();
+      parts.add("ByteArrayOutputStream baos = new ByteArrayOutputStream(); final bytes[] output; if (");
+      parts.add(") output = null; else output =");
+      parts.add(".encode(");
+      parts.add(", baos); baos.toByteArray();");
 
-      String outside = "final $javaType output = ${input.isNull} ? ${CodeGenerator.defaultValue(dataType)} : $serialize;";
+      StringContext sc = new StringContext(JavaConversions.collectionAsScalaIterable(parts).toSeq());
 
-      List<String> instructions = new ArrayList<>();
-      instructions.add(outside);
-      Seq<String> parts = JavaConversions.collectionAsScalaIterable(instructions).toSeq();
-
-      StringContext stringContext = new StringContext(parts);
-      Block.BlockHelper blockHelper = new Block.BlockHelper(stringContext);
       List<Object> args = new ArrayList<>();
-      args.add(new VariableValue("beamCoder", Coder.class));
-      args.add(new SimpleExprValue("input.value", ExprValue.class));
-      args.add(new VariableValue("javaType", String.class));
-      args.add(new SimpleExprValue("input.isNull", Boolean.class));
-      args.add(new SimpleExprValue("CodeGenerator.defaultValue(dataType)", String.class));
-      args.add(new VariableValue("serialize", String.class));
-      Block code = blockHelper.code(JavaConversions.collectionAsScalaIterable(args).toSeq());
+      args.add(input.isNull());
+      args.add(beamCoder);
+      args.add(input.value());
+      Block code = (new Block.BlockHelper(sc))
+          .code(JavaConversions.collectionAsScalaIterable(args).toSeq());
 
-      return ev.copy(input.code().$plus(code), input.isNull(), new VariableValue("output", Array.class));
+      return ev.copy(input.code().$plus(code), input.isNull(),
+          new VariableValue("output", Array.class));
     }
 
     @Override public DataType dataType() {
@@ -252,27 +254,38 @@ public class EncoderHelpers {
       ExprCode input = child.genCode(ctx);
       String javaType = CodeGenerator.javaType(dataType());
 
-      String inputStream = "ByteArrayInputStream bais = new ByteArrayInputStream(${input.value});";
-      String deserialize = inputStream + "($javaType) $beamCoder.decode(bais);";
+/*
+     CODE GENERATED:
+     final $javaType output =
+     ${input.isNull} ?
+     ${CodeGenerator.defaultValue(dataType)} :
+     ($javaType) $beamCoder.decode(new ByteArrayInputStream(${input.value}));
+*/
 
-      String outside = "final $javaType output = ${input.isNull} ? ${CodeGenerator.defaultValue(dataType)} : $deserialize;";
+      List<String> parts = new ArrayList<>();
+      parts.add("final ");
+      parts.add(" output =");
+      parts.add("?");
+      parts.add(":");
+      parts.add("(");
+      parts.add(") ");
+      parts.add(".decode(new ByteArrayInputStream(");
+      parts.add("));");
 
-      List<String> instructions = new ArrayList<>();
-      instructions.add(outside);
-      Seq<String> parts = JavaConversions.collectionAsScalaIterable(instructions).toSeq();
+      StringContext sc = new StringContext(JavaConversions.collectionAsScalaIterable(parts).toSeq());
 
-      StringContext stringContext = new StringContext(parts);
-      Block.BlockHelper blockHelper = new Block.BlockHelper(stringContext);
       List<Object> args = new ArrayList<>();
-      args.add(new SimpleExprValue("input.value", ExprValue.class));
-      args.add(new VariableValue("javaType", String.class));
-      args.add(new VariableValue("beamCoder", Coder.class));
-      args.add(new SimpleExprValue("input.isNull", Boolean.class));
-      args.add(new SimpleExprValue("CodeGenerator.defaultValue(dataType)", String.class));
-      args.add(new VariableValue("deserialize", String.class));
-      Block code = blockHelper.code(JavaConversions.collectionAsScalaIterable(args).toSeq());
+      args.add(javaType);
+      args.add(input.isNull());
+      args.add(CodeGenerator.defaultValue(dataType(), false));
+      args.add(javaType);
+      args.add(beamCoder);
+      args.add(input.value());
+      Block code = (new Block.BlockHelper(sc))
+          .code(JavaConversions.collectionAsScalaIterable(args).toSeq());
 
-      return ev.copy(input.code().$plus(code), input.isNull(), new VariableValue("output", classTag.runtimeClass()));
+      return ev.copy(input.code().$plus(code), input.isNull(),
+          new VariableValue("output", classTag.runtimeClass()));
 
     }
 
