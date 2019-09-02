@@ -3,6 +3,7 @@ package org.apache.beam.runners.spark.structuredstreaming.utils;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.spark.sql.SparkSession;
 import org.junit.Test;
@@ -23,7 +24,7 @@ public class EncodersTest {
     data.add(1);
     data.add(2);
     data.add(3);
-    sparkSession.createDataset(data, EncoderHelpers.fromBeamCoder(VarIntCoder.of()));
+    sparkSession.createDataset(data, EncoderHelpers.fromBeamCoder(VarIntCoder.class));
 //    sparkSession.createDataset(data, EncoderHelpers.genericEncoder());
   }
 }
