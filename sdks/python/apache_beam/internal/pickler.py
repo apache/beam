@@ -136,6 +136,31 @@ def _reject_generators(unused_pickler, unused_obj):
 
 dill.dill.Pickler.dispatch[types.GeneratorType] = _reject_generators
 
+# TODO: Remove this once uqfoundation/dill#313 is fixed
+if sys.version_info[0] > 2:
+  # Monkey patch for dill._dill.Pickler to pickle functions
+  # with keyword-only args
+  _create_function = dill.dill._create_function
+
+  def _create_function_has_kwdefaults(fcode, fglobals, fname=None,
+                                      fdefaults=None, fclosure=None, fdict=None,
+                                      fkwdefaults=None):
+    func = _create_function(fcode, fglobals, fname, fdefaults, fclosure, fdict)
+    func.__kwdefaults__ = fkwdefaults
+    return func
+
+  def new_save_reduce(self, func, args, *other_args, **kwargs):
+    pickler = super(dill.dill.Pickler, self)
+    obj = kwargs['obj'] if 'obj' in kwargs else None
+    if (func is _create_function and obj is not None
+        and getattr(obj, '__kwdefaults__', None) is not None):
+      pickler.save_reduce(_create_function_has_kwdefaults,
+                          args + (getattr(obj, '__kwdefaults__', None),),
+                          *other_args, **kwargs)
+    else:
+      pickler.save_reduce(func, args, *other_args, **kwargs)
+
+  dill._dill.Pickler.save_reduce = new_save_reduce
 
 # This if guards against dill not being full initialized when generating docs.
 if 'save_module' in dir(dill.dill):
