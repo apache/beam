@@ -30,11 +30,11 @@ def regex_matches(test=None):
     plants_matches = (
         pipeline
         | 'Garden plants' >> beam.Create([
-            '🍓,   Strawberry,   perennial',
+            '🍓, Strawberry, perennial',
             '🥕, Carrot, biennial ignoring trailing words',
             '🍆, Eggplant, perennial',
             '🍅, Tomato, annual',
-            '🥔,Potato,perennial',
+            '🥔, Potato, perennial',
             '# 🍌, invalid, format',
             'invalid, 🍉, format',
         ])
@@ -56,11 +56,11 @@ def regex_all_matches(test=None):
     plants_all_matches = (
         pipeline
         | 'Garden plants' >> beam.Create([
-            '🍓,   Strawberry,   perennial',
+            '🍓, Strawberry, perennial',
             '🥕, Carrot, biennial ignoring trailing words',
             '🍆, Eggplant, perennial',
             '🍅, Tomato, annual',
-            '🥔,Potato,perennial',
+            '🥔, Potato, perennial',
             '# 🍌, invalid, format',
             'invalid, 🍉, format',
         ])
@@ -82,11 +82,11 @@ def regex_matches_kv(test=None):
     plants_matches_kv = (
         pipeline
         | 'Garden plants' >> beam.Create([
-            '🍓,   Strawberry,   perennial',
+            '🍓, Strawberry, perennial',
             '🥕, Carrot, biennial ignoring trailing words',
             '🍆, Eggplant, perennial',
             '🍅, Tomato, annual',
-            '🥔,Potato,perennial',
+            '🥔, Potato, perennial',
             '# 🍌, invalid, format',
             'invalid, 🍉, format',
         ])
@@ -108,11 +108,11 @@ def regex_find(test=None):
     plants_matches = (
         pipeline
         | 'Garden plants' >> beam.Create([
-            '# 🍓,   Strawberry,   perennial',
+            '# 🍓, Strawberry, perennial',
             '# 🥕, Carrot, biennial ignoring trailing words',
             '# 🍆, Eggplant, perennial - 🍌, Banana, perennial',
             '# 🍅, Tomato, annual - 🍉, Watermelon, annual',
-            '# 🥔,Potato,perennial',
+            '# 🥔, Potato, perennial',
         ])
         | 'Parse plants' >> beam.Regex.find(regex)
         | beam.Map(print)
@@ -132,11 +132,11 @@ def regex_find_all(test=None):
     plants_find_all = (
         pipeline
         | 'Garden plants' >> beam.Create([
-            '# 🍓,   Strawberry,   perennial',
+            '# 🍓, Strawberry, perennial',
             '# 🥕, Carrot, biennial ignoring trailing words',
             '# 🍆, Eggplant, perennial - 🍌, Banana, perennial',
             '# 🍅, Tomato, annual - 🍉, Watermelon, annual',
-            '# 🥔,Potato,perennial',
+            '# 🥔, Potato, perennial',
         ])
         | 'Parse plants' >> beam.Regex.find_all(regex)
         | beam.Map(print)
@@ -156,11 +156,11 @@ def regex_find_kv(test=None):
     plants_matches_kv = (
         pipeline
         | 'Garden plants' >> beam.Create([
-            '# 🍓,   Strawberry,   perennial',
+            '# 🍓, Strawberry, perennial',
             '# 🥕, Carrot, biennial ignoring trailing words',
             '# 🍆, Eggplant, perennial - 🍌, Banana, perennial',
             '# 🍅, Tomato, annual - 🍉, Watermelon, annual',
-            '# 🥔,Potato,perennial',
+            '# 🥔, Potato, perennial',
         ])
         | 'Parse plants' >> beam.Regex.find_kv(regex, keyGroup='icon')
         | beam.Map(print)
@@ -178,11 +178,11 @@ def regex_replace_all(test=None):
     plants_replace_all = (
         pipeline
         | 'Garden plants' >> beam.Create([
-            '🍓  :   Strawberry   :   perennial',
+            '🍓 : Strawberry : perennial',
             '🥕 : Carrot : biennial',
-            '🍆\t\t:\t\tEggplant\t\t:\t\tperennial',
+            '🍆\t:\tEggplant\t:\tperennial',
             '🍅 : Tomato : annual',
-            '🥔:Potato:perennial',
+            '🥔 : Potato : perennial',
         ])
         | 'To CSV' >> beam.Regex.replace_all(r'\s*:\s*', ',')
         | beam.Map(print)
@@ -200,11 +200,11 @@ def regex_replace_first(test=None):
     plants_replace_first = (
         pipeline
         | 'Garden plants' >> beam.Create([
-            '🍓   ,   Strawberry, perennial',
+            '🍓, Strawberry, perennial',
             '🥕, Carrot, biennial',
-            '🍆\t\t,\t\tEggplant, perennial',
+            '🍆,\tEggplant, perennial',
             '🍅, Tomato, annual',
-            '🥔,Potato, perennial',
+            '🥔, Potato, perennial',
         ])
         | 'As dictionary' >> beam.Regex.replace_first(r'\s*,\s*', ': ')
         | beam.Map(print)
@@ -222,11 +222,11 @@ def regex_split(test=None):
     plants_split = (
         pipeline
         | 'Garden plants' >> beam.Create([
-            '🍓  :   Strawberry   :   perennial',
+            '🍓 : Strawberry : perennial',
             '🥕 : Carrot : biennial',
-            '🍆\t\t:\t\tEggplant : perennial',
+            '🍆\t:\tEggplant : perennial',
             '🍅 : Tomato : annual',
-            '🥔:Potato:perennial',
+            '🥔 : Potato : perennial',
         ])
         | 'Parse plants' >> beam.Regex.split(r'\s*:\s*')
         | beam.Map(print)
