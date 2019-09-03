@@ -38,7 +38,7 @@ except ImportError:
 if not socket.getdefaulttimeout():
   logging.info("Setting socket default timeout to 60 seconds.")
   socket.setdefaulttimeout(60)
-  
+
 # When we are running in GCE, we can authenticate with VM credentials.
 is_running_in_gce = False
 
