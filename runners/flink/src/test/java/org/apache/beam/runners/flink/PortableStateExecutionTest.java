@@ -202,8 +202,8 @@ public class PortableStateExecutionTest implements Serializable {
             flinkJobExecutor,
             pipelineProto,
             options.as(FlinkPipelineOptions.class),
-            null,
-            Collections.emptyList());
+            new FlinkPipelineRunner(
+                options.as(FlinkPipelineOptions.class), null, Collections.emptyList()));
 
     jobInvocation.start();
 
