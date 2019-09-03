@@ -191,7 +191,12 @@ public class CloudObjectsTest {
             ((CloudObject) cloudObject.get(PropertyNames.PIPELINE_PROTO_CODER_ID))
                 .get(PropertyNames.VALUE));
       }
-      List<? extends Coder<?>> coderArguments = coder.getCoderArguments();
+      List<? extends Coder<?>> expectedComponents;
+      if (coder instanceof StructuredCoder) {
+        expectedComponents = ((StructuredCoder)coder).getComponents();
+      } else {
+        expectedComponents = coder.getCoderArguments();
+      }
       Object cloudComponentsObject = cloudObject.get(PropertyNames.COMPONENT_ENCODINGS);
       List<CloudObject> cloudComponents;
       if (cloudComponentsObject == null) {
@@ -200,9 +205,10 @@ public class CloudObjectsTest {
         assertThat(cloudComponentsObject, instanceOf(List.class));
         cloudComponents = (List<CloudObject>) cloudComponentsObject;
       }
-      assertEquals(coderArguments.size(), cloudComponents.size());
-      for (int i = 0; i < coderArguments.size(); i++) {
-        checkPipelineProtoCoderIds(coderArguments.get(i), cloudComponents.get(i), sdkComponents);
+      assertEquals(expectedComponents.size(), cloudComponents.size());
+      for (int i = 0; i < expectedComponents.size(); i++) {
+        checkPipelineProtoCoderIds(expectedComponents.get(i), cloudComponents.get(i), sdkComponents);
+
       }
     }
   }
