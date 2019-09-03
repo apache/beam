@@ -16,12 +16,13 @@
  * limitations under the License.
  */
 
+import CommonJobProperties as commonJobProperties
 import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Portable_Python',
-    gradleTask: ':portablePythonPreCommit',
+    gradleTask: ':clean',   // Do nothing here. Add test configs below.
     triggerPathPatterns: [
       '^model/.*$',
       '^runners/core-construction-java/.*$',
@@ -34,4 +35,21 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^release/.*$',
     ]
 )
-builder.build {}
+
+builder.build {
+  // Due to BEAM-7993, run multiple Python version of portable precommit
+  // tests in parallel could lead python3 container crash. We manually
+  // config gradle steps here to run tests in sequential.
+  steps {
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':sdks:python:test-suites:portable:py2:preCommitPy2')
+      commonJobProperties.setGradleSwitches(delegate)
+    }
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':sdks:python:test-suites:portable:py35:preCommitPy35')
+      commonJobProperties.setGradleSwitches(delegate)
+    }
+  }
+}
