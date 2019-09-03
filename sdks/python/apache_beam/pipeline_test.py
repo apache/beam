@@ -90,6 +90,16 @@ class FakeSource(NativeSource):
     return FakeSource._Reader(self._vals)
 
 
+class FakeUnboundedSource(NativeSource):
+  """Fake unbounded source. Does not work at runtime"""
+
+  def reader(self):
+    return None
+
+  def is_bounded(self):
+    return False
+
+
 class DoubleParDo(beam.PTransform):
   def expand(self, input):
     return input | 'Inner' >> beam.Map(lambda a: a * 2)
@@ -460,6 +470,56 @@ class PipelineTest(unittest.TestCase):
              | beam.ParDo(StatefulDoFn()).with_output_types(str))
     p.run()
     self.assertEqual(pcoll.element_type, str)
+
+  def test_track_pcoll_unbounded(self):
+    pipeline = TestPipeline()
+    pcoll1 = pipeline | 'read' >> Read(FakeUnboundedSource())
+    pcoll2 = pcoll1 | 'do1' >> FlatMap(lambda x: [x + 1])
+    pcoll3 = pcoll2 | 'do2' >> FlatMap(lambda x: [x + 1])
+    self.assertIs(pcoll1.is_bounded, False)
+    self.assertIs(pcoll1.is_bounded, False)
+    self.assertIs(pcoll3.is_bounded, False)
+
+  def test_track_pcoll_bounded(self):
+    pipeline = TestPipeline()
+    pcoll1 = pipeline | 'label1' >> Create([1, 2, 3])
+    pcoll2 = pcoll1 | 'do1' >> FlatMap(lambda x: [x + 1])
+    pcoll3 = pcoll2 | 'do2' >> FlatMap(lambda x: [x + 1])
+    self.assertIs(pcoll1.is_bounded, True)
+    self.assertIs(pcoll2.is_bounded, True)
+    self.assertIs(pcoll3.is_bounded, True)
+
+  def test_track_pcoll_bounded_flatten(self):
+    pipeline = TestPipeline()
+    pcoll1_a = pipeline | 'label_a' >> Create([1, 2, 3])
+    pcoll2_a = pcoll1_a | 'do_a' >> FlatMap(lambda x: [x + 1])
+
+    pcoll1_b = pipeline | 'label_b' >> Create([1, 2, 3])
+    pcoll2_b = pcoll1_b | 'do_b' >> FlatMap(lambda x: [x + 1])
+
+    merged = (pcoll2_a, pcoll2_b) | beam.Flatten()
+
+    self.assertIs(pcoll1_a.is_bounded, True)
+    self.assertIs(pcoll2_a.is_bounded, True)
+    self.assertIs(pcoll1_b.is_bounded, True)
+    self.assertIs(pcoll2_b.is_bounded, True)
+    self.assertIs(merged.is_bounded, True)
+
+  def test_track_pcoll_unbounded_flatten(self):
+    pipeline = TestPipeline()
+    pcoll1_bounded = pipeline | 'label1' >> Create([1, 2, 3])
+    pcoll2_bounded = pcoll1_bounded | 'do1' >> FlatMap(lambda x: [x + 1])
+
+    pcoll1_unbounded = pipeline | 'read' >> Read(FakeUnboundedSource())
+    pcoll2_unbounded = pcoll1_unbounded | 'do2' >> FlatMap(lambda x: [x + 1])
+
+    merged = (pcoll2_bounded, pcoll2_unbounded) | beam.Flatten()
+
+    self.assertIs(pcoll1_bounded.is_bounded, True)
+    self.assertIs(pcoll2_bounded.is_bounded, True)
+    self.assertIs(pcoll1_unbounded.is_bounded, False)
+    self.assertIs(pcoll2_unbounded.is_bounded, False)
+    self.assertIs(merged.is_bounded, False)
 
 
 class DoFnTest(unittest.TestCase):
