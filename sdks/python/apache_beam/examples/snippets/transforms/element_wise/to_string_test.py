@@ -75,7 +75,7 @@ def check_plant_lists(actual):
 
 def check_plants_csv(actual):
   # [START plants_csv]
-  plants_objects = [
+  plants_csv = [
       '🍓,Strawberry,perennial',
       '🥕,Carrot,biennial',
       '🍆,Eggplant,perennial',
@@ -83,7 +83,7 @@ def check_plants_csv(actual):
       '🥔,Potato,perennial',
   ]
   # [END plants_csv]
-  assert_that(actual, equal_to(plants_objects))
+  assert_that(actual, equal_to(plants_csv))
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
