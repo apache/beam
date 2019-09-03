@@ -17,9 +17,11 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,6 +31,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -37,7 +41,6 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mockito;
 
 /** Tests for PipelineResources. */
 @RunWith(JUnit4.class)
@@ -83,6 +86,37 @@ public class PipelineResourcesTest {
   }
 
   @Test
+  public void detectClassPathResourceWithFileResourcesFromNullContextClassLoader()
+      throws IOException {
+    File file = tmpFolder.newFile("file");
+    File file2 = tmpFolder.newFile("file2");
+    URLClassLoader classLoader =
+        new URLClassLoader(new URL[] {file.toURI().toURL(), file2.toURI().toURL()}, null);
+
+    Thread.currentThread().setContextClassLoader(null);
+
+    List<String> detected = PipelineResources.detectClassPathResourcesToStage(classLoader);
+    assertTrue(detected.contains(file.getAbsolutePath()));
+    assertTrue(detected.contains(file2.getAbsolutePath()));
+  }
+
+  @Test
+  public void detectClassPathResourceWithFileResourcesFromContextNotHavingParent()
+      throws IOException {
+    File file = tmpFolder.newFile("file");
+    File file2 = tmpFolder.newFile("file2");
+    URLClassLoader classLoader =
+        new URLClassLoader(new URL[] {file.toURI().toURL(), file2.toURI().toURL()});
+
+    Thread.currentThread().setContextClassLoader(new ClassLoader(null) {});
+
+    List<String> detected = PipelineResources.detectClassPathResourcesToStage(classLoader);
+    assertEquals(
+        Sets.newHashSet(file.getAbsolutePath(), file2.getAbsolutePath()),
+        detected.stream().collect(Collectors.toSet()));
+  }
+
+  @Test
   public void detectClassPathResourcesFromHierarchy() throws IOException {
     File file = tmpFolder.newFile("file");
     File file2 = tmpFolder.newFile("file2");
@@ -103,11 +137,11 @@ public class PipelineResourcesTest {
 
   @Test
   public void detectClassPathResourcesWithUnsupportedClassLoader() {
-    ClassLoader mockClassLoader = Mockito.mock(ClassLoader.class);
+    ClassLoader mockClassLoader = mock(ClassLoader.class);
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Unable to use ClassLoader to detect classpath elements.");
     Thread.currentThread().setContextClassLoader(mockClassLoader);
-    PipelineResources.detectClassPathResourcesToStage(getClass());
+    PipelineResources.detectClassPathResourcesToStage(mockClassLoader);
   }
 
   @Test

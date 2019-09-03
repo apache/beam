@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.util.ZipFiles;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Funnels;
@@ -53,14 +54,28 @@ public class PipelineResources {
    * @return A list of absolute paths to the resources the class loader uses.
    */
   public static List<String> detectClassPathResourcesToStage(Class<?> cls) {
+    return detectClassPathResourcesToStage(cls.getClassLoader());
+  }
+
+  /**
+   * Detect resources to stage, by using hierarchy between current context classloader and the given
+   * one. Always include the given class loader in the process.
+   *
+   * @param loader the loader to use as stopping condition when traversing context class loaders
+   * @return A list of absolute paths to the resources the class loader uses.
+   */
+  @VisibleForTesting
+  static List<String> detectClassPathResourcesToStage(ClassLoader loader) {
     Set<String> files = new HashSet<>();
-    ClassLoader stoppingLoader = cls.getClassLoader();
+    ClassLoader stoppingLoader = loader;
     ClassLoader currentLoader = ReflectHelpers.findClassLoader();
     while (currentLoader != null && stoppingLoader != currentLoader) {
       files.addAll(extractResourcesFromClassLoader(currentLoader));
       currentLoader = currentLoader.getParent();
     }
-    files.addAll(extractResourcesFromClassLoader(currentLoader));
+    if (loader != null) {
+      files.addAll(extractResourcesFromClassLoader(loader));
+    }
     if (files.isEmpty()) {
       throw new IllegalArgumentException("Unable to use ClassLoader to detect classpath elements.");
     }
