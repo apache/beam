@@ -56,7 +56,7 @@ class FlinkJarJobServer(job_server.JavaJarJobServer):
     if self._jar:
       return self._jar
     else:
-      return self.path_to_gradle_target_jar(
+      return self.path_to_beam_jar(
           'runners:flink:%s:job-server:shadowJar' % self._flink_version)
 
   def java_arguments(self, job_port, artifacts_dir):
