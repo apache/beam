@@ -1565,16 +1565,23 @@ together.
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_with_undeclared_outputs
 %}```
 
-{:.language-java}
 #### 4.5.3. Accessing additional parameters in your DoFn {#other-dofn-parameters}
 
 {:.language-java}
 In addition to the element and the `OutputReceiver`, Beam will populate other parameters to your DoFn's `@ProcessElement` method.
 Any combination of these parameters can be added to your process method in any order.
 
+{:.language-py}
+In addition to the element, Beam will populate other parameters to your DoFn's `process` method.
+Any combination of these parameters can be added to your process method in any order.
+
 {:.language-java}
 **Timestamp:**
 To access the timestamp of an input element, add a parameter annotated with `@Timestamp` of type `Instant`. For example:
+
+{:.language-py}
+**Timestamp:**
+To access the timestamp of an input element, add a keyword parameter default to `DoFn.TimestampParam`. For example:
 
 ```java
 .of(new DoFn<String, String>() {
@@ -1582,6 +1589,16 @@ To access the timestamp of an input element, add a parameter annotated with `@Ti
   }})
 ```
 
+```py
+import apache_beam as beam
+
+class ProcessRecord(beam.DoFn):
+
+  def process(self, element, timestamp=beam.DoFn.TimestampParam):
+     # access timestamp of element.
+     pass  
+  
+```
 
 {:.language-java}
 **Window:**
@@ -1591,11 +1608,18 @@ will be raised. If an element falls in multiple windows (for example, this will 
 `@ProcessElement` method will be invoked multiple time for the element, once for each window. For example, when fixed windows
 are being used, the window is of type `IntervalWindow`.
 
+{:.language-py}
+**Window:**
+To access the window an input element falls into, add a keyword parameter default to `DoFn.WindowParam`.
+If an element falls in multiple windows (for example, this will happen when using `SlidingWindows`), then the
+`process` method will be invoked multiple time for the element, once for each window. 
+
 ```java
 .of(new DoFn<String, String>() {
      public void processElement(@Element String word, IntervalWindow window) {
   }})
 ```
+
 ```py
 import apache_beam as beam
 
@@ -1606,15 +1630,33 @@ class ProcessRecord(beam.DoFn):
      pass  
   
 ```
+
 {:.language-java}
 **PaneInfo:**
 When triggers are used, Beam provides a `PaneInfo` object that contains information about the current firing. Using `PaneInfo`
 you can determine whether this is an early or a late firing, and how many times this window has already fired for this key.
 
+{:.language-py}
+**PaneInfo:**
+When triggers are used, Beam provides a `DoFn.PaneInfoParam` object that contains information about the current firing. Using `DoFn.PaneInfoParam`
+you can determine whether this is an early or a late firing, and how many times this window has already fired for this key. 
+This feature implementation in python sdk is not fully completed, see more at [BEAM-3759](https://issues.apache.org/jira/browse/BEAM-3759).
+
 ```java
 .of(new DoFn<String, String>() {
      public void processElement(@Element String word, PaneInfo paneInfo) {
   }})
+```
+
+```py
+import apache_beam as beam
+
+class ProcessRecord(beam.DoFn):
+
+  def process(self, element, pane_info=beam.DoFn.PaneInfoParam):
+     # access pane info e.g pane_info.is_first, pane_info.is_last, pane_info.timing
+     pass  
+  
 ```
 
 {:.language-java}
@@ -1632,6 +1674,13 @@ The `PipelineOptions` for the current pipeline can always be accessed in a proce
 a parameter of type `TimeDomain` which tells whether the timer is based on event time or processing time.
 Timers are explained in more detail in the
 [Timely (and Stateful) Processing with Apache Beam]({{ site.baseurl }}/blog/2017/08/28/timely-processing.html) blog post.
+
+{:.language-py}
+**Timer and State:**
+In addition to aforementioned parameters, user defined Timer and State parameters can be used in a Stateful DoFn.
+Timers and States are explained in more detail in the
+[Timely (and Stateful) Processing with Apache Beam]({{ site.baseurl }}/blog/2017/08/28/timely-processing.html) blog post.
+
 ```py
 
 class StatefulDoFn(beam.DoFn):
@@ -2907,3 +2956,143 @@ elements, or after a minute.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_other_composite_triggers
 %}```
+
+## 9. Metrics {#metrics}
+In the Beam model, metrics provide some insight into the current state of a user pipeline, 
+potentially while the pipeline is running. There could be different reasons for that, for instance:
+*   Check the number of errors encountered while running a specific step in the pipeline;
+*   Monitor the number of RPCs made to backend service;
+*   Retrieve an accurate count of the number of elements that have been processed;
+*   ...and so on.
+
+### 9.1 The main concepts of Beam metrics
+*   **Named**. Each metric has a name which consists of a namespace and an actual name. The 
+    namespace can be used to differentiate between multiple metrics with the same name and also 
+    allows querying for all metrics within a specific namespace. 
+*   **Scoped**. Each metric is reported against a specific step in the pipeline, indicating what 
+    code was running when the metric was incremented.
+*   **Dynamically Created**. Metrics may be created during runtime without pre-declaring them, in 
+    much the same way a logger could be created. This makes it easier to produce metrics in utility 
+    code and have them usefully reported. 
+*   **Degrade Gracefully**. If a runner doesn’t support some part of reporting metrics, the 
+    fallback behavior is to drop the metric updates rather than failing the pipeline. If a runner 
+    doesn’t support some part of querying metrics, the runner will not return the associated data.
+
+Reported metrics are implicitly scoped to the transform within the pipeline that reported them. 
+This allows reporting the same metric name in multiple places and identifying the value each 
+transform reported, as well as aggregating the metric across the entire pipeline.
+
+> **Note:** It is runner-dependent whether metrics are accessible during pipeline execution or only 
+after jobs have completed.
+
+### 9.2 Types of metrics {#types-of-metrics}
+There are three types of metrics that are supported for the moment: `Counter`, `Distribution` and 
+`Gauge`.
+
+**Counter**: A metric that reports a single long value and can be incremented or decremented.
+
+```java
+Counter counter = Metrics.counter( "namespace", "counter1");
+
+@ProcessElement
+public void processElement(ProcessContext context) {
+  // count the elements
+  counter.inc();
+  ...
+}
+```
+
+**Distribution**: A metric that reports information about the distribution of reported values.
+
+```java
+Distribution distribution = Metrics.distribution( "namespace", "distribution1");
+
+@ProcessElement
+public void processElement(ProcessContext context) {
+  Integer element = context.element();
+    // create a distribution (histogram) of the values 
+    distribution.update(element);
+    ...
+}
+```
+
+**Gauge**: A metric that reports the latest value out of reported values. Since metrics are 
+collected from many workers the value may not be the absolute last, but one of the latest values.
+
+```java
+Gauge gauge = Metrics.gauge( "namespace", "gauge1");
+
+@ProcessElement
+public void processElement(ProcessContext context) {
+  Integer element = context.element();
+  // create a gauge (latest value received) of the values 
+  gauge.set(element);
+  ...
+}
+```
+
+### 9.3 Querying metrics {#querying-metrics}
+`PipelineResult` has a method `metrics()` which returns a `MetricResults` object that allows 
+accessing metrics. The main method available in `MetricResults` allows querying for all metrics 
+matching a given filter.
+
+```java
+public interface PipelineResult {
+  MetricResults metrics();
+}
+
+public abstract class MetricResults {
+  public abstract MetricQueryResults queryMetrics(@Nullable MetricsFilter filter);
+}
+
+public interface MetricQueryResults {
+  Iterable<MetricResult<Long>> getCounters();
+  Iterable<MetricResult<DistributionResult>> getDistributions();
+  Iterable<MetricResult<GaugeResult>> getGauges();
+}
+
+public interface MetricResult<T> {
+  MetricName getName();
+  String getStep();
+  T getCommitted();
+  T getAttempted();
+}
+```
+
+### 9.4 Using metrics in pipeline {#using-metrics}
+Below, there is a simple example of how to use a `Counter` metric in a user pipeline.
+
+```java
+// creating a pipeline with custom metrics DoFn
+pipeline
+    .apply(...)
+    .apply(ParDo.of(new MyMetricsDoFn()));
+
+pipelineResult = pipeline.run().waitUntilFinish(...);
+
+// request the metric called "counter1" in namespace called "namespace"
+MetricQueryResults metrics =
+    pipelineResult
+        .metrics()
+        .queryMetrics(
+            MetricsFilter.builder()
+                .addNameFilter(MetricNameFilter.named("namespace", "counter1"))
+                .build());
+
+// print the metric value - there should be only one line because there is only one metric 
+// called "counter1" in the namespace called "namespace"
+for (MetricResult<Long> counter: metrics.getCounters()) {
+  System.out.println(counter.getName() + ":" + counter.getAttempted());
+}
+
+public class MyMetricsDoFn extends DoFn<Integer, Integer> {
+  private final Counter counter = Metrics.counter( "namespace", "counter1");
+
+  @ProcessElement
+  public void processElement(ProcessContext context) {
+    // count the elements
+    counter.inc();
+    context.output(context.element());
+  }
+}
+```

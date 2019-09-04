@@ -232,9 +232,32 @@ message ProcessBundleRequest {
   // instantiated and executed by the SDK harness.
   string process_bundle_descriptor_reference = 1;
 
+  // A cache token which can be used by an SDK to check for the validity
+  // of cached elements which have a cache token associated.
+  message CacheToken {
+
+    // A flag to indicate a cache token is valid for user state.
+    message UserState {}
+
+    // A flag to indicate a cache token is valid for a side input.
+    message SideInput {
+      // The id of a side input.
+      string side_input = 1;
+    }
+
+    // The scope of a cache token.
+    oneof type {
+      UserState user_state = 1;
+      SideInput side_input = 2;
+    }
+
+    // The cache token identifier which should be globally unique.
+    bytes token = 10;
+  }
+
   // (Optional) A list of cache tokens that can be used by an SDK to reuse
   // cached data returned by the State API across multiple bundles.
-  repeated bytes cache_tokens = 2;
+  repeated CacheToken cache_tokens = 2;
 }
 
 message ProcessBundleResponse {
@@ -595,10 +618,6 @@ message StateResponse {
   // failed.
   string error = 2;
 
-  // (Optional) If this is specified, then the result of this state request
-  // can be cached using the supplied token.
-  bytes cache_token = 3;
-
   // A corresponding response matching the request will be populated.
   oneof response {
     // A response to getting state.
@@ -627,6 +646,11 @@ message StateKey {
   message Runner {
     // (Required) Opaque information supplied by the runner. Used to support
     // remote references.
+    // https://s.apache.org/beam-fn-api-send-and-receive-data
+    //
+    // Used by state backed iterable. And in this use case, request type can
+    // only be of type get. Details see:
+    // https://s.apache.org/beam-fn-api-state-backed-iterables
     bytes key = 1;
   }
 
@@ -804,7 +828,7 @@ service BeamFnLogging {
           stream LogControl) {}
 }
 
-message NotifyRunnerAvailableRequest {
+message StartWorkerRequest {
   string worker_id = 1;
   org.apache.beam.model.pipeline.v1.ApiServiceDescriptor control_endpoint = 2;
   org.apache.beam.model.pipeline.v1.ApiServiceDescriptor logging_endpoint = 3;
@@ -813,11 +837,21 @@ message NotifyRunnerAvailableRequest {
   map<string, string> params = 10;
 }
 
-message NotifyRunnerAvailableResponse {
+message StartWorkerResponse {
+  string error = 1;
+}
+
+message StopWorkerRequest {
+  string worker_id = 1;
+}
+
+message StopWorkerResponse {
   string error = 1;
 }
 
 service BeamFnExternalWorkerPool {
-  rpc NotifyRunnerAvailable(NotifyRunnerAvailableRequest)
-      returns (NotifyRunnerAvailableResponse) {}
+  // Start the SDK worker with the given ID.
+  rpc StartWorker (StartWorkerRequest) returns (StartWorkerResponse) {}
+  // Stop the SDK worker.
+  rpc StopWorker (StopWorkerRequest) returns (StopWorkerResponse) {}
 }

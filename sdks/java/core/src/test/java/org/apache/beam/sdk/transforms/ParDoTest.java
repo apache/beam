@@ -53,7 +53,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.SetCoder;
@@ -735,6 +734,93 @@ public class ParDoTest implements Serializable {
       PAssert.that(output)
           .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs).andSideInputs(11, 222));
 
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
+    public void testSideInputAnnotation() {
+
+      final PCollectionView<List<Integer>> sideInput1 =
+          pipeline
+              .apply("CreateSideInput1", Create.of(2, 1, 0))
+              .apply("ViewSideInput1", View.asList());
+
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+
+      DoFn<Integer, List<Integer>> fn =
+          new DoFn<Integer, List<Integer>>() {
+            @ProcessElement
+            public void processElement(
+                OutputReceiver<List<Integer>> r, @SideInput(sideInputTag1) List<Integer> tag1) {
+
+              List<Integer> sideSorted = Lists.newArrayList(tag1);
+              Collections.sort(sideSorted);
+              r.output(sideSorted);
+            }
+          };
+
+      PCollection<List<Integer>> output =
+          pipeline
+              .apply("Create main input", Create.of(2))
+              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+
+      PAssert.that(output).containsInAnyOrder(Lists.newArrayList(0, 1, 2));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
+    public void testSideInputAnnotationWithMultipleSideInputs() {
+
+      final PCollectionView<List<Integer>> sideInput1 =
+          pipeline
+              .apply("CreateSideInput1", Create.of(2, 0))
+              .apply("ViewSideInput1", View.asList());
+
+      final PCollectionView<Integer> sideInput2 =
+          pipeline
+              .apply("CreateSideInput2", Create.of(5))
+              .apply("ViewSideInput2", View.asSingleton());
+
+      final PCollectionView<List<Integer>> sideInput3 =
+          pipeline
+              .apply("CreateSideInput3", Create.of(1, 3))
+              .apply("ViewSideInput3", View.asList());
+
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+      final String sideInputTag2 = "tag2";
+      final String sideInputTag3 = "tag3";
+
+      DoFn<Integer, List<Integer>> fn =
+          new DoFn<Integer, List<Integer>>() {
+            @ProcessElement
+            public void processElement(
+                OutputReceiver<List<Integer>> r,
+                @SideInput(sideInputTag1) List<Integer> tag1,
+                @SideInput(sideInputTag2) Integer tag2,
+                @SideInput(sideInputTag3) List<Integer> tag3) {
+
+              List<Integer> sideSorted = Lists.newArrayList(tag1);
+              sideSorted.add(tag2);
+              sideSorted.addAll(tag3);
+              Collections.sort(sideSorted);
+              r.output(sideSorted);
+            }
+          };
+
+      PCollection<List<Integer>> output =
+          pipeline
+              .apply("Create main input", Create.of(2))
+              .apply(
+                  ParDo.of(fn)
+                      .withSideInput(sideInputTag1, sideInput1)
+                      .withSideInput(sideInputTag2, sideInput2)
+                      .withSideInput(sideInputTag3, sideInput3));
+
+      PAssert.that(output).containsInAnyOrder(Lists.newArrayList(0, 1, 2, 3, 5));
       pipeline.run();
     }
 
@@ -1967,7 +2053,6 @@ public class ParDoTest implements Serializable {
 
       final PCollectionView<List<Integer>> listView =
           pipeline.apply("Create list for side input", Create.of(2, 1, 0)).apply(View.asList());
-
       final String stateId = "foo";
       DoFn<KV<String, Integer>, List<Integer>> fn =
           new DoFn<KV<String, Integer>, List<Integer>>() {
@@ -3337,11 +3422,10 @@ public class ParDoTest implements Serializable {
     }
 
     @Override
-    public void encode(TestDummy value, OutputStream outStream)
-        throws CoderException, IOException {}
+    public void encode(TestDummy value, OutputStream outStream) throws IOException {}
 
     @Override
-    public TestDummy decode(InputStream inStream) throws CoderException, IOException {
+    public TestDummy decode(InputStream inStream) throws IOException {
       return new TestDummy();
     }
 
@@ -3445,12 +3529,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Override
-    public void encode(MyInteger value, OutputStream outStream) throws CoderException, IOException {
+    public void encode(MyInteger value, OutputStream outStream) throws IOException {
       delegate.encode(value.getValue(), outStream);
     }
 
     @Override
-    public MyInteger decode(InputStream inStream) throws CoderException, IOException {
+    public MyInteger decode(InputStream inStream) throws IOException {
       return new MyInteger(delegate.decode(inStream));
     }
   }

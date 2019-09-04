@@ -334,10 +334,11 @@ public class Schema implements Serializable {
   @Override
   public String toString() {
     StringBuilder builder = new StringBuilder();
-    builder.append("Fields:\n");
+    builder.append("Fields:");
+    builder.append(System.lineSeparator());
     for (Field field : fields) {
       builder.append(field);
-      builder.append("\n");
+      builder.append(System.lineSeparator());
     }
     return builder.toString();
   };

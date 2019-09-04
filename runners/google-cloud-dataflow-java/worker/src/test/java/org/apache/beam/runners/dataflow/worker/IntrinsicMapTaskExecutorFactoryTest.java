@@ -51,6 +51,7 @@ import com.google.api.services.dataflow.model.WriteInstruction;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 import javax.annotation.Nullable;
@@ -484,7 +485,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
                     null /* side input views */,
                     null /* input coder */,
                     new TupleTag<>(PropertyNames.OUTPUT) /* main output id */,
-                    DoFnSchemaInformation.create())));
+                    DoFnSchemaInformation.create(),
+                    Collections.emptyMap())));
 
     CloudObject cloudUserFn = CloudObject.forClassName("DoFn");
     addString(cloudUserFn, PropertyNames.SERIALIZED_FN, serializedFn);

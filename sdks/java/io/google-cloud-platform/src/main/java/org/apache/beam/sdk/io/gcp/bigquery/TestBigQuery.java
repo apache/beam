@@ -189,6 +189,10 @@ public class TestBigQuery implements TestRule {
         table.getTableReference().getTableId());
   }
 
+  public TableReference tableReference() {
+    return table.getTableReference();
+  }
+
   /**
    * Loads rows from BigQuery into {@link Row Rows} with given {@link Schema}.
    *

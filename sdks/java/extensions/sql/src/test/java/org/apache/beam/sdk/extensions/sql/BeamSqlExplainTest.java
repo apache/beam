@@ -68,7 +68,7 @@ public class BeamSqlExplainTest {
 
     assertEquals(
         "BeamCalcRel(expr#0..3=[{inputs}], c1=[$t0], c2=[$t3])\n"
-            + "  BeamJoinRel(condition=[=($0, $3)], joinType=[inner])\n"
+            + "  BeamCoGBKJoinRel(condition=[=($0, $3)], joinType=[inner])\n"
             + "    BeamCalcRel(expr#0..1=[{inputs}], expr#2=[0], expr#3=[>($t0, $t2)],"
             + " proj#0..1=[{exprs}], $condition=[$t3])\n"
             + "      BeamIOSourceRel(table=[[beam, A]])\n"

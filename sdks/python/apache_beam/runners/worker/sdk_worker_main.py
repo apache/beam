@@ -31,9 +31,9 @@ from builtins import object
 from google.protobuf import text_format
 
 from apache_beam.internal import pickler
-from apache_beam.options import pipeline_options
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import ProfilingOptions
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.internal import names
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
@@ -150,7 +150,7 @@ def main(unused_argv):
         worker_count=_get_worker_count(sdk_pipeline_options),
         worker_id=_worker_id,
         profiler_factory=profiler.Profile.factory_from_options(
-            sdk_pipeline_options.view_as(pipeline_options.ProfilingOptions))
+            sdk_pipeline_options.view_as(ProfilingOptions))
     ).run()
     logging.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except

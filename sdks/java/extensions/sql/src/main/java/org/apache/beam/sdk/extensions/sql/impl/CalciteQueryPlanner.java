@@ -71,9 +71,11 @@ class CalciteQueryPlanner implements QueryPlanner {
   private static final Logger LOG = LoggerFactory.getLogger(CalciteQueryPlanner.class);
 
   private final Planner planner;
+  private final JdbcConnection connection;
 
   public CalciteQueryPlanner(JdbcConnection connection, RuleSet[] ruleSets) {
-    planner = Frameworks.getPlanner(defaultConfig(connection, ruleSets));
+    this.connection = connection;
+    this.planner = Frameworks.getPlanner(defaultConfig(connection, ruleSets));
   }
 
   public FrameworkConfig defaultConfig(JdbcConnection connection, RuleSet[] ruleSets) {
@@ -138,6 +140,7 @@ class CalciteQueryPlanner implements QueryPlanner {
     BeamRelNode beamRelNode;
     try {
       SqlNode parsed = planner.parse(sqlStatement);
+      TableResolutionUtils.setupCustomTableResolution(connection, parsed);
       SqlNode validated = planner.validate(parsed);
       LOG.info("SQL:\n" + validated);
 

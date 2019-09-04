@@ -46,50 +46,6 @@ def loadTestConfigurations = { datasetName -> [
                 ]
         ],
         [
-                title        : 'Combine Python Load test: 2GB 100 byte records',
-                itClass      : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                sdk          : CommonTestProperties.SDK.PYTHON,
-                jobProperties: [
-                        job_name             : 'load-tests-python-dataflow-batch-combine-2-' + now,
-                        project              : 'apache-beam-testing',
-                        temp_location        : 'gs://temp-storage-for-perf-tests/smoketests',
-                        publish_to_big_query : true,
-                        metrics_dataset      : datasetName,
-                        metrics_table        : 'python_dataflow_batch_combine_2',
-                        input_options        : '\'{' +
-                                '"num_records": 20000000,' +
-                                '"key_size": 10,' +
-                                '"value_size": 90}\'',
-                        max_num_workers      : 5,
-                        num_workers          : 5,
-                        autoscaling_algorithm: "NONE",
-                        top_count            : 20,
-                ]
-        ],
-        [
-                title        : 'Combine Python Load test: 2GB 100 kilobyte records',
-                itClass      : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                sdk          : CommonTestProperties.SDK.PYTHON,
-                jobProperties: [
-                        job_name             : 'load-tests-python-dataflow-batch-combine-3-' + now,
-                        project              : 'apache-beam-testing',
-                        temp_location        : 'gs://temp-storage-for-perf-tests/smoketests',
-                        publish_to_big_query : true,
-                        metrics_dataset      : datasetName,
-                        metrics_table        : 'python_dataflow_batch_combine_3',
-                        input_options        : '\'{' +
-                                '"num_records": 2000,' +
-                                '"key_size": 100000,' +
-                                '"value_size": 90}\'',
-                        max_num_workers      : 5,
-                        num_workers          : 5,
-                        autoscaling_algorithm: "NONE",
-                        top_count            : 20,
-                ]
-        ],
-        [
                 title        : 'Combine Python Load test: 2GB Fanout 4',
                 itClass      : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
                 runner       : CommonTestProperties.Runner.DATAFLOW,

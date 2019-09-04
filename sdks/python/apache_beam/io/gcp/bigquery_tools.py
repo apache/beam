@@ -672,6 +672,8 @@ class BigQueryWrapper(object):
           logging.debug('Skipping Creation. Table %s:%s.%s already exists.'
                         % (project_id, dataset_id, table_id))
           created_table = self.get_table(project_id, dataset_id, table_id)
+        else:
+          raise
       logging.info('Created table %s.%s.%s with schema %s. '
                    'Result: %s.',
                    project_id, dataset_id, table_id,

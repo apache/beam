@@ -58,6 +58,7 @@ dependencies {
   compile library.java.jackson_databind
   shadow library.java.vendored_guava_26_0_jre
   shadowTest library.java.powermock
+  shadowTest library.java.powermock_mockito
   compile library.java.joda_time
   compile library.java.slf4j_api
   compile library.java.vendored_grpc_1_21_0

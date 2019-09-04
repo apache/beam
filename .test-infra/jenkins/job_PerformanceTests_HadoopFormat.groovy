@@ -15,54 +15,51 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-import CommonJobProperties as commonJobProperties
+import CommonJobProperties as common
+import Kubernetes
 
 String jobName = "beam_PerformanceTests_HadoopFormat"
 
 job(jobName) {
-    // Set default Beam job properties.
-    commonJobProperties.setTopLevelMainJobProperties(delegate)
+  common.setTopLevelMainJobProperties(delegate)
+  common.setAutoJob(delegate, 'H */6 * * *')
+  common.enablePhraseTriggeringFromPullRequest(
+          delegate,
+          'Java HadoopFormatIO Performance Test',
+          'Run Java HadoopFormatIO Performance Test')
 
-    // Run job in postcommit every 6 hours, don't trigger every push, and
-    // don't email individual committers.
-    commonJobProperties.setAutoJob(
-            delegate,
-            'H */6 * * *')
+  String namespace = common.getKubernetesNamespace(jobName)
+  String kubeconfig = common.getKubeconfigLocationForNamespace(namespace)
+  Kubernetes k8s = Kubernetes.create(delegate, kubeconfig, namespace)
 
-    commonJobProperties.enablePhraseTriggeringFromPullRequest(
-            delegate,
-            'Java HadoopFormatIO Performance Test',
-            'Run Java HadoopFormatIO Performance Test')
+  k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml"))
+  String postgresHostName = "LOAD_BALANCER_IP"
+  k8s.loadBalancerIP("postgres-for-dev", postgresHostName)
 
-    def pipelineOptions = [
-            tempRoot       : 'gs://temp-storage-for-perf-tests',
-            project        : 'apache-beam-testing',
-            postgresPort   : '5432',
-            numberOfRecords: '600000',
-            bigQueryDataset: 'beam_performance',
-            bigQueryTable  : 'hadoopformatioit_results'
-    ]
+  Map pipelineOptions = [
+          tempRoot            : 'gs://temp-storage-for-perf-tests',
+          project             : 'apache-beam-testing',
+          runner              : 'DataflowRunner',
+          numberOfRecords     : '600000',
+          bigQueryDataset     : 'beam_performance',
+          bigQueryTable       : 'hadoopformatioit_results',
+          postgresUsername    : 'postgres',
+          postgresPassword    : 'uuinkks',
+          postgresDatabaseName: 'postgres',
+          postgresServerName  : "\$${postgresHostName}",
+          postgresSsl         : false,
+          postgresPort        : '5432',
+  ]
 
-    String namespace = commonJobProperties.getKubernetesNamespace(jobName)
-    String kubeconfig = commonJobProperties.getKubeconfigLocationForNamespace(namespace)
-
-    def testArgs = [
-            kubeconfig              : kubeconfig,
-            beam_it_timeout         : '1200',
-            benchmarks              : 'beam_integration_benchmark',
-            beam_prebuilt           : 'false',
-            beam_sdk                : 'java',
-            beam_it_module          : ':sdks:java:io:hadoop-format',
-            beam_it_class           : 'org.apache.beam.sdk.io.hadoop.format.HadoopFormatIOIT',
-            beam_it_options         : commonJobProperties.joinPipelineOptions(pipelineOptions),
-            beam_kubernetes_scripts : commonJobProperties.makePathAbsolute('src/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml'),
-            beam_options_config_file: commonJobProperties.makePathAbsolute('src/.test-infra/kubernetes/postgres/pkb-config-local.yml'),
-            bigquery_table          : 'beam_performance.hadoopformatioit_pkb_results'
-    ]
-
-    commonJobProperties.setupKubernetes(delegate, namespace, kubeconfig)
-    commonJobProperties.buildPerformanceTest(delegate, testArgs)
-    commonJobProperties.cleanupKubernetes(delegate, namespace, kubeconfig)
+  steps {
+    gradle {
+      rootBuildScriptDir(common.checkoutDir)
+      common.setGradleSwitches(delegate)
+      switches("--info")
+      switches("-DintegrationTestPipelineOptions=\'${common.joinPipelineOptions(pipelineOptions)}\'")
+      switches("-DintegrationTestRunner=dataflow")
+      tasks(":sdks:java:io:hadoop-format:integrationTest --tests org.apache.beam.sdk.io.hadoop.format.HadoopFormatIOIT")
+    }
+  }
 }
 

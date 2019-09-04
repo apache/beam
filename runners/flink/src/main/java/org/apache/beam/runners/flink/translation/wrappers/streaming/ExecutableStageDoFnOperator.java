@@ -162,7 +162,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         options,
         keyCoder,
         keySelector,
-        DoFnSchemaInformation.create());
+        DoFnSchemaInformation.create(),
+        Collections.emptyMap());
     this.payload = payload;
     this.jobInfo = jobInfo;
     this.contextFactory = contextFactory;

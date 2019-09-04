@@ -27,16 +27,19 @@ import java.util.Map;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.impl.TableName;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.FullNameTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubJsonTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Uses DataCatalog to get the source type and schema for a table. */
-public class DataCatalogTableProvider implements TableProvider {
+public class DataCatalogTableProvider extends FullNameTableProvider {
 
   private Map<String, TableProvider> delegateProviders;
   private Map<String, Table> tableCache;
@@ -92,8 +95,23 @@ public class DataCatalogTableProvider implements TableProvider {
   }
 
   @Override
-  public @Nullable Table getTable(String tableName) {
-    return loadTable(tableName);
+  public @Nullable Table getTable(String tableNamePart) {
+    throw new UnsupportedOperationException(
+        "Loading a table by partial name '" + tableNamePart + "' is unsupported");
+  }
+
+  @Override
+  public @Nullable Table getTableByFullName(TableName fullTableName) {
+
+    ImmutableList<String> allNameParts =
+        ImmutableList.<String>builder()
+            .addAll(fullTableName.getPath())
+            .add(fullTableName.getTableName())
+            .build();
+
+    String fullEscapedTableName = ZetaSqlIdUtils.escapeAndJoin(allNameParts);
+
+    return loadTable(fullEscapedTableName);
   }
 
   private @Nullable Table loadTable(String tableName) {

@@ -110,6 +110,9 @@ import org.apache.parquet.io.SeekableInputStream;
  *
  * <p>This IO API is considered experimental and may break or receive backwards-incompatible changes
  * in future versions of the Apache Beam SDK.
+ *
+ * @see <a href="https://beam.apache.org/documentation/io/built-in/parquet/">Beam ParquetIO
+ *     documentation</a>
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class ParquetIO {

@@ -145,8 +145,8 @@ class Pipeline(object):
     if isinstance(runner, str):
       runner = create_runner(runner)
     elif not isinstance(runner, PipelineRunner):
-      raise TypeError('Runner must be a PipelineRunner object or the '
-                      'name of a registered runner.')
+      raise TypeError('Runner %s is not a PipelineRunner object or the '
+                      'name of a registered runner.' % runner)
 
     # Validate pipeline options
     errors = PipelineOptionsValidator(self._options, runner).validate()
@@ -156,7 +156,8 @@ class Pipeline(object):
 
     # set default experiments for portable runner
     # (needs to occur prior to pipeline construction)
-    if self._options.view_as(StandardOptions).runner == 'PortableRunner':
+    portable_runners = ['PortableRunner', 'FlinkRunner']
+    if self._options.view_as(StandardOptions).runner in portable_runners:
       experiments = (self._options.view_as(DebugOptions).experiments or [])
       if not 'beam_fn_api' in experiments:
         experiments.append('beam_fn_api')

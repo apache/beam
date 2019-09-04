@@ -31,7 +31,7 @@ class ExtraAssertionsMixin(object):
       """
       return self.assertItemsEqual(first, second, msg=msg)
 
-  def assertArrayCountEqual(self, data1, data2):
+  def assertUnhashableCountEqual(self, data1, data2):
     """Assert that two containers have the same items, with special treatment
     for numpy arrays.
     """
@@ -39,7 +39,7 @@ class ExtraAssertionsMixin(object):
       self.assertCountEqual(data1, data2)
     except (TypeError, ValueError):
       data1 = [self._to_hashable(d) for d in data1]
-      data2 = [self._to_hashable(d) for d in data1]
+      data2 = [self._to_hashable(d) for d in data2]
       self.assertCountEqual(data1, data2)
 
   def _to_hashable(self, element):
@@ -54,7 +54,7 @@ class ExtraAssertionsMixin(object):
 
     if isinstance(element, dict):
       hashable_elements = []
-      for key, value in element.items():
+      for key, value in sorted(element.items(), key=lambda t: hash(t[0])):
         hashable_elements.append((key, self._to_hashable(value)))
       return tuple(hashable_elements)
 

@@ -15,54 +15,52 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-import CommonJobProperties as commonJobProperties
+import CommonJobProperties as common
+import Kubernetes
 
 String jobName = "beam_PerformanceTests_JDBC"
 
 job(jobName) {
-    // Set default Beam job properties.
-    commonJobProperties.setTopLevelMainJobProperties(delegate)
+  common.setTopLevelMainJobProperties(delegate)
+  common.setAutoJob(delegate, 'H */6 * * *')
 
-    // Run job in postcommit every 6 hours, don't trigger every push, and
-    // don't email individual committers.
-    commonJobProperties.setAutoJob(
-            delegate,
-            'H */6 * * *')
+  common.enablePhraseTriggeringFromPullRequest(
+          delegate,
+          'Java JdbcIO Performance Test',
+          'Run Java JdbcIO Performance Test')
 
-    commonJobProperties.enablePhraseTriggeringFromPullRequest(
-            delegate,
-            'Java JdbcIO Performance Test',
-            'Run Java JdbcIO Performance Test')
+  String namespace = common.getKubernetesNamespace(jobName)
+  String kubeconfig = common.getKubeconfigLocationForNamespace(namespace)
+  Kubernetes k8s = Kubernetes.create(delegate, kubeconfig, namespace)
 
-    def pipelineOptions = [
-            tempRoot       : 'gs://temp-storage-for-perf-tests',
-            project        : 'apache-beam-testing',
-            postgresPort   : '5432',
-            numberOfRecords: '5000000',
-            bigQueryDataset: 'beam_performance',
-            bigQueryTable  : 'jdbcioit_results',
-    ]
+  k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml"))
+  String postgresHostName = "LOAD_BALANCER_IP"
+  k8s.loadBalancerIP("postgres-for-dev", postgresHostName)
 
-    String namespace = commonJobProperties.getKubernetesNamespace(jobName)
-    String kubeconfig = commonJobProperties.getKubeconfigLocationForNamespace(namespace)
+  Map pipelineOptions = [
+          tempRoot            : 'gs://temp-storage-for-perf-tests',
+          project             : 'apache-beam-testing',
+          runner              : 'DataflowRunner',
+          numberOfRecords     : '5000000',
+          bigQueryDataset     : 'beam_performance',
+          bigQueryTable       : 'jdbcioit_results',
+          postgresUsername    : 'postgres',
+          postgresPassword    : 'uuinkks',
+          postgresDatabaseName: 'postgres',
+          postgresServerName  : "\$${postgresHostName}",
+          postgresSsl         : false,
+          postgresPort        : '5432'
+  ]
 
-    def testArgs = [
-            kubeconfig              : kubeconfig,
-            beam_it_timeout         : '1800',
-            benchmarks              : 'beam_integration_benchmark',
-            beam_prebuilt           : 'false',
-            beam_sdk                : 'java',
-            beam_it_module          : ':sdks:java:io:jdbc',
-            beam_it_class           : 'org.apache.beam.sdk.io.jdbc.JdbcIOIT',
-            beam_it_options         : commonJobProperties.joinPipelineOptions(pipelineOptions),
-            beam_kubernetes_scripts : commonJobProperties.makePathAbsolute('src/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml'),
-            beam_options_config_file: commonJobProperties.makePathAbsolute('src/.test-infra/kubernetes/postgres/pkb-config-local.yml'),
-            bigquery_table          : 'beam_performance.jdbcioit_pkb_results'
-    ]
-
-    commonJobProperties.setupKubernetes(delegate, namespace, kubeconfig)
-    commonJobProperties.buildPerformanceTest(delegate, testArgs)
-    commonJobProperties.cleanupKubernetes(delegate, namespace, kubeconfig)
+  steps {
+    gradle {
+      rootBuildScriptDir(common.checkoutDir)
+      common.setGradleSwitches(delegate)
+      switches("--info")
+      switches("-DintegrationTestPipelineOptions=\'${common.joinPipelineOptions(pipelineOptions)}\'")
+      switches("-DintegrationTestRunner=dataflow")
+      tasks(":sdks:java:io:jdbc:integrationTest --tests org.apache.beam.sdk.io.jdbc.JdbcIOIT")
+    }
+  }
 }
 

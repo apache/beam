@@ -86,7 +86,8 @@ public class ParDoP<InputT, OutputT>
       Coder<InputT> inputValueCoder,
       Map<TupleTag<?>, Coder<?>> outputValueCoders,
       WindowingStrategy<?, ?> windowingStrategy,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     return DoFnRunners.simpleRunner(
         pipelineOptions,
         doFn,
@@ -98,7 +99,8 @@ public class ParDoP<InputT, OutputT>
         inputValueCoder,
         outputValueCoders,
         windowingStrategy,
-        doFnSchemaInformation);
+        doFnSchemaInformation,
+        sideInputMapping);
   }
 
   /**

@@ -120,6 +120,7 @@ class UserParDoFnFactory implements ParDoFnFactory {
               stepContext,
               operationContext,
               doFnInfo.getDoFnSchemaInformation(),
+              doFnInfo.getSideInputMapping(),
               runnerFactory));
 
     } else if (doFnInfo.getDoFn() instanceof StreamingPCollectionViewWriterFn) {
@@ -147,6 +148,7 @@ class UserParDoFnFactory implements ParDoFnFactory {
           stepContext,
           operationContext,
           doFnInfo.getDoFnSchemaInformation(),
+          doFnInfo.getSideInputMapping(),
           runnerFactory);
     }
   }

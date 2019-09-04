@@ -115,6 +115,8 @@ public class FnApiDoFnRunner<InputT, OutputT>
 
   private DoFnSchemaInformation doFnSchemaInformation;
 
+  private Map<String, PCollectionView<?>> sideInputMapping;
+
   FnApiDoFnRunner(Context<InputT, OutputT> context) {
     this.context = context;
 
@@ -122,6 +124,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
         (Collection<FnDataReceiver<WindowedValue<OutputT>>>)
             (Collection) context.localNameToConsumer.get(context.mainOutputTag.getId());
     this.doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.parDoPayload);
+    this.sideInputMapping = ParDoTranslation.getSideInputMapping(context.parDoPayload);
     this.doFnInvoker = DoFnInvokers.invokerFor(context.doFn);
     this.doFnInvoker.invokeSetup();
 
@@ -397,6 +400,11 @@ public class FnApiDoFnRunner<InputT, OutputT>
     }
 
     @Override
+    public Object sideInput(String tagId) {
+      return sideInput(sideInputMapping.get(tagId));
+    }
+
+    @Override
     public Object schemaElement(int index) {
       SerializableFunction converter = doFnSchemaInformation.getElementConverters().get(index);
       return converter.apply(element());
@@ -578,6 +586,11 @@ public class FnApiDoFnRunner<InputT, OutputT>
     @Override
     public InputT element(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("Element parameters are not supported.");
+    }
+
+    @Override
+    public InputT sideInput(String tagId) {
+      throw new UnsupportedOperationException("SideInput parameters are not supported.");
     }
 
     @Override

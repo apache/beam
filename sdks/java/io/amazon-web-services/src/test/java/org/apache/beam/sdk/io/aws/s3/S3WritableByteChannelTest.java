@@ -24,11 +24,10 @@ import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3OptionsWithSSEAlgorith
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3OptionsWithSSEAwsKeyManagementParams;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3OptionsWithSSECustomerKey;
 import static org.apache.beam.sdk.io.aws.s3.S3WritableByteChannel.atMostOne;
-import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.argThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Matchers.notNull;
 import static org.mockito.Mockito.RETURNS_SMART_NULLS;
 import static org.mockito.Mockito.doReturn;
@@ -89,7 +88,7 @@ public class S3WritableByteChannelTest {
     }
     doReturn(initiateMultipartUploadResult)
         .when(mockAmazonS3)
-        .initiateMultipartUpload(argThat(notNullValue(InitiateMultipartUploadRequest.class)));
+        .initiateMultipartUpload(any(InitiateMultipartUploadRequest.class));
 
     InitiateMultipartUploadResult mockInitiateMultipartUploadResult =
         mockAmazonS3.initiateMultipartUpload(
@@ -103,7 +102,7 @@ public class S3WritableByteChannelTest {
     if (getSSECustomerKeyMd5(options) != null) {
       result.setSSECustomerKeyMd5(getSSECustomerKeyMd5(options));
     }
-    doReturn(result).when(mockAmazonS3).uploadPart(argThat(notNullValue(UploadPartRequest.class)));
+    doReturn(result).when(mockAmazonS3).uploadPart(any(UploadPartRequest.class));
 
     UploadPartResult mockUploadPartResult = mockAmazonS3.uploadPart(new UploadPartRequest());
     assertEquals(getSSECustomerKeyMd5(options), mockUploadPartResult.getSSECustomerKeyMd5());
@@ -124,7 +123,7 @@ public class S3WritableByteChannelTest {
         new CompleteMultipartUploadResult();
     doReturn(completeMultipartUploadResult)
         .when(mockAmazonS3)
-        .completeMultipartUpload(argThat(notNullValue(CompleteMultipartUploadRequest.class)));
+        .completeMultipartUpload(any(CompleteMultipartUploadRequest.class));
 
     channel.close();
 

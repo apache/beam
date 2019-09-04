@@ -57,6 +57,8 @@ public class WindowingStrategyTranslation implements Serializable {
         return AccumulationMode.DISCARDING_FIRED_PANES;
       case ACCUMULATING:
         return AccumulationMode.ACCUMULATING_FIRED_PANES;
+      case RETRACTING:
+        return AccumulationMode.RETRACTING_FIRED_PANES;
       case UNRECOGNIZED:
       default:
         // Whether or not it is proto that cannot recognize it (due to the version of the
@@ -77,6 +79,8 @@ public class WindowingStrategyTranslation implements Serializable {
         return RunnerApi.AccumulationMode.Enum.DISCARDING;
       case ACCUMULATING_FIRED_PANES:
         return RunnerApi.AccumulationMode.Enum.ACCUMULATING;
+      case RETRACTING_FIRED_PANES:
+        return RunnerApi.AccumulationMode.Enum.RETRACTING;
       default:
         throw new IllegalArgumentException(
             String.format(

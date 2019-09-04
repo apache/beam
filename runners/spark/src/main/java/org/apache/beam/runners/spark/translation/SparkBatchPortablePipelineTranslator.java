@@ -36,7 +36,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.NativeTransforms;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
@@ -44,13 +43,11 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNo
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.io.SourceRDD;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -60,20 +57,22 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.spark.HashPartitioner;
 import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.storage.StorageLevel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 /** Translates a bounded portable pipeline into a Spark job. */
 public class SparkBatchPortablePipelineTranslator {
+
+  private static final Logger LOG =
+      LoggerFactory.getLogger(SparkBatchPortablePipelineTranslator.class);
 
   private final ImmutableMap<String, PTransformTranslator> urnToTransformTranslator;
 
@@ -85,12 +84,7 @@ public class SparkBatchPortablePipelineTranslator {
   }
 
   public Set<String> knownUrns() {
-    // Do not expose Read as a known URN because we only want to support Read
-    // through the Java ExpansionService. We can't translate Reads for other
-    // languages.
-    return Sets.difference(
-        urnToTransformTranslator.keySet(),
-        ImmutableSet.of(PTransformTranslation.READ_TRANSFORM_URN));
+    return urnToTransformTranslator.keySet();
   }
 
   public SparkBatchPortablePipelineTranslator() {
@@ -106,9 +100,6 @@ public class SparkBatchPortablePipelineTranslator {
     translatorMap.put(
         PTransformTranslation.FLATTEN_TRANSFORM_URN,
         SparkBatchPortablePipelineTranslator::translateFlatten);
-    translatorMap.put(
-        PTransformTranslation.READ_TRANSFORM_URN,
-        SparkBatchPortablePipelineTranslator::translateRead);
     translatorMap.put(
         PTransformTranslation.RESHUFFLE_URN,
         SparkBatchPortablePipelineTranslator::translateReshuffle);
@@ -364,45 +355,12 @@ public class SparkBatchPortablePipelineTranslator {
     context.pushDataset(getOutputId(transformNode), new BoundedDataset<>(unionRDD));
   }
 
-  private static <T> void translateRead(
-      PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkTranslationContext context) {
-    String stepName = transformNode.getTransform().getUniqueName();
-    final JavaSparkContext jsc = context.getSparkContext();
-
-    BoundedSource boundedSource;
-    try {
-      boundedSource =
-          ReadTranslation.boundedSourceFromProto(
-              RunnerApi.ReadPayload.parseFrom(transformNode.getTransform().getSpec().getPayload()));
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to extract BoundedSource from ReadPayload.", e);
-    }
-
-    // create an RDD from a BoundedSource.
-    JavaRDD<WindowedValue<T>> input =
-        new SourceRDD.Bounded<>(
-                jsc.sc(), boundedSource, context.serializablePipelineOptions, stepName)
-            .toJavaRDD();
-
-    context.pushDataset(getOutputId(transformNode), new BoundedDataset<>(input));
-  }
-
-  private static <K, V> void translateReshuffle(
+  private static <T> void translateReshuffle(
       PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkTranslationContext context) {
     String inputId = getInputId(transformNode);
-    JavaRDD<WindowedValue<KV<K, V>>> inRDD =
-        ((BoundedDataset<KV<K, V>>) context.popDataset(inputId)).getRDD();
-    RunnerApi.Components components = pipeline.getComponents();
-    WindowingStrategy windowingStrategy = getWindowingStrategy(inputId, components);
-    WindowedValueCoder<KV<K, V>> windowedCoder = getWindowedValueCoder(inputId, components);
-    KvCoder<K, V> coder = (KvCoder<K, V>) windowedCoder.getValueCoder();
-    final WindowFn windowFn = windowingStrategy.getWindowFn();
-    final Coder<K> keyCoder = coder.getKeyCoder();
-    final WindowedValue.WindowedValueCoder<V> wvCoder =
-        WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
-
-    JavaRDD<WindowedValue<KV<K, V>>> reshuffled =
-        GroupCombineFunctions.reshuffle(inRDD, keyCoder, wvCoder);
+    WindowedValueCoder<T> coder = getWindowedValueCoder(inputId, pipeline.getComponents());
+    JavaRDD<WindowedValue<T>> inRDD = ((BoundedDataset<T>) context.popDataset(inputId)).getRDD();
+    JavaRDD<WindowedValue<T>> reshuffled = GroupCombineFunctions.reshuffle(inRDD, coder);
     context.pushDataset(getOutputId(transformNode), new BoundedDataset<>(reshuffled));
   }
 

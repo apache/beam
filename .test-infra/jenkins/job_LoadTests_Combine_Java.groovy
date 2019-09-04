@@ -16,101 +16,44 @@
  * limitations under the License.
  */
 
+
 import CommonJobProperties as commonJobProperties
 import CommonTestProperties
+import CronJobBuilder
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
-import CronJobBuilder
 
 def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
-    [
-            [
-            title        : 'Load test: 2GB of 10B records',
-            itClass      : 'org.apache.beam.sdk.loadtests.CombineLoadTest',
-            runner       : CommonTestProperties.Runner.DATAFLOW,
-            jobProperties: [
-                    project             : 'apache-beam-testing',
-                    appName             : "load_tests_Java_Dataflow_${jobType}_Combine_1",
-                    tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-                    publishToBigQuery   : true,
-                    bigQueryDataset     : datasetName,
-                    bigQueryTable       : "java_dataflow_${jobType}_Combine_1",
-                    sourceOptions       : """
+  [
+          [
+                  title        : 'Load test: 2GB of 10B records',
+                  itClass      : 'org.apache.beam.sdk.loadtests.CombineLoadTest',
+                  runner       : CommonTestProperties.Runner.DATAFLOW,
+                  jobProperties: [
+                          project             : 'apache-beam-testing',
+                          appName             : "load_tests_Java_Dataflow_${jobType}_Combine_1",
+                          tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
+                          publishToBigQuery   : true,
+                          bigQueryDataset     : datasetName,
+                          bigQueryTable       : "java_dataflow_${jobType}_Combine_1",
+                          sourceOptions       : """
                                             {
                                               "numRecords": 200000000,
                                               "keySizeBytes": 1,
                                               "valueSizeBytes": 9
                                             }
                                        """.trim().replaceAll("\\s", ""),
-                    fanout              : 1,
-                    iterations          : 1,
-                    topCount            : 20,
-                    maxNumWorkers       : 5,
-                    numWorkers          : 5,
-                    autoscalingAlgorithm: "NONE",
-                    perKeyCombiner      : "TOP_LARGEST",
-                    streaming           : isStreaming
-            ]
-            ],
-            [
-                    title        : 'Load test: 2GB of 100B records',
-                    itClass      : 'org.apache.beam.sdk.loadtests.CombineLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
-                            project             : 'apache-beam-testing',
-                            appName             : "load_tests_Java_Dataflow_${jobType}_Combine_2",
-                            tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-                            publishToBigQuery   : true,
-                            bigQueryDataset     : datasetName,
-                            bigQueryTable       : "java_dataflow_${jobType}_Combine_2",
-                            sourceOptions       : """
-                                                    {
-                                                      "numRecords": 20000000,
-                                                      "keySizeBytes": 10,
-                                                      "valueSizeBytes": 90
-                                                    }
-                                               """.trim().replaceAll("\\s", ""),
-                            fanout              : 1,
-                            iterations          : 1,
-                            topCount            : 20,
-                            maxNumWorkers       : 5,
-                            numWorkers          : 5,
-                            autoscalingAlgorithm: "NONE",
-                            perKeyCombiner      : "TOP_LARGEST",
-                            streaming           : isStreaming
-                    ]
-            ],
-            [
-
-                    title        : 'Load test: 2GB of 100kB records',
-                    itClass      : 'org.apache.beam.sdk.loadtests.CombineLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
-                            project             : 'apache-beam-testing',
-                            appName             : "load_tests_Java_Dataflow_${jobType}_Combine_3",
-                            tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-                            publishToBigQuery   : true,
-                            bigQueryDataset     : datasetName,
-                            bigQueryTable       : "java_dataflow_${jobType}_Combine_3",
-                            sourceOptions       : """
-                                                    {
-                                                      "numRecords": 2000,
-                                                      "keySizeBytes": 100000,
-                                                      "valueSizeBytes": 900000
-                                                    }
-                                               """.trim().replaceAll("\\s", ""),
-                            fanout              : 1,
-                            iterations          : 1,
-                            topCount            : 20,
-                            maxNumWorkers       : 5,
-                            numWorkers          : 5,
-                            autoscalingAlgorithm: "NONE",
-                            perKeyCombiner      : "TOP_LARGEST",
-                            streaming           : isStreaming
-                    ]
-
-            ],
-            [
+                          fanout              : 1,
+                          iterations          : 1,
+                          topCount            : 20,
+                          maxNumWorkers       : 5,
+                          numWorkers          : 5,
+                          autoscalingAlgorithm: "NONE",
+                          perKeyCombiner      : "TOP_LARGEST",
+                          streaming           : isStreaming
+                  ]
+          ],
+          [
                     title        : 'Load test: fanout 4 times with 2GB 10-byte records total',
                     itClass      : 'org.apache.beam.sdk.loadtests.CombineLoadTest',
                     runner       : CommonTestProperties.Runner.DATAFLOW,
