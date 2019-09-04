@@ -86,6 +86,11 @@ test {
   // Run them serially for now, to avoid "Exit code 137", i.e. Jenkins host killing the Gradle test process
   if (project.path == ":runners:flink:1.8") {
     mustRunAfter(":runners:flink:1.7:test")
+  } else if (project.path == ":runners:flink:1.9") {
+    mustRunAfter(":runners:flink:1.5:test")
+    mustRunAfter(":runners:flink:1.6:test")
+    mustRunAfter(":runners:flink:1.7:test")
+    mustRunAfter(":runners:flink:1.8:test")
   }
 }
 
@@ -142,7 +147,7 @@ class ValidatesRunnerConfig {
 
 def createValidatesRunnerTask(Map m) {
   def config = m as ValidatesRunnerConfig
-  tasks.create(name: config.name, type: Test) {
+  tasks.register(config.name, Test) {
     group = "Verification"
     def runnerType = config.streaming ? "streaming" : "batch"
     description = "Validates the ${runnerType} runner"
@@ -178,8 +183,8 @@ def createValidatesRunnerTask(Map m) {
 createValidatesRunnerTask(name: "validatesRunnerBatch", streaming: false)
 createValidatesRunnerTask(name: "validatesRunnerStreaming", streaming: true)
 
-task validatesRunner {
-  group = "Verification"
+tasks.register('validatesRunner') {
+  group = 'Verification'
   description "Validates Flink runner"
   dependsOn validatesRunnerBatch
   dependsOn validatesRunnerStreaming
