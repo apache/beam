@@ -115,7 +115,7 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
     if type_hints.input_types:
       input_args, input_kwargs = type_hints.input_types
       self._input_hints = getcallargs_forhints(
-          False, self._process_fn, *input_args, **input_kwargs)
+          self._process_fn, *input_args, **input_kwargs)
     else:
       self._input_hints = None
     # TODO(robertwb): Multi-output.

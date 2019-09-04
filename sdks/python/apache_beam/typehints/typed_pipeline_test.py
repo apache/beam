@@ -320,9 +320,14 @@ class AnnotationsTest(unittest.TestCase):
 
   def test_pardo_wrapper_builtin_type(self):
     th = beam.ParDo(list).get_type_hints()
-    self.assertEqual(th.input_types, (
-        (typehints.Any, typehints.decorators._ANY_VAR_POSITIONAL),
-        {'__unknown__keywords': typehints.decorators._ANY_VAR_KEYWORD}))
+    if sys.version_info < (3, 7):
+      self.assertEqual(th.input_types, (
+          (typehints.Any, typehints.decorators._ANY_VAR_POSITIONAL),
+          {'__unknown__keywords': typehints.decorators._ANY_VAR_KEYWORD}))
+    else:
+      # Python 3.7+ supports signatures for builtins like 'list'.
+      self.assertEqual(th.input_types, ((typehints.Any, ), {}))
+
     self.assertEqual(th.output_types, ((typehints.Any,), {}))
 
   def test_pardo_wrapper_builtin_func(self):

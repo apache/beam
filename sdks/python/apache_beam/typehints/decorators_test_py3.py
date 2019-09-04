@@ -58,7 +58,7 @@ class IOTypeHintsTest(unittest.TestCase):
 
     th = decorators.IOTypeHints.from_callable(Class)
     self.assertEqual(th.input_types, ((int,), {}))
-    self.assertEqual(th.output_types, ((Any,), {}))
+    self.assertEqual(th.output_types, ((Class,), {}))
 
   def test_from_callable_method(self):
     class Class(object):
@@ -77,7 +77,7 @@ class IOTypeHintsTest(unittest.TestCase):
     def fn(a: int, b: str = None, *args: Tuple[T], foo: List[int],
            **kwargs: Dict[str, str]) -> Tuple:
       return a, b, args, foo, kwargs
-    callargs = decorators.getcallargs_forhints(False, fn, float, foo=List[str])
+    callargs = decorators.getcallargs_forhints(fn, float, foo=List[str])
     self.assertDictEqual(callargs,
                          {'a': float,
                           'b': str,
@@ -89,7 +89,7 @@ class IOTypeHintsTest(unittest.TestCase):
     # Default args are not necessarily types, so they should be ignored.
     def fn(a=List[int], b=None, *args, foo=(), **kwargs) -> Tuple:
       return a, b, args, foo, kwargs
-    callargs = decorators.getcallargs_forhints(False, fn)
+    callargs = decorators.getcallargs_forhints(fn)
     self.assertDictEqual(callargs,
                          {'a': Any,
                           'b': Any,
@@ -102,9 +102,9 @@ class IOTypeHintsTest(unittest.TestCase):
       return a, b, args, foo, kwargs
 
     with self.assertRaisesRegexp(decorators.TypeCheckError, "missing.*'a'"):
-      decorators.getcallargs_forhints(False, fn, foo=List[int])
+      decorators.getcallargs_forhints(fn, foo=List[int])
     with self.assertRaisesRegexp(decorators.TypeCheckError, "missing.*'foo'"):
-      decorators.getcallargs_forhints(False, fn, 5)
+      decorators.getcallargs_forhints(fn, 5)
 
 
 if __name__ == '__main__':

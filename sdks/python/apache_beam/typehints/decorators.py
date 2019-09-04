@@ -408,16 +408,10 @@ def _unpack_positional_arg_hints(arg, hint):
   return hint
 
 
-def getcallargs_forhints(using_var_hints, func, *typeargs, **typekwargs):
+def getcallargs_forhints(func, *typeargs, **typekwargs):
   """Like inspect.getcallargs, with support for declaring default args as Any.
 
   In Python 2, understands that Tuple[] and an Any unpack.
-
-  Args:
-    using_var_hints: For variable length arguments, whether to expect the bound
-      argument to describe the whole argument (such as
-      (Tuple[Union[int, str], ...],)). Otherwise expect it to describe
-      individual arguments (such as (int, int, str, ...)). Python 3 only.
 
   Returns:
     (Dict[str, Any]) A dictionary from arguments names to values.
@@ -425,8 +419,7 @@ def getcallargs_forhints(using_var_hints, func, *typeargs, **typekwargs):
   if sys.version_info < (3,):
     return getcallargs_forhints_impl_py2(func, typeargs, typekwargs)
   else:
-    return getcallargs_forhints_impl_py3(using_var_hints,
-                                         func, typeargs, typekwargs)
+    return getcallargs_forhints_impl_py3(func, typeargs, typekwargs)
 
 
 def getcallargs_forhints_impl_py2(func, typeargs, typekwargs):
@@ -472,8 +465,54 @@ def getcallargs_forhints_impl_py2(func, typeargs, typekwargs):
   return callargs
 
 
-def getcallargs_forhints_impl_py3(using_var_hints,
-                                  func, type_args, type_kwargs):
+def _normalize_var_positional_hint(hint):
+  """Converts a var_positional hint into Tuple[Union[<types>], ...] form.
+
+  Args:
+    hint: (tuple) Should be either a tuple of one or more types, or a single
+      Tuple[<type>, ...].
+
+  Raises:
+    TypeCheckError if hint does not have the right form.
+  """
+  if not hint or type(hint) != tuple:
+    raise TypeCheckError('Unexpected VAR_POSITIONAL value: %s' % hint)
+
+  if len(hint) == 1 and isinstance(hint[0], typehints.TupleSequenceConstraint):
+    # Example: tuple(Tuple[Any, ...]) -> Tuple[Any, ...]
+    return hint[0]
+  else:
+    # Example: tuple(int, str) -> Tuple[Union[int, str], ...]
+    return typehints.Tuple[typehints.Union[hint], ...]
+
+
+def _normalize_var_keyword_hint(hint, arg_name):
+  """Converts a var_keyword hint into Dict[<key type>, <value type>] form.
+
+  Args:
+    hint: (dict) Should either contain a pair (arg_name,
+      Dict[<key type>, <value type>]), or one or more possible types for the
+      value.
+    arg_name: (str) The keyword receiving this hint.
+
+  Raises:
+    TypeCheckError if hint does not have the right form.
+  """
+  if not hint or type(hint) != dict:
+    raise TypeCheckError('Unexpected VAR_KEYWORD value: %s' % hint)
+  keys = list(hint.keys())
+  values = list(hint.values())
+  if (len(values) == 1 and
+      keys[0] == arg_name and
+      isinstance(values[0], typehints.DictConstraint)):
+    # Example: dict(kwargs=Dict[str, Any]) -> Dict[str, Any]
+    return values[0]
+  else:
+    # Example: dict(k1=str, k2=int) -> Dict[str, Union[str,int]]
+    return typehints.Dict[str, typehints.Union[values]]
+
+
+def getcallargs_forhints_impl_py3(func, type_args, type_kwargs):
   """Bind type_args and type_kwargs to func.
 
   Works like inspect.getcallargs, with some modifications to support type hint
@@ -499,26 +538,11 @@ def getcallargs_forhints_impl_py3(using_var_hints,
     if param.name in bound_args:
       # Bound: unpack/convert variadic arguments.
       if param.kind == param.VAR_POSITIONAL:
-        args = bound_args[param.name]
-        if type(args) != tuple or (using_var_hints and len(args) != 1):
-          raise TypeCheckError('Unexpected VAR_POSITIONAL value: %s' % args)
-        if using_var_hints:
-          # Example: tuple(Tuple[Any, ...]) -> Tuple[Any, ...]
-          bound_args[param.name] = args[0]
-        else:
-          # Example: tuple(int, str) -> Tuple[Union[int, str], ...]
-          bound_args[param.name] = typehints.Tuple[typehints.Union[args], ...]
+        bound_args[param.name] = _normalize_var_positional_hint(
+            bound_args[param.name])
       elif param.kind == param.VAR_KEYWORD:
-        kwargs = bound_args[param.name]
-        if type(kwargs) != dict or (using_var_hints and len(kwargs) != 1):
-          raise TypeCheckError('Unexpected VAR_KEYWORD value: %s' % kwargs)
-        if using_var_hints:
-          # Example: dict(k1=Dict[str, Any]) -> Dict[str, Any]
-          bound_args[param.name] = list(kwargs.values())[0]
-        else:
-          # Example: dict(k1=str, k2=int) -> Dict[str, Union[str,int]]
-          bound_args[param.name] = typehints.Dict[
-              str, typehints.Union[list(kwargs.values())]]
+        bound_args[param.name] = _normalize_var_keyword_hint(
+            bound_args[param.name], param.name)
     else:
       # Unbound: must have a default or be variadic.
       if param.annotation != param.empty:
