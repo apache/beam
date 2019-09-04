@@ -17,25 +17,16 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import java.util.Arrays;
-import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
-import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSqlOutputToConsoleFn;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
-import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestUnboundedTable;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rel.RelNode;
 import org.joda.time.DateTime;
@@ -45,8 +36,8 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
-/** Unbounded + Unbounded Test for {@code BeamSideInputJoinRel}. */
-public class BeamSideInputJoinRelUnboundedVsBoundedTest extends BaseRelTest {
+/** Unbounded + Bounded Test for {@code BeamSideInputJoinRel}. */
+public class BeamSideInputJoinRelTest extends BaseRelTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
   public static final DateTime FIRST_DATE = new DateTime(1);
   public static final DateTime SECOND_DATE = new DateTime(1 + 3600 * 1000);
@@ -55,6 +46,19 @@ public class BeamSideInputJoinRelUnboundedVsBoundedTest extends BaseRelTest {
 
   @BeforeClass
   public static void prepare() {
+    registerUnboundedTable();
+
+    registerTable(
+        "ORDER_DETAILS1",
+        TestBoundedTable.of(
+                Schema.FieldType.INT32, "order_id",
+                Schema.FieldType.STRING, "buyer")
+            .addRows(
+                1, "james",
+                2, "bond"));
+  }
+
+  public static void registerUnboundedTable() {
     registerTable(
         "ORDER_DETAILS",
         TestUnboundedTable.of(
@@ -90,55 +94,6 @@ public class BeamSideInputJoinRelUnboundedVsBoundedTest extends BaseRelTest {
                 2,
                 3,
                 SECOND_DATE));
-
-    registerTable(
-        "ORDER_DETAILS1",
-        TestBoundedTable.of(
-                Schema.FieldType.INT32, "order_id",
-                Schema.FieldType.STRING, "buyer")
-            .addRows(
-                1, "james",
-                2, "bond"));
-
-    registerTable(
-        "SITE_LKP",
-        new SiteLookupTable(
-            TestTableUtils.buildBeamSqlSchema(
-                Schema.FieldType.INT32, "site_id",
-                Schema.FieldType.STRING, "site_name")));
-  }
-
-  /** Test table for JOIN-AS-LOOKUP. */
-  public static class SiteLookupTable extends BaseBeamTable implements BeamSqlSeekableTable {
-
-    public SiteLookupTable(Schema schema) {
-      super(schema);
-    }
-
-    @Override
-    public PCollection.IsBounded isBounded() {
-      return PCollection.IsBounded.BOUNDED;
-    }
-
-    @Override
-    public PCollection<Row> buildIOReader(PBegin begin) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public POutput buildIOWriter(PCollection<Row> input) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public List<Row> seekRow(Row lookupSubRow) {
-      return Arrays.asList(Row.withSchema(getSchema()).addValues(1, "SITE1").build());
-    }
-
-    @Override
-    public BeamTableStatistics getTableStatistics(PipelineOptions options) {
-      return BeamTableStatistics.BOUNDED_UNKNOWN;
-    }
   }
 
   @Test
@@ -320,46 +275,6 @@ public class BeamSideInputJoinRelUnboundedVsBoundedTest extends BaseRelTest {
             + " o1.order_id=o2.order_id";
     pipeline.enableAbandonedNodeEnforcement(false);
     compilePipeline(sql, pipeline);
-    pipeline.run();
-  }
-
-  @Test
-  public void testUnboundedVsLookupTableJoin() throws Exception {
-    String sql =
-        "SELECT o1.order_id, o2.site_name FROM "
-            + " ORDER_DETAILS o1 "
-            + " JOIN SITE_LKP o2 "
-            + " on "
-            + " o1.site_id=o2.site_id "
-            + " WHERE o1.site_id=1";
-    PCollection<Row> rows = compilePipeline(sql, pipeline);
-    PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
-        .containsInAnyOrder(
-            TestUtils.RowsBuilder.of(
-                    Schema.FieldType.INT32, "order_id",
-                    Schema.FieldType.STRING, "site_name")
-                .addRows(1, "SITE1")
-                .getStringRows());
-    pipeline.run();
-  }
-
-  @Test
-  public void testLookupTableVsUnboundedJoin() throws Exception {
-    String sql =
-        "SELECT o1.order_id, o2.site_name FROM "
-            + " SITE_LKP o2 "
-            + " JOIN ORDER_DETAILS o1 "
-            + " on "
-            + " o1.site_id=o2.site_id "
-            + " WHERE o1.site_id=1";
-    PCollection<Row> rows = compilePipeline(sql, pipeline);
-    PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
-        .containsInAnyOrder(
-            TestUtils.RowsBuilder.of(
-                    Schema.FieldType.INT32, "order_id",
-                    Schema.FieldType.STRING, "site_name")
-                .addRows(1, "SITE1")
-                .getStringRows());
     pipeline.run();
   }
 }

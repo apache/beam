@@ -17,15 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
-import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rel.RelNode;
@@ -55,17 +52,10 @@ public class BeamCoGBKJoinRelBoundedVsBoundedTest extends BaseRelTest {
               Schema.FieldType.INT32, "price")
           .addRows(1, 2, 3, 2, 3, 3, 3, 4, 5);
 
-  public static final BeamSqlTable SITE_LKP =
-      new BeamSideInputJoinRelUnboundedVsBoundedTest.SiteLookupTable(
-          TestTableUtils.buildBeamSqlSchema(
-              Schema.FieldType.INT32, "order_id",
-              Schema.FieldType.STRING, "site_name"));
-
   @BeforeClass
   public static void prepare() {
     registerTable("ORDER_DETAILS1", ORDER_DETAILS1);
     registerTable("ORDER_DETAILS2", ORDER_DETAILS2);
-    registerTable("SITE_LKP", SITE_LKP);
   }
 
   @Test
@@ -383,46 +373,6 @@ public class BeamCoGBKJoinRelBoundedVsBoundedTest extends BaseRelTest {
 
     pipeline.enableAbandonedNodeEnforcement(false);
     compilePipeline(sql, pipeline);
-    pipeline.run();
-  }
-
-  @Test
-  public void testBoundedVsLookupTableJoin() throws Exception {
-    String sql =
-        "SELECT o1.order_id, o2.site_name FROM "
-            + " ORDER_DETAILS1 o1 "
-            + " JOIN SITE_LKP o2 "
-            + " on "
-            + " o1.order_id=o2.order_id "
-            + " WHERE o1.order_id=1";
-    PCollection<Row> rows = compilePipeline(sql, pipeline);
-    PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
-        .containsInAnyOrder(
-            TestUtils.RowsBuilder.of(
-                    Schema.FieldType.INT32, "order_id",
-                    Schema.FieldType.STRING, "site_name")
-                .addRows(1, "SITE1")
-                .getStringRows());
-    pipeline.run();
-  }
-
-  @Test
-  public void testLookupTableVsBoundedJoin() throws Exception {
-    String sql =
-        "SELECT o1.order_id, o2.site_name FROM "
-            + " SITE_LKP o2 "
-            + " JOIN ORDER_DETAILS1 o1 "
-            + " on "
-            + " o1.order_id=o2.order_id "
-            + " WHERE o1.order_id=1";
-    PCollection<Row> rows = compilePipeline(sql, pipeline);
-    PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
-        .containsInAnyOrder(
-            TestUtils.RowsBuilder.of(
-                    Schema.FieldType.INT32, "order_id",
-                    Schema.FieldType.STRING, "site_name")
-                .addRows(1, "SITE1")
-                .getStringRows());
     pipeline.run();
   }
 }
