@@ -98,7 +98,16 @@ public class SchemaTranslation {
         break;
 
       case LOGICAL_TYPE:
-        throw new IllegalArgumentException("Logical types are not supported.");
+        LogicalType logicalType = fieldType.getLogicalType();
+        builder.setLogicalType(
+            RunnerApi.Schema.LogicalType.newBuilder()
+                .setId(logicalType.getIdentifier())
+                .setArgs(logicalType.getArgument())
+                .setBaseType(toProto(logicalType.getBaseType()))
+                .setSerializedClass(
+                    ByteString.copyFrom(SerializableUtils.serializeToByteArray(logicalType)))
+                .build());
+        break;
 
       default:
         break;
