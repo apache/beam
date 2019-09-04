@@ -126,6 +126,14 @@ class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):
       ('apache_beam.runners.dataflow.'
        'dataflow_exercise_streaming_metrics_pipeline.StreamingUserMetricsDoFn')
     matchers = [
+        # System metrics
+        MetricResultMatcher(
+            name='ElementCount',
+            # namespace=METRIC_NAMESPACE,
+            step='ReadFromPubSub',
+            attempted=len(MESSAGES_TO_PUBLISH),
+            committed=len(MESSAGES_TO_PUBLISH),
+        ),
         # User Counter Metrics.
         MetricResultMatcher(
             name='double_msg_counter_name',

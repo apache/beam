@@ -1160,7 +1160,7 @@ public class StreamingDataflowWorker {
     DataflowWorkerLoggingMDC.setWorkId(
         TextFormat.escapeBytes(key) + "-" + Long.toString(workItem.getWorkToken()));
     DataflowWorkerLoggingMDC.setStageName(computationId);
-    LOG.debug("Starting processing for {}:\n{}", computationId, work);
+    LOG.error("Starting processing for {}:\n{}", computationId, work);
 
     Windmill.WorkItemCommitRequest.Builder outputBuilder =
         Windmill.WorkItemCommitRequest.newBuilder()
@@ -1358,7 +1358,7 @@ public class StreamingDataflowWorker {
       windmillStateBytesRead.addValue(stateBytesRead);
       windmillStateBytesWritten.addValue(stateBytesWritten);
 
-      LOG.debug("Processing done for work token: {}", workItem.getWorkToken());
+      LOG.error("Processing done for work token: {}", workItem.getWorkToken());
     } catch (Throwable t) {
       if (executionState != null) {
         try {

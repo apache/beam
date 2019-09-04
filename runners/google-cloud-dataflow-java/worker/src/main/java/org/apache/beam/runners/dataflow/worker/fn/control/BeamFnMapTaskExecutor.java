@@ -345,14 +345,15 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
         // is deprecated.
         ProcessBundleProgressResponse processBundleProgressResponse =
             MoreFutures.get(bundleProcessOperation.getProcessBundleProgress());
-        List<MonitoringInfo> monitoringInfos = new ArrayList<>(
-            processBundleProgressResponse.getMonitoringInfosList());
+
+        List<MonitoringInfo> monitoringInfos = processBundleProgressResponse
+            .getMonitoringInfosList();
         Metrics metrics = processBundleProgressResponse.getMetrics();
 
-        double elementsConsumed = bundleProcessOperation.getInputElementsConsumed(monitoringInfos);
+        long elementsConsumed = bundleProcessOperation.getInputElementsConsumed(monitoringInfos);
 
         if (elementsConsumed == 0) {
-          elementsConsumed = bundleProcessOperation.getInputElementsConsumed(metrics);
+          elementsConsumed = (long)bundleProcessOperation.getInputElementsConsumed(metrics);
         }
 
         updateMetrics(monitoringInfos);
@@ -416,10 +417,8 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
               this.bundleProcessOperation.getPCollectionIdToNameContext());
 
       counterUpdates =
-          monitoringInfos.stream()
-              .map(monitoringInfoToCounterUpdateTransformer::transform)
-              .filter(Objects::nonNull)
-              .collect(Collectors.toList());
+          mis.stream().map(monitoringInfoToCounterUpdateTransformer::transform)
+              .filter(Objects::nonNull).collect(Collectors.toList());
     }
 
     // todo(BEAM-6189): remove once Metrics get removed from all SDKs.

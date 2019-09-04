@@ -169,13 +169,12 @@ public class RegisterAndProcessBundleOperation extends Operation {
             .get(grpcReadTransformOutputNameLocal);
         grpcReadTransformReadWritePCollectionNames.add(pcollectionName);
 
-        if (grpcReadTransformReadWritePCollectionNames.size() > 1) {
-          // TODO: Handle the case of more than one input.
+        // TODO: Handle the case of more than one input.
+        if (grpcReadTransformReadWritePCollectionNames.size() == 2) {
           grpcReadTransformId = null;
           grpcReadTransformOutputName = null;
           grpcReadTransformOutputPCollectionName = null;
-          continue;
-        } else if (grpcReadTransformReadWritePCollectionNames.isEmpty()) {
+        } else if (grpcReadTransformReadWritePCollectionNames.size() == 1){
           grpcReadTransformId = pTransform.getKey();
           grpcReadTransformOutputName = grpcReadTransformOutputNameLocal;
           grpcReadTransformOutputPCollectionName = pcollectionName;
@@ -183,13 +182,11 @@ public class RegisterAndProcessBundleOperation extends Operation {
       }
 
       if (pTransform.getValue().getSpec().getUrn().equals(RemoteGrpcPortWrite.URN)) {
-        if (!pTransform.getValue().getInputsMap().isEmpty()) {
-          String grpcTransformOutputNameLocal =
-              Iterables.getOnlyElement(pTransform.getValue().getInputsMap().keySet());
-          String pcollectionName = pTransform.getValue().getOutputsMap()
-              .get(grpcTransformOutputNameLocal);
-          grpcReadTransformReadWritePCollectionNames.add(pcollectionName);
-        }
+        String grpcTransformOutputNameLocal =
+            Iterables.getOnlyElement(pTransform.getValue().getInputsMap().keySet());
+        String pcollectionName = pTransform.getValue().getInputsMap()
+            .get(grpcTransformOutputNameLocal);
+        grpcReadTransformReadWritePCollectionNames.add(pcollectionName);
       }
     }
   }
@@ -430,7 +427,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
     }
   }
 
-  double getInputElementsConsumed(
+  long getInputElementsConsumed(
       final Iterable<MonitoringInfo> monitoringInfos) {
     if (grpcReadTransformId == null) {
       return 0;
@@ -453,6 +450,16 @@ public class RegisterAndProcessBundleOperation extends Operation {
     return 0;
   }
 
+  private String getStackTrace() {
+    StackTraceElement[] trace = Thread.currentThread().getStackTrace();
+    StringBuilder traceInfo = new StringBuilder();
+    for (StackTraceElement stackItem : trace) {
+      traceInfo.append("\n");
+      traceInfo.append(stackItem.toString());
+    }
+    return traceInfo.toString();
+  }
+
   /**
    * Returns the number of input elements consumed by the gRPC read, if known, otherwise 0.
    */
@@ -463,8 +470,11 @@ public class RegisterAndProcessBundleOperation extends Operation {
         .getProcessedElements()
         .getMeasured()
         .getOutputElementCountsOrDefault(grpcReadTransformOutputName, 0);
-    LOG.error("migryz getInputElementsConsumed\n{}\n{}\n{}\nresult: {}", grpcReadTransformId,
-        BeamFnApi.Metrics.PTransform.getDefaultInstance(), grpcReadTransformOutputName, result);
+
+    LOG.error("migryz getInputElementsConsumed\n{}\n{}\n{}\nresult: {}\n\nStacktrace: {}", grpcReadTransformId,
+        BeamFnApi.Metrics.PTransform.getDefaultInstance(), grpcReadTransformOutputName, result,
+        getStackTrace());
+
     return result;
   }
 
