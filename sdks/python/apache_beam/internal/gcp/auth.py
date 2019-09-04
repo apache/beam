@@ -33,13 +33,6 @@ try:
 except ImportError:
   GceAssertionCredentials = None
 
-# apitools use urllib with the global timeout. Set it to 60 seconds
-# to prevent network related stuckness issues.
-if not socket.getdefaulttimeout():
-  logging.info("Setting socket default timeout to 60 seconds.")
-  socket.setdefaulttimeout(60)
-logging.info("socket default timeout is % seconds.", socket.getdefaulttimeout())
-
 # When we are running in GCE, we can authenticate with VM credentials.
 is_running_in_gce = False
 
@@ -104,6 +97,14 @@ class _Credentials(object):
     with cls._credentials_lock:
       if cls._credentials_init:
         return cls._credentials
+      
+      # apitools use urllib with the global timeout. Set it to 60 seconds
+      # to prevent network related stuckness issues.
+      if not socket.getdefaulttimeout():
+        logging.info("Setting socket default timeout to 60 seconds.")
+        socket.setdefaulttimeout(60)
+      logging.info(
+        "socket default timeout is % seconds.", socket.getdefaulttimeout())
 
       cls._credentials = cls._get_service_credentials()
       cls._credentials_init = True
