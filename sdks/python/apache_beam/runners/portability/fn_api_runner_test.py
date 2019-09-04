@@ -1554,7 +1554,8 @@ class FnApiRunnerSplitTestWithMultiWorkers(FnApiRunnerSplitTest):
 
   def create_pipeline(self):
     from apache_beam.options.pipeline_options import PipelineOptions
-    pipeline_options = PipelineOptions(['--direct_num_workers', '2'])
+    pipeline_options = PipelineOptions(['--direct_num_workers', '2',
+                                        '--experiments', 'beam_fn_api'])
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
             default_environment=beam_runner_api_pb2.Environment(
