@@ -20,10 +20,11 @@ import os
 
 from apache_beam import Create
 from apache_beam import pvalue
+from apache_beam.io.restriction_trackers import OffsetRange
+from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
 from apache_beam.transforms import core
 from apache_beam.transforms import ptransform
-from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
-from apache_beam.io.restriction_trackers import OffsetRange
+
 
 class SdfReadLineRestrictionProvider(core.RestrictionProvider):
   """ A `core.RestrictionProvider` implementation which provides

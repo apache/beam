@@ -41,6 +41,7 @@ from tenacity import stop_after_attempt
 import apache_beam as beam
 from apache_beam.io import restriction_trackers
 from apache_beam.io.concat_source_test import RangeSource
+from apache_beam.io.sdf_line_source import SdfReadLineSource
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsEnvironment
@@ -56,7 +57,6 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
-from apache_beam.io.sdf_line_source import SdfReadLineSource
 
 if statesampler.FAST_SAMPLER:
   DEFAULT_SAMPLING_PERIOD_MS = statesampler.DEFAULT_SAMPLING_PERIOD_MS
@@ -1568,6 +1568,7 @@ class FnApiRunnerSplitTestWithMultiWorkers(FnApiRunnerSplitTest):
 
   def test_split_half(self):
     raise unittest.SkipTest("This test is for a single worker only.")
+
 
 class FnApiRunnerSdfSourceTest(unittest.TestCase):
   def _create_temp_file(self, contents):
