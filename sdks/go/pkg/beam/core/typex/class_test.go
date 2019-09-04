@@ -105,7 +105,7 @@ func TestClassOf(t *testing.T) {
 		{reflect.TypeOf(uintptr(0)), Invalid},          // uintptr
 		{reflect.TypeOf(func() {}), Invalid},           // function
 		{reflect.TypeOf(make(chan int)), Invalid},      // chan
-		{reflect.TypeOf(struct{ An error }{}), Invalid}, // public interface field
+		{reflect.TypeOf(struct{ A error }{}), Invalid}, // public interface field
 	}
 
 	for _, test := range tests {
