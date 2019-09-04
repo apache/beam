@@ -53,6 +53,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.dataflow.worker.ByteStringCoder;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext;
@@ -407,9 +408,9 @@ public class RegisterAndProcessBundleOperation extends Operation {
     List<MonitoringInfo> result = new ArrayList<MonitoringInfo>();
 
     for (MonitoringInfo mi : monitoringInfos) {
-      //todo(migryz): utilize constants from proto
-      if (mi.getUrn().equals("beam:metric:element_count:v1")) {
-        String pcollection = mi.getLabelsOrDefault("PCOLLECTION", null);
+      if (mi.getUrn().equals(MonitoringInfoConstants.Urns.ELEMENT_COUNT)) {
+        String pcollection = mi
+            .getLabelsOrDefault(MonitoringInfoConstants.Labels.PCOLLECTION, null);
         if ((pcollection != null)
             && (grpcReadTransformReadWritePCollectionNames.contains(pcollection))) {
           result.add(mi);
@@ -439,9 +440,9 @@ public class RegisterAndProcessBundleOperation extends Operation {
         Collectors.toList());
 
     for (MonitoringInfo mi : temp) {
-      //todo(migryz): utilize constants from proto
-      if (mi.getUrn().equals("beam:metric:element_count:v1")) {
-        String pcollection = mi.getLabelsOrDefault("PCOLLECTION", null);
+      if (mi.getUrn().equals(MonitoringInfoConstants.Urns.ELEMENT_COUNT)) {
+        String pcollection = mi
+            .getLabelsOrDefault(MonitoringInfoConstants.Labels.PCOLLECTION, null);
         if ((pcollection != null)
             && (!pcollection.equals(grpcReadTransformOutputPCollectionName))) {
           return mi.getMetric().getCounterData().getInt64Value();

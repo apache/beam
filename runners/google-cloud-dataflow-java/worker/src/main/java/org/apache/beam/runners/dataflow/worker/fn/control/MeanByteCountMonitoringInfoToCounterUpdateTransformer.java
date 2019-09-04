@@ -28,6 +28,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.IntDistributionData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.slf4j.Logger;
@@ -43,7 +44,7 @@ public class MeanByteCountMonitoringInfoToCounterUpdateTransformer
   private final Map<String, NameContext> pcollectionIdToNameContext;
 
   // TODO(BEAM-6945): utilize value from metrics.proto once it gets in.
-  private static final String SUPPORTED_URN = "beam:metric:sampled_byte_size:v1";
+  private static final String SUPPORTED_URN = MonitoringInfoConstants.Urns.SAMPLED_BYTE_SIZE;
 
   /**
    * @param specValidator SpecMonitoringInfoValidator to utilize for default validation.
