@@ -20,6 +20,7 @@ package org.apache.beam.sdk.schemas;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -99,5 +100,25 @@ public class SchemaCoder<T> extends CustomCoder<T> {
   @Override
   public String toString() {
     return "SchemaCoder: " + rowCoder.toString();
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    SchemaCoder<?> that = (SchemaCoder<?>) o;
+    // Two SchemaCoders are considered equal if their schemas are equal *and* their typeDescriptors
+    // (representing type T) are equal
+    return rowCoder.equals(that.rowCoder)
+        && getEncodedTypeDescriptor().equals(that.getEncodedTypeDescriptor());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(rowCoder, getEncodedTypeDescriptor());
   }
 }
