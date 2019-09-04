@@ -52,6 +52,7 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.utils import timestamp
 
+from google.protobuf.timestamp_pb2 import Timestamp
 # Protect against environments where the PubSub library is not available.
 try:
   from google.cloud import pubsub
@@ -82,28 +83,55 @@ class TestPubsubMessage(unittest.TestCase):
     self.assertEqual(m_converted.attributes, attributes)
 
   def test_eq(self):
-    a = PubsubMessage(b'abc', {1: 2, 3: 4})
-    b = PubsubMessage(b'abc', {1: 2, 3: 4})
-    c = PubsubMessage(b'abc', {1: 2})
+    publish_time = Timestamp(seconds=1520861821,
+                             nanos=234567000)
+    a = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890', publish_time)
+    b = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890', publish_time)
+    c = PubsubMessage(b'abc', {1: 2}, '1234567890', publish_time)
+    d = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234', publish_time)
+    e = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890',
+                      Timestamp(seconds=0, nanos=0))
     self.assertTrue(a == b)
     self.assertTrue(a != c)
     self.assertTrue(b != c)
+    self.assertTrue(a != d)
+    self.assertTrue(b != d)
+    self.assertTrue(a != e)
+    self.assertTrue(b != e)
 
   def test_hash(self):
-    a = PubsubMessage(b'abc', {1: 2, 3: 4})
-    b = PubsubMessage(b'abc', {1: 2, 3: 4})
-    c = PubsubMessage(b'abc', {1: 2})
+    publish_time = Timestamp(seconds=1520861821,
+                             nanos=234567000)
+    a = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890', publish_time)
+    b = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890', publish_time)
+    c = PubsubMessage(b'abc', {1: 2}, '1234567890', publish_time)
+    d = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234', publish_time)
+    e = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890',
+                      Timestamp(seconds=0, nanos=0))
     self.assertTrue(hash(a) == hash(b))
     self.assertTrue(hash(a) != hash(c))
     self.assertTrue(hash(b) != hash(c))
+    self.assertTrue(hash(a) != hash(d))
+    self.assertTrue(hash(b) != hash(d))
+    self.assertTrue(hash(a) != hash(e))
+    self.assertTrue(hash(b) != hash(e))
 
   def test_repr(self):
-    a = PubsubMessage(b'abc', {1: 2, 3: 4})
-    b = PubsubMessage(b'abc', {1: 2, 3: 4})
-    c = PubsubMessage(b'abc', {1: 2})
+    publish_time = Timestamp(seconds=1520861821,
+                             nanos=234567000)
+    a = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890', publish_time)
+    b = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890', publish_time)
+    c = PubsubMessage(b'abc', {1: 2}, '1234567890', publish_time)
+    d = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234', publish_time)
+    e = PubsubMessage(b'abc', {1: 2, 3: 4}, '1234567890',
+                      Timestamp(seconds=0, nanos=0))
     self.assertTrue(repr(a) == repr(b))
     self.assertTrue(repr(a) != repr(c))
     self.assertTrue(repr(b) != repr(c))
+    self.assertTrue(repr(a) != repr(d))
+    self.assertTrue(repr(b) != repr(d))
+    self.assertTrue(repr(a) != repr(e))
+    self.assertTrue(repr(b) != repr(e))
 
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
@@ -338,12 +366,17 @@ class TestReadFromPubSub(unittest.TestCase):
     publish_time_nanos = 234567000
     attributes = {'key': 'value'}
     ack_id = 'ack_id'
+    message_id = '0123456789'
+    publish_time = Timestamp(seconds=publish_time_secs,
+                             nanos=publish_time_nanos)
     pull_response = test_utils.create_pull_response([
         test_utils.PullResponseMessage(
-            data, attributes, publish_time_secs, publish_time_nanos, ack_id)
+            data, attributes, message_id, publish_time,
+            publish_time_secs, publish_time_nanos, ack_id)
     ])
     expected_elements = [
-        TestWindowedValue(PubsubMessage(data, attributes),
+        TestWindowedValue(PubsubMessage(data, attributes,
+                                        message_id, publish_time),
                           timestamp.Timestamp(1520861821.234567),
                           [window.GlobalWindow()])]
     mock_pubsub.return_value.pull.return_value = pull_response
@@ -413,13 +446,17 @@ class TestReadFromPubSub(unittest.TestCase):
     publish_time_secs = 1520861821
     publish_time_nanos = 234567000
     ack_id = 'ack_id'
+    message_id = '0123456789'
+    publish_time = Timestamp(seconds=publish_time_secs,
+                             nanos=publish_time_nanos)
     pull_response = test_utils.create_pull_response([
         test_utils.PullResponseMessage(
-            data, attributes, publish_time_secs, publish_time_nanos, ack_id)
+            data, attributes, message_id, publish_time,
+            publish_time_secs, publish_time_nanos, ack_id)
     ])
     expected_elements = [
         TestWindowedValue(
-            PubsubMessage(data, attributes),
+            PubsubMessage(data, attributes, message_id, publish_time),
             timestamp.Timestamp(micros=int(attributes['time']) * 1000),
             [window.GlobalWindow()]),
     ]
@@ -446,15 +483,20 @@ class TestReadFromPubSub(unittest.TestCase):
     publish_time_secs = 1337000000
     publish_time_nanos = 133700000
     ack_id = 'ack_id'
+    message_id = '0123456789'
+    publish_time = Timestamp(seconds=publish_time_secs,
+                             nanos=publish_time_nanos)
     pull_response = test_utils.create_pull_response([
         test_utils.PullResponseMessage(
-            data, attributes, publish_time_secs, publish_time_nanos, ack_id)
+            data, attributes, message_id, publish_time,
+            publish_time_secs, publish_time_nanos, ack_id)
     ])
     expected_elements = [
         TestWindowedValue(
-            PubsubMessage(data, attributes),
+            PubsubMessage(data, attributes,
+                          message_id, publish_time),
             timestamp.Timestamp.from_rfc3339(attributes['time']),
-            [window.GlobalWindow()]),
+            [window.GlobalWindow()])
     ]
     mock_pubsub.return_value.pull.return_value = pull_response
 
@@ -480,13 +522,18 @@ class TestReadFromPubSub(unittest.TestCase):
     publish_time_nanos = 234567000
     publish_time = '2018-03-12T13:37:01.234567Z'
     ack_id = 'ack_id'
+    pubsub_publish_time = Timestamp(seconds=publish_time_secs,
+                                    nanos=publish_time_nanos)
+    message_id = '0123456789'
     pull_response = test_utils.create_pull_response([
         test_utils.PullResponseMessage(
-            data, attributes, publish_time_secs, publish_time_nanos, ack_id)
+            data, attributes, message_id, pubsub_publish_time,
+            publish_time_secs, publish_time_nanos, ack_id)
     ])
     expected_elements = [
         TestWindowedValue(
-            PubsubMessage(data, attributes),
+            PubsubMessage(data, attributes,
+                          message_id, pubsub_publish_time),
             timestamp.Timestamp.from_rfc3339(publish_time),
             [window.GlobalWindow()]),
     ]
@@ -513,9 +560,13 @@ class TestReadFromPubSub(unittest.TestCase):
     publish_time_secs = 1520861821
     publish_time_nanos = 234567000
     ack_id = 'ack_id'
+    message_id = '0123456789'
+    publish_time = Timestamp(seconds=publish_time_secs,
+                             nanos=publish_time_nanos)
     pull_response = test_utils.create_pull_response([
         test_utils.PullResponseMessage(
-            data, attributes, publish_time_secs, publish_time_nanos, ack_id)
+            data, attributes, message_id, publish_time,
+            publish_time_secs, publish_time_nanos, ack_id)
     ])
     mock_pubsub.return_value.pull.return_value = pull_response
 

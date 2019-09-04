@@ -903,7 +903,12 @@ public class PubsubIO {
   /** Implementation of {@link #write}. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
-    private static final int MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT = 10 * 1024 * 1024;
+    /**
+     * Max batch byte size. Messages are base64 encoded which encodes each set of three bytes into
+     * four bytes.
+     */
+    private static final int MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT = ((10 * 1024 * 1024) / 4) * 3;
+
     private static final int MAX_PUBLISH_BATCH_SIZE = 100;
 
     @Nullable

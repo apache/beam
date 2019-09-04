@@ -42,15 +42,6 @@ dependencies {
   sdkSourceTarball project(path: ":sdks:python", configuration: "distTarBall")
 }
 
-task copyDockerfileDependencies(type: Copy, dependsOn: goBuild) {
-  from configurations.sdkSourceTarball
-  from file("./base_image_requirements.txt")
-  into "build/target"
-  if(configurations.sdkSourceTarball.isEmpty()) {
-    throw new StopExecutionException('sdk source tarball is empty');
-  }
-}
-
 golang {
   packagePath = 'github.com/apache/beam/sdks/python/boot'
   goBuild {
@@ -60,15 +51,13 @@ golang {
   }
 }
 
-docker {
-  name containerImageName(name: "python")
-  files "./build"
+task buildAll {
+  dependsOn ':sdks:python:container:py2:docker'
+  dependsOn ':sdks:python:container:py35:docker'
+  dependsOn ':sdks:python:container:py36:docker'
+  dependsOn ':sdks:python:container:py37:docker'
 }
 
 artifacts {
   sdkHarnessLauncher file: file('./build/target/launcher'), builtBy: goBuild
 }
-
-// Ensure that making the docker image builds any required artifacts
-dockerPrepare.dependsOn goBuild
-dockerPrepare.dependsOn copyDockerfileDependencies

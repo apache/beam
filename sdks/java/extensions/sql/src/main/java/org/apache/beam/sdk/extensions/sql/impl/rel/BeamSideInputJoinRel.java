@@ -39,6 +39,30 @@ import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rex.RexNode;
 
+/**
+ * A {@code BeamJoinRel} which does sideinput Join
+ *
+ * <p>This Join Covers the case:
+ *
+ * <ul>
+ *   <li>BoundedTable JOIN UnboundedTable
+ * </ul>
+ *
+ * <p>{@code sideInput} is utilized to implement the join, so there are some constraints:
+ *
+ * <ul>
+ *   <li>{@code FULL OUTER JOIN} is not supported.
+ *   <li>If it's a {@code LEFT OUTER JOIN}, the unbounded table should on the left side.
+ *   <li>If it's a {@code RIGHT OUTER JOIN}, the unbounded table should on the right side.
+ * </ul>
+ *
+ * <p>General constraints:
+ *
+ * <ul>
+ *   <li>Only equi-join is supported.
+ *   <li>CROSS JOIN is not supported.
+ * </ul>
+ */
 public class BeamSideInputJoinRel extends BeamJoinRel {
 
   public BeamSideInputJoinRel(
