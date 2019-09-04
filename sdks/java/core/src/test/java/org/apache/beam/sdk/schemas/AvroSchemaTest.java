@@ -34,13 +34,14 @@ import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.schemas.LogicalTypes.FixedBytes;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.transforms.Select;
+import org.apache.beam.sdk.schemas.transforms.Group;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -420,15 +421,17 @@ public class AvroSchemaTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testAvroPipeline() {
+  public void testAvroPipelineGroupBy() {
     PCollection<Row> input = pipeline.apply(Create.of(ROW_FOR_POJO)).setRowSchema(POJO_SCHEMA);
 
-    PCollection<Row> output = input.apply(Select.fieldNames("fixed"));
+    PCollection<KV<Row, Iterable<Row>>> output = input.apply(Group.byFieldNames("string"));
     PAssert.that(output)
         .containsInAnyOrder(
-            Row.withSchema(Schema.of(Field.of("fixed", FieldType.logicalType(FixedBytes.of(4)))))
-                .addValue(BYTE_ARRAY)
-                .build());
+            KV.of(
+                Row.withSchema(Schema.of(Field.of("string", FieldType.STRING)))
+                    .addValue("mystring")
+                    .build(),
+                ImmutableList.of(ROW_FOR_POJO)));
 
     pipeline.run();
   }
