@@ -399,6 +399,9 @@ public class RegisterAndProcessBundleOperation extends Operation {
         .thenApply(response -> response.getMonitoringInfosList());
   }
 
+  /*
+   * Returns a subset of monitoring infos that refer to grpc IO.
+   */
   public List<MonitoringInfo> findIOPCollectionMonitoringInfos(
       Iterable<MonitoringInfo> monitoringInfos) {
     List<MonitoringInfo> result = new ArrayList<MonitoringInfo>();
@@ -426,9 +429,6 @@ public class RegisterAndProcessBundleOperation extends Operation {
     }
   }
 
-  // This method uses iteration over collection for search. Performance might be improved if
-  // we store metrics in hashmap. However since this method is not expected to be called
-  // multiple times over same collection, it should not be worth it.
   double getInputElementsConsumed(
       final Iterable<MonitoringInfo> monitoringInfos) {
     if (grpcReadTransformId == null) {
@@ -438,20 +438,12 @@ public class RegisterAndProcessBundleOperation extends Operation {
     List<MonitoringInfo> temp = StreamSupport.stream(monitoringInfos.spliterator(), false).collect(
         Collectors.toList());
 
-    LOG.error("migryz getInputElementsConsumed(MI)\n{}\n{}\n{}\n input: {}",
-        grpcReadTransformId, grpcReadTransformOutputName,
-        grpcReadTransformOutputPCollectionName, temp);
-
     for (MonitoringInfo mi : temp) {
       //todo(migryz): utilize constants from proto
       if (mi.getUrn().equals("beam:metric:element_count:v1")) {
         String pcollection = mi.getLabelsOrDefault("PCOLLECTION", null);
         if ((pcollection != null)
             && (!pcollection.equals(grpcReadTransformOutputPCollectionName))) {
-          LOG.error("migryz getInputElementsConsumed(MI)\n{}\n{}\n{}\nresult: {}",
-              grpcReadTransformId, grpcReadTransformOutputName,
-              grpcReadTransformOutputPCollectionName, mi);
-
           return mi.getMetric().getCounterData().getInt64Value();
         }
       }

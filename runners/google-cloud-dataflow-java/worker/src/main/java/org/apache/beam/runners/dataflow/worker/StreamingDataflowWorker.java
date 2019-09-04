@@ -1271,8 +1271,7 @@ public class StreamingDataflowWorker {
                   readNode.getParallelInstruction().getName());
           readOperation.receivers[0].addOutputCounter(
               new OutputObjectAndByteCounter(
-                  new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(
-                      readCoder),
+                  new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(readCoder),
                   mapTaskExecutor.getOutputCounters(),
                   nameContext)
                   .setSamplingPeriod(100)
@@ -1316,24 +1315,7 @@ public class StreamingDataflowWorker {
 
       // Blocks while executing work.
       executionState.getWorkExecutor().execute();
-
-
-      if (hasExperiment(options, "beam_fn_api")) {
-        DataflowWorkExecutor executor = executionState.getWorkExecutor();
-        LOG.error("migryz executor type: {}", executor.getClass());
-        if (executor instanceof org.apache.beam.runners.dataflow.worker.fn.control.BeamFnMapTaskExecutor) {
-          List<CounterUpdate> temp = new ArrayList<CounterUpdate>();
-          Iterables.addAll(
-              temp, executor.extractMetricUpdates());
-          LOG.error("migryz adding pending monitoring infos counter updates: {}", temp);
-          Iterables.addAll(
-              this.pendingMonitoringInfos, temp);
-        }
-        else
-        {
-          LOG.error("migryz apparently not BeamFnMapTaskExecutor");
-        }
-      }
+      Iterables.addAll(this.pendingMonitoringInfos, executionState.getWorkExecutor().extractMetricUpdates());
 
       commitCallbacks.putAll(executionState.getContext().flushState());
 
@@ -1902,38 +1884,20 @@ public class StreamingDataflowWorker {
     List<CounterUpdate> counterUpdates = new ArrayList<>(128);
 
     if (publishCounters) {
-      long threadId = Thread.currentThread().getId();
-
       stageInfoMap.values().forEach(s -> counterUpdates.addAll(s.extractCounterUpdates()));
 
-      LOG.error("migryz {} counterupdates dump prepre:\n{}", threadId, counterUpdates);
       counterUpdates.addAll(
           cumulativeCounters.extractUpdates(false, DataflowCounterUpdateExtractor.INSTANCE));
-      LOG.error("migryz {} counterupdates dump with extractUpdates:\n{}", threadId, counterUpdates);
-
       counterUpdates.addAll(
           deltaCounters.extractModifiedDeltaUpdates(DataflowCounterUpdateExtractor.INSTANCE));
-      LOG.error("migryz {} counterupdates dump delta with updates:\n{}", threadId, counterUpdates);
 
       if (hasExperiment(options, "beam_fn_api")) {
-        List<CounterUpdate> itemsToAdd = new ArrayList<CounterUpdate>();
-
         while (!this.pendingMonitoringInfos.isEmpty()) {
           final CounterUpdate item = this.pendingMonitoringInfos.poll();
 
-          //todo(migryz): I can build a set of counter names and later filter by those.
-          // I ignore all stuff coming from SDK that is already present in list.
-          // Append to list only after I processed all SDK items.
-          // counterUpdates.get(0).equals();
-
-          //todo(migryz): Try to filter out monitoring infos on the stage of building
-          // CounterUpdates. Even though we do not update status, we still seem to have
-          // PCollection names in place. So filtering out ElementCount should be possible.
-
-          // This change will treat counter as delta.
-          // This is required because we receive cumulative results from FnAPI harness,
-          // while streaming job is expected to receive delta updates to counters on same
-          // WorkItem.
+          // This will treat counter as delta. It is required because we receive cumulative results
+          // from FnAPI harness, while streaming job is expected to receive delta updates to
+          // counters on same WorkItem.
           if (item.getCumulative()) {
             item.setCumulative(false);
           } else {
@@ -1945,12 +1909,8 @@ public class StreamingDataflowWorker {
                     + " if non-cumulative counter type is required.");
           }
 
-          itemsToAdd.add(item);
+          counterUpdates.add(item);
         }
-
-        LOG.error("migryz {} counterupdates dump pre fn_api:\n{}\n FnApi itself:\n {}", threadId, counterUpdates, itemsToAdd);
-        counterUpdates.addAll(itemsToAdd);
-        LOG.error("migryz {} counterupdates dump post fn_api:\n{}", threadId, counterUpdates);
       }
     }
 
