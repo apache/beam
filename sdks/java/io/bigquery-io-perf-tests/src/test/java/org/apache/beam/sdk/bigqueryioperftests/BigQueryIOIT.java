@@ -209,7 +209,7 @@ public class BigQueryIOIT {
     @Description("Should test use streaming writes or batch loads to BQ")
     String getWriteMethod();
 
-    void setWriteMethod(Boolean value);
+    void setWriteMethod(String value);
   }
 
   private static class MapKVToV extends DoFn<KV<byte[], byte[]>, byte[]> {
