@@ -21,13 +21,18 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
@@ -61,6 +66,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
+import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -79,14 +85,14 @@ import org.slf4j.LoggerFactory;
 
 /**
  * This {@link Operation} is responsible for communicating with the SDK harness and asking it to
- * process a bundle of work. This operation registers the {@link
- * org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor} when executed the first
- * time. Afterwards, it only asks the SDK harness to process the bundle using the already registered
- * {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor}.
+ * process a bundle of work. This operation registers the {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor}
+ * when executed the first time. Afterwards, it only asks the SDK harness to process the bundle
+ * using the already registered {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor}.
  *
  * <p>This operation supports restart.
  */
 public class RegisterAndProcessBundleOperation extends Operation {
+
   private static final Logger LOG =
       LoggerFactory.getLogger(RegisterAndProcessBundleOperation.class);
 
@@ -103,13 +109,19 @@ public class RegisterAndProcessBundleOperation extends Operation {
   private final ConcurrentHashMap<StateKey, BagState<ByteString>> userStateData;
   private final Map<String, NameContext> pcollectionIdToNameContext;
 
-  private @Nullable CompletionStage<InstructionResponse> registerFuture;
-  private @Nullable CompletionStage<InstructionResponse> processBundleResponse;
-  private volatile @Nullable String processBundleId = null;
+  private @Nullable
+  CompletionStage<InstructionResponse> registerFuture;
+  private @Nullable
+  CompletionStage<InstructionResponse> processBundleResponse;
+  private volatile @Nullable
+  String processBundleId = null;
   private StateDelegator.Registration deregisterStateHandler;
 
-  private @Nullable String grpcReadTransformId = null;
+  private @Nullable
+  String grpcReadTransformId = null;
   private String grpcReadTransformOutputName = null;
+  private String grpcReadTransformOutputPCollectionName = null;
+  private final Set<String> grpcReadTransformReadWritePCollectionNames = new HashSet<>();
 
   public RegisterAndProcessBundleOperation(
       IdGenerator idGenerator,
@@ -145,23 +157,45 @@ public class RegisterAndProcessBundleOperation extends Operation {
       LOG.debug(
           "Process bundle descriptor {}", toDot(registerRequest.getProcessBundleDescriptor(0)));
     }
+
     for (Map.Entry<String, RunnerApi.PTransform> pTransform :
         registerRequest.getProcessBundleDescriptor(0).getTransformsMap().entrySet()) {
+
       if (pTransform.getValue().getSpec().getUrn().equals(RemoteGrpcPortRead.URN)) {
-        if (grpcReadTransformId != null) {
+        String grpcReadTransformOutputNameLocal =
+            Iterables.getOnlyElement(pTransform.getValue().getOutputsMap().keySet());
+        String pcollectionName = pTransform.getValue().getOutputsMap()
+            .get(grpcReadTransformOutputNameLocal);
+        grpcReadTransformReadWritePCollectionNames.add(pcollectionName);
+
+        if (grpcReadTransformReadWritePCollectionNames.size() > 1) {
           // TODO: Handle the case of more than one input.
           grpcReadTransformId = null;
           grpcReadTransformOutputName = null;
-          break;
+          grpcReadTransformOutputPCollectionName = null;
+          continue;
+        } else if (grpcReadTransformReadWritePCollectionNames.isEmpty()) {
+          grpcReadTransformId = pTransform.getKey();
+          grpcReadTransformOutputName = grpcReadTransformOutputNameLocal;
+          grpcReadTransformOutputPCollectionName = pcollectionName;
         }
-        grpcReadTransformId = pTransform.getKey();
-        grpcReadTransformOutputName =
-            Iterables.getOnlyElement(pTransform.getValue().getOutputsMap().keySet());
+      }
+
+      if (pTransform.getValue().getSpec().getUrn().equals(RemoteGrpcPortWrite.URN)) {
+        if (!pTransform.getValue().getInputsMap().isEmpty()) {
+          String grpcTransformOutputNameLocal =
+              Iterables.getOnlyElement(pTransform.getValue().getInputsMap().keySet());
+          String pcollectionName = pTransform.getValue().getOutputsMap()
+              .get(grpcTransformOutputNameLocal);
+          grpcReadTransformReadWritePCollectionNames.add(pcollectionName);
+        }
       }
     }
   }
 
-  /** Generates a dot description of the process bundle descriptor. */
+  /**
+   * Generates a dot description of the process bundle descriptor.
+   */
   private static String toDot(ProcessBundleDescriptor processBundleDescriptor) {
     StringBuilder builder = new StringBuilder();
     builder.append("digraph network {\n");
@@ -323,9 +357,6 @@ public class RegisterAndProcessBundleOperation extends Operation {
    * elements consumed from the upstream read operation.
    *
    * <p>May be called at any time, including before start() and after finish().
-   *
-   * @throws InterruptedException
-   * @throws ExecutionException
    */
   public CompletionStage<BeamFnApi.ProcessBundleProgressResponse> getProcessBundleProgress()
       throws InterruptedException, ExecutionException {
@@ -355,7 +386,9 @@ public class RegisterAndProcessBundleOperation extends Operation {
             });
   }
 
-  /** Returns the final metrics returned by the SDK harness when it completes the bundle. */
+  /**
+   * Returns the final metrics returned by the SDK harness when it completes the bundle.
+   */
   public CompletionStage<BeamFnApi.Metrics> getFinalMetrics() {
     return getProcessBundleResponse(processBundleResponse)
         .thenApply(response -> response.getMetrics());
@@ -364,6 +397,24 @@ public class RegisterAndProcessBundleOperation extends Operation {
   public CompletionStage<List<MonitoringInfo>> getFinalMonitoringInfos() {
     return getProcessBundleResponse(processBundleResponse)
         .thenApply(response -> response.getMonitoringInfosList());
+  }
+
+  public List<MonitoringInfo> findIOPCollectionMonitoringInfos(
+      Iterable<MonitoringInfo> monitoringInfos) {
+    List<MonitoringInfo> result = new ArrayList<MonitoringInfo>();
+
+    for (MonitoringInfo mi : monitoringInfos) {
+      //todo(migryz): utilize constants from proto
+      if (mi.getUrn().equals("beam:metric:element_count:v1")) {
+        String pcollection = mi.getLabelsOrDefault("PCOLLECTION", null);
+        if ((pcollection != null)
+            && (grpcReadTransformReadWritePCollectionNames.contains(pcollection))) {
+          result.add(mi);
+        }
+      }
+    }
+
+    return result;
   }
 
   public boolean hasFailed() throws ExecutionException, InterruptedException {
@@ -375,14 +426,53 @@ public class RegisterAndProcessBundleOperation extends Operation {
     }
   }
 
-  /** Returns the number of input elements consumed by the gRPC read, if known, otherwise 0. */
+  // This method uses iteration over collection for search. Performance might be improved if
+  // we store metrics in hashmap. However since this method is not expected to be called
+  // multiple times over same collection, it should not be worth it.
+  double getInputElementsConsumed(
+      final Iterable<MonitoringInfo> monitoringInfos) {
+    if (grpcReadTransformId == null) {
+      return 0;
+    }
+
+    List<MonitoringInfo> temp = StreamSupport.stream(monitoringInfos.spliterator(), false).collect(
+        Collectors.toList());
+
+    LOG.error("migryz getInputElementsConsumed(MI)\n{}\n{}\n{}\n input: {}",
+        grpcReadTransformId, grpcReadTransformOutputName,
+        grpcReadTransformOutputPCollectionName, temp);
+
+    for (MonitoringInfo mi : temp) {
+      //todo(migryz): utilize constants from proto
+      if (mi.getUrn().equals("beam:metric:element_count:v1")) {
+        String pcollection = mi.getLabelsOrDefault("PCOLLECTION", null);
+        if ((pcollection != null)
+            && (!pcollection.equals(grpcReadTransformOutputPCollectionName))) {
+          LOG.error("migryz getInputElementsConsumed(MI)\n{}\n{}\n{}\nresult: {}",
+              grpcReadTransformId, grpcReadTransformOutputName,
+              grpcReadTransformOutputPCollectionName, mi);
+
+          return mi.getMetric().getCounterData().getInt64Value();
+        }
+      }
+    }
+
+    return 0;
+  }
+
+  /**
+   * Returns the number of input elements consumed by the gRPC read, if known, otherwise 0.
+   */
   double getInputElementsConsumed(BeamFnApi.Metrics metrics) {
-    return metrics
+    double result = grpcReadTransformId == null ? 0 : metrics
         .getPtransformsOrDefault(
             grpcReadTransformId, BeamFnApi.Metrics.PTransform.getDefaultInstance())
         .getProcessedElements()
         .getMeasured()
         .getOutputElementCountsOrDefault(grpcReadTransformOutputName, 0);
+    LOG.error("migryz getInputElementsConsumed\n{}\n{}\n{}\nresult: {}", grpcReadTransformId,
+        BeamFnApi.Metrics.PTransform.getDefaultInstance(), grpcReadTransformOutputName, result);
+    return result;
   }
 
   private CompletionStage<BeamFnApi.StateResponse.Builder> delegateByStateKeyType(

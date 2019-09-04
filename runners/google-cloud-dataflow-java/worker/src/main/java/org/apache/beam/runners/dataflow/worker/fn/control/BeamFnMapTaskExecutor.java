@@ -345,16 +345,18 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
         // is deprecated.
         ProcessBundleProgressResponse processBundleProgressResponse =
             MoreFutures.get(bundleProcessOperation.getProcessBundleProgress());
-        updateMetrics(processBundleProgressResponse.getMonitoringInfosList());
-
-        // Supporting deprecated metrics until all supported runners are migrated to using
-        // MonitoringInfos
+        List<MonitoringInfo> monitoringInfos = new ArrayList<>(
+            processBundleProgressResponse.getMonitoringInfosList());
         Metrics metrics = processBundleProgressResponse.getMetrics();
-        updateMetricsDeprecated(metrics);
 
-        // todo(migryz): utilize monitoringInfos here.
-        // Requires Element Count metrics to be implemented.
-        double elementsConsumed = bundleProcessOperation.getInputElementsConsumed(metrics);
+        double elementsConsumed = bundleProcessOperation.getInputElementsConsumed(monitoringInfos);
+
+        if (elementsConsumed == 0) {
+          elementsConsumed = bundleProcessOperation.getInputElementsConsumed(metrics);
+        }
+
+        updateMetrics(monitoringInfos);
+        updateMetricsDeprecated(metrics);
 
         grpcWriteOperationElementsProcessed.accept((int) elementsConsumed);
         progressInterpolator.addPoint(
@@ -400,6 +402,14 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
      * @param monitoringInfos Usually received from FnApi.
      */
     private void updateMetrics(List<MonitoringInfo> monitoringInfos) {
+      List<MonitoringInfo> mis = new ArrayList<>(monitoringInfos);
+      Iterable<MonitoringInfo> misToFilter = bundleProcessOperation
+          .findIOPCollectionMonitoringInfos(monitoringInfos);
+
+      for(MonitoringInfo mi : misToFilter) {
+        mis.remove(mi);
+      }
+
       final MonitoringInfoToCounterUpdateTransformer monitoringInfoToCounterUpdateTransformer =
           new FnApiMonitoringInfoToCounterUpdateTransformer(
               this.bundleProcessOperation.getPtransformIdToUserStepContext(),
@@ -412,6 +422,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
               .collect(Collectors.toList());
     }
 
+    // todo(BEAM-6189): remove once Metrics get removed from all SDKs.
     /**
      * Updates internal metrics from provided (deprecated) Metrics object.
      *

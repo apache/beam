@@ -104,6 +104,8 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformer
     NameAndKind name = new NameAndKind();
     name.setName(counterName).setKind("SUM");
 
+    LOG.error("migryz ElCountTransformer: {} {} {}", pcollectionId, pcollectionName, counterName);
+
     return new CounterUpdate()
         .setNameAndKind(name)
         .setCumulative(true)
