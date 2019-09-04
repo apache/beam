@@ -293,7 +293,7 @@ public class EncoderHelpers {
 
     @Override public Object nullSafeEval(Object input) {
       try {
-        Coder<T> beamCoder = coderClass.newInstance();
+        Coder<T> beamCoder = coderClass.getDeclaredConstructor().newInstance();
         return beamCoder.decode(new ByteArrayInputStream((byte[]) input));
       } catch (Exception e) {
         throw new IllegalStateException("Error decoding bytes for coder: " + coderClass, e);
@@ -373,13 +373,13 @@ case class DecodeUsingSerializer[T](child: Expression, tag: ClassTag[T], kryo: B
     ctx.addImmutableStateIfNotExists(coderClass.getName(), beamCoderInstance, func(v1 -> {
       /*
     CODE GENERATED
-    v = (coderClass) coderClass.newInstance();
+    v = (coderClass) coderClass.getDeclaredConstructor().newInstance();
      */
         List<String> parts = new ArrayList<>();
         parts.add("");
         parts.add(" = (");
         parts.add(") ");
-        parts.add(".newInstance();");
+        parts.add(".getDeclaredConstructor().newInstance();");
         StringContext sc = new StringContext(JavaConversions.collectionAsScalaIterable(parts).toSeq());
         List<Object> args = new ArrayList<>();
         args.add(v1);
