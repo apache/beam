@@ -144,18 +144,22 @@ public class EncoderHelpers {
 
       /*
         CODE GENERATED
-       ByteArrayOutputStream baos = new ByteArrayOutputStream();
-       final bytes[] output;
-       if ({input.isNull})
-          output = null;
-       else
-          output = $beamCoder.encode(${input.value}, baos); baos.toByteArray();
+       try {
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        final byte[] output;
+        if ({input.isNull})
+            output = null;
+        else
+            output = $beamCoder.encode(${input.value}, baos); baos.toByteArray();
+        } catch (Exception e) {
+          throw new RuntimeException(org.apache.beam.sdk.util.UserCodeException.wrap(e));
+        }
       */
       List<String> parts = new ArrayList<>();
-      parts.add("ByteArrayOutputStream baos = new ByteArrayOutputStream(); final bytes[] output; if (");
+      parts.add("try {java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream(); final byte[] output; if (");
       parts.add(") output = null; else output =");
       parts.add(".encode(");
-      parts.add(", baos); baos.toByteArray();");
+      parts.add(", baos); baos.toByteArray();} catch (Exception e) {throw new RuntimeException(org.apache.beam.sdk.util.UserCodeException.wrap(e));}");
 
       StringContext sc = new StringContext(JavaConversions.collectionAsScalaIterable(parts).toSeq());
 
@@ -258,21 +262,25 @@ public class EncoderHelpers {
 
 /*
      CODE GENERATED:
-     final $javaType output =
-     ${input.isNull} ?
-     ${CodeGenerator.defaultValue(dataType)} :
-     ($javaType) $beamCoder.decode(new ByteArrayInputStream(${input.value}));
+     try {
+      final $javaType output =
+      ${input.isNull} ?
+      ${CodeGenerator.defaultValue(dataType)} :
+      ($javaType) $beamCoder.decode(new java.io.ByteArrayInputStream(${input.value}));
+     } catch (IOException e) {
+      throw new RuntimeException(org.apache.beam.sdk.util.UserCodeException.wrap(e));
+     }
 */
 
       List<String> parts = new ArrayList<>();
-      parts.add("final ");
+      parts.add("try { final ");
       parts.add(" output =");
       parts.add("?");
       parts.add(":");
       parts.add("(");
       parts.add(") ");
-      parts.add(".decode(new ByteArrayInputStream(");
-      parts.add("));");
+      parts.add(".decode(new java.io.ByteArrayInputStream(");
+      parts.add("));  } catch (IOException e) {throw new RuntimeException(org.apache.beam.sdk.util.UserCodeException.wrap(e));}");
 
       StringContext sc = new StringContext(JavaConversions.collectionAsScalaIterable(parts).toSeq());
 
