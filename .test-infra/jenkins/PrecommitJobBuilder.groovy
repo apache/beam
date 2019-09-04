@@ -76,7 +76,7 @@ class PrecommitJobBuilder {
     }
     job.with {
       description buildDescription('for each commit push.')
-      //concurrentBuild()
+      concurrentBuild()
       commonJobProperties.setPullRequestBuildTrigger(delegate,
         githubUiHint(),
         '',
