@@ -20,6 +20,103 @@
     <generator>Jekyll v3.2.0</generator>
     
       <item>
+        <title>Google Summer of Code '19</title>
+        <description>&lt;!--
+Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+
+&lt;p&gt;Google Summer of Code was an amazing learning experience for me.
+I contributed to open source, learned about Apache Beam’s internals and worked with the best engineers in the world.&lt;/p&gt;
+
+&lt;!--more--&gt;
+
+&lt;h2 id=&quot;motivation&quot;&gt;Motivation&lt;/h2&gt;
+&lt;p&gt;Two of my friends had participated in GSoC in 2018. I was intrigued by their experience.
+The idea of working on open-source software that could potentially be used by developers across the world, while being mentored by the best people in a field was exciting!
+So, I decided to give Google Summer of Code a shot this year.&lt;/p&gt;
+
+&lt;h2 id=&quot;what-is-google-summer-of-code&quot;&gt;What is Google Summer of Code?&lt;/h2&gt;
+&lt;p&gt;&lt;a href=&quot;https://summerofcode.withgoogle.com/&quot;&gt;Google Summer of Code&lt;/a&gt; is a global program hosted by Google focused on introducing students to open source software development.
+Students work on a 3 month programming project with an open source organization during their break from university.&lt;/p&gt;
+
+&lt;h2 id=&quot;why-apache-beam&quot;&gt;Why Apache Beam?&lt;/h2&gt;
+&lt;p&gt;While interning at &lt;a href=&quot;https://atlan.com/&quot;&gt;Atlan&lt;/a&gt;, I discovered the field of Data Engineering. I found the challenges and the discussions of the engineers there interesting. While researching for my internship project, I came across the Streaming Systems book. It introduced me to the unified model of Apache Beam for Batch and Streaming Systems, which I was fascinated by.
+I wanted to explore Data Engineering, so for GSoC, I wanted to work on a project in that field. Towards the end of my internship, I started contributing to Apache Airflow(very cool project) and Apache Beam, hoping one of them would participate in GSoC. I got lucky!&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://youtu.be/U2eWLb-LD44&quot;&gt;Also, Spotify’s Discover Weekly uses Apache Beam!&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;preparation&quot;&gt;Preparation&lt;/h2&gt;
+&lt;p&gt;I had already read the &lt;a href=&quot;http://streamingsystems.net/&quot;&gt;Streaming Systems book&lt;/a&gt;. So, I had an idea of the concepts that Beam is built on, but had never actually used Beam.
+Before actually submitting a proposal, I went through a bunch of resources to make sure I had a concrete understanding of Beam.
+I read the &lt;a href=&quot;https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101&quot;&gt;Streaming 101&lt;/a&gt; and &lt;a href=&quot;https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102&quot;&gt;Streaming 102&lt;/a&gt; blogs by Tyler Akidau. They are the perfect introduction to Beam’s unified model for Batch and Streaming.
+In addition, I watched all Beam talks on YouTube. You can find them on the &lt;a href=&quot;https://beam.apache.org/documentation/resources/videos-and-podcasts/&quot;&gt;Beam Website&lt;/a&gt;.
+Beam has really good documentation. The &lt;a href=&quot;https://beam.apache.org/documentation/programming-guide/&quot;&gt;Programming Guide&lt;/a&gt; lays out all of Beam’s concepts really well. &lt;a href=&quot;https://beam.apache.org/documentation/execution-model/&quot;&gt;Beam’s execution model&lt;/a&gt; is also documented well and is a must-read to understand how Beam processes data.
+&lt;a href=&quot;https://www.waitingforcode.com/apache-beam&quot;&gt;waitingforcode.com&lt;/a&gt; also has good blog posts about Beam concepts.
+To get a better sense of the Beam codebase, I played around with it and worked on some PRs to understand Beam better and got familiar with the test suite and workflows.&lt;/p&gt;
+
+&lt;h2 id=&quot;gsoc-journey&quot;&gt;GSoC Journey&lt;/h2&gt;
+&lt;p&gt;GSoC has 2 phases. The first is the Community Bonding period in which students get familiar with the project and the community. The other is the actual Coding Period in which students work on their projects. Since the Coding Period has three evaluations spaced out by a month, I divided my project into three parts focusing on the implementation, tests, and documentation or improvements.&lt;/p&gt;
+
+&lt;h3 id=&quot;project&quot;&gt;Project&lt;/h3&gt;
+&lt;p&gt;My project(&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-6611&quot;&gt;BEAM-6611&lt;/a&gt;) added support for File Loads method of inserting data into BigQuery for streaming pipelines. It builds on PR - &lt;a href=&quot;https://github.com/apache/beam/pull/7655&quot;&gt;#7655&lt;/a&gt; for &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-6553&quot;&gt;BEAM-6553&lt;/a&gt; that added support in the Python SDK for writing to BigQuery using File Loads method for Batch pipelines. Streaming pipelines with non-default Windowing, Triggering and Accumulation mode can write data to BigQuery using file loads method. In case of failure, the pipeline will fail atomically. This means that each record will be loaded into BigQuery at-most-once.
+You can find my proposal &lt;a href=&quot;https://docs.google.com/document/d/15Peyd3Z_wu5rvGWw8lMLpZuTyyreM_JOAEFFWvF97YY/edit?usp=sharing&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;community-bonding&quot;&gt;Community Bonding&lt;/h3&gt;
+&lt;p&gt;When GSoC started, my semester end exams had not yet finished. As a result, I couldn’t get much done. I worked on three PTransforms for the Python SDK - Latest, WithKeys and Reify.&lt;/p&gt;
+
+&lt;h3 id=&quot;coding-period-i&quot;&gt;Coding Period I&lt;/h3&gt;
+&lt;p&gt;In this period, I wrote some Integration Tests for the BigQuery sink using Streaming Inserts in streaming mode. I worked on a failing integration test for my project. I also finished the implementation of my project. But, one PostCommit test didn’t pass. I realized that the matcher for the Integration Test that queried BigQuery for the results was intended to be used in Batch mode. So, I wrote a version of the matcher to work in streaming mode.&lt;/p&gt;
+
+&lt;h3 id=&quot;coding-period-ii&quot;&gt;Coding Period II&lt;/h3&gt;
+&lt;p&gt;Even after I had added the matcher for streaming mode, the PostComit tests did not pass. A test was being run even though it was not specified. I isolated the failure to a &lt;a href=&quot;https://nose.readthedocs.io/en/latest/doc_tests/test_multiprocess/multiprocess.html#other-differences-in-test-running&quot;&gt;limitation&lt;/a&gt; of the multiprocess plugin for &lt;a href=&quot;https://nose.readthedocs.io/en/latest/&quot;&gt;nose(a Python test framework)&lt;/a&gt; due to which it found more tests than had been specified. It took me a while to figure this out. In this period, changes for my project got merged.
+I also worked on small issues related to testing.&lt;/p&gt;
+
+&lt;p&gt;This period was marked by a few exciting events:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Ending up in the top #100 contributors to apache/beam.&lt;/li&gt;
+  &lt;li&gt;My first ever PR Review on an open source project.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://pbs.twimg.com/media/D_XNSC-UIAUmswG?format=png&amp;amp;name=small&quot; alt=&quot;Weird flex but ok&quot; /&gt;&lt;/p&gt;
+
+&lt;h3 id=&quot;coding-period-iii&quot;&gt;Coding Period III&lt;/h3&gt;
+&lt;p&gt;This was the final coding period before the program ended. Since my project was merged earlier than expected, my mentor suggested another issue(&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7742&quot;&gt;BEAM-7742&lt;/a&gt;) in the same area - BigQueryIO, that I found interesting. So, I worked on partitioning written files in BigQuery to ensure that all load jobs triggered adhere to the load job size limitations specified for BigQuery.
+While working on my project, I was using a pipeline that uses PubSub as a source and BigQuery as a sink to validate my changes. My mentor suggested we add them to the Beam test suite as it would be the ultimate test for BigQueryIO. I also worked on adding this test to Beam.&lt;/p&gt;
+
+&lt;p&gt;You can find the list of PRs I worked on &lt;a href=&quot;https://github.com/apache/beam/pulls?utf8=%E2%9C%93&amp;amp;q=is%3Apr+author%3Attanay&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;GSoC has been a lesson in discipline and goal-setting for me. Deciding what I wanted to work on and how much I wanted to get done each week was an important lesson.
+I had never worked remotely, so this was a new experience. Although I struggled with it initially, I appreciate the flexibility that it comes with.
+I also had a lot of fun learning about Apache Beam’s internals, and other tools in the same ecosystem.
+This was also the first time I had written code with a test-first approach.&lt;/p&gt;
+
+&lt;p&gt;I thank my mentor - Pablo Estrada, Apache Beam, The Apache Software Foundation and Google Summer of Code for this opportunity. I am also grateful to my mentor for helping me with everything I needed and more, and the Apache Beam community for being supportive and encouraging.&lt;/p&gt;
+
+&lt;p&gt;With the right effort, perseverance, conviction, and a plan, anything is possible. Anything.&lt;/p&gt;
+</description>
+        <pubDate>Wed, 04 Sep 2019 01:00:01 -0700</pubDate>
+        <link>https://beam.apache.org/blog/2019/09/04/gsoc-19.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2019/09/04/gsoc-19.html</guid>
+        
+        
+        <category>blog</category>
+        
+        <category>gsoc</category>
+        
+      </item>
+    
+      <item>
         <title>Apache Beam 2.15.0</title>
         <description>&lt;!--
 Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -1208,71 +1305,6 @@ Valentyn Tymofieiev, Xinyu Liu, Yifan Zou, Yueyang Qiu&lt;/p&gt;
         <pubDate>Thu, 25 Apr 2019 01:00:01 -0700</pubDate>
         <link>https://beam.apache.org/blog/2019/04/25/beam-2.12.0.html</link>
         <guid isPermaLink="true">https://beam.apache.org/blog/2019/04/25/beam-2.12.0.html</guid>
-        
-        
-        <category>blog</category>
-        
-      </item>
-    
-      <item>
-        <title>Apache Beam is applying to Season of Docs</title>
-        <description>&lt;!--
-Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---&gt;
-
-&lt;p&gt;The Apache Beam community is thrilled to announce its application to the first edition of  Season of Docs 2019!&lt;/p&gt;
-
-&lt;!--more--&gt;
-
-&lt;p&gt;&lt;img src=&quot;/images/blog/SoD.png&quot; alt=&quot;Season of Docs 2019 flyer&quot; height=&quot;455&quot; width=&quot;640&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://developers.google.com/season-of-docs/&quot;&gt;Season of Docs&lt;/a&gt; is a unique program that pairs technical writers with open source mentors to contribute to open source. This creates an opportunity to introduce the technical writer to an open source community and provide guidance while the writer works on a real world open source project. We, in the Apache Beam community, would love to take this chance and invite technical writers to collaborate with us, and help us improve our documentation in many ways.&lt;/p&gt;
-
-&lt;p&gt;Apache Beam does have help from excellent technical writers, but the documentation needs of the project often exceed their bandwidth. This is why we are excited about this program.&lt;/p&gt;
-
-&lt;p&gt;After discussing ideas in the community, we have been able to find mentors, and frame two ideas that we think would be a great fit for an incoming tech writer to tackle. We hope you will find this opportunity interesting - and if you do, please get in touch by emailing the Apache Beam mailing list at &lt;a href=&quot;mailto:dev@beam.apache.org&quot;&gt;dev@beam.apache.org&lt;/a&gt; (you will need to subscribe first by emailing to &lt;a href=&quot;mailto:dev-subscribe@beam.apache.org&quot;&gt;dev-subscribe@beam.apache.org&lt;/a&gt;).&lt;/p&gt;
-
-&lt;p&gt;The project ideas available in Apache Beam are described below. Please take a look and ask any questions that you may have. We will be very happy to help you get onboarded with the project.&lt;/p&gt;
-
-&lt;h3 id=&quot;project-ideas&quot;&gt;Project ideas&lt;/h3&gt;
-
-&lt;p&gt;&lt;strong&gt;Deployment of Flink and Spark Clusters for use with Portable Beam&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;The Apache Beam vision has been to provide a framework for users to write and execute pipelines on the programming language of your choice, and the runner of your choice. As the reality of Beam has evolved towards this vision, the way in which Beam is run on top of runners such as Apache Spark and Apache Flink has changed.&lt;/p&gt;
-
-&lt;p&gt;These changes are documented in the wiki and in design documents, and are accessible for Beam contributors; but they are not available in the user-facing documentation. This has been a barrier of adoption for other users of Beam.&lt;/p&gt;
-
-&lt;p&gt;This project involves improving the &lt;a href=&quot;https://beam.apache.org/documentation/runners/flink/&quot;&gt;Flink Runner page&lt;/a&gt; to include strategies to deploy Beam on a few different environments: A Kubernetes cluster, a Google Cloud Dataproc cluster, and an AWS EMR cluster. There are other places in the documentation that should be updated in this regard, such as the &lt;a href=&quot;https://beam.apache.org/documentation/sdks/python-streaming/&quot;&gt;Python streaming&lt;/a&gt; section, and the &lt;a href=&quot;https://beam.apache.org/documentation/sdks/python-streaming/#unsupported-features&quot;&gt;set of supported features&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;After working on the Flink Runner, then similar updates should be made to the &lt;a href=&quot;https://beam.apache.org/documentation/runners/spark/&quot;&gt;Spark Runner page&lt;/a&gt;, and the &lt;a href=&quot;https://beam.apache.org/get-started/beam-overview/&quot;&gt;getting started documentation&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;The runner comparison page / capability matrix update&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;Beam maintains a &lt;a href=&quot;https://beam.apache.org/documentation/runners/capability-matrix/&quot;&gt;capability matrix&lt;/a&gt; to track which Beam features are supported by which set of language SDKs + Runners.
-This project involves a number of &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-2888&quot;&gt;corrections and improvements to the capability matrix&lt;/a&gt;; followed by a few larger set of changes, involving:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Plain english summaries for each runner’s support of the Beam model.&lt;/li&gt;
-  &lt;li&gt;A paragraph-length description of the production-readiness for each runner.&lt;/li&gt;
-  &lt;li&gt;Comparisons for non-model differences between runners.&lt;/li&gt;
-  &lt;li&gt;Comparison for support of the portability framework for each runner.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Thank you, and we are looking forward to hearing from you!&lt;/p&gt;
-</description>
-        <pubDate>Fri, 19 Apr 2019 01:00:01 -0700</pubDate>
-        <link>https://beam.apache.org/blog/2019/04/19/season-of-docs.html</link>
-        <guid isPermaLink="true">https://beam.apache.org/blog/2019/04/19/season-of-docs.html</guid>
         
         
         <category>blog</category>
