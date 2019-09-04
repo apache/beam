@@ -1735,7 +1735,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def serviceArgs = project.project(':sdks:python').mapToArgString(expansionServiceOpts)
       def setupTask = project.tasks.create(name: config.name+"Setup", type: Exec) {
         dependsOn ':sdks:java:container:docker'
-        dependsOn ':sdks:python:container:docker'
+        dependsOn ':sdks:python:container:buildAll'
         dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
         dependsOn ":sdks:python:installGcpTest"
         // setup test env
@@ -1990,8 +1990,10 @@ class BeamModulePlugin implements Plugin<Project> {
           dependsOn = ['installGcpTest']
           mustRunAfter = [
             ':runners:flink:1.5:job-server-container:docker',
-            ':sdks:python:container:docker',
-            ':sdks:python:container:py3:docker'
+            ':sdks:python:container:py2:docker',
+            ':sdks:python:container:py35:docker',
+            ':sdks:python:container:py36:docker',
+            ':sdks:python:container:py37:docker'
           ]
           doLast {
             // TODO: Figure out GCS credentials and use real GCS input and output.
