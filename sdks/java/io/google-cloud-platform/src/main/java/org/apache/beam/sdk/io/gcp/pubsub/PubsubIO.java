@@ -559,6 +559,21 @@ public class PubsubIO {
   }
 
   /**
+   * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream,
+   * mapping each {@link PubsubMessage} into type T using the supplied parse function and coder.
+   */
+  public static <T> Read<T> readMessagesWithCoderAndParseFn(
+      Coder<T> coder, SimpleFunction<PubsubMessage, T> parseFn) {
+    return new AutoValue_PubsubIO_Read.Builder<T>()
+        .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
+        .setPubsubClientFactory(FACTORY)
+        .setCoder(coder)
+        .setParseFn(parseFn)
+        .build();
+  }
+
+  /**
    * Returns a {@link PTransform} that continuously reads binary encoded Avro messages into the Avro
    * {@link GenericRecord} type.
    *
