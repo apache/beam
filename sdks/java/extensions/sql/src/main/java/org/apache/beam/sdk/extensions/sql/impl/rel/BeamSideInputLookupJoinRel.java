@@ -34,6 +34,30 @@ import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rex.RexNode;
 
+/**
+ * A {@code BeamJoinRel} which does Lookup Join
+ *
+ * <p>This Join Covers the case:
+ *
+ * <ul>
+ *   <li>SeekableTable JOIN non SeekableTable
+ * </ul>
+ *
+ * <p>As Join is implemented as lookup, there are some constraints:
+ *
+ * <ul>
+ *   <li>{@code FULL OUTER JOIN} is not supported.
+ *   <li>If it's a {@code LEFT OUTER JOIN}, the non Seekable table should on the left side.
+ *   <li>If it's a {@code RIGHT OUTER JOIN}, the non Seekable table should on the right side.
+ * </ul>
+ *
+ * <p>General constraints:
+ *
+ * <ul>
+ *   <li>Only equi-join is supported.
+ *   <li>CROSS JOIN is not supported.
+ * </ul>
+ */
 public class BeamSideInputLookupJoinRel extends BeamJoinRel {
 
   public BeamSideInputLookupJoinRel(
@@ -49,7 +73,22 @@ public class BeamSideInputLookupJoinRel extends BeamJoinRel {
 
   @Override
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
-    // Should we throw Exception when joinType is LEFT (or) RIGHT (or) FULL?
+    // if one of the sides is Seekable & the other is non Seekable
+    // then do a sideInputLookup join.
+    // When doing a sideInputLookup join, the windowFn does not need to match.
+    // Only support INNER JOIN & LEFT OUTER JOIN where left side of the join must be
+    // non Seekable & RIGHT OUTER JOIN where right side of the join must be non Seekable
+    if (joinType == JoinRelType.FULL) {
+      throw new UnsupportedOperationException(
+          "FULL OUTER JOIN is not supported when join "
+              + "a Seekable table with a non Seekable table.");
+    }
+
+    if ((joinType == JoinRelType.LEFT && seekableInputIndex().get() == 0)
+        || (joinType == JoinRelType.RIGHT && seekableInputIndex().get() == 1)) {
+      throw new UnsupportedOperationException(
+          String.format("%s side of an OUTER JOIN must be a non Seekable table.", joinType.name()));
+    }
     return new SideInputLookupJoin();
   }
 

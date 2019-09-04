@@ -104,6 +104,14 @@ public class TestUtils {
       return builder;
     }
 
+    public static RowsBuilder ofNullable(final Object... args) {
+      Schema beamSQLSchema = TestTableUtils.buildBeamSqlNullableSchema(args);
+      RowsBuilder builder = new RowsBuilder();
+      builder.type = beamSQLSchema;
+
+      return builder;
+    }
+
     /**
      * Create a RowsBuilder with the specified row type info.
      *
