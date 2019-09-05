@@ -65,16 +65,16 @@ public class PipelineResources {
    * @return A list of absolute paths to the resources the class loader uses.
    */
   @VisibleForTesting
-  static List<String> detectClassPathResourcesToStage(ClassLoader loader) {
+  static List<String> detectClassPathResourcesToStage(final ClassLoader loader) {
     Set<String> files = new HashSet<>();
     ClassLoader stoppingLoader = loader;
     ClassLoader currentLoader = ReflectHelpers.findClassLoader();
+    if (loader != null) {
+      files.addAll(extractResourcesFromClassLoader(loader));
+    }
     while (currentLoader != null && stoppingLoader != currentLoader) {
       files.addAll(extractResourcesFromClassLoader(currentLoader));
       currentLoader = currentLoader.getParent();
-    }
-    if (loader != null) {
-      files.addAll(extractResourcesFromClassLoader(loader));
     }
     if (files.isEmpty()) {
       throw new IllegalArgumentException("Unable to use ClassLoader to detect classpath elements.");
