@@ -258,8 +258,8 @@ available.
 
 <span class="language-py">
 The JobService is the central instance where you submit your Beam pipeline to.
-The JobService will create a Flink job for the pipeline and execute the job
-job. To execute the job on a Flink cluster, the Beam JobService needs to be
+The JobService will create a Flink job for the pipeline and execute the job.
+To execute the job on a Flink cluster, the Beam JobService needs to be
 provided with the Flink JobManager address.
 </span>
 
