@@ -63,7 +63,8 @@ class PValue(object):
     (3) Has a value which is meaningful if the transform was executed.
   """
 
-  def __init__(self, pipeline, tag=None, element_type=None, windowing=None):
+  def __init__(self, pipeline, tag=None, element_type=None, windowing=None,
+               is_bounded=True):
     """Initializes a PValue with all arguments hidden behind keyword arguments.
 
     Args:
@@ -78,6 +79,7 @@ class PValue(object):
     # generating this PValue. The field gets initialized when a transform
     # gets applied.
     self.producer = None
+    self.is_bounded = is_bounded
     if windowing:
       self._windowing = windowing
 
@@ -142,11 +144,21 @@ class PCollection(PValue, typing.Generic[typing.TypeVar('T')]):
     # of a closure).
     return _InvalidUnpickledPCollection, ()
 
+  @staticmethod
+  def from_(pcoll):
+    """Create a PCollection, using another PCollection as a starting point.
+
+    Transfers relevant attributes.
+    """
+    return PCollection(pcoll.pipeline, is_bounded=pcoll.is_bounded)
+
   def to_runner_api(self, context):
     return beam_runner_api_pb2.PCollection(
         unique_name=self._unique_name(),
         coder_id=context.coder_id_from_element_type(self.element_type),
-        is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED,
+        is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
+        if self.is_bounded
+        else beam_runner_api_pb2.IsBounded.UNBOUNDED,
         windowing_strategy_id=context.windowing_strategies.get_id(
             self.windowing))
 
@@ -165,7 +177,8 @@ class PCollection(PValue, typing.Generic[typing.TypeVar('T')]):
         None,
         element_type=context.element_type_from_coder_id(proto.coder_id),
         windowing=context.windowing_strategies.get_by_id(
-            proto.windowing_strategy_id))
+            proto.windowing_strategy_id),
+        is_bounded=proto.is_bounded == beam_runner_api_pb2.IsBounded.BOUNDED)
 
 
 class _InvalidUnpickledPCollection(object):

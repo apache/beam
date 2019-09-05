@@ -38,7 +38,7 @@ class FlinkStreamingImpulseSource(PTransform):
   def expand(self, pbegin):
     assert isinstance(pbegin, pvalue.PBegin), (
         'Input to transform must be a PBegin but found %s' % pbegin)
-    return pvalue.PCollection(pbegin.pipeline)
+    return pvalue.PCollection(pbegin.pipeline, is_bounded=False)
 
   def get_windowing(self, inputs):
     return Windowing(GlobalWindows())
