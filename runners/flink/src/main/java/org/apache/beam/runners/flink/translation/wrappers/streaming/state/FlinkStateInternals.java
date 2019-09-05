@@ -109,7 +109,7 @@ public class FlinkStateInternals<K> implements StateInternals {
     keyBytes.get(bytes);
     keyBytes.position(keyBytes.position() - bytes.length);
     try {
-      return CoderUtils.decodeFromByteArray(keyCoder, bytes);
+      return CoderUtils.decodeFromByteArray(keyCoder, bytes, Coder.Context.NESTED);
     } catch (CoderException e) {
       throw new RuntimeException("Error decoding key.", e);
     }

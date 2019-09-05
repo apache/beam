@@ -44,7 +44,10 @@ public class FlinkKeyUtils {
     checkNotNull(keyCoder, "Provided coder must not be null");
     final byte[] keyBytes;
     try {
-      keyBytes = CoderUtils.encodeToByteArray(keyCoder, key);
+      // We use nested here to make sure the same logic with the get key logic at the portability
+      // layer. We currently use NESTED everywhere in the Beam portability APIs since NESTED vs
+      // OUTER becomes quite complicated and extremely error prone.
+      keyBytes = CoderUtils.encodeToByteArray(keyCoder, key, Coder.Context.NESTED);
     } catch (Exception e) {
       throw new RuntimeException(String.format(Locale.ENGLISH, "Failed to encode key: %s", key), e);
     }
@@ -59,7 +62,7 @@ public class FlinkKeyUtils {
     @SuppressWarnings("ByteBufferBackingArray")
     final byte[] keyBytes = byteBuffer.array();
     try {
-      return CoderUtils.decodeFromByteArray(keyCoder, keyBytes);
+      return CoderUtils.decodeFromByteArray(keyCoder, keyBytes, Coder.Context.NESTED);
     } catch (Exception e) {
       throw new RuntimeException(
           String.format(
