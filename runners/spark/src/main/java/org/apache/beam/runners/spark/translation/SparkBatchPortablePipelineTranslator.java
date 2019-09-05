@@ -41,7 +41,6 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
-import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
@@ -254,7 +253,7 @@ public class SparkBatchPortablePipelineTranslator {
               stagePayload,
               context.jobInfo,
               outputExtractionMap,
-              ExecutableStageContext.factory(),
+              SparkExecutableStageContextFactory.getInstance(),
               broadcastVariablesBuilder.build(),
               MetricsAccumulator.getInstance(),
               windowCoder);
@@ -266,7 +265,7 @@ public class SparkBatchPortablePipelineTranslator {
               stagePayload,
               context.jobInfo,
               outputExtractionMap,
-              ExecutableStageContext.factory(),
+              SparkExecutableStageContextFactory.getInstance(),
               broadcastVariablesBuilder.build(),
               MetricsAccumulator.getInstance(),
               windowCoder);

@@ -19,18 +19,13 @@ package org.apache.beam.runners.fnexecution.control;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
 /** Implementation of a {@link ExecutableStageContext}. */
-class DefaultExecutableStageContext implements ExecutableStageContext, AutoCloseable {
+public class DefaultExecutableStageContext implements ExecutableStageContext, AutoCloseable {
   private final JobBundleFactory jobBundleFactory;
 
   private static DefaultExecutableStageContext create(JobInfo jobInfo) {
@@ -52,13 +47,21 @@ class DefaultExecutableStageContext implements ExecutableStageContext, AutoClose
     jobBundleFactory.close();
   }
 
-  private static class JobFactoryState {
+  /**
+   * {@link ExecutableStageContext.Factory} that creates and round-robins between a number of child
+   * {@link ExecutableStageContext.Factory} instances.
+   */
+  public static class MultiInstanceFactory implements ExecutableStageContext.Factory {
+
     private int index = 0;
     private final List<ReferenceCountingExecutableStageContextFactory> factories =
         new ArrayList<>();
     private final int maxFactories;
+    private final SerializableFunction<Object, Boolean> isReleaseSynchronous;
 
-    private JobFactoryState(int maxFactories) {
+    public MultiInstanceFactory(
+        int maxFactories, SerializableFunction<Object, Boolean> isReleaseSynchronous) {
+      this.isReleaseSynchronous = isReleaseSynchronous;
       Preconditions.checkArgument(maxFactories >= 0, "sdk_worker_parallelism must be >= 0");
 
       if (maxFactories == 0) {
@@ -77,7 +80,7 @@ class DefaultExecutableStageContext implements ExecutableStageContext, AutoClose
       if (factories.size() < maxFactories) {
         factory =
             ReferenceCountingExecutableStageContextFactory.create(
-                DefaultExecutableStageContext::create);
+                DefaultExecutableStageContext::create, isReleaseSynchronous);
         factories.add(factory);
       } else {
         factory = factories.get(index);
@@ -87,35 +90,10 @@ class DefaultExecutableStageContext implements ExecutableStageContext, AutoClose
 
       return factory;
     }
-  }
-
-  enum MultiInstanceFactory implements Factory {
-    MULTI_INSTANCE;
-
-    // This map should only ever have a single element, as each job will have its own
-    // classloader and therefore its own instance of MultiInstanceFactory.INSTANCE. This
-    // code supports multiple JobInfos in order to provide a sensible implementation of
-    // Factory.get(JobInfo), which in theory could be called with different JobInfos.
-    private static final ConcurrentMap<String, JobFactoryState> jobFactories =
-        new ConcurrentHashMap<>();
 
     @Override
-    public ExecutableStageContext get(
-        JobInfo jobInfo, SerializableFunction<Object, Boolean> isReleaseSynchronous) {
-      JobFactoryState state =
-          jobFactories.computeIfAbsent(
-              jobInfo.jobId(),
-              k -> {
-                PortablePipelineOptions portableOptions =
-                    PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())
-                        .as(PortablePipelineOptions.class);
-
-                return new JobFactoryState(
-                    MoreObjects.firstNonNull(portableOptions.getSdkWorkerParallelism(), 1L)
-                        .intValue());
-              });
-
-      return state.getFactory().get(jobInfo, isReleaseSynchronous);
+    public ExecutableStageContext get(JobInfo jobInfo) {
+      return getFactory().get(jobInfo);
     }
   }
 }

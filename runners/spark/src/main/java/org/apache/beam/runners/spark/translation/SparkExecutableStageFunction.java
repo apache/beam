@@ -84,7 +84,7 @@ class SparkExecutableStageFunction<InputT, SideInputT>
 
   private final RunnerApi.ExecutableStagePayload stagePayload;
   private final Map<String, Integer> outputMap;
-  private final ExecutableStageContext.Factory contextFactory;
+  private final SparkExecutableStageContextFactory contextFactory;
   // map from pCollection id to tuple of serialized bytes and coder to decode the bytes
   private final Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>>
       sideInputs;
@@ -99,7 +99,7 @@ class SparkExecutableStageFunction<InputT, SideInputT>
       RunnerApi.ExecutableStagePayload stagePayload,
       JobInfo jobInfo,
       Map<String, Integer> outputMap,
-      ExecutableStageContext.Factory contextFactory,
+      SparkExecutableStageContextFactory contextFactory,
       Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>> sideInputs,
       MetricsContainerStepMapAccumulator metricsAccumulator,
       Coder windowCoder) {

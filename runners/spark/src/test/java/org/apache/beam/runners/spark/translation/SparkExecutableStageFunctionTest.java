@@ -56,7 +56,7 @@ import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link SparkExecutableStageFunction}. */
 public class SparkExecutableStageFunctionTest {
-  @Mock private ExecutableStageContext.Factory contextFactory;
+  @Mock private SparkExecutableStageContextFactory contextFactory;
   @Mock private ExecutableStageContext stageContext;
   @Mock private StageBundleFactory stageBundleFactory;
   @Mock private RemoteBundle remoteBundle;
