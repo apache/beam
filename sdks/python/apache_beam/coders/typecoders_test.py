@@ -142,7 +142,5 @@ class TypeCodersTest(unittest.TestCase):
                   type(expected_coder.decode(expected_coder.encode(values))))
 
 
-
-
 if __name__ == '__main__':
   unittest.main()
