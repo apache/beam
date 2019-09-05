@@ -84,13 +84,12 @@ class PortableRunner(runner.PipelineRunner):
                       'has Python %d.%d interpreter.' % (
                           sys.version_info[0], sys.version_info[1]))
 
-      # Perhaps also test if this was built?
-      image = ('{user}-docker-apache.bintray.io/beam/python'
-               '{version_suffix}:latest'.format(
-                   user=os.environ['USER'],
-                   version_suffix=version_suffix))
+      image = ('apachebeam/python{version_suffix}_sdk:latest'.format(
+          version_suffix=version_suffix))
       logging.info(
-          'Using latest locally built Python SDK docker image: %s.' % image)
+          'Using latest built Python SDK docker image: %s. If the image is not '
+          'available at local, it will be pulled from docker.io/apachebeam/'
+          'python%s_sdk repository.' % (image, version_suffix))
       return image
 
     else:
