@@ -97,7 +97,7 @@ class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):
     pubsub_msg_verifier = PubSubMessageMatcher(self.project,
                                                self.output_sub.name,
                                                expected_msg,
-                                               timeout=600)
+                                               timeout=900)
 
     # Checks that pipeline initializes to RUNNING state.
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
