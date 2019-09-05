@@ -176,7 +176,8 @@ public class GroupByKeyOp<K, InputT, OutputT>
             null,
             Collections.emptyMap(),
             windowingStrategy,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     final SamzaExecutionContext executionContext =
         (SamzaExecutionContext) context.getApplicationContainerContext();

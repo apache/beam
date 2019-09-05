@@ -115,7 +115,7 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
         factory.getReplacementTransform(application);
     ParDoSingle<Integer, Long> parDoSingle =
         (ParDoSingle<Integer, Long>) replacementTransform.getTransform();
-    assertThat(parDoSingle.getSideInputs(), containsInAnyOrder(sideStrings, sideLong));
+    assertThat(parDoSingle.getSideInputs().values(), containsInAnyOrder(sideStrings, sideLong));
   }
 
   @Test

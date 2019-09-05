@@ -79,6 +79,7 @@ import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -396,6 +397,9 @@ public final class StreamingTransformTranslator {
         final DoFnSchemaInformation doFnSchemaInformation =
             ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
 
+        final Map<String, PCollectionView<?>> sideInputMapping =
+            ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
+
         final String stepName = context.getCurrentTransform().getFullName();
         JavaPairDStream<TupleTag<?>, WindowedValue<?>> all =
             dStream.transformToPair(
@@ -405,7 +409,7 @@ public final class StreamingTransformTranslator {
                   final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>>
                       sideInputs =
                           TranslationUtils.getSideInputs(
-                              transform.getSideInputs(),
+                              transform.getSideInputs().values(),
                               JavaSparkContext.fromSparkContext(rdd.context()),
                               pviews);
 
@@ -422,7 +426,8 @@ public final class StreamingTransformTranslator {
                           sideInputs,
                           windowingStrategy,
                           false,
-                          doFnSchemaInformation));
+                          doFnSchemaInformation,
+                          sideInputMapping));
                 });
 
         Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);
@@ -475,12 +480,11 @@ public final class StreamingTransformTranslator {
         @SuppressWarnings("unchecked")
         final WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
 
-        final WindowedValue.WindowedValueCoder<V> wvCoder =
-            WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
+        final WindowedValue.WindowedValueCoder<KV<K, V>> wvCoder =
+            WindowedValue.FullWindowedValueCoder.of(coder, windowFn.windowCoder());
 
         JavaDStream<WindowedValue<KV<K, V>>> reshuffledStream =
-            dStream.transform(
-                rdd -> GroupCombineFunctions.reshuffle(rdd, coder.getKeyCoder(), wvCoder));
+            dStream.transform(rdd -> GroupCombineFunctions.reshuffle(rdd, wvCoder));
 
         context.putDataset(transform, new UnboundedDataset<>(reshuffledStream, streamSources));
       }

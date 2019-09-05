@@ -29,7 +29,7 @@ PUBLISHED_FLINK_VERSIONS = ['1.6', '1.7', '1.8']
 
 class FlinkRunner(portable_runner.PortableRunner):
   def default_job_server(self, options):
-    return FlinkJarJobServer(options)
+    return job_server.StopOnExitJobServer(FlinkJarJobServer(options))
 
 
 class FlinkRunnerOptions(pipeline_options.PipelineOptions):

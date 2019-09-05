@@ -23,10 +23,117 @@ import unittest
 
 import mock
 
-from apache_beam.examples.snippets.transforms.element_wise.regex import *
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+
+from . import regex
+
+
+def check_matches(actual):
+  # [START plants_matches]
+  plants_matches = [
+      '🍓,   Strawberry,   perennial',
+      '🥕, Carrot, biennial',
+      '🍆, Eggplant, perennial',
+      '🍅, Tomato, annual',
+      '🥔,Potato,perennial',
+  ]
+  # [END plants_matches]
+  assert_that(actual, equal_to(plants_matches))
+
+
+def check_all_matches(actual):
+  # [START plants_all_matches]
+  plants_all_matches = [
+      ['🍓,   Strawberry,   perennial', '🍓', 'Strawberry', 'perennial'],
+      ['🥕, Carrot, biennial', '🥕', 'Carrot', 'biennial'],
+      ['🍆, Eggplant, perennial', '🍆', 'Eggplant', 'perennial'],
+      ['🍅, Tomato, annual', '🍅', 'Tomato', 'annual'],
+      ['🥔,Potato,perennial', '🥔', 'Potato', 'perennial'],
+  ]
+  # [END plants_all_matches]
+  assert_that(actual, equal_to(plants_all_matches))
+
+
+def check_matches_kv(actual):
+  # [START plants_matches_kv]
+  plants_matches_kv = [
+      ('🍓', '🍓,   Strawberry,   perennial'),
+      ('🥕', '🥕, Carrot, biennial'),
+      ('🍆', '🍆, Eggplant, perennial'),
+      ('🍅', '🍅, Tomato, annual'),
+      ('🥔', '🥔,Potato,perennial'),
+  ]
+  # [END plants_matches_kv]
+  assert_that(actual, equal_to(plants_matches_kv))
+
+
+def check_find_all(actual):
+  # [START plants_find_all]
+  plants_find_all = [
+      ['🍓,   Strawberry,   perennial'],
+      ['🥕, Carrot, biennial'],
+      ['🍆, Eggplant, perennial', '🍌, Banana, perennial'],
+      ['🍅, Tomato, annual', '🍉, Watermelon, annual'],
+      ['🥔,Potato,perennial'],
+  ]
+  # [END plants_find_all]
+  assert_that(actual, equal_to(plants_find_all))
+
+
+def check_find_kv(actual):
+  # [START plants_find_kv]
+  plants_find_all = [
+      ('🍓', '🍓,   Strawberry,   perennial'),
+      ('🥕', '🥕, Carrot, biennial'),
+      ('🍆', '🍆, Eggplant, perennial'),
+      ('🍌', '🍌, Banana, perennial'),
+      ('🍅', '🍅, Tomato, annual'),
+      ('🍉', '🍉, Watermelon, annual'),
+      ('🥔', '🥔,Potato,perennial'),
+  ]
+  # [END plants_find_kv]
+  assert_that(actual, equal_to(plants_find_all))
+
+
+def check_replace_all(actual):
+  # [START plants_replace_all]
+  plants_replace_all = [
+      '🍓,Strawberry,perennial',
+      '🥕,Carrot,biennial',
+      '🍆,Eggplant,perennial',
+      '🍅,Tomato,annual',
+      '🥔,Potato,perennial',
+  ]
+  # [END plants_replace_all]
+  assert_that(actual, equal_to(plants_replace_all))
+
+
+def check_replace_first(actual):
+  # [START plants_replace_first]
+  plants_replace_first = [
+      '🍓: Strawberry, perennial',
+      '🥕: Carrot, biennial',
+      '🍆: Eggplant, perennial',
+      '🍅: Tomato, annual',
+      '🥔: Potato, perennial',
+  ]
+  # [END plants_replace_first]
+  assert_that(actual, equal_to(plants_replace_first))
+
+
+def check_split(actual):
+  # [START plants_split]
+  plants_split = [
+      ['🍓', 'Strawberry', 'perennial'],
+      ['🥕', 'Carrot', 'biennial'],
+      ['🍆', 'Eggplant', 'perennial'],
+      ['🍅', 'Tomato', 'annual'],
+      ['🥔', 'Potato', 'perennial'],
+  ]
+  # [END plants_replace_first]
+  assert_that(actual, equal_to(plants_split))
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
@@ -34,81 +141,32 @@ from apache_beam.testing.util import equal_to
 @mock.patch('apache_beam.examples.snippets.transforms.element_wise.regex.print', lambda elem: elem)
 # pylint: enable=line-too-long
 class RegexTest(unittest.TestCase):
-  def __init__(self, methodName):
-    super(RegexTest, self).__init__(methodName)
-    # pylint: disable=line-too-long
-    # [START plant_matches]
-    plant_matches = [
-        {'match': '🍓   -   Strawberry   -   perennial', 'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
-        {'match': '🥕 - Carrot - biennial', 'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
-        {'match': '🍆\t-\tEggplant\t-\tperennial', 'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
-        {'match': '🍅 - Tomato - annual', 'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
-        {'match': '🥔-Potato-perennial', 'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
-    ]
-    # [END plant_matches]
-    # pylint: enable=line-too-long
-    self.plant_matches_test = lambda actual: \
-        assert_that(actual, equal_to(plant_matches))
+  def test_matches(self):
+    regex.regex_matches(check_matches)
 
-    # [START words]
-    words = [
-        '🍓',
-        'Strawberry',
-        'perennial',
-        '🥕',
-        'Carrot',
-        'biennial',
-        '🍆',
-        'Eggplant',
-        'perennial',
-        '🍅',
-        'Tomato',
-        'annual',
-        '🥔',
-        'Potato',
-        'perennial',
-    ]
-    # [END words]
-    self.words_test = lambda actual: assert_that(actual, equal_to(words))
+  def test_all_matches(self):
+    regex.regex_all_matches(check_all_matches)
 
-    # [START plants_csv]
-    plants_csv = [
-        '🍓,Strawberry,perennial',
-        '🥕,Carrot,biennial',
-        '🍆,Eggplant,perennial',
-        '🍅,Tomato,annual',
-        '🥔,Potato,perennial',
-    ]
-    # [END plants_csv]
-    self.plants_csv_test = lambda actual: \
-        assert_that(actual, equal_to(plants_csv))
+  def test_matches_kv(self):
+    regex.regex_matches_kv(check_matches_kv)
 
-    # [START plants_columns]
-    plants_columns = [
-        ['🍓', 'Strawberry', 'perennial'],
-        ['🥕', 'Carrot', 'biennial'],
-        ['🍆', 'Eggplant', 'perennial'],
-        ['🍅', 'Tomato', 'annual'],
-        ['🥔', 'Potato', 'perennial'],
-    ]
-    # [END plants_columns]
-    self.plants_columns_test = lambda actual: \
-        assert_that(actual, equal_to(plants_columns))
+  def test_find(self):
+    regex.regex_find(check_matches)
 
-  def test_regex_match(self):
-    regex_match(self.plant_matches_test)
+  def test_find_all(self):
+    regex.regex_find_all(check_find_all)
 
-  def test_regex_search(self):
-    regex_search(self.plant_matches_test)
+  def test_find_kv(self):
+    regex.regex_find_kv(check_find_kv)
 
-  def test_regex_find_all(self):
-    regex_find_all(self.words_test)
+  def test_replace_all(self):
+    regex.regex_replace_all(check_replace_all)
 
-  def test_regex_replace(self):
-    regex_replace(self.plants_csv_test)
+  def test_replace_first(self):
+    regex.regex_replace_first(check_replace_first)
 
-  def test_regex_split(self):
-    regex_split(self.plants_columns_test)
+  def test_split(self):
+    regex.regex_split(check_split)
 
 
 if __name__ == '__main__':

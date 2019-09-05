@@ -82,6 +82,7 @@ import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices.FakeBigQueryServe
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -253,6 +254,34 @@ public class BigQueryIOStorageReadTest {
   }
 
   @Test
+  public void testBuildSourceWithReadOptionsAndSelectedFields() {
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("withReadOptions() already called");
+    p.apply(
+        "ReadMyTable",
+        BigQueryIO.read(new TableRowParser())
+            .withCoder(TableRowJsonCoder.of())
+            .withMethod(Method.DIRECT_READ)
+            .from("foo.com:project:dataset.table")
+            .withReadOptions(TableReadOptions.newBuilder().build())
+            .withSelectedFields(Lists.newArrayList("field1")));
+  }
+
+  @Test
+  public void testBuildSourceWithReadOptionsAndRowRestriction() {
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("withReadOptions() already called");
+    p.apply(
+        "ReadMyTable",
+        BigQueryIO.read(new TableRowParser())
+            .withCoder(TableRowJsonCoder.of())
+            .withMethod(Method.DIRECT_READ)
+            .from("foo.com:project:dataset.table")
+            .withReadOptions(TableReadOptions.newBuilder().build())
+            .withRowRestriction("field > 1"));
+  }
+
+  @Test
   public void testDisplayData() {
     String tableSpec = "foo.com:project:dataset.table";
     BigQueryIO.TypedRead<TableRow> typedRead =
@@ -327,6 +356,8 @@ public class BigQueryIOStorageReadTest {
         BigQueryStorageTableSource.create(
             ValueProvider.StaticValueProvider.of(tableRef),
             null,
+            null,
+            null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withDatasetService(fakeDatasetService));
@@ -344,6 +375,8 @@ public class BigQueryIOStorageReadTest {
     BigQueryStorageTableSource<TableRow> tableSource =
         BigQueryStorageTableSource.create(
             ValueProvider.StaticValueProvider.of(BigQueryHelpers.parseTableSpec("dataset.table")),
+            null,
+            null,
             null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
@@ -403,6 +436,8 @@ public class BigQueryIOStorageReadTest {
     BigQueryStorageTableSource<TableRow> tableSource =
         BigQueryStorageTableSource.create(
             ValueProvider.StaticValueProvider.of(tableRef),
+            null,
+            null,
             null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
@@ -465,6 +500,71 @@ public class BigQueryIOStorageReadTest {
         BigQueryStorageTableSource.create(
             ValueProvider.StaticValueProvider.of(tableRef),
             readOptions,
+            null,
+            null,
+            new TableRowParser(),
+            TableRowJsonCoder.of(),
+            new FakeBigQueryServices()
+                .withDatasetService(fakeDatasetService)
+                .withStorageClient(fakeStorageClient));
+
+    List<? extends BoundedSource<TableRow>> sources = tableSource.split(10L, options);
+    assertEquals(10L, sources.size());
+  }
+
+  @Test
+  public void testTableSourceInitialSplit_WithSelectedFieldsAndRowRestriction() throws Exception {
+    fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
+    TableReference tableRef = BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table");
+
+    Table table =
+        new Table()
+            .setTableReference(tableRef)
+            .setNumBytes(100L)
+            .setSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("name").setType("STRING"),
+                            new TableFieldSchema().setName("number").setType("INTEGER"))));
+
+    fakeDatasetService.createTable(table);
+
+    TableReadOptions readOptions =
+        TableReadOptions.newBuilder()
+            .addSelectedFields("name")
+            .addSelectedFields("number")
+            .setRowRestriction("number > 5")
+            .build();
+
+    CreateReadSessionRequest expectedRequest =
+        CreateReadSessionRequest.newBuilder()
+            .setParent("projects/project-id")
+            .setTableReference(BigQueryHelpers.toTableRefProto(tableRef))
+            .setRequestedStreams(10)
+            .setReadOptions(readOptions)
+            // TODO(aryann): Once we rebuild the generated client code, we should change this to
+            // use setShardingStrategy().
+            .setUnknownFields(
+                UnknownFieldSet.newBuilder()
+                    .addField(7, UnknownFieldSet.Field.newBuilder().addVarint(2).build())
+                    .build())
+            .build();
+
+    ReadSession.Builder builder = ReadSession.newBuilder();
+    for (int i = 0; i < 10; i++) {
+      builder.addStreams(Stream.newBuilder().setName("stream-" + i));
+    }
+
+    StorageClient fakeStorageClient = mock(StorageClient.class);
+    when(fakeStorageClient.createReadSession(expectedRequest)).thenReturn(builder.build());
+
+    BigQueryStorageTableSource<TableRow> tableSource =
+        BigQueryStorageTableSource.create(
+            ValueProvider.StaticValueProvider.of(tableRef),
+            null,
+            StaticValueProvider.of(Lists.newArrayList("name", "number")),
+            StaticValueProvider.of("number > 5"),
             new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
@@ -513,6 +613,8 @@ public class BigQueryIOStorageReadTest {
         BigQueryStorageTableSource.create(
             ValueProvider.StaticValueProvider.of(BigQueryHelpers.parseTableSpec("dataset.table")),
             null,
+            null,
+            null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
@@ -557,6 +659,8 @@ public class BigQueryIOStorageReadTest {
         BigQueryStorageTableSource.create(
             ValueProvider.StaticValueProvider.of(tableRef),
             null,
+            null,
+            null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
@@ -573,6 +677,8 @@ public class BigQueryIOStorageReadTest {
         BigQueryStorageTableSource.create(
             ValueProvider.StaticValueProvider.of(
                 BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table")),
+            null,
+            null,
             null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
@@ -1361,6 +1467,8 @@ public class BigQueryIOStorageReadTest {
             .setParent("projects/project-id")
             .setTableReference(BigQueryHelpers.toTableRefProto(tableRef))
             .setRequestedStreams(10)
+            .setReadOptions(
+                TableReadOptions.newBuilder().addSelectedFields("name").addSelectedFields("number"))
             // TODO(aryann): Once we rebuild the generated client code, we should change this to
             // use setShardingStrategy().
             .setUnknownFields(
@@ -1405,6 +1513,7 @@ public class BigQueryIOStorageReadTest {
             BigQueryIO.read(new ParseKeyValue())
                 .from("foo.com:project:dataset.table")
                 .withMethod(Method.DIRECT_READ)
+                .withSelectedFields(p.newProvider(Lists.newArrayList("name", "number")))
                 .withTestServices(
                     new FakeBigQueryServices()
                         .withDatasetService(fakeDatasetService)

@@ -87,6 +87,7 @@ Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/prog
     <p><a href="{{site.baseurl}}/documentation/io/built-in/google-bigquery/">Google BigQuery</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/io/gcp/datastore">Google Cloud Datastore</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/bigtableio.py">Google Cloud Bigtable</a> (Write)</p>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/mongodbio.py">MongoDB</a></p>
   </td>
 </tr>
 <tr>

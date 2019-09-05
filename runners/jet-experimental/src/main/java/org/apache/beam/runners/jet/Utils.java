@@ -149,10 +149,10 @@ public class Utils {
     PTransform<?, ?> transform = appliedTransform.getTransform();
     if (transform instanceof ParDo.MultiOutput) {
       ParDo.MultiOutput multiParDo = (ParDo.MultiOutput) transform;
-      return multiParDo.getSideInputs();
+      return (List) multiParDo.getSideInputs().values().stream().collect(Collectors.toList());
     } else if (transform instanceof ParDo.SingleOutput) {
       ParDo.SingleOutput singleParDo = (ParDo.SingleOutput) transform;
-      return singleParDo.getSideInputs();
+      return (List) singleParDo.getSideInputs().values().stream().collect(Collectors.toList());
     }
     return Collections.emptyList();
   }

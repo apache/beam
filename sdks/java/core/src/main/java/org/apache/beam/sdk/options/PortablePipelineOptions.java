@@ -86,4 +86,9 @@ public interface PortablePipelineOptions extends PipelineOptions {
   int getEnvironmentExpirationMillis();
 
   void setEnvironmentExpirationMillis(int environmentExpirationMillis);
+
+  @Description("The output path for the executable file to be created.")
+  String getOutputExecutablePath();
+
+  void setOutputExecutablePath(String outputExecutablePath);
 }

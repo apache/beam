@@ -28,6 +28,7 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.io import source_test_utils
+from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -94,64 +95,69 @@ class SyntheticPipelineTest(unittest.TestCase):
         5, 2, False, False, None)
 
     self.assertEqual(
-        list(provider.split('ab', (2, 15))), [(2, 8), (8, 15)])
+        list(provider.split('ab', OffsetRange(2, 15))),
+        [OffsetRange(2, 8), OffsetRange(8, 15)])
     self.assertEqual(
-        list(provider.split('ab', (0, 8))), [(0, 4), (4, 8)])
+        list(provider.split('ab', OffsetRange(0, 8))),
+        [OffsetRange(0, 4), OffsetRange(4, 8)])
     self.assertEqual(
-        list(provider.split('ab', (0, 0))), [])
+        list(provider.split('ab', OffsetRange(0, 0))), [])
     self.assertEqual(
-        list(provider.split('ab', (2, 3))), [(2, 3)])
+        list(provider.split('ab', OffsetRange(2, 3))), [OffsetRange(2, 3)])
 
     provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(
         10, 1, False, False, None)
-    self.assertEqual(list(provider.split('ab', (1, 10))), [(1, 10)])
-    self.assertEqual(provider.restriction_size('ab', (1, 10)), 9 * 2)
+    self.assertEqual(list(provider.split('ab', OffsetRange(1, 10))),
+                     [OffsetRange(1, 10)])
+    self.assertEqual(provider.restriction_size('ab', OffsetRange(1, 10)), 9 * 2)
 
     provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(
         10, 3, False, False, None)
-    self.assertEqual(list(provider.split('ab', (1, 10))),
-                     [(1, 4), (4, 7), (7, 10)])
-    self.assertEqual(provider.initial_restriction('a'), (0, 10))
+    self.assertEqual(list(provider.split('ab', OffsetRange(1, 10))),
+                     [OffsetRange(1, 4), OffsetRange(4, 7), OffsetRange(7, 10)])
+    self.assertEqual(provider.initial_restriction('a'), OffsetRange(0, 10))
 
     provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(
         10, 3, False, False, 45)
-    self.assertEqual(provider.restriction_size('ab', (1, 3)), 45)
+    self.assertEqual(provider.restriction_size('ab', OffsetRange(1, 3)), 45)
 
-    tracker = provider.create_tracker((1, 6))
+    tracker = provider.create_tracker(OffsetRange(1, 6))
     tracker.try_claim(1)  # Claim to allow splitting.
-    self.assertEqual(tracker.try_split(.5), ((1, 3), (3, 6)))
+    self.assertEqual(tracker.try_split(.5),
+                     (OffsetRange(1, 3), OffsetRange(3, 6)))
 
-  def verify_random_splits(self, provider, start, stop, bundles):
-    ranges = list(provider.split('ab', (start, stop)))
+  def verify_random_splits(self, provider, restriction, bundles):
+    ranges = list(provider.split('ab', restriction))
 
-    prior_stop = start
+    prior_stop = restriction.start
     for r in ranges:
-      self.assertEqual(r[0], prior_stop)
-      prior_stop = r[1]
-    self.assertEqual(prior_stop, stop)
+      self.assertEqual(r.start, prior_stop)
+      prior_stop = r.stop
+    self.assertEqual(prior_stop, restriction.stop)
     self.assertEqual(len(ranges), bundles)
 
   def testSyntheticStepSplitProviderUnevenChunks(self):
     bundles = 4
     provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(
         5, bundles, True, False, None)
-    self.verify_random_splits(provider, 4, 10, bundles)
-    self.verify_random_splits(provider, 4, 4, 0)
-    self.verify_random_splits(provider, 0, 1, 1)
-    self.verify_random_splits(provider, 0, bundles - 2, bundles)
+    self.verify_random_splits(provider, OffsetRange(4, 10), bundles)
+    self.verify_random_splits(provider, OffsetRange(4, 4), 0)
+    self.verify_random_splits(provider, OffsetRange(0, 1), 1)
+    self.verify_random_splits(provider, OffsetRange(0, bundles - 2), bundles)
 
   def test_synthetic_step_split_provider_no_liquid_sharding(self):
     # Verify Liquid Sharding Works
     provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(
         5, 5, True, False, None)
-    tracker = provider.create_tracker((1, 6))
+    tracker = provider.create_tracker(OffsetRange(1, 6))
     tracker.try_claim(2)
-    self.assertEqual(tracker.try_split(.5), ((1, 4), (4, 6)))
+    self.assertEqual(tracker.try_split(.5),
+                     (OffsetRange(1, 4), OffsetRange(4, 6)))
 
     # Verify No Liquid Sharding
     provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(
         5, 5, True, True, None)
-    tracker = provider.create_tracker((1, 6))
+    tracker = provider.create_tracker(OffsetRange(1, 6))
     tracker.try_claim(2)
     self.assertEqual(tracker.try_split(3), None)
 

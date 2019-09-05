@@ -337,12 +337,12 @@ class AfterProcessingTime(TriggerFn):
             proto.after_processing_time
             .timestamp_transforms[0]
             .delay
-            .delay_millis))
+            .delay_millis) // 1000)
 
   def to_runner_api(self, context):
     delay_proto = beam_runner_api_pb2.TimestampTransform(
         delay=beam_runner_api_pb2.TimestampTransform.Delay(
-            delay_millis=self.delay))
+            delay_millis=self.delay * 1000))
     return beam_runner_api_pb2.Trigger(
         after_processing_time=beam_runner_api_pb2.Trigger.AfterProcessingTime(
             timestamp_transforms=[delay_proto]))

@@ -66,13 +66,15 @@ declare -a PYTHON_VERSIONS_TO_VALIDATE=("python2.7" "python3.5")
 
 echo ""
 echo "====================Checking Environment & Variables================="
+echo "PLEASE update RC_VALIDATE_CONFIGS in file script.config first."
+echo ""
 echo "running validations on release ${RELEASE_VER} RC${RC_NUM}."
 echo "repo URL for this RC: ${REPO_URL}"
 echo "using workspace: ${LOCAL_BEAM_DIR}"
 echo "validate Python versions: "$(IFS=$' '; echo "${PYTHON_VERSIONS_TO_VALIDATE[*]}")
 echo ""
-echo "All environment and workflow configurations from file script.config:"
-for i in "${CONFIG_NAME_LIST[@]}"; do
+echo "All environment and workflow configurations from RC_VALIDATE_CONFIGS:"
+for i in "${RC_VALIDATE_CONFIGS[@]}"; do
   echo "$i = ${!i}"
 done
 echo "[Confirmation Required] Are they all provided and correctly set? [y|N]"

@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.datatorrent.api.Operator;
 import com.datatorrent.api.Operator.OutputPort;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,10 +78,13 @@ class ParDoTranslator<InputT, OutputT>
 
     Map<TupleTag<?>, PValue> outputs = context.getOutputs();
     PCollection<InputT> input = context.getInput();
-    List<PCollectionView<?>> sideInputs = transform.getSideInputs();
+    Iterable<PCollectionView<?>> sideInputs = transform.getSideInputs().values();
 
     DoFnSchemaInformation doFnSchemaInformation;
     doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+
+    Map<String, PCollectionView<?>> sideInputMapping =
+        ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
 
     Map<TupleTag<?>, Coder<?>> outputCoders =
         outputs.entrySet().stream()
@@ -97,6 +102,7 @@ class ParDoTranslator<InputT, OutputT>
             input.getCoder(),
             outputCoders,
             doFnSchemaInformation,
+            sideInputMapping,
             context.getStateBackend());
 
     Map<PCollection<?>, OutputPort<?>> ports = Maps.newHashMapWithExpectedSize(outputs.size());
@@ -124,7 +130,7 @@ class ParDoTranslator<InputT, OutputT>
     }
     context.addOperator(operator, ports);
     context.addStream(context.getInput(), operator.input);
-    if (!sideInputs.isEmpty()) {
+    if (!Iterables.isEmpty(sideInputs)) {
       addSideInputs(operator.sideInput1, sideInputs, context);
     }
   }
@@ -139,7 +145,7 @@ class ParDoTranslator<InputT, OutputT>
 
       Map<TupleTag<?>, PValue> outputs = context.getOutputs();
       PCollection<InputT> input = context.getInput();
-      List<PCollectionView<?>> sideInputs = transform.getSideInputs();
+      Iterable<PCollectionView<?>> sideInputs = transform.getSideInputs();
 
       Map<TupleTag<?>, Coder<?>> outputCoders =
           outputs.entrySet().stream()
@@ -160,6 +166,7 @@ class ParDoTranslator<InputT, OutputT>
               input.getCoder(),
               outputCoders,
               DoFnSchemaInformation.create(),
+              Collections.emptyMap(),
               context.getStateBackend());
 
       Map<PCollection<?>, OutputPort<?>> ports = Maps.newHashMapWithExpectedSize(outputs.size());
@@ -188,7 +195,7 @@ class ParDoTranslator<InputT, OutputT>
 
       context.addOperator(operator, ports);
       context.addStream(context.getInput(), operator.input);
-      if (!sideInputs.isEmpty()) {
+      if (!Iterables.isEmpty(sideInputs)) {
         addSideInputs(operator.sideInput1, sideInputs, context);
       }
     }
@@ -196,29 +203,29 @@ class ParDoTranslator<InputT, OutputT>
 
   static void addSideInputs(
       Operator.InputPort<?> sideInputPort,
-      List<PCollectionView<?>> sideInputs,
+      Iterable<PCollectionView<?>> sideInputs,
       TranslationContext context) {
     Operator.InputPort<?>[] sideInputPorts = {sideInputPort};
-    if (sideInputs.size() > sideInputPorts.length) {
+    if (Iterables.size(sideInputs) > sideInputPorts.length) {
       PCollection<?> unionCollection = unionSideInputs(sideInputs, context);
       context.addStream(unionCollection, sideInputPorts[0]);
     } else {
       // the number of ports for side inputs is fixed and each port can only take one input.
-      for (int i = 0; i < sideInputs.size(); i++) {
-        context.addStream(context.getViewInput(sideInputs.get(i)), sideInputPorts[i]);
+      for (int i = 0; i < Iterables.size(sideInputs); i++) {
+        context.addStream(context.getViewInput(Iterables.get(sideInputs, i)), sideInputPorts[i]);
       }
     }
   }
 
   private static PCollection<?> unionSideInputs(
-      List<PCollectionView<?>> sideInputs, TranslationContext context) {
-    checkArgument(sideInputs.size() > 1, "requires multiple side inputs");
+      Iterable<PCollectionView<?>> sideInputs, TranslationContext context) {
+    checkArgument(Iterables.size(sideInputs) > 1, "requires multiple side inputs");
     // flatten and assign union tag
     List<PCollection<Object>> sourceCollections = new ArrayList<>();
     Map<PCollection<?>, Integer> unionTags = new HashMap<>();
-    PCollection<Object> firstSideInput = context.getViewInput(sideInputs.get(0));
-    for (int i = 0; i < sideInputs.size(); i++) {
-      PCollectionView<?> sideInput = sideInputs.get(i);
+    PCollection<Object> firstSideInput = context.getViewInput(Iterables.get(sideInputs, 0));
+    for (int i = 0; i < Iterables.size(sideInputs); i++) {
+      PCollectionView<?> sideInput = Iterables.get(sideInputs, i);
       PCollection<?> sideInputCollection = context.getViewInput(sideInput);
       if (!sideInputCollection
           .getWindowingStrategy()

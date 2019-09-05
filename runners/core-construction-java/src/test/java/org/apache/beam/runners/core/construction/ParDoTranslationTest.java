@@ -122,7 +122,7 @@ public class ParDoTranslationTest {
 
       assertThat(ParDoTranslation.getDoFn(payload), equalTo(parDo.getFn()));
       assertThat(ParDoTranslation.getMainOutputTag(payload), equalTo(parDo.getMainOutputTag()));
-      for (PCollectionView<?> view : parDo.getSideInputs()) {
+      for (PCollectionView<?> view : parDo.getSideInputs().values()) {
         payload.getSideInputsOrThrow(view.getTagInternal().getId());
       }
     }
@@ -148,7 +148,7 @@ public class ParDoTranslationTest {
 
       // Decode
       ParDoPayload parDoPayload = ParDoPayload.parseFrom(protoTransform.getSpec().getPayload());
-      for (PCollectionView<?> view : parDo.getSideInputs()) {
+      for (PCollectionView<?> view : parDo.getSideInputs().values()) {
         SideInput sideInput = parDoPayload.getSideInputsOrThrow(view.getTagInternal().getId());
         PCollectionView<?> restoredView =
             PCollectionViewTranslation.viewFromProto(

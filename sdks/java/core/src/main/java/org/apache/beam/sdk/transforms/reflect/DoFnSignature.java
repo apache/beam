@@ -242,6 +242,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((TaggedOutputReceiverParameter) this);
       } else if (this instanceof TimeDomainParameter) {
         return cases.dispatch((TimeDomainParameter) this);
+      } else if (this instanceof SideInputParameter) {
+        return cases.dispatch((SideInputParameter) this);
       } else {
         throw new IllegalStateException(
             String.format(
@@ -283,6 +285,8 @@ public abstract class DoFnSignature {
       ResultT dispatch(TimerParameter p);
 
       ResultT dispatch(PipelineOptionsParameter p);
+
+      ResultT dispatch(SideInputParameter p);
 
       /** A base class for a visitor with a default method for cases it is not interested in. */
       abstract class WithDefault<ResultT> implements Cases<ResultT> {
@@ -368,6 +372,11 @@ public abstract class DoFnSignature {
         public ResultT dispatch(PipelineOptionsParameter p) {
           return dispatchDefault(p);
         }
+
+        @Override
+        public ResultT dispatch(SideInputParameter p) {
+          return dispatchDefault(p);
+        }
       }
     }
 
@@ -411,6 +420,14 @@ public abstract class DoFnSignature {
 
     public static TimestampParameter timestampParameter() {
       return TIMESTAMP_PARAMETER;
+    }
+
+    public static SideInputParameter sideInputParameter(
+        TypeDescriptor<?> elementT, String sideInputId) {
+      return new AutoValue_DoFnSignature_Parameter_SideInputParameter.Builder()
+          .setElementT(elementT)
+          .setSideInputId(sideInputId)
+          .build();
     }
 
     public static TimeDomainParameter timeDomainParameter() {
@@ -554,6 +571,28 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class TimeDomainParameter extends Parameter {
       TimeDomainParameter() {}
+    }
+
+    /** Descriptor for a {@link Parameter} of type {@link DoFn.SideInput}. */
+    @AutoValue
+    public abstract static class SideInputParameter extends Parameter {
+      SideInputParameter() {}
+
+      public abstract TypeDescriptor<?> elementT();
+
+      public abstract String sideInputId();
+
+      /** Builder class. */
+      @AutoValue.Builder
+      public abstract static class Builder {
+        public abstract SideInputParameter.Builder setElementT(TypeDescriptor<?> elementT);
+
+        public abstract SideInputParameter.Builder setSideInputId(String sideInput);
+
+        public abstract SideInputParameter build();
+      }
+
+      public abstract SideInputParameter.Builder toBuilder();
     }
 
     /**

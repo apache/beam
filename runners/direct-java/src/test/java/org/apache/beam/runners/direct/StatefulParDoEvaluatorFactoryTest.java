@@ -142,7 +142,8 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
                     mainOutput,
                     TupleTagList.empty(),
                     Collections.emptyList(),
-                    DoFnSchemaInformation.create()))
+                    DoFnSchemaInformation.create(),
+                    Collections.emptyMap()))
             .get(mainOutput)
             .setCoder(VarIntCoder.of());
 
@@ -251,7 +252,8 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
                     mainOutput,
                     TupleTagList.empty(),
                     Collections.singletonList(sideInput),
-                    DoFnSchemaInformation.create()))
+                    DoFnSchemaInformation.create(),
+                    Collections.emptyMap()))
             .get(mainOutput)
             .setCoder(VarIntCoder.of());
 
