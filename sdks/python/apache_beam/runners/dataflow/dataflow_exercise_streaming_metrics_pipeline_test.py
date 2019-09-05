@@ -129,8 +129,15 @@ class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):
         # System metrics
         MetricResultMatcher(
             name='ElementCount',
-            # namespace=METRIC_NAMESPACE,
-            step='ReadFromPubSub',
+            labels={"output_user_name": "generate_metrics-out0",
+                    "original_name": "generate_metrics-out0-ElementCount"},
+            attempted=len(MESSAGES_TO_PUBLISH),
+            committed=len(MESSAGES_TO_PUBLISH),
+        ),
+        MetricResultMatcher(
+            name='ElementCount',
+            labels={"output_user_name": "ReadFromPubSub/Read-out0",
+                    "original_name": "ReadFromPubSub/Read-out0-ElementCount"},
             attempted=len(MESSAGES_TO_PUBLISH),
             committed=len(MESSAGES_TO_PUBLISH),
         ),
