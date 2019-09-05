@@ -447,7 +447,19 @@
 
 
 <ul class="nav">
-  <li><a href="#examples">Examples</a></li>
+  <li><a href="#examples">Examples</a>
+    <ul>
+      <li><a href="#example-1-regex-match">Example 1: Regex match</a></li>
+      <li><a href="#example-2-regex-match-with-all-groups">Example 2: Regex match with all groups</a></li>
+      <li><a href="#example-3-regex-match-into-key-value-pairs">Example 3: Regex match into key-value pairs</a></li>
+      <li><a href="#example-4-regex-find">Example 4: Regex find</a></li>
+      <li><a href="#example-5-regex-find-all">Example 5: Regex find all</a></li>
+      <li><a href="#example-6-regex-find-as-key-value-pairs">Example 6: Regex find as key-value pairs</a></li>
+      <li><a href="#example-7-regex-replace-all">Example 7: Regex replace all</a></li>
+      <li><a href="#example-8-regex-replace-first">Example 8: Regex replace first</a></li>
+      <li><a href="#example-9-regex-split">Example 9: Regex split</a></li>
+    </ul>
+  </li>
   <li><a href="#related-transforms">Related transforms</a></li>
 </ul>
 
@@ -470,15 +482,548 @@ limitations under the License.
 -->
 
 <h1 id="regex">Regex</h1>
-<p>Filters input string elements based on a regex. May also transform them based on the matching groups.</p>
+
+<script type="text/javascript">
+localStorage.setItem('language', 'language-py')
+</script>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Regex">
+      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
+      Pydoc
+    </a>
+  </td>
+</table>
+<p><br />
+Filters input string elements based on a regex. May also transform them based on the matching groups.</p>
 
 <h2 id="examples">Examples</h2>
-<p>See <a href="https://issues.apache.org/jira/browse/BEAM-7389">BEAM-7389</a> for updates.</p>
+
+<p>In the following examples, we create a pipeline with a <code class="highlighter-rouge">PCollection</code> of text strings.
+Then, we use the <code class="highlighter-rouge">Regex</code> transform to search, replace, and split through the text elements using
+<a href="https://docs.python.org/3/library/re.html">regular expressions</a>.</p>
+
+<p>You can use tools to help you create and test your regular expressions, such as
+<a href="https://regex101.com/">regex101</a>.
+Make sure to specify the Python flavor at the left side bar.</p>
+
+<p>Lets look at the
+<a href="https://regex101.com/r/Z7hTTj/3">regular expression <code class="highlighter-rouge">(?P&lt;icon&gt;[^\s,]+), *(\w+), *(\w+)</code></a>
+for example.
+It matches anything that is not a whitespace <code class="highlighter-rouge">\s</code> (<code class="highlighter-rouge">[ \t\n\r\f\v]</code>) or comma <code class="highlighter-rouge">,</code>
+until a comma is found and stores that in the named group <code class="highlighter-rouge">icon</code>,
+this can match even <code class="highlighter-rouge">utf-8</code> strings.
+Then it matches any number of whitespaces, followed by at least one word character
+<code class="highlighter-rouge">\w</code> (<code class="highlighter-rouge">[a-zA-Z0-9_]</code>), which is stored in the second group for the <em>name</em>.
+It does the same with the third group for the <em>duration</em>.</p>
+
+<blockquote>
+  <p><em>Note:</em> To avoid unexpected string escaping in your regular expressions,
+it is recommended to use
+<a href="https://docs.python.org/3/reference/lexical_analysis.html?highlight=raw#string-and-bytes-literals">raw strings</a>
+such as <code class="highlighter-rouge">r'raw-string'</code> instead of <code class="highlighter-rouge">'escaped-string'</code>.</p>
+</blockquote>
+
+<h3 id="example-1-regex-match">Example 1: Regex match</h3>
+
+<p><code class="highlighter-rouge">Regex.matches</code> keeps only the elements that match the regular expression,
+returning the matched group.
+The argument <code class="highlighter-rouge">group</code> is set to <code class="highlighter-rouge">0</code> (the entire match) by default,
+but can be set to a group number like <code class="highlighter-rouge">3</code>, or to a named group like <code class="highlighter-rouge">'icon'</code>.</p>
+
+<p><code class="highlighter-rouge">Regex.matches</code> starts to match the regular expression at the beginning of the string.
+To match until the end of the string, add <code class="highlighter-rouge">'$'</code> at the end of the regular expression.</p>
+
+<p>To start matching at any point instead of the beginning of the string, use
+<a href="#example-4-regex-find"><code class="highlighter-rouge">Regex.find(regex)</code></a>.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="c"># Matches a named group 'icon', and then two comma-separated groups.</span>
+<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^</span><span class="err">\</span><span class="s">s,]+), *(</span><span class="err">\</span><span class="s">w+), *(</span><span class="err">\</span><span class="s">w+)'</span>
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">plants_matches</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s">'🍓, Strawberry, perennial'</span><span class="p">,</span>
+          <span class="s">'🥕, Carrot, biennial ignoring trailing words'</span><span class="p">,</span>
+          <span class="s">'🍆, Eggplant, perennial'</span><span class="p">,</span>
+          <span class="s">'🍅, Tomato, annual'</span><span class="p">,</span>
+          <span class="s">'🥔, Potato, perennial'</span><span class="p">,</span>
+          <span class="s">'# 🍌, invalid, format'</span><span class="p">,</span>
+          <span class="s">'invalid, 🍉, format'</span><span class="p">,</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">matches</span><span class="p">(</span><span class="n">regex</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.matches</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plants_matches = [
+    '🍓, Strawberry, perennial',
+    '🥕, Carrot, biennial',
+    '🍆, Eggplant, perennial',
+    '🍅, Tomato, annual',
+    '🥔, Potato, perennial',
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
+
+<h3 id="example-2-regex-match-with-all-groups">Example 2: Regex match with all groups</h3>
+
+<p><code class="highlighter-rouge">Regex.all_matches</code> keeps only the elements that match the regular expression,
+returning <em>all groups</em> as a list.
+The groups are returned in the order encountered in the regular expression,
+including <code class="highlighter-rouge">group 0</code> (the entire match) as the first group.</p>
+
+<p><code class="highlighter-rouge">Regex.all_matches</code> starts to match the regular expression at the beginning of the string.
+To match until the end of the string, add <code class="highlighter-rouge">'$'</code> at the end of the regular expression.</p>
+
+<p>To start matching at any point instead of the beginning of the string, use
+<a href="#example-5-regex-find-all"><code class="highlighter-rouge">Regex.find_all(regex, group=Regex.ALL, outputEmpty=False)</code></a>.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="c"># Matches a named group 'icon', and then two comma-separated groups.</span>
+<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^</span><span class="err">\</span><span class="s">s,]+), *(</span><span class="err">\</span><span class="s">w+), *(</span><span class="err">\</span><span class="s">w+)'</span>
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">plants_all_matches</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s">'🍓, Strawberry, perennial'</span><span class="p">,</span>
+          <span class="s">'🥕, Carrot, biennial ignoring trailing words'</span><span class="p">,</span>
+          <span class="s">'🍆, Eggplant, perennial'</span><span class="p">,</span>
+          <span class="s">'🍅, Tomato, annual'</span><span class="p">,</span>
+          <span class="s">'🥔, Potato, perennial'</span><span class="p">,</span>
+          <span class="s">'# 🍌, invalid, format'</span><span class="p">,</span>
+          <span class="s">'invalid, 🍉, format'</span><span class="p">,</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">all_matches</span><span class="p">(</span><span class="n">regex</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.all_matches</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plants_all_matches = [
+    ['🍓, Strawberry, perennial', '🍓', 'Strawberry', 'perennial'],
+    ['🥕, Carrot, biennial', '🥕', 'Carrot', 'biennial'],
+    ['🍆, Eggplant, perennial', '🍆', 'Eggplant', 'perennial'],
+    ['🍅, Tomato, annual', '🍅', 'Tomato', 'annual'],
+    ['🥔, Potato, perennial', '🥔', 'Potato', 'perennial'],
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
+
+<h3 id="example-3-regex-match-into-key-value-pairs">Example 3: Regex match into key-value pairs</h3>
+
+<p><code class="highlighter-rouge">Regex.matches_kv</code> keeps only the elements that match the regular expression,
+returning a key-value pair using the specified groups.
+The argument <code class="highlighter-rouge">keyGroup</code> is set to a group number like <code class="highlighter-rouge">3</code>, or to a named group like <code class="highlighter-rouge">'icon'</code>.
+The argument <code class="highlighter-rouge">valueGroup</code> is set to <code class="highlighter-rouge">0</code> (the entire match) by default,
+but can be set to a group number like <code class="highlighter-rouge">3</code>, or to a named group like <code class="highlighter-rouge">'icon'</code>.</p>
+
+<p><code class="highlighter-rouge">Regex.matches_kv</code> starts to match the regular expression at the beginning of the string.
+To match until the end of the string, add <code class="highlighter-rouge">'$'</code> at the end of the regular expression.</p>
+
+<p>To start matching at any point instead of the beginning of the string, use
+<a href="#example-6-regex-find-as-key-value-pairs"><code class="highlighter-rouge">Regex.find_kv(regex, keyGroup)</code></a>.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="c"># Matches a named group 'icon', and then two comma-separated groups.</span>
+<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^</span><span class="err">\</span><span class="s">s,]+), *(</span><span class="err">\</span><span class="s">w+), *(</span><span class="err">\</span><span class="s">w+)'</span>
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">plants_matches_kv</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s">'🍓, Strawberry, perennial'</span><span class="p">,</span>
+          <span class="s">'🥕, Carrot, biennial ignoring trailing words'</span><span class="p">,</span>
+          <span class="s">'🍆, Eggplant, perennial'</span><span class="p">,</span>
+          <span class="s">'🍅, Tomato, annual'</span><span class="p">,</span>
+          <span class="s">'🥔, Potato, perennial'</span><span class="p">,</span>
+          <span class="s">'# 🍌, invalid, format'</span><span class="p">,</span>
+          <span class="s">'invalid, 🍉, format'</span><span class="p">,</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">matches_kv</span><span class="p">(</span><span class="n">regex</span><span class="p">,</span> <span class="n">keyGroup</span><span class="o">=</span><span class="s">'icon'</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.matches_kv</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plants_matches_kv = [
+    ('🍓', '🍓, Strawberry, perennial'),
+    ('🥕', '🥕, Carrot, biennial'),
+    ('🍆', '🍆, Eggplant, perennial'),
+    ('🍅', '🍅, Tomato, annual'),
+    ('🥔', '🥔, Potato, perennial'),
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
+
+<h3 id="example-4-regex-find">Example 4: Regex find</h3>
+
+<p><code class="highlighter-rouge">Regex.find</code> keeps only the elements that match the regular expression,
+returning the matched group.
+The argument <code class="highlighter-rouge">group</code> is set to <code class="highlighter-rouge">0</code> (the entire match) by default,
+but can be set to a group number like <code class="highlighter-rouge">3</code>, or to a named group like <code class="highlighter-rouge">'icon'</code>.</p>
+
+<p><code class="highlighter-rouge">Regex.find</code> matches the first occurrence of the regular expression in the string.
+To start matching at the beginning, add <code class="highlighter-rouge">'^'</code> at the beginning of the regular expression.
+To match until the end of the string, add <code class="highlighter-rouge">'$'</code> at the end of the regular expression.</p>
+
+<p>If you need to match from the start only, consider using
+<a href="#example-1-regex-match"><code class="highlighter-rouge">Regex.matches(regex)</code></a>.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="c"># Matches a named group 'icon', and then two comma-separated groups.</span>
+<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^</span><span class="err">\</span><span class="s">s,]+), *(</span><span class="err">\</span><span class="s">w+), *(</span><span class="err">\</span><span class="s">w+)'</span>
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">plants_matches</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s">'# 🍓, Strawberry, perennial'</span><span class="p">,</span>
+          <span class="s">'# 🥕, Carrot, biennial ignoring trailing words'</span><span class="p">,</span>
+          <span class="s">'# 🍆, Eggplant, perennial - 🍌, Banana, perennial'</span><span class="p">,</span>
+          <span class="s">'# 🍅, Tomato, annual - 🍉, Watermelon, annual'</span><span class="p">,</span>
+          <span class="s">'# 🥔, Potato, perennial'</span><span class="p">,</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">regex</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.find</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plants_matches = [
+    '🍓, Strawberry, perennial',
+    '🥕, Carrot, biennial',
+    '🍆, Eggplant, perennial',
+    '🍅, Tomato, annual',
+    '🥔, Potato, perennial',
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
+
+<h3 id="example-5-regex-find-all">Example 5: Regex find all</h3>
+
+<p><code class="highlighter-rouge">Regex.find_all</code> returns a list of all the matches of the regular expression,
+returning the matched group.
+The argument <code class="highlighter-rouge">group</code> is set to <code class="highlighter-rouge">0</code> by default, but can be set to a group number like <code class="highlighter-rouge">3</code>, to a named group like <code class="highlighter-rouge">'icon'</code>, or to <code class="highlighter-rouge">Regex.ALL</code> to return all groups.
+The argument <code class="highlighter-rouge">outputEmpty</code> is set to <code class="highlighter-rouge">True</code> by default, but can be set to <code class="highlighter-rouge">False</code> to skip elements where no matches were found.</p>
+
+<p><code class="highlighter-rouge">Regex.find_all</code> matches the regular expression anywhere it is found in the string.
+To start matching at the beginning, add <code class="highlighter-rouge">'^'</code> at the start of the regular expression.
+To match until the end of the string, add <code class="highlighter-rouge">'$'</code> at the end of the regular expression.</p>
+
+<p>If you need to match all groups from the start only, consider using
+<a href="#example-2-regex-match-with-all-groups"><code class="highlighter-rouge">Regex.all_matches(regex)</code></a>.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="c"># Matches a named group 'icon', and then two comma-separated groups.</span>
+<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^</span><span class="err">\</span><span class="s">s,]+), *(</span><span class="err">\</span><span class="s">w+), *(</span><span class="err">\</span><span class="s">w+)'</span>
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">plants_find_all</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s">'# 🍓, Strawberry, perennial'</span><span class="p">,</span>
+          <span class="s">'# 🥕, Carrot, biennial ignoring trailing words'</span><span class="p">,</span>
+          <span class="s">'# 🍆, Eggplant, perennial - 🍌, Banana, perennial'</span><span class="p">,</span>
+          <span class="s">'# 🍅, Tomato, annual - 🍉, Watermelon, annual'</span><span class="p">,</span>
+          <span class="s">'# 🥔, Potato, perennial'</span><span class="p">,</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">find_all</span><span class="p">(</span><span class="n">regex</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.find_all</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plants_find_all = [
+    ['🍓, Strawberry, perennial'],
+    ['🥕, Carrot, biennial'],
+    ['🍆, Eggplant, perennial', '🍌, Banana, perennial'],
+    ['🍅, Tomato, annual', '🍉, Watermelon, annual'],
+    ['🥔, Potato, perennial'],
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
+
+<h3 id="example-6-regex-find-as-key-value-pairs">Example 6: Regex find as key-value pairs</h3>
+
+<p><code class="highlighter-rouge">Regex.find_kv</code> returns a list of all the matches of the regular expression,
+returning a key-value pair using the specified groups.
+The argument <code class="highlighter-rouge">keyGroup</code> is set to a group number like <code class="highlighter-rouge">3</code>, or to a named group like <code class="highlighter-rouge">'icon'</code>.
+The argument <code class="highlighter-rouge">valueGroup</code> is set to <code class="highlighter-rouge">0</code> (the entire match) by default,
+but can be set to a group number like <code class="highlighter-rouge">3</code>, or to a named group like <code class="highlighter-rouge">'icon'</code>.</p>
+
+<p><code class="highlighter-rouge">Regex.find_kv</code> matches the first occurrence of the regular expression in the string.
+To start matching at the beginning, add <code class="highlighter-rouge">'^'</code> at the beginning of the regular expression.
+To match until the end of the string, add <code class="highlighter-rouge">'$'</code> at the end of the regular expression.</p>
+
+<p>If you need to match as key-value pairs from the start only, consider using
+<a href="#example-3-regex-match-into-key-value-pairs"><code class="highlighter-rouge">Regex.matches_kv(regex)</code></a>.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="c"># Matches a named group 'icon', and then two comma-separated groups.</span>
+<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^</span><span class="err">\</span><span class="s">s,]+), *(</span><span class="err">\</span><span class="s">w+), *(</span><span class="err">\</span><span class="s">w+)'</span>
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">plants_matches_kv</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s">'# 🍓, Strawberry, perennial'</span><span class="p">,</span>
+          <span class="s">'# 🥕, Carrot, biennial ignoring trailing words'</span><span class="p">,</span>
+          <span class="s">'# 🍆, Eggplant, perennial - 🍌, Banana, perennial'</span><span class="p">,</span>
+          <span class="s">'# 🍅, Tomato, annual - 🍉, Watermelon, annual'</span><span class="p">,</span>
+          <span class="s">'# 🥔, Potato, perennial'</span><span class="p">,</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">find_kv</span><span class="p">(</span><span class="n">regex</span><span class="p">,</span> <span class="n">keyGroup</span><span class="o">=</span><span class="s">'icon'</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.find_kv</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plants_find_all = [
+    ('🍓', '🍓, Strawberry, perennial'),
+    ('🥕', '🥕, Carrot, biennial'),
+    ('🍆', '🍆, Eggplant, perennial'),
+    ('🍌', '🍌, Banana, perennial'),
+    ('🍅', '🍅, Tomato, annual'),
+    ('🍉', '🍉, Watermelon, annual'),
+    ('🥔', '🥔, Potato, perennial'),
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
+
+<h3 id="example-7-regex-replace-all">Example 7: Regex replace all</h3>
+
+<p><code class="highlighter-rouge">Regex.replace_all</code> returns the string with all the occurrences of the regular expression replaced by another string.
+You can also use
+<a href="https://docs.python.org/3/library/re.html?highlight=backreference#re.sub">backreferences</a>
+on the <code class="highlighter-rouge">replacement</code>.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">plants_replace_all</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s">'🍓 : Strawberry : perennial'</span><span class="p">,</span>
+          <span class="s">'🥕 : Carrot : biennial'</span><span class="p">,</span>
+          <span class="s">'🍆</span><span class="se">\t</span><span class="s">:</span><span class="se">\t</span><span class="s">Eggplant</span><span class="se">\t</span><span class="s">:</span><span class="se">\t</span><span class="s">perennial'</span><span class="p">,</span>
+          <span class="s">'🍅 : Tomato : annual'</span><span class="p">,</span>
+          <span class="s">'🥔 : Potato : perennial'</span><span class="p">,</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'To CSV'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">replace_all</span><span class="p">(</span><span class="s">r'</span><span class="err">\</span><span class="s">s*:</span><span class="err">\</span><span class="s">s*'</span><span class="p">,</span> <span class="s">','</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.replace_all</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plants_replace_all = [
+    '🍓,Strawberry,perennial',
+    '🥕,Carrot,biennial',
+    '🍆,Eggplant,perennial',
+    '🍅,Tomato,annual',
+    '🥔,Potato,perennial',
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
+
+<h3 id="example-8-regex-replace-first">Example 8: Regex replace first</h3>
+
+<p><code class="highlighter-rouge">Regex.replace_first</code> returns the string with the first occurrence of the regular expression replaced by another string.
+You can also use
+<a href="https://docs.python.org/3/library/re.html?highlight=backreference#re.sub">backreferences</a>
+on the <code class="highlighter-rouge">replacement</code>.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">plants_replace_first</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s">'🍓, Strawberry, perennial'</span><span class="p">,</span>
+          <span class="s">'🥕, Carrot, biennial'</span><span class="p">,</span>
+          <span class="s">'🍆,</span><span class="se">\t</span><span class="s">Eggplant, perennial'</span><span class="p">,</span>
+          <span class="s">'🍅, Tomato, annual'</span><span class="p">,</span>
+          <span class="s">'🥔, Potato, perennial'</span><span class="p">,</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'As dictionary'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">replace_first</span><span class="p">(</span><span class="s">r'</span><span class="err">\</span><span class="s">s*,</span><span class="err">\</span><span class="s">s*'</span><span class="p">,</span> <span class="s">': '</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.replace_first</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plants_replace_first = [
+    '🍓: Strawberry, perennial',
+    '🥕: Carrot, biennial',
+    '🍆: Eggplant, perennial',
+    '🍅: Tomato, annual',
+    '🥔: Potato, perennial',
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
+
+<h3 id="example-9-regex-split">Example 9: Regex split</h3>
+
+<p><code class="highlighter-rouge">Regex.split</code> returns the list of strings that were delimited by the specified regular expression.
+The argument <code class="highlighter-rouge">outputEmpty</code> is set to <code class="highlighter-rouge">False</code> by default, but can be set to <code class="highlighter-rouge">True</code> to keep empty items in the output list.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">plants_split</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s">'🍓 : Strawberry : perennial'</span><span class="p">,</span>
+          <span class="s">'🥕 : Carrot : biennial'</span><span class="p">,</span>
+          <span class="s">'🍆</span><span class="se">\t</span><span class="s">:</span><span class="se">\t</span><span class="s">Eggplant : perennial'</span><span class="p">,</span>
+          <span class="s">'🍅 : Tomato : annual'</span><span class="p">,</span>
+          <span class="s">'🥔 : Potato : perennial'</span><span class="p">,</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">r'</span><span class="err">\</span><span class="s">s*:</span><span class="err">\</span><span class="s">s*'</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.split</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plants_split = [
+    ['🍓', 'Strawberry', 'perennial'],
+    ['🥕', 'Carrot', 'biennial'],
+    ['🍆', 'Eggplant', 'perennial'],
+    ['🍅', 'Tomato', 'annual'],
+    ['🥔', 'Potato', 'perennial'],
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
 
 <h2 id="related-transforms">Related transforms</h2>
+
 <ul>
+  <li><a href="/documentation/transforms/python/elementwise/flatmap">FlatMap</a> behaves the same as <code class="highlighter-rouge">Map</code>, but for
+each input it may produce zero or more outputs.</li>
   <li><a href="/documentation/transforms/python/elementwise/map">Map</a> applies a simple 1-to-1 mapping function over each element in the collection</li>
 </ul>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Regex">
+      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
+      Pydoc
+    </a>
+  </td>
+</table>
+<p><br /></p>
 
       </div>
     </div>
