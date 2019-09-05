@@ -136,6 +136,8 @@ ignore_identifiers = [
   'Set',
   'Tuple',
   'Callable',
+  'Union',
+  'Type',
 
   # Ignore broken built-in type references
   'tuple',
@@ -177,6 +179,7 @@ ignore_identifiers = [
 
   # stdlib classes without documentation
   'unittest.case.TestCase',
+  '_abcoll.MutableMapping',
 
   # DoFn param inner classes, due to a Sphinx misparsing of inner classes
   '_StateDoFnParam',

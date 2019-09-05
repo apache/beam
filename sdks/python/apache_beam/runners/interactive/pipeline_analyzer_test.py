@@ -24,9 +24,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import shutil
+import tempfile
 import unittest
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import pipeline_analyzer
@@ -45,10 +48,13 @@ class PipelineAnalyzerTest(unittest.TestCase):
 
   def setUp(self):
     self.runner = direct_runner.DirectRunner()
-    self.cache_manager = cache.FileBasedCacheManager()
+    self._tempdir = tempfile.mkdtemp()
+    options = PipelineOptions(temp_location=self._tempdir)
+    self.cache_manager = cache.CacheManager(options)
 
   def tearDown(self):
     self.cache_manager.cleanup()
+    shutil.rmtree(self._tempdir)
 
   def assertPipelineEqual(self, pipeline_proto1, pipeline_proto2):
     """A naive check for Pipeline proto equality.
@@ -162,17 +168,17 @@ class PipelineAnalyzerTest(unittest.TestCase):
 
     # pylint: disable=expression-not-assigned
     pcoll1 | 'CacheSample%s' % cache_label1 >> cache.WriteCache(
-        self.cache_manager, cache_label1, sample=True, sample_size=10)
+        self.cache_manager, cache_label1, sample=10)
     pcoll2 | 'CacheSample%s' % cache_label2 >> cache.WriteCache(
-        self.cache_manager, cache_label2, sample=True, sample_size=10)
+        self.cache_manager, cache_label2, sample=10)
     pcoll3 | 'CacheSample%s' % cache_label3 >> cache.WriteCache(
-        self.cache_manager, cache_label3, sample=True, sample_size=10)
+        self.cache_manager, cache_label3, sample=10)
     pcoll4 | 'CacheSample%s' % cache_label4 >> cache.WriteCache(
-        self.cache_manager, cache_label3, sample=True, sample_size=10)
+        self.cache_manager, cache_label4, sample=10)
     pcoll5 | 'CacheSample%s' % cache_label5 >> cache.WriteCache(
-        self.cache_manager, cache_label3, sample=True, sample_size=10)
+        self.cache_manager, cache_label5, sample=10)
     pcoll5 | 'CacheFull%s' % cache_label5 >> cache.WriteCache(
-        self.cache_manager, cache_label3)
+        self.cache_manager, cache_label5)
     expected_pipeline_proto = to_stable_runner_api(p)
 
     self.assertPipelineEqual(analyzer.pipeline_proto_to_execute(),
@@ -201,11 +207,11 @@ class PipelineAnalyzerTest(unittest.TestCase):
 
     # pylint: disable=expression-not-assigned
     pcoll1 | 'CacheSample%s' % cache_label1 >> cache.WriteCache(
-        self.cache_manager, cache_label1, sample=True, sample_size=10)
+        self.cache_manager, cache_label1, sample=10)
     pcoll2 | 'CacheSample%s' % cache_label2 >> cache.WriteCache(
-        self.cache_manager, cache_label2, sample=True, sample_size=10)
+        self.cache_manager, cache_label2, sample=10)
     pcoll3 | 'CacheSample%s' % cache_label3 >> cache.WriteCache(
-        self.cache_manager, cache_label3, sample=True, sample_size=10)
+        self.cache_manager, cache_label3, sample=10)
     pcoll3 | 'CacheFull%s' % cache_label3 >> cache.WriteCache(
         self.cache_manager, cache_label3)
     expected_pipeline_proto = to_stable_runner_api(p)
@@ -259,9 +265,9 @@ class PipelineAnalyzerTest(unittest.TestCase):
 
     # pylint: disable=expression-not-assigned
     pcoll2 | 'CacheSample%s' % cache_label2 >> cache.WriteCache(
-        self.cache_manager, cache_label2, sample=True, sample_size=10)
+        self.cache_manager, cache_label2, sample=10)
     pcoll3 | 'CacheSample%s' % cache_label3 >> cache.WriteCache(
-        self.cache_manager, cache_label3, sample=True, sample_size=10)
+        self.cache_manager, cache_label3, sample=10)
     pcoll3 | 'CacheFull%s' % cache_label3 >> cache.WriteCache(
         self.cache_manager, cache_label3)
 

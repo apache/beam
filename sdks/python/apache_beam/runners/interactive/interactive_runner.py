@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """A runner that allows running of Beam pipelines interactively.
 
 This module is experimental. No backwards-compatibility guarantees.
@@ -28,6 +27,8 @@ import logging
 
 import apache_beam as beam
 from apache_beam import runners
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import pipeline_analyzer
@@ -44,26 +45,19 @@ class InteractiveRunner(runners.PipelineRunner):
   Allows interactively building and running Beam Python pipelines.
   """
 
-  def __init__(self,
-               underlying_runner=None,
-               cache_dir=None,
-               cache_format='text',
-               render_option=None):
+  def __init__(self, underlying_runner=None, render_option=None):
     """Constructor of InteractiveRunner.
 
     Args:
       underlying_runner: (runner.PipelineRunner)
-      cache_dir: (str) the directory where PCollection caches are kept
-      cache_format: (str) the file format that should be used for saving
-          PCollection caches. Available options are 'text' and 'tfrecord'.
       render_option: (str) this parameter decides how the pipeline graph is
           rendered. See display.pipeline_graph_renderer for available options.
     """
-    self._underlying_runner = (underlying_runner
-                               or direct_runner.DirectRunner())
-    self._cache_manager = cache.FileBasedCacheManager(cache_dir, cache_format)
+    self._underlying_runner = (
+        underlying_runner or direct_runner.DirectRunner())
     self._renderer = pipeline_graph_renderer.get_renderer(render_option)
     self._in_session = False
+    self._cache_manager = None
 
   def set_render_option(self, render_option):
     """Sets the rendering option.
@@ -100,23 +94,33 @@ class InteractiveRunner(runners.PipelineRunner):
       logging.info('Ending session.')
       exit(None, None, None)
 
-  def cleanup(self):
-    self._cache_manager.cleanup()
-
   def apply(self, transform, pvalueish, options):
     # TODO(qinyeli, BEAM-646): Remove runner interception of apply.
     return self._underlying_runner.apply(transform, pvalueish, options)
 
   def run_pipeline(self, pipeline, options):
+    standard_options = options.view_as(StandardOptions)
+    google_cloud_options = options.view_as(GoogleCloudOptions)
+    if self._cache_manager is None:
+      if not standard_options.streaming:
+        if google_cloud_options.temp_location is None:
+          raise ValueError(
+              "InteractiveRunner requires --temp_location to be set in order "
+              "to know where to store cache files.")
+      else:
+        if google_cloud_options.project is None:
+          raise ValueError(
+              "InteractiveRunner requires --project to be set in order "
+              "to know under which project to create temporary PubSub assets.")
+      self._cache_manager = cache.CacheManager(options)
+
     if not hasattr(self, '_desired_cache_labels'):
       self._desired_cache_labels = set()
 
     # Invoke a round trip through the runner API. This makes sure the Pipeline
     # proto is stable.
     pipeline = beam.pipeline.Pipeline.from_runner_api(
-        pipeline.to_runner_api(use_fake_coders=True),
-        pipeline.runner,
-        options)
+        pipeline.to_runner_api(use_fake_coders=True), pipeline.runner, options)
 
     # Snapshot the pipeline in a portable proto before mutating it.
     pipeline_proto, original_context = pipeline.to_runner_api(
@@ -132,9 +136,7 @@ class InteractiveRunner(runners.PipelineRunner):
     self._analyzer = analyzer
 
     pipeline_to_execute = beam.pipeline.Pipeline.from_runner_api(
-        analyzer.pipeline_proto_to_execute(),
-        self._underlying_runner,
-        options)
+        analyzer.pipeline_proto_to_execute(), self._underlying_runner, options)
 
     display = display_manager.DisplayManager(
         pipeline_proto=pipeline_proto,
@@ -143,7 +145,8 @@ class InteractiveRunner(runners.PipelineRunner):
         pipeline_graph_renderer=self._renderer)
     display.start_periodic_update()
     result = pipeline_to_execute.run()
-    result.wait_until_finish()
+    if not standard_options.streaming:
+      result.wait_until_finish()
     display.stop_periodic_update()
 
     return PipelineResult(result, self, self._analyzer.pipeline_info(),
@@ -195,6 +198,7 @@ class PipelineResult(beam.runners.runner.PipelineResult):
   def __init__(self, underlying_result, runner, pipeline_info, cache_manager,
                pcolls_to_pcoll_id):
     super(PipelineResult, self).__init__(underlying_result.state)
+    self._underlying_result = underlying_result
     self._runner = runner
     self._pipeline_info = pipeline_info
     self._cache_manager = cache_manager
@@ -205,22 +209,22 @@ class PipelineResult(beam.runners.runner.PipelineResult):
     return self._pipeline_info.cache_label(pcoll_id)
 
   def wait_until_finish(self):
-    # PipelineResult is not constructed until pipeline execution is finished.
-    return
+    return self._underlying_result.wait_until_finish()
 
   def get(self, pcoll):
     cache_label = self._cache_label(pcoll)
-    if self._cache_manager.exists('full', cache_label):
-      pcoll_list, _ = self._cache_manager.read('full', cache_label)
-      return pcoll_list
+    cache_name = self._cache_manager.generate_label(cache_label, "full")
+    if cache_name in self._cache_manager:
+      return self._cache_manager[cache_name].read()
     else:
       self._runner._desired_cache_labels.add(cache_label)  # pylint: disable=protected-access
       raise ValueError('PCollection not available, please run the pipeline.')
 
   def sample(self, pcoll):
     cache_label = self._cache_label(pcoll)
-    if self._cache_manager.exists('sample', cache_label):
-      return self._cache_manager.read('sample', cache_label)
+    cache_name = self._cache_manager.generate_label(cache_label, "sample")
+    if cache_name in self._cache_manager:
+      return self._cache_manager[cache_name].read()
     else:
       self._runner._desired_cache_labels.add(cache_label)  # pylint: disable=protected-access
       raise ValueError('PCollection not available, please run the pipeline.')

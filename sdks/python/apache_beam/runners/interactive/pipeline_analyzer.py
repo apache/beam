@@ -114,12 +114,14 @@ class PipelineAnalyzer(object):
                                         required_transforms,
                                         top_level_required_transforms)
 
-      if not self._cache_manager.exists(
-          'sample', self._pipeline_info.cache_label(pcoll_id)):
-        self._insert_caching_transforms(pcoll_id,
-                                        required_transforms,
-                                        top_level_required_transforms,
-                                        sample=True)
+      cache_name = self._cache_manager.generate_label(
+          self._pipeline_info.cache_label(pcoll_id), "sample")
+      if cache_name not in self._cache_manager:
+        self._insert_caching_transforms(
+            pcoll_id,
+            required_transforms,
+            top_level_required_transforms,
+            sample=True)
 
     required_transforms['_root'] = beam_runner_api_pb2.PTransform(
         subtransforms=list(top_level_required_transforms))
@@ -215,10 +217,10 @@ class PipelineAnalyzer(object):
       self._analyzed_pcoll_ids.add(pcoll_id)
 
     cache_label = self._pipeline_info.cache_label(pcoll_id)
-    if self._cache_manager.exists('full', cache_label) and not leaf:
+    cache_name = self._cache_manager.generate_label(cache_label, "full")
+    if cache_name in self._cache_manager and not leaf:
       self._caches_used.add(pcoll_id)
 
-      cache_label = self._pipeline_info.cache_label(pcoll_id)
       dummy_pcoll = (self._pipeline
                      | 'Load%s' % cache_label >> cache.ReadCache(
                          self._cache_manager, cache_label))
@@ -283,8 +285,7 @@ class PipelineAnalyzer(object):
           self._cache_manager, cache_label)
     else:
       pdone = pcoll | 'CacheSample%s' % cache_label >> cache.WriteCache(
-          self._cache_manager, cache_label, sample=True,
-          sample_size=10)
+          self._cache_manager, cache_label, sample=10)
 
     write_cache = self._top_level_producer(pdone)
     write_cache_id = self._context.transforms.get_id(write_cache)
