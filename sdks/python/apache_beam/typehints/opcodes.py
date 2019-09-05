@@ -161,8 +161,8 @@ def binary_subscr(state, unused_arg):
       out = base._constraint_for_index(index.value)
     except IndexError:
       out = element_type(base)
-  elif index == slice:
-    out = typehints.List[element_type(base)]
+  elif index == slice and isinstance(base, typehints.IndexableTypeConstraint):
+    out = base
   else:
     out = element_type(base)
   state.stack.append(out)
