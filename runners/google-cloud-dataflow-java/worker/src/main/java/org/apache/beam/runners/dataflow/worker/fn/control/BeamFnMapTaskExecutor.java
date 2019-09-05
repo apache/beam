@@ -354,7 +354,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
         updateMetricsDeprecated(metrics);
 
         double elementsConsumed = bundleProcessOperation.getInputElementsConsumed(metrics);
-        grpcWriteOperationElementsProcessed.accept((int)elementsConsumed);
+        grpcWriteOperationElementsProcessed.accept((int) elementsConsumed);
         progressInterpolator.addPoint(
             grpcWriteOperation.getElementsSent(), readOperation.getProgress());
         latestProgress.set(progressInterpolator.interpolateAndPurge(elementsConsumed));
