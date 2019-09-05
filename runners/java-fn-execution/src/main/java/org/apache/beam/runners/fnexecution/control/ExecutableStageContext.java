@@ -19,9 +19,7 @@ package org.apache.beam.runners.fnexecution.control;
 
 import java.io.Serializable;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.fnexecution.control.DefaultExecutableStageContext.MultiInstanceFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /** The context required in order to execute {@link ExecutableStage stages}. */
 public interface ExecutableStageContext extends AutoCloseable {
@@ -33,16 +31,7 @@ public interface ExecutableStageContext extends AutoCloseable {
   interface Factory extends Serializable {
 
     /** Get or create {@link ExecutableStageContext} for given {@link JobInfo}. */
-    ExecutableStageContext get(
-        JobInfo jobInfo, SerializableFunction<Object, Boolean> isReleaseSynchronous);
-
-    default ExecutableStageContext get(JobInfo jobInfo) {
-      return get(jobInfo, (caller) -> false /* always release context asynchronously */);
-    }
-  }
-
-  static Factory factory() {
-    return MultiInstanceFactory.MULTI_INSTANCE;
+    ExecutableStageContext get(JobInfo jobInfo);
   }
 
   StageBundleFactory getStageBundleFactory(ExecutableStage executableStage);

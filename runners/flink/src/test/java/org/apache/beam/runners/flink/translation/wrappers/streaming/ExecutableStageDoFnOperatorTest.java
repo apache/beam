@@ -58,6 +58,7 @@ import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
+import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContextFactory;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
@@ -683,7 +684,7 @@ public class ExecutableStageDoFnOperatorTest {
             options,
             stagePayload,
             jobInfo,
-            ExecutableStageContext.factory(),
+            FlinkExecutableStageContextFactory.getInstance(),
             createOutputMap(mainOutput, ImmutableList.of(additionalOutput)),
             WindowingStrategy.globalDefault(),
             null,
@@ -720,9 +721,9 @@ public class ExecutableStageDoFnOperatorTest {
       @Nullable Coder keyCoder,
       @Nullable Coder windowedInputCoder) {
 
-    ExecutableStageContext.Factory contextFactory =
-        Mockito.mock(ExecutableStageContext.Factory.class);
-    when(contextFactory.get(any(), any())).thenReturn(stageContext);
+    FlinkExecutableStageContextFactory contextFactory =
+        Mockito.mock(FlinkExecutableStageContextFactory.class);
+    when(contextFactory.get(any())).thenReturn(stageContext);
 
     final ExecutableStagePayload stagePayload;
     if (keyCoder != null) {

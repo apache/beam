@@ -253,9 +253,9 @@ public class FlinkExecutableStageFunctionTest {
    * behavior of the stage context itself is unchanged.
    */
   private FlinkExecutableStageFunction<Integer> getFunction(Map<String, Integer> outputMap) {
-    ExecutableStageContext.Factory contextFactory =
-        Mockito.mock(ExecutableStageContext.Factory.class);
-    when(contextFactory.get(any(), any())).thenReturn(stageContext);
+    FlinkExecutableStageContextFactory contextFactory =
+        Mockito.mock(FlinkExecutableStageContextFactory.class);
+    when(contextFactory.get(any())).thenReturn(stageContext);
     FlinkExecutableStageFunction<Integer> function =
         new FlinkExecutableStageFunction<>(stagePayload, jobInfo, outputMap, contextFactory, null);
     function.setRuntimeContext(runtimeContext);
