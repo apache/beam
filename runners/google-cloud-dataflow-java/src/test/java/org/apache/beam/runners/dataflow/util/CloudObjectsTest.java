@@ -51,7 +51,9 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.schemas.LogicalTypes;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.join.CoGbkResult.CoGbkResultCoder;
 import org.apache.beam.sdk.transforms.join.CoGbkResultSchema;
@@ -75,6 +77,20 @@ import org.junit.runners.Parameterized.Parameters;
 /** Tests for {@link CloudObjects}. */
 @RunWith(Enclosed.class)
 public class CloudObjectsTest {
+  private static final Schema TEST_SCHEMA =
+      Schema.builder()
+          .addBooleanField("bool")
+          .addByteField("int8")
+          .addInt16Field("int16")
+          .addInt32Field("int32")
+          .addInt64Field("int64")
+          .addFloatField("float")
+          .addDoubleField("double")
+          .addStringField("string")
+          .addArrayField("list_int32", FieldType.INT32)
+          .addLogicalTypeField("fixed_bytes", LogicalTypes.FixedBytes.of(4))
+          .build();
+
   /** Tests that all of the Default Coders are tested. */
   @RunWith(JUnit4.class)
   public static class DefaultsPresentTest {
@@ -147,7 +163,8 @@ public class CloudObjectsTest {
                       CoGbkResultSchema.of(
                           ImmutableList.of(new TupleTag<Long>(), new TupleTag<byte[]>())),
                       UnionCoder.of(ImmutableList.of(VarLongCoder.of(), ByteArrayCoder.of()))))
-              .add(SchemaCoder.of(Schema.builder().build()));
+              .add(SchemaCoder.of(Schema.builder().build()))
+              .add(SchemaCoder.of(TEST_SCHEMA));
       for (Class<? extends Coder> atomicCoder :
           DefaultCoderCloudObjectTranslatorRegistrar.KNOWN_ATOMIC_CODERS) {
         dataBuilder.add(InstanceBuilder.ofType(atomicCoder).fromFactoryMethod("of").build());
