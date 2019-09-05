@@ -192,7 +192,7 @@ public class CloudObjectsTest {
       }
       List<? extends Coder<?>> expectedComponents;
       if (coder instanceof StructuredCoder) {
-        expectedComponents = ((StructuredCoder)coder).getComponents();
+        expectedComponents = ((StructuredCoder) coder).getComponents();
       } else {
         expectedComponents = coder.getCoderArguments();
       }
@@ -206,8 +206,8 @@ public class CloudObjectsTest {
       }
       assertEquals(expectedComponents.size(), cloudComponents.size());
       for (int i = 0; i < expectedComponents.size(); i++) {
-        checkPipelineProtoCoderIds(expectedComponents.get(i), cloudComponents.get(i), sdkComponents);
-
+        checkPipelineProtoCoderIds(
+            expectedComponents.get(i), cloudComponents.get(i), sdkComponents);
       }
     }
   }
