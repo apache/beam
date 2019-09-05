@@ -670,7 +670,7 @@ class CallableWrapperDoFn(DoFn):
       try:
         fn_type_hints.strip_iterable()
       except ValueError as e:
-        raise ValueError('Return value not iterable: %s: %s' % (self, e))
+        raise ValueError('Return value not iterable: %s: %s' % (self._fn, e))
     type_hints = get_type_hints(self._fn).with_defaults(fn_type_hints)
     # If the fn was a DoFn annotated with a type-hint that hinted a return
     # type compatible with Iterable[Any], then we strip off the outer
