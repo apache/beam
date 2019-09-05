@@ -24,7 +24,7 @@ public class EncodersTest {
     data.add(1);
     data.add(2);
     data.add(3);
-    sparkSession.createDataset(data, EncoderHelpers.fromBeamCoder(VarIntCoder.class));
+    sparkSession.createDataset(data, EncoderHelpers.fromBeamCoder(VarIntCoder.of()));
 //    sparkSession.createDataset(data, EncoderHelpers.genericEncoder());
   }
 }
