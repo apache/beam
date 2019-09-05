@@ -350,20 +350,35 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
             .getMonitoringInfosList();
         Metrics metrics = processBundleProgressResponse.getMetrics();
 
-        long elementsConsumed = bundleProcessOperation.getInputElementsConsumed(monitoringInfos);
+        //todo(migryz): remove commented code
+        // long elementsConsumed1 = bundleProcessOperation.getInputElementsConsumed(monitoringInfos);
+        // double elementsConsumed2 = bundleProcessOperation.getInputElementsConsumed(metrics);
+        //
+        // int ec2 = (int) elementsConsumed1;
+        // long ec = (long) elementsConsumed2;
+        // int ec1 = (int) ec;
+        //
+        //
+        // LOG.error(
+        //     "migryz elementsConsumed match: {}, intMatch: {}, metrics: {} MIs: {}, mint: {}, miint: {}",
+        //     elementsConsumed2 == elementsConsumed1, ec1 == ec2, elementsConsumed2, elementsConsumed1,
+        //     ec1, ec2);
+
+        int elementsConsumed = (int)bundleProcessOperation.getInputElementsConsumed(monitoringInfos);
 
         if (elementsConsumed == 0) {
-          elementsConsumed = (long)bundleProcessOperation.getInputElementsConsumed(metrics);
+          elementsConsumed = (int) bundleProcessOperation.getInputElementsConsumed(metrics);
         }
 
         updateMetrics(monitoringInfos);
         updateMetricsDeprecated(metrics);
 
-        grpcWriteOperationElementsProcessed.accept((int) elementsConsumed);
+        grpcWriteOperationElementsProcessed.accept(elementsConsumed);
         progressInterpolator.addPoint(
             grpcWriteOperation.getElementsSent(), readOperation.getProgress());
         latestProgress.set(progressInterpolator.interpolateAndPurge(elementsConsumed));
         progressErrors = 0;
+        LOG.error("migryz update complete");
       } catch (Exception exn) {
         if (!isTransientProgressError(exn.getMessage())) {
           grpcWriteOperationElementsProcessed.accept(-1); // Not supported.

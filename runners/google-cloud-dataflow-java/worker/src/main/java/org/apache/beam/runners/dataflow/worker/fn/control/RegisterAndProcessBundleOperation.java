@@ -433,10 +433,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
       return 0;
     }
 
-    List<MonitoringInfo> temp = StreamSupport.stream(monitoringInfos.spliterator(), false).collect(
-        Collectors.toList());
-
-    for (MonitoringInfo mi : temp) {
+    for (MonitoringInfo mi : monitoringInfos) {
       if (mi.getUrn().equals(MonitoringInfoConstants.Urns.ELEMENT_COUNT)) {
         String pcollection = mi
             .getLabelsOrDefault(MonitoringInfoConstants.Labels.PCOLLECTION, null);

@@ -1964,6 +1964,7 @@ public class StreamingDataflowWorker {
                 .setMessage(stackTrace));
       }
       pendingFailuresToReport.clear(); // Best effort only, no need to wait till successfully sent.
+      LOG.error("Pending failure to report done");
     }
 
     WorkItemStatus workItemStatus =
@@ -1982,6 +1983,7 @@ public class StreamingDataflowWorker {
               .setWorkItemId(WINDMILL_COUNTER_UPDATE_WORK_ID)
               .setCounterUpdates(counterUpdates));
     }
+    LOG.error("migryz status report complete");
   }
 
   /**
