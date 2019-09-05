@@ -61,6 +61,9 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
             bytes, typing.Union[int, bytes, float]]]],
          typehints.Tuple[bytes, typehints.List[typehints.Tuple[
              bytes, typehints.Union[int, bytes, float]]]]),
+        # TODO(BEAM-7713): This case seems to fail on Py3.5.2 but not 3.5.4.
+        # ('arbitrary-length tuple', typing.Tuple[int, ...],
+        #  typehints.Tuple[int, ...]),
         ('flat alias', _TestFlatAlias, typehints.Tuple[bytes, float]),
         ('nested alias', _TestNestedAlias,
          typehints.List[typehints.Tuple[bytes, float]]),

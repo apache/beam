@@ -23,7 +23,6 @@ from __future__ import print_function
 
 import collections
 import operator
-import os
 import re
 import sys
 import typing
@@ -845,7 +844,7 @@ class PTransformLabelsTest(unittest.TestCase):
     self.check_label(beam.CombinePerKey(sum), r'CombinePerKey(sum)')
 
     class MyDoFn(beam.DoFn):
-      def process(self):
+      def process(self, unused_element):
         pass
 
     self.check_label(beam.ParDo(MyDoFn()), r'ParDo(MyDoFn)')
@@ -859,7 +858,7 @@ class PTransformLabelsTest(unittest.TestCase):
     self.check_label('TestCPK' >> beam.CombinePerKey(sum), r'TestCPK')
 
     class MyDoFn(beam.DoFn):
-      def process(self):
+      def process(self, unused_element):
         pass
 
     self.check_label('TestParDo' >> beam.ParDo(MyDoFn()), r'TestParDo')
@@ -1870,10 +1869,6 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     assert_that(d, equal_to([[10, 9, 8]]))
     self.p.run()
 
-  @unittest.skipIf(sys.version_info >= (3, 7, 0) and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.7. '
-                   'See BEAM-6986')
   def test_top_of_runtime_checking_satisfied(self):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
 
@@ -2123,6 +2118,47 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     with self.assertRaises(KeyError,
                            msg='Tag \'foo\' is not a defined output tag'):
       result.foo
+
+
+class TestPTransformFn(TypeHintTestCase):
+
+  def test_type_checking_fail(self):
+    @beam.ptransform_fn
+    def MyTransform(pcoll):
+      return pcoll | beam.ParDo(lambda x: [x]).with_output_types(str)
+
+    p = TestPipeline()
+    with self.assertRaisesRegexp(beam.typehints.TypeCheckError,
+                                 r'expected.*int.*got.*str'):
+      _ = (p
+           | beam.Create([1, 2])
+           | MyTransform().with_output_types(int))
+
+  def test_type_checking_success(self):
+    @beam.ptransform_fn
+    def MyTransform(pcoll):
+      return pcoll | beam.ParDo(lambda x: [x]).with_output_types(int)
+
+    p = TestPipeline()
+    _ = (p
+         | beam.Create([1, 2])
+         | MyTransform().with_output_types(int))
+    p.run()
+
+  def test_type_hints_arg(self):
+    # Tests passing type hints via the magic 'type_hints' argument name.
+    @beam.ptransform_fn
+    def MyTransform(pcoll, type_hints, test_arg):
+      self.assertEqual(test_arg, 'test')
+      return (pcoll
+              | beam.ParDo(lambda x: [x]).with_output_types(
+                  type_hints.output_types[0][0]))
+
+    p = TestPipeline()
+    _ = (p
+         | beam.Create([1, 2])
+         | MyTransform('test').with_output_types(int))
+    p.run()
 
 
 if __name__ == '__main__':

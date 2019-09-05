@@ -20,7 +20,6 @@
 from __future__ import absolute_import
 
 import functools
-import inspect
 import sys
 import unittest
 from builtins import next
@@ -28,6 +27,7 @@ from builtins import range
 
 import apache_beam.typehints.typehints as typehints
 from apache_beam.typehints import Any
+from apache_beam.typehints import Dict
 from apache_beam.typehints import Tuple
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import Union
@@ -38,9 +38,9 @@ from apache_beam.typehints.decorators import GeneratorWrapper
 from apache_beam.typehints.decorators import _check_instance_type
 from apache_beam.typehints.decorators import _interleave_type_check
 from apache_beam.typehints.decorators import _positional_arg_hints
+from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.decorators import get_type_hints
 from apache_beam.typehints.decorators import getcallargs_forhints
-from apache_beam.typehints.decorators import getfullargspec
 from apache_beam.typehints.typehints import is_consistent_with
 
 
@@ -60,7 +60,7 @@ def check_type_hints(f):
     if hints.input_types:  # pylint: disable=too-many-nested-blocks
       input_hints = getcallargs_forhints(
           f, *hints.input_types[0], **hints.input_types[1])
-      inputs = inspect.getcallargs(f, *args, **kwargs)
+      inputs = get_signature(f).bind(*args, **kwargs).arguments
       for var, hint in input_hints.items():
         value = inputs[var]
         new_value = check_or_interleave(hint, value, var)
@@ -69,7 +69,7 @@ def check_type_hints(f):
             kwargs[var] = new_value
           else:
             args = list(args)
-            for ix, pvar in enumerate(getfullargspec(f).args):
+            for ix, pvar in enumerate(get_signature(f).parameters):
               if pvar == var:
                 args[ix] = new_value
                 break
@@ -537,11 +537,13 @@ class DictHintTestCase(TypeHintTestCase):
     hint1 = typehints.Dict[int, str]
     hint2 = typehints.Dict[bool, int]
     hint3 = typehints.Dict[int, typehints.List[typehints.Tuple[str, str, str]]]
+    hint4 = typehints.Dict[int, int]
 
     self.assertCompatible(hint1, hint1)
     self.assertCompatible(hint3, hint3)
     self.assertNotCompatible(hint3, 4)
-    self.assertNotCompatible(hint2, hint1)
+    self.assertNotCompatible(hint2, hint1)  # Key incompatibility.
+    self.assertNotCompatible(hint1, hint4)  # Value incompatibility.
 
   def test_repr(self):
     hint3 = typehints.Dict[int, typehints.List[typehints.Tuple[str, str, str]]]
@@ -893,10 +895,50 @@ class TakesDecoratorTestCase(TypeHintTestCase):
     self.assertEqual(3, add(1, 2))
 
 
-class ReturnsDecoratorTestCase(TypeHintTestCase):
+class InputDecoratorTestCase(TypeHintTestCase):
+  def test_valid_hint(self):
+    @with_input_types(int, int)
+    def unused_add(a, b):
+      return a + b
+
+    @with_input_types(int, b=int)
+    def unused_add2(a, b):
+      return a + b
+
+    @with_input_types(a=int, b=int)
+    def unused_add3(a, b):
+      return a + b
+
+  def test_invalid_kw_hint(self):
+    with self.assertRaisesRegexp(TypeError, r'\[1, 2\]'):
+      @with_input_types(a=[1, 2])
+      def unused_foo(a):
+        pass
+
+  def test_invalid_pos_hint(self):
+    with self.assertRaisesRegexp(TypeError, r'\[1, 2\]'):
+      @with_input_types([1, 2])
+      def unused_foo(a):
+        pass
+
+
+class OutputDecoratorTestCase(TypeHintTestCase):
+
+  def test_valid_hint(self):
+    @with_output_types(int)
+    def unused_foo():
+      return 5
+
+    @with_output_types(None)
+    def unused_foo():
+      return 5
+
+    @with_output_types(Tuple[int, str])
+    def unused_foo():
+      return 5, 'bar'
 
   def test_no_kwargs_accepted(self):
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegexp(ValueError, r'must be positional'):
       @with_output_types(m=int)
       def unused_foo():
         return 5
@@ -933,12 +975,14 @@ class ReturnsDecoratorTestCase(TypeHintTestCase):
                      e.exception.args[0])
 
   def test_type_check_simple_type(self):
+    @check_type_hints
     @with_output_types(str)
     def upper(a):
       return a.upper()
     self.assertEqual('TEST', upper('test'))
 
   def test_type_check_composite_type(self):
+    @check_type_hints
     @with_output_types(typehints.List[typehints.Tuple[int, int]])
     def bar():
       return [(i, i+1) for i in range(5)]
@@ -946,6 +990,7 @@ class ReturnsDecoratorTestCase(TypeHintTestCase):
     self.assertEqual([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5)], bar())
 
   def test_any_return_type_hint(self):
+    @check_type_hints
     @with_output_types(typehints.Any)
     def bar():
       return 'foo'
@@ -1068,22 +1113,58 @@ class DecoratorHelpers(TypeHintTestCase):
     self.assertEqual(typehints.Tuple[int, typehints.Any],
                      _positional_arg_hints(['x', 'y'], {'x': int}))
 
+  @staticmethod
+  def relax_for_py2(tuple_hint):
+    if sys.version_info >= (3,):
+      return tuple_hint
+    else:
+      return Tuple[Any, ...]
+
   def test_getcallargs_forhints(self):
     def func(a, b_c, *d):
-      b, c = b_c # pylint: disable=unused-variable
-      return None
+      return a, b_c, d
+
     self.assertEqual(
         {'a': Any, 'b_c': Any, 'd': Tuple[Any, ...]},
         getcallargs_forhints(func, *[Any, Any]))
     self.assertEqual(
-        {'a': Any, 'b_c': Any, 'd': Tuple[Any, ...]},
-        getcallargs_forhints(func, *[Any, Any, Any, int]))
+        {'a': Any, 'b_c': Any,
+         'd': self.relax_for_py2(Tuple[Union[int, str], ...])},
+        getcallargs_forhints(func, *[Any, Any, str, int]))
     self.assertEqual(
         {'a': int, 'b_c': Tuple[str, Any], 'd': Tuple[Any, ...]},
         getcallargs_forhints(func, *[int, Tuple[str, Any]]))
+    self.assertEqual(
+        {'a': Any, 'b_c': Any, 'd': self.relax_for_py2(Tuple[str, ...])},
+        getcallargs_forhints(func, *[Any, Any, Tuple[str, ...]]))
+    self.assertEqual(
+        {'a': Any, 'b_c': Any,
+         'd': self.relax_for_py2(Tuple[Union[Tuple[str, ...], int], ...])},
+        getcallargs_forhints(func, *[Any, Any, Tuple[str, ...], int]))
+
+  @unittest.skipIf(sys.version_info < (3,),
+                   'kwargs not supported in Py2 version of this function')
+  def test_getcallargs_forhints_varkw(self):
+    def func(a, b_c, *d, **e):
+      return a, b_c, d, e
+
+    self.assertEqual(
+        {'a': Any, 'b_c': Any, 'd': Tuple[Any, ...],
+         'e': Dict[str, Union[str, int]]},
+        getcallargs_forhints(func, *[Any, Any], **{'kw1': str, 'kw2': int}))
+    self.assertEqual(
+        {'a': Any, 'b_c': Any, 'd': Tuple[Any, ...],
+         'e': Dict[str, Union[str, int]]},
+        getcallargs_forhints(func, *[Any, Any], e=Dict[str, Union[int, str]]))
+    self.assertEqual(
+        {'a': Any, 'b_c': Any, 'd': Tuple[Any, ...],
+         'e': Dict[str, Dict[str, Union[str, int]]]},
+        # keyword is not 'e', thus the Dict is considered a value hint.
+        getcallargs_forhints(func, *[Any, Any], kw1=Dict[str, Union[int, str]]))
 
   def test_getcallargs_forhints_builtins(self):
-    if sys.version_info.major < 3:
+    if sys.version_info < (3, 7):
+      # Signatures for builtins are not supported in 3.5 and 3.6.
       self.assertEqual(
           {'_': str,
            '__unknown__varargs': Tuple[Any, ...],
@@ -1091,19 +1172,15 @@ class DecoratorHelpers(TypeHintTestCase):
           getcallargs_forhints(str.upper, str))
       self.assertEqual(
           {'_': str,
-           '__unknown__varargs': Tuple[Any, ...],
+           '__unknown__varargs': self.relax_for_py2(Tuple[str, ...]),
            '__unknown__keywords': typehints.Dict[Any, Any]},
           getcallargs_forhints(str.strip, str, str))
       self.assertEqual(
           {'_': str,
-           '__unknown__varargs': Tuple[Any, ...],
+           '__unknown__varargs':
+               self.relax_for_py2(Tuple[typehints.List[int], ...]),
            '__unknown__keywords': typehints.Dict[Any, Any]},
-          getcallargs_forhints(str.join, str, list))
-    elif sys.version_info.minor < 7:
-      # Signatures for builtins are not supported in 3.5 and 3.6.
-      self.assertEqual({}, getcallargs_forhints(str.upper, str))
-      self.assertEqual({}, getcallargs_forhints(str.strip, str, str))
-      self.assertEqual({}, getcallargs_forhints(str.join, str, list))
+          getcallargs_forhints(str.join, str, typehints.List[int]))
     else:
       self.assertEqual(
           {'self': str},
@@ -1111,8 +1188,24 @@ class DecoratorHelpers(TypeHintTestCase):
       # str.strip has an optional second argument.
       self.assertEqual({'self': str, 'chars': Any},
                        getcallargs_forhints(str.strip, str))
-      self.assertEqual({'self': str, 'iterable': list},
-                       getcallargs_forhints(str.join, str, list))
+      self.assertEqual(
+          {'self': str, 'iterable': typehints.List[int]},
+          getcallargs_forhints(str.join, str, typehints.List[int]))
+
+
+class TestGetYieldedType(unittest.TestCase):
+  def test_iterables(self):
+    self.assertEqual(int, typehints.get_yielded_type(typehints.Iterable[int]))
+    self.assertEqual(int, typehints.get_yielded_type(typehints.Iterator[int]))
+    self.assertEqual(int, typehints.get_yielded_type(typehints.Generator[int]))
+    self.assertEqual(int, typehints.get_yielded_type(typehints.List[int]))
+    self.assertEqual(typehints.Union[int, str],
+                     typehints.get_yielded_type(typehints.Tuple[int, str]))
+    self.assertEqual(int, typehints.get_yielded_type(typehints.Set[int]))
+
+  def test_not_iterable(self):
+    with self.assertRaisesRegexp(ValueError, r'not iterable'):
+      typehints.get_yielded_type(int)
 
 
 class TestCoerceToKvType(TypeHintTestCase):

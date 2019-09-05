@@ -807,7 +807,7 @@ class DictHint(CompositeTypeHint):
     def _consistent_with_check_(self, sub):
       return (isinstance(sub, self.__class__)
               and is_consistent_with(sub.key_type, self.key_type)
-              and is_consistent_with(sub.key_type, self.key_type))
+              and is_consistent_with(sub.value_type, self.value_type))
 
     def _raise_hint_exception_or_inner_exception(self, is_key,
                                                  incorrect_instance,
@@ -1143,6 +1143,31 @@ def is_consistent_with(sub, base):
     # Nothing but object lives above any type constraints.
     return base == object
   return issubclass(sub, base)
+
+
+def get_yielded_type(type_hint):
+  """Obtains the type of elements yielded by an iterable.
+
+  Note that "iterable" here means: can be iterated over in a for loop.
+
+  Args:
+    type_hint: (TypeConstraint) The iterable in question. Must be normalize()-d.
+
+  Returns:
+    Yielded type of the iterable.
+
+  Raises:
+    ValueError if not iterable.
+  """
+  if isinstance(type_hint, AnyTypeConstraint):
+    return type_hint
+  if is_consistent_with(type_hint, Iterator[Any]):
+    return type_hint.yielded_type
+  if is_consistent_with(type_hint, Tuple[Any, ...]):
+    return Union[type_hint.tuple_types]
+  if is_consistent_with(type_hint, Iterable[Any]):
+    return type_hint.inner_type
+  raise ValueError('%s is not iterable' % type_hint)
 
 
 def coerce_to_kv_type(element_type, label=None, side_input_producer=None):
