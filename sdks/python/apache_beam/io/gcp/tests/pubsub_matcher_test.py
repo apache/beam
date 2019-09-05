@@ -34,15 +34,11 @@ from apache_beam.testing.test_utils import create_pull_response
 # Protect against environments where pubsub library is not available.
 try:
   from google.cloud import pubsub
-  from google.protobuf.timestamp_pb2 import Timestamp
 except ImportError:
   pubsub = None
-  Timestamp = None
 
 
 @unittest.skipIf(pubsub is None, 'PubSub dependencies are not installed.')
-@unittest.skipIf(Timestamp is None,
-                 'Google Protobuf dependencies are not installed.')
 @mock.patch('time.sleep', return_value=None)
 @mock.patch('google.cloud.pubsub.SubscriberClient')
 class PubSubMatcherTest(unittest.TestCase):
@@ -75,14 +71,10 @@ class PubSubMatcherTest(unittest.TestCase):
 
   def test_message_matcher_attributes_success(self, mock_get_sub, unsued_mock):
     self.init_matcher(with_attributes=True)
-    self.pubsub_matcher.expected_msg = [PubsubMessage(b'a', {'k': 'v'},
-                                                      '0123456789',
-                                                      Timestamp())]
+    self.pubsub_matcher.expected_msg = [PubsubMessage(b'a', {'k': 'v'})]
     mock_sub = mock_get_sub.return_value
     mock_sub.pull.side_effect = [
-        create_pull_response([PullResponseMessage(b'a', {'k': 'v'},
-                                                  '0123456789',
-                                                  Timestamp())])
+        create_pull_response([PullResponseMessage(b'a', {'k': 'v'})])
     ]
     hc_assert_that(self.mock_presult, self.pubsub_matcher)
     self.assertEqual(mock_sub.pull.call_count, 1)
@@ -90,15 +82,11 @@ class PubSubMatcherTest(unittest.TestCase):
 
   def test_message_matcher_attributes_fail(self, mock_get_sub, unsued_mock):
     self.init_matcher(with_attributes=True)
-    self.pubsub_matcher.expected_msg = [PubsubMessage(b'a', {},
-                                                      '0123456789',
-                                                      Timestamp())]
+    self.pubsub_matcher.expected_msg = [PubsubMessage(b'a', {})]
     mock_sub = mock_get_sub.return_value
     # Unexpected attribute 'k'.
     mock_sub.pull.side_effect = [
-        create_pull_response([PullResponseMessage(b'a', {'k': 'v'},
-                                                  '0123456789',
-                                                  Timestamp())])
+        create_pull_response([PullResponseMessage(b'a', {'k': 'v'})])
     ]
     with self.assertRaisesRegexp(AssertionError, r'Unexpected'):
       hc_assert_that(self.mock_presult, self.pubsub_matcher)
@@ -108,13 +96,10 @@ class PubSubMatcherTest(unittest.TestCase):
   def test_message_matcher_strip_success(self, mock_get_sub, unsued_mock):
     self.init_matcher(with_attributes=True,
                       strip_attributes=['id', 'timestamp'])
-    self.pubsub_matcher.expected_msg = [PubsubMessage(b'a', {'k': 'v'},
-                                                      '0123456789',
-                                                      Timestamp())]
+    self.pubsub_matcher.expected_msg = [PubsubMessage(b'a', {'k': 'v'})]
     mock_sub = mock_get_sub.return_value
     mock_sub.pull.side_effect = [create_pull_response([
-        PullResponseMessage(b'a', {'id': 'foo', 'timestamp': 'bar', 'k': 'v'},
-                            '0123456789', Timestamp())
+        PullResponseMessage(b'a', {'id': 'foo', 'timestamp': 'bar', 'k': 'v'})
     ])]
     hc_assert_that(self.mock_presult, self.pubsub_matcher)
     self.assertEqual(mock_sub.pull.call_count, 1)
@@ -123,14 +108,11 @@ class PubSubMatcherTest(unittest.TestCase):
   def test_message_matcher_strip_fail(self, mock_get_sub, unsued_mock):
     self.init_matcher(with_attributes=True,
                       strip_attributes=['id', 'timestamp'])
-    self.pubsub_matcher.expected_msg = [PubsubMessage(b'a', {'k': 'v'},
-                                                      '0123456789',
-                                                      Timestamp())]
+    self.pubsub_matcher.expected_msg = [PubsubMessage(b'a', {'k': 'v'})]
     mock_sub = mock_get_sub.return_value
     # Message is missing attribute 'timestamp'.
     mock_sub.pull.side_effect = [create_pull_response([
-        PullResponseMessage(b'a', {'id': 'foo', 'k': 'v'},
-                            '0123456789', Timestamp())
+        PullResponseMessage(b'a', {'id': 'foo', 'k': 'v'})
     ])]
     with self.assertRaisesRegexp(AssertionError, r'Stripped attributes'):
       hc_assert_that(self.mock_presult, self.pubsub_matcher)
@@ -142,10 +124,8 @@ class PubSubMatcherTest(unittest.TestCase):
     self.pubsub_matcher.expected_msg = [b'a']
     mock_sub = mock_get_sub.return_value
     mock_sub.pull.side_effect = [
-        create_pull_response([PullResponseMessage(b'c', {}, '01',
-                                                  Timestamp()),
-                              PullResponseMessage(b'd', {}, '02',
-                                                  Timestamp())]),
+        create_pull_response([PullResponseMessage(b'c', {}),
+                              PullResponseMessage(b'd', {})]),
     ]
     with self.assertRaises(AssertionError) as error:
       hc_assert_that(self.mock_presult, self.pubsub_matcher)

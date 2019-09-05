@@ -33,12 +33,10 @@ try:
   from google.api_core import exceptions as gexc
   from google.cloud import bigquery
   from google.cloud import pubsub
-  from google.protobuf.timestamp_pb2 import Timestamp
 except ImportError:
   gexc = None
   bigquery = None
   pubsub = None
-  Timestamp = None
 
 
 @unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
@@ -164,18 +162,9 @@ class PubSubUtilTest(unittest.TestCase):
     data = b'data'
     ack_id = 'ack_id'
     attributes = {'key': 'value'}
-    message_id = '0123456789'
-    publish_seconds = 1520861821
-    publish_nanos = 234567000
-    publish_time = Timestamp(seconds=publish_seconds, nanos=publish_nanos)
-    message = PubsubMessage(data, attributes, message_id, publish_time)
+    message = PubsubMessage(data, attributes)
     pull_response = test_utils.create_pull_response(
-        [test_utils.PullResponseMessage(data, attributes,
-                                        message_id=message_id,
-                                        publish_time=publish_time,
-                                        publish_time_secs=publish_seconds,
-                                        publish_time_nanos=publish_nanos,
-                                        ack_id=ack_id)])
+        [test_utils.PullResponseMessage(data, attributes, ack_id=ack_id)])
     mock_pubsub.pull.return_value = pull_response
     output = utils.read_from_pubsub(
         mock_pubsub,
@@ -224,30 +213,16 @@ class PubSubUtilTest(unittest.TestCase):
         'data {}'.format(i).encode("utf-8") for i in range(number_of_elements)
     ]
     attributes_list = [{
-        'key': 'value {}'.format(i)} for i in range(number_of_elements)]
-    message_id_list = ['0123456789_{}'.format(i)
-                       for i in range(number_of_elements)]
-    publish_time_secs = 1520861821
-    publish_time_nanos = 234567000
-    publish_time_list = [Timestamp(seconds=publish_time_secs,
-                                   nanos=publish_time_nanos)
-                         for i in range(number_of_elements)]
+        'key': 'value {}'.format(i)
+    } for i in range(number_of_elements)]
     ack_ids = ['ack_id_{}'.format(i) for i in range(number_of_elements)]
     messages = [
-        PubsubMessage(data, attributes, message_id, publish_time)
-        for data, attributes, message_id, publish_time
-        in zip(data_list, attributes_list,
-               message_id_list, publish_time_list)
+        PubsubMessage(data, attributes)
+        for data, attributes in zip(data_list, attributes_list)
     ]
     response_messages = [
-        test_utils.PullResponseMessage(
-            data, attributes, message_id,
-            publish_time_secs=publish_time.seconds,
-            publish_time_nanos=publish_time.nanos,
-            ack_id=ack_id)
-        for data, attributes, message_id, publish_time, ack_id
-        in zip(data_list, attributes_list, message_id_list,
-               publish_time_list, ack_ids)
+        test_utils.PullResponseMessage(data, attributes, ack_id=ack_id)
+        for data, attributes, ack_id in zip(data_list, attributes_list, ack_ids)
     ]
 
     class SequentialPullResponse(object):
