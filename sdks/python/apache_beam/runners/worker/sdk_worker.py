@@ -52,8 +52,12 @@ class SdkHarness(object):
   SCHEDULING_DELAY_THRESHOLD_SEC = 5*60  # 5 Minutes
 
   def __init__(
-      self, control_address, worker_count, credentials=None, worker_id=None,
-      state_cache_size=100, profiler_factory=None):
+      self, control_address, worker_count,
+      credentials=None,
+      worker_id=None,
+      # Caching is disabled by default
+      state_cache_size=0,
+      profiler_factory=None):
     self._alive = True
     self._worker_count = worker_count
     self._worker_index = 0
