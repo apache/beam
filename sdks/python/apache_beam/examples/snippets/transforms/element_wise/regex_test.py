@@ -33,11 +33,11 @@ from . import regex
 def check_matches(actual):
   # [START plants_matches]
   plants_matches = [
-      '🍓,   Strawberry,   perennial',
+      '🍓, Strawberry, perennial',
       '🥕, Carrot, biennial',
       '🍆, Eggplant, perennial',
       '🍅, Tomato, annual',
-      '🥔,Potato,perennial',
+      '🥔, Potato, perennial',
   ]
   # [END plants_matches]
   assert_that(actual, equal_to(plants_matches))
@@ -46,11 +46,11 @@ def check_matches(actual):
 def check_all_matches(actual):
   # [START plants_all_matches]
   plants_all_matches = [
-      ['🍓,   Strawberry,   perennial', '🍓', 'Strawberry', 'perennial'],
+      ['🍓, Strawberry, perennial', '🍓', 'Strawberry', 'perennial'],
       ['🥕, Carrot, biennial', '🥕', 'Carrot', 'biennial'],
       ['🍆, Eggplant, perennial', '🍆', 'Eggplant', 'perennial'],
       ['🍅, Tomato, annual', '🍅', 'Tomato', 'annual'],
-      ['🥔,Potato,perennial', '🥔', 'Potato', 'perennial'],
+      ['🥔, Potato, perennial', '🥔', 'Potato', 'perennial'],
   ]
   # [END plants_all_matches]
   assert_that(actual, equal_to(plants_all_matches))
@@ -59,11 +59,11 @@ def check_all_matches(actual):
 def check_matches_kv(actual):
   # [START plants_matches_kv]
   plants_matches_kv = [
-      ('🍓', '🍓,   Strawberry,   perennial'),
+      ('🍓', '🍓, Strawberry, perennial'),
       ('🥕', '🥕, Carrot, biennial'),
       ('🍆', '🍆, Eggplant, perennial'),
       ('🍅', '🍅, Tomato, annual'),
-      ('🥔', '🥔,Potato,perennial'),
+      ('🥔', '🥔, Potato, perennial'),
   ]
   # [END plants_matches_kv]
   assert_that(actual, equal_to(plants_matches_kv))
@@ -72,11 +72,11 @@ def check_matches_kv(actual):
 def check_find_all(actual):
   # [START plants_find_all]
   plants_find_all = [
-      ['🍓,   Strawberry,   perennial'],
+      ['🍓, Strawberry, perennial'],
       ['🥕, Carrot, biennial'],
       ['🍆, Eggplant, perennial', '🍌, Banana, perennial'],
       ['🍅, Tomato, annual', '🍉, Watermelon, annual'],
-      ['🥔,Potato,perennial'],
+      ['🥔, Potato, perennial'],
   ]
   # [END plants_find_all]
   assert_that(actual, equal_to(plants_find_all))
@@ -85,13 +85,13 @@ def check_find_all(actual):
 def check_find_kv(actual):
   # [START plants_find_kv]
   plants_find_all = [
-      ('🍓', '🍓,   Strawberry,   perennial'),
+      ('🍓', '🍓, Strawberry, perennial'),
       ('🥕', '🥕, Carrot, biennial'),
       ('🍆', '🍆, Eggplant, perennial'),
       ('🍌', '🍌, Banana, perennial'),
       ('🍅', '🍅, Tomato, annual'),
       ('🍉', '🍉, Watermelon, annual'),
-      ('🥔', '🥔,Potato,perennial'),
+      ('🥔', '🥔, Potato, perennial'),
   ]
   # [END plants_find_kv]
   assert_that(actual, equal_to(plants_find_all))
@@ -132,7 +132,7 @@ def check_split(actual):
       ['🍅', 'Tomato', 'annual'],
       ['🥔', 'Potato', 'perennial'],
   ]
-  # [END plants_replace_first]
+  # [END plants_split]
   assert_that(actual, equal_to(plants_split))
 
 
