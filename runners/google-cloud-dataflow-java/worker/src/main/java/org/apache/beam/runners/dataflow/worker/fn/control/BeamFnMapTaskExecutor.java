@@ -350,23 +350,6 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
             processBundleProgressResponse.getMonitoringInfosList();
         Metrics metrics = processBundleProgressResponse.getMetrics();
 
-        // todo(migryz): remove commented code
-        // long elementsConsumed1 =
-        // bundleProcessOperation.getInputElementsConsumed(monitoringInfos);
-        // double elementsConsumed2 = bundleProcessOperation.getInputElementsConsumed(metrics);
-        //
-        // int ec2 = (int) elementsConsumed1;
-        // long ec = (long) elementsConsumed2;
-        // int ec1 = (int) ec;
-        //
-        //
-        // LOG.error(
-        //     "migryz elementsConsumed match: {}, intMatch: {}, metrics: {} MIs: {}, mint: {},
-        // miint: {}",
-        //     elementsConsumed2 == elementsConsumed1, ec1 == ec2, elementsConsumed2,
-        // elementsConsumed1,
-        //     ec1, ec2);
-
         int elementsConsumed =
             (int) bundleProcessOperation.getInputElementsConsumed(monitoringInfos);
 

@@ -74,7 +74,6 @@ public class MeanByteCountMonitoringInfoToCounterUpdateTransformer
       throw new RuntimeException(String.format("Received unexpected counter urn: %s", urn));
     }
 
-    // TODO(migryz): extract and utilize pcollection label from beam_fn_api.proto
     if (!pcollectionIdToNameContext.containsKey(
         monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PCOLLECTION))) {
       return Optional.of(

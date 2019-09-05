@@ -1158,7 +1158,7 @@ public class StreamingDataflowWorker {
     DataflowWorkerLoggingMDC.setWorkId(
         TextFormat.escapeBytes(key) + "-" + Long.toString(workItem.getWorkToken()));
     DataflowWorkerLoggingMDC.setStageName(computationId);
-    LOG.error("Starting processing for {}:\n{}", computationId, work);
+    LOG.debug("Starting processing for {}:\n{}", computationId, work);
 
     Windmill.WorkItemCommitRequest.Builder outputBuilder =
         Windmill.WorkItemCommitRequest.newBuilder()
@@ -1358,7 +1358,7 @@ public class StreamingDataflowWorker {
       windmillStateBytesRead.addValue(stateBytesRead);
       windmillStateBytesWritten.addValue(stateBytesWritten);
 
-      LOG.error("Processing done for work token: {}", workItem.getWorkToken());
+      LOG.debug("Processing done for work token: {}", workItem.getWorkToken());
     } catch (Throwable t) {
       if (executionState != null) {
         try {
@@ -1964,7 +1964,6 @@ public class StreamingDataflowWorker {
                 .setMessage(stackTrace));
       }
       pendingFailuresToReport.clear(); // Best effort only, no need to wait till successfully sent.
-      LOG.error("Pending failure to report done");
     }
 
     WorkItemStatus workItemStatus =
@@ -1983,7 +1982,6 @@ public class StreamingDataflowWorker {
               .setWorkItemId(WINDMILL_COUNTER_UPDATE_WORK_ID)
               .setCounterUpdates(counterUpdates));
     }
-    LOG.error("migryz status report complete");
   }
 
   /**

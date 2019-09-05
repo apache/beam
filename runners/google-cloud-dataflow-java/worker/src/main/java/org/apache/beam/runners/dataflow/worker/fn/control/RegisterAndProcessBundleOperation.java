@@ -154,6 +154,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
           "Process bundle descriptor {}", toDot(registerRequest.getProcessBundleDescriptor(0)));
     }
 
+    // GRPC Read/Write expected to only have one Output/Input respectively.
     for (Map.Entry<String, RunnerApi.PTransform> pTransform :
         registerRequest.getProcessBundleDescriptor(0).getTransformsMap().entrySet()) {
 
@@ -437,16 +438,6 @@ public class RegisterAndProcessBundleOperation extends Operation {
     return 0;
   }
 
-  private String getStackTrace() {
-    StackTraceElement[] trace = Thread.currentThread().getStackTrace();
-    StringBuilder traceInfo = new StringBuilder();
-    for (StackTraceElement stackItem : trace) {
-      traceInfo.append("\n");
-      traceInfo.append(stackItem.toString());
-    }
-    return traceInfo.toString();
-  }
-
   /** Returns the number of input elements consumed by the gRPC read, if known, otherwise 0. */
   double getInputElementsConsumed(BeamFnApi.Metrics metrics) {
     double result =
@@ -458,14 +449,6 @@ public class RegisterAndProcessBundleOperation extends Operation {
                 .getProcessedElements()
                 .getMeasured()
                 .getOutputElementCountsOrDefault(grpcReadTransformOutputName, 0);
-
-    LOG.error(
-        "migryz getInputElementsConsumed\n{}\n{}\n{}\nresult: {}\n\nStacktrace: {}",
-        grpcReadTransformId,
-        BeamFnApi.Metrics.PTransform.getDefaultInstance(),
-        grpcReadTransformOutputName,
-        result,
-        getStackTrace());
 
     return result;
   }
