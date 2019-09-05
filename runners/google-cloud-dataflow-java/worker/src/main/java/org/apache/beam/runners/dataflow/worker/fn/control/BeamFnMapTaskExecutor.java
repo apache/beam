@@ -365,7 +365,6 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
             grpcWriteOperation.getElementsSent(), readOperation.getProgress());
         latestProgress.set(progressInterpolator.interpolateAndPurge(elementsConsumed));
         progressErrors = 0;
-        LOG.error("migryz update complete");
       } catch (Exception exn) {
         if (!isTransientProgressError(exn.getMessage())) {
           grpcWriteOperationElementsProcessed.accept(-1); // Not supported.
