@@ -149,6 +149,7 @@ def main(unused_argv):
         control_address=service_descriptor.url,
         worker_count=_get_worker_count(sdk_pipeline_options),
         worker_id=_worker_id,
+        state_cache_size=_get_state_cache_size(sdk_pipeline_options),
         profiler_factory=profiler.Profile.factory_from_options(
             sdk_pipeline_options.view_as(ProfilingOptions))
     ).run()
@@ -203,6 +204,28 @@ def _get_worker_count(pipeline_options):
                    experiment).group('worker_threads'))
 
   return 12
+
+
+def _get_state_cache_size(pipeline_options):
+  """Defines the upper number of state items to cache.
+
+  Note: state_cache_size is an experimental flag and might not be available in
+  future releases.
+
+  Returns:
+    an int indicating the maximum number of items to cache.
+      Default is 0 (disabled)
+  """
+  experiments = pipeline_options.view_as(DebugOptions).experiments
+  experiments = experiments if experiments else []
+
+  for experiment in experiments:
+    # There should only be 1 match so returning from the loop
+    if re.match(r'state_cache_size=', experiment):
+      return int(
+          re.match(r'state_cache_size=(?P<state_cache_size>.*)',
+                   experiment).group('state_cache_size'))
+  return 0
 
 
 def _load_main_session(semi_persistent_directory):
