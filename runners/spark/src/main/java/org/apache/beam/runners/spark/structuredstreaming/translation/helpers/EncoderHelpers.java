@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Objects;
 import org.apache.beam.runners.spark.structuredstreaming.translation.SchemaHelpers;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.spark.sql.Encoder;
@@ -388,18 +389,22 @@ case class DecodeUsingSerializer[T](child: Expression, tag: ClassTag[T], kryo: B
     ctx.addImmutableStateIfNotExists(coderClass.getName(), beamCoderInstance, func(v1 -> {
       /*
     CODE GENERATED
-    v = (coderClass) coderClass.getDeclaredConstructor().newInstance();
+    try {
+    v1 = coderClass.class.getDeclaredConstructor().newInstance();
+    } catch (Exception e) {
+      throw new RuntimeException(org.apache.beam.sdk.util.UserCodeException.wrap(e));
+    }
      */
-        List<String> parts = new ArrayList<>();
-        parts.add("");
+      List<String> parts = new ArrayList<>();
+        parts.add("try {");
         parts.add(" = (");
-        parts.add(") ");
-        parts.add(".getDeclaredConstructor().newInstance();");
+      parts.add(") ");
+      parts.add(".class.getDeclaredConstructor().newInstance();} catch (Exception e) {throw new RuntimeException(org.apache.beam.sdk.util.UserCodeException.wrap(e));}");
         StringContext sc = new StringContext(JavaConversions.collectionAsScalaIterable(parts).toSeq());
         List<Object> args = new ArrayList<>();
         args.add(v1);
-        args.add(coderClass.getName());
-        args.add(coderClass.getName());
+      args.add(coderClass.getName());
+      args.add(coderClass.getName());
         return sc.s(JavaConversions.collectionAsScalaIterable(args).toSeq());
       }));
     return beamCoderInstance;
