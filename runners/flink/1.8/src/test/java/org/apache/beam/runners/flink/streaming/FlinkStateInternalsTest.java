@@ -28,6 +28,7 @@ import org.apache.beam.runners.core.StateInternalsTest;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkKeyUtils;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -64,6 +65,17 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @Test
+  public void testGetKey() throws Exception {
+    KeyedStateBackend<ByteBuffer> keyedStateBackend = createStateBackend();
+    StringUtf8Coder coder = StringUtf8Coder.of();
+    String key = "key";
+
+    keyedStateBackend.setCurrentKey(FlinkKeyUtils.encodeKey(key, coder));
+    FlinkStateInternals stateInternals = new FlinkStateInternals<>(keyedStateBackend, coder);
+    assertThat(stateInternals.getKey(), is(key));
   }
 
   @Test
