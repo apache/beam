@@ -195,11 +195,11 @@ public class EncoderHelpers {
         return false;
       }
       EncodeUsingBeamCoder<?> that = (EncodeUsingBeamCoder<?>) o;
-      return beamCoder.equals(that.beamCoder);
+      return beamCoder.equals(that.beamCoder) && child.equals(that.child);
     }
 
     @Override public int hashCode() {
-      return Objects.hash(super.hashCode(), beamCoder);
+      return Objects.hash(super.hashCode(), child, beamCoder);
     }
   }
 
@@ -306,11 +306,11 @@ public class EncoderHelpers {
         return false;
       }
       DecodeUsingBeamCoder<?> that = (DecodeUsingBeamCoder<?>) o;
-      return classTag.equals(that.classTag) && beamCoder.equals(that.beamCoder);
+      return child.equals(that.child) && classTag.equals(that.classTag) && beamCoder.equals(that.beamCoder);
     }
 
     @Override public int hashCode() {
-      return Objects.hash(super.hashCode(), classTag, beamCoder);
+      return Objects.hash(super.hashCode(), child, classTag, beamCoder);
     }
   }
 }
