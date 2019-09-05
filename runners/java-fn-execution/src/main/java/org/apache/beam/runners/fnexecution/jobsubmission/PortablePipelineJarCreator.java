@@ -103,7 +103,7 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
     LOG.info("Creating jar {}", outputFile.getAbsolutePath());
     outputStream = new JarOutputStream(new FileOutputStream(outputFile), createManifest(mainClass));
     outputChannel = Channels.newChannel(outputStream);
-    writeClassPathResources(mainClass.getClassLoader());
+    writeClassPathResources(mainClass);
     writeAsJson(pipeline, PortablePipelineJarUtils.PIPELINE_PATH);
     writeAsJson(
         PipelineOptionsTranslation.toProto(pipelineOptions),
@@ -140,12 +140,15 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
     return manifest;
   }
 
-  /** Copy resources from {@code classLoader} to {@link #outputStream}. */
-  private void writeClassPathResources(ClassLoader classLoader) throws IOException {
-    List<String> classPathResources =
-        PipelineResources.detectClassPathResourcesToStage(classLoader);
+  /**
+   * Copy resources from {@code classLoader} defined by specified {@code class} to {@link
+   * #outputStream}.
+   */
+  private void writeClassPathResources(Class<?> cls) throws IOException {
+    List<String> classPathResources = PipelineResources.detectClassPathResourcesToStage(cls);
     Preconditions.checkArgument(
-        classPathResources.size() == 1, "Expected exactly one jar on " + classLoader.toString());
+        classPathResources.size() == 1,
+        "Expected exactly one jar on classpath while loading " + cls);
     copyResourcesFromJar(new JarFile(classPathResources.get(0)));
   }
 
