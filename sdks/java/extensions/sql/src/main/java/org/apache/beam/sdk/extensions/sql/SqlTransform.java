@@ -207,6 +207,13 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     return toBuilder().setQueryParameters(QueryParameters.ofPositional(parameters)).build();
   }
 
+  public SqlTransform registerTableProvider(String name, TableProvider tableProvider) {
+    Map<String, TableProvider> map =
+        tableProviderMap() == null ? new HashMap<>() : new HashMap<>(tableProviderMap());
+    map.put(name, tableProvider);
+    return toBuilder().setTableProviderMap(ImmutableMap.copyOf(map)).build();
+  }
+
   public SqlTransform withAutoUdfUdafLoad(boolean autoUdfUdafLoad) {
     return toBuilder().setAutoUdfUdafLoad(autoUdfUdafLoad).build();
   }
