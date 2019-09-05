@@ -227,31 +227,33 @@ public class EncoderHelpers {
 
 /*
      CODE GENERATED:
+     final $javaType ${ev.value}
      try {
-      final $javaType ${ev.value} =
+      ${ev.value} =
       ${input.isNull} ?
       ${CodeGenerator.defaultValue(dataType)} :
       ($javaType) $beamCoder.decode(new java.io.ByteArrayInputStream(${input.value}));
-     } catch (IOException e) {
+     } catch (Exception e) {
       throw new RuntimeException(org.apache.beam.sdk.util.UserCodeException.wrap(e));
      }
 */
 
       List<String> parts = new ArrayList<>();
-      parts.add("try { final ");
+      parts.add("final ");
       parts.add(" ");
-      parts.add(" =");
-      parts.add("?");
-      parts.add(":");
-      parts.add("(");
+      parts.add(";try { ");
+      parts.add(" = ");
+      parts.add("? ");
+      parts.add(": (");
       parts.add(") ");
       parts.add(".decode(new java.io.ByteArrayInputStream(");
-      parts.add("));  } catch (IOException e) {throw new RuntimeException(org.apache.beam.sdk.util.UserCodeException.wrap(e));}");
+      parts.add("));  } catch (Exception e) {throw new RuntimeException(org.apache.beam.sdk.util.UserCodeException.wrap(e));}");
 
       StringContext sc = new StringContext(JavaConversions.collectionAsScalaIterable(parts).toSeq());
 
       List<Object> args = new ArrayList<>();
       args.add(javaType);
+      args.add(ev.value());
       args.add(ev.value());
       args.add(input.isNull());
       args.add(CodeGenerator.defaultValue(dataType(), false));
