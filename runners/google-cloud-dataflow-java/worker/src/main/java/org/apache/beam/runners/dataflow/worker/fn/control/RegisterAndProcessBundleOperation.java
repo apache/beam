@@ -31,8 +31,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
@@ -86,9 +84,10 @@ import org.slf4j.LoggerFactory;
 
 /**
  * This {@link Operation} is responsible for communicating with the SDK harness and asking it to
- * process a bundle of work. This operation registers the {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor}
- * when executed the first time. Afterwards, it only asks the SDK harness to process the bundle
- * using the already registered {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor}.
+ * process a bundle of work. This operation registers the {@link
+ * org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor} when executed the first
+ * time. Afterwards, it only asks the SDK harness to process the bundle using the already registered
+ * {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor}.
  *
  * <p>This operation supports restart.
  */
@@ -110,16 +109,12 @@ public class RegisterAndProcessBundleOperation extends Operation {
   private final ConcurrentHashMap<StateKey, BagState<ByteString>> userStateData;
   private final Map<String, NameContext> pcollectionIdToNameContext;
 
-  private @Nullable
-  CompletionStage<InstructionResponse> registerFuture;
-  private @Nullable
-  CompletionStage<InstructionResponse> processBundleResponse;
-  private volatile @Nullable
-  String processBundleId = null;
+  private @Nullable CompletionStage<InstructionResponse> registerFuture;
+  private @Nullable CompletionStage<InstructionResponse> processBundleResponse;
+  private volatile @Nullable String processBundleId = null;
   private StateDelegator.Registration deregisterStateHandler;
 
-  private @Nullable
-  String grpcReadTransformId = null;
+  private @Nullable String grpcReadTransformId = null;
   private String grpcReadTransformOutputName = null;
   private String grpcReadTransformOutputPCollectionName = null;
   private final Set<String> grpcReadTransformReadWritePCollectionNames = new HashSet<>();
@@ -165,8 +160,8 @@ public class RegisterAndProcessBundleOperation extends Operation {
       if (pTransform.getValue().getSpec().getUrn().equals(RemoteGrpcPortRead.URN)) {
         String grpcReadTransformOutputNameLocal =
             Iterables.getOnlyElement(pTransform.getValue().getOutputsMap().keySet());
-        String pcollectionName = pTransform.getValue().getOutputsMap()
-            .get(grpcReadTransformOutputNameLocal);
+        String pcollectionName =
+            pTransform.getValue().getOutputsMap().get(grpcReadTransformOutputNameLocal);
         grpcReadTransformReadWritePCollectionNames.add(pcollectionName);
 
         // TODO: Handle the case of more than one input.
@@ -174,7 +169,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
           grpcReadTransformId = null;
           grpcReadTransformOutputName = null;
           grpcReadTransformOutputPCollectionName = null;
-        } else if (grpcReadTransformReadWritePCollectionNames.size() == 1){
+        } else if (grpcReadTransformReadWritePCollectionNames.size() == 1) {
           grpcReadTransformId = pTransform.getKey();
           grpcReadTransformOutputName = grpcReadTransformOutputNameLocal;
           grpcReadTransformOutputPCollectionName = pcollectionName;
@@ -184,16 +179,14 @@ public class RegisterAndProcessBundleOperation extends Operation {
       if (pTransform.getValue().getSpec().getUrn().equals(RemoteGrpcPortWrite.URN)) {
         String grpcTransformOutputNameLocal =
             Iterables.getOnlyElement(pTransform.getValue().getInputsMap().keySet());
-        String pcollectionName = pTransform.getValue().getInputsMap()
-            .get(grpcTransformOutputNameLocal);
+        String pcollectionName =
+            pTransform.getValue().getInputsMap().get(grpcTransformOutputNameLocal);
         grpcReadTransformReadWritePCollectionNames.add(pcollectionName);
       }
     }
   }
 
-  /**
-   * Generates a dot description of the process bundle descriptor.
-   */
+  /** Generates a dot description of the process bundle descriptor. */
   private static String toDot(ProcessBundleDescriptor processBundleDescriptor) {
     StringBuilder builder = new StringBuilder();
     builder.append("digraph network {\n");
@@ -384,9 +377,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
             });
   }
 
-  /**
-   * Returns the final metrics returned by the SDK harness when it completes the bundle.
-   */
+  /** Returns the final metrics returned by the SDK harness when it completes the bundle. */
   public CompletionStage<BeamFnApi.Metrics> getFinalMetrics() {
     return getProcessBundleResponse(processBundleResponse)
         .thenApply(response -> response.getMetrics());
@@ -406,8 +397,8 @@ public class RegisterAndProcessBundleOperation extends Operation {
 
     for (MonitoringInfo mi : monitoringInfos) {
       if (mi.getUrn().equals(MonitoringInfoConstants.Urns.ELEMENT_COUNT)) {
-        String pcollection = mi
-            .getLabelsOrDefault(MonitoringInfoConstants.Labels.PCOLLECTION, null);
+        String pcollection =
+            mi.getLabelsOrDefault(MonitoringInfoConstants.Labels.PCOLLECTION, null);
         if ((pcollection != null)
             && (grpcReadTransformReadWritePCollectionNames.contains(pcollection))) {
           result.add(mi);
@@ -427,16 +418,15 @@ public class RegisterAndProcessBundleOperation extends Operation {
     }
   }
 
-  long getInputElementsConsumed(
-      final Iterable<MonitoringInfo> monitoringInfos) {
+  long getInputElementsConsumed(final Iterable<MonitoringInfo> monitoringInfos) {
     if (grpcReadTransformId == null) {
       return 0;
     }
 
     for (MonitoringInfo mi : monitoringInfos) {
       if (mi.getUrn().equals(MonitoringInfoConstants.Urns.ELEMENT_COUNT)) {
-        String pcollection = mi
-            .getLabelsOrDefault(MonitoringInfoConstants.Labels.PCOLLECTION, null);
+        String pcollection =
+            mi.getLabelsOrDefault(MonitoringInfoConstants.Labels.PCOLLECTION, null);
         if ((pcollection != null)
             && (!pcollection.equals(grpcReadTransformOutputPCollectionName))) {
           return mi.getMetric().getCounterData().getInt64Value();
@@ -457,19 +447,24 @@ public class RegisterAndProcessBundleOperation extends Operation {
     return traceInfo.toString();
   }
 
-  /**
-   * Returns the number of input elements consumed by the gRPC read, if known, otherwise 0.
-   */
+  /** Returns the number of input elements consumed by the gRPC read, if known, otherwise 0. */
   double getInputElementsConsumed(BeamFnApi.Metrics metrics) {
-    double result = grpcReadTransformId == null ? 0 : metrics
-        .getPtransformsOrDefault(
-            grpcReadTransformId, BeamFnApi.Metrics.PTransform.getDefaultInstance())
-        .getProcessedElements()
-        .getMeasured()
-        .getOutputElementCountsOrDefault(grpcReadTransformOutputName, 0);
+    double result =
+        grpcReadTransformId == null
+            ? 0
+            : metrics
+                .getPtransformsOrDefault(
+                    grpcReadTransformId, BeamFnApi.Metrics.PTransform.getDefaultInstance())
+                .getProcessedElements()
+                .getMeasured()
+                .getOutputElementCountsOrDefault(grpcReadTransformOutputName, 0);
 
-    LOG.error("migryz getInputElementsConsumed\n{}\n{}\n{}\nresult: {}\n\nStacktrace: {}", grpcReadTransformId,
-        BeamFnApi.Metrics.PTransform.getDefaultInstance(), grpcReadTransformOutputName, result,
+    LOG.error(
+        "migryz getInputElementsConsumed\n{}\n{}\n{}\nresult: {}\n\nStacktrace: {}",
+        grpcReadTransformId,
+        BeamFnApi.Metrics.PTransform.getDefaultInstance(),
+        grpcReadTransformOutputName,
+        result,
         getStackTrace());
 
     return result;

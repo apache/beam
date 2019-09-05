@@ -145,8 +145,6 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.beam.runners.dataflow.worker.fn.control.BeamFnMapTaskExecutor;
-
 /** Implements a Streaming Dataflow worker. */
 public class StreamingDataflowWorker {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorker.class);
@@ -1203,7 +1201,7 @@ public class StreamingDataflowWorker {
                     node ->
                         node instanceof ParallelInstructionNode
                             && ((ParallelInstructionNode) node).getParallelInstruction().getRead()
-                            != null);
+                                != null);
         InstructionOutputNode readOutputNode =
             (InstructionOutputNode) Iterables.getOnlyElement(mapTaskNetwork.successors(readNode));
         DataflowExecutionContext.DataflowExecutionStateTracker executionStateTracker =
@@ -1271,9 +1269,10 @@ public class StreamingDataflowWorker {
                   readNode.getParallelInstruction().getName());
           readOperation.receivers[0].addOutputCounter(
               new OutputObjectAndByteCounter(
-                  new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(readCoder),
-                  mapTaskExecutor.getOutputCounters(),
-                  nameContext)
+                      new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(
+                          readCoder),
+                      mapTaskExecutor.getOutputCounters(),
+                      nameContext)
                   .setSamplingPeriod(100)
                   .countBytes("dataflow_input_size-" + mapTask.getSystemName()));
         }
@@ -1315,7 +1314,8 @@ public class StreamingDataflowWorker {
 
       // Blocks while executing work.
       executionState.getWorkExecutor().execute();
-      Iterables.addAll(this.pendingMonitoringInfos, executionState.getWorkExecutor().extractMetricUpdates());
+      Iterables.addAll(
+          this.pendingMonitoringInfos, executionState.getWorkExecutor().extractMetricUpdates());
 
       commitCallbacks.putAll(executionState.getContext().flushState());
 

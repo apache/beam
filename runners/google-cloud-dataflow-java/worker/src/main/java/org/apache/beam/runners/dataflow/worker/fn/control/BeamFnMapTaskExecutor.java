@@ -346,12 +346,13 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
         ProcessBundleProgressResponse processBundleProgressResponse =
             MoreFutures.get(bundleProcessOperation.getProcessBundleProgress());
 
-        List<MonitoringInfo> monitoringInfos = processBundleProgressResponse
-            .getMonitoringInfosList();
+        List<MonitoringInfo> monitoringInfos =
+            processBundleProgressResponse.getMonitoringInfosList();
         Metrics metrics = processBundleProgressResponse.getMetrics();
 
-        //todo(migryz): remove commented code
-        // long elementsConsumed1 = bundleProcessOperation.getInputElementsConsumed(monitoringInfos);
+        // todo(migryz): remove commented code
+        // long elementsConsumed1 =
+        // bundleProcessOperation.getInputElementsConsumed(monitoringInfos);
         // double elementsConsumed2 = bundleProcessOperation.getInputElementsConsumed(metrics);
         //
         // int ec2 = (int) elementsConsumed1;
@@ -360,11 +361,14 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
         //
         //
         // LOG.error(
-        //     "migryz elementsConsumed match: {}, intMatch: {}, metrics: {} MIs: {}, mint: {}, miint: {}",
-        //     elementsConsumed2 == elementsConsumed1, ec1 == ec2, elementsConsumed2, elementsConsumed1,
+        //     "migryz elementsConsumed match: {}, intMatch: {}, metrics: {} MIs: {}, mint: {},
+        // miint: {}",
+        //     elementsConsumed2 == elementsConsumed1, ec1 == ec2, elementsConsumed2,
+        // elementsConsumed1,
         //     ec1, ec2);
 
-        int elementsConsumed = (int)bundleProcessOperation.getInputElementsConsumed(monitoringInfos);
+        int elementsConsumed =
+            (int) bundleProcessOperation.getInputElementsConsumed(monitoringInfos);
 
         if (elementsConsumed == 0) {
           elementsConsumed = (int) bundleProcessOperation.getInputElementsConsumed(metrics);
@@ -419,10 +423,10 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
      */
     private void updateMetrics(List<MonitoringInfo> monitoringInfos) {
       List<MonitoringInfo> mis = new ArrayList<>(monitoringInfos);
-      Iterable<MonitoringInfo> misToFilter = bundleProcessOperation
-          .findIOPCollectionMonitoringInfos(monitoringInfos);
+      Iterable<MonitoringInfo> misToFilter =
+          bundleProcessOperation.findIOPCollectionMonitoringInfos(monitoringInfos);
 
-      for(MonitoringInfo mi : misToFilter) {
+      for (MonitoringInfo mi : misToFilter) {
         mis.remove(mi);
       }
 
@@ -432,8 +436,10 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
               this.bundleProcessOperation.getPCollectionIdToNameContext());
 
       counterUpdates =
-          mis.stream().map(monitoringInfoToCounterUpdateTransformer::transform)
-              .filter(Objects::nonNull).collect(Collectors.toList());
+          mis.stream()
+              .map(monitoringInfoToCounterUpdateTransformer::transform)
+              .filter(Objects::nonNull)
+              .collect(Collectors.toList());
     }
 
     // todo(BEAM-6189): remove once Metrics get removed from all SDKs.
