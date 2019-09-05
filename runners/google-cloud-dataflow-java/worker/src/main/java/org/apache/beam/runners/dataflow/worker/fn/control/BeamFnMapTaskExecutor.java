@@ -350,17 +350,11 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
             processBundleProgressResponse.getMonitoringInfosList();
         Metrics metrics = processBundleProgressResponse.getMetrics();
 
-        int elementsConsumed =
-            (int) bundleProcessOperation.getInputElementsConsumed(monitoringInfos);
-
-        if (elementsConsumed == 0) {
-          elementsConsumed = (int) bundleProcessOperation.getInputElementsConsumed(metrics);
-        }
-
         updateMetrics(monitoringInfos);
         updateMetricsDeprecated(metrics);
 
-        grpcWriteOperationElementsProcessed.accept(elementsConsumed);
+        double elementsConsumed = bundleProcessOperation.getInputElementsConsumed(metrics);
+        grpcWriteOperationElementsProcessed.accept((int)elementsConsumed);
         progressInterpolator.addPoint(
             grpcWriteOperation.getElementsSent(), readOperation.getProgress());
         latestProgress.set(progressInterpolator.interpolateAndPurge(elementsConsumed));
