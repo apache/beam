@@ -310,7 +310,8 @@ class DataflowRunner(PipelineRunner):
               new_side_input.pvalue = beam.pvalue.PCollection(
                   pipeline,
                   element_type=typehints.KV[
-                      bytes, side_input.pvalue.element_type])
+                      bytes, side_input.pvalue.element_type],
+                  is_bounded=side_input.pvalue.is_bounded)
               parent = transform_node.parent or pipeline._root_transform()
               map_to_void_key = beam.pipeline.AppliedPTransform(
                   pipeline,
@@ -712,7 +713,7 @@ class DataflowRunner(PipelineRunner):
     coders.registry.verify_deterministic(
         coder.key_coder(), 'GroupByKey operation "%s"' % transform.label)
 
-    return pvalue.PCollection(pcoll.pipeline)
+    return pvalue.PCollection.from_(pcoll)
 
   def run_GroupByKey(self, transform_node, options):
     input_tag = transform_node.inputs[0].tag
@@ -894,7 +895,7 @@ class DataflowRunner(PipelineRunner):
             transform_node.inputs[0].windowing)
 
   def apply_CombineValues(self, transform, pcoll, options):
-    return pvalue.PCollection(pcoll.pipeline)
+    return pvalue.PCollection.from_(pcoll)
 
   def run_CombineValues(self, transform_node, options):
     transform = transform_node.transform
@@ -947,7 +948,7 @@ class DataflowRunner(PipelineRunner):
   def apply_Read(self, transform, pbegin, options):
     if hasattr(transform.source, 'format'):
       # Consider native Read to be a primitive for dataflow.
-      return beam.pvalue.PCollection(pbegin.pipeline)
+      return beam.pvalue.PCollection.from_(pbegin)
     else:
       debug_options = options.view_as(DebugOptions)
       if (
@@ -958,7 +959,7 @@ class DataflowRunner(PipelineRunner):
         return self.apply_PTransform(transform, pbegin, options)
       else:
         # Custom Read is also a primitive for non-FnAPI on dataflow.
-        return beam.pvalue.PCollection(pbegin.pipeline)
+        return beam.pvalue.PCollection.from_(pbegin)
 
   def run_Read(self, transform_node, options):
     transform = transform_node.transform

@@ -251,7 +251,7 @@ class _DirectReadFromPubSub(PTransform):
 
   def expand(self, pvalue):
     # This is handled as a native transform.
-    return PCollection(self.pipeline)
+    return PCollection(self.pipeline, is_bounded=self._source.is_bounded())
 
 
 class _DirectWriteToPubSubFn(DoFn):
