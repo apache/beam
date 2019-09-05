@@ -53,11 +53,12 @@ public class FlinkKeyUtilsTest {
   @SuppressWarnings("ByteBufferBackingArray")
   public void testCoderContext() throws Exception {
     byte[] bytes = {1, 1, 1};
+    byte[] encodedBytes = {3, 1, 1, 1};
     ByteString key = ByteString.copyFrom(bytes);
     ByteStringCoder coder = ByteStringCoder.of();
 
     ByteBuffer encoded = FlinkKeyUtils.encodeKey(key, coder);
-    // Ensure outer context is used where no length encoding is used.
-    assertThat(encoded.array(), is(bytes));
+    // Ensure nested context is used.
+    assertThat(encoded.array(), is(encodedBytes));
   }
 }
