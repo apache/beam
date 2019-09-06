@@ -173,11 +173,11 @@ public class RegisterAndProcessBundleOperation extends Operation {
     }
 
     grpcReadTransformReadWritePCollectionNames =
-        extractGrpcPCollectionNames(
+        extractCrossBoundaryGrpcPCollectionNames(
             registerRequest.getProcessBundleDescriptor(0).getTransformsMap().entrySet());
   }
 
-  private Set<String> extractGrpcPCollectionNames(
+  private Set<String> extractCrossBoundaryGrpcPCollectionNames(
       final Set<Entry<String, PTransform>> ptransforms) {
     Set<String> result = new HashSet<>();
 
