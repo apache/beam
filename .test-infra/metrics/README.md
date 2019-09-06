@@ -95,10 +95,6 @@ docker-compose build
 
 # Spinup docker-compose related containers.
 docker-compose up
-docker-compose -f docker-compose.prometheus.yml up
-
-# The above commands can be combined.
-docker-compose up -f docker-compose.yml -f docker-compose.prometheus.yml up
 ```
 
 After running these commands, you can access the services running on your local
@@ -122,4 +118,4 @@ these volumes. (List volumes via `docker volume ls`)
 
 Kubernetes deployment instructions are maintained in the wiki:
 * [Community metrics](https://cwiki.apache.org/confluence/display/BEAM/Community+Metrics)
-* [Test metrics]() <!-- TODO: add a link to instructions -->
+* [Test metrics]() <!-- TODO(BEAM-8130): add a link to instructions -->
