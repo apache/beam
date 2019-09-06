@@ -393,7 +393,7 @@ $ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar o
 {:.runner-jet}
 ```
 $ mvn package -P jet-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
-     --runner=JetRunner --jetLocalMode=3 --inputFile=$pwd/pom.xml --output=counts
+     --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/pom.xml --output=counts
 ```
 
 To view the full code in Java, see
@@ -758,7 +758,7 @@ $ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar o
 {:.runner-jet}
 ```
 $ mvn package -P jet-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.DebuggingWordCount \
-     --runner=JetRunner --jetLocalMode=3 --inputFile=$pwd/pom.xml --output=counts
+     --runner=JetRunner --jetLocalMode=3 --output=counts
 ```
 
 To view the full code in Java, see
@@ -1123,7 +1123,7 @@ $ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar o
 {:.runner-jet}
 ```
 $ mvn package -P jet-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WindowedWordCount \
-     --runner=JetRunner --jetLocalMode=3 --inputFile=$pwd/pom.xml --output=counts
+     --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/pom.xml --output=counts
 ```
 
 To view the full code in Java, see
