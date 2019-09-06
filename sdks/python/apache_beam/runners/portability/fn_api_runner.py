@@ -1227,29 +1227,35 @@ class GrpcWorkerHandler(WorkerHandler):
         state, provision_info)
     self.state = state
 
-    self.control_address = self._grpc_server.control_address
-    self.control_conn = self._grpc_server.control_handler \
-      .get_conn_by_worker_id(self.worker_id)
+    self.control_address = self.port_from_worker(self._grpc_server.control_port)
+    self.control_conn = self._grpc_server.control_handler.get_conn_by_worker_id(
+        self.worker_id)
 
-    self.data_conn = self._grpc_server.data_plane_handler \
-      .get_conn_by_worker_id(self.worker_id)
+    self.data_conn = self._grpc_server.data_plane_handler.get_conn_by_worker_id(
+        self.worker_id)
 
   def data_api_service_descriptor(self):
     return endpoints_pb2.ApiServiceDescriptor(
-        url='localhost:%s' % self._grpc_server.data_port)
+        url=self.port_from_worker(self._grpc_server.data_port))
 
   def state_api_service_descriptor(self):
     return endpoints_pb2.ApiServiceDescriptor(
-        url='localhost:%s' % self._grpc_server.state_port)
+        url=self.port_from_worker(self._grpc_server.state_port))
 
   def logging_api_service_descriptor(self):
     return endpoints_pb2.ApiServiceDescriptor(
-        url='localhost:%s' % self._grpc_server.logging_port)
+        url=self.port_from_worker(self._grpc_server.logging_port))
 
   def close(self):
     self.control_conn.close()
     self.data_conn.close()
     super(GrpcWorkerHandler, self).close()
+
+  def port_from_worker(self, port):
+    return '%s:%s' % (self.localhost_from_worker(), port)
+
+  def localhost_from_worker(self):
+    return 'localhost'
 
 
 @WorkerHandler.register_environment(
@@ -1330,6 +1336,13 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
                                                  grpc_server)
     self._container_image = payload.container_image
     self._container_id = None
+
+  def localhost_from_worker(self):
+    if sys.platform == "darwin":
+      # See https://docs.docker.com/docker-for-mac/networking/
+      return 'host.docker.internal'
+    else:
+      return super(DockerSdkWorkerHandler, self).localhost_from_worker()
 
   def start_worker(self):
     with SUBPROCESS_LOCK:
