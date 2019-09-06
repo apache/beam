@@ -345,16 +345,25 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
         // is deprecated.
         ProcessBundleProgressResponse processBundleProgressResponse =
             MoreFutures.get(bundleProcessOperation.getProcessBundleProgress());
-        updateMetrics(processBundleProgressResponse.getMonitoringInfosList());
+
+        final List<MonitoringInfo> monitoringInfosList =
+            processBundleProgressResponse.getMonitoringInfosList();
 
         // Supporting deprecated metrics until all supported runners are migrated to using
         // MonitoringInfos
         Metrics metrics = processBundleProgressResponse.getMetrics();
+        double elementsConsumed =
+            bundleProcessOperation.getInputElementsConsumed(monitoringInfosList);
+
+        if (elementsConsumed == 0) {
+          elementsConsumed = bundleProcessOperation.getInputElementsConsumed(metrics);
+        }
+
+        updateMetrics(monitoringInfosList);
         updateMetricsDeprecated(metrics);
 
         // todo(migryz): utilize monitoringInfos here.
         // Requires Element Count metrics to be implemented.
-        double elementsConsumed = bundleProcessOperation.getInputElementsConsumed(metrics);
 
         grpcWriteOperationElementsProcessed.accept((int) elementsConsumed);
         progressInterpolator.addPoint(
@@ -400,13 +409,19 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
      * @param monitoringInfos Usually received from FnApi.
      */
     private void updateMetrics(List<MonitoringInfo> monitoringInfos) {
+      List<MonitoringInfo> monitoringInfosCopy = new ArrayList<>(monitoringInfos);
+
+      List<MonitoringInfo> misToFilter =
+          bundleProcessOperation.findIOPCollectionMonitoringInfos(monitoringInfos);
+      monitoringInfosCopy.removeAll(misToFilter);
+
       final MonitoringInfoToCounterUpdateTransformer monitoringInfoToCounterUpdateTransformer =
           new FnApiMonitoringInfoToCounterUpdateTransformer(
               this.bundleProcessOperation.getPtransformIdToUserStepContext(),
               this.bundleProcessOperation.getPCollectionIdToNameContext());
 
       counterUpdates =
-          monitoringInfos.stream()
+          monitoringInfosCopy.stream()
               .map(monitoringInfoToCounterUpdateTransformer::transform)
               .filter(Objects::nonNull)
               .collect(Collectors.toList());
