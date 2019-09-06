@@ -20,7 +20,7 @@ buildscript {
   ext {
     beamVersion = '2.13.0'
     guavaVersion = '27.1-jre'
-    jodaTimeVersion = '2.10.2'
+    jodaTimeVersion = '2.10.3'
     slf4jVersion = '1.7.26'
     log4jSlf4jImpl = '2.11.2'
 
