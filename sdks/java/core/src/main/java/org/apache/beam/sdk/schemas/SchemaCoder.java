@@ -26,7 +26,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.Row;
 
 /** {@link SchemaCoder} is used as the coder for types that have schemas registered. */
@@ -59,7 +58,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
   /** Returns a {@link SchemaCoder} for {@link Row} classes. */
   public static SchemaCoder<Row> of(Schema schema) {
     return new SchemaCoder<>(
-        schema, SerializableFunctions.identity(), SerializableFunctions.identity());
+        schema, identity(), identity());
   }
 
   /** Returns the schema associated with this type. */
@@ -111,14 +110,37 @@ public class SchemaCoder<T> extends CustomCoder<T> {
       return false;
     }
     SchemaCoder<?> that = (SchemaCoder<?>) o;
-    // Two SchemaCoders are considered equal if their schemas are equal *and* their typeDescriptors
-    // (representing type T) are equal
-    return rowCoder.equals(that.rowCoder)
-        && getEncodedTypeDescriptor().equals(that.getEncodedTypeDescriptor());
+    return rowCoder.equals(that.rowCoder) &&
+        toRowFunction.equals(that.toRowFunction) &&
+        fromRowFunction.equals(that.fromRowFunction);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(rowCoder, getEncodedTypeDescriptor());
+    return Objects.hash(rowCoder, toRowFunction, fromRowFunction);
+  }
+
+  private static RowIdentity identity() {
+    return new RowIdentity();
+  }
+
+  private static class RowIdentity implements SerializableFunction<Row,Row> {
+    @Override
+    public Row apply(Row input) {
+      return input;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(getClass());
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      return o != null && getClass() == o.getClass();
+    }
   }
 }
