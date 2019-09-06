@@ -986,6 +986,13 @@ class IteratorHint(CompositeTypeHint):
     def __repr__(self):
       return 'Iterator[%s]' % _unified_repr(self.yielded_type)
 
+    def __eq__(self, other):
+      return (type(self) == type(other)
+              and self.yielded_type == other.yielded_type)
+
+    def __hash__(self):
+      return hash(self.yielded_type)
+
     def _inner_types(self):
       yield self.yielded_type
 
@@ -1120,9 +1127,9 @@ _KNOWN_PRIMITIVE_TYPES.update({
 
 
 def is_consistent_with(sub, base):
-  """Returns whether the type a is consistent with b.
+  """Checks whether sub a is consistent with base.
 
-  This is accordig to the terminology of PEP 483/484.  This relationship is
+  This is according to the terminology of PEP 483/484.  This relationship is
   neither symmetric nor transitive, but a good mnemonic to keep in mind is that
   is_consistent_with(a, b) is roughly equivalent to the issubclass(a, b)
   relation, but also handles the special Any type as well as type
