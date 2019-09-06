@@ -71,7 +71,7 @@ import org.slf4j.LoggerFactory;
  * <p>HCatalog source supports reading of HCatRecord from a HCatalog managed source, for eg. Hive.
  *
  * <p>To configure a HCatalog source, you must specify a metastore URI and a table name. Other
- * optional parameters are database &amp; filter For instance:
+ * optional parameters are database &amp; filter. For instance:
  *
  * <pre>{@code
  * Map<String, String> configProperties = new HashMap<>();
@@ -104,8 +104,8 @@ import org.slf4j.LoggerFactory;
  * <p>HCatalog sink supports writing of HCatRecord to a HCatalog managed source, for eg. Hive.
  *
  * <p>To configure a HCatalog sink, you must specify a metastore URI and a table name. Other
- * optional parameters are database, partition &amp; batchsize The destination table should exist
- * beforehand, the transform does not create a new table if it does not exist For instance:
+ * optional parameters are database, partition &amp; batchsize. The destination table should exist
+ * beforehand, the transform does not create a new table if it does not exist. For instance:
  *
  * <pre>{@code
  * Map<String, String> configProperties = new HashMap<>();
