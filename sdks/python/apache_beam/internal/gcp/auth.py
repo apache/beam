@@ -97,7 +97,7 @@ class _Credentials(object):
     with cls._credentials_lock:
       if cls._credentials_init:
         return cls._credentials
-      
+
       # apitools use urllib with the global timeout. Set it to 60 seconds
       # to prevent network related stuckness issues.
       if not socket.getdefaulttimeout():
