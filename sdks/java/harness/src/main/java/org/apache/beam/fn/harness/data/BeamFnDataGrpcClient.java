@@ -37,7 +37,6 @@ import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,8 +77,8 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
   public <T> InboundDataClient receive(
       ApiServiceDescriptor apiServiceDescriptor,
       LogicalEndpoint inputLocation,
-      Coder<WindowedValue<T>> coder,
-      FnDataReceiver<WindowedValue<T>> consumer) {
+      Coder<T> coder,
+      FnDataReceiver<T> consumer) {
     LOG.debug(
         "Registering consumer for instruction {} and transform {}",
         inputLocation.getInstructionId(),
@@ -103,10 +102,10 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
    * <p>The returned closeable consumer is not thread safe.
    */
   @Override
-  public <T> CloseableFnDataReceiver<WindowedValue<T>> send(
+  public <T> CloseableFnDataReceiver<T> send(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       LogicalEndpoint outputLocation,
-      Coder<WindowedValue<T>> coder) {
+      Coder<T> coder) {
     BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptor);
 
     LOG.debug(

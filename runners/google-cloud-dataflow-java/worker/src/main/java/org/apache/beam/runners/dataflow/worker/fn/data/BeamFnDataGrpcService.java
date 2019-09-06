@@ -43,7 +43,6 @@ import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -117,8 +116,8 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
     private DeferredInboundDataClient(
         String clientId,
         LogicalEndpoint inputLocation,
-        Coder<WindowedValue<T>> coder,
-        FnDataReceiver<WindowedValue<T>> consumer) {
+        Coder<T> coder,
+        FnDataReceiver<T> consumer) {
       this.future =
           getClientFuture(clientId)
               .thenCompose(
@@ -209,17 +208,14 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
     return new GrpcDataService() {
       @Override
       public <T> InboundDataClient receive(
-          LogicalEndpoint inputLocation,
-          Coder<WindowedValue<T>> coder,
-          FnDataReceiver<WindowedValue<T>> consumer) {
+          LogicalEndpoint inputLocation, Coder<T> coder, FnDataReceiver<T> consumer) {
         LOG.debug("Registering consumer for {}", inputLocation);
 
         return new DeferredInboundDataClient(clientId, inputLocation, coder, consumer);
       }
 
       @Override
-      public <T> CloseableFnDataReceiver<WindowedValue<T>> send(
-          LogicalEndpoint outputLocation, Coder<WindowedValue<T>> coder) {
+      public <T> CloseableFnDataReceiver<T> send(LogicalEndpoint outputLocation, Coder<T> coder) {
         LOG.debug("Creating output consumer for {}", outputLocation);
         try {
           if (outboundBufferLimit.isPresent()) {

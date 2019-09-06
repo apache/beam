@@ -59,7 +59,6 @@ import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
@@ -245,10 +244,10 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       // than constructing the receiver map here. Every bundle factory will need this.
       ImmutableMap.Builder<String, RemoteOutputReceiver<?>> outputReceivers =
           ImmutableMap.builder();
-      for (Map.Entry<String, Coder<WindowedValue<?>>> remoteOutputCoder :
+      for (Map.Entry<String, Coder> remoteOutputCoder :
           processBundleDescriptor.getRemoteOutputCoders().entrySet()) {
         String outputTransform = remoteOutputCoder.getKey();
-        Coder<WindowedValue<?>> coder = remoteOutputCoder.getValue();
+        Coder coder = remoteOutputCoder.getValue();
         String bundleOutputPCollection =
             Iterables.getOnlyElement(
                 processBundleDescriptor
@@ -256,8 +255,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                     .getTransformsOrThrow(outputTransform)
                     .getInputsMap()
                     .values());
-        FnDataReceiver<WindowedValue<?>> outputReceiver =
-            outputReceiverFactory.create(bundleOutputPCollection);
+        FnDataReceiver outputReceiver = outputReceiverFactory.create(bundleOutputPCollection);
         outputReceivers.put(outputTransform, RemoteOutputReceiver.of(coder, outputReceiver));
       }
 
@@ -283,7 +281,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         }
 
         @Override
-        public Map<String, FnDataReceiver<WindowedValue<?>>> getInputReceivers() {
+        public Map<String, FnDataReceiver> getInputReceivers() {
           return bundle.getInputReceivers();
         }
 

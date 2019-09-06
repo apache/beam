@@ -22,7 +22,6 @@ import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
-import org.apache.beam.sdk.util.WindowedValue;
 
 /**
  * The {@link FnDataService} is able to forward inbound elements to a consumer and is also a
@@ -44,9 +43,7 @@ public interface FnDataService {
    * <p>The provided receiver is not required to be thread safe.
    */
   <T> InboundDataClient receive(
-      LogicalEndpoint inputLocation,
-      Coder<WindowedValue<T>> coder,
-      FnDataReceiver<WindowedValue<T>> listener);
+      LogicalEndpoint inputLocation, Coder<T> coder, FnDataReceiver<T> listener);
 
   /**
    * Creates a receiver to which you can write data values and have them sent over this data plane
@@ -58,6 +55,5 @@ public interface FnDataService {
    *
    * <p>The returned receiver is not thread safe.
    */
-  <T> CloseableFnDataReceiver<WindowedValue<T>> send(
-      LogicalEndpoint outputLocation, Coder<WindowedValue<T>> coder);
+  <T> CloseableFnDataReceiver<T> send(LogicalEndpoint outputLocation, Coder<T> coder);
 }
