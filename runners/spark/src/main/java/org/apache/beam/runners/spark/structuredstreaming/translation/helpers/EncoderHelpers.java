@@ -149,7 +149,7 @@ public class EncoderHelpers {
             $beamCoder.encode(${input.value}, baos);
             ${ev.value} =  baos.toByteArray();
         }
-        } catch (java.io.IOException e) {
+        } catch (Exception e) {
           throw org.apache.beam.sdk.util.UserCodeException.wrap(e);
         }
       */
@@ -162,7 +162,7 @@ public class EncoderHelpers {
       parts.add(".encode(");
       parts.add(", baos); ");
       parts.add(
-          " = baos.toByteArray();}} catch (java.io.IOException e) {throw org.apache.beam.sdk.util.UserCodeException.wrap(e);}");
+          " = baos.toByteArray();}} catch (Exception e) {throw org.apache.beam.sdk.util.UserCodeException.wrap(e);}");
 
       StringContext sc =
           new StringContext(JavaConversions.collectionAsScalaIterable(parts).toSeq());
@@ -265,7 +265,7 @@ public class EncoderHelpers {
             ${input.isNull} ?
             ${CodeGenerator.defaultValue(dataType)} :
             ($javaType) $beamCoder.decode(new java.io.ByteArrayInputStream(${input.value}));
-           } catch (java.io.IOException e) {
+           } catch (Exception e) {
             throw org.apache.beam.sdk.util.UserCodeException.wrap(e);
            }
       */
@@ -280,7 +280,7 @@ public class EncoderHelpers {
       parts.add(") ");
       parts.add(".decode(new java.io.ByteArrayInputStream(");
       parts.add(
-          "));  } catch (java.io.IOException e) {throw org.apache.beam.sdk.util.UserCodeException.wrap(e);}");
+          "));  } catch (Exception e) {throw org.apache.beam.sdk.util.UserCodeException.wrap(e);}");
 
       StringContext sc =
           new StringContext(JavaConversions.collectionAsScalaIterable(parts).toSeq());
