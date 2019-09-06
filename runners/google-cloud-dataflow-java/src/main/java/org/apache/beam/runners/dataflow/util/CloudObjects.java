@@ -33,7 +33,6 @@ import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
@@ -52,7 +51,6 @@ public class CloudObjects {
           KvCoder.class,
           VarLongCoder.class,
           DoubleCoder.class,
-          StringUtf8Coder.class,
           IntervalWindowCoder.class,
           IterableCoder.class,
           Timer.Coder.class,

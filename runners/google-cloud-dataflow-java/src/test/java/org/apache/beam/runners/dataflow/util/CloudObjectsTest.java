@@ -33,7 +33,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import org.apache.beam.runners.core.construction.ModelCoderRegistrar;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -198,7 +197,7 @@ public class CloudObjectsTest {
 
     private static void checkPipelineProtoCoderIds(
         Coder<?> coder, CloudObject cloudObject, SdkComponents sdkComponents) throws Exception {
-      if (ModelCoderRegistrar.isKnownCoder(coder)) {
+      if (CloudObjects.DATAFLOW_KNOWN_CODERS.contains(coder.getClass())) {
         assertFalse(cloudObject.containsKey(PropertyNames.PIPELINE_PROTO_CODER_ID));
       } else {
         assertTrue(cloudObject.containsKey(PropertyNames.PIPELINE_PROTO_CODER_ID));
