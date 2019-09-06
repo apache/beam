@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog;
 
-import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.datacatalog.DataCatalogGrpc;
 import com.google.cloud.datacatalog.DataCatalogGrpc.DataCatalogBlockingStub;
 import com.google.cloud.datacatalog.Entry;
@@ -31,35 +30,37 @@ import io.grpc.ClientInterceptors;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.MethodDescriptor;
 import io.grpc.auth.MoreCallCredentials;
-import java.io.IOException;
+import java.util.function.Supplier;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 
 /** Wraps DataCatalog GRPC client and exposes simplified APIS for Data Catalog Table Provider. */
 class DataCatalogClientAdapter {
 
-  private DataCatalogBlockingStub dcClient;
+  private DataCatalogPipelineOptions options;
 
-  private DataCatalogClientAdapter(DataCatalogBlockingStub dcClient) {
-    this.dcClient = dcClient;
+  private Supplier<DataCatalogBlockingStub> dcClient = () -> newClient(options);
+
+  private DataCatalogClientAdapter(DataCatalogPipelineOptions options) {
+    this.options = options;
   }
 
   /** Prod endpoint (default set in pipeline options): datacatalog.googleapis.com. */
-  public static DataCatalogClientAdapter withDefaultCredentials(String endpoint)
-      throws IOException {
-    return new DataCatalogClientAdapter(newClient(endpoint));
+  public static DataCatalogClientAdapter withOptions(DataCatalogPipelineOptions options) {
+    return new DataCatalogClientAdapter(options);
   }
 
-  private static DataCatalogBlockingStub newClient(String endpoint) throws IOException {
+  private DataCatalogBlockingStub newClient(DataCatalogPipelineOptions options) {
     Channel authedChannel =
         ClientInterceptors.intercept(
-            ManagedChannelBuilder.forTarget(endpoint).build(),
-            CredentialsInterceptor.defaultCredentials());
+            ManagedChannelBuilder.forTarget(options.getDataCatalogEndpoint()).build(),
+            new CredentialsInterceptor());
     return DataCatalogGrpc.newBlockingStub(authedChannel);
   }
 
   public @Nullable Table getTable(String tableName) {
-    Entry entry = dcClient.lookupEntry(sqlResource(tableName));
+    Entry entry = dcClient.get().lookupEntry(sqlResource(tableName));
     return TableUtils.toBeamTable(tableName, entry);
   }
 
@@ -67,27 +68,13 @@ class DataCatalogClientAdapter {
     return LookupEntryRequest.newBuilder().setSqlResource(tableName).build();
   }
 
-  /** Provides default credentials. */
-  private static final class CredentialsInterceptor implements ClientInterceptor {
-
-    private CallCredentials callCredentials;
-
-    private CredentialsInterceptor(CallCredentials callCredentials) {
-      this.callCredentials = callCredentials;
-    }
-
-    public static CredentialsInterceptor defaultCredentials() throws IOException {
-      GoogleCredentials defaultCredentials = GoogleCredentials.getApplicationDefault();
-      return of(MoreCallCredentials.from(defaultCredentials));
-    }
-
-    public static CredentialsInterceptor of(CallCredentials credentials) {
-      return new CredentialsInterceptor(credentials);
-    }
-
+  /** Provides credentials set up in PipelineOptions. */
+  private final class CredentialsInterceptor implements ClientInterceptor {
     @Override
     public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
         MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
+      CallCredentials callCredentials =
+          MoreCallCredentials.from(options.as(GcpOptions.class).getGcpCredential());
       return next.newCall(method, callOptions.withCallCredentials(callCredentials));
     }
   }

@@ -58,8 +58,7 @@ public class DataCatalogTableProvider extends FullNameTableProvider {
 
     DataCatalogPipelineOptions options = pipelineOptions.as(DataCatalogPipelineOptions.class);
 
-    return new DataCatalogTableProvider(
-        getSupportedProviders(), getDataCatalogClient(options.getDataCatalogEndpoint()));
+    return new DataCatalogTableProvider(getSupportedProviders(), getDataCatalogClient(options));
   }
 
   private static Map<String, TableProvider> getSupportedProviders() {
@@ -68,8 +67,8 @@ public class DataCatalogTableProvider extends FullNameTableProvider {
         .collect(toMap(TableProvider::getTableType, p -> p));
   }
 
-  private static DataCatalogClientAdapter getDataCatalogClient(String endpoint) throws IOException {
-    return DataCatalogClientAdapter.withDefaultCredentials(endpoint);
+  private static DataCatalogClientAdapter getDataCatalogClient(DataCatalogPipelineOptions options) {
+    return DataCatalogClientAdapter.withOptions(options);
   }
 
   @Override
