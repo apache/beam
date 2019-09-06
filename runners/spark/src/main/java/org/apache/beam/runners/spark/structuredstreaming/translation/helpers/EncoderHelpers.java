@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.helpers;
 import static org.apache.spark.sql.types.DataTypes.BinaryType;
 
 import java.io.ByteArrayInputStream;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -114,7 +115,8 @@ public class EncoderHelpers {
    *
    * @param <T>: Type of elements ot be serialized.
    */
-  public static class EncodeUsingBeamCoder<T> extends UnaryExpression implements NonSQLExpression {
+  public static class EncodeUsingBeamCoder<T> extends UnaryExpression
+      implements NonSQLExpression, Serializable {
 
     private Expression child;
     private Coder<T> beamCoder;
@@ -229,7 +231,8 @@ public class EncoderHelpers {
    *
    * @param <T>: Type of elements ot be serialized.
    */
-  public static class DecodeUsingBeamCoder<T> extends UnaryExpression implements NonSQLExpression {
+  public static class DecodeUsingBeamCoder<T> extends UnaryExpression
+      implements NonSQLExpression, Serializable {
 
     private Expression child;
     private ClassTag<T> classTag;
