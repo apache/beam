@@ -149,8 +149,7 @@ See the
 [Portability support table](https://s.apache.org/apache-beam-portability-support-table)
 for details.
 
-Prerequisites: [Docker](https://docs.docker.com/compose/install/), Python(https://docs.python-guide.org/starting/install3/linux/), Java 8(https://linuxize.com/post/install-java-on-ubuntu-18-04/#installing-openjdk-8)
-
+Prerequisites: [Docker](https://docs.docker.com/compose/install/), [Python](https://docs.python-guide.org/starting/install3/linux/), [Java 8](https://openjdk.java.net/install/)
 
 ### Running Python wordcount on Flink {#python-on-flink}
 
