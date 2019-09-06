@@ -253,12 +253,12 @@ type StateChannel struct {
 func newStateChannel(ctx context.Context, port exec.Port) (*StateChannel, error) {
 	cc, err := dial(ctx, port.URL, 15*time.Second)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to connect")
+		return nil, errors.Wrapf(err, "failed to connect to state service %v", port.URL)
 	}
 	client, err := pb.NewBeamFnStateClient(cc).State(ctx)
 	if err != nil {
 		cc.Close()
-		return nil, errors.Wrap(err, "failed to connect to data service")
+		return nil, errors.Wrapf(err, "failed to create state client %v", port.URL)
 	}
 
 	ret := &StateChannel{
@@ -279,10 +279,11 @@ func (c *StateChannel) read(ctx context.Context) {
 		if err != nil {
 			if err == io.EOF {
 				// TODO(herohde) 10/12/2017: can this happen before shutdown? Reconnect?
-				log.Warnf(ctx, "StateChannel %v closed", c.id)
+				log.Warnf(ctx, "StateChannel[%v].read: closed", c.id)
 				return
 			}
-			panic(errors.Wrapf(err, "state channel %v bad", c.id))
+			log.Errorf(ctx, "StateChannel[%v].read bad: %v", c.id, err)
+			return
 		}
 
 		c.mu.Lock()
@@ -292,7 +293,7 @@ func (c *StateChannel) read(ctx context.Context) {
 		if !ok {
 			// This can happen if Send returns an error that write handles, but
 			// the message was actually sent.
-			log.Errorf(ctx, "no consumer for state response: %v", proto.MarshalTextString(msg))
+			log.Errorf(ctx, "StateChannel[%v].read: no consumer for state response: %v", c.id, proto.MarshalTextString(msg))
 			continue
 		}
 
@@ -300,7 +301,7 @@ func (c *StateChannel) read(ctx context.Context) {
 		case ch <- msg:
 			// ok
 		default:
-			panic(fmt.Sprintf("failed to consume state response: %v", proto.MarshalTextString(msg)))
+			panic(fmt.Sprintf("StateChannel[%v].read: failed to consume state response: %v", c.id, proto.MarshalTextString(msg)))
 		}
 	}
 }
