@@ -1493,7 +1493,7 @@ categories:
           - class: model
             l1: 'Partially'
             l2: 
-            l3: APIs and semantics for draining a pipeline are under discussion. This would cause incomplete aggregations to be emitted regardless of trigger and tagged with metadata indicating it is incomplated.
+            l3: APIs and semantics for draining a pipeline are under discussion. This would cause incomplete aggregations to be emitted regardless of trigger and tagged with metadata indicating it is incompleted.
           - class: dataflow
             l1: 'Partially'
             l2: 

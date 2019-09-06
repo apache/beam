@@ -101,11 +101,11 @@ import org.apache.parquet.io.SeekableInputStream;
  * <pre>{@code
  * pipeline
  *   .apply(...) // PCollection<GenericRecord>
- *   .apply(FileIO.<GenericRecord>
- *     .write()
+ *   .apply(FileIO
+ *     .<GenericRecord>write()
  *     .via(ParquetIO.sink(SCHEMA)
- *       .withCompression(CompressionCodecName.SNAPPY))
- *     .to("destination/path")
+ *       .withCompressionCodec(CompressionCodecName.SNAPPY))
+ *     .to("destination/path"))
  * }</pre>
  *
  * <p>This IO API is considered experimental and may break or receive backwards-incompatible changes
