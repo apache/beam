@@ -57,8 +57,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
 
   /** Returns a {@link SchemaCoder} for {@link Row} classes. */
   public static SchemaCoder<Row> of(Schema schema) {
-    return new SchemaCoder<>(
-        schema, identity(), identity());
+    return new SchemaCoder<>(schema, identity(), identity());
   }
 
   /** Returns the schema associated with this type. */
@@ -110,9 +109,9 @@ public class SchemaCoder<T> extends CustomCoder<T> {
       return false;
     }
     SchemaCoder<?> that = (SchemaCoder<?>) o;
-    return rowCoder.equals(that.rowCoder) &&
-        toRowFunction.equals(that.toRowFunction) &&
-        fromRowFunction.equals(that.fromRowFunction);
+    return rowCoder.equals(that.rowCoder)
+        && toRowFunction.equals(that.toRowFunction)
+        && fromRowFunction.equals(that.fromRowFunction);
   }
 
   @Override
@@ -124,7 +123,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
     return new RowIdentity();
   }
 
-  private static class RowIdentity implements SerializableFunction<Row,Row> {
+  private static class RowIdentity implements SerializableFunction<Row, Row> {
     @Override
     public Row apply(Row input) {
       return input;
