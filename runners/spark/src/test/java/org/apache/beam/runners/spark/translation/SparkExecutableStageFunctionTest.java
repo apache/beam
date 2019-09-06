@@ -88,7 +88,7 @@ public class SparkExecutableStageFunctionTest {
     when(jobBundleFactory.forStage(any())).thenReturn(stageBundleFactory);
     when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(remoteBundle);
     @SuppressWarnings("unchecked")
-    ImmutableMap<String, FnDataReceiver<WindowedValue<?>>> inputReceiver =
+    ImmutableMap<String, FnDataReceiver> inputReceiver =
         ImmutableMap.of("input", Mockito.mock(FnDataReceiver.class));
     when(remoteBundle.getInputReceivers()).thenReturn(inputReceiver);
     when(metricsAccumulator.value()).thenReturn(stepMap);
@@ -153,7 +153,7 @@ public class SparkExecutableStageFunctionTest {
               }
 
               @Override
-              public Map<String, FnDataReceiver<WindowedValue<?>>> getInputReceivers() {
+              public Map<String, FnDataReceiver> getInputReceivers() {
                 return ImmutableMap.of(
                     "input",
                     input -> {

@@ -292,7 +292,7 @@ public class ExecutableStageDoFnOperatorTest {
               }
 
               @Override
-              public Map<String, FnDataReceiver<WindowedValue<?>>> getInputReceivers() {
+              public Map<String, FnDataReceiver> getInputReceivers() {
                 return ImmutableMap.of(
                     "input",
                     input -> {

@@ -20,7 +20,6 @@ package org.apache.beam.sdk.fn.data;
 import java.io.IOException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -42,8 +41,7 @@ import org.slf4j.LoggerFactory;
  * <p>TODO: Handle outputting elements that are zero bytes by outputting a single byte as a marker,
  * detect on the input side that no bytes were read and force reading a single byte.
  */
-public class BeamFnDataBufferingOutboundObserver<T>
-    implements CloseableFnDataReceiver<WindowedValue<T>> {
+public class BeamFnDataBufferingOutboundObserver<T> implements CloseableFnDataReceiver<T> {
   // TODO: Consider moving this constant out of this class
   public static final String BEAM_FN_API_DATA_BUFFER_LIMIT = "beam_fn_api_data_buffer_limit=";
   @VisibleForTesting static final int DEFAULT_BUFFER_LIMIT_BYTES = 1_000_000;
@@ -52,7 +50,7 @@ public class BeamFnDataBufferingOutboundObserver<T>
 
   public static <T> BeamFnDataBufferingOutboundObserver<T> forLocation(
       LogicalEndpoint endpoint,
-      Coder<WindowedValue<T>> coder,
+      Coder<T> coder,
       StreamObserver<BeamFnApi.Elements> outboundObserver) {
     return forLocationWithBufferLimit(
         DEFAULT_BUFFER_LIMIT_BYTES, endpoint, coder, outboundObserver);
@@ -61,7 +59,7 @@ public class BeamFnDataBufferingOutboundObserver<T>
   public static <T> BeamFnDataBufferingOutboundObserver<T> forLocationWithBufferLimit(
       int bufferLimit,
       LogicalEndpoint endpoint,
-      Coder<WindowedValue<T>> coder,
+      Coder<T> coder,
       StreamObserver<BeamFnApi.Elements> outboundObserver) {
     return new BeamFnDataBufferingOutboundObserver<>(
         bufferLimit, endpoint, coder, outboundObserver);
@@ -71,7 +69,7 @@ public class BeamFnDataBufferingOutboundObserver<T>
   private long counter;
   private boolean closed;
   private final int bufferLimit;
-  private final Coder<WindowedValue<T>> coder;
+  private final Coder<T> coder;
   private final LogicalEndpoint outputLocation;
   private final StreamObserver<BeamFnApi.Elements> outboundObserver;
   private final ByteString.Output bufferedElements;
@@ -79,7 +77,7 @@ public class BeamFnDataBufferingOutboundObserver<T>
   private BeamFnDataBufferingOutboundObserver(
       int bufferLimit,
       LogicalEndpoint outputLocation,
-      Coder<WindowedValue<T>> coder,
+      Coder<T> coder,
       StreamObserver<BeamFnApi.Elements> outboundObserver) {
     this.bufferLimit = bufferLimit;
     this.outputLocation = outputLocation;
@@ -120,7 +118,7 @@ public class BeamFnDataBufferingOutboundObserver<T>
   }
 
   @Override
-  public void accept(WindowedValue<T> t) throws IOException {
+  public void accept(T t) throws IOException {
     if (closed) {
       throw new IllegalStateException("Already closed.");
     }
