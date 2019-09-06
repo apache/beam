@@ -43,13 +43,11 @@ public final class RowHelpers {
    * @return A {@link MapFunction} that accepts a {@link Row} and returns its {@link WindowedValue}.
    */
   public static <T> MapFunction<Row, WindowedValue<T>> extractWindowedValueFromRowMapFunction(
-      Coder<T> coder) {
+      WindowedValue.WindowedValueCoder<T> windowedValueCoder) {
     return (MapFunction<Row, WindowedValue<T>>)
         value -> {
           // there is only one value put in each Row by the InputPartitionReader
           byte[] bytes = (byte[]) value.get(0);
-          WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
-              WindowedValue.FullWindowedValueCoder.of(coder, GlobalWindow.Coder.INSTANCE);
           return windowedValueCoder.decode(new ByteArrayInputStream(bytes));
         };
   }
