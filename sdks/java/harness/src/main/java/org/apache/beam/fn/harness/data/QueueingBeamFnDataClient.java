@@ -87,10 +87,10 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
   }
 
   /**
-   * Drains the internal queue of this class, by waiting for all values to be passed to
-   * their consumers. The thread which wishes to process() the elements should call this method, as
-   * this will cause the consumers to invoke element processing. All receive() and send() calls must
-   * be made prior to calling drainAndBlock, in order to properly terminate.
+   * Drains the internal queue of this class, by waiting for all values to be passed to their
+   * consumers. The thread which wishes to process() the elements should call this method, as this
+   * will cause the consumers to invoke element processing. All receive() and send() calls must be
+   * made prior to calling drainAndBlock, in order to properly terminate.
    *
    * <p>All {@link InboundDataClient}s will be failed if processing throws an exception.
    *
