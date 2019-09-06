@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Apache HCatalog InputFormat IO</title>
+  <title>Apache HCatalog I/O connector</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -519,7 +519,7 @@ The destination table should exist beforehand as the transform will not create a
 
 <h3 id="using-older-versions-of-hcatalog-1x">Using older versions of HCatalog (1.x)</h3>
 
-<p><code class="highlighter-rouge">HCatalogIO</code> is build for Apache HCatalog versions 2 and up and will not work out of the box for older versions of HCatalog. 
+<p><code class="highlighter-rouge">HCatalogIO</code> is built for Apache HCatalog versions 2 and up and will not work out of the box for older versions of HCatalog. 
 The following illustrates a workaround to work with Hive 1.1.</p>
 
 <p>Include the following Hive 1.2 jars in the über jar you build. 

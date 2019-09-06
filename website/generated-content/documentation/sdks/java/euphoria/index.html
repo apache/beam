@@ -830,7 +830,7 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 </div>
 
 <h2 id="translation">Translation</h2>
-<p>Euphoria API is build on top of Beam Java SDK. The API is transparently translated into Beam’s <code class="highlighter-rouge">PTransforms</code> in background.</p>
+<p>Euphoria API is built on top of Beam Java SDK. The API is transparently translated into Beam’s <code class="highlighter-rouge">PTransforms</code> in background.</p>
 
 <p>The fact that Euphoria API is translated to Beam Java SDK give us option to fine tune the translation itself. Translation of an <code class="highlighter-rouge">Operator</code> is realized through implementations of <code class="highlighter-rouge">OperatorTranslator</code>.
 Euphoria uses <code class="highlighter-rouge">TranslationProvider</code> to decide which translator should be used. User of Euphoria API can supply its own <code class="highlighter-rouge">OperatorTranslator</code> through <code class="highlighter-rouge">TranslationProvider</code> by extending <code class="highlighter-rouge">EuphoriaOptions</code>. 
