@@ -224,18 +224,18 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  *             public void processElement(@Element String word, MultiOutputReceiver r) {
  *               if (word.length() <= wordLengthCutOff) {
  *                 // Emit this short word to the main output.
- *                 r.output(wordsBelowCutOffTag, word);
+ *                 r.get(wordsBelowCutOffTag).output(word);
  *               } else {
  *                 // Emit this long word's length to a specified output.
- *                 r.output(wordLengthsAboveCutOffTag, word.length());
+ *                 r.get(wordLengthsAboveCutOffTag).output(word.length());
  *               }
  *               if (word.startsWith("MARKER")) {
  *                 // Emit this word to a different specified output.
- *                 r.output(markedWordsTag, word);
+ *                 r.get(markedWordsTag).output(word);
  *               }
  *               if (word.startsWith("SPECIAL")) {
  *                 // Emit this word to the unconsumed output.
- *                 r.output(specialWordsTag, word);
+ *                 r.get(specialWordsTag).output(word);
  *               }
  *             }}})
  *             // Specify the main and consumed output tags of the
