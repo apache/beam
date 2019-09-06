@@ -76,7 +76,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 			log.Debugf(ctx, "RESP: %v", proto.MarshalTextString(resp))
 
 			if err := client.Send(resp); err != nil {
-				log.Errorf(ctx, "Failed to respond: %v", err)
+				log.Errorf(ctx, "control.Send: Failed to respond: %v", err)
 			}
 		}
 	}()
@@ -102,7 +102,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 				recordFooter()
 				return nil
 			}
-			return errors.Wrapf(err, "recv failed")
+			return errors.Wrapf(err, "control.Recv failed")
 		}
 
 		// Launch a goroutine to handle the control message.
