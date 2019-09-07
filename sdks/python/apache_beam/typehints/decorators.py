@@ -333,11 +333,7 @@ class WithTypeHints(object):
   """A mixin class that provides the ability to set and retrieve type hints.
   """
 
-  def __init__(self, *unused_args, **unused_kwargs):
-    self._type_hints = IOTypeHints()
-
   def _get_or_create_type_hints(self):
-    # __init__ may have not been called
     try:
       return self._type_hints
     except AttributeError:
