@@ -72,10 +72,9 @@ task crossLanguagePythonJavaDirect {
   dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
 
   doLast {
-    def testServiceExpansionJar = project(":sdks:java:testing:expansion-service:").buildTestExpansionServiceJar.archivePath
     def options = [
-        "--expansion_service_port=8096",
-        "--expansion_service_jar=${testServiceExpansionJar}",
+        "--expansion_service_target=sdks:java:testing:expansion-service:buildTestExpansionServiceJar",
+        "--expansion_service_target_appendix=testExpansionService",
     ]
     exec {
       executable 'sh'
