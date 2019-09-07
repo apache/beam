@@ -32,6 +32,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
+import org.apache.beam.sdk.values.PCollectionViews.TypeDescriptorSupplier;
 
 /**
  * Transforms for creating {@link PCollectionView PCollectionViews} from {@link PCollection
@@ -233,9 +234,12 @@ public class View {
 
       PCollection<KV<Void, T>> materializationInput =
           input.apply(new VoidKeyToMultimapMaterialization<>());
+      Coder<T> inputCoder = input.getCoder();
       PCollectionView<List<T>> view =
           PCollectionViews.listView(
-              materializationInput, materializationInput.getWindowingStrategy());
+              materializationInput,
+              (TypeDescriptorSupplier<T>) inputCoder::getEncodedTypeDescriptor,
+              materializationInput.getWindowingStrategy());
       materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
@@ -263,9 +267,12 @@ public class View {
 
       PCollection<KV<Void, T>> materializationInput =
           input.apply(new VoidKeyToMultimapMaterialization<>());
+      Coder<T> inputCoder = input.getCoder();
       PCollectionView<Iterable<T>> view =
           PCollectionViews.iterableView(
-              materializationInput, materializationInput.getWindowingStrategy());
+              materializationInput,
+              (TypeDescriptorSupplier<T>) inputCoder::getEncodedTypeDescriptor,
+              materializationInput.getWindowingStrategy());
       materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
@@ -402,11 +409,17 @@ public class View {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
 
+      KvCoder<K, V> kvCoder = (KvCoder<K, V>) input.getCoder();
+      Coder<K> keyCoder = kvCoder.getKeyCoder();
+      Coder<V> valueCoder = kvCoder.getValueCoder();
       PCollection<KV<Void, KV<K, V>>> materializationInput =
           input.apply(new VoidKeyToMultimapMaterialization<>());
       PCollectionView<Map<K, Iterable<V>>> view =
           PCollectionViews.multimapView(
-              materializationInput, materializationInput.getWindowingStrategy());
+              materializationInput,
+              (TypeDescriptorSupplier<K>) keyCoder::getEncodedTypeDescriptor,
+              (TypeDescriptorSupplier<V>) valueCoder::getEncodedTypeDescriptor,
+              materializationInput.getWindowingStrategy());
       materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
@@ -438,11 +451,18 @@ public class View {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
 
+      KvCoder<K, V> kvCoder = (KvCoder<K, V>) input.getCoder();
+      Coder<K> keyCoder = kvCoder.getKeyCoder();
+      Coder<V> valueCoder = kvCoder.getValueCoder();
+
       PCollection<KV<Void, KV<K, V>>> materializationInput =
           input.apply(new VoidKeyToMultimapMaterialization<>());
       PCollectionView<Map<K, V>> view =
           PCollectionViews.mapView(
-              materializationInput, materializationInput.getWindowingStrategy());
+              materializationInput,
+              (TypeDescriptorSupplier<K>) keyCoder::getEncodedTypeDescriptor,
+              (TypeDescriptorSupplier<V>) valueCoder::getEncodedTypeDescriptor,
+              materializationInput.getWindowingStrategy());
       materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }

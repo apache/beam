@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.values;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -52,6 +54,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap
  */
 @Internal
 public class PCollectionViews {
+  public interface TypeDescriptorSupplier<T> extends Supplier<TypeDescriptor<T>>, Serializable {}
 
   /**
    * Returns a {@code PCollectionView<T>} capable of processing elements windowed using the provided
@@ -62,13 +65,14 @@ public class PCollectionViews {
    */
   public static <T, W extends BoundedWindow> PCollectionView<T> singletonView(
       PCollection<KV<Void, T>> pCollection,
+      TypeDescriptorSupplier<T> typeDescriptorSupplier,
       WindowingStrategy<?, W> windowingStrategy,
       boolean hasDefault,
       @Nullable T defaultValue,
       Coder<T> defaultValueCoder) {
     return new SimplePCollectionView<>(
         pCollection,
-        new SingletonViewFn<>(hasDefault, defaultValue, defaultValueCoder),
+        new SingletonViewFn<T>(hasDefault, defaultValue, defaultValueCoder, typeDescriptorSupplier),
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy);
   }
@@ -78,10 +82,12 @@ public class PCollectionViews {
    * the provided {@link WindowingStrategy}.
    */
   public static <T, W extends BoundedWindow> PCollectionView<Iterable<T>> iterableView(
-      PCollection<KV<Void, T>> pCollection, WindowingStrategy<?, W> windowingStrategy) {
+      PCollection<KV<Void, T>> pCollection,
+      TypeDescriptorSupplier<T> typeDescriptorSupplier,
+      WindowingStrategy<?, W> windowingStrategy) {
     return new SimplePCollectionView<>(
         pCollection,
-        new IterableViewFn<T>(),
+        new IterableViewFn<T>(typeDescriptorSupplier),
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy);
   }
@@ -91,10 +97,12 @@ public class PCollectionViews {
    * provided {@link WindowingStrategy}.
    */
   public static <T, W extends BoundedWindow> PCollectionView<List<T>> listView(
-      PCollection<KV<Void, T>> pCollection, WindowingStrategy<?, W> windowingStrategy) {
+      PCollection<KV<Void, T>> pCollection,
+      TypeDescriptorSupplier<T> typeDescriptorSupplier,
+      WindowingStrategy<?, W> windowingStrategy) {
     return new SimplePCollectionView<>(
         pCollection,
-        new ListViewFn<T>(),
+        new ListViewFn<>(typeDescriptorSupplier),
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy);
   }
@@ -103,10 +111,13 @@ public class PCollectionViews {
    * provided {@link WindowingStrategy}.
    */
   public static <K, V, W extends BoundedWindow> PCollectionView<Map<K, V>> mapView(
-      PCollection<KV<Void, KV<K, V>>> pCollection, WindowingStrategy<?, W> windowingStrategy) {
+      PCollection<KV<Void, KV<K, V>>> pCollection,
+      TypeDescriptorSupplier<K> keyTypeDescriptorSupplier,
+      TypeDescriptorSupplier<V> valueTypeDescriptorSupplier,
+      WindowingStrategy<?, W> windowingStrategy) {
     return new SimplePCollectionView<>(
         pCollection,
-        new MapViewFn<K, V>(),
+        new MapViewFn<>(keyTypeDescriptorSupplier, valueTypeDescriptorSupplier),
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy);
   }
@@ -116,10 +127,13 @@ public class PCollectionViews {
    * using the provided {@link WindowingStrategy}.
    */
   public static <K, V, W extends BoundedWindow> PCollectionView<Map<K, Iterable<V>>> multimapView(
-      PCollection<KV<Void, KV<K, V>>> pCollection, WindowingStrategy<?, W> windowingStrategy) {
+      PCollection<KV<Void, KV<K, V>>> pCollection,
+      TypeDescriptorSupplier<K> keyTypeDescriptorSupplier,
+      TypeDescriptorSupplier<V> valueTypeDescriptorSupplier,
+      WindowingStrategy<?, W> windowingStrategy) {
     return new SimplePCollectionView<>(
         pCollection,
-        new MultimapViewFn<K, V>(),
+        new MultimapViewFn<>(keyTypeDescriptorSupplier, valueTypeDescriptorSupplier),
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy);
   }
@@ -149,11 +163,17 @@ public class PCollectionViews {
     @Nullable private transient T defaultValue;
     @Nullable private Coder<T> valueCoder;
     private boolean hasDefault;
+    private TypeDescriptorSupplier<T> typeDescriptorSupplier;
 
-    private SingletonViewFn(boolean hasDefault, T defaultValue, Coder<T> valueCoder) {
+    private SingletonViewFn(
+        boolean hasDefault,
+        T defaultValue,
+        Coder<T> valueCoder,
+        TypeDescriptorSupplier<T> typeDescriptorSupplier) {
       this.hasDefault = hasDefault;
       this.defaultValue = defaultValue;
       this.valueCoder = valueCoder;
+      this.typeDescriptorSupplier = typeDescriptorSupplier;
       if (hasDefault) {
         try {
           this.encodedDefaultValue = CoderUtils.encodeToByteArray(valueCoder, defaultValue);
@@ -212,6 +232,11 @@ public class PCollectionViews {
             "PCollection with more than one element accessed as a singleton view.");
       }
     }
+
+    @Override
+    public TypeDescriptor<T> getTypeDescriptor() {
+      return typeDescriptorSupplier.get();
+    }
   }
 
   /**
@@ -223,6 +248,11 @@ public class PCollectionViews {
    */
   @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class IterableViewFn<T> extends ViewFn<MultimapView<Void, T>, Iterable<T>> {
+    private TypeDescriptorSupplier<T> typeDescriptorSupplier;
+
+    public IterableViewFn(TypeDescriptorSupplier<T> typeDescriptorSupplier) {
+      this.typeDescriptorSupplier = typeDescriptorSupplier;
+    }
 
     @Override
     public Materialization<MultimapView<Void, T>> getMaterialization() {
@@ -232,6 +262,11 @@ public class PCollectionViews {
     @Override
     public Iterable<T> apply(MultimapView<Void, T> primitiveViewT) {
       return Iterables.unmodifiableIterable(primitiveViewT.get(null));
+    }
+
+    @Override
+    public TypeDescriptor<Iterable<T>> getTypeDescriptor() {
+      return TypeDescriptors.iterables(typeDescriptorSupplier.get());
     }
   }
 
@@ -244,6 +279,12 @@ public class PCollectionViews {
    */
   @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class ListViewFn<T> extends ViewFn<MultimapView<Void, T>, List<T>> {
+    private TypeDescriptorSupplier<T> typeDescriptorSupplier;
+
+    public ListViewFn(TypeDescriptorSupplier<T> typeDescriptorSupplier) {
+      this.typeDescriptorSupplier = typeDescriptorSupplier;
+    }
+
     @Override
     public Materialization<MultimapView<Void, T>> getMaterialization() {
       return Materializations.multimap();
@@ -256,6 +297,11 @@ public class PCollectionViews {
         list.add(t);
       }
       return Collections.unmodifiableList(list);
+    }
+
+    @Override
+    public TypeDescriptor<List<T>> getTypeDescriptor() {
+      return TypeDescriptors.lists(typeDescriptorSupplier.get());
     }
 
     @Override
@@ -280,6 +326,16 @@ public class PCollectionViews {
   @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class MultimapViewFn<K, V>
       extends ViewFn<MultimapView<Void, KV<K, V>>, Map<K, Iterable<V>>> {
+    private TypeDescriptorSupplier<K> keyTypeDescriptorSupplier;
+    private TypeDescriptorSupplier<V> valueTypeDescriptorSupplier;
+
+    public MultimapViewFn(
+        TypeDescriptorSupplier<K> keyTypeDescriptorSupplier,
+        TypeDescriptorSupplier<V> valueTypeDescriptorSupplier) {
+      this.keyTypeDescriptorSupplier = keyTypeDescriptorSupplier;
+      this.valueTypeDescriptorSupplier = valueTypeDescriptorSupplier;
+    }
+
     @Override
     public Materialization<MultimapView<Void, KV<K, V>>> getMaterialization() {
       return Materializations.multimap();
@@ -298,6 +354,13 @@ public class PCollectionViews {
       Map<K, Iterable<V>> resultMap = (Map) multimap.asMap();
       return Collections.unmodifiableMap(resultMap);
     }
+
+    @Override
+    public TypeDescriptor<Map<K, Iterable<V>>> getTypeDescriptor() {
+      return TypeDescriptors.maps(
+          keyTypeDescriptorSupplier.get(),
+          TypeDescriptors.iterables(valueTypeDescriptorSupplier.get()));
+    }
   }
 
   /**
@@ -309,6 +372,15 @@ public class PCollectionViews {
    */
   @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class MapViewFn<K, V> extends ViewFn<MultimapView<Void, KV<K, V>>, Map<K, V>> {
+    private TypeDescriptorSupplier<K> keyTypeDescriptorSupplier;
+    private TypeDescriptorSupplier<V> valueTypeDescriptorSupplier;
+
+    public MapViewFn(
+        TypeDescriptorSupplier<K> keyTypeDescriptorSupplier,
+        TypeDescriptorSupplier<V> valueTypeDescriptorSupplier) {
+      this.keyTypeDescriptorSupplier = keyTypeDescriptorSupplier;
+      this.valueTypeDescriptorSupplier = valueTypeDescriptorSupplier;
+    }
 
     @Override
     public Materialization<MultimapView<Void, KV<K, V>>> getMaterialization() {
@@ -327,6 +399,12 @@ public class PCollectionViews {
         map.put(elem.getKey(), elem.getValue());
       }
       return Collections.unmodifiableMap(map);
+    }
+
+    @Override
+    public TypeDescriptor<Map<K, V>> getTypeDescriptor() {
+      return TypeDescriptors.maps(
+          keyTypeDescriptorSupplier.get(), valueTypeDescriptorSupplier.get());
     }
   }
 

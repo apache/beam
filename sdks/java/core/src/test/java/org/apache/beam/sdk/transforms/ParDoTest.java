@@ -738,6 +738,154 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
+    @Category({NeedsRunner.class, UsesSideInputs.class})
+    public void testSideInputAnnotationFailedValidationMissing() {
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+
+      DoFn<Integer, List<Integer>> fn =
+          new DoFn<Integer, List<Integer>>() {
+            @ProcessElement
+            public void processElement(@SideInput(sideInputTag1) String tag1) {}
+          };
+
+      thrown.expect(IllegalArgumentException.class);
+      PCollection<List<Integer>> output =
+          pipeline.apply("Create main input", Create.of(2)).apply(ParDo.of(fn));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({NeedsRunner.class, UsesSideInputs.class})
+    public void testSideInputAnnotationFailedValidationSingletonType() {
+
+      final PCollectionView<Integer> sideInput1 =
+          pipeline
+              .apply("CreateSideInput1", Create.of(2))
+              .apply("ViewSideInput1", View.asSingleton());
+
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+
+      DoFn<Integer, List<Integer>> fn =
+          new DoFn<Integer, List<Integer>>() {
+            @ProcessElement
+            public void processElement(@SideInput(sideInputTag1) String tag1) {}
+          };
+
+      thrown.expect(IllegalArgumentException.class);
+      PCollection<List<Integer>> output =
+          pipeline
+              .apply("Create main input", Create.of(2))
+              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({NeedsRunner.class, UsesSideInputs.class})
+    public void testSideInputAnnotationFailedValidationListType() {
+
+      final PCollectionView<List<Integer>> sideInput1 =
+          pipeline
+              .apply("CreateSideInput1", Create.of(2, 1, 0))
+              .apply("ViewSideInput1", View.asList());
+
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+
+      DoFn<Integer, List<Integer>> fn =
+          new DoFn<Integer, List<Integer>>() {
+            @ProcessElement
+            public void processElement(@SideInput(sideInputTag1) List<String> tag1) {}
+          };
+
+      thrown.expect(IllegalArgumentException.class);
+      PCollection<List<Integer>> output =
+          pipeline
+              .apply("Create main input", Create.of(2))
+              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({NeedsRunner.class, UsesSideInputs.class})
+    public void testSideInputAnnotationFailedValidationIterableType() {
+
+      final PCollectionView<Iterable<Integer>> sideInput1 =
+          pipeline
+              .apply("CreateSideInput1", Create.of(2, 1, 0))
+              .apply("ViewSideInput1", View.asIterable());
+
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+
+      DoFn<Integer, List<Integer>> fn =
+          new DoFn<Integer, List<Integer>>() {
+            @ProcessElement
+            public void processElement(@SideInput(sideInputTag1) List<String> tag1) {}
+          };
+
+      thrown.expect(IllegalArgumentException.class);
+      PCollection<List<Integer>> output =
+          pipeline
+              .apply("Create main input", Create.of(2))
+              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({NeedsRunner.class, UsesSideInputs.class})
+    public void testSideInputAnnotationFailedValidationMapType() {
+
+      final PCollectionView<Map<Integer, Integer>> sideInput1 =
+          pipeline
+              .apply("CreateSideInput1", Create.of(KV.of(1, 2), KV.of(2, 3), KV.of(3, 4)))
+              .apply("ViewSideInput1", View.asMap());
+
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+
+      DoFn<Integer, List<Integer>> fn =
+          new DoFn<Integer, List<Integer>>() {
+            @ProcessElement
+            public void processElement(@SideInput(sideInputTag1) Map<String, String> tag1) {}
+          };
+
+      thrown.expect(IllegalArgumentException.class);
+      PCollection<List<Integer>> output =
+          pipeline
+              .apply("Create main input", Create.of(2))
+              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({NeedsRunner.class, UsesSideInputs.class})
+    public void testSideInputAnnotationFailedValidationMultiMapType() {
+
+      final PCollectionView<Map<Integer, Iterable<Integer>>> sideInput1 =
+          pipeline
+              .apply("CreateSideInput1", Create.of(KV.of(1, 2), KV.of(1, 3), KV.of(3, 4)))
+              .apply("ViewSideInput1", View.asMultimap());
+
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+
+      DoFn<Integer, List<Integer>> fn =
+          new DoFn<Integer, List<Integer>>() {
+            @ProcessElement
+            public void processElement(@SideInput(sideInputTag1) Map<Integer, Integer> tag1) {}
+          };
+
+      thrown.expect(IllegalArgumentException.class);
+      PCollection<List<Integer>> output =
+          pipeline
+              .apply("Create main input", Create.of(2))
+              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+      pipeline.run();
+    }
+
+    @Test
     @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testSideInputAnnotation() {
 
@@ -774,53 +922,98 @@ public class ParDoTest implements Serializable {
     @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testSideInputAnnotationWithMultipleSideInputs() {
 
+      final List<Integer> side1Data = ImmutableList.of(2, 0);
       final PCollectionView<List<Integer>> sideInput1 =
           pipeline
-              .apply("CreateSideInput1", Create.of(2, 0))
+              .apply("CreateSideInput1", Create.of(side1Data))
               .apply("ViewSideInput1", View.asList());
 
+      final Integer side2Data = 5;
       final PCollectionView<Integer> sideInput2 =
           pipeline
-              .apply("CreateSideInput2", Create.of(5))
+              .apply("CreateSideInput2", Create.of(side2Data))
               .apply("ViewSideInput2", View.asSingleton());
 
-      final PCollectionView<List<Integer>> sideInput3 =
+      final List<Integer> side3Data = ImmutableList.of(1, 3);
+      final PCollectionView<Iterable<Integer>> sideInput3 =
           pipeline
-              .apply("CreateSideInput3", Create.of(1, 3))
-              .apply("ViewSideInput3", View.asList());
+              .apply("CreateSideInput3", Create.of(side3Data))
+              .apply("ViewSideInput3", View.asIterable());
+
+      final List<KV<Integer, Integer>> side4Data =
+          ImmutableList.of(KV.of(1, 2), KV.of(2, 3), KV.of(3, 4));
+      final PCollectionView<Map<Integer, Integer>> sideInput4 =
+          pipeline
+              .apply("CreateSideInput4", Create.of(side4Data))
+              .apply("ViewSideInput4", View.asMap());
+
+      final List<KV<Integer, Integer>> side5Data =
+          ImmutableList.of(KV.of(1, 2), KV.of(1, 3), KV.of(3, 4));
+      final PCollectionView<Map<Integer, Iterable<Integer>>> sideInput5 =
+          pipeline
+              .apply("CreateSideInput5", Create.of(side5Data))
+              .apply("ViewSideInput5", View.asMultimap());
 
       // SideInput tag id
       final String sideInputTag1 = "tag1";
       final String sideInputTag2 = "tag2";
       final String sideInputTag3 = "tag3";
+      final String sideInputTag4 = "tag4";
+      final String sideInputTag5 = "tag5";
 
-      DoFn<Integer, List<Integer>> fn =
-          new DoFn<Integer, List<Integer>>() {
+      final TupleTag<Integer> outputTag1 = new TupleTag<>();
+      final TupleTag<Integer> outputTag2 = new TupleTag<>();
+      final TupleTag<Integer> outputTag3 = new TupleTag<>();
+      final TupleTag<KV<Integer, Integer>> outputTag4 = new TupleTag<>();
+      final TupleTag<KV<Integer, Integer>> outputTag5 = new TupleTag<>();
+
+      DoFn<Integer, Integer> fn =
+          new DoFn<Integer, Integer>() {
             @ProcessElement
             public void processElement(
-                OutputReceiver<List<Integer>> r,
-                @SideInput(sideInputTag1) List<Integer> tag1,
-                @SideInput(sideInputTag2) Integer tag2,
-                @SideInput(sideInputTag3) List<Integer> tag3) {
-
-              List<Integer> sideSorted = Lists.newArrayList(tag1);
-              sideSorted.add(tag2);
-              sideSorted.addAll(tag3);
-              Collections.sort(sideSorted);
-              r.output(sideSorted);
+                MultiOutputReceiver r,
+                @SideInput(sideInputTag1) List<Integer> side1,
+                @SideInput(sideInputTag2) Integer side2,
+                @SideInput(sideInputTag3) Iterable<Integer> side3,
+                @SideInput(sideInputTag4) Map<Integer, Integer> side4,
+                @SideInput(sideInputTag5) Map<Integer, Iterable<Integer>> side5) {
+              side1.forEach(i -> r.get(outputTag1).output(i));
+              r.get(outputTag2).output(side2);
+              side3.forEach(i -> r.get(outputTag3).output(i));
+              side4.forEach((k, v) -> r.get(outputTag4).output(KV.of(k, v)));
+              side5.forEach((k, v) -> v.forEach(v2 -> r.get(outputTag5).output(KV.of(k, v2))));
             }
           };
 
-      PCollection<List<Integer>> output =
+      PCollectionTuple output =
           pipeline
               .apply("Create main input", Create.of(2))
               .apply(
                   ParDo.of(fn)
                       .withSideInput(sideInputTag1, sideInput1)
                       .withSideInput(sideInputTag2, sideInput2)
-                      .withSideInput(sideInputTag3, sideInput3));
+                      .withSideInput(sideInputTag3, sideInput3)
+                      .withSideInput(sideInputTag4, sideInput4)
+                      .withSideInput(sideInputTag5, sideInput5)
+                      .withOutputTags(
+                          outputTag1,
+                          TupleTagList.of(outputTag2)
+                              .and(outputTag3)
+                              .and(outputTag4)
+                              .and(outputTag5)));
 
-      PAssert.that(output).containsInAnyOrder(Lists.newArrayList(0, 1, 2, 3, 5));
+      output.get(outputTag1).setCoder(VarIntCoder.of());
+      output.get(outputTag2).setCoder(VarIntCoder.of());
+      output.get(outputTag3).setCoder(VarIntCoder.of());
+      output.get(outputTag4).setCoder(KvCoder.of(VarIntCoder.of(), VarIntCoder.of()));
+      output.get(outputTag5).setCoder(KvCoder.of(VarIntCoder.of(), VarIntCoder.of()));
+
+      PAssert.that(output.get(outputTag1)).containsInAnyOrder(side1Data);
+      PAssert.that(output.get(outputTag2)).containsInAnyOrder(side2Data);
+      PAssert.that(output.get(outputTag3)).containsInAnyOrder(side3Data);
+      PAssert.that(output.get(outputTag4)).containsInAnyOrder(side4Data);
+      PAssert.that(output.get(outputTag5)).containsInAnyOrder(side5Data);
+
       pipeline.run();
     }
 
