@@ -39,7 +39,7 @@ def run(argv=None):
   parser.add_argument(
       '--output_topic', required=True,
       help=('Output PubSub topic of the form '
-            '"projects/<PROJECT>/topic/<TOPIC>".'))
+            '"projects/<PROJECT>/topics/<TOPIC>".'))
   group = parser.add_mutually_exclusive_group(required=True)
   group.add_argument(
       '--input_topic',
