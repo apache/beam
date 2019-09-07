@@ -316,7 +316,6 @@ class PTransform(WithTypeHints, HasDisplayData):
   _user_label = None
 
   def __init__(self, label=None):
-    super(PTransform, self).__init__()
     self.label = label
 
   @property
@@ -681,8 +680,6 @@ class PTransformWithSideInputs(PTransform):
       # Don't treat Fn class objects as callables.
       raise ValueError('Use %s() not %s.' % (fn.__name__, fn.__name__))
     self.fn = self.make_fn(fn, bool(args or kwargs))
-    # Now that we figure out the label, initialize the super-class.
-    super(PTransformWithSideInputs, self).__init__()
 
     if (any([isinstance(v, pvalue.PCollection) for v in args]) or
         any([isinstance(v, pvalue.PCollection) for v in kwargs.values()])):
@@ -798,7 +795,6 @@ class _PTransformFnPTransform(PTransform):
   """A class wrapper for a function-based transform."""
 
   def __init__(self, fn, *args, **kwargs):
-    super(_PTransformFnPTransform, self).__init__()
     self._fn = fn
     self._args = args
     self._kwargs = kwargs
@@ -861,7 +857,6 @@ def ptransform_fn(fn):
     class CustomMapper(PTransform):
 
       def __init__(self, mapfn):
-        super(CustomMapper, self).__init__()
         self.mapfn = mapfn
 
       def expand(self, pcoll):
