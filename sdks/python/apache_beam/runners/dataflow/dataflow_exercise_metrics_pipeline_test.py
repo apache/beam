@@ -26,7 +26,6 @@ from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.dataflow import dataflow_exercise_metrics_pipeline
 from apache_beam.testing import metric_result_matchers
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -40,10 +39,7 @@ class ExerciseMetricsPipelineTest(unittest.TestCase):
     parser = argparse.ArgumentParser()
     unused_known_args, pipeline_args = parser.parse_known_args(argv)
 
-    # We use the save_main_session option because one or more DoFn's in this
-    # workflow rely on global context (e.g., a module imported at module level).
     pipeline_options = PipelineOptions(pipeline_args)
-    pipeline_options.view_as(SetupOptions).save_main_session = True
     p = beam.Pipeline(options=pipeline_options)
     return dataflow_exercise_metrics_pipeline.apply_and_run(p)
 
