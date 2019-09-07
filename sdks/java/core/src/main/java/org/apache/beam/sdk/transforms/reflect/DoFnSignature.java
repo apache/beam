@@ -40,6 +40,7 @@ import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
@@ -757,6 +758,14 @@ public abstract class DoFnSignature {
       return extraParameters().stream()
           .filter(Predicates.instanceOf(SchemaElementParameter.class)::apply)
           .map(SchemaElementParameter.class::cast)
+          .collect(Collectors.toList());
+    }
+
+    @Nullable
+    public List<SideInputParameter> getSideInputParameters() {
+      return extraParameters().stream()
+          .filter(Predicates.instanceOf(SideInputParameter.class)::apply)
+          .map(SideInputParameter.class::cast)
           .collect(Collectors.toList());
     }
 
