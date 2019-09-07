@@ -44,7 +44,7 @@ public class PaneInfoTracker {
 
   @VisibleForTesting
   static final StateTag<ReadModifyWriteState<PaneInfo>> PANE_INFO_TAG =
-      StateTags.makeSystemTagInternal(StateTags.value("pane", PaneInfoCoder.INSTANCE));
+      StateTags.makeSystemTagInternal(StateTags.readModifyWrite("pane", PaneInfoCoder.INSTANCE));
 
   public void clear(StateAccessor<?> state) {
     state.access(PANE_INFO_TAG).clear();

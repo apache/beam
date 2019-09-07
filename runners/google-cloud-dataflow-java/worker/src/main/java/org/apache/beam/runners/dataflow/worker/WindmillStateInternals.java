@@ -48,6 +48,7 @@ import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
 import org.apache.beam.sdk.state.StateContexts;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -175,6 +176,13 @@ class WindmillStateInternals<K> implements StateInternals {
           }
           result.initializeForWorkItem(reader, scopedReadStateSupplier);
           return result;
+        }
+
+        @Override
+        public <T> ReadModifyWriteState<T> bindReadModifyWrite(StateTag<ReadModifyWriteState<T>> address, Coder<T> coder) {
+          // TODO: need to implement this in generic way which can be used.
+          throw new UnsupportedOperationException(
+                  String.format("%s is not supported", ReadModifyWriteState.class.getSimpleName()));
         }
       };
     }

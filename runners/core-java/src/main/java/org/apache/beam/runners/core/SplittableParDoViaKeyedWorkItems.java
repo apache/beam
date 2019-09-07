@@ -267,11 +267,11 @@ public class SplittableParDoViaKeyedWorkItems {
       this.restrictionCoder = restrictionCoder;
       this.inputWindowingStrategy = inputWindowingStrategy;
       this.elementTag =
-          StateTags.value(
+          StateTags.readModifyWrite(
               "element",
               WindowedValue.getFullCoder(
                   elementCoder, inputWindowingStrategy.getWindowFn().windowCoder()));
-      this.restrictionTag = StateTags.value("restriction", restrictionCoder);
+      this.restrictionTag = StateTags.readModifyWrite("restriction", restrictionCoder);
     }
 
     public void setStateInternalsFactory(StateInternalsFactory<byte[]> stateInternalsFactory) {

@@ -45,6 +45,7 @@ import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
 import org.apache.beam.sdk.state.StateContexts;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
@@ -279,6 +280,19 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
           }
 
           @Override
+          public <T> ReadModifyWriteState<T> bindReadModifyWrite(StateTag<ReadModifyWriteState<T>> address, Coder<T> coder) {
+            if (containedInUnderlying(namespace, address)) {
+              @SuppressWarnings("unchecked")
+              InMemoryState<? extends ReadModifyWriteState<T>> existingState =
+                      (InMemoryState<? extends ReadModifyWriteState<T>>)
+                              underlying.get().get(namespace, address, c);
+              return existingState.copy();
+            } else {
+              return new InMemoryValue<>(coder);
+            }
+          }
+
+          @Override
           public <T> ValueState<T> bindValue(StateTag<ValueState<T>> address, Coder<T> coder) {
             if (containedInUnderlying(namespace, address)) {
               @SuppressWarnings("unchecked")
@@ -403,6 +417,11 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
           @Override
           public WatermarkHoldState bindWatermark(
               StateTag<WatermarkHoldState> address, TimestampCombiner timestampCombiner) {
+            return underlying.get(namespace, address, c);
+          }
+
+          @Override
+          public <T> ReadModifyWriteState<T> bindReadModifyWrite(StateTag<ReadModifyWriteState<T>> address, Coder<T> coder) {
             return underlying.get(namespace, address, c);
           }
 

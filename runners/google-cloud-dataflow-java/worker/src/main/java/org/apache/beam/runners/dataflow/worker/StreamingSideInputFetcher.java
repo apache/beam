@@ -41,6 +41,7 @@ import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.ReadModifyWriteState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -61,7 +62,7 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
   private final StateTag<BagState<WindowedValue<InputT>>> elementsAddr;
   private final StateTag<BagState<TimerData>> timersAddr;
   private final StateTag<WatermarkHoldState> watermarkHoldingAddr;
-  private final StateTag<ValueState<Map<W, Set<Windmill.GlobalDataRequest>>>> blockedMapAddr;
+  private final StateTag<ReadModifyWriteState<Map<W, Set<Windmill.GlobalDataRequest>>>> blockedMapAddr;
 
   private Map<W, Set<Windmill.GlobalDataRequest>> blockedMap = null; // lazily initialized
 
@@ -95,9 +96,9 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
 
   @VisibleForTesting
   static <W extends BoundedWindow>
-      StateTag<ValueState<Map<W, Set<GlobalDataRequest>>>> blockedMapAddr(
+      StateTag<ReadModifyWriteState<Map<W, Set<GlobalDataRequest>>>> blockedMapAddr(
           Coder<W> mainWindowCoder) {
-    return StateTags.value(
+    return StateTags.readModifyWrite(
         "blockedMap", MapCoder.of(mainWindowCoder, SetCoder.of(GlobalDataRequestCoder.of())));
   }
 
@@ -226,7 +227,7 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
       return;
     }
 
-    ValueState<Map<W, Set<Windmill.GlobalDataRequest>>> mapState =
+    ReadModifyWriteState<Map<W, Set<Windmill.GlobalDataRequest>>> mapState =
         stepContext.stateInternals().state(StateNamespaces.global(), blockedMapAddr);
     if (blockedMap.isEmpty()) {
       // Avoid storing the empty map so we don't leave unnecessary state behind from processing

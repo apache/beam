@@ -145,8 +145,14 @@ public class StateTags {
   }
 
   /** Create a simple state tag for values of type {@code T}. */
-  public static <T> StateTag<ReadModifyWriteState<T>> value(String id, Coder<T> valueCoder) {
+  public static <T> StateTag<ReadModifyWriteState<T>> readModifyWrite(String id, Coder<T> valueCoder) {
     return new SimpleStateTag<>(new StructuredId(id), StateSpecs.readModifyWrite(valueCoder));
+  }
+
+
+  /** Create a simple state tag for values of type {@code T}. */
+  public static <T> StateTag<ValueState<T>> value(String id, Coder<T> valueCoder) {
+    return new SimpleStateTag<>(new StructuredId(id), StateSpecs.value(valueCoder));
   }
 
   /**

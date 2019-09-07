@@ -67,7 +67,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
 
     StateTag<ReadModifyWriteState<Map<W, Set<W>>>> tag =
         StateTags.makeSystemTagInternal(
-            StateTags.value(
+            StateTags.readModifyWrite(
                 "tree", MapCoder.of(windowFn.windowCoder(), SetCoder.of(windowFn.windowCoder()))));
     readModifyWriteState = state.state(StateNamespaces.global(), tag);
     // Little use trying to prefetch this state since the ReduceFnRunner

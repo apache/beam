@@ -61,6 +61,27 @@ public class StateSpecs {
   }
 
   /**
+   * Create a {@link StateSpec} for a single value of type {@code T}.
+   *
+   * <p>This method attempts to infer the accumulator coder automatically.
+   *
+   * @see #readModifyWrite(Coder)
+   */
+  public static <T> StateSpec<ValueState<T>> value() {
+    return new ValueStateSpec<>(null);
+  }
+
+  /**
+   * Identical to {@link #value()}, but with a coder explicitly supplied.
+   *
+   * <p>If automatic coder inference fails, use this method.
+   */
+  public static <T> StateSpec<ValueState<T>> value(Coder<T> valueCoder) {
+    checkArgument(valueCoder != null, "valueCoder should not be null. Consider readModifyWrite() instead");
+    return new ValueStateSpec<>(valueCoder);
+  }
+
+  /**
    * Create a {@link StateSpec} for a {@link CombiningState} which uses a {@link CombineFn} to
    * automatically merge multiple values of type {@code InputT} into a single resulting {@code
    * OutputT}.
@@ -258,17 +279,48 @@ public class StateSpecs {
     }
   }
 
+  private static abstract class AbstractReadModifyWriteStateSpec<T> {
+
+    @Nullable protected Coder<T> coder;
+
+    protected AbstractReadModifyWriteStateSpec(@Nullable Coder<T> coder) {
+      this.coder = coder;
+    }
+
+    @SuppressWarnings("unchecked")
+    public void offerCoders(Coder[] coders) {
+      if (this.coder == null && coders[0] != null) {
+        this.coder = (Coder<T>) coders[0];
+      }
+    }
+
+    public void finishSpecifying() {
+      if (coder == null) {
+        throw new IllegalStateException(
+                "Unable to infer a coder for ReadModifyWriteState and no Coder"
+                        + " was specified. Please set a coder by either invoking"
+                        + " StateSpecs.readModifyWrite(Coder<T> valueCoder) or by registering the coder in the"
+                        + " Pipeline's CoderRegistry.");
+      }
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(getClass(), coder);
+    }
+  }
+
+
   /**
    * A specification for a state cell holding a settable value of type {@code T}.
    *
    * <p>Includes the coder for {@code T}.
    */
-  private static class ReadModifyWriteStateSpec<T> implements StateSpec<ReadModifyWriteState<T>> {
-
-    @Nullable private Coder<T> coder;
+  private static class ReadModifyWriteStateSpec<T> extends AbstractReadModifyWriteStateSpec<T>
+          implements StateSpec<ReadModifyWriteState<T>> {
 
     private ReadModifyWriteStateSpec(@Nullable Coder<T> coder) {
-      this.coder = coder;
+      super(coder);
     }
 
     @Override
@@ -279,25 +331,6 @@ public class StateSpecs {
     @Override
     public <ResultT> ResultT match(Cases<ResultT> cases) {
       return cases.dispatchReadModifyWrite(coder);
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public void offerCoders(Coder[] coders) {
-      if (this.coder == null && coders[0] != null) {
-        this.coder = (Coder<T>) coders[0];
-      }
-    }
-
-    @Override
-    public void finishSpecifying() {
-      if (coder == null) {
-        throw new IllegalStateException(
-            "Unable to infer a coder for ReadModifyWriteState and no Coder"
-                + " was specified. Please set a coder by either invoking"
-                + " StateSpecs.readModifyWrite(Coder<T> valueCoder) or by registering the coder in the"
-                + " Pipeline's CoderRegistry.");
-      }
     }
 
     @Override
@@ -314,9 +347,42 @@ public class StateSpecs {
       return Objects.equals(this.coder, that.coder);
     }
 
+  }
+
+  /**
+   * A specification for a state cell holding a settable value of type {@code T}.
+   *
+   * <p>Includes the coder for {@code T}.
+   */
+  private static class ValueStateSpec<T>  extends AbstractReadModifyWriteStateSpec<T>
+          implements StateSpec<ValueState<T>> {
+
+    private ValueStateSpec(@Nullable Coder<T> coder) {
+      super(coder);
+    }
+
     @Override
-    public int hashCode() {
-      return Objects.hash(getClass(), coder);
+    public ValueState<T> bind(String id, StateBinder visitor) {
+      return visitor.bindValue(id, this, coder);
+    }
+
+    @Override
+    public <ResultT> ResultT match(Cases<ResultT> cases) {
+      return cases.dispatchValue(coder);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj == this) {
+        return true;
+      }
+
+      if (!(obj instanceof ValueStateSpec)) {
+        return false;
+      }
+
+      ValueStateSpec<?> that = (ValueStateSpec<?>) obj;
+      return Objects.equals(this.coder, that.coder);
     }
   }
 

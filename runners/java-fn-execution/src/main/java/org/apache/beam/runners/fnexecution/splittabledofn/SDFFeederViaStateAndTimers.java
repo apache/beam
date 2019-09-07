@@ -91,8 +91,8 @@ public class SDFFeederViaStateAndTimers<InputT, RestrictionT> {
     this.windowCoder = windowCoder;
     this.elementRestrictionWireCoder =
         FullWindowedValueCoder.of(KvCoder.of(elementWireCoder, restrictionWireCoder), windowCoder);
-    this.seedTag = StateTags.value("seed", elementRestrictionWireCoder);
-    this.restrictionTag = StateTags.value("restriction", restrictionWireCoder);
+    this.seedTag = StateTags.readModifyWrite("seed", elementRestrictionWireCoder);
+    this.restrictionTag = StateTags.readModifyWrite("restriction", restrictionWireCoder);
   }
 
   /** Passes the initial element/restriction pair. */

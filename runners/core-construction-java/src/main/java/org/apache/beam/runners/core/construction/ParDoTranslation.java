@@ -431,6 +431,18 @@ public class ParDoTranslation {
           }
 
           @Override
+          public RunnerApi.StateSpec dispatchValue(Coder<?> valueCoder) {
+            /* We are keeping this method for backward compatibility but we are using
+               ReadModifyWriteState under the hood.
+            */
+            return builder
+                    .setReadModifyWriteSpec(
+                            RunnerApi.ReadModifyWriteStateSpec.newBuilder()
+                                    .setCoderId(registerCoderOrThrow(components, valueCoder)))
+                    .build();
+          }
+
+          @Override
           public RunnerApi.StateSpec dispatchBag(Coder<?> elementCoder) {
             return builder
                 .setBagSpec(
