@@ -21,7 +21,6 @@ import static java.util.stream.Collectors.toMap;
 
 import com.google.cloud.datacatalog.DataCatalogGrpc;
 import com.google.cloud.datacatalog.DataCatalogGrpc.DataCatalogBlockingStub;
-import com.google.cloud.datacatalog.Entry;
 import com.google.cloud.datacatalog.LookupEntryRequest;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Status;
@@ -128,10 +127,10 @@ public class DataCatalogTableProvider extends FullNameTableProvider {
 
   private Table loadTableFromDC(String tableName) {
     try {
-      Entry entry =
+      return TableUtils.toBeamTable(
+          tableName,
           dataCatalog.lookupEntry(
-              LookupEntryRequest.newBuilder().setSqlResource(tableName).build());
-      return TableUtils.toBeamTable(tableName, entry);
+              LookupEntryRequest.newBuilder().setSqlResource(tableName).build()));
     } catch (StatusRuntimeException e) {
       if (e.getStatus().equals(Status.INVALID_ARGUMENT)) {
         return null;
