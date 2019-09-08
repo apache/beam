@@ -209,7 +209,8 @@ class SdkHarness(object):
     self._unscheduled_process_bundle[request.instruction_id] = time.time()
     self._process_thread_pool.submit(task)
     logging.debug(
-        "Currently using %s threads." % len(self._process_thread_pool._threads))
+        "Currently using %s threads." %
+        len(self._process_thread_pool._threads))  # type: ignore  # private attr not exposed
 
   def _request_process_bundle_split(self, request):
     self._request_process_bundle_action(request)
