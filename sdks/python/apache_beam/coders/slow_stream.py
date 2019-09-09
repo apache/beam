@@ -147,7 +147,8 @@ class InputStream(object):
 
   def read_byte_py2(self):
     self.pos += 1
-    return ord(self.data[self.pos - 1])
+    # mypy tests against python 3.x, where this is an error:
+    return ord(self.data[self.pos - 1])  # type: ignore[arg-type]
 
   def read_byte_py3(self):
     self.pos += 1
