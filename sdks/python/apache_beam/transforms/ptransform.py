@@ -317,7 +317,7 @@ class PTransform(WithTypeHints, HasDisplayData):
 
   def __init__(self, label=None):
     super(PTransform, self).__init__()
-    self.label = label
+    self.label = label  # type: ignore # https://github.com/python/mypy/issues/3004
 
   @property
   def label(self):
