@@ -128,7 +128,7 @@ try:
   _original_getfullargspec = inspect.getfullargspec
   _use_full_argspec = True
 except AttributeError:  # Python 2
-  _original_getfullargspec = inspect.getargspec
+  _original_getfullargspec = inspect.getargspec  # type: ignore
   _use_full_argspec = False
 
 
