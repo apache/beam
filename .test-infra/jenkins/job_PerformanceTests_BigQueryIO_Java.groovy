@@ -16,100 +16,98 @@
  * limitations under the License.
  */
 
-import CommonJobProperties as commonJobProperties
-import LoadTestsBuilder as loadTestsBuilder
+
+import CommonJobProperties as common
 import PhraseTriggeringPostCommitBuilder
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def bqioStreamTest = [
-        title          : 'BigQueryIO Streaming Performance Test Java 10 GB',
-        test           : 'org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT',
-        runner         : CommonTestProperties.Runner.DATAFLOW,
-        pipelineOptions: [
-                jobName               : 'performance-tests-bqio-java-stream-10gb' + now,
-                project               : 'apache-beam-testing',
-                tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
-                tempRoot              : 'gs://temp-storage-for-perf-tests/loadtests',
-                writeMethod           : 'STREAMING_INSERTS',
-                publishToBigQuery     : true,
-                testBigQueryDataset   : 'beam_performance',
-                testBigQueryTable     : 'bqio_write_10GB_java',
-                metricsBigQueryDataset: 'beam_performance',
-                metricsBigQueryTable  : 'bqio_10GB_results_java_stream',
-                sourceOptions         : '\'{' +
-                        '"num_records": 10485760,' +
-                        '"key_size": 1,' +
-                        '"value_size": 1024}\'',
-                numWorkers            : 5,
-                autoscalingAlgorithm  : 'NONE',  // Disable autoscale the worker pool.
+def jobConfigs = [
+        [
+                title        : 'BigQueryIO Streaming Performance Test Java 10 GB',
+                triggerPhrase: 'Run BigQueryIO Streaming Performance Test Java',
+                name      : 'beam_BiqQueryIO_Streaming_Performance_Test_Java',
+                itClass      : 'org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT',
+                properties: [
+                        project               : 'apache-beam-testing',
+                        tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
+                        tempRoot              : 'gs://temp-storage-for-perf-tests/loadtests',
+                        writeMethod           : 'STREAMING_INSERTS',
+                        testBigQueryDataset   : 'beam_performance',
+                        testBigQueryTable     : 'bqio_write_10GB_java',
+                        metricsBigQueryDataset: 'beam_performance',
+                        metricsBigQueryTable  : 'bqio_10GB_results_java_stream',
+                        sourceOptions         : """
+                                            {
+                                              "numRecords": "10485760",
+                                              "keySizeBytes": "1",
+                                              "valueSizeBytes": "1024"
+                                            }
+                                       """.trim().replaceAll("\\s", ""),
+                        runner                : 'DataflowRunner',
+                        maxNumWorkers         : '5',
+                        numWorkers            : '5',
+                        autoscalingAlgorithm  : 'NONE',
+                ]
+        ],
+        [
+                title        : 'BigQueryIO Batch Performance Test Java 10 GB',
+                triggerPhrase: 'Run BigQueryIO Batch Performance Test Java',
+                name      : 'beam_BiqQueryIO_Batch_Performance_Test_Java',
+                itClass      : 'org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT',
+                properties: [
+                        project               : 'apache-beam-testing',
+                        tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
+                        tempRoot              : 'gs://temp-storage-for-perf-tests/loadtests',
+                        writeMethod           : 'FILE_LOADS',
+                        testBigQueryDataset   : 'beam_performance',
+                        testBigQueryTable     : 'bqio_write_10GB_java',
+                        metricsBigQueryDataset: 'beam_performance',
+                        metricsBigQueryTable  : 'bqio_10GB_results_java_batch',
+                        sourceOptions         : """
+                                            {
+                                              "numRecords": "10485760",
+                                              "keySizeBytes": "1",
+                                              "valueSizeBytes": "1024"
+                                            }
+                                      """.trim().replaceAll("\\s", ""),
+                        runner                : "DataflowRunner",
+                        maxNumWorkers         : '5',
+                        numWorkers            : '5',
+                        autoscalingAlgorithm  : 'NONE',
+                ]
         ]
 ]
 
-def bqioBatchTest = [
-        title          : 'BigQueryIO Batch Performance Test Java 10 GB',
-        test           : 'org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT',
-        runner         : CommonTestProperties.Runner.DATAFLOW,
-        pipelineOptions: [
-                jobName               : 'performance-tests-bqio-java-stream-10gb' + now,
-                project               : 'apache-beam-testing',
-                tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
-                tempRoot              : 'gs://temp-storage-for-perf-tests/loadtests',
-                writeMethod           : 'FILE_LOADS',
-                publishToBigQuery     : true,
-                testBigQueryDataset   : 'beam_performance',
-                testBigQueryTable     : 'bqio_write_10GB_java',
-                metricsBigQueryDataset: 'beam_performance',
-                metricsBigQueryTable  : 'bqio_10GB_results_java_batch',
-                sourceOptions         : '\'{' +
-                        '"num_records": 10485760,' +
-                        '"key_size": 1,' +
-                        '"value_size": 1024}\'',
-                numWorkers            : 5,
-                autoscalingAlgorithm  : 'NONE',  // Disable autoscale the worker pool.
-        ]
-]
+jobConfigs.forEach { jobConfig -> createPostCommitJob(jobConfig)}
 
-def executeJob = { scope, testConfig ->
-    job(testConfig.title) {
-        commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
-        def testTask = ':sdks:java:io:bigquery-io-perf-tests:integrationTest'
+private void createPostCommitJob(jobConfig) {
+    job(jobConfig.name) {
+        description(jobConfig.description)
+        common.setTopLevelMainJobProperties(delegate)
+        common.enablePhraseTriggeringFromPullRequest(delegate, jobConfig.title, jobConfig.triggerPhrase)
+        common.setAutoJob(delegate, 'H */6 * * *')
+        publishers {
+            archiveJunit('**/build/test-results/**/*.xml')
+        }
+        
         steps {
             gradle {
-                rootBuildScriptDir(commonJobProperties.checkoutDir)
-                commonJobProperties.setGradleSwitches(delegate)
+                rootBuildScriptDir(common.checkoutDir)
+                common.setGradleSwitches(delegate)
                 switches("--info")
-                switches("-DintegrationTestPipelineOptions=\'${commonJobProperties.joinPipelineOptions(testConfig.pipelineOptions)}\'")
-                switches("-DintegrationTestRunner=\'${testConfig.runner}\'")
-                tasks("${testTask} --tests ${testConfig.test}")
+                switches("-DintegrationTestPipelineOptions=\'${parsePipelineOptions(jobConfig.properties)}\'")
+                switches("-DintegrationTestRunner=dataflow")
+                tasks(":sdks:java:io:bigquery-io-perf-tests:integrationTest --tests ${jobConfig.itClass}")
             }
         }
-
     }
 }
 
-PhraseTriggeringPostCommitBuilder.postCommitJob(
-        'beam_BiqQueryIO_Batch_Performance_Test_Java',
-        'Run BigQueryIO Batch Performance Test Java',
-        'BigQueryIO Batch Performance Test Java',
-        this
-) {
-    executeJob(delegate, bqioBatchTest)
-}
-
-CronJobBuilder.cronJob('beam_BiqQueryIO_Batch_Performance_Test_Java', 'H 15 * * *', this) {
-    executeJob(delegate, bqioBatchTest)
-}
-
-PhraseTriggeringPostCommitBuilder.postCommitJob(
-        'beam_BiqQueryIO_Stream_Performance_Test_Java',
-        'Run BigQueryIO Streaming Performance Test Java',
-        'BigQueryIO Streaming Performance Test Java',
-        this
-) {
-    executeJob(delegate, bqioStreamTest)
-}
-
-CronJobBuilder.cronJob('beam_BiqQueryIO_Stream_Performance_Test_Java', 'H 15 * * *', this) {
-    executeJob(delegate, bqioStreamTest)
+static String parsePipelineOptions(Map pipelineOptions) {
+    List<String> pipelineArgList = []
+    pipelineOptions.each({
+        key, value -> pipelineArgList.add("\"--$key=${value.replaceAll("\"", "\\\\\\\\\"")}\"")
+    })
+    return "[" + pipelineArgList.join(',') + "]"
 }
