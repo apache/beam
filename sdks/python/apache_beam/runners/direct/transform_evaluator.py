@@ -500,10 +500,10 @@ class _PubSubReadEvaluator(_TransformEvaluator):
       bundles = [bundle]
     else:
       bundles = []
+    assert self._applied_ptransform.transform is not None
     if self._applied_ptransform.inputs:
       input_pvalue = self._applied_ptransform.inputs[0]  # type: Union[pvalue.PBegin, pvalue.PCollection]
     else:
-      assert self._applied_ptransform.transform.pipeline is not None
       input_pvalue = pvalue.PBegin(self._applied_ptransform.transform.pipeline)
     unprocessed_bundle = self._evaluation_context.create_bundle(
         input_pvalue)

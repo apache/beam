@@ -783,7 +783,7 @@ class AppliedPTransform(object):
 
   def __init__(self,
                parent,
-               transform,  # type: ptransform.PTransform
+               transform,  # type: Optional[ptransform.PTransform]
                full_label,  # type: str
                inputs  # type: Optional[Sequence[Union[pvalue.PBegin, pvalue.PCollection]]]
               ):
@@ -973,7 +973,6 @@ class AppliedPTransform(object):
                            if is_side_input(tag)]
     side_inputs = [si for _, si in sorted(indexed_side_inputs)]
     transform = ptransform.PTransform.from_runner_api(proto.spec, context)
-    assert transform is not None
     result = AppliedPTransform(
         parent=None,
         transform=transform,
