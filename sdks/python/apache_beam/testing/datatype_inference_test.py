@@ -17,23 +17,29 @@
 from __future__ import absolute_import
 
 import logging
+import platform
+import sys
 import unittest
 from collections import OrderedDict
 
 import numpy as np
-import pyarrow as pa
 from parameterized import parameterized
 from past.builtins import unicode
 
 from apache_beam.testing import datatype_inference
 from apache_beam.typehints import typehints
 
+if not (platform.system() == 'Windows' and sys.version_info[0] == 2):
+  import pyarrow as pa
+else:
+  pa = None
+
 TEST_DATA = [
     {
         "name": "empty",
         "data": [],
         "type_schema": OrderedDict([]),
-        "pyarrow_schema": pa.schema([]),
+        "pyarrow_schema": pa.schema([]) if pa is not None else None,
         "avro_schema": {
             "namespace": "example.avro",
             "name": "User",
@@ -79,7 +85,7 @@ TEST_DATA = [
                 ("c", pa.string()),
                 ("d", pa.list_(pa.int64())),
                 ("e", pa.binary()),
-            ]),
+            ]) if pa is not None else None,
         "avro_schema": {
             "namespace":
                 "example.avro",
@@ -166,6 +172,7 @@ class DatatypeInferenceTest(unittest.TestCase):
   @parameterized.expand([
       (d["name"], d["data"], d["pyarrow_schema"]) for d in TEST_DATA
   ])
+  @unittest.skipIf(pa is None, "PyArrow is not installed")
   def test_infer_pyarrow_schema(self, _, data, schema):
     pyarrow_schema = datatype_inference.infer_pyarrow_schema(data)
     self.assertEqual(pyarrow_schema, schema)
