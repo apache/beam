@@ -119,7 +119,8 @@ You can also customize what to do when a
 starts and finishes with `start_bundle` and `finish_bundle`.
 
 * [`DoFn.setup()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.setup):
-  Called *once per worker* when the worker is starting to run.
+  Called *once per `DoFn` instance* when the `DoFn` instance is initialized.
+  `setup` need not to be cached, so it could be called more than once per worker.
   This is a good place to connect to database instances, open network connections or other resources.
 
 * [`DoFn.start_bundle()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.start_bundle):
@@ -147,8 +148,11 @@ starts and finishes with `start_bundle` and `finish_bundle`.
   You also need to provide a window, which you can get from the last processed element like in the example below.
 
 * [`DoFn.teardown()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.teardown):
-  Called *once per worker* when the worker is shutting down.
+  Called *once (as a best effort) per `DoFn` instance* when the `DoFn` instance is shutting down.
   This is a good place to close database instances, close network connections or other resources.
+
+  Note that `teardown` is called as a *best effort* and is *not guaranteed*.
+  For example, if the worker crashes, `teardown` might not be called.
 
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/pardo.py tag:pardo_dofn_methods %}```
