@@ -23,6 +23,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.transforms.Combine;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link Combine.CombineFn} for the {@link HllCount.MergePartial} combiner.
@@ -31,6 +33,8 @@ import org.apache.beam.sdk.transforms.Combine;
  */
 class HllCountMergePartialFn<HllT>
     extends Combine.CombineFn<byte[], HyperLogLogPlusPlus<HllT>, byte[]> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(HllCountMergePartialFn.class);
 
   // Call HllCountMergePartialFn.create() to instantiate
   private HllCountMergePartialFn() {}
@@ -54,10 +58,19 @@ class HllCountMergePartialFn<HllT>
     return null;
   }
 
+  @Nullable
   @Override
   public HyperLogLogPlusPlus<HllT> addInput(
       @Nullable HyperLogLogPlusPlus<HllT> accumulator, byte[] input) {
-    if (accumulator == null) {
+    if (input == null) {
+      LOG.warn(
+          "Received a null and treated it as an empty sketch. "
+              + "Consider replacing nulls with empty byte arrays (byte[0]) "
+              + "in upstream transforms for better space-efficiency and safety.");
+      return accumulator;
+    } else if (input.length == 0) {
+      return accumulator;
+    } else if (accumulator == null) {
       @SuppressWarnings("unchecked")
       HyperLogLogPlusPlus<HllT> result =
           (HyperLogLogPlusPlus<HllT>) HyperLogLogPlusPlus.forProto(input);
@@ -94,9 +107,9 @@ class HllCountMergePartialFn<HllT>
   @Override
   public byte[] extractOutput(@Nullable HyperLogLogPlusPlus<HllT> accumulator) {
     if (accumulator == null) {
-      throw new IllegalStateException(
-          "HllCountMergePartialFn.extractOutput() should not be called on a null accumulator.");
+      return new byte[0];
+    } else {
+      return accumulator.serializeToByteArray();
     }
-    return accumulator.serializeToByteArray();
   }
 }

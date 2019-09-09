@@ -57,6 +57,17 @@ abstract class HllCountInitFn<InputT, HllT>
     this.precision = precision;
   }
 
+  // The result of an empty aggregation is represented by an byte[] of length 0, because we cannot
+  // create sketches without knowing the type of its input data and because it's more compact.
+  // An empty byte[] can be encoded by the default ByteArrayCoder, and is more space-efficient and
+  // safer than using null.
+  // As opposed to returning an empty PCollection, it allows us to return 0 when extracting from the
+  // sketch.
+  @Override
+  public byte[] defaultValue() {
+    return new byte[0];
+  }
+
   @Override
   public Coder<HyperLogLogPlusPlus<HllT>> getAccumulatorCoder(
       CoderRegistry registry, Coder<InputT> inputCoder) {
