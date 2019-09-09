@@ -49,7 +49,7 @@ public class SparkExecutableStageContextFactory implements ExecutableStageContex
 
   @Override
   public ExecutableStageContext get(JobInfo jobInfo) {
-    MultiInstanceFactory state =
+    MultiInstanceFactory jobFactory =
         jobFactories.computeIfAbsent(
             jobInfo.jobId(),
             k -> {
@@ -64,6 +64,6 @@ public class SparkExecutableStageContextFactory implements ExecutableStageContex
                   (caller) -> false);
             });
 
-    return state.get(jobInfo);
+    return jobFactory.get(jobInfo);
   }
 }

@@ -47,7 +47,7 @@ public class FlinkExecutableStageContextFactory implements ExecutableStageContex
 
   @Override
   public ExecutableStageContext get(JobInfo jobInfo) {
-    MultiInstanceFactory state =
+    MultiInstanceFactory jobFactory =
         jobFactories.computeIfAbsent(
             jobInfo.jobId(),
             k -> {
@@ -65,6 +65,6 @@ public class FlinkExecutableStageContextFactory implements ExecutableStageContex
                           != ExecutionEnvironment.class.getClassLoader());
             });
 
-    return state.get(jobInfo);
+    return jobFactory.get(jobInfo);
   }
 }
