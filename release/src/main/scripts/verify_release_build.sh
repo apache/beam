@@ -125,7 +125,7 @@ else
 fi
 
 echo "====================== 2.2 Checking hub ========================"
-HUB_VERSION=2.5.0
+HUB_VERSION=2.12.0
 HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
 if [[ -z `which hub` ]]; then
   echo "There is no hub installed on your machine."
@@ -157,7 +157,7 @@ if [[ ! -z `which hub` ]]; then
   git push -f ${GITHUB_USERNAME} --quiet
 
   trigger_phrases=$(IFS=$'\n'; echo "${JOB_TRIGGER_PHRASES[*]}")
-  hub pull-request -b markflyhigh:${RELEASE_BRANCH} -h ${GITHUB_USERNAME}:${WORKING_BRANCH} -F- <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch
+  hub pull-request -b apache:${RELEASE_BRANCH} -h ${GITHUB_USERNAME}:${WORKING_BRANCH} -F- <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch
 
   Please comment as instructions below, one phrase per comment:
 
