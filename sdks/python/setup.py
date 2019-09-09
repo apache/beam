@@ -129,6 +129,12 @@ REQUIRED_PACKAGES = [
     'typing>=3.6.0,<3.7.0; python_version < "3.5.0"',
     ]
 
+# [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
+if sys.platform == 'win32' and sys.maxsize <= 2**32:
+  REQUIRED_PACKAGES = [
+      p for p in REQUIRED_PACKAGES if not p.startswith('pyarrow')
+  ]
+
 REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
     'nose_xunitmp>=0.4.1',
