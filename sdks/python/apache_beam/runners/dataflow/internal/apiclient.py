@@ -269,11 +269,10 @@ class Environment(object):
     if self.standard_options.streaming:
       # Use separate data disk for streaming.
       disk = dataflow.Disk()
-      if self.worker_options.disk_type:
-        disk.diskType = self.worker_options.disk_type
       if self.local:
         disk.diskType = 'local'
-      # TODO(ccy): allow customization of disk.
+      if self.worker_options.disk_type:
+        disk.diskType = self.worker_options.disk_type
       pool.dataDisks.append(disk)
     self.proto.workerPools.append(pool)
 
