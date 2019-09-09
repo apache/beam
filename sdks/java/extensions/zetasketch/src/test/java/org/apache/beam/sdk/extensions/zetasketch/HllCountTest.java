@@ -45,6 +45,8 @@ public class HllCountTest {
   @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
+  private static final byte[] EMPTY_SKETCH = new byte[0];
+
   // Integer
   private static final List<Integer> INTS1 = Arrays.asList(1, 2, 3, 3, 1, 4);
   private static final byte[] INTS1_SKETCH;
@@ -86,11 +88,11 @@ public class HllCountTest {
     LONGS_SKETCH = hll.serializeToByteArray();
   }
 
-  private static final byte[] LONGS_EMPTY_SKETCH;
+  private static final byte[] LONGS_SKETCH_OF_EMPTY_SET;
 
   static {
     HyperLogLogPlusPlus<Long> hll = new HyperLogLogPlusPlus.Builder().buildForLongs();
-    LONGS_EMPTY_SKETCH = hll.serializeToByteArray();
+    LONGS_SKETCH_OF_EMPTY_SET = hll.serializeToByteArray();
   }
 
   // String
@@ -147,12 +149,12 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testInitForLongsGlobally_EmptyInput() {
+  public void testInitForLongsGloballyForEmptyInput() {
     PCollection<byte[]> result =
         p.apply(Create.empty(TypeDescriptor.of(Long.class)))
             .apply(HllCount.Init.forLongs().globally());
 
-    PAssert.that(result).empty();
+    PAssert.thatSingleton(result).isEqualTo(EMPTY_SKETCH);
     p.run();
   }
 
@@ -168,7 +170,7 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testInitForStringsGlobally_WithPrecision() {
+  public void testInitForStringsGloballyWithPrecision() {
     PCollection<byte[]> result =
         p.apply(Create.of(STRINGS))
             .apply(HllCount.Init.forStrings().withPrecision(TEST_PRECISION).globally());
@@ -179,7 +181,7 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testInitForStringsGlobally_WithInvalidPrecision() {
+  public void testInitForStringsGloballyWithInvalidPrecision() {
     thrown.expect(IllegalArgumentException.class);
     p.apply(Create.of(STRINGS)).apply(HllCount.Init.forStrings().withPrecision(0).globally());
   }
@@ -236,7 +238,7 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testInitForStringsPerKey_WithPrecision() {
+  public void testInitForStringsPerKeyWithPrecision() {
     List<KV<String, String>> input = new ArrayList<>();
     STRINGS.forEach(s -> input.add(KV.of("k", s)));
     PCollection<KV<String, byte[]>> result =
@@ -250,7 +252,7 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testInitForStringsPerKey_WithInvalidPrecision() {
+  public void testInitForStringsPerKeyWithInvalidPrecision() {
     List<KV<String, String>> input = new ArrayList<>();
     STRINGS.forEach(s -> input.add(KV.of("k", s)));
     thrown.expect(IllegalArgumentException.class);
@@ -281,18 +283,18 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testMergePartialGlobally_MergeWithSketchForEmptySet() {
+  public void testMergePartialGloballyForEmptyInput() {
     PCollection<byte[]> result =
-        p.apply(Create.of(LONGS_SKETCH, LONGS_EMPTY_SKETCH))
+        p.apply(Create.empty(TypeDescriptor.of(byte[].class)))
             .apply(HllCount.MergePartial.globally());
 
-    PAssert.thatSingleton(result).isEqualTo(LONGS_SKETCH);
+    PAssert.thatSingleton(result).isEqualTo(EMPTY_SKETCH);
     p.run();
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void testMergePartialGlobally_SingletonInput() {
+  public void testMergePartialGloballyForSingletonInput() {
     PCollection<byte[]> result =
         p.apply(Create.of(LONGS_SKETCH)).apply(HllCount.MergePartial.globally());
 
@@ -302,18 +304,59 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testMergePartialGlobally_EmptyInput() {
+  public void testMergePartialGloballyForSingletonInputEmptySketch() {
     PCollection<byte[]> result =
-        p.apply(Create.empty(TypeDescriptor.of(byte[].class)))
-            .apply(HllCount.MergePartial.globally());
+        p.apply(Create.of(EMPTY_SKETCH)).apply(HllCount.MergePartial.globally());
 
-    PAssert.that(result).empty();
+    PAssert.thatSingleton(result).isEqualTo(EMPTY_SKETCH);
     p.run();
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void testMergePartialGlobally_IncompatibleSketches() {
+  public void testMergePartialGloballyForMergeWithEmptySketch() {
+    PCollection<byte[]> result =
+        p.apply(Create.of(LONGS_SKETCH, EMPTY_SKETCH)).apply(HllCount.MergePartial.globally());
+
+    PAssert.thatSingleton(result).isEqualTo(LONGS_SKETCH);
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMergePartialGloballyForMergeMultipleEmptySketches() {
+    PCollection<byte[]> result =
+        p.apply(Create.of(EMPTY_SKETCH, EMPTY_SKETCH)).apply(HllCount.MergePartial.globally());
+
+    PAssert.thatSingleton(result).isEqualTo(EMPTY_SKETCH);
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMergePartialGloballyForMergeWithSketchOfEmptySet() {
+    PCollection<byte[]> result =
+        p.apply(Create.of(LONGS_SKETCH, LONGS_SKETCH_OF_EMPTY_SET))
+            .apply(HllCount.MergePartial.globally());
+
+    PAssert.thatSingleton(result).isEqualTo(LONGS_SKETCH);
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMergePartialGloballyForMergeEmptySketchWithSketchOfEmptySet() {
+    PCollection<byte[]> result =
+        p.apply(Create.of(EMPTY_SKETCH, LONGS_SKETCH_OF_EMPTY_SET))
+            .apply(HllCount.MergePartial.globally());
+
+    PAssert.thatSingleton(result).isEqualTo(LONGS_SKETCH_OF_EMPTY_SET);
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMergePartialGloballyForIncompatibleSketches() {
     p.apply(Create.of(INTS1_SKETCH, STRINGS_SKETCH)).apply(HllCount.MergePartial.globally());
 
     thrown.expect(PipelineExecutionException.class);
@@ -339,7 +382,39 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testMergePartialPerKey_IncompatibleSketches() {
+  public void testMergePartialPerKeyForMergeWithEmptySketch() {
+    PCollection<KV<String, byte[]>> result =
+        p.apply(
+                Create.of(
+                    KV.of("k1", INTS1_SKETCH),
+                    KV.of("k2", EMPTY_SKETCH),
+                    KV.of("k1", EMPTY_SKETCH)))
+            .apply(HllCount.MergePartial.perKey());
+
+    PAssert.that(result)
+        .containsInAnyOrder(Arrays.asList(KV.of("k1", INTS1_SKETCH), KV.of("k2", EMPTY_SKETCH)));
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMergePartialPerKeyForMergeMultipleEmptySketches() {
+    PCollection<KV<String, byte[]>> result =
+        p.apply(
+                Create.of(
+                    KV.of("k1", EMPTY_SKETCH),
+                    KV.of("k2", STRINGS_SKETCH),
+                    KV.of("k1", EMPTY_SKETCH)))
+            .apply(HllCount.MergePartial.perKey());
+
+    PAssert.that(result)
+        .containsInAnyOrder(Arrays.asList(KV.of("k1", EMPTY_SKETCH), KV.of("k2", STRINGS_SKETCH)));
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMergePartialPerKeyForIncompatibleSketches() {
     p.apply(
             Create.of(
                 KV.of("k1", LONGS_SKETCH), KV.of("k2", STRINGS_SKETCH), KV.of("k1", BYTES_SKETCH)))
@@ -361,6 +436,25 @@ public class HllCountTest {
 
   @Test
   @Category(NeedsRunner.class)
+  public void testExtractGloballyForEmptySketch() {
+    PCollection<Long> result = p.apply(Create.of(EMPTY_SKETCH)).apply(HllCount.Extract.globally());
+
+    PAssert.thatSingleton(result).isEqualTo(0L);
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testExtractGloballyForSketchOfEmptySet() {
+    PCollection<Long> result =
+        p.apply(Create.of(LONGS_SKETCH_OF_EMPTY_SET)).apply(HllCount.Extract.globally());
+
+    PAssert.thatSingleton(result).isEqualTo(0L);
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
   public void testExtractPerKey() {
     PCollection<KV<String, Long>> result =
         p.apply(Create.of(KV.of("k", INTS1_SKETCH), KV.of("k", INTS2_SKETCH)))
@@ -368,6 +462,26 @@ public class HllCountTest {
 
     PAssert.that(result)
         .containsInAnyOrder(Arrays.asList(KV.of("k", INTS1_ESTIMATE), KV.of("k", INTS2_ESTIMATE)));
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testExtractPerKeyForEmptySketch() {
+    PCollection<KV<String, Long>> result =
+        p.apply(Create.of(KV.of("k", EMPTY_SKETCH))).apply(HllCount.Extract.perKey());
+
+    PAssert.thatSingleton(result).isEqualTo(KV.of("k", 0L));
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testExtractPerKeyForSketchOfEmptySet() {
+    PCollection<KV<String, Long>> result =
+        p.apply(Create.of(KV.of("k", LONGS_SKETCH_OF_EMPTY_SET))).apply(HllCount.Extract.perKey());
+
+    PAssert.thatSingleton(result).isEqualTo(KV.of("k", 0L));
     p.run();
   }
 }
