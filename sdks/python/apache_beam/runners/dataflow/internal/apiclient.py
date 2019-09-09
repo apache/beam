@@ -271,7 +271,8 @@ class Environment(object):
       disk = dataflow.Disk()
       if self.local:
         disk.diskType = 'local'
-      # TODO(ccy): allow customization of disk.
+      if self.worker_options.disk_type:
+        disk.diskType = self.worker_options.disk_type
       pool.dataDisks.append(disk)
     self.proto.workerPools.append(pool)
 
