@@ -798,7 +798,7 @@ class ToString(object):
       output_type = str
       return (pcoll | ('%s:KeyVaueToString' % self.label >> (Map(
           lambda x: "{}{}{}".format(x[0], self.delimiter, x[1])))
-                       .with_input_types(input_type)
+                       .with_input_types(input_type)  # type: ignore[misc]
                        .with_output_types(output_type)))
 
   class Element(PTransform):
