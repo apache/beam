@@ -29,7 +29,7 @@ try:
   from google.api_core import exceptions
 # TODO(BEAM-4543): Remove TypeError once googledatastore dependency is removed.
 except (ImportError, TypeError):
-  helper = None
+  helper = None  # type: ignore
 
 
 @unittest.skipIf(helper is None, 'GCP dependencies are not installed')

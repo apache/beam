@@ -36,7 +36,7 @@ from apache_beam.transforms import DataflowDistributionCounter
 try:
   from apache_beam.runners.dataflow.internal import apiclient
 except ImportError:
-  apiclient = None
+  apiclient = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 FAKE_PIPELINE_URL = "gs://invalid-bucket/anywhere"

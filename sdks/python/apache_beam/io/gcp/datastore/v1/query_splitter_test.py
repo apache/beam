@@ -37,7 +37,7 @@ try:
   from google.cloud.proto.datastore.v1.query_pb2 import PropertyFilter
 except (ImportError, TypeError):
   datastore_pb2 = None
-  query_splitter = None
+  query_splitter = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
