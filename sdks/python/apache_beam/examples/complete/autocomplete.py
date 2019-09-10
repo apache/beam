@@ -61,7 +61,9 @@ def run(argv=None):
 class TopPerPrefix(beam.PTransform):
 
   def __init__(self, count):
-    super(TopPerPrefix, self).__init__()
+    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
+    # super(TopPerPrefix, self).__init__()
+    beam.PTransform.__init__(self)
     self._count = count
 
   def expand(self, words):
