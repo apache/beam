@@ -48,7 +48,9 @@ class BitcoinTxnCountDoFn(beam.DoFn):
   """Count inputs and outputs per transaction"""
 
   def __init__(self):
-    super(BitcoinTxnCountDoFn, self).__init__()
+    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
+    # super(BitcoinTxnCountDoFn, self).__init__()
+    beam.DoFn.__init__(self)
     self.txn_counter = Metrics.counter(self.__class__, 'txns')
     self.inputs_dist = Metrics.distribution(self.__class__, 'inputs_per_txn')
     self.outputs_dist = Metrics.distribution(self.__class__, 'outputs_per_txn')

@@ -71,7 +71,6 @@ class Simulator(object):
   """Greenhouse simulation for the optimization of greenhouse parameters."""
 
   def __init__(self, quantities):
-    super(Simulator, self).__init__()
     self.quantities = np.atleast_1d(quantities)
 
     self.A = np.array([[3.0, 10, 30],
