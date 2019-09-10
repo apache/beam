@@ -52,7 +52,7 @@ class ExerciseMetricsPipelineTest(unittest.TestCase):
     result = self.run_pipeline()
     errors = metric_result_matchers.verify_all(
         result.metrics().all_metrics(),
-        dataflow_exercise_metrics_pipeline.legacy_metric_matchers())
+        dataflow_exercise_metrics_pipeline.metric_matchers())
     self.assertFalse(errors, str(errors))
 
   @attr('IT', 'ValidatesContainer')
@@ -60,7 +60,7 @@ class ExerciseMetricsPipelineTest(unittest.TestCase):
     result = self.run_pipeline(experiment='beam_fn_api')
     errors = metric_result_matchers.verify_all(
         result.metrics().all_metrics(),
-        dataflow_exercise_metrics_pipeline.fn_api_metric_matchers())
+        dataflow_exercise_metrics_pipeline.metric_matchers())
     self.assertFalse(errors, str(errors))
 
 

@@ -34,7 +34,7 @@ METRIC_NAMESPACE = ('apache_beam.runners.dataflow.'
                     'dataflow_exercise_metrics_pipeline.UserMetricsDoFn')
 
 
-def common_metric_matchers():
+def metric_matchers():
   """MetricResult matchers common to all tests."""
   # TODO(ajamato): Matcher for the 'metrics' step's ElementCount.
   # TODO(ajamato): Matcher for the 'metrics' step's MeanByteCount.
@@ -66,6 +66,42 @@ def common_metric_matchers():
           step='metrics',
           attempted=greater_than(0),
           committed=greater_than(0)
+      ),
+      MetricResultMatcher(
+        name='distribution_values',
+        namespace=METRIC_NAMESPACE,
+        step='metrics',
+        attempted=DistributionMatcher(
+          sum_value=sum(INPUT),
+          count_value=len(INPUT),
+          min_value=min(INPUT),
+          max_value=max(INPUT)
+        ),
+        committed=DistributionMatcher(
+          sum_value=sum(INPUT),
+          count_value=len(INPUT),
+          min_value=min(INPUT),
+          max_value=max(INPUT)
+        ),
+      ),
+      # Element count and MeanByteCount for a User ParDo.
+      MetricResultMatcher(
+        name='ElementCount',
+        labels={
+          'output_user_name': 'metrics-out0',
+          'original_name': 'metrics-out0-ElementCount'
+        },
+        attempted=greater_than(0),
+        committed=greater_than(0)
+      ),
+      MetricResultMatcher(
+        name='MeanByteCount',
+        labels={
+          'output_user_name': 'metrics-out0',
+          'original_name': 'metrics-out0-MeanByteCount'
+        },
+        attempted=greater_than(0),
+        committed=greater_than(0)
       )
   ]
 
@@ -98,59 +134,6 @@ def common_metric_matchers():
             committed=greater_than(0)
         ),
     ])
-  return matchers
-
-
-def fn_api_metric_matchers():
-  """MetricResult matchers with adjusted step names for the FN API DF test."""
-  matchers = common_metric_matchers()
-  return matchers
-
-
-def legacy_metric_matchers():
-  """MetricResult matchers with adjusted step names for the legacy DF test."""
-  # TODO(ajamato): Move these to the common_metric_matchers once implemented
-  # in the FN API.
-  matchers = common_metric_matchers()
-  matchers.extend([
-      # User distribution metric, legacy DF only.
-      MetricResultMatcher(
-          name='distribution_values',
-          namespace=METRIC_NAMESPACE,
-          step='metrics',
-          attempted=DistributionMatcher(
-              sum_value=sum(INPUT),
-              count_value=len(INPUT),
-              min_value=min(INPUT),
-              max_value=max(INPUT)
-          ),
-          committed=DistributionMatcher(
-              sum_value=sum(INPUT),
-              count_value=len(INPUT),
-              min_value=min(INPUT),
-              max_value=max(INPUT)
-          ),
-      ),
-      # Element count and MeanByteCount for a User ParDo.
-      MetricResultMatcher(
-          name='ElementCount',
-          labels={
-              'output_user_name': 'metrics-out0',
-              'original_name': 'metrics-out0-ElementCount'
-          },
-          attempted=greater_than(0),
-          committed=greater_than(0)
-      ),
-      MetricResultMatcher(
-          name='MeanByteCount',
-          labels={
-              'output_user_name': 'metrics-out0',
-              'original_name': 'metrics-out0-MeanByteCount'
-          },
-          attempted=greater_than(0),
-          committed=greater_than(0)
-      ),
-  ])
   return matchers
 
 
