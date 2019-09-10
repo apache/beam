@@ -218,9 +218,10 @@ function create_pubsub() {
 #   None
 #######################################
 function cleanup_pubsub() {
-  gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC1
-  gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC2
-  gcloud pubsub subscriptions delete --project=$PROJECT_ID $PUBSUB_SUBSCRIPTION
+  # Suppress error since topic/subscription may not exist
+  gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC1 2> /dev/null
+  gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC2 2> /dev/null
+  gcloud pubsub subscriptions delete --project=$PROJECT_ID $PUBSUB_SUBSCRIPTION 2> /dev/null
 }
 
 
