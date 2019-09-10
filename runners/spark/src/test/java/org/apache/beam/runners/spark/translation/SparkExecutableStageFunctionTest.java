@@ -37,14 +37,13 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
-import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
+import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
-import org.apache.beam.runners.spark.translation.SparkExecutableStageFunction.JobBundleFactoryCreator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -57,8 +56,8 @@ import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link SparkExecutableStageFunction}. */
 public class SparkExecutableStageFunctionTest {
-  @Mock private JobBundleFactoryCreator jobBundleFactoryCreator;
-  @Mock private JobBundleFactory jobBundleFactory;
+  @Mock private SparkExecutableStageContextFactory contextFactory;
+  @Mock private ExecutableStageContext stageContext;
   @Mock private StageBundleFactory stageBundleFactory;
   @Mock private RemoteBundle remoteBundle;
   @Mock private MetricsContainerStepMapAccumulator metricsAccumulator;
@@ -84,8 +83,8 @@ public class SparkExecutableStageFunctionTest {
   @Before
   public void setUpMocks() throws Exception {
     MockitoAnnotations.initMocks(this);
-    when(jobBundleFactoryCreator.create()).thenReturn(jobBundleFactory);
-    when(jobBundleFactory.forStage(any())).thenReturn(stageBundleFactory);
+    when(contextFactory.get(any())).thenReturn(stageContext);
+    when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
     when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(remoteBundle);
     @SuppressWarnings("unchecked")
     ImmutableMap<String, FnDataReceiver<WindowedValue<?>>> inputReceiver =
@@ -184,7 +183,7 @@ public class SparkExecutableStageFunctionTest {
           @Override
           public void close() {}
         };
-    when(jobBundleFactory.forStage(any())).thenReturn(stageBundleFactory);
+    when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
 
     SparkExecutableStageFunction<Integer, ?> function = getFunction(outputTagMap);
     Iterator<RawUnionValue> iterator = function.call(Collections.emptyIterator());
@@ -210,8 +209,9 @@ public class SparkExecutableStageFunctionTest {
       Map<String, Integer> outputMap) {
     return new SparkExecutableStageFunction<>(
         stagePayload,
+        null,
         outputMap,
-        jobBundleFactoryCreator,
+        contextFactory,
         Collections.emptyMap(),
         metricsAccumulator,
         null);

@@ -15,39 +15,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation.functions;
+package org.apache.beam.runners.fnexecution.control;
 
-import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.runners.flink.translation.functions.FlinkDefaultExecutableStageContext.MultiInstanceFactory;
-import org.apache.beam.runners.flink.translation.functions.ReferenceCountingFlinkExecutableStageContextFactory.WrappedContext;
+import org.apache.beam.runners.fnexecution.control.DefaultExecutableStageContext.MultiInstanceFactory;
+import org.apache.beam.runners.fnexecution.control.ReferenceCountingExecutableStageContextFactory.WrappedContext;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link FlinkDefaultExecutableStageContext}. */
+/** Tests for {@link DefaultExecutableStageContext}. */
 @RunWith(JUnit4.class)
-public class FlinkDefaultExecutableStageContextTest {
-  private static JobInfo constructJobInfo(String jobId, long parallelism) {
-    PortablePipelineOptions portableOptions =
-        PipelineOptionsFactory.as(PortablePipelineOptions.class);
-    portableOptions.setSdkWorkerParallelism(parallelism);
-
-    Struct pipelineOptions = PipelineOptionsTranslation.toProto(portableOptions);
-    return JobInfo.create(jobId, "job-name", "retrieval-token", pipelineOptions);
-  }
+public class DefaultExecutableStageContextTest {
 
   @Test
   public void testMultiInstanceFactory() {
-    JobInfo jobInfo = constructJobInfo("multi-instance-factory-test", 2);
+    JobInfo jobInfo =
+        JobInfo.create(
+            "multi-instance-factory-test",
+            "job-name",
+            "retrieval-token",
+            Struct.getDefaultInstance());
+    MultiInstanceFactory multiInstanceFactory = new MultiInstanceFactory(2, (x) -> true);
 
-    WrappedContext f1 = (WrappedContext) MultiInstanceFactory.MULTI_INSTANCE.get(jobInfo);
-    WrappedContext f2 = (WrappedContext) MultiInstanceFactory.MULTI_INSTANCE.get(jobInfo);
-    WrappedContext f3 = (WrappedContext) MultiInstanceFactory.MULTI_INSTANCE.get(jobInfo);
+    WrappedContext f1 = (WrappedContext) multiInstanceFactory.get(jobInfo);
+    WrappedContext f2 = (WrappedContext) multiInstanceFactory.get(jobInfo);
+    WrappedContext f3 = (WrappedContext) multiInstanceFactory.get(jobInfo);
 
     Assert.assertNotEquals("We should create two different factories", f1.context, f2.context);
     Assert.assertEquals(
@@ -56,21 +51,22 @@ public class FlinkDefaultExecutableStageContextTest {
 
   @Test
   public void testDefault() {
-    JobInfo jobInfo = constructJobInfo("default-test", 0);
-
+    JobInfo jobInfo =
+        JobInfo.create("default-test", "job-name", "retrieval-token", Struct.getDefaultInstance());
+    MultiInstanceFactory multiInstanceFactory = new MultiInstanceFactory(0, (x) -> true);
     int expectedParallelism = Math.max(1, Runtime.getRuntime().availableProcessors() - 1);
 
-    WrappedContext f1 = (WrappedContext) MultiInstanceFactory.MULTI_INSTANCE.get(jobInfo);
+    WrappedContext f1 = (WrappedContext) multiInstanceFactory.get(jobInfo);
     for (int i = 1; i < expectedParallelism; i++) {
       Assert.assertNotEquals(
           "We should create " + expectedParallelism + " different factories",
           f1.context,
-          ((WrappedContext) MultiInstanceFactory.MULTI_INSTANCE.get(jobInfo)).context);
+          ((WrappedContext) multiInstanceFactory.get(jobInfo)).context);
     }
 
     Assert.assertEquals(
         "Future calls should be round-robbined to those",
         f1.context,
-        ((WrappedContext) MultiInstanceFactory.MULTI_INSTANCE.get(jobInfo)).context);
+        ((WrappedContext) multiInstanceFactory.get(jobInfo)).context);
   }
 }

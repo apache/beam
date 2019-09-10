@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation.functions;
+package org.apache.beam.runners.fnexecution.control;
 
 import java.io.Serializable;
 import java.util.Objects;
@@ -26,42 +26,45 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link FlinkExecutableStageContext.Factory} which counts FlinkExecutableStageContext reference
- * for book keeping.
+ * {@link ExecutableStageContext.Factory} which counts ExecutableStageContext reference for book
+ * keeping.
  */
-public class ReferenceCountingFlinkExecutableStageContextFactory
-    implements FlinkExecutableStageContext.Factory {
+public class ReferenceCountingExecutableStageContextFactory
+    implements ExecutableStageContext.Factory {
   private static final Logger LOG =
-      LoggerFactory.getLogger(ReferenceCountingFlinkExecutableStageContextFactory.class);
+      LoggerFactory.getLogger(ReferenceCountingExecutableStageContextFactory.class);
   private static final int MAX_RETRY = 3;
 
   private final Creator creator;
   private transient volatile ScheduledExecutorService executor;
   private transient volatile ConcurrentHashMap<String, WrappedContext> keyRegistry;
+  private final SerializableFunction<Object, Boolean> isReleaseSynchronous;
 
-  public static ReferenceCountingFlinkExecutableStageContextFactory create(Creator creator) {
-    return new ReferenceCountingFlinkExecutableStageContextFactory(creator);
+  public static ReferenceCountingExecutableStageContextFactory create(
+      Creator creator, SerializableFunction<Object, Boolean> isReleaseSynchronous) {
+    return new ReferenceCountingExecutableStageContextFactory(creator, isReleaseSynchronous);
   }
 
-  private ReferenceCountingFlinkExecutableStageContextFactory(Creator creator) {
+  private ReferenceCountingExecutableStageContextFactory(
+      Creator creator, SerializableFunction<Object, Boolean> isReleaseSynchronous) {
     this.creator = creator;
+    this.isReleaseSynchronous = isReleaseSynchronous;
   }
 
   @Override
-  public FlinkExecutableStageContext get(JobInfo jobInfo) {
+  public ExecutableStageContext get(JobInfo jobInfo) {
     // Retry is needed in case where an existing wrapper is picked from the cache but by
     // the time we accessed wrapper.referenceCount, the wrapper was tombstoned by a pending
     // release task.
@@ -115,17 +118,11 @@ public class ReferenceCountingFlinkExecutableStageContextFactory
     int environmentCacheTTLMillis =
         pipelineOptions.as(PortablePipelineOptions.class).getEnvironmentCacheMillis();
     if (environmentCacheTTLMillis > 0) {
-      // Do immediate cleanup if this class is not loaded on Flink parent classloader.
-      if (this.getClass().getClassLoader() != ExecutionEnvironment.class.getClassLoader()) {
-        LOG.warn(
-            "{} is not loaded on parent Flink classloader. "
-                + "Falling back to synchronous environment release for job {}.",
-            this.getClass(),
-            jobInfo.jobId());
+      if (isReleaseSynchronous.apply(this)) {
+        // Do immediate cleanup
         release(wrapper);
       } else {
         // Schedule task to clean the container later.
-        // Ensure that this class is loaded in the parent Flink classloader.
         getExecutor()
             .schedule(() -> release(wrapper), environmentCacheTTLMillis, TimeUnit.MILLISECONDS);
       }
@@ -164,7 +161,7 @@ public class ReferenceCountingFlinkExecutableStageContextFactory
   }
 
   @VisibleForTesting
-  void release(FlinkExecutableStageContext context) {
+  void release(ExecutableStageContext context) {
     @SuppressWarnings({"unchecked", "Not exected to be called from outside."})
     WrappedContext wrapper = (WrappedContext) context;
     synchronized (wrapper) {
@@ -175,24 +172,22 @@ public class ReferenceCountingFlinkExecutableStageContextFactory
           try {
             wrapper.closeActual();
           } catch (Throwable t) {
-            LOG.error("Unable to close FlinkExecutableStageContext.", t);
+            LOG.error("Unable to close ExecutableStageContext.", t);
           }
         }
       }
     }
   }
 
-  /**
-   * {@link WrappedContext} does not expose equals of actual {@link FlinkExecutableStageContext}.
-   */
+  /** {@link WrappedContext} does not expose equals of actual {@link ExecutableStageContext}. */
   @VisibleForTesting
-  class WrappedContext implements FlinkExecutableStageContext {
+  class WrappedContext implements ExecutableStageContext {
     private JobInfo jobInfo;
     private AtomicInteger referenceCount;
-    @VisibleForTesting FlinkExecutableStageContext context;
+    @VisibleForTesting ExecutableStageContext context;
 
     /** {@link WrappedContext#equals(Object)} is only based on {@link JobInfo#jobId()}. */
-    WrappedContext(JobInfo jobInfo, FlinkExecutableStageContext context) {
+    WrappedContext(JobInfo jobInfo, ExecutableStageContext context) {
       this.jobInfo = jobInfo;
       this.context = context;
       this.referenceCount = new AtomicInteger(0);
@@ -244,5 +239,5 @@ public class ReferenceCountingFlinkExecutableStageContextFactory
 
   /** Interface for creator which extends Serializable. */
   public interface Creator
-      extends ThrowingFunction<JobInfo, FlinkExecutableStageContext>, Serializable {}
+      extends ThrowingFunction<JobInfo, ExecutableStageContext>, Serializable {}
 }

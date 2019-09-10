@@ -32,6 +32,7 @@ import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
+import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
@@ -84,7 +85,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
   private final JobInfo jobInfo;
   // Map from PCollection id to the union tag used to represent this PCollection in the output.
   private final Map<String, Integer> outputMap;
-  private final FlinkExecutableStageContext.Factory contextFactory;
+  private final FlinkExecutableStageContextFactory contextFactory;
   private final Coder windowCoder;
   // Unique name for namespacing metrics; currently just takes the input ID
   private final String stageName;
@@ -93,7 +94,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
   private transient RuntimeContext runtimeContext;
   private transient FlinkMetricContainer container;
   private transient StateRequestHandler stateRequestHandler;
-  private transient FlinkExecutableStageContext stageContext;
+  private transient ExecutableStageContext stageContext;
   private transient StageBundleFactory stageBundleFactory;
   private transient BundleProgressHandler progressHandler;
   // Only initialized when the ExecutableStage is stateful
@@ -106,7 +107,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
       RunnerApi.ExecutableStagePayload stagePayload,
       JobInfo jobInfo,
       Map<String, Integer> outputMap,
-      FlinkExecutableStageContext.Factory contextFactory,
+      FlinkExecutableStageContextFactory contextFactory,
       Coder windowCoder) {
     this.stagePayload = stagePayload;
     this.jobInfo = jobInfo;

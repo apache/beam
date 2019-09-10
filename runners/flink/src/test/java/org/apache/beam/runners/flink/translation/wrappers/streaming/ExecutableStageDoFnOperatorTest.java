@@ -58,9 +58,10 @@ import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
-import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
+import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContextFactory;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
+import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
@@ -119,7 +120,7 @@ public class ExecutableStageDoFnOperatorTest {
 
   @Mock private RuntimeContext runtimeContext;
   @Mock private DistributedCache distributedCache;
-  @Mock private FlinkExecutableStageContext stageContext;
+  @Mock private ExecutableStageContext stageContext;
   @Mock private StageBundleFactory stageBundleFactory;
   @Mock private StateRequestHandler stateRequestHandler;
   @Mock private ProcessBundleDescriptors.ExecutableProcessBundleDescriptor processBundleDescriptor;
@@ -683,7 +684,7 @@ public class ExecutableStageDoFnOperatorTest {
             options,
             stagePayload,
             jobInfo,
-            FlinkExecutableStageContext.factory(options),
+            FlinkExecutableStageContextFactory.getInstance(),
             createOutputMap(mainOutput, ImmutableList.of(additionalOutput)),
             WindowingStrategy.globalDefault(),
             null,
@@ -720,8 +721,8 @@ public class ExecutableStageDoFnOperatorTest {
       @Nullable Coder keyCoder,
       @Nullable Coder windowedInputCoder) {
 
-    FlinkExecutableStageContext.Factory contextFactory =
-        Mockito.mock(FlinkExecutableStageContext.Factory.class);
+    FlinkExecutableStageContextFactory contextFactory =
+        Mockito.mock(FlinkExecutableStageContextFactory.class);
     when(contextFactory.get(any())).thenReturn(stageContext);
 
     final ExecutableStagePayload stagePayload;

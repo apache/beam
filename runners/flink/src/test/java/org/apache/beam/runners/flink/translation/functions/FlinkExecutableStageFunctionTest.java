@@ -33,6 +33,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
+import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
@@ -75,7 +76,7 @@ public class FlinkExecutableStageFunctionTest {
   @Mock private RuntimeContext runtimeContext;
   @Mock private DistributedCache distributedCache;
   @Mock private Collector<RawUnionValue> collector;
-  @Mock private FlinkExecutableStageContext stageContext;
+  @Mock private ExecutableStageContext stageContext;
   @Mock private StageBundleFactory stageBundleFactory;
   @Mock private StateRequestHandler stateRequestHandler;
   @Mock private ProcessBundleDescriptors.ExecutableProcessBundleDescriptor processBundleDescriptor;
@@ -252,8 +253,8 @@ public class FlinkExecutableStageFunctionTest {
    * behavior of the stage context itself is unchanged.
    */
   private FlinkExecutableStageFunction<Integer> getFunction(Map<String, Integer> outputMap) {
-    FlinkExecutableStageContext.Factory contextFactory =
-        Mockito.mock(FlinkExecutableStageContext.Factory.class);
+    FlinkExecutableStageContextFactory contextFactory =
+        Mockito.mock(FlinkExecutableStageContextFactory.class);
     when(contextFactory.get(any())).thenReturn(stageContext);
     FlinkExecutableStageFunction<Integer> function =
         new FlinkExecutableStageFunction<>(stagePayload, jobInfo, outputMap, contextFactory, null);
