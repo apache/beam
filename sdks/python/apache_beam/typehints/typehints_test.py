@@ -755,6 +755,11 @@ class GeneratorHintTestCase(TypeHintTestCase):
     self.assertCompatible(typehints.Iterator[int], typehints.Iterator[int])
     self.assertNotCompatible(typehints.Iterator[str], typehints.Iterator[float])
 
+  def test_conversion(self):
+    self.assertCompatible(typehints.Iterator[int], typehints.Generator[int])
+    self.assertCompatible(typehints.Iterator[int],
+                          typehints.Generator[int, None, None])
+
   def test_generator_return_hint_invalid_yield_type(self):
     @check_type_hints
     @with_output_types(typehints.Iterator[int])

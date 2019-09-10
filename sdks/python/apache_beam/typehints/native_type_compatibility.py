@@ -203,6 +203,10 @@ def convert_to_beam_type(typ):
           beam_type=typehints.Tuple),
       _TypeMapEntry(match=_match_is_union, arity=-1, beam_type=typehints.Union),
       _TypeMapEntry(
+          match=_match_issubclass(typing.Generator),
+          arity=3,
+          beam_type=typehints.Generator),
+      _TypeMapEntry(
           match=_match_issubclass(typing.Iterator),
           arity=1,
           beam_type=typehints.Iterator),
