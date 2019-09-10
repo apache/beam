@@ -216,10 +216,24 @@ authorization info cannot be found from ~/.docker/config.json file.
 docker login docker.io
 ```
 After successful login, authorization info will be stored at ~/.docker/config.json file. For example,
-```aidl
+```
 "https://index.docker.io/v1/": {
    "auth": "aGFubmFoamlhbmc6cmtkdGpmZ2hrMTIxMw=="
 }
+```
+Release managers should have push permission, please ask for help at dev@.
+```
+From: Release Manager
+To: dev@beam.apache.org
+Subject: DockerHub Push Permission
+
+Hi DockerHub Admins
+
+I need push permission to proceed with release, can you please add me to maintainer team?
+My docker hub ID is: xxx
+
+Thanks,
+Release Manager
 ```
 ### Create a new version in JIRA
 
@@ -634,35 +648,40 @@ Verify that files are [present](https://dist.apache.org/repos/dist/dev/beam).
 
 #### Stage SDK images on hub.docker.com
 Build Python images and push to DockerHub
-```aidl
-./gradlew :sdks:python:container:buildAll -Pdocker-tag=${RELEASE}_rc
+```
+./gradlew :sdks:python:container:buildAll -Pdocker-tag=${RELEASE}_rc{RC_NUM}
 
 PYTHON_VER=("python2.7" "python3.5" "python3.6" "python3.7")
 for ver in "${PYTHON_VER[@]}"; do
-   docker push apachebeam/${ver}_sdk:${RELEASE}_rc &
+   docker push apachebeam/${ver}_sdk:${RELEASE}_rc{RC_NUM} &
 done
 ``` 
 
 Build Java images and push to DockerHub
-```aidl
-./gradlew :sdks:java:container:dockerPush -Pdocker-tag=${RELEASE}_rc
+```
+./gradlew :sdks:java:container:dockerPush -Pdocker-tag=${RELEASE}_rc{RC_NUM}
 ```
 
 Build Go images and push to DockerHub
-```aidl
-./gradlew :sdks:go:container:dockerPush -Pdocker-tag=${RELEASE}_rc
+```
+./gradlew :sdks:go:container:dockerPush -Pdocker-tag=${RELEASE}_rc{RC_NUM}
 ```
 
 Clean up images from local
-```aidl
+```
 for ver in "${PYTHON_VER[@]}"; do
-   docker rmi -f apachebeam/${ver}_sdk:${RELEASE}_rc
+   docker rmi -f apachebeam/${ver}_sdk:${RELEASE}_rc{RC_NUM}
 done
-docker rmi -f apachebeam/java_sdk:${RELEASE}_rc
-docker rmi -f apachebeam/go_sdk:${RELEASE}_rc
+docker rmi -f apachebeam/java_sdk:${RELEASE}_rc{RC_NUM}
+docker rmi -f apachebeam/go_sdk:${RELEASE}_rc{RC_NUM}
 ```
 
-Verify all images are publish to DockerHub with tags :${RELEASE}_rc
+Verify all images are publish to DockerHub with tags: ${RELEASE}_rc{RC_NUM}
+
+How to find images:
+1. Visit [hhttps://hub.docker.com/u/apachebeam](https://hub.docker.com/u/apachebeam)
+2. Visit each repository and navigate to *tags* tab.
+3. Verify images are pushed with tags: ${RELEASE}_rc{RC_NUM}
 
 ### Build and stage python wheels
 
@@ -815,7 +834,7 @@ Template:
 1. Maven artifacts deployed to the staging repository of [repository.apache.org](https://repository.apache.org/content/repositories/)
 1. Source distribution deployed to the dev repository of [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/)
 1. Website pull request proposed to list the [release]({{ site.baseurl }}/get-started/downloads/), publish the [Java API reference manual](https://beam.apache.org/releases/javadoc/), and publish the [Python API reference manual](https://beam.apache.org/releases/pydoc/).
-1. Docker images are published to [DockerHub](https://hub.docker.com/search?q=apachebeam&type=image) with tags :{RELEASE}_rc.
+1. Docker images are published to [DockerHub](https://hub.docker.com/u/apachebeam) with tags: {RELEASE}_rc{RC_NUM}.
 
 You can (optionally) also do additional verification by:
 1. Check that Python zip file contains the `README.md`, `NOTICE`, and `LICENSE` files.
@@ -824,6 +843,10 @@ You can (optionally) also do additional verification by:
 1. `grep` for legal headers in each file.
 1. Run all jenkins suites and include links to passing tests in the voting email. (Select "Run with parameters")
 1. Pull docker images to make sure they are pullable.
+```
+docker pull {image_name}
+docker pull apachebeam/python3.5_sdk:2.16.0_rc1
+```
 
 
 **********
@@ -869,7 +892,8 @@ Start the review-and-vote thread on the dev@ mailing list. Here’s an email tem
     [7] https://github.com/apache/beam-site/pull/...
     [8] https://github.com/apache/beam/pull/...
     [9] https://docs.google.com/spreadsheets/d/1qk-N5vjXvbcEk68GjbkSZTR8AGqyNUM-oLFo_ZXBpJw/edit#gid=...
-
+    [10] https://hub.docker.com/u/apachebeam
+    
 If there are any issues found in the release candidate, reply on the vote thread to cancel the vote. There’s no need to wait 72 hours. Proceed to the `Fix Issues` step below and address the problem. However, some issues don’t require cancellation. For example, if an issue is found in the website pull request, just correct it on the spot and the vote can continue as-is.
 
 If there are no issues, reply on the vote thread to close the voting. Then, tally the votes in a separate email. Here’s an email template; please adjust as you see fit.
@@ -1183,19 +1207,18 @@ __NOTE__: Only PMC members have permissions to do it, ping [dev@](mailto:dev@bea
 
 Make sure the download address for last release version is upldaed, [example PR](https://github.com/apache/beam-site/pull/478).
 
-#### Deploy SDK docker images to DockerHub
+### Deploy SDK docker images to DockerHub
 TODO(hannahjiang): change link to master branch after #9560 is merged.
 
 * Script: [publish_docker_images.sh](https://github.com/Hannah-Jiang/beam/blob/release_script_for_containers/release/src/main/scripts/publish_docker_images.sh)
 * Usage
-```aidl
+```
 ./beam/release/src/main/scripts/publish_docker_images.sh
 ```
 Verify following points:
-* Images are published at [DockerHub](https://hub.docker.com/search?q=apachebeam&type=image) with tags :{RELEASE} and :latest.
-* Images with :latest tag are pointing to current release by confirming 
-  1. Images with :latest tags were updated a moment ago.
-  1. Size of Images with :latest tags should be same as the size of images with tag :{RELEASE}.
+* Images are published at [DockerHub](https://hub.docker.com/u/apachebeam) with tags {RELEASE} and *latest*.
+* Images with *latest* tag are pointing to current release by confirming 
+  1. Digest of the image with *latest* tag is the same as the one with {RELEASE} tag.
 
 ### Git tag
 
