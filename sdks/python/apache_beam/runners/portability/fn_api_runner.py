@@ -50,6 +50,7 @@ from apache_beam.options import pipeline_options
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
+from apache_beam.portability.api import beam_artifact_api_pb2
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
@@ -329,7 +330,11 @@ class FnApiRunner(runner.PipelineRunner):
     self._progress_frequency = None
     self._profiler_factory = None
     self._use_state_iterables = use_state_iterables
-    self._provision_info = provision_info
+    self._provision_info = provision_info or ExtendedProvisionInfo(
+        beam_provision_api_pb2.ProvisionInfo(
+            job_id='unknown-job-id',
+            job_name='unknown-job-name',
+            retrieval_token='unused-retrieval-token'))
 
   def _next_uid(self):
     self._last_uid += 1
@@ -1130,6 +1135,17 @@ class BasicProvisionService(
         info=self._info)
 
 
+class EmptyArtifactRetrievalService(
+    beam_artifact_api_pb2_grpc.ArtifactRetrievalServiceServicer):
+
+  def GetManifest(self, request, context=None):
+    return beam_artifact_api_pb2.GetManifestResponse(
+        manifest=beam_artifact_api_pb2.Manifest())
+
+  def GetArtifact(self, request, context=None):
+    raise ValueError('No artifacts staged.')
+
+
 class GrpcServer(object):
 
   _DEFAULT_SHUTDOWN_TIMEOUT_SECS = 5
@@ -1174,11 +1190,12 @@ class GrpcServer(object):
             self.control_server)
 
       if self.provision_info.artifact_staging_dir:
-        m = beam_artifact_api_pb2_grpc
-        m.add_ArtifactRetrievalServiceServicer_to_server(
-            artifact_service.BeamFilesystemArtifactService(
-                self.provision_info.artifact_staging_dir),
-            self.control_server)
+        service = artifact_service.BeamFilesystemArtifactService(
+            self.provision_info.artifact_staging_dir)
+      else:
+        service = EmptyArtifactRetrievalService()
+      beam_artifact_api_pb2_grpc.add_ArtifactRetrievalServiceServicer_to_server(
+          service, self.control_server)
 
     self.data_plane_handler = data_plane.BeamFnDataServicer()
     beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(
@@ -1395,7 +1412,7 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
 
 
 class WorkerHandlerManager(object):
-  def __init__(self, environments, job_provision_info=None):
+  def __init__(self, environments, job_provision_info):
     self._environments = environments
     self._job_provision_info = job_provision_info
     self._cached_handlers = collections.defaultdict(list)

@@ -66,6 +66,24 @@ task portableWordCount {
 
 /*************************************************************************************************/
 
+task crossLanguagePythonJavaDirect {
+  dependsOn 'setupVirtualenv'
+  dependsOn ':sdks:java:container:docker'
+  dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
+
+  doLast {
+    def testServiceExpansionJar = project(":sdks:java:testing:expansion-service:").buildTestExpansionServiceJar.archivePath
+    def options = [
+        "--expansion_service_port=8096",
+        "--expansion_service_jar=${testServiceExpansionJar}",
+    ]
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.transforms.external_test ${options.join(' ')}"
+    }
+  }
+}
+
 task crossLanguagePythonJavaFlink {
   dependsOn 'setupVirtualenv'
   dependsOn ':runners:flink:1.5:job-server-container:docker'
