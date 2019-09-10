@@ -78,7 +78,7 @@ Output `PCollection` after `ParDo`:
 
 ### Example 2: ParDo with timestamp and window information
 
-We add new parameters to the `process` method to bind parameter values at runtime.
+In this example, we add new parameters to the `process` method to bind parameter values at runtime.
 
 * [`beam.DoFn.TimestampParam`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.TimestampParam)
   binds the timestamp information as an
