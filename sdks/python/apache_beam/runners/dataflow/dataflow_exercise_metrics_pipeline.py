@@ -68,40 +68,40 @@ def metric_matchers():
           committed=greater_than(0)
       ),
       MetricResultMatcher(
-        name='distribution_values',
-        namespace=METRIC_NAMESPACE,
-        step='metrics',
-        attempted=DistributionMatcher(
-          sum_value=sum(INPUT),
-          count_value=len(INPUT),
-          min_value=min(INPUT),
-          max_value=max(INPUT)
-        ),
-        committed=DistributionMatcher(
-          sum_value=sum(INPUT),
-          count_value=len(INPUT),
-          min_value=min(INPUT),
-          max_value=max(INPUT)
-        ),
+          name='distribution_values',
+          namespace=METRIC_NAMESPACE,
+          step='metrics',
+          attempted=DistributionMatcher(
+              sum_value=sum(INPUT),
+              count_value=len(INPUT),
+              min_value=min(INPUT),
+              max_value=max(INPUT)
+          ),
+          committed=DistributionMatcher(
+              sum_value=sum(INPUT),
+              count_value=len(INPUT),
+              min_value=min(INPUT),
+              max_value=max(INPUT)
+          ),
       ),
       # Element count and MeanByteCount for a User ParDo.
       MetricResultMatcher(
-        name='ElementCount',
-        labels={
-          'output_user_name': 'metrics-out0',
-          'original_name': 'metrics-out0-ElementCount'
-        },
-        attempted=greater_than(0),
-        committed=greater_than(0)
+          name='ElementCount',
+          labels={
+              'output_user_name': 'metrics-out0',
+              'original_name': 'metrics-out0-ElementCount'
+          },
+          attempted=greater_than(0),
+          committed=greater_than(0)
       ),
       MetricResultMatcher(
-        name='MeanByteCount',
-        labels={
-          'output_user_name': 'metrics-out0',
-          'original_name': 'metrics-out0-MeanByteCount'
-        },
-        attempted=greater_than(0),
-        committed=greater_than(0)
+          name='MeanByteCount',
+          labels={
+              'output_user_name': 'metrics-out0',
+              'original_name': 'metrics-out0-MeanByteCount'
+          },
+          attempted=greater_than(0),
+          committed=greater_than(0)
       )
   ]
 
