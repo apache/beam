@@ -21,7 +21,7 @@ def basePath = '..'
 /* All properties required for loading the Flink build script */
 project.ext {
   // Set the version of all Flink-related dependencies here.
-  flink_version = '1.8.0'
+  flink_version = '1.8.2'
   // Main source directory and Flink version specific code.
   main_source_dirs = ["$basePath/src/main/java", "./src/main/java"]
   test_source_dirs = ["$basePath/src/test/java", "./src/test/java"]
