@@ -410,7 +410,9 @@ looks more like what is depicted by the red squiggly line above the ideal line.<
   extracted.
   """</span>
   <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="p">):</span>
-    <span class="nb">super</span><span class="p">(</span><span class="n">ExtractAndSumScore</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+    <span class="c"># TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.</span>
+    <span class="c"># super(ExtractAndSumScore, self).__init__()</span>
+    <span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">field</span> <span class="o">=</span> <span class="n">field</span>
 
   <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
@@ -658,7 +660,9 @@ logical windows based on when those scores occurred in event time.</em></p>
 </div>
 <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">HourlyTeamScore</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
   <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_min</span><span class="p">,</span> <span class="n">stop_min</span><span class="p">,</span> <span class="n">window_duration</span><span class="p">):</span>
-    <span class="nb">super</span><span class="p">(</span><span class="n">HourlyTeamScore</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+    <span class="c"># TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.</span>
+    <span class="c"># super(HourlyTeamScore, self).__init__()</span>
+    <span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">start_timestamp</span> <span class="o">=</span> <span class="n">str2timestamp</span><span class="p">(</span><span class="n">start_min</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">stop_timestamp</span> <span class="o">=</span> <span class="n">str2timestamp</span><span class="p">(</span><span class="n">stop_min</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">window_duration_in_seconds</span> <span class="o">=</span> <span class="n">window_duration</span> <span class="o">*</span> <span class="mi">60</span>
@@ -859,7 +863,9 @@ ten minutes after data is received.</em></p>
   global windowing. Get periodic updates on all users' running scores.
   """</span>
   <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">allowed_lateness</span><span class="p">):</span>
-    <span class="nb">super</span><span class="p">(</span><span class="n">CalculateUserScores</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+    <span class="c"># TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.</span>
+    <span class="c"># super(CalculateUserScores, self).__init__()</span>
+    <span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">allowed_lateness_seconds</span> <span class="o">=</span> <span class="n">allowed_lateness</span> <span class="o">*</span> <span class="mi">60</span>
 
   <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
@@ -947,7 +953,9 @@ late results.</em></p>
   default.
   """</span>
   <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">team_window_duration</span><span class="p">,</span> <span class="n">allowed_lateness</span><span class="p">):</span>
-    <span class="nb">super</span><span class="p">(</span><span class="n">CalculateTeamScores</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+    <span class="c"># TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.</span>
+    <span class="c"># super(CalculateTeamScores, self).__init__()</span>
+    <span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">team_window_duration</span> <span class="o">=</span> <span class="n">team_window_duration</span> <span class="o">*</span> <span class="mi">60</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">allowed_lateness_seconds</span> <span class="o">=</span> <span class="n">allowed_lateness</span> <span class="o">*</span> <span class="mi">60</span>
 
