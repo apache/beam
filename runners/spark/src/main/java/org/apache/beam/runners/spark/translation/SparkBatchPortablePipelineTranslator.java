@@ -253,6 +253,7 @@ public class SparkBatchPortablePipelineTranslator {
               stagePayload,
               context.jobInfo,
               outputExtractionMap,
+              SparkExecutableStageContextFactory.getInstance(),
               broadcastVariablesBuilder.build(),
               MetricsAccumulator.getInstance(),
               windowCoder);
@@ -264,6 +265,7 @@ public class SparkBatchPortablePipelineTranslator {
               stagePayload,
               context.jobInfo,
               outputExtractionMap,
+              SparkExecutableStageContextFactory.getInstance(),
               broadcastVariablesBuilder.build(),
               MetricsAccumulator.getInstance(),
               windowCoder);
