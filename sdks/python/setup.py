@@ -180,10 +180,10 @@ def generate_protos_first(original_cmd):
 
 python_requires = '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*'
 
-if sys.version_info[0] == 3:
+if sys.version_info[0] == 2:
   warnings.warn(
-      'Some syntactic constructs of Python 3 are not yet fully supported by '
-      'Apache Beam.')
+      'You are using Apache Beam with Python 2. '
+      'New releases of Apache Beam will soon support Python 3 only.')
 
 setuptools.setup(
     name=PACKAGE_NAME,
