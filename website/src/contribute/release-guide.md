@@ -352,20 +352,39 @@ There are 2 ways to perform this verification, either running automation script(
 * Script: [verify_release_build.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh)
 
 * Usage
+  1. Create a personal access token from your Github account. See instruction [here](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line).
+     It'll be used by the script for accessing Github API.
+  1. Update required configurations listed in `RELEASE_BUILD_CONFIGS` in [script.config](https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config)
+  1. Then run
+     ```
+     cd beam/release/src/main/scripts && ./verify_release_build.sh
+     ```
+  1. Trigger `beam_Release_Gradle_Build` and all PostCommit Jenkins jobs from PR (which is created by previous step).
+     To do so, only add one trigger phrase per comment. See `JOB_TRIGGER_PHRASES` in [verify_release_build.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh#L43)
+     for full list of phrases.
 
-      ./beam/release/src/main/scripts/verify_release_build.sh
+* Tasks included in the script
+  1. Installs ```hub``` with your agreement and setup local git repo;
+  1. Create a test PR against release branch;
 
-* Tasks included
-  1. Install ```pip```, ```virtualenv```, ```cython``` and ```/usr/bin/time``` with your agreements.
-  2. Run ```gradle release build``` against release branch.
+Jenkins job `beam_Release_Gradle_Build` basically run `./gradlew build -PisRelease`.
+This only verifies that everything builds with unit tests passing. 
+
+#### Verify the build succeeds
 
 * Tasks you need to do manually to __verify the build succeed__:
   1. Check the build result.
   2. If build failed, scan log will contain all failures.
   3. You should stabilize the release branch until release build succeeded.
-  4. The script will output a set of Jenkins phrases to enter in the created PR
+  4. The script will output a set of Jenkins phrases to enter in the created PR.
+  
+There are some projects that don't produce the artifacts, e.g. `beam-test-tools`, you may be able to
+ignore failures there.
 
-#### (Alternative) Run all commands manually
+To triage the failures and narrow things down you may want to look at `settings.gradle` and run the build only for the
+projects you're interested at the moment, e.g. `./gradlew :runners:java-fn-execution`.
+
+#### (Alternative) Run release build manually (locally)
 * Pre-installation for python build
   1. Install pip
 
@@ -389,12 +408,6 @@ There are 2 ways to perform this verification, either running automation script(
       sudo apt-get install python3.6-dev
       sudo apt-get install python3.7-dev
       ```
-  1. Make sure your ```time``` alias to ```/usr/bin/time```, if not:
-
-      ```
-      sudo apt-get install time
-      alias time='/usr/bin/time'
-      ```
 
 * Run gradle release build
 
@@ -414,6 +427,10 @@ There are 2 ways to perform this verification, either running automation script(
       ```
       ./gradlew build -PisRelease --no-parallel --scan --stacktrace --continue
       ```
+
+      To speed things up locally you might want to omit `--no-parallel`. You can also omit `--continue`
+      if you want build fails after the first error instead of continuing, it may be easier and faster
+      to find environment issues this way without having to wait until the full build completes.
 
 
 #### Create release-blocking issues in JIRA
@@ -851,10 +868,11 @@ Since there are a bunch of tests, we recommend you running validations using aut
 * Script: [run_rc_validation.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/run_rc_validation.sh)
 
 * Usage
-  1. First update [script.config](https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config) with correct config value (e.g. release version, rc number).
+  1. First update required configurations listed in `RC_VALIDATE_CONFIGS` in 
+     [script.config](https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config)
   1. Then run
       ```
-      ./beam/release/src/main/scripts/run_rc_validation.sh
+      cd beam/release/src/main/scripts && ./run_rc_validation.sh
       ```
 
 * Tasks included
