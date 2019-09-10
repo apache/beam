@@ -677,6 +677,7 @@ public class Snippets {
 
   // [END AccessingValueProviderInfoAfterRunSnip1]
 
+
   public static Duration gapDuration;
 
   // [START CustomSessionWindow1]
@@ -691,17 +692,13 @@ public class Snippets {
   // [END CustomSessionWindow1]
 
   // [START CustomSessionWindow2]
-  public static class DynamicSessions extends WindowFn<Object, IntervalWindow> {
+  public static class DynamicSessions extends WindowFn<TableRow, IntervalWindow> {
     /** Duration of the gaps between sessions. */
     private final Duration gapDuration;
 
-    /** Pub/Sub attribute that modifies session gap. */
-    private final String gapAttribute;
-
     /** Creates a {@code DynamicSessions} {@link WindowFn} with the specified gap duration. */
-    private DynamicSessions(Duration gapDuration, String gapAttribute) {
+    private DynamicSessions(Duration gapDuration) {
       this.gapDuration = gapDuration;
-      this.gapAttribute = gapAttribute;
     }
 
     // [END CustomSessionWindow2]
@@ -713,10 +710,10 @@ public class Snippets {
       // future.  Overlapping windows (representing elements within gapDuration of
       // each other) will be merged.
       Duration dataDrivenGap;
-      Pojo message = (Pojo) c.element();
+      TableRow message = c.element();
 
       try {
-        dataDrivenGap = Duration.standardSeconds(message.gapAttribute);
+        dataDrivenGap = Duration.standardSeconds(Long.parseLong(message.get("gap").toString()));
       } catch (Exception e) {
         dataDrivenGap = gapDuration;
       }
@@ -727,18 +724,11 @@ public class Snippets {
     // [START CustomSessionWindow4]
     /** Creates a {@code DynamicSessions} {@link WindowFn} with the specified gap duration. */
     public static DynamicSessions withDefaultGapDuration(Duration gapDuration) {
-      return new DynamicSessions(gapDuration, "");
+      return new DynamicSessions(gapDuration);
     }
 
-    public DynamicSessions withGapAttribute(String gapAttribute) {
-      return new DynamicSessions(gapDuration, gapAttribute);
-    }
 
     // [START CustomSessionWindow4]
-
-    public static class Pojo {
-      Long gapAttribute;
-    }
 
     @Override
     public void mergeWindows(MergeContext c) throws Exception {}
@@ -771,29 +761,30 @@ public class Snippets {
                   "Create data",
                   Create.timestamped(
                           TimestampedValue.of(
-                              "{\"user\":\"link\",\"score\":\"12\",\"gap\":\"5\"}", new Instant()),
+                              new TableRow().set("user","mobile").set("score",12).set("gap",5),
+                              new Instant()),
                           TimestampedValue.of(
-                              "{\"user\":\"bowser\",\"score\":\"4\"}", new Instant()),
+                              new TableRow().set("user","desktop").set("score",4),
+                              new Instant()),
                           TimestampedValue.of(
-                              "{\"user\":\"link\",\"score\":\"-3\",\"gap\":\"5\"}",
+                              new TableRow().set("user","mobile").set("score",-3).set("gap",5),
                               new Instant().plus(2000)),
                           TimestampedValue.of(
-                              "{\"user\":\"link\",\"score\":\"2\",\"gap\":\"5\"}",
+                              new TableRow().set("user","mobile").set("score",2).set("gap",5),
                               new Instant().plus(9000)),
                           TimestampedValue.of(
-                              "{\"user\":\"link\",\"score\":\"7\",\"gap\":\"5\"}",
+                              new TableRow().set("user","mobile").set("score",7).set("gap",5),
                               new Instant().plus(12000)),
                           TimestampedValue.of(
-                              "{\"user\":\"bowser\",\"score\":\"10\"}", new Instant().plus(12000)))
-                      .withCoder(StringUtf8Coder.of()));
+                              new TableRow().set("user","desktop").set("score",10),
+                              new Instant().plus(12000))))
       // [END CustomSessionWindow5]
 
       // [START CustomSessionWindow6]
-      p.apply(
+      .apply(
           "Window into sessions",
-          Window.into(
-              DynamicSessions.withDefaultGapDuration(Duration.standardSeconds(10))
-                  .withGapAttribute("gap")));
+          Window.<TableRow>into(
+              DynamicSessions.withDefaultGapDuration(Duration.standardSeconds(10))));
       // [END CustomSessionWindow6]
 
     }
