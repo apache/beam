@@ -344,7 +344,8 @@ limitations under the License.
   </li>
   <li><a href="#3-verify-release-branch" id="markdown-toc-3-verify-release-branch">3. Verify release branch</a>    <ul>
       <li><a href="#run-automation-script-verify_release_buildsh" id="markdown-toc-run-automation-script-verify_release_buildsh">Run automation script (verify_release_build.sh)</a></li>
-      <li><a href="#alternative-run-all-commands-manually" id="markdown-toc-alternative-run-all-commands-manually">(Alternative) Run all commands manually</a></li>
+      <li><a href="#verify-the-build-succeeds" id="markdown-toc-verify-the-build-succeeds">Verify the build succeeds</a></li>
+      <li><a href="#alternative-run-release-build-manually-locally" id="markdown-toc-alternative-run-release-build-manually-locally">(Alternative) Run release build manually (locally)</a></li>
       <li><a href="#create-release-blocking-issues-in-jira" id="markdown-toc-create-release-blocking-issues-in-jira">Create release-blocking issues in JIRA</a></li>
     </ul>
   </li>
@@ -820,30 +821,52 @@ There are 2 ways to perform this verification, either running automation script(
   <li>
     <p>Script: <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh">verify_release_build.sh</a></p>
   </li>
-  <li>
-    <p>Usage</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code>./beam/release/src/main/scripts/verify_release_build.sh
-</code></pre>
-    </div>
-  </li>
-  <li>Tasks included
+  <li>Usage
     <ol>
-      <li>Install <code class="highlighter-rouge">pip</code>, <code class="highlighter-rouge">virtualenv</code>, <code class="highlighter-rouge">cython</code> and <code class="highlighter-rouge">/usr/bin/time</code> with your agreements.</li>
-      <li>Run <code class="highlighter-rouge">gradle release build</code> against release branch.</li>
+      <li>Create a personal access token from your Github account. See instruction <a href="https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line">here</a>.
+It’ll be used by the script for accessing Github API.</li>
+      <li>Update required configurations listed in <code class="highlighter-rouge">RELEASE_BUILD_CONFIGS</code> in <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config">script.config</a></li>
+      <li>Then run
+        <div class="highlighter-rouge"><pre class="highlight"><code>cd beam/release/src/main/scripts &amp;&amp; ./verify_release_build.sh
+</code></pre>
+        </div>
+      </li>
+      <li>Trigger <code class="highlighter-rouge">beam_Release_Gradle_Build</code> and all PostCommit Jenkins jobs from PR (which is created by previous step).
+To do so, only add one trigger phrase per comment. See <code class="highlighter-rouge">JOB_TRIGGER_PHRASES</code> in <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh#L43">verify_release_build.sh</a>
+for full list of phrases.</li>
     </ol>
   </li>
+  <li>Tasks included in the script
+    <ol>
+      <li>Installs <code class="highlighter-rouge">hub</code> with your agreement and setup local git repo;</li>
+      <li>Create a test PR against release branch;</li>
+    </ol>
+  </li>
+</ul>
+
+<p>Jenkins job <code class="highlighter-rouge">beam_Release_Gradle_Build</code> basically run <code class="highlighter-rouge">./gradlew build -PisRelease</code>.
+This only verifies that everything builds with unit tests passing.</p>
+
+<h4 id="verify-the-build-succeeds">Verify the build succeeds</h4>
+
+<ul>
   <li>Tasks you need to do manually to <strong>verify the build succeed</strong>:
     <ol>
       <li>Check the build result.</li>
       <li>If build failed, scan log will contain all failures.</li>
       <li>You should stabilize the release branch until release build succeeded.</li>
-      <li>The script will output a set of Jenkins phrases to enter in the created PR</li>
+      <li>The script will output a set of Jenkins phrases to enter in the created PR.</li>
     </ol>
   </li>
 </ul>
 
-<h4 id="alternative-run-all-commands-manually">(Alternative) Run all commands manually</h4>
+<p>There are some projects that don’t produce the artifacts, e.g. <code class="highlighter-rouge">beam-test-tools</code>, you may be able to
+ignore failures there.</p>
+
+<p>To triage the failures and narrow things down you may want to look at <code class="highlighter-rouge">settings.gradle</code> and run the build only for the
+projects you’re interested at the moment, e.g. <code class="highlighter-rouge">./gradlew :runners:java-fn-execution</code>.</p>
+
+<h4 id="alternative-run-release-build-manually-locally">(Alternative) Run release build manually (locally)</h4>
 <ul>
   <li>Pre-installation for python build
     <ol>
@@ -875,14 +898,6 @@ There are 2 ways to perform this verification, either running automation script(
 </code></pre>
         </div>
       </li>
-      <li>
-        <p>Make sure your <code class="highlighter-rouge">time</code> alias to <code class="highlighter-rouge">/usr/bin/time</code>, if not:</p>
-
-        <div class="highlighter-rouge"><pre class="highlight"><code> sudo apt-get install time
- alias time='/usr/bin/time'
-</code></pre>
-        </div>
-      </li>
     </ol>
   </li>
   <li>
@@ -906,6 +921,10 @@ There are 2 ways to perform this verification, either running automation script(
         <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew build -PisRelease --no-parallel --scan --stacktrace --continue
 </code></pre>
         </div>
+
+        <p>To speed things up locally you might want to omit <code class="highlighter-rouge">--no-parallel</code>. You can also omit <code class="highlighter-rouge">--continue</code>
+if you want build fails after the first error instead of continuing, it may be easier and faster
+to find environment issues this way without having to wait until the full build completes.</p>
       </li>
     </ol>
   </li>
@@ -1429,9 +1448,10 @@ Thanks everyone!
   </li>
   <li>Usage
     <ol>
-      <li>First update <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config">script.config</a> with correct config value (e.g. release version, rc number).</li>
+      <li>First update required configurations listed in <code class="highlighter-rouge">RC_VALIDATE_CONFIGS</code> in 
+<a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config">script.config</a></li>
       <li>Then run
-        <div class="highlighter-rouge"><pre class="highlight"><code> ./beam/release/src/main/scripts/run_rc_validation.sh
+        <div class="highlighter-rouge"><pre class="highlight"><code> cd beam/release/src/main/scripts &amp;&amp; ./run_rc_validation.sh
 </code></pre>
         </div>
       </li>
