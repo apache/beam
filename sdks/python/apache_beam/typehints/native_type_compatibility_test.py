@@ -97,9 +97,9 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
       converted_typing_type = convert_to_typing_type(converted_beam_type)
       self.assertEqual(converted_typing_type, typing_type, description)
 
-  def test_generator_not_converted(self):
+  def test_generator_converted_to_iterator(self):
     self.assertEqual(
-        typing.Generator[int, None, None],
+        typehints.Iterator[int],
         convert_to_beam_type(typing.Generator[int, None, None]))
 
   def test_convert_nested_to_beam_type(self):
