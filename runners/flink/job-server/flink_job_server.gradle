@@ -177,3 +177,20 @@ project.ext.validatesCrossLanguageRunner = createCrossLanguageValidatesRunnerTas
     "--shutdownSourcesOnFinalWatermark",
   ]
 )
+
+task testPipelineJar() {
+  dependsOn shadowJar
+  dependsOn ":sdks:python:container:py35:docker"
+  doLast{
+    exec {
+      executable "sh"
+      def options = [
+        "--flink_job_server_jar ${shadowJar.archivePath}",
+        "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
+        "--python_root_dir ${project.rootDir}/sdks/python",
+        "--python_version 3.5"
+      ]
+      args "-c", "../../job-server/test_pipeline_jar.sh ${options.join(' ')}"
+    }
+  }
+}
