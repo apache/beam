@@ -447,7 +447,13 @@
 
 
 <ul class="nav">
-  <li><a href="#examples">Examples</a></li>
+  <li><a href="#examples">Examples</a>
+    <ul>
+      <li><a href="#example-1-key-value-pairs-to-string">Example 1: Key-value pairs to string</a></li>
+      <li><a href="#example-2-elements-to-string">Example 2: Elements to string</a></li>
+      <li><a href="#example-3-iterables-to-string">Example 3: Iterables to string</a></li>
+    </ul>
+  </li>
   <li><a href="#related-transforms">Related transforms</a></li>
 </ul>
 
@@ -470,12 +476,181 @@ limitations under the License.
 -->
 
 <h1 id="tostring">ToString</h1>
-<p>Transforms every element in an input collection a string.</p>
+
+<script type="text/javascript">
+localStorage.setItem('language', 'language-py')
+</script>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.ToString">
+      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
+      Pydoc
+    </a>
+  </td>
+</table>
+<p><br />
+Transforms every element in an input collection to a string.</p>
 
 <h2 id="examples">Examples</h2>
-<p>See <a href="https://issues.apache.org/jira/browse/BEAM-7389">BEAM-7389</a> for updates.</p>
+
+<p>Any non-string element can be converted to a string using standard Python functions and methods.
+Many I/O transforms, such as
+<a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html#apache_beam.io.textio.WriteToText"><code class="highlighter-rouge">textio.WriteToText</code></a>,
+expect their input elements to be strings.</p>
+
+<h3 id="example-1-key-value-pairs-to-string">Example 1: Key-value pairs to string</h3>
+
+<p>The following example converts a <code class="highlighter-rouge">(key, value)</code> pair into a string delimited by <code class="highlighter-rouge">','</code>.
+You can specify a different delimiter using the <code class="highlighter-rouge">delimiter</code> argument.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">plants</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="p">(</span><span class="s">'🍓'</span><span class="p">,</span> <span class="s">'Strawberry'</span><span class="p">),</span>
+          <span class="p">(</span><span class="s">'🥕'</span><span class="p">,</span> <span class="s">'Carrot'</span><span class="p">),</span>
+          <span class="p">(</span><span class="s">'🍆'</span><span class="p">,</span> <span class="s">'Eggplant'</span><span class="p">),</span>
+          <span class="p">(</span><span class="s">'🍅'</span><span class="p">,</span> <span class="s">'Tomato'</span><span class="p">),</span>
+          <span class="p">(</span><span class="s">'🥔'</span><span class="p">,</span> <span class="s">'Potato'</span><span class="p">),</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'To string'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ToString</span><span class="o">.</span><span class="n">Kvs</span><span class="p">()</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">ToString</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plants = [
+    '🍓,Strawberry',
+    '🥕,Carrot',
+    '🍆,Eggplant',
+    '🍅,Tomato',
+    '🥔,Potato',
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/to_string.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
+
+<h3 id="example-2-elements-to-string">Example 2: Elements to string</h3>
+
+<p>The following example converts a dictionary into a string.
+The string output will be equivalent to <code class="highlighter-rouge">str(element)</code>.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">plant_lists</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="p">[</span><span class="s">'🍓'</span><span class="p">,</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'perennial'</span><span class="p">],</span>
+          <span class="p">[</span><span class="s">'🥕'</span><span class="p">,</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'biennial'</span><span class="p">],</span>
+          <span class="p">[</span><span class="s">'🍆'</span><span class="p">,</span> <span class="s">'Eggplant'</span><span class="p">,</span> <span class="s">'perennial'</span><span class="p">],</span>
+          <span class="p">[</span><span class="s">'🍅'</span><span class="p">,</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'annual'</span><span class="p">],</span>
+          <span class="p">[</span><span class="s">'🥔'</span><span class="p">,</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'perennial'</span><span class="p">],</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'To string'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ToString</span><span class="o">.</span><span class="n">Element</span><span class="p">()</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">ToString</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plant_lists = [
+    "['🍓', 'Strawberry', 'perennial']",
+    "['🥕', 'Carrot', 'biennial']",
+    "['🍆', 'Eggplant', 'perennial']",
+    "['🍅', 'Tomato', 'annual']",
+    "['🥔', 'Potato', 'perennial']",
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/to_string.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
+
+<h3 id="example-3-iterables-to-string">Example 3: Iterables to string</h3>
+
+<p>The following example converts an iterable, in this case a list of strings,
+into a string delimited by <code class="highlighter-rouge">','</code>.
+You can specify a different delimiter using the <code class="highlighter-rouge">delimiter</code> argument.
+The string output will be equivalent to <code class="highlighter-rouge">iterable.join(delimiter)</code>.</p>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">plants_csv</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="p">[</span><span class="s">'🍓'</span><span class="p">,</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'perennial'</span><span class="p">],</span>
+          <span class="p">[</span><span class="s">'🥕'</span><span class="p">,</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'biennial'</span><span class="p">],</span>
+          <span class="p">[</span><span class="s">'🍆'</span><span class="p">,</span> <span class="s">'Eggplant'</span><span class="p">,</span> <span class="s">'perennial'</span><span class="p">],</span>
+          <span class="p">[</span><span class="s">'🍅'</span><span class="p">,</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'annual'</span><span class="p">],</span>
+          <span class="p">[</span><span class="s">'🥔'</span><span class="p">,</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'perennial'</span><span class="p">],</span>
+      <span class="p">])</span>
+      <span class="o">|</span> <span class="s">'To string'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ToString</span><span class="o">.</span><span class="n">Iterables</span><span class="p">()</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
+  <span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">ToString</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>plants_csv = [
+    '🍓,Strawberry,perennial',
+    '🥕,Carrot,biennial',
+    '🍆,Eggplant,perennial',
+    '🍅,Tomato,annual',
+    '🥔,Potato,perennial',
+]
+</code></pre>
+</div>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/to_string.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
+      View on GitHub
+    </a>
+  </td>
+</table>
+<p><br /></p>
 
 <h2 id="related-transforms">Related transforms</h2>
+
+<ul>
+  <li><a href="/documentation/transforms/python/elementwise/map">Map</a> applies a simple 1-to-1 mapping function over each element in the collection</li>
+</ul>
+
+<table>
+  <td>
+    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.ToString">
+      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
+      Pydoc
+    </a>
+  </td>
+</table>
+<p><br /></p>
 
       </div>
     </div>
