@@ -57,7 +57,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** A {@link PipelineRunner} a {@link Pipeline} against a {@code JobService}. */
+/** A {@link PipelineRunner} runs a {@link Pipeline} against a {@code JobService}. */
 public class PortableRunner extends PipelineRunner<PipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(PortableRunner.class);
