@@ -421,7 +421,7 @@ public class TimerReceiverTest implements Serializable {
         throws Exception {
       ImmutableMap.Builder<String, RemoteOutputReceiver<?>> outputReceivers =
           ImmutableMap.builder();
-      for (Map.Entry<String, Coder<WindowedValue<?>>> remoteOutputCoder :
+      for (Map.Entry<String, Coder> remoteOutputCoder :
           processBundleDescriptor.getRemoteOutputCoders().entrySet()) {
         String bundleOutputPCollection =
             Iterables.getOnlyElement(
