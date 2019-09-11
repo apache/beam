@@ -17,8 +17,6 @@
 from __future__ import absolute_import
 
 import logging
-import platform
-import sys
 import unittest
 from collections import OrderedDict
 
@@ -29,9 +27,9 @@ from past.builtins import unicode
 from apache_beam.testing import datatype_inference
 from apache_beam.typehints import typehints
 
-if not (platform.system() == 'Windows' and sys.version_info[0] == 2):
+try:
   import pyarrow as pa
-else:
+except ImportError:
   pa = None
 
 TEST_DATA = [
