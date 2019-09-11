@@ -25,6 +25,8 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@code PTransform}s to compute HyperLogLogPlusPlus (HLL++) sketches on data streams based on the
@@ -82,6 +84,8 @@ import org.apache.beam.sdk.values.PCollection;
 @Experimental
 public final class HllCount {
 
+  private static final Logger LOG = LoggerFactory.getLogger(HllCount.class);
+
   /**
    * The minimum {@code precision} value you can set in {@link Init.Builder#withPrecision(int)} is
    * {@value}.
@@ -107,9 +111,12 @@ public final class HllCount {
    * Provides {@code PTransform}s to aggregate inputs into HLL++ sketches. The four supported input
    * types are {@code Integer}, {@code Long}, {@code String}, and {@code byte[]}.
    *
-   * <p>Sketches are represented using the {@code byte[]} type. Sketches of the same type and {@code
-   * precision} can be merged into a new sketch using {@link HllCount.MergePartial}. Estimated count
-   * of distinct elements can be extracted from sketches using {@link HllCount.Extract}.
+   * <p>Sketches are represented using the {@code byte[]} type. Sketches of the same type can be
+   * merged into a new sketch using {@link HllCount.MergePartial}. Estimated count of distinct
+   * elements can be extracted from sketches using {@link HllCount.Extract}.
+   *
+   * <p>An "empty sketch" represented by an byte array of length 0 is returned if the input {@code
+   * PCollection} is empty.
    *
    * <p>Corresponds to the {@code HLL_COUNT.INIT(input [, precision])} function in <a
    * href="https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions">BigQuery</a>.
@@ -237,10 +244,11 @@ public final class HllCount {
        * PCollection<InputT>} and returns a {@code PCollection<byte[]>} which consists of the HLL++
        * sketch computed from the elements in the input {@code PCollection}.
        *
-       * <p>Returns an empty output {@code PCollection} if the input {@code PCollection} is empty.
+       * <p>Returns a singleton {@code PCollection} with an "empty sketch" (byte array of length 0)
+       * if the input {@code PCollection} is empty.
        */
       public Combine.Globally<InputT, byte[]> globally() {
-        return Combine.globally(initFn).withoutDefaults();
+        return Combine.globally(initFn);
       }
 
       /**
@@ -264,6 +272,9 @@ public final class HllCount {
    * <p>If sketches of different {@code precision}s are merged, the merged sketch will get the
    * minimum precision encountered among all the input sketches.
    *
+   * <p>An "empty sketch" represented by an byte array of length 0 is returned if the input {@code
+   * PCollection} is empty.
+   *
    * <p>Corresponds to the {@code HLL_COUNT.MERGE_PARTIAL(sketch)} function in <a
    * href="https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions">BigQuery</a>.
    */
@@ -283,10 +294,11 @@ public final class HllCount {
      * <p>If sketches of different {@code precision}s are merged, the merged sketch will get the
      * minimum precision encountered among all the input sketches.
      *
-     * <p>Returns an empty output {@code PCollection} if the input {@code PCollection} is empty.
+     * <p>Returns a singleton {@code PCollection} with an "empty sketch" (byte array of length 0) if
+     * the input {@code PCollection} is empty.
      */
     public static Combine.Globally<byte[], byte[]> globally() {
-      return Combine.globally(HllCountMergePartialFn.create()).withoutDefaults();
+      return Combine.globally(HllCountMergePartialFn.create());
     }
 
     /**
@@ -310,6 +322,9 @@ public final class HllCount {
    * Provides {@code PTransform}s to extract the estimated count of distinct elements (as {@code
    * Long}s) from each HLL++ sketch.
    *
+   * <p>When extracting from an "empty sketch" represented by an byte array of length 0, the result
+   * returned is 0.
+   *
    * <p>Corresponds to the {@code HLL_COUNT.EXTRACT(sketch)} function in <a
    * href="https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions">BigQuery</a>.
    */
@@ -322,6 +337,8 @@ public final class HllCount {
      * Returns a {@code PTransform} that takes an input {@code PCollection<byte[]>} of HLL++
      * sketches and returns a {@code PCollection<Long>} of the estimated count of distinct elements
      * extracted from each sketch.
+     *
+     * <p>Returns 0 if the input element is an "empty sketch" (byte array of length 0).
      */
     public static PTransform<PCollection<byte[]>, PCollection<Long>> globally() {
       return new Globally();
@@ -346,7 +363,17 @@ public final class HllCount {
                   @ProcessElement
                   public void processElement(
                       @Element byte[] sketch, OutputReceiver<Long> receiver) {
-                    receiver.output(HyperLogLogPlusPlus.forProto(sketch).result());
+                    if (sketch == null) {
+                      LOG.warn(
+                          "Received a null and treated it as an empty sketch. "
+                              + "Consider replacing nulls with empty byte arrays (byte[0]) "
+                              + "in upstream transforms for better space-efficiency and safety.");
+                      receiver.output(0L);
+                    } else if (sketch.length == 0) {
+                      receiver.output(0L);
+                    } else {
+                      receiver.output(HyperLogLogPlusPlus.forProto(sketch).result());
+                    }
                   }
                 }));
       }
@@ -363,8 +390,19 @@ public final class HllCount {
                   @ProcessElement
                   public void processElement(
                       @Element KV<K, byte[]> kv, OutputReceiver<KV<K, Long>> receiver) {
-                    receiver.output(
-                        KV.of(kv.getKey(), HyperLogLogPlusPlus.forProto(kv.getValue()).result()));
+                    byte[] sketch = kv.getValue();
+                    if (sketch == null) {
+                      LOG.warn(
+                          "Received a null and treated it as an empty sketch. "
+                              + "Consider replacing nulls with empty byte arrays (byte[0]) "
+                              + "in upstream transforms for better space-efficiency and safety.");
+                      receiver.output(KV.of(kv.getKey(), 0L));
+                    } else if (sketch.length == 0) {
+                      receiver.output(KV.of(kv.getKey(), 0L));
+                    } else {
+                      receiver.output(
+                          KV.of(kv.getKey(), HyperLogLogPlusPlus.forProto(sketch).result()));
+                    }
                   }
                 }));
       }
