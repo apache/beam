@@ -36,7 +36,6 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -727,7 +726,6 @@ public class Snippets {
       return new DynamicSessions(gapDuration);
     }
 
-
     // [START CustomSessionWindow4]
 
     @Override
@@ -760,31 +758,30 @@ public class Snippets {
               .apply(
                   "Create data",
                   Create.timestamped(
-                          TimestampedValue.of(
-                              new TableRow().set("user","mobile").set("score",12).set("gap",5),
-                              new Instant()),
-                          TimestampedValue.of(
-                              new TableRow().set("user","desktop").set("score",4),
-                              new Instant()),
-                          TimestampedValue.of(
-                              new TableRow().set("user","mobile").set("score",-3).set("gap",5),
-                              new Instant().plus(2000)),
-                          TimestampedValue.of(
-                              new TableRow().set("user","mobile").set("score",2).set("gap",5),
-                              new Instant().plus(9000)),
-                          TimestampedValue.of(
-                              new TableRow().set("user","mobile").set("score",7).set("gap",5),
-                              new Instant().plus(12000)),
-                          TimestampedValue.of(
-                              new TableRow().set("user","desktop").set("score",10),
-                              new Instant().plus(12000))))
-      // [END CustomSessionWindow5]
+                      TimestampedValue.of(
+                          new TableRow().set("user", "mobile").set("score", 12).set("gap", 5),
+                          new Instant()),
+                      TimestampedValue.of(
+                          new TableRow().set("user", "desktop").set("score", 4), new Instant()),
+                      TimestampedValue.of(
+                          new TableRow().set("user", "mobile").set("score", -3).set("gap", 5),
+                          new Instant().plus(2000)),
+                      TimestampedValue.of(
+                          new TableRow().set("user", "mobile").set("score", 2).set("gap", 5),
+                          new Instant().plus(9000)),
+                      TimestampedValue.of(
+                          new TableRow().set("user", "mobile").set("score", 7).set("gap", 5),
+                          new Instant().plus(12000)),
+                      TimestampedValue.of(
+                          new TableRow().set("user", "desktop").set("score", 10),
+                          new Instant().plus(12000))))
+              // [END CustomSessionWindow5]
 
-      // [START CustomSessionWindow6]
-      .apply(
-          "Window into sessions",
-          Window.<TableRow>into(
-              DynamicSessions.withDefaultGapDuration(Duration.standardSeconds(10))));
+              // [START CustomSessionWindow6]
+              .apply(
+                  "Window into sessions",
+                  Window.<TableRow>into(
+                      DynamicSessions.withDefaultGapDuration(Duration.standardSeconds(10))));
       // [END CustomSessionWindow6]
 
     }
