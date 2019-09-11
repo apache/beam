@@ -464,7 +464,7 @@ download it on the <a href="/get-started/downloads/">Downloads page</a>. In the 
 available.
 </span></p>
 
-<p><span class="language-py">1. <em>Only required once:</em> Build the SDK harness container: <code class="highlighter-rouge">./gradlew :sdks:python:container:docker</code>
+<p><span class="language-py">1. <em>Only required once:</em> Build the SDK harness container (optionally replace py35 with the Python version of your choice): <code class="highlighter-rouge">./gradlew :sdks:python:container:py35:docker</code>
 </span></p>
 
 <p><span class="language-py">2. Start the JobService endpoint: <code class="highlighter-rouge">./gradlew :runners:flink:1.5:job-server:runShadow</code>

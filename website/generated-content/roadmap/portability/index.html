@@ -400,7 +400,7 @@ for details.</p>
 <p>To run a basic Python wordcount (in batch mode) with embedded Flink:</p>
 
 <ol>
-  <li>Run once to build the SDK harness container: <code class="highlighter-rouge">./gradlew :sdks:python:container:docker</code></li>
+  <li>Run once to build the SDK harness container (optionally replace py35 with the Python version of your choice): <code class="highlighter-rouge">./gradlew :sdks:python:container:py35:docker</code></li>
   <li>Start the Flink portable JobService endpoint: <code class="highlighter-rouge">./gradlew :runners:flink:1.5:job-server:runShadow</code></li>
   <li>In a new terminal, submit the wordcount pipeline to above endpoint: <code class="highlighter-rouge">./gradlew portableWordCount -PjobEndpoint=localhost:8099 -PenvironmentType=LOOPBACK</code></li>
 </ol>
