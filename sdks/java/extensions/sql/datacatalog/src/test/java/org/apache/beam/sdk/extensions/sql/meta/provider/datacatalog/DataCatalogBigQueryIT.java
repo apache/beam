@@ -70,7 +70,9 @@ public class DataCatalogBigQueryIT {
             "query",
             SqlTransform.query("SELECT id, name FROM " + tableId)
                 .withDefaultTableProvider(
-                    "datacatalog", DataCatalogTableProvider.create(readPipeline.getOptions())));
+                    "datacatalog",
+                    DataCatalogTableProvider.create(
+                        readPipeline.getOptions().as(DataCatalogPipelineOptions.class))));
 
     PAssert.that(result).containsInAnyOrder(row(1, "name1"), row(2, "name2"), row(3, "name3"));
     readPipeline.run().waitUntilFinish(Duration.standardMinutes(2));

@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
+import org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog.DataCatalogPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog.DataCatalogTableProvider;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Description;
@@ -71,7 +72,9 @@ public class BeamSqlDataCatalogExample {
         .apply(
             "SQL Query",
             SqlTransform.query(options.getQueryString())
-                .withDefaultTableProvider("datacatalog", DataCatalogTableProvider.create(options)))
+                .withDefaultTableProvider(
+                    "datacatalog",
+                    DataCatalogTableProvider.create(options.as(DataCatalogPipelineOptions.class))))
         .apply("Convert to Strings", rowsToStrings())
         .apply("Write output", TextIO.write().to(options.getOutputFilePrefix()));
 
