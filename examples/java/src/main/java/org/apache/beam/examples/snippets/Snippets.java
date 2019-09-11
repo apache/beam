@@ -676,7 +676,6 @@ public class Snippets {
 
   // [END AccessingValueProviderInfoAfterRunSnip1]
 
-
   public static Duration gapDuration;
 
   // [START CustomSessionWindow1]
