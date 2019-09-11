@@ -45,6 +45,8 @@ try:
 except ImportError:
   pass
 
+WAIT_UNTIL_FINISH_DURATION_MS = 15 * 60 * 1000
+
 BIG_QUERY_DATASET_ID = 'python_query_to_table_'
 NEW_TYPES_INPUT_TABLE = 'python_new_types_table'
 NEW_TYPES_OUTPUT_SCHEMA = (
@@ -141,6 +143,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
                   'output': self.output_table,
                   'output_schema': DIALECT_OUTPUT_SCHEMA,
                   'use_standard_sql': False,
+                  'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
                   'on_success_matcher': all_of(*pipeline_verifiers)}
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
@@ -158,6 +161,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
                   'output': self.output_table,
                   'output_schema': DIALECT_OUTPUT_SCHEMA,
                   'use_standard_sql': True,
+                  'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
                   'on_success_matcher': all_of(*pipeline_verifiers)}
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
@@ -178,6 +182,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
                   'output': self.output_table,
                   'output_schema': DIALECT_OUTPUT_SCHEMA,
                   'use_standard_sql': True,
+                  'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
                   'on_success_matcher': all_of(*pipeline_verifiers),
                   'kms_key': kms_key,
                   'native': True,
@@ -206,6 +211,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         'output': self.output_table,
         'output_schema': NEW_TYPES_OUTPUT_SCHEMA,
         'use_standard_sql': False,
+        'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
         'on_success_matcher': all_of(*pipeline_verifiers)}
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
