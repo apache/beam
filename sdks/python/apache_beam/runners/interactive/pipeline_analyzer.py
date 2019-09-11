@@ -104,6 +104,38 @@ class PipelineAnalyzer(object):
     top_level_referenced_pcoll_ids = self._referenced_pcoll_ids(
         top_level_required_transforms)
 
+    import time
+    ############
+
+    # transforms = self._pipeline_proto.components.transforms
+    # root_transform_ids = self._pipeline_proto.root_transform_ids
+    # root_transforms = [transforms[id] for id in root_transform_ids]
+    # top_level_transforms = [transforms[s] for r in root_transforms for s in r.subtransforms]
+    # top_level_transforms = list(filter(lambda x: len(x.inputs) == 0, top_level_transforms))
+    #
+    # for t in top_level_transforms:
+    #   is_bounded_source = True
+    #   for pcoll_id in t.outputs.values():
+    #     pcoll = self._pipeline_proto.components.pcollections[pcoll_id]
+    #     is_unbounded_source &= pcoll.is_bounded == beam_runner_api_pb2.IsBounded.BOUNDED
+    #   # if is_
+    #   print(is_unbounded_source)
+    #
+    # print(top_level_transforms)
+    # time.sleep(1000)
+
+    # for transform_id, transform_proto in self._pipeline_proto.
+    #
+    #   if transform_proto.subtransforms:
+    #     continue
+    #   for tag, pcoll_id in transform_proto.outputs.items():
+    #     self._producers[pcoll_id] = transform_id, tag
+    #   for pcoll_id in transform_proto.inputs.values():
+    #     self._consumers[pcoll_id].append(transform_id)
+
+
+    ############
+
     for pcoll_id in self._pipeline_info.all_pcollections():
       if not pcoll_id in top_level_referenced_pcoll_ids:
         continue

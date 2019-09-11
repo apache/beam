@@ -21,11 +21,14 @@ For internal use only; no backwards-compatibility guarantees.
 """
 from __future__ import absolute_import
 
+import grpc
+
 from abc import ABCMeta
 from abc import abstractmethod
 from builtins import object
 from functools import total_ordering
 
+from concurrent.futures import ThreadPoolExecutor
 from future.utils import with_metaclass
 
 from apache_beam import coders
@@ -36,6 +39,13 @@ from apache_beam.transforms import window
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp
 from apache_beam.utils.windowed_value import WindowedValue
+
+from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2_grpc
+from apache_beam.portability.api import endpoints_pb2
+
+from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 
 __all__ = [
     'Event',
@@ -63,8 +73,39 @@ class Event(with_metaclass(ABCMeta, object)):
     raise NotImplementedError
 
   def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+#TODO(BEAM - 5949) : Needed for Python 2 compatibility.
     return not self == other
+
+
+class TaggedElement(object):
+  def __init__(self, tag, timestamp, value):
+    self.tag = tag
+    self.timestamp = timestamp
+    self.value = value
+
+  def __eq__(self, other):
+    return (self.tag == other.tag and
+            self.timestamp == other.timestamp and
+            self.value == other.value)
+
+  def __lt__(self, other):
+    return self.timestamp < other.timestamp
+
+
+class TaggedElementEvent(Event):
+  """Element-producing test stream event."""
+
+  def __init__(self, elements):
+    self.elements = elements
+
+  def __eq__(self, other):
+    return self.elements == other.elements
+
+  def __hash__(self):
+    return hash(self.timestamped_values)
+
+  def __lt__(self, other):
+    return self.timestamped_values < other.timestamped_values
 
 
 class ElementEvent(Event):
@@ -114,6 +155,50 @@ class ProcessingTimeEvent(Event):
   def __lt__(self, other):
     return self.advance_by < other.advance_by
 
+class InteractiveStreamController(beam_fn_api_pb2_grpc.InteractiveStreamServicer):
+
+  def __init__(self, endpoint, readers=[]):
+    self._endpoint = endpoint
+    self._server = grpc.server(ThreadPoolExecutor(max_workers=10))
+    beam_fn_api_pb2_grpc.add_InteractiveStreamServicer_to_server(
+        self, self._server)
+    self._server.add_insecure_port(self._endpoint)
+    self._server.start()
+
+    coder = coders.FastPrimitivesCoder()
+    self._events=[]
+    for i in range(10):
+      element = TestStreamPayload.TimestampedElement(encoded_element = coder.encode(i), timestamp=0)
+      event = TestStreamPayload.Event(element_event=TestStreamPayload.Event.AddElements(elements=[element]))
+      self._events.append(event)
+
+    self._state = None
+
+  def Start(self, request, context):
+    self._state = 'RUNNING'
+    return beam_fn_api_pb2.StartResponse()
+
+  def Pause(self, request, context):
+    self._state = 'PAUSED'
+    return beam_fn_api_pb2.PauseResponse()
+
+  def Step(self, request, context):
+    self._state = 'STEP'
+    return beam_fn_api_pb2.StepResponse()
+
+  def Events(self, request, context):
+    import time
+    print("got request", request)
+
+    while self._state != 'RUNNING' and self._state != 'STEP':
+      time.sleep(0.01)
+    if request.token < len(self._events):
+      yield beam_fn_api_pb2.EventsResponse(events=[self._events[request.token]], token=request.token + 1)
+    else:
+      yield beam_fn_api_pb2.EventsResponse(token=-1)
+    if self._state == 'STEP':
+      self._state = 'PAUSED'
+    time.sleep(1)
 
 class TestStream(PTransform):
   """Test stream that generates events on an unbounded PCollection of elements.
@@ -122,12 +207,13 @@ class TestStream(PTransform):
   time.  After all of the specified elements are emitted, ceases to produce
   output.
   """
-
-  def __init__(self, coder=coders.FastPrimitivesCoder):
+  def __init__(self, coder=coders.FastPrimitivesCoder, endpoint=''):
     assert coder is not None
     self.coder = coder
     self.current_watermark = timestamp.MIN_TIMESTAMP
-    self.events = []
+    self._events = []
+    self._endpoint = endpoint
+    self._next_token = -1
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
@@ -154,7 +240,46 @@ class TestStream(PTransform):
           'Must advance processing time by positive amount.')
     else:
       raise ValueError('Unknown event: %s' % event)
-    self.events.append(event)
+    self._events.append(event)
+
+  def has_events(self):
+    return len(self._events) > 0
+
+  def events(self, index):
+    if self._endpoint:
+      channel = grpc.insecure_channel(self._endpoint)
+      stub = beam_fn_api_pb2_grpc.InteractiveStreamStub(channel)
+      request = beam_fn_api_pb2.EventsRequest(token=index)
+      for response in stub.Events(request):
+        self._next_token = response.token
+        for event in response.events:
+          if event.HasField('watermark_event'):
+            yield WatermarkEvent(event.watermark_event.new_watermark)
+          elif event.HasField('processing_time_event'):
+            yield ProcessingTimeEvent(event.processing_time_event.advance_duration)
+          elif event.HasField('element_event'):
+            for element in event.element_event.elements:
+              value = self.coder().decode(element.encoded_element)
+              yield ElementEvent([TimestampedValue(value, element.timestamp)])
+
+    else:
+      if len(self._events) == 0:
+        return
+      yield self._events[index - 1]
+
+  def begin(self):
+    return 0
+
+  def end(self):
+    if self._endpoint:
+      return -1
+    return len(self._events)
+
+  def next(self, index):
+    if self._endpoint:
+      return self._next_token
+    else:
+      return index + 1
 
   def add_elements(self, elements):
     """Add elements to the TestStream.
@@ -173,7 +298,7 @@ class TestStream(PTransform):
       if isinstance(element, TimestampedValue):
         timestamped_values.append(element)
       elif isinstance(element, WindowedValue):
-        # Drop windows for elements in test stream.
+# Drop windows for elements in test stream.
         timestamped_values.append(
             TimestampedValue(element.value, element.timestamp))
       else:
@@ -206,3 +331,4 @@ class TestStream(PTransform):
     """
     self._add(ProcessingTimeEvent(advance_by))
     return self
+

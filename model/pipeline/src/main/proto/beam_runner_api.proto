@@ -491,6 +491,10 @@ message TestStreamPayload {
 
   repeated Event events = 2;
 
+  string endpoint = 3;
+
+  repeated string files = 4;
+
   message Event {
     oneof event {
       AdvanceWatermark watermark_event = 1;
@@ -514,6 +518,7 @@ message TestStreamPayload {
   message TimestampedElement {
     bytes encoded_element = 1;
     int64 timestamp = 2;
+    string tag = 3;
   }
 }
 // The payload for the special-but-not-primitive WriteFiles transform.
