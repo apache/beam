@@ -255,10 +255,10 @@ When executing your pipeline with the Spark Runner, you should consider the foll
 <tr>
   <td><code>--runner</code></td>
   <td>The pipeline runner to use. This option allows you to determine the pipeline runner at runtime.</td>
-  <td>Set to <code>PortableRunner</code> to run using Spark.</td>
+  <td>Set to <code>PortableRunner</code> (<code>spark</code> using Go) to run using Spark.</td>
 </tr>
 <tr>
-  <td><code>--job_endpoint</code></td>
+  <td><code>--job_endpoint (--enpoint using Go)</code></td>
   <td>Job service endpoint to use. Should be in the form hostname:port, e.g. localhost:3000</td>
   <td>Set to match your job service endpoint (localhost:8099 by default)</td>
 </tr>
