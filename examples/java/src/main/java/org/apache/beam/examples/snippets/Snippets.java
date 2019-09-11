@@ -752,7 +752,7 @@ public class Snippets {
 
       // [START CustomSessionWindow5]
 
-      PCollection<String> p =
+      PCollection<TableRow> p =
           Pipeline.create()
               .apply(
                   "Create data",
