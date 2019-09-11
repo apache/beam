@@ -62,7 +62,7 @@ apache_beam/portability/api/*pb2*.py
 
 PYTHON_MAJOR=$(python -c 'import sys; print(sys.version_info[0])')
 if [[ "${PYTHON_MAJOR}" == 2 ]]; then
-  EXCLUDED_PY3_FILES=$(find ${MODULE} | grep 'py3\.py$')
+  EXCLUDED_PY3_FILES=$(find ${MODULE} | grep 'py3[0-9]*\.py$')
   echo -e "Excluding Py3 files:\n${EXCLUDED_PY3_FILES}"
 else
   EXCLUDED_PY3_FILES=""
