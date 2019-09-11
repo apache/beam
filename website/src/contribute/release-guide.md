@@ -81,7 +81,7 @@ Please have these credentials ready at hand, you will likely need to enter them 
 * GPG pass phrase (see the next section);
 * Apache ID and Password;
 * GitHub ID and Password.
-* DockerHub ID and Password. (You should be a member of maintainer team, please ask for help at dev@ if you are not.)
+* DockerHub ID and Password. (You should be a member of maintainer team; email at dev@ if you are not.)
 
 
 ### One-time setup instructions
@@ -210,7 +210,7 @@ Automation Reliability](https://s.apache.org/beam-site-automation).
 Release manager needs to have an account with PyPI. If you need one, [register at PyPI](https://pypi.python.org/account/register/). You also need to be a maintainer (or an owner) of the [apache-beam](https://pypi.python.org/pypi/apache-beam) package in order to push a new release. Ask on the mailing list for assistance.
 
 #### Login to DockerHub
-Run following command manually, it will ask you to input your DockerHub ID and password if 
+Run following command manually. It will ask you to input your DockerHub ID and password if 
 authorization info cannot be found from ~/.docker/config.json file.
 ```
 docker login docker.io
@@ -221,7 +221,7 @@ After successful login, authorization info will be stored at ~/.docker/config.js
    "auth": "aGFubmFoamlhbmc6cmtkdGpmZ2hrMTIxMw=="
 }
 ```
-Release managers should have push permission, please ask for help at dev@.
+Release managers should have push permission; please ask for help at dev@.
 ```
 From: Release Manager
 To: dev@beam.apache.org
@@ -551,7 +551,7 @@ For this step, we recommend you using automation script to create a RC, but you 
      When prompted for a description, enter “Apache Beam, version X, release candidate Y”.
   1. Stage source release into dist.apache.org dev [repo](https://dist.apache.org/repos/dist/dev/beam/).
   1. Stage,sign and hash python binaries into dist.apache.ord dev repo python dir
-  1. Stage SDK docker images to docker.io/apachebeam.
+  1. Stage SDK docker images to [https://hub.docker.com/u/apachebeam](https://hub.docker.com/u/apachebeam).
   1. Create a PR to update beam and beam-site, changes includes:
      * Copy python doc into beam-site
      * Copy java doc into beam-site
@@ -647,7 +647,7 @@ Staging binaries
 Verify that files are [present](https://dist.apache.org/repos/dist/dev/beam).
 
 #### Stage SDK images on hub.docker.com
-Build Python images and push to DockerHub
+* Build Python images and push to DockerHub.
 ```
 ./gradlew :sdks:python:container:buildAll -Pdocker-tag=${RELEASE}_rc{RC_NUM}
 
@@ -657,12 +657,12 @@ for ver in "${PYTHON_VER[@]}"; do
 done
 ``` 
 
-Build Java images and push to DockerHub
+* Build Java images and push to DockerHub.
 ```
 ./gradlew :sdks:java:container:dockerPush -Pdocker-tag=${RELEASE}_rc{RC_NUM}
 ```
 
-Build Go images and push to DockerHub
+* Build Go images and push to DockerHub.
 ```
 ./gradlew :sdks:go:container:dockerPush -Pdocker-tag=${RELEASE}_rc{RC_NUM}
 ```
@@ -676,10 +676,8 @@ docker rmi -f apachebeam/java_sdk:${RELEASE}_rc{RC_NUM}
 docker rmi -f apachebeam/go_sdk:${RELEASE}_rc{RC_NUM}
 ```
 
-Verify all images are publish to DockerHub with tags: ${RELEASE}_rc{RC_NUM}
-
 How to find images:
-1. Visit [hhttps://hub.docker.com/u/apachebeam](https://hub.docker.com/u/apachebeam)
+1. Visit [https://hub.docker.com/u/apachebeam](https://hub.docker.com/u/apachebeam)
 2. Visit each repository and navigate to *tags* tab.
 3. Verify images are pushed with tags: ${RELEASE}_rc{RC_NUM}
 
@@ -877,6 +875,7 @@ Start the review-and-vote thread on the dev@ mailing list. Here’s an email tem
     * Java artifacts were built with Maven MAVEN_VERSION and OpenJDK/Oracle JDK JDK_VERSION.
     * Python artifacts are deployed along with the source release to the dist.apache.org [2].
     * Validation sheet with a tab for 1.2.3 release to help with validation [9].
+    * Docker images puhlished to Docker Hub [10].
 
     The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
 
@@ -1215,7 +1214,7 @@ TODO(hannahjiang): change link to master branch after #9560 is merged.
 ```
 ./beam/release/src/main/scripts/publish_docker_images.sh
 ```
-Verify following points:
+Verify that:
 * Images are published at [DockerHub](https://hub.docker.com/u/apachebeam) with tags {RELEASE} and *latest*.
 * Images with *latest* tag are pointing to current release by confirming 
   1. Digest of the image with *latest* tag is the same as the one with {RELEASE} tag.
