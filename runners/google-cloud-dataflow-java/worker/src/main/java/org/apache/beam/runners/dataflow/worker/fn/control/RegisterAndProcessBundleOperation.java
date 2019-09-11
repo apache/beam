@@ -280,6 +280,10 @@ public class RegisterAndProcessBundleOperation extends Operation {
     return processBundleId;
   }
 
+  public String getCurrentProcessBundleInstructionId() {
+    return processBundleId;
+  }
+
   @Override
   public void start() throws Exception {
     try (Closeable scope = context.enterStart()) {
