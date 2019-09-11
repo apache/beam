@@ -164,7 +164,7 @@ download it on the [Downloads page]({{ site.baseurl
 available.
 </span>
 
-<span class="language-py">1. *Only required once:* Build the SDK harness container: `./gradlew :sdks:python:container:docker`
+<span class="language-py">1. *Only required once:* Build the SDK harness container (optionally replace py35 with the Python version of your choice): `./gradlew :sdks:python:container:py35:docker`
 </span>
 
 <span class="language-py">2. Start the JobService endpoint: `./gradlew :runners:spark:job-server:runShadow`
