@@ -82,6 +82,7 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesMapState;
 import org.apache.beam.sdk.testing.UsesSetState;
 import org.apache.beam.sdk.testing.UsesSideInputs;
+import org.apache.beam.sdk.testing.UsesSideInputsWithDifferentCoders;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
@@ -919,7 +920,11 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesSideInputs.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesSideInputs.class,
+      UsesSideInputsWithDifferentCoders.class
+    })
     public void testSideInputAnnotationWithMultipleSideInputs() {
 
       final List<Integer> side1Data = ImmutableList.of(2, 0);
