@@ -69,7 +69,7 @@ golang {
 }
 
 docker {
-  name containerImageName(name: "java")
+  name containerImageName(name: "java_sdk")
   dockerfile project.file("./${dockerfileName}")
   files "./build/"
 }

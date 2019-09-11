@@ -1478,9 +1478,10 @@ class BeamModulePlugin implements Plugin<Project> {
     }
 
     // containerImageName returns a configurable container image name, by default a
-    // development image at bintray.io (see sdks/CONTAINERS.md):
+    // development image at docker.io (see sdks/CONTAINERS.md):
     //
-    //     $USER-docker-apache.bintray.io/beam/$NAME:latest
+    //     format: apachebeam/$NAME_sdk:latest
+    //     ie: apachebeam/python2.7_sdk:latest apachebeam/java_sdk:latest apachebeam/go_sdk:latest
     //
     // Both the root and tag can be defined using properties or explicitly provided.
     project.ext.containerImageName = {
@@ -1491,7 +1492,7 @@ class BeamModulePlugin implements Plugin<Project> {
         if (project.rootProject.hasProperty(["docker-repository-root"])) {
           configuration.root = project.rootProject["docker-repository-root"]
         } else {
-          configuration.root = "${System.properties["user.name"]}-docker-apache.bintray.io/beam"
+          configuration.root = "apachebeam"
         }
       }
       if (configuration.tag == null) {

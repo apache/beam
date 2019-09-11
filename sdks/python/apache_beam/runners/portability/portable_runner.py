@@ -21,13 +21,13 @@ import functools
 import itertools
 import json
 import logging
-import os
 import sys
 import threading
 import time
 
 import grpc
 
+from apache_beam import version as beam_version
 from apache_beam import metrics
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
@@ -78,24 +78,19 @@ class PortableRunner(runner.PipelineRunner):
 
   @staticmethod
   def default_docker_image():
-    if 'USER' in os.environ:
-      version_suffix = '.'.join([str(i) for i in sys.version_info[0:2]])
-      logging.warning('Make sure that locally built Python SDK docker image '
-                      'has Python %d.%d interpreter.' % (
-                          sys.version_info[0], sys.version_info[1]))
+    sdk_version = beam_version.__version__
+    version_suffix = '.'.join([str(i) for i in sys.version_info[0:2]])
+    logging.warning('Make sure that locally built Python SDK docker image '
+                    'has Python %d.%d interpreter.' % (
+                        sys.version_info[0], sys.version_info[1]))
 
-      # Perhaps also test if this was built?
-      image = ('{user}-docker-apache.bintray.io/beam/python'
-               '{version_suffix}:latest'.format(
-                   user=os.environ['USER'],
-                   version_suffix=version_suffix))
-      logging.info(
-          'Using latest locally built Python SDK docker image: %s.' % image)
-      return image
-
-    else:
-      logging.warning('Could not find a Python SDK docker image.')
-      return 'unknown'
+    image = ('apachebeam/python{version_suffix}_sdk:{tag}'.format(
+        version_suffix=version_suffix, tag=sdk_version))
+    logging.info(
+        'Using Python SDK docker image: %s. If the image is not '
+        'available at local, we will try to pull from hub.docker.com'
+        % (image))
+    return image
 
   @staticmethod
   def _create_environment(options):
