@@ -187,13 +187,9 @@ $ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar o
 
 {:.runner-jet}
 ```
-$ mvn package -Pjet-runner -DskipTests
+$ mvn package -Pjet-runner
 $ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
      --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/pom.xml --output=counts
-     
-Please note that the Jet Runner will be present in released versions of Beam 
-only starting with 2.14.0. Until then SNAPSHOT versions need to be used when 
-generating the above Maven archetype for the examples code. 
 ```
 
 For Windows PowerShell:
@@ -257,13 +253,9 @@ PS> java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.Wor
 
 {:.runner-jet}
 ```
-PS> mvn package -P jet-runner -DskipTests
+PS> mvn package -P jet-runner
 PS> java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
       --runner=JetRunner --jetLocalMode=3 --inputFile=$pwd/pom.xml --output=counts
-     
-Please note that the Jet Runner will be present in released versions of Beam 
-only starting with 2.14.0. Until then SNAPSHOT versions need to be used when 
-generating the above Maven archetype for the examples code. 
 ```
 
 ## Inspect the results
