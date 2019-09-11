@@ -21,7 +21,6 @@ import java.io.InputStream;
 import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,21 +33,19 @@ public class BeamFnDataInboundObserver<T>
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataInboundObserver.class);
 
   public static <T> BeamFnDataInboundObserver<T> forConsumer(
-      Coder<WindowedValue<T>> coder, FnDataReceiver<WindowedValue<T>> receiver) {
+      Coder<T> coder, FnDataReceiver<T> receiver) {
     return new BeamFnDataInboundObserver<>(
         coder, receiver, CompletableFutureInboundDataClient.create());
   }
 
-  private final FnDataReceiver<WindowedValue<T>> consumer;
-  private final Coder<WindowedValue<T>> coder;
+  private final FnDataReceiver<T> consumer;
+  private final Coder<T> coder;
   private final InboundDataClient readFuture;
   private long byteCounter;
   private long counter;
 
   public BeamFnDataInboundObserver(
-      Coder<WindowedValue<T>> coder,
-      FnDataReceiver<WindowedValue<T>> consumer,
-      InboundDataClient readFuture) {
+      Coder<T> coder, FnDataReceiver<T> consumer, InboundDataClient readFuture) {
     this.coder = coder;
     this.consumer = consumer;
     this.readFuture = readFuture;
@@ -77,7 +74,7 @@ public class BeamFnDataInboundObserver<T>
       InputStream inputStream = t.getData().newInput();
       while (inputStream.available() > 0) {
         counter += 1;
-        WindowedValue<T> value = coder.decode(inputStream);
+        T value = coder.decode(inputStream);
         consumer.accept(value);
       }
     } catch (Exception e) {

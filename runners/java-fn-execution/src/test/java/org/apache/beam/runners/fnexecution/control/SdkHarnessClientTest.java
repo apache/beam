@@ -164,7 +164,7 @@ public class SdkHarnessClientTest {
     ProcessBundleDescriptor descriptor2 =
         ProcessBundleDescriptor.newBuilder().setId("descriptor2").build();
 
-    Map<String, RemoteInputDestination<WindowedValue<?>>> remoteInputs =
+    Map<String, RemoteInputDestination> remoteInputs =
         Collections.singletonMap(
             "inputPC",
             RemoteInputDestination.of(
@@ -193,7 +193,7 @@ public class SdkHarnessClientTest {
             .setStateApiServiceDescriptor(ApiServiceDescriptor.newBuilder().setUrl("foo"))
             .build();
 
-    Map<String, RemoteInputDestination<WindowedValue<?>>> remoteInputs =
+    Map<String, RemoteInputDestination> remoteInputs =
         Collections.singletonMap(
             "inputPC",
             RemoteInputDestination.of(
