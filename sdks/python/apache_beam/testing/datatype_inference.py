@@ -18,8 +18,6 @@ from __future__ import absolute_import
 
 import array
 import json
-import platform
-import sys
 from collections import OrderedDict
 
 import numpy as np
@@ -35,8 +33,10 @@ except ImportError:
   from avro.schema import parse as Parse  # avro library for python2
 # pylint: enable=wrong-import-order, wrong-import-position
 
-if not (platform.system() == 'Windows' and sys.version_info[0] == 2):
+try:
   import pyarrow as pa
+except ImportError:
+  pa = None
 
 
 def infer_element_type(elements):
