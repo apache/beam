@@ -25,6 +25,7 @@ from __future__ import division
 
 import datetime
 import functools
+import time
 from builtins import object
 
 import dateutil.parser
@@ -74,6 +75,10 @@ class Timestamp(object):
     if isinstance(seconds, Timestamp):
       return seconds
     return Timestamp(seconds)
+
+  @staticmethod
+  def now():
+    return Timestamp(seconds=time.time())
 
   @staticmethod
   def _epoch_datetime_utc():
@@ -173,6 +178,8 @@ class Timestamp(object):
     return self + other
 
   def __sub__(self, other):
+    if isinstance(other, Timestamp):
+      return Duration(micros=self.micros - other.micros)
     other = Duration.of(other)
     return Timestamp(micros=self.micros - other.micros)
 
