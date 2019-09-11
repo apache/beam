@@ -30,6 +30,7 @@ from builtins import object
 
 import dateutil.parser
 import pytz
+from google.protobuf import timestamp_pb2
 from past.builtins import long
 
 from apache_beam.portability import common_urns
@@ -139,6 +140,23 @@ class Timestamp(object):
   def to_rfc3339(self):
     # Append 'Z' for UTC timezone.
     return self.to_utc_datetime().isoformat() + 'Z'
+
+  def to_proto(self):
+    """Returns the `google.protobuf.timestamp_pb2` representation."""
+    secs = self.micros // 1000000
+    nanos = (self.micros - (secs * 1000000)) * 1000
+    return timestamp_pb2.Timestamp(seconds=secs, nanos=nanos)
+
+  @staticmethod
+  def from_proto(timestamp_proto):
+    """Creates a Timestamp from a `google.protobuf.timestamp_pb2`.
+
+    Note that the google has a sub-second resolution of nanoseconds whereas this
+    class has a resolution of microsends. This class will truncate the
+    nanosecond resolution down to the microsecond.
+    """
+    return Timestamp(seconds=timestamp_proto.seconds,
+                     micros=timestamp_proto.nanos // 1000)
 
   def __float__(self):
     # Note that the returned value may have lost precision.
