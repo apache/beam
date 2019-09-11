@@ -214,7 +214,7 @@ task validatesRunnerLegacyWorkerJava11Test(type: Test) {
 task buildAndPushDockerContainer() {
   dependsOn ":sdks:java:container:docker"
   finalizedBy 'cleanUpDockerImages'
-  def defaultDockerImageName = containerImageName(name: "java")
+  def defaultDockerImageName = containerImageName(name: "java_sdk")
   doLast {
     exec {
       commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerImageName}"
