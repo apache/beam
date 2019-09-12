@@ -32,6 +32,7 @@ import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableCell;
+import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -151,7 +152,7 @@ import org.slf4j.LoggerFactory;
  * TableFieldSchema}). The terms field and cell are used interchangeably.
  *
  * <p>{@link TableSchema}: describes the schema (types and order) for values in each row. It has one
- * attribute, ‘fields’, which is list of {@link TableFieldSchema} objects.
+ * attribute, 'fields', which is list of {@link TableFieldSchema} objects.
  *
  * <p>{@link TableFieldSchema}: describes the schema (type, name) for one field. It has several
  * attributes, including 'name' and 'type'. Common values for the type attribute are: 'STRING',
@@ -176,12 +177,60 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Reading from BigQuery is supported by {@link #read(SerializableFunction)}, which parses
  * records in <a href="https://cloud.google.com/bigquery/data-formats#avro_format">AVRO format</a>
- * into a custom type using a specified parse function, and by {@link #readTableRows} which parses
- * them into {@link TableRow}, which may be more convenient but has lower performance.
+ * into a custom type (see the table below for type conversion) using a specified parse function,
+ * and by {@link #readTableRows} which parses them into {@link TableRow}, which may be more
+ * convenient but has lower performance.
  *
  * <p>Both functions support reading either from a table or from the result of a query, via {@link
  * TypedRead#from(String)} and {@link TypedRead#fromQuery} respectively. Exactly one of these must
  * be specified.
+ *
+ * <p><b>Type Conversion Table</b>
+ *
+ * <table border="1" cellspacing="1">
+ *   <tr>
+ *     <td> <b>BigQuery standard SQL type</b> </td> <td> <b>Avro type</b> </td> <td> <b>Java type</b> </td>
+ *   </tr>
+ *   <tr>
+ *     <td> BOOLEAN </td> <td> boolean </td> <td> Boolean </td>
+ *   </tr>
+ *   <tr>
+ *     <td> INT64 </td> <td> long </td> <td> Long </td>
+ *   </tr>
+ *   <tr>
+ *     <td> FLOAT64 </td> <td> double </td> <td> Double </td>
+ *   </tr>
+ *   <tr>
+ *     <td> BYTES </td> <td> bytes </td> <td> java.nio.ByteBuffer </td>
+ *   </tr>
+ *   <tr>
+ *     <td> STRING </td> <td> string </td> <td> CharSequence </td>
+ *   </tr>
+ *   <tr>
+ *     <td> DATE </td> <td> int </td> <td> Integer </td>
+ *   </tr>
+ *   <tr>
+ *     <td> DATETIME </td> <td> string </td> <td> CharSequence </td>
+ *   </tr>
+ *   <tr>
+ *     <td> TIMESTAMP </td> <td> long </td> <td> Long </td>
+ *   </tr>
+ *   <tr>
+ *     <td> TIME </td> <td> long </td> <td> Long </td>
+ *   </tr>
+ *   <tr>
+ *     <td> NUMERIC </td> <td> bytes </td> <td> java.nio.ByteBuffer </td>
+ *   </tr>
+ *   <tr>
+ *     <td> GEOGRAPHY </td> <td> string </td> <td> CharSequence </td>
+ *   </tr>
+ *   <tr>
+ *     <td> ARRAY </td> <td> array </td> <td> java.util.Collection </td>
+ *   </tr>
+ *   <tr>
+ *     <td> STRUCT </td> <td> record </td> <td> org.apache.avro.generic.GenericRecord </td>
+ *   </tr>
+ * </table>
  *
  * <p><b>Example: Reading rows of a table as {@link TableRow}.</b>
  *
