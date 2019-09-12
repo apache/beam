@@ -676,7 +676,7 @@ public class Snippets {
 
   // [END AccessingValueProviderInfoAfterRunSnip1]
 
-  public static Duration gapDuration;
+  private static final Duration gapDuration = Duration.standardSeconds(10L);
 
   // [START CustomSessionWindow1]
 
@@ -748,7 +748,7 @@ public class Snippets {
 
   public static class CustomSessionPipeline {
 
-    public static void main(String args[]) {
+    public static void main(String[] args) {
 
       // [START CustomSessionWindow5]
 
@@ -773,14 +773,14 @@ public class Snippets {
                           new Instant().plus(12000)),
                       TimestampedValue.of(
                           new TableRow().set("user", "desktop").set("score", 10),
-                          new Instant().plus(12000))))
-              // [END CustomSessionWindow5]
+                          new Instant().plus(12000))));
+      // [END CustomSessionWindow5]
 
-              // [START CustomSessionWindow6]
-              .apply(
-                  "Window into sessions",
-                  Window.<TableRow>into(
-                      DynamicSessions.withDefaultGapDuration(Duration.standardSeconds(10))));
+      // [START CustomSessionWindow6]
+      p.apply(
+          "Window into sessions",
+          Window.<TableRow>into(
+              DynamicSessions.withDefaultGapDuration(Duration.standardSeconds(10))));
       // [END CustomSessionWindow6]
 
     }
