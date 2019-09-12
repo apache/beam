@@ -301,11 +301,12 @@ def hasDockerImage():
     check_image = subprocess.check_output("docker images -q %s" % image,
                                           shell=True)
     return check_image != ''
-  except:
+  except Exception:
     return False
 
 
-@unittest.skipIf(not hasDockerImage(), "no docker image")
+@unittest.skipIf(not hasDockerImage(), "docker not installed or "
+                                       "no docker image")
 class PortableRunnerTestWithLocalDocker(PortableRunnerTest):
   def create_options(self):
     options = super(PortableRunnerTestWithLocalDocker, self).create_options()
