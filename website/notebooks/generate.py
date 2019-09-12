@@ -17,8 +17,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# To run, you will have to install `md2ipynb`.
+# This script generates notebooks for all the files defined in `docs.yaml`.
+# It has to be run manually if the docs or code snippets are updated.
+#
+# To run, you have to install `md2ipynb`.
 #   pip install -U md2ipynb
+#
+# Then it can be run without any arguments.
+#   python website/notebooks/generate.py
+#
+# This creates the output notebooks in the `examples/notebooks` directory.
+# You have to commit the generated notebooks after generating them.
 
 import argparse
 import md2ipynb
