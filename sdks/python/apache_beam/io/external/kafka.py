@@ -37,18 +37,25 @@
 
 from __future__ import absolute_import
 
-from apache_beam import ExternalTransform
-from apache_beam import pvalue
-from apache_beam.coders import BytesCoder
-from apache_beam.coders import IterableCoder
-from apache_beam.coders import TupleCoder
-from apache_beam.coders.coders import LengthPrefixCoder
-from apache_beam.portability.api.external_transforms_pb2 import ConfigValue
-from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
-from apache_beam.transforms import ptransform
+import typing
+
+from past.builtins import unicode
+
+from apache_beam.transforms.external import ExternalTransform
+from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
+
+ReadFromKafkaSchema = typing.NamedTuple(
+    'ReadFromKafkaSchema',
+    [
+        ('consumer_config', typing.List[typing.Tuple[unicode, unicode]]),
+        ('topics', typing.List[unicode]),
+        ('key_deserializer', unicode),
+        ('value_deserializer', unicode),
+    ]
+)
 
 
-class ReadFromKafka(ptransform.PTransform):
+class ReadFromKafka(ExternalTransform):
   """
     An external PTransform which reads from Kafka and returns a KV pair for
     each item in the specified Kafka topics. If no Kafka Deserializer for
@@ -64,11 +71,13 @@ class ReadFromKafka(ptransform.PTransform):
   byte_array_deserializer = 'org.apache.kafka.common.serialization.' \
                             'ByteArrayDeserializer'
 
+  URN = 'beam:external:java:kafka:read:v1'
+
   def __init__(self, consumer_config,
                topics,
                key_deserializer=byte_array_deserializer,
                value_deserializer=byte_array_deserializer,
-               expansion_service='localhost:8097'):
+               expansion_service=None):
     """
     Initializes a read operation from Kafka.
 
@@ -88,38 +97,32 @@ class ReadFromKafka(ptransform.PTransform):
                                serialization.ByteArrayDeserializer'.
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
-    super(ReadFromKafka, self).__init__()
-    self._urn = 'beam:external:java:kafka:read:v1'
-    self.consumer_config = consumer_config
-    self.topics = topics
-    self.key_deserializer = key_deserializer
-    self.value_deserializer = value_deserializer
-    self.expansion_service = expansion_service
-
-  def expand(self, pbegin):
-    if not isinstance(pbegin, pvalue.PBegin):
-      raise Exception("ReadFromKafka must be a root transform")
-
-    args = {
-        'consumer_config':
-            _encode_map(self.consumer_config),
-        'topics':
-            _encode_list(self.topics),
-        'key_deserializer':
-            _encode_str(self.key_deserializer),
-        'value_deserializer':
-            _encode_str(self.value_deserializer),
-    }
-
-    payload = ExternalConfigurationPayload(configuration=args)
-    return pbegin.apply(
-        ExternalTransform(
-            self._urn,
-            payload.SerializeToString(),
-            self.expansion_service))
+    super(ReadFromKafka, self).__init__(
+        self.URN,
+        NamedTupleBasedPayloadBuilder(
+            ReadFromKafkaSchema(
+                consumer_config=list(consumer_config.items()),
+                topics=topics,
+                key_deserializer=key_deserializer,
+                value_deserializer=value_deserializer,
+            )
+        ),
+        expansion_service
+    )
 
 
-class WriteToKafka(ptransform.PTransform):
+WriteToKafkaSchema = typing.NamedTuple(
+    'WriteToKafkaSchema',
+    [
+        ('producer_config', typing.List[typing.Tuple[unicode, unicode]]),
+        ('topic', unicode),
+        ('key_serializer', unicode),
+        ('value_serializer', unicode),
+    ]
+)
+
+
+class WriteToKafka(ExternalTransform):
   """
     An external PTransform which writes KV data to a specified Kafka topic.
     If no Kafka Serializer for key/value is provided, then key/value are
@@ -132,11 +135,13 @@ class WriteToKafka(ptransform.PTransform):
   byte_array_serializer = 'org.apache.kafka.common.serialization.' \
                           'ByteArraySerializer'
 
+  URN = 'beam:external:java:kafka:write:v1'
+
   def __init__(self, producer_config,
                topic,
                key_serializer=byte_array_serializer,
                value_serializer=byte_array_serializer,
-               expansion_service='localhost:8097'):
+               expansion_service=None):
     """
     Initializes a write operation to Kafka.
 
@@ -156,62 +161,15 @@ class WriteToKafka(ptransform.PTransform):
                                serialization.ByteArraySerializer'.
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
-    super(WriteToKafka, self).__init__()
-    self._urn = 'beam:external:java:kafka:write:v1'
-    self.producer_config = producer_config
-    self.topic = topic
-    self.key_serializer = key_serializer
-    self.value_serializer = value_serializer
-    self.expansion_service = expansion_service
-
-  def expand(self, pvalue):
-    args = {
-        'producer_config':
-            _encode_map(self.producer_config),
-        'topic':
-            _encode_str(self.topic),
-        'key_serializer':
-            _encode_str(self.key_serializer),
-        'value_serializer':
-            _encode_str(self.value_serializer),
-    }
-
-    payload = ExternalConfigurationPayload(configuration=args)
-    return pvalue.apply(
-        ExternalTransform(
-            self._urn,
-            payload.SerializeToString(),
-            self.expansion_service))
-
-
-def _encode_map(dict_obj):
-  kv_list = [(key.encode('utf-8'), val.encode('utf-8'))
-             for key, val in dict_obj.items()]
-  coder = IterableCoder(TupleCoder(
-      [LengthPrefixCoder(BytesCoder()), LengthPrefixCoder(BytesCoder())]))
-  coder_urns = ['beam:coder:iterable:v1',
-                'beam:coder:kv:v1',
-                'beam:coder:bytes:v1',
-                'beam:coder:bytes:v1']
-  return ConfigValue(
-      coder_urn=coder_urns,
-      payload=coder.encode(kv_list))
-
-
-def _encode_list(list_obj):
-  encoded_list = [val.encode('utf-8') for val in list_obj]
-  coder = IterableCoder(LengthPrefixCoder(BytesCoder()))
-  coder_urns = ['beam:coder:iterable:v1',
-                'beam:coder:bytes:v1']
-  return ConfigValue(
-      coder_urn=coder_urns,
-      payload=coder.encode(encoded_list))
-
-
-def _encode_str(str_obj):
-  encoded_str = str_obj.encode('utf-8')
-  coder = LengthPrefixCoder(BytesCoder())
-  coder_urns = ['beam:coder:bytes:v1']
-  return ConfigValue(
-      coder_urn=coder_urns,
-      payload=coder.encode(encoded_str))
+    super(WriteToKafka, self).__init__(
+        self.URN,
+        NamedTupleBasedPayloadBuilder(
+            WriteToKafkaSchema(
+                producer_config=list(producer_config.items()),
+                topic=topic,
+                key_serializer=key_serializer,
+                value_serializer=value_serializer,
+            )
+        ),
+        expansion_service
+    )
