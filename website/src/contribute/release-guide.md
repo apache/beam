@@ -332,6 +332,7 @@ There are 2 ways to cut a release branch: either running automation script(recom
       
       DEV=${RELEASE}.dev
       sed -i -e "s/${DEV}/${RELEASE}/g" sdks/python/apache_beam/version.py
+      sed -i -e "s/${DEV}/${RELEASE}/g" gradle.properties
       sed -i -e "s/'beam-master-.*'/'beam-${RELEASE}'/g" runners/google-cloud-dataflow-java/build.gradle
 
 
