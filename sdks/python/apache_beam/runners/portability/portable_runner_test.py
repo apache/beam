@@ -297,8 +297,12 @@ class PortableRunnerInternalTest(unittest.TestCase):
 
 def hasDockerImage():
   image = PortableRunner.default_docker_image()
-  check_image = subprocess.check_output(["docker", "images", "-q", image])
-  return check_image != ''
+  try:
+    check_image = subprocess.check_output("docker images -q %s" % image,
+                                          shell=True)
+    return check_image != ''
+  except:
+    return False
 
 
 @unittest.skipIf(not hasDockerImage(), "no docker image")
