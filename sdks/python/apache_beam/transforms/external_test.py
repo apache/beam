@@ -82,15 +82,17 @@ class PayloadBase(object):
   args = {
       'integer_example': ConfigValue(
           coder_urn=['beam:coder:varint:v1'],
-          payload=VarIntCoder().encode(values['integer_example'])),
+          payload=VarIntCoder()
+          .get_impl().encode_nested(values['integer_example'])),
       'string_example': ConfigValue(
           coder_urn=['beam:coder:string_utf8:v1'],
-          payload=StrUtf8Coder().encode(values['string_example'])),
+          payload=StrUtf8Coder()
+          .get_impl().encode_nested(values['string_example'])),
       'list_of_strings': ConfigValue(
           coder_urn=['beam:coder:iterable:v1',
                      'beam:coder:string_utf8:v1'],
           payload=IterableCoder(StrUtf8Coder())
-            .encode(values['list_of_strings'])),
+          .get_impl().encode_nested(values['list_of_strings'])),
       'optional_kv': ConfigValue(
           coder_urn=['beam:coder:kv:v1',
                      'beam:coder:string_utf8:v1',
@@ -183,21 +185,23 @@ class ExternalImplicitPayloadTest(unittest.TestCase):
       args = {
           'integer_example': ConfigValue(
               coder_urn=['beam:coder:varint:v1'],
-              payload=VarIntCoder().encode(values['integer_example'])),
+              payload=VarIntCoder()
+              .get_impl().encode_nested(values['integer_example'])),
           'string_example': ConfigValue(
               coder_urn=['beam:coder:bytes:v1'],
-              payload=StrUtf8Coder().encode(values['string_example'])),
+              payload=StrUtf8Coder()
+              .get_impl().encode_nested(values['string_example'])),
           'list_of_strings': ConfigValue(
               coder_urn=['beam:coder:iterable:v1',
                          'beam:coder:bytes:v1'],
               payload=IterableCoder(StrUtf8Coder())
-                .encode(values['list_of_strings'])),
+              .get_impl().encode_nested(values['list_of_strings'])),
           'optional_kv': ConfigValue(
               coder_urn=['beam:coder:kv:v1',
                          'beam:coder:bytes:v1',
                          'beam:coder:double:v1'],
               payload=TupleCoder([StrUtf8Coder(), FloatCoder()])
-                .encode(values['optional_kv'])),
+              .get_impl().encode_nested(values['optional_kv'])),
       }
       expected = get_payload(args)
       self.assertEqual(result, expected)

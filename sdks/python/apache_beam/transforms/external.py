@@ -89,7 +89,7 @@ class PayloadBuilder(object):
       raise RuntimeError("Found non-portable coder for %s" % (typehint,))
     return ConfigValue(
         coder_urn=urns,
-        payload=coder.encode(obj))
+        payload=coder.get_impl().encode_nested(obj))
 
   def build(self):
     """
