@@ -317,6 +317,8 @@ def get_function_args_defaults(f):
     it doesn't include bound arguments and may follow function wrappers.
   """
   signature = get_signature(f)
+  # Fall back on funcsigs if inspect module doesn't have 'Parameter'; prefer
+  # inspect.Parameter over funcsigs.Parameter if both are available.
   try:
     parameter = inspect.Parameter
   except AttributeError:
