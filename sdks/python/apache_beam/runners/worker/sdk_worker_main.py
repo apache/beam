@@ -74,7 +74,7 @@ class StatusServer(object):
         self.end_headers()
 
         for line in StatusServer.get_thread_dump():
-          self.wfile.write(line)
+          self.wfile.write(line.encode('utf-8'))
 
       def log_message(self, f, *args):
         """Do not log any messages."""
