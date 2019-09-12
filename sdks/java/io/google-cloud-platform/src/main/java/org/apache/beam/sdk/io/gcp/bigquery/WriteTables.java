@@ -88,8 +88,8 @@ class WriteTables<DestinationT>
   private final boolean tempTable;
   private final BigQueryServices bqServices;
   private final PCollectionView<String> loadJobIdPrefixView;
-  private final WriteDisposition firstPaneWriteDisposition;
-  private final CreateDisposition firstPaneCreateDisposition;
+  private final WriteDisposition writeDisposition;
+  private final CreateDisposition createDisposition;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private final List<PCollectionView<?>> sideInputs;
   private final TupleTag<KV<TableDestination, String>> mainOutputTag;
@@ -140,7 +140,7 @@ class WriteTables<DestinationT>
       dynamicDestinations.setSideInputAccessorFromProcessContext(c);
       DestinationT destination = c.element().getKey().getKey();
       TableSchema tableSchema;
-      if (firstPaneCreateDisposition == CreateDisposition.CREATE_NEVER) {
+      if (WriteTables.this.createDisposition == CreateDisposition.CREATE_NEVER) {
         tableSchema = null;
       } else if (jsonSchemas.containsKey(destination)) {
         tableSchema =
@@ -153,7 +153,7 @@ class WriteTables<DestinationT>
                 + "DynamicDestinations.getSchema() may not return null. "
                 + "However, create disposition is %s, and %s returned null for destination %s",
             CreateDisposition.CREATE_NEVER,
-            firstPaneCreateDisposition,
+                WriteTables.this.createDisposition,
             dynamicDestinations,
             destination);
         jsonSchemas.put(destination, BigQueryHelpers.toJsonString(tableSchema));
@@ -188,24 +188,19 @@ class WriteTables<DestinationT>
           BigQueryHelpers.createJobId(
               c.sideInput(loadJobIdPrefixView), tableDestination, partition, c.pane().getIndex());
 
+      WriteDisposition writeDisposition = WriteTables.this.writeDisposition;
+      CreateDisposition createDisposition = WriteTables.this.createDisposition;
+
       if (tempTable) {
         // This is a temp table. Create a new one for each partition and each pane.
         tableReference.setTableId(jobIdPrefix);
-      }
 
-      WriteDisposition writeDisposition = firstPaneWriteDisposition;
-      CreateDisposition createDisposition = firstPaneCreateDisposition;
-      if (c.pane().getIndex() > 0 && !tempTable) {
-        // If writing directly to the destination, then the table is created on the first write
-        // and we should change the disposition for subsequent writes.
-        writeDisposition = WriteDisposition.WRITE_APPEND;
-        createDisposition = CreateDisposition.CREATE_NEVER;
-      } else if (tempTable) {
-        // In this case, we are writing to a temp table and always need to create it.
         // WRITE_TRUNCATE is set so that we properly handle retries of this pane.
         writeDisposition = WriteDisposition.WRITE_TRUNCATE;
         createDisposition = CreateDisposition.CREATE_IF_NEEDED;
       }
+      // otherwise honor the create and write dispositions
+      // if used with dynamic destinations, each individual pane may cause its own table truncations and table creations
 
       BigQueryHelpers.PendingJob retryJob =
           startLoad(
@@ -290,8 +285,8 @@ class WriteTables<DestinationT>
     this.tempTable = tempTable;
     this.bqServices = bqServices;
     this.loadJobIdPrefixView = loadJobIdPrefixView;
-    this.firstPaneWriteDisposition = writeDisposition;
-    this.firstPaneCreateDisposition = createDisposition;
+    this.writeDisposition = writeDisposition;
+    this.createDisposition = createDisposition;
     this.sideInputs = sideInputs;
     this.dynamicDestinations = dynamicDestinations;
     this.mainOutputTag = new TupleTag<>("WriteTablesMainOutput");
