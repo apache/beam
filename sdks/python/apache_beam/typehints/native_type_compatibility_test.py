@@ -19,11 +19,15 @@
 
 from __future__ import absolute_import
 
+import sys
 import typing
 import unittest
 
-from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
+from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
+from apache_beam.typehints.native_type_compatibility import convert_to_beam_types
+from apache_beam.typehints.native_type_compatibility import convert_to_typing_type
+from apache_beam.typehints.native_type_compatibility import convert_to_typing_types
 
 _TestNamedTuple = typing.NamedTuple('_TestNamedTuple',
                                     [('age', int), ('name', bytes)])
@@ -62,8 +66,9 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
          typehints.Tuple[bytes, typehints.List[typehints.Tuple[
              bytes, typehints.Union[int, bytes, float]]]]),
         # TODO(BEAM-7713): This case seems to fail on Py3.5.2 but not 3.5.4.
-        # ('arbitrary-length tuple', typing.Tuple[int, ...],
-        #  typehints.Tuple[int, ...]),
+        ('arbitrary-length tuple', typing.Tuple[int, ...],
+         typehints.Tuple[int, ...])
+        if sys.version_info >= (3, 5, 4) else None,
         ('flat alias', _TestFlatAlias, typehints.Tuple[bytes, float]),
         ('nested alias', _TestNestedAlias,
          typehints.List[typehints.Tuple[bytes, float]]),
@@ -76,16 +81,26 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
          typing.Tuple[typing.TypeVar('K'), typing.TypeVar('V')],
          typehints.Tuple[typehints.TypeVariable('K'),
                          typehints.TypeVariable('V')]),
+        ('iterator', typing.Iterator[typing.Any],
+         typehints.Iterator[typehints.Any]),
     ]
 
     for test_case in test_cases:
+      if test_case is None:
+        continue
       # Unlike typing types, Beam types are guaranteed to compare equal.
       description = test_case[0]
       typing_type = test_case[1]
-      beam_type = test_case[2]
-      self.assertEqual(
-          native_type_compatibility.convert_to_beam_type(typing_type),
-          beam_type, description)
+      expected_beam_type = test_case[2]
+      converted_beam_type = convert_to_beam_type(typing_type)
+      self.assertEqual(converted_beam_type, expected_beam_type, description)
+      converted_typing_type = convert_to_typing_type(converted_beam_type)
+      self.assertEqual(converted_typing_type, typing_type, description)
+
+  def test_generator_converted_to_iterator(self):
+    self.assertEqual(
+        typehints.Iterator[int],
+        convert_to_beam_type(typing.Generator[int, None, None]))
 
   def test_convert_nested_to_beam_type(self):
     self.assertEqual(
@@ -102,9 +117,10 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
     beam_types = [bytes, typehints.List[bytes],
                   typehints.List[typehints.Tuple[bytes, int]],
                   typehints.Union[int, typehints.List[int]]]
-    self.assertEqual(
-        native_type_compatibility.convert_to_beam_types(typing_types),
-        beam_types)
+    converted_beam_types = convert_to_beam_types(typing_types)
+    self.assertEqual(converted_beam_types, beam_types)
+    converted_typing_types = convert_to_typing_types(converted_beam_types)
+    self.assertEqual(converted_typing_types, typing_types)
 
 
 if __name__ == '__main__':

@@ -138,6 +138,8 @@ def _match_is_union(user_type):
   return False
 
 
+# Mapping from typing.TypeVar/typehints.TypeVariable ids to an object of the
+# other type. Bidirectional mapping preserves typing.TypeVar instances.
 _type_var_cache = {}
 
 
@@ -161,10 +163,12 @@ def convert_to_beam_type(typ):
     # A global cache should be OK as the number of distinct type variables
     # is generally small.
     if id(typ) not in _type_var_cache:
-      _type_var_cache[id(typ)] = typehints.TypeVariable(typ.__name__)
+      new_type_variable = typehints.TypeVariable(typ.__name__)
+      _type_var_cache[id(typ)] = new_type_variable
+      _type_var_cache[id(new_type_variable)] = typ
     return _type_var_cache[id(typ)]
   elif getattr(typ, '__module__', None) != 'typing':
-    # Only tranlsate types from the typing module.
+    # Only translate types from the typing module.
     return typ
 
   type_map = [
@@ -198,6 +202,14 @@ def convert_to_beam_type(typ):
           arity=-1,
           beam_type=typehints.Tuple),
       _TypeMapEntry(match=_match_is_union, arity=-1, beam_type=typehints.Union),
+      _TypeMapEntry(
+          match=_match_issubclass(typing.Generator),
+          arity=3,
+          beam_type=typehints.Generator),
+      _TypeMapEntry(
+          match=_match_issubclass(typing.Iterator),
+          arity=1,
+          beam_type=typehints.Iterator),
   ]
 
   # Find the first matching entry.
@@ -239,3 +251,73 @@ def convert_to_beam_types(args):
     return {k: convert_to_beam_type(v) for k, v in args.items()}
   else:
     return [convert_to_beam_type(v) for v in args]
+
+
+def convert_to_typing_type(typ):
+  """Converts a given Beam type to a typing type.
+
+  This is the reverse of convert_to_beam_type.
+
+  Args:
+    typ: If a typehints.TypeConstraint, the type to convert. Otherwise, typ
+      will be unchanged.
+
+  Returns:
+    Converted version of typ, or unchanged.
+
+  Raises:
+    ~exceptions.ValueError: The type was malformed or could not be converted.
+  """
+  if isinstance(typ, typehints.TypeVariable):
+    # This is a special case, as it's not parameterized by types.
+    # Also, identity must be preserved through conversion (i.e. the same
+    # TypeVariable instance must get converted into the same TypeVar instance).
+    # A global cache should be OK as the number of distinct type variables
+    # is generally small.
+    if id(typ) not in _type_var_cache:
+      new_type_variable = typing.TypeVar(typ.name)
+      _type_var_cache[id(typ)] = new_type_variable
+      _type_var_cache[id(new_type_variable)] = typ
+    return _type_var_cache[id(typ)]
+  elif not getattr(typ, '__module__', None).endswith('typehints'):
+    # Only translate types from the typehints module.
+    return typ
+
+  if isinstance(typ, typehints.AnyTypeConstraint):
+    return typing.Any
+  if isinstance(typ, typehints.DictConstraint):
+    return typing.Dict[convert_to_typing_type(typ.key_type),
+                       convert_to_typing_type(typ.value_type)]
+  if isinstance(typ, typehints.ListConstraint):
+    return typing.List[convert_to_typing_type(typ.inner_type)]
+  if isinstance(typ, typehints.IterableTypeConstraint):
+    return typing.Iterable[convert_to_typing_type(typ.inner_type)]
+  if isinstance(typ, typehints.UnionConstraint):
+    return typing.Union[tuple(convert_to_typing_types(typ.union_types))]
+  if isinstance(typ, typehints.SetTypeConstraint):
+    return typing.Set[convert_to_typing_type(typ.inner_type)]
+  if isinstance(typ, typehints.TupleConstraint):
+    return typing.Tuple[tuple(convert_to_typing_types(typ.tuple_types))]
+  if isinstance(typ, typehints.TupleSequenceConstraint):
+    return typing.Tuple[convert_to_typing_type(typ.inner_type), ...]
+  if isinstance(typ, typehints.IteratorTypeConstraint):
+    return typing.Iterator[convert_to_typing_type(typ.yielded_type)]
+
+  raise ValueError('Failed to convert Beam type: %s' % typ)
+
+
+def convert_to_typing_types(args):
+  """Convert the given list or dictionary of args to typing types.
+
+  Args:
+    args: Either an iterable of types, or a dictionary where the values are
+    types.
+
+  Returns:
+    If given an iterable, a list of converted types. If given a dictionary,
+    a dictionary with the same keys, and values which have been converted.
+  """
+  if isinstance(args, dict):
+    return {k: convert_to_typing_type(v) for k, v in args.items()}
+  else:
+    return [convert_to_typing_type(v) for v in args]
