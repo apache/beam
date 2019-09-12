@@ -167,10 +167,12 @@ def get_signature(func):
   latter: 'the "self" parameter is always reported, even for bound methods'
   https://github.com/python/cpython/blob/44f91c388a6f4da9ed3300df32ca290b8aa104ea/Lib/inspect.py#L1103
   """
-  if funcsigs is not None:
-    inspect_ = funcsigs
-  else:
+  # Fall back on funcsigs if inspect module doesn't have 'signature'; prefer
+  # inspect.signature over funcsigs.signature if both are available.
+  if hasattr(inspect, 'signature'):
     inspect_ = inspect
+  else:
+    inspect_ = funcsigs
 
   try:
     signature = inspect_.signature(func)
