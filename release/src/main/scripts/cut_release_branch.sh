@@ -124,6 +124,7 @@ echo "==================Current working branch======================="
 echo ${RELEASE_BRANCH}
 echo "==============================================================="
 
+sed -i -e "s/${DEV}/${RELEASE}/g" gradle.properties
 sed -i -e "s/${DEV}/${RELEASE}/g" sdks/python/apache_beam/version.py
 # TODO: [BEAM-4767]
 sed -i -e "s/'beam-master-.*'/'beam-${RELEASE}'/g" runners/google-cloud-dataflow-java/build.gradle
@@ -140,6 +141,7 @@ if [[ $confirmation != "y" ]]; then
   exit
 fi
 
+git add gradle.properties
 git add sdks/python/apache_beam/version.py
 git add runners/google-cloud-dataflow-java/build.gradle
 git commit -m "Create release branch for version ${RELEASE}."
