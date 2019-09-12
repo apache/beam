@@ -183,7 +183,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
                   config.getClass(), setterName, fieldName),
               e);
         }
-        method.invoke(config, coder.decode(entry.getValue().getPayload().newInput()));
+        method.invoke(
+            config, coder.decode(entry.getValue().getPayload().newInput(), Coder.Context.NESTED));
       }
     }
 
