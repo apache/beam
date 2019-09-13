@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSetOperatorsTransforms;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -67,61 +66,60 @@ public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCo
         beamRelNode.getClass().getSimpleName(),
         inputs);
 
-    if(!areWinCompatible(inputs)){
+    if (!areWinCompatible(inputs)) {
       throw new IllegalArgumentException(
-              "inputs of "
-                      + opType
-                      + " have different window strategy: " );
+          "inputs of " + opType + " have different window strategy: ");
     }
 
-      // co-group
+    // co-group
     List<TupleTag<Row>> tagList = new ArrayList<>();
     tagList.add(new TupleTag());
 
-    KeyedPCollectionTuple kPCollection = KeyedPCollectionTuple.of( tagList.get(0),
-            inputs.get(0).apply(
-                    "CreateIndexNo_"+0,
+    KeyedPCollectionTuple kPCollection =
+        KeyedPCollectionTuple.of(
+            tagList.get(0),
+            inputs
+                .get(0)
+                .apply(
+                    "CreateIndexNo_" + 0,
                     MapElements.via(new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())));
 
-    for(int i=1;i< inputs.size();i++){
+    for (int i = 1; i < inputs.size(); i++) {
       tagList.add(new TupleTag());
-      kPCollection = kPCollection.and(
+      kPCollection =
+          kPCollection.and(
               tagList.get(i),
-              inputs.get(i).apply(
-                      "CreateIndexNo_"+i,
+              inputs
+                  .get(i)
+                  .apply(
+                      "CreateIndexNo_" + i,
                       MapElements.via(new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())));
     }
 
     PCollection<KV<Row, CoGbkResult>> coGbkResultCollection =
-            (PCollection<KV<Row, CoGbkResult>> )kPCollection.apply(CoGroupByKey.create());
+        (PCollection<KV<Row, CoGbkResult>>) kPCollection.apply(CoGroupByKey.create());
 
     return coGbkResultCollection.apply(
-            ParDo.of(
-                    new BeamSetOperatorsTransforms.SetOperatorFilteringDoFn(
-                            tagList, opType, all)));
+        ParDo.of(new BeamSetOperatorsTransforms.SetOperatorFilteringDoFn(tagList, opType, all)));
   }
 
-  private boolean areWinCompatible(PCollectionList<Row> inputs){
+  private boolean areWinCompatible(PCollectionList<Row> inputs) {
 
-    for(int i= 0;  i < inputs.size();i++){
+    for (int i = 0; i < inputs.size(); i++) {
 
-      if(i == inputs.size()-1) {
+      if (i == inputs.size() - 1) {
         WindowFn leftWindow = inputs.get(i).getWindowingStrategy().getWindowFn();
         WindowFn rightWindow = inputs.get(0).getWindowingStrategy().getWindowFn();
 
         if (!leftWindow.isCompatible(rightWindow) || !rightWindow.isCompatible(leftWindow))
           return false;
-      }
-      else
-      {
+      } else {
         WindowFn leftWindow = inputs.get(i).getWindowingStrategy().getWindowFn();
-        WindowFn rightWindow = inputs.get(i+1).getWindowingStrategy().getWindowFn();
+        WindowFn rightWindow = inputs.get(i + 1).getWindowingStrategy().getWindowFn();
 
         if (!leftWindow.isCompatible(rightWindow) || !rightWindow.isCompatible(leftWindow))
           return false;
       }
-
-
     }
 
     return true;

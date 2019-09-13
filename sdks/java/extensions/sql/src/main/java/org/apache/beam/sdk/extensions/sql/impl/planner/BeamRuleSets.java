@@ -59,8 +59,8 @@ import org.apache.calcite.rel.rules.ProjectToCalcRule;
 import org.apache.calcite.rel.rules.PruneEmptyRules;
 import org.apache.calcite.rel.rules.SortProjectTransposeRule;
 import org.apache.calcite.rel.rules.UnionEliminatorRule;
-import org.apache.calcite.rel.rules.UnionToDistinctRule;
 import org.apache.calcite.rel.rules.UnionMergeRule;
+import org.apache.calcite.rel.rules.UnionToDistinctRule;
 import org.apache.calcite.tools.RuleSet;
 import org.apache.calcite.tools.RuleSets;
 
@@ -116,6 +116,8 @@ public class BeamRuleSets {
           UnionEliminatorRule.INSTANCE,
           // convert non-all union into all-union + distinct
           UnionToDistinctRule.INSTANCE,
+          // added for union operands more than 2 
+          UnionMergeRule.INSTANCE,
 
           // remove aggregation if it does not aggregate and input is already distinct
           AggregateRemoveRule.INSTANCE,
@@ -142,7 +144,6 @@ public class BeamRuleSets {
 
   private static final List<RelOptRule> BEAM_CONVERTERS =
       ImmutableList.of(
-          UnionMergeRule.INSTANCE, //Added for three way union
           BeamCalcRule.INSTANCE,
           BeamAggregationRule.INSTANCE,
           BeamBasicAggregationRule.INSTANCE,

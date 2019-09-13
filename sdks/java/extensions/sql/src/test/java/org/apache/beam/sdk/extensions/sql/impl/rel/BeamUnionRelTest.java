@@ -67,24 +67,29 @@ public class BeamUnionRelTest extends BaseRelTest {
   }
 
   @Test
-  public void testThreewayUnion() throws Exception {
+  public void testFivewayUnion() throws Exception {
     String sql =
-            "SELECT "
-                    + " order_id, site_id, price FROM ORDER_DETAILS "
-                    + " UNION SELECT "
-                    + " order_id, site_id, price FROM ORDER_DETAILS "
-                    + " UNION SELECT "
-                    + " order_id, site_id, price FROM ORDER_DETAILS ";
+        "SELECT "
+            + " order_id, site_id, price FROM ORDER_DETAILS "
+            + " UNION SELECT "
+            + " order_id, site_id, price FROM ORDER_DETAILS "
+            + " UNION SELECT "
+            + " order_id, site_id, price FROM ORDER_DETAILS "
+            + " UNION SELECT "
+            + " order_id, site_id, price FROM ORDER_DETAILS "
+            + " UNION SELECT "
+            + " order_id, site_id, price FROM ORDER_DETAILS ";
+
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);
     PAssert.that(rows)
-            .containsInAnyOrder(
-                    TestUtils.RowsBuilder.of(
-                            Schema.FieldType.INT64, "order_id",
-                            Schema.FieldType.INT32, "site_id",
-                            Schema.FieldType.DECIMAL, "price")
-                            .addRows(1L, 1, new BigDecimal(1.0), 2L, 2, new BigDecimal(2.0))
-                            .getRows());
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    Schema.FieldType.INT64, "order_id",
+                    Schema.FieldType.INT32, "site_id",
+                    Schema.FieldType.DECIMAL, "price")
+                .addRows(1L, 1, new BigDecimal(1.0), 2L, 2, new BigDecimal(2.0))
+                .getRows());
     pipeline.run();
   }
 

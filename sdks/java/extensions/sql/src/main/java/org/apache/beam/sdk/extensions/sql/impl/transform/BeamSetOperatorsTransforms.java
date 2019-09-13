@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.sql.impl.transform;
 
 import java.util.Iterator;
 import java.util.List;
-
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSetOperatorRelBase;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -47,9 +46,7 @@ public abstract class BeamSetOperatorsTransforms {
     private boolean all;
 
     public SetOperatorFilteringDoFn(
-        List<TupleTag<Row>> tagList,
-        BeamSetOperatorRelBase.OpType opType,
-        boolean all) {
+        List<TupleTag<Row>> tagList, BeamSetOperatorRelBase.OpType opType, boolean all) {
       this.tagList = tagList;
       this.opType = opType;
       this.all = all;
@@ -59,10 +56,10 @@ public abstract class BeamSetOperatorsTransforms {
     public void processElement(ProcessContext ctx) {
       CoGbkResult coGbkResult = ctx.element().getValue();
 
-        switch (opType) {
+      switch (opType) {
         case UNION:
           if (all) {
-            for(TupleTag<Row> tupleTag:tagList){
+            for (TupleTag<Row> tupleTag : tagList) {
               Iterator<Row> iter = coGbkResult.getAll(tupleTag).iterator();
               while (iter.hasNext()) {
                 ctx.output(iter.next());
@@ -74,8 +71,8 @@ public abstract class BeamSetOperatorsTransforms {
           }
           break;
         case INTERSECT:
-          if ( coGbkResult.getAll(tagList.get(0)).iterator().hasNext()
-                  && coGbkResult.getAll(tagList.get(1)).iterator().hasNext()) {
+          if (coGbkResult.getAll(tagList.get(0)).iterator().hasNext()
+              && coGbkResult.getAll(tagList.get(1)).iterator().hasNext()) {
             if (all) {
               int leftCount = Iterators.size(coGbkResult.getAll(tagList.get(0)).iterator());
               int rightCount = Iterators.size(coGbkResult.getAll(tagList.get(1)).iterator());
@@ -83,8 +80,9 @@ public abstract class BeamSetOperatorsTransforms {
               // Say for Row R, there are m instances on left and n instances on right,
               // INTERSECT ALL outputs MIN(m, n) instances of R.
               Iterator<Row> iter =
-                      (leftCount <= rightCount) ? coGbkResult.getAll(tagList.get(0)).iterator()
-                              : coGbkResult.getAll(tagList.get(1)).iterator();
+                  (leftCount <= rightCount)
+                      ? coGbkResult.getAll(tagList.get(0)).iterator()
+                      : coGbkResult.getAll(tagList.get(1)).iterator();
               while (iter.hasNext()) {
                 ctx.output(iter.next());
               }
@@ -99,7 +97,7 @@ public abstract class BeamSetOperatorsTransforms {
           // - EXCEPT [DISTINCT] outputs a single instance of R if m > 0 and n == 0, else
           //   they output 0 instances.
           if (coGbkResult.getAll(tagList.get(0)).iterator().hasNext()
-                  && !coGbkResult.getAll(tagList.get(1)).iterator().hasNext()) {
+              && !coGbkResult.getAll(tagList.get(1)).iterator().hasNext()) {
             Iterator<Row> iter = coGbkResult.getAll(tagList.get(0)).iterator();
             if (all) {
               // output all
@@ -111,7 +109,7 @@ public abstract class BeamSetOperatorsTransforms {
               ctx.output(iter.next());
             }
           } else if (coGbkResult.getAll(tagList.get(0)).iterator().hasNext()
-                  && coGbkResult.getAll(tagList.get(1)).iterator().hasNext()) {
+              && coGbkResult.getAll(tagList.get(1)).iterator().hasNext()) {
             int leftCount = Iterators.size(coGbkResult.getAll(tagList.get(0)).iterator());
             int rightCount = Iterators.size(coGbkResult.getAll(tagList.get(1)).iterator());
 
