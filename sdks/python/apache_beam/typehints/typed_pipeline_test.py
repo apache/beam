@@ -221,9 +221,46 @@ class SideInputTest(unittest.TestCase):
     result = ['a', 'bb', 'c'] | beam.Map(repeat, 3)
     self.assertEqual(['aaa', 'bbbbbb', 'ccc'], sorted(result))
 
-  # TODO(robertwb): Support partially defined varargs.
-  # with self.assertRaises(typehints.TypeCheckError):
-  #   ['a', 'bb', 'c'] | beam.Map(repeat, 'z')
+    if sys.version_info >= (3,):
+      with self.assertRaisesRegexp(
+          typehints.TypeCheckError,
+          r'requires Tuple\[int, ...\] but got Tuple\[str, ...\]'):
+        ['a', 'bb', 'c'] | beam.Map(repeat, 'z')
+
+  def test_var_positional_only_side_input_hint(self):
+    # Test that a lambda that accepts only a VAR_POSITIONAL can accept
+    # side-inputs.
+    result = (['a', 'b', 'c']
+              | beam.Map(lambda *_: 'a', 5).with_input_types(str, int))
+    self.assertEqual(['a', 'a', 'a'], sorted(result))
+
+    # Type hint order doesn't matter for VAR_POSITIONAL.
+    result = (['a', 'b', 'c']
+              | beam.Map(lambda *_: 'a', 5).with_input_types(int, str))
+    self.assertEqual(['a', 'a', 'a'], sorted(result))
+
+    if sys.version_info >= (3,):
+      with self.assertRaisesRegexp(
+          typehints.TypeCheckError,
+          r'requires Tuple\[Union\[int, str\], ...\] but got '
+          r'Tuple\[Union\[float, int\], ...\]'):
+        _ = [1.2] | beam.Map(lambda *_: 'a', 5).with_input_types(int, str)
+
+  def test_var_keyword_side_input_hint(self):
+    # Test that a lambda that accepts a VAR_KEYWORD can accept
+    # side-inputs.
+    result = (['a', 'b', 'c']
+              | beam.Map(lambda e, **_: 'a', kw=5)
+              .with_input_types(str, ignored=int))
+    self.assertEqual(['a', 'a', 'a'], sorted(result))
+
+    if sys.version_info >= (3,):
+      with self.assertRaisesRegexp(
+          typehints.TypeCheckError,
+          r'requires Dict\[str, str\] but got Dict\[str, int\]'):
+        _ = (['a', 'b', 'c']
+             | beam.Map(lambda e, **_: 'a', kw=5)
+             .with_input_types(str, ignored=str))
 
   def test_deferred_side_inputs(self):
     @typehints.with_input_types(str, int)

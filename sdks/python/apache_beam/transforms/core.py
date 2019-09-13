@@ -618,7 +618,9 @@ def _fn_takes_side_inputs(fn):
     # We can't tell; maybe it does.
     return True
 
-  return len(signature.parameters) > 1
+  return (len(signature.parameters) > 1 or
+          any(p.kind == p.VAR_POSITIONAL or p.kind == p.VAR_KEYWORD
+              for p in signature.parameters.values()))
 
 
 class CallableWrapperDoFn(DoFn):
