@@ -231,13 +231,13 @@ class SideInputTest(unittest.TestCase):
     # Test that a lambda that accepts only a VAR_POSITIONAL can accept
     # side-inputs.
     result = (['a', 'b', 'c']
-              | beam.Map(lambda *_: 'a', 5).with_input_types(str, int))
-    self.assertEqual(['a', 'a', 'a'], sorted(result))
+              | beam.Map(lambda *args: args, 5).with_input_types(str, int))
+    self.assertEqual([('a', 5), ('b', 5), ('c', 5)], sorted(result))
 
     # Type hint order doesn't matter for VAR_POSITIONAL.
     result = (['a', 'b', 'c']
-              | beam.Map(lambda *_: 'a', 5).with_input_types(int, str))
-    self.assertEqual(['a', 'a', 'a'], sorted(result))
+              | beam.Map(lambda *args: args, 5).with_input_types(int, str))
+    self.assertEqual([('a', 5), ('b', 5), ('c', 5)], sorted(result))
 
     if sys.version_info >= (3,):
       with self.assertRaisesRegexp(
@@ -250,9 +250,10 @@ class SideInputTest(unittest.TestCase):
     # Test that a lambda that accepts a VAR_KEYWORD can accept
     # side-inputs.
     result = (['a', 'b', 'c']
-              | beam.Map(lambda e, **_: 'a', kw=5)
+              | beam.Map(lambda e, **kwargs: (e, kwargs), kw=5)
               .with_input_types(str, ignored=int))
-    self.assertEqual(['a', 'a', 'a'], sorted(result))
+    self.assertEqual([('a', {'kw': 5}), ('b', {'kw': 5}), ('c', {'kw': 5})],
+                     sorted(result))
 
     if sys.version_info >= (3,):
       with self.assertRaisesRegexp(
