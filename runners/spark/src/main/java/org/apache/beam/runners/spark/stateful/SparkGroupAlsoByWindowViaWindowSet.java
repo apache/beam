@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.core.GroupAlsoByWindowsAggregators;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow;
 import org.apache.beam.runners.core.LateDataUtils;
@@ -338,6 +339,18 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
               outputHolder.getWindowedValues();
 
           if (!outputs.isEmpty() || !stateInternals.getState().isEmpty()) {
+            Collection<TimerInternals.TimerData> filteredTimers =
+                timerInternals.getTimers().stream()
+                    .filter(
+                        timer ->
+                            timer
+                                .getTimestamp()
+                                .plus(windowingStrategy.getAllowedLateness())
+                                .isBefore(timerInternals.currentInputWatermarkTime()))
+                    .collect(Collectors.toList());
+
+            filteredTimers.forEach(timerInternals::deleteTimer);
+
             // empty outputs are filtered later using DStream filtering
             final StateAndTimers updated =
                 new StateAndTimers(
