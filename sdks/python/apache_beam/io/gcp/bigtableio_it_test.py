@@ -97,8 +97,9 @@ class BigtableIOTest(unittest.TestCase):
   then reading them and comparing the counters
   """
   def setUp(self):
-    print('\nProject ID: {}\nInstance ID: {}\nTable ID: {}'
-          .format(PROJECT_ID, INSTANCE_ID, TABLE_ID))
+    logging.info('\nProject ID:  {}'.format(PROJECT_ID))
+    logging.info('\nInstance ID: {}'.format(INSTANCE_ID))
+    logging.info('\nTable ID:    {}'.format(TABLE_ID))
 
     self.result = None
     client = Client(project=PROJECT_ID, admin=True)
@@ -117,8 +118,8 @@ class BigtableIOTest(unittest.TestCase):
     job = 'bigtableio-it-test-write-{}k-{}'.format(ROW_COUNT_K, TIME_STAMP)
     p_options = PipelineOptions(pipeline_args)
     p_options.view_as(GoogleCloudOptions).job_name = job
-    for key, value in p_options.get_all_options().items():
-      print('{:32s}: {}'.format(key, value))
+    # for key, value in p_options.get_all_options().items():
+    #   print('{:32s}: {}'.format(key, value))
 
     p = beam.Pipeline(options=p_options)
     _ = (p | 'Write Test Rows' >> GenerateTestRows())
@@ -167,6 +168,7 @@ if __name__ == '__main__':
 
   PROJECT_ID = args.project
   INSTANCE_ID = args.instance
+  TABLE_ID = args.table
   ROW_COUNT = args.row_count
   COLUMN_COUNT = args.column_count
   CELL_SIZE = args.cell_size
@@ -174,9 +176,6 @@ if __name__ == '__main__':
   ROW_COUNT_K = ROW_COUNT // 1000
   _current_time = datetime.datetime.fromtimestamp(time.time())
   TIME_STAMP = _current_time.strftime('%Y%m%d-%H%M%S')
-
-  TABLE_ID = args.table
-  JOB_NAME = 'bigtableio-it-test-{}k-{}'.format(ROW_COUNT_K, TIME_STAMP)
 
   logging.getLogger().setLevel(args.log_level)
 
