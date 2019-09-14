@@ -54,18 +54,32 @@ We define a function `is_perennial` which returns `True` if the element's durati
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_function %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Filter`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
-<table>
+{:.notebook-skip}
+<table style="display: inline-block">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
+        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
+        width="20px" height="20px" alt="Run in Colab" />
+      Run code now
+    </a>
+  </td>
+</table>
+
+<table style="display: inline-block">
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+        width="20px" height="20px" alt="View source code" />
+      View source code
     </a>
   </td>
 </table>
@@ -78,18 +92,32 @@ We can also use lambda functions to simplify **Example 1**.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_lambda %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Filter`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
-<table>
+{:.notebook-skip}
+<table style="display: inline-block">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
+        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
+        width="20px" height="20px" alt="Run code now" />
+      Run code now
+    </a>
+  </td>
+</table>
+
+<table style="display: inline-block">
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+        width="20px" height="20px" alt="View source code" />
+      View source code
     </a>
   </td>
 </table>
@@ -105,18 +133,32 @@ In this example, `has_duration` takes `plant` and `duration` as arguments.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_multiple_arguments %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Filter`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
-<table>
+{:.notebook-skip}
+<table style="display: inline-block">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
+        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
+        width="20px" height="20px" alt="Run in Colab" />
+      Run code now
+    </a>
+  </td>
+</table>
+
+<table style="display: inline-block">
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+        width="20px" height="20px" alt="View source code" />
+      View source code
     </a>
   </td>
 </table>
@@ -133,18 +175,32 @@ We then use that value to filter out perennials.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_side_inputs_singleton %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Filter`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
-<table>
+{:.notebook-skip}
+<table style="display: inline-block">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
+        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
+        width="20px" height="20px" alt="Run in Colab" />
+      Run code now
+    </a>
+  </td>
+</table>
+
+<table style="display: inline-block">
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+        width="20px" height="20px" alt="View source code" />
+      View source code
     </a>
   </td>
 </table>
@@ -159,18 +215,32 @@ so it is possible to iterate over large `PCollection`s that won't fit into memor
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_side_inputs_iter %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Filter`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:valid_plants %}```
 
-<table>
+{:.notebook-skip}
+<table style="display: inline-block">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
+        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
+        width="20px" height="20px" alt="Run in Colab" />
+      Run code now
+    </a>
+  </td>
+</table>
+
+<table style="display: inline-block">
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+        width="20px" height="20px" alt="View source code" />
+      View source code
     </a>
   </td>
 </table>
@@ -189,18 +259,32 @@ If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_side_inputs_dict %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Filter`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
-<table>
+{:.notebook-skip}
+<table style="display: inline-block">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
+        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
+        width="20px" height="20px" alt="Run in Colab" />
+      Run code now
+    </a>
+  </td>
+</table>
+
+<table style="display: inline-block">
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+        width="20px" height="20px" alt="View source code" />
+      View source code
     </a>
   </td>
 </table>
