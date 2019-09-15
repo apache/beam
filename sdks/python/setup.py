@@ -24,6 +24,7 @@ import os
 import platform
 import sys
 import warnings
+from distutils import log
 from distutils.version import StrictVersion
 
 # Pylint and isort disagree here.
@@ -170,7 +171,7 @@ def generate_protos_first(original_cmd):
 
     class cmd(original_cmd, object):
       def run(self):
-        gen_protos.generate_proto_files()
+        gen_protos.generate_proto_files(log=log)
         super(cmd, self).run()
     return cmd
   except ImportError:
