@@ -92,6 +92,12 @@ def generate_proto_files(force=False, log=None):
       <= max(os.path.getmtime(path)
              for path in proto_files + [os.path.realpath(__file__)])):
     regenerate = 'output files are out-of-date'
+  elif len(out_files) > len(proto_files):
+    regenerate = 'output files without corresponding .proto files'
+    # too many output files: probably due to switching between git branches.
+    # remove them so they don't trigger constant regeneration.
+    for out_file in out_files:
+      os.remove(out_file)
   else:
     regenerate = None
 
