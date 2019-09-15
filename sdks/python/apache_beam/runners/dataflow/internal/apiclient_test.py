@@ -628,6 +628,13 @@ class UtilTest(unittest.TestCase):
         Exception,
         apiclient._verify_interpreter_version_is_supported, pipeline_options)
 
+  def test_get_response_encoding(self):
+    encoding = apiclient.get_response_encoding()
+    version_to_encoding = {3: 'utf8',
+                           2: None}
+
+    assert encoding == version_to_encoding[sys.version_info[0]]
+
 
 if __name__ == '__main__':
   unittest.main()
