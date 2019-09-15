@@ -119,20 +119,20 @@ def generate_proto_files(force=False):
             'Protoc returned non-zero status (see logs for details): '
             '%s' % ret_code)
 
-    # copy resource files
-    for path in MODEL_RESOURCES:
-      shutil.copy2(os.path.join(py_sdk_root, path), out_dir)
+      # copy resource files
+      for path in MODEL_RESOURCES:
+        shutil.copy2(os.path.join(py_sdk_root, path), out_dir)
 
-    ret_code = subprocess.call(["pip", "install", "future==0.16.0"])
-    if ret_code:
-      raise RuntimeError(
-          'Error installing future during proto generation')
+      ret_code = subprocess.call(["pip", "install", "future==0.16.0"])
+      if ret_code:
+        raise RuntimeError(
+            'Error installing future during proto generation')
 
-    ret_code = subprocess.call(
-        ["futurize", "--both-stages", "--write", "--no-diff", out_dir])
-    if ret_code:
-      raise RuntimeError(
-          'Error applying futurize to generated protobuf python files.')
+      ret_code = subprocess.call(
+          ["futurize", "--both-stages", "--write", "--no-diff", out_dir])
+      if ret_code:
+        raise RuntimeError(
+            'Error applying futurize to generated protobuf python files.')
 
 
 # Though wheels are available for grpcio-tools, setup_requires uses
