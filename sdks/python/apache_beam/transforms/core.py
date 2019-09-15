@@ -2458,6 +2458,14 @@ class Create(PTransform):
             return pcoll | Reshuffle()
           else:
             return pcoll
+      
+      self.pipeline = pbegin.pipeline
+      from apache_beam.io import iobase
+      coder = typecoders.registry.get_coder(self.get_output_type())
+      source = self._create_source_from_iterable(self.values, coder)
+      return (pbegin.pipeline
+              | iobase.Read(source).with_output_types(self.get_output_type()))
+      
       return (
           pbegin
           | Impulse()

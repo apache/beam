@@ -1183,7 +1183,8 @@ class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
 
   def create_pipeline(self):
     from apache_beam.options.pipeline_options import PipelineOptions
-    pipeline_options = PipelineOptions(['--direct_num_workers', '2'])
+    pipeline_options = PipelineOptions(['--direct_num_workers', '2',
+                                        '--experiment', 'beam_fn_api'])
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(),
         options=pipeline_options)
@@ -1200,7 +1201,8 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
 
   def create_pipeline(self):
     from apache_beam.options.pipeline_options import PipelineOptions
-    pipeline_options = PipelineOptions(['--direct_num_workers', '2'])
+    pipeline_options = PipelineOptions(['--direct_num_workers', '2',
+                                        '--experiment', 'beam_fn_api'])
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
             default_environment=beam_runner_api_pb2.Environment(
@@ -1229,7 +1231,8 @@ class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
 
   def create_pipeline(self):
     from apache_beam.options.pipeline_options import PipelineOptions
-    pipeline_options = PipelineOptions(['--direct_num_workers', '2'])
+    pipeline_options = PipelineOptions(['--direct_num_workers', '2',
+                                        '--experiment', 'beam_fn_api'])
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(bundle_repeat=3),
         options=pipeline_options)
@@ -1554,7 +1557,8 @@ class FnApiRunnerSplitTestWithMultiWorkers(FnApiRunnerSplitTest):
 
   def create_pipeline(self):
     from apache_beam.options.pipeline_options import PipelineOptions
-    pipeline_options = PipelineOptions(['--direct_num_workers', '2'])
+    pipeline_options = PipelineOptions(['--direct_num_workers', '2',
+                                        '--experiment', 'beam_fn_api'])
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
             default_environment=beam_runner_api_pb2.Environment(
