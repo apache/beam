@@ -81,11 +81,21 @@ def generate_proto_files(force=False, log=None):
       raise RuntimeError(
           'No proto files found in %s.' % proto_dirs)
 
-  # Regenerate iff the proto files or this file are newer.
-  elif force or not out_files or len(out_files) < len(proto_files) or (
+  if force:
+    regenerate = 'forced'
+  elif not out_files:
+    regenerate = 'no output files'
+  elif len(out_files) < len(proto_files):
+    regenerate = 'not enough output files'
+  elif (
       min(os.path.getmtime(path) for path in out_files)
       <= max(os.path.getmtime(path)
              for path in proto_files + [os.path.realpath(__file__)])):
+    regenerate = 'output files are out-of-date'
+  else:
+    regenerate = None
+
+  if regenerate:
     try:
       from grpc_tools import protoc
     except ImportError:
@@ -107,7 +117,7 @@ def generate_proto_files(force=False, log=None):
         raise ValueError("Proto generation failed (see log for details).")
     else:
 
-      log.info('Regenerating out-of-date Python proto definitions.')
+      log.info('Regenerating Python proto definitions (%s).' % regenerate)
       builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')
       args = (
           [sys.executable] +  # expecting to be called from command line
