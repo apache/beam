@@ -94,7 +94,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
    */
   @Description(
       "GCP availability zone for running GCP operations. "
-              + "and GCE availability zone for launching workers "
+          + "and GCE availability zone for launching workers "
           + "Default is up to the individual service.")
   String getZone();
 
