@@ -151,7 +151,7 @@ import org.joda.time.Duration;
  *
  * PCollection<String> filepatterns = p.apply(...);
  * PCollection<AvroAutoGenClass> records =
- *     filepatterns.apply(AvroIO.read(AvroAutoGenClass.class));
+ *     filepatterns.apply(AvroIO.readAll(AvroAutoGenClass.class));
  * PCollection<AvroAutoGenClass> records =
  *     filepatterns
  *         .apply(FileIO.matchAll())
