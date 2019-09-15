@@ -168,6 +168,28 @@ class TextSourceTest(unittest.TestCase):
     self._run_read_test(file_name, expected_data,
                         buffer_size=TextSource.DEFAULT_READ_BUFFER_SIZE)
 
+  def test_create_file_then_read(self):
+    with open('.txt', 'w') as file:
+      file.write('Hello\n')
+
+    p = beam.Pipeline()
+    output1 = p | "Read1" >> ReadFromText("./.txt")
+
+    with open('test_file.txt', 'w') as file:
+      file.write('Hello\n')
+
+    output2 = p | "Read2" >> ReadFromText("./*.txt")
+
+    output3 = p | "Read3" >> ReadFromText(".txt")
+
+    assert_that(output1, equal_to(["Hello"]), label="t",)
+
+    assert_that(output2, equal_to(["Hello", "Hello"]),  label="t2",)
+
+    assert_that(output3, equal_to(["Hello"]),  label="t3",)
+
+    p.run().wait_until_finish()
+
   def test_read_file_pattern(self):
     pattern, expected_data = write_pattern(
         [TextSourceTest.DEFAULT_NUM_RECORDS * 5,
