@@ -49,12 +49,15 @@ MODEL_RESOURCES = [
 ]
 
 
-def generate_proto_files(force=False):
+def generate_proto_files(force=False, log=None):
 
   try:
     import grpc_tools  # pylint: disable=unused-variable
   except ImportError:
     warnings.warn('Installing grpcio-tools is recommended for development.')
+
+  if log is None:
+    log = logging.getLogger(__name__)
 
   py_sdk_root = os.path.dirname(os.path.abspath(__file__))
   common = os.path.join(py_sdk_root, '..', 'common')
@@ -67,7 +70,7 @@ def generate_proto_files(force=False):
   if out_files and not proto_files and not force:
     # We have out_files but no protos; assume they're up to date.
     # This is actually the common case (e.g. installation from an sdist).
-    logging.info('No proto files; using existing generated files.')
+    log.info('No proto files; using existing generated files.')
     return
 
   elif not out_files and not proto_files:
@@ -103,7 +106,8 @@ def generate_proto_files(force=False):
       if p.exitcode:
         raise ValueError("Proto generation failed (see log for details).")
     else:
-      logging.info('Regenerating out-of-date Python proto definitions.')
+
+      log.info('Regenerating out-of-date Python proto definitions.')
       builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')
       args = (
           [sys.executable] +  # expecting to be called from command line
