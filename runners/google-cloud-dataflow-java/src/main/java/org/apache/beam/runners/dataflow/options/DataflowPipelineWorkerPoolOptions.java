@@ -167,20 +167,6 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   void setSubnetwork(String value);
 
   /**
-   * GCE <a href="https://developers.google.com/compute/docs/zones" >availability zone</a> for
-   * launching workers.
-   *
-   * <p>Default is up to the Dataflow service.
-   */
-  @Description(
-      "GCE availability zone for launching workers. See "
-          + "https://developers.google.com/compute/docs/zones for a list of valid options. "
-          + "Default is up to the Dataflow service.")
-  String getZone();
-
-  void setZone(String value);
-
-  /**
    * Machine type to create Dataflow worker VMs as.
    *
    * <p>See <a href="https://cloud.google.com/compute/docs/machine-types">GCE machine types</a> for
