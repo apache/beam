@@ -95,9 +95,9 @@ To contribute code, you need
    the [dev@ mailing list]({{ site.baseurl }}/community/contact-us)
    to introduce yourself and to be added as a contributor in the Beam issue tracker including your
    ASF Jira Username. For example [this welcome email](
-   https://lists.apache.org/thread.html/e6018c2aaf7dc7895091434295e5b0fafe192b975e3e3761fcf0cda7@%3Cdev.beam.apache.org%3E)
+   https://lists.apache.org/thread.html/e6018c2aaf7dc7895091434295e5b0fafe192b975e3e3761fcf0cda7@%3Cdev.beam.apache.org%3E).
 1. If your change is large or it is your first change, it is a good idea to
-   [discuss it on the dev@ mailing list]({{ site.baseurl }}/community/contact-us/)
+   [discuss it on the dev@ mailing list]({{ site.baseurl }}/community/contact-us/).
 1. For large changes create a design doc
    ([template](https://s.apache.org/beam-design-doc-template),
    [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@ mailing list]({{ site.baseurl }}/community/contact-us).
