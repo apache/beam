@@ -55,18 +55,32 @@ This pipeline splits the input element using whitespaces, creating a list of zer
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_simple %}```
 
+{:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
-<table>
+{:.notebook-skip}
+<table style="display: inline-block">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
+        width="20px" height="20px" alt="Run code now" />
+      Run code now
+    </a>
+  </td>
+</table>
+
+<table style="display: inline-block">
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+        width="20px" height="20px" alt="View source code" />
+      View source code
     </a>
   </td>
 </table>
@@ -79,18 +93,32 @@ We define a function `split_words` which splits an input `str` element using the
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_function %}```
 
+{:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
-<table>
+{:.notebook-skip}
+<table style="display: inline-block">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
+        width="20px" height="20px" alt="Run code now" />
+      Run code now
+    </a>
+  </td>
+</table>
+
+<table style="display: inline-block">
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+        width="20px" height="20px" alt="View source code" />
+      View source code
     </a>
   </td>
 </table>
@@ -105,18 +133,32 @@ We use a lambda function that returns the same input element it received.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_lambda %}```
 
+{:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
-<table>
+{:.notebook-skip}
+<table style="display: inline-block">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
+        width="20px" height="20px" alt="Run code now" />
+      Run code now
+    </a>
+  </td>
+</table>
+
+<table style="display: inline-block">
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+        width="20px" height="20px" alt="View source code" />
+      View source code
     </a>
   </td>
 </table>
@@ -131,18 +173,32 @@ Each yielded result in the generator is an element in the resulting `PCollection
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_generator %}```
 
+{:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
-<table>
+{:.notebook-skip}
+<table style="display: inline-block">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
+        width="20px" height="20px" alt="Run code now" />
+      Run code now
+    </a>
+  </td>
+</table>
+
+<table style="display: inline-block">
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+        width="20px" height="20px" alt="View source code" />
+      View source code
     </a>
   </td>
 </table>
@@ -156,18 +212,32 @@ you can use `FlatMapTuple` to unpack them into different function arguments.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_tuple %}```
 
+{:.notebook-skip}
 Output `PCollection` after `FlatMapTuple`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
-<table>
+{:.notebook-skip}
+<table style="display: inline-block">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
+        width="20px" height="20px" alt="Run code now" />
+      Run code now
+    </a>
+  </td>
+</table>
+
+<table style="display: inline-block">
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+        width="20px" height="20px" alt="View source code" />
+      View source code
     </a>
   </td>
 </table>
@@ -183,18 +253,32 @@ In this example, `split_words` takes `text` and `delimiter` as arguments.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_multiple_arguments %}```
 
+{:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
-<table>
+{:.notebook-skip}
+<table style="display: inline-block">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
+        width="20px" height="20px" alt="Run code now" />
+      Run code now
+    </a>
+  </td>
+</table>
+
+<table style="display: inline-block">
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+        width="20px" height="20px" alt="View source code" />
+      View source code
     </a>
   </td>
 </table>
@@ -211,18 +295,32 @@ We then use that value as the delimiter for the `str.split` method.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_side_inputs_singleton %}```
 
+{:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
-<table>
+{:.notebook-skip}
+<table style="display: inline-block">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
+        width="20px" height="20px" alt="Run code now" />
+      Run code now
+    </a>
+  </td>
+</table>
+
+<table style="display: inline-block">
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+        width="20px" height="20px" alt="View source code" />
+      View source code
     </a>
   </td>
 </table>
@@ -237,18 +335,32 @@ so it is possible to iterate over large `PCollection`s that won't fit into memor
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_side_inputs_iter %}```
 
+{:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:valid_plants %}```
 
-<table>
+{:.notebook-skip}
+<table style="display: inline-block">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
+        width="20px" height="20px" alt="Run code now" />
+      Run code now
+    </a>
+  </td>
+</table>
+
+<table style="display: inline-block">
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+        width="20px" height="20px" alt="View source code" />
+      View source code
     </a>
   </td>
 </table>
@@ -267,18 +379,32 @@ If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_side_inputs_dict %}```
 
+{:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:valid_plants %}```
 
-<table>
+{:.notebook-skip}
+<table style="display: inline-block">
   <td>
     <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
+        width="20px" height="20px" alt="Run code now" />
+      Run code now
+    </a>
+  </td>
+</table>
+
+<table style="display: inline-block">
+  <td>
+    <a class="button" target="_blank"
+        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+        width="20px" height="20px" alt="View source code" />
+      View source code
     </a>
   </td>
 </table>
