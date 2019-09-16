@@ -384,7 +384,11 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
       checkArgument(namespace instanceof WindowNamespace);
       BoundedWindow window = ((WindowNamespace<?>) namespace).getWindow();
       pushbackDoFnRunner.onTimer(
-          timerData.getTimerId(), window, timerData.getTimestamp(), timerData.getDomain());
+          timerData.getTimerId(),
+          window,
+          timerData.getTimestamp(),
+          timerData.getTimestamp(),
+          timerData.getDomain());
     }
     pushbackDoFnRunner.finishBundle();
   }
