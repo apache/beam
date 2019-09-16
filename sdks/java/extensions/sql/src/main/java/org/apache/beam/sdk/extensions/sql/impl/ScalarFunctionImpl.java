@@ -139,7 +139,7 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
 
     private static List<Expression> translate(List<Type> types, List<Expression> expressions) {
       Preconditions.checkArgument(
-          types.size() == expressions.size(), "types.size() != expressions.size()");
+          types.size() >= expressions.size(), "types.size() < expressions.size()");
 
       final List<Expression> translated = new ArrayList<>();
       for (int i = 0; i < expressions.size(); i++) {
