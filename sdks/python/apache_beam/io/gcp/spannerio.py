@@ -294,6 +294,9 @@ class ReadOperation(collections.namedtuple("ReadOperation",
   @classmethod
   def with_table(cls, table, columns, index="", keyset=None):
     keyset = keyset or KeySet(all_=True)
+    if not isinstance(keyset, KeySet):
+      raise ValueError("keyset must be an instance of class "
+                       "google.cloud.spanner_v1.keyset.KeySet")
     return cls(
         read_operation="process_read_batch",
         batch_action="generate_read_batches", transaction_action="read",
@@ -304,13 +307,13 @@ class ReadOperation(collections.namedtuple("ReadOperation",
 
 class ReadFromSpanner(object):
 
-  def __init__(self, project_id, instance_id, database_id, snapshot_options=None):
+  def __init__(self, project_id, instance_id, database_id, pool=None, snapshot_options=None):
     self._project_id = project_id
     self._instance_id = instance_id
     self._database_id = database_id
     self._transaction = None
-    self._timestamp = None
     self._snapshot_options = snapshot_options
+    self._pool = pool
 
   def with_query(self, sql, params=None, param_types=None):
     read_operation = [ReadOperation.with_query(sql, params, param_types)]
@@ -324,24 +327,29 @@ class ReadFromSpanner(object):
 
   def read_all(self, read_operations):
     if self._transaction is None:
-      return _BatchRead(self._project_id, self._instance_id,
-                        self._database_id, read_operations, self._snapshot_options)
+      return _BatchRead(project_id=self._project_id,
+                        instance_id=self._instance_id,
+                        database_id=self._database_id,
+                        read_operations=read_operations,
+                        snapshot_options=self._snapshot_options,
+                        pool=self._pool)
     else:
-      return _NaiveSpannerRead(self._project_id, self._instance_id,
-                              self._database_id, self._transaction, read_operations)
+      return _NaiveSpannerRead(project_id=self._project_id,
+                               instance_id=self._instance_id,
+                               database_id=self._database_id,
+                               transaction=self._transaction,
+                               read_operations=read_operations,
+                               pool=self._pool)
 
   @staticmethod
-  def create_transaction(project_id, instance_id, database_id, snapshot_options={}):
+  def create_transaction(project_id, instance_id, database_id, pool=None, snapshot_options={}):
     spanner_client = Client(project_id)
     instance = spanner_client.instance(instance_id)
-    database = instance.database(database_id)
+    database = instance.database(database_id, pool=pool)
     snapshot = database.batch_snapshot(**snapshot_options)
     return snapshot.to_dict()
 
-
   def with_transaction(self, transaction):
-      # if not isinstance(transaction, SnapshotCheckout):
-      #   raise Exception('Transaction must be of type SnapshotCheckout')
       self._transaction = transaction
       return self
 
@@ -366,16 +374,6 @@ class _NaiveSpannerReadDoFn(beam.DoFn):
     self._snapshot = BatchSnapshot.from_dict(database, self._snapshot_dict)
 
   def process(self, element):
-    # for row in getattr(self._snapshot, element.transaction_action)(**element.kwargs):
-    #   yield row
-
-    # transaction = self._snapshot._get_session().transaction()
-    # transaction.begin()
-    # for row in getattr(transaction, element.transaction_action)(
-    #     **element.kwargs):
-    #   yield row
-    # transaction.commit()
-
     with self._snapshot._get_session().transaction() as transaction:
       for row in getattr(transaction, element.transaction_action)(
           **element.kwargs):
@@ -391,12 +389,9 @@ class _NaiveSpannerRead(PTransform):
   def __init__(self, project_id, instance_id, database_id, transaction, read_operations):
     self._transaction = transaction
     self._read_operations = read_operations
-
     self._project_id = project_id
     self._instance_id = instance_id
     self._database_id = database_id
-    self._sql = ""  #todo: remove this
-
 
   def expand(self, pbegin):
     return (pbegin
@@ -410,21 +405,20 @@ class _NaiveSpannerRead(PTransform):
 
 class _BatchRead(PTransform):
 
-  def __init__(self, project_id, instance_id, database_id, read_operations, snapshot_options=None):
+  def __init__(self, project_id, instance_id, database_id, read_operations,
+               snapshot_options={}, pool=None):
     self._project_id = project_id
     self._instance_id = instance_id
     self._database_id = database_id
     self._read_operations = read_operations
-    self._snapshot_options = snapshot_options or {}
+    self._snapshot_options = snapshot_options
+    self._pool = pool
 
 
   def expand(self, pbegin):
-    if not isinstance(pbegin, pvalue.PBegin):
-      raise Exception("ReadFromSpanner must be a root transform")
-
     spanner_client = Client(self._project_id)
     instance = spanner_client.instance(self._instance_id)
-    database = instance.database(self._database_id)
+    database = instance.database(self._database_id, pool=self._pool)
     snapshot = database.batch_snapshot(**self._snapshot_options)
 
     reads = [
@@ -444,12 +438,13 @@ class _BatchRead(PTransform):
 
 class _ReadFromPartitionFn(beam.DoFn):
 
-  def __init__(self, project_id, instance_id, database_id, snapshot_dict):
+  def __init__(self, project_id, instance_id, database_id, snapshot_dict, pool=None):
     self._project_id = project_id
     self._instance_id = instance_id
     self._database_id = database_id
-    self._snapshot = None
     self._snapshot_dict = snapshot_dict
+    self._pool = pool
+    self._snapshot = None
     self._database = None
 
   def to_runner_api_parameter(self, unused_context):
@@ -458,7 +453,7 @@ class _ReadFromPartitionFn(beam.DoFn):
   def setup(self):
     spanner_client = Client(self._project_id)
     instance = spanner_client.instance(self._instance_id)
-    self._database = instance.database(self._database_id)
+    self._database = instance.database(self._database_id, pool=self._pool)
 
   def process(self, element):
     self._snapshot = BatchSnapshot.from_dict(self._database, self._snapshot_dict)
