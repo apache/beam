@@ -303,6 +303,126 @@ func SubReturns(list []ReturnParam, indices ...int) []ReturnParam {
 	return ret
 }
 
+type Count int
+
+const (
+	CountNone Count = iota
+	Count0Or1
+	CountAny
+)
+
+type SignatureRules struct {
+	paramOrder  []FnParamKind
+	paramCount  map[FnParamKind]Count
+	returnOrder []ReturnKind
+	returnCount map[ReturnKind]Count
+}
+
+func ValidateSignature(u *Fn, rules SignatureRules) error {
+	err := ValidateOrder(u, rules.paramOrder, rules.returnOrder)
+	if err != nil {
+		return err
+	}
+	err = ValidateCount(u, rules.paramCount, rules.returnCount)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ValidateOrder(u *Fn, paramOrder []FnParamKind, returnOrder []ReturnKind) error {
+	err := validateOrderParams(u.Param, paramOrder)
+	if err != nil {
+		return err
+	}
+	err = validateOrderReturns(u.Ret, returnOrder)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateOrderParams(params []FnParam, order []FnParamKind) error {
+	i := 0
+	for _, kind := range order {
+		for i < len(params) && params[i].Kind == kind {
+			i++
+		}
+		if i >= len(params) {
+			return nil
+		}
+	}
+
+	return OutOfOrderError()
+}
+
+func validateOrderReturns(returns []ReturnParam, order []ReturnKind) error {
+	i := 0
+	for _, kind := range order {
+		for i < len(returns) && returns[i].Kind == kind {
+			i++
+		}
+		if i >= len(returns) {
+			return nil
+		}
+	}
+
+	return OutOfOrderError()
+}
+
+func ValidateCount(u *Fn, paramCount map[FnParamKind]Count, returnCount map[ReturnKind]Count) error {
+	err := validateCountParams(u.Param, paramCount)
+	if err != nil {
+		return err
+	}
+	err = validateCountReturns(u.Ret, returnCount)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateCountParams(params []FnParam, count map[FnParamKind]Count) error {
+	paramCounts := make(map[FnParamKind]int)
+	for _, param := range params {
+		paramCounts[param.Kind]++
+	}
+	for kind, num := range paramCounts {
+		switch expected := count[kind]; expected {
+		case CountNone:
+			if num > 0 {
+				return IncorrectCountError()
+			}
+		case Count0Or1:
+			if num > 1 {
+				return IncorrectCountError()
+			}
+		}
+	}
+	return nil
+}
+
+func validateCountReturns(returns []ReturnParam, count map[ReturnKind]Count) error {
+	returnCounts := make(map[ReturnKind]int)
+	for _, ret := range returns {
+		returnCounts[ret.Kind]++
+	}
+	for kind, num := range returnCounts {
+		switch expected := count[kind]; expected {
+		case CountNone:
+			if num > 0 {
+				return IncorrectCountError()
+			}
+		case Count0Or1:
+			if num > 1 {
+				return IncorrectCountError()
+			}
+		}
+	}
+	return nil
+}
+
 // The order of present parameters and return values must be as follows:
 // func(FnContext?, FnWindow?, FnEventTime?, FnType?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetEventTime?, RetError?)
 //     where ? indicates 0 or 1, and * indicates any number.
