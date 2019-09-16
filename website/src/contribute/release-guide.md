@@ -280,7 +280,8 @@ There are 2 ways to cut a release branch: either running automation script(recom
   1. Change and commit version number in release branch:
   
      [version.py](https://github.com/apache/beam/blob/release-2.6.0/sdks/python/apache_beam/version.py#L21), 
-     [build.gradle](https://github.com/apache/beam/blob/release-2.6.0/runners/google-cloud-dataflow-java/build.gradle#L39)
+     [build.gradle](https://github.com/apache/beam/blob/release-2.6.0/runners/google-cloud-dataflow-java/build.gradle#L39), 
+     [gradle.properties](https://github.com/apache/beam/blob/release-2.16.0/gradle.properties#L27)
      
 #### (Alternative) Run all steps manually
 * Checkout working branch
@@ -649,6 +650,7 @@ Verify that files are [present](https://dist.apache.org/repos/dist/dev/beam).
 
 #### Stage SDK images on hub.docker.com
 * Build Python images and push to DockerHub.
+
 ```
 ./gradlew :sdks:python:container:buildAll -Pdocker-tag=${RELEASE}_rc{RC_NUM}
 
@@ -659,16 +661,19 @@ done
 ``` 
 
 * Build Java images and push to DockerHub.
+
 ```
 ./gradlew :sdks:java:container:dockerPush -Pdocker-tag=${RELEASE}_rc{RC_NUM}
 ```
 
 * Build Go images and push to DockerHub.
+
 ```
 ./gradlew :sdks:go:container:dockerPush -Pdocker-tag=${RELEASE}_rc{RC_NUM}
 ```
 
 Clean up images from local
+
 ```
 for ver in "${PYTHON_VER[@]}"; do
    docker rmi -f apachebeam/${ver}_sdk:${RELEASE}_rc{RC_NUM}
