@@ -874,7 +874,12 @@ public class AvroUtils {
         return value;
 
       case STRING:
-        return new Utf8((String) value);
+        final Type type = typeWithNullability.type.getType();
+        if (type.getName().equals("enum")) {
+          return new GenericData.EnumSymbol(avroSchema, (String) value);
+        } else {
+          return new Utf8((String) value);
+        }
 
       case DECIMAL:
         BigDecimal decimal = (BigDecimal) value;
