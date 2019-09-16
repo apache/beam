@@ -469,12 +469,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       Instant oldWatermark = currentWatermark.get();
       Instant newWatermark =
           INSTANT_ORDERING.min(
-              inputWatermark.get(), holds.getMinHold(), inputWatermark.getEarliestTimerTimestamp() ,
-               inputWatermark.getEarliestTimerOutputTimestamp()
-              );
-      // if (holds.getMinHold().equals(new Instant(5)))
-      //   System.out.println("WM hold: " + holds.getMinHold());
-            System.out.println("WM hold: " + holds.getMinHold() + " " + holds.keyedHolds.keySet());
+              inputWatermark.get(), holds.getMinHold(), inputWatermark.getEarliestTimerTimestamp());
       newWatermark = INSTANT_ORDERING.max(oldWatermark, newWatermark);
       currentWatermark.set(newWatermark);
       return updateAndTrace(getName(), oldWatermark, newWatermark);
