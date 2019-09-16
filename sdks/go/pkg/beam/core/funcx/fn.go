@@ -354,7 +354,7 @@ func validateOrderParams(params []FnParam, order []FnParamKind) error {
 		}
 	}
 
-	return OutOfOrderError()
+	return &outOfOrderError{i: i, pKind: params[i].Kind, pOrder: order}
 }
 
 func validateOrderReturns(returns []ReturnParam, order []ReturnKind) error {
@@ -368,7 +368,7 @@ func validateOrderReturns(returns []ReturnParam, order []ReturnKind) error {
 		}
 	}
 
-	return OutOfOrderError()
+	return &outOfOrderError{i: i, rKind: returns[i].Kind, rOrder: order}
 }
 
 func ValidateCount(u *Fn, paramCount map[FnParamKind]Count, returnCount map[ReturnKind]Count) error {
@@ -392,11 +392,11 @@ func validateCountParams(params []FnParam, count map[FnParamKind]Count) error {
 		switch expected := count[kind]; expected {
 		case CountNone:
 			if num > 0 {
-				return IncorrectCountError()
+				return &incorrectCountError{pKind: kind, expected: expected, actual: num}
 			}
 		case Count0Or1:
 			if num > 1 {
-				return IncorrectCountError()
+				return &incorrectCountError{pKind: kind, expected: expected, actual: num}
 			}
 		}
 	}
@@ -412,11 +412,11 @@ func validateCountReturns(returns []ReturnParam, count map[ReturnKind]Count) err
 		switch expected := count[kind]; expected {
 		case CountNone:
 			if num > 0 {
-				return IncorrectCountError()
+				return &incorrectCountError{rKind: kind, expected: expected, actual: num}
 			}
 		case Count0Or1:
 			if num > 1 {
-				return IncorrectCountError()
+				return &incorrectCountError{rKind: kind, expected: expected, actual: num}
 			}
 		}
 	}
@@ -574,4 +574,64 @@ func nextRetState(cur retState, transition ReturnKind) (retState, error) {
 	default:
 		panic(fmt.Sprintf("library error, unknown ReturnKind: %v", transition))
 	}
+}
+
+// outOfOrderError is a helper struct for formatting errors that occur when
+// validating order for parameters or return values. THe struct assumes that
+// either pKind or rKind (but not both) are set to a non-illegal value,
+// and that the corresponding pOrder or rOrder is present. Failing to fulfill
+// those assumptions can lead to undefined behavior.
+type outOfOrderError struct {
+	pKind  FnParamKind   // The out of order param's kind.
+	rKind  ReturnKind    // The out of order return value's kind.
+	i      int           // The out of order value's index.
+	pOrder []FnParamKind // The expected order of param kinds.
+	rOrder []ReturnKind  // The expected order of return value kinds.
+}
+
+func (e *outOfOrderError) Error() string {
+	var sigPart, kindStr, orderStr string
+	if e.pKind != FnIllegal {
+		sigPart = "parameter"
+		kindStr = e.pKind.String()
+		orderStr = fmt.Sprint(e.pOrder)
+	} else {
+		sigPart = "return value"
+		kindStr = e.rKind.String()
+		orderStr = fmt.Sprint(e.rOrder)
+	}
+
+	return fmt.Sprintf(
+		"fn %s of kind %s at index %d is out of order. Expected order for %ss is: %s",
+		sigPart, kindStr, e.i, sigPart, orderStr)
+}
+
+// incorrectCountError is a helper struct for formatting errors that occur
+// when validating counts of parameters or return values. The struct assumes
+// that either pKind or rKind (but not both) are set to a non-illegal value.
+// Filling out both or neither leads to undefined behavior.
+type incorrectCountError struct {
+	pKind    FnParamKind // The incorrect param's kind.
+	rKind    ReturnKind  // The incorrect return value's kind.
+	expected Count       // The incorrect value's expected count.
+	actual   int         // The incorrect value's actual count.
+}
+
+func (e *incorrectCountError) Error() string {
+	var sigPart, kindStr string
+	if e.pKind != FnIllegal {
+		sigPart = "parameter"
+		kindStr = e.pKind.String()
+	} else {
+		sigPart = "return value"
+		kindStr = e.rKind.String()
+	}
+
+	switch e.expected {
+	case CountNone:
+		return fmt.Sprintf("fn may not have any %ss of kind %s", sigPart, kindStr)
+	case Count0Or1:
+		return fmt.Sprintf("fn may not have more than one %s of kind %s, has %v", sigPart, kindStr, e.actual)
+	}
+	return "invalid incorrectCountError"
 }
