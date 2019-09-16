@@ -39,15 +39,15 @@ and for other reasons such as persistence.
 A runner may decide to transfer elements between transforms in a variety of
 ways, such as:
 
-1.  Routing elements to a worker for processing as part of a grouping operation.
+*   Routing elements to a worker for processing as part of a grouping operation.
     This may involve serializing elements and grouping or sorting them by their
     key.
-1.  Redistributing elements between workers to adjust parallelism. This may
+*   Redistributing elements between workers to adjust parallelism. This may
     involve serializing elements and communicating them to other workers.
-1.  Using the elements in a side input to a `ParDo`. This may require
+*   Using the elements in a side input to a `ParDo`. This may require
     serializing the elements and broadcasting them to all the workers executing
     the `ParDo`.
-1.  Passing elements between transforms that are running on the same worker.
+*   Passing elements between transforms that are running on the same worker.
     This may allow the runner to avoid serializing elements; instead, the runner
     can just pass the elements in memory.
 
