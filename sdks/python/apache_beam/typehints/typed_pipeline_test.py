@@ -230,13 +230,18 @@ class SideInputTest(unittest.TestCase):
   def test_var_positional_only_side_input_hint(self):
     # Test that a lambda that accepts only a VAR_POSITIONAL can accept
     # side-inputs.
+    # TODO(BEAM-8247): There's a bug with trivial_inference inferring the output
+    #   type when side-inputs are used (their type hints are not passed). Remove
+    #   with_output_types(...) when this bug is fixed.
     result = (['a', 'b', 'c']
-              | beam.Map(lambda *args: args, 5).with_input_types(str, int))
+              | beam.Map(lambda *args: args, 5).with_input_types(int, str)
+              .with_output_types(typehints.Tuple[str, int]))
     self.assertEqual([('a', 5), ('b', 5), ('c', 5)], sorted(result))
 
     # Type hint order doesn't matter for VAR_POSITIONAL.
     result = (['a', 'b', 'c']
-              | beam.Map(lambda *args: args, 5).with_input_types(int, str))
+              | beam.Map(lambda *args: args, 5).with_input_types(int, str)
+              .with_output_types(typehints.Tuple[str, int]))
     self.assertEqual([('a', 5), ('b', 5), ('c', 5)], sorted(result))
 
     if sys.version_info >= (3,):

@@ -585,7 +585,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   # TODO(sourabhbajaj): Do we want to remove the responsibility of these from
   # the DoFn or maybe the runner
   def infer_output_type(self, input_type):
-    # TODO(robertwb): Side inputs types.
+    # TODO(BEAM-8247): Side inputs types.
     # TODO(robertwb): Assert compatibility with input type hint?
     return self._strip_output_annotations(
         trivial_inference.infer_return_type(self.process, [input_type]))
