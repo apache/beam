@@ -788,6 +788,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             StateNamespaces.window(windowCoder, window),
             GC_TIMER_ID,
             gcTime,
+            gcTime,
             TimeDomain.EVENT_TIME);
       } finally {
         stateBackendLock.unlock();

@@ -603,6 +603,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               StateNamespaces.window(windowCoder, window),
               timerId,
               cleanupTime,
+              cleanupTime,
               TimeDomain.EVENT_TIME);
     }
 
